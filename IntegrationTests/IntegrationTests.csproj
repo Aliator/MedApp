@@ -21,4 +21,8 @@
         <Using Include="NUnit.Framework"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\MedApp.API\MedApp.API.csproj" />
+    </ItemGroup>
+
 </Project>
