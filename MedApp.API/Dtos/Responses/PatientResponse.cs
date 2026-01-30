@@ -1,6 +1,6 @@
 ﻿namespace MedApp.API.Dtos.Responses;
 
-public class GetAllPatientsResponse
+public class PatientResponse
 {
     
 }
