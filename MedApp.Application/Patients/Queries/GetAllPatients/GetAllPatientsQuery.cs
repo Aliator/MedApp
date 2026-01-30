@@ -1,4 +1,4 @@
-﻿using Domain.Patients;
+﻿using MedApp.Domain.Patients;
 using MediatR;
 
 namespace MedApp.Application.Patients.Queries.GetAllPatients;
