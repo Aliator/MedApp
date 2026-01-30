@@ -1,12 +1,6 @@
-﻿using Domain.Patients;
+﻿using MedApp.Domain.Patients;
+using MediatR;
 
 namespace MedApp.Application.Patients.Queries.GetPatientById;
 
-public interface IPatientRepository
-{
-    Task AddAsync(Patient patient, CancellationToken cancellationToken);
-    Task UpdateAsync(Patient patient, CancellationToken cancellationToken);
-    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
-    Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-    Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken);
-}
+public sealed record GetPatientByIdQuery(Guid Id) : IRequest<Patient?>;

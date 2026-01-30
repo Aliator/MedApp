@@ -1,4 +1,4 @@
-﻿using Domain.Patients;
+﻿using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Repositories;
 

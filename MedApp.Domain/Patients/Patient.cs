@@ -1,4 +1,4 @@
-﻿namespace Domain.Patients;
+﻿namespace MedApp.Domain.Patients;
 
 public sealed class Patient
 {
