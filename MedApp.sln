@@ -6,11 +6,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B3810A18-A00
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F1CDF6D8-5625-44B5-A292-41B8BD071BB1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csproj", "{E2472769-B74C-4E36-AB3A-5963C0862C3A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Domain", "MedApp.Domain\MedApp.Domain.csproj", "{E2472769-B74C-4E36-AB3A-5963C0862C3A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application", "Application\Application.csproj", "{AE721002-3409-4C49-8442-F8076F51C1F3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Application", "MedApp.Application\MedApp.Application.csproj", "{AE721002-3409-4C49-8442-F8076F51C1F3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Infrastructure\Infrastructure.csproj", "{483E32DF-C309-4E22-AC42-7B0B68001781}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Infrastructure", "MedApp.Infrastructure\MedApp.Infrastructure.csproj", "{483E32DF-C309-4E22-AC42-7B0B68001781}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{61394B79-209A-4EFC-ABFD-F7B2100F404A}"
 EndProject

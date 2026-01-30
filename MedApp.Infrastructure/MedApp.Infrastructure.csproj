@@ -4,15 +4,11 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RootNamespace>Infrastructure</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Domain\Domain.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="FluentValidation" Version="12.1.1" />
-      <PackageReference Include="MediatR" Version="14.0.0" />
+      <ProjectReference Include="..\MedApp.Domain\MedApp.Domain.csproj" />
     </ItemGroup>
 
 </Project>
