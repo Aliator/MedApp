@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Identity;
 namespace MedApp.Application.Auth.Commands.CreateUser;
 
 public sealed class CreateUserHandler(
-    IdentityUserManagementService userManagementService)
+    IIdentityUserService userManagementService)
     : IRequestHandler<CreateUserCommand, IdentityResult>
 {
     public async Task<IdentityResult> Handle(

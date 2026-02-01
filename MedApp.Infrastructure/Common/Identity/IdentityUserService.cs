@@ -2,8 +2,8 @@
 
 namespace MedApp.Application.Common.Identity;
 
-public sealed class IdentityUserManagementService(
-    UserManager<ApplicationUser> userManager)
+public sealed class IdentityUserService(
+    UserManager<ApplicationUser> userManager) : IIdentityUserService
 {
     public async Task<IdentityResult> CreateUserAsync(
         string username,

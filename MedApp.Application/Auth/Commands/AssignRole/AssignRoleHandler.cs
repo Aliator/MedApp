@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Identity;
 namespace MedApp.Application.Auth.Commands.AssignRole;
 
 public sealed class AssignRoleHandler(
-    IdentityUserRoleService userRoleService)
+    IIdentityRoleService userRoleService)
     : IRequestHandler<AssignRoleCommand, IdentityRole<Guid>?>
 {
     public async Task<IdentityRole<Guid>?> Handle(

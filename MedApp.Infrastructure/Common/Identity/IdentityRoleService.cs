@@ -2,9 +2,9 @@
 
 namespace MedApp.Application.Common.Identity;
 
-public sealed class IdentityUserRoleService(
+public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager)
+    RoleManager<IdentityRole<Guid>> roleManager) : IIdentityRoleService
 {
     public async Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,

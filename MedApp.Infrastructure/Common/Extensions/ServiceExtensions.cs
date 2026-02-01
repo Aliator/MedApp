@@ -65,8 +65,11 @@ public static class ServiceExtensions
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
         services.AddScoped<IIdentityReadService, IdentityReadService>();
-        services.AddScoped<IdentityUserManagementService>();
-        services.AddScoped<IdentityUserRoleService>();
+        services.AddScoped<IIdentityUserService, IdentityUserService>();
+        services.AddScoped<IIdentityRoleService, IdentityRoleService>();
+
+        services.AddScoped<IdentityUserService>();
+        services.AddScoped<IdentityRoleService>();
 
         return services;
     }
