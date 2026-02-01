@@ -16,7 +16,7 @@ public sealed class CreatePatientValidator : AbstractValidator<CreatePatientComm
             .MaximumLength(100);
 
         RuleFor(x => x.DateOfBirth)
-            .LessThanOrEqualTo(DateTime.UtcNow.Date);
+            .Must(d => d <= DateOnly.FromDateTime(DateTime.UtcNow));
 
         RuleFor(x => x.Email)
             .EmailAddress()

@@ -24,7 +24,12 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
             .HasMaxLength(256);
 
         builder.Property(x => x.DateOfBirth)
-            .IsRequired();
+            .IsRequired()
+            .HasConversion(
+                d => d.ToDateTime(TimeOnly.MinValue),
+                d => DateOnly.FromDateTime(d)
+            )
+            .HasColumnType("date");
 
         builder.Property(x => x.CreatedAt)
             .IsRequired();

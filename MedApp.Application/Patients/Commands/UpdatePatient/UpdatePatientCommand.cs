@@ -7,6 +7,6 @@ public sealed record UpdatePatientCommand(
     Guid Id,
     string FirstName,
     string LastName,
-    DateTime DateOfBirth,
+    DateOnly DateOfBirth,
     string? Email
 ) : IRequest<Patient>;

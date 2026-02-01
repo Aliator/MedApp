@@ -5,6 +5,6 @@ namespace MedApp.Application.Patients.Commands.CreatePatient;
 public sealed record CreatePatientCommand(
     string FirstName,
     string LastName,
-    DateTime DateOfBirth,
+    DateOnly DateOfBirth,
     string? Email
 ) : IRequest<Guid>;
