@@ -5,17 +5,19 @@ namespace MedApp.Application.Auth.Commands.CreateRole;
 
 public sealed class CreateRoleHandler(
     RoleManager<IdentityRole<Guid>> roleManager)
-    : IRequestHandler<CreateRoleCommand>
+    : IRequestHandler<CreateRoleCommand, IdentityRole<Guid>?>
 {
-    public async Task Handle(CreateRoleCommand request, CancellationToken ct)
+    public async Task<IdentityRole<Guid>?> Handle(
+        CreateRoleCommand request,
+        CancellationToken ct)
     {
-        if (await roleManager.RoleExistsAsync(request.Name))
-            return;
+        var existingRole = await roleManager.FindByNameAsync(request.Name);
+        if (existingRole is not null)
+            return existingRole;
 
-        var result = await roleManager.CreateAsync(
-            new IdentityRole<Guid>(request.Name));
+        var role = new IdentityRole<Guid>(request.Name);
+        var result = await roleManager.CreateAsync(role);
 
-        if (!result.Succeeded)
-            throw new InvalidOperationException("Failed to create role.");
+        return result.Succeeded ? role : null;
     }
 }

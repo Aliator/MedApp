@@ -1,12 +1,16 @@
 ﻿using MediatR;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Dtos.Responses;
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 
-public sealed class CreatePatientHandler(IPatientRepository repository) : IRequestHandler<CreatePatientCommand, Guid>
+public sealed class CreatePatientHandler(IPatientRepository repository)
+    : IRequestHandler<CreatePatientCommand, PatientResponse>
 {
-    public async Task<Guid> Handle(CreatePatientCommand request, CancellationToken cancellationToken)
+    public async Task<PatientResponse> Handle(
+        CreatePatientCommand request,
+        CancellationToken cancellationToken)
     {
         var patient = new Patient
         {
@@ -21,6 +25,12 @@ public sealed class CreatePatientHandler(IPatientRepository repository) : IReque
 
         await repository.AddAsync(patient, cancellationToken);
 
-        return patient.Id;
+        return new PatientResponse(
+            patient.Id,
+            patient.FirstName,
+            patient.LastName,
+            patient.DateOfBirth,
+            patient.Email
+        );
     }
 }

@@ -1,13 +1,16 @@
 ﻿using MedApp.Application.Common.Identity;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Application.Auth.Commands.CreateUser;
 
 public sealed class CreateUserHandler(
-    IUserManagementService userManagementService)
-    : IRequestHandler<CreateUserCommand, Guid>
+    IdentityUserManagementService userManagementService)
+    : IRequestHandler<CreateUserCommand, IdentityResult>
 {
-    public async Task<Guid> Handle(CreateUserCommand request, CancellationToken ct)
+    public async Task<IdentityResult> Handle(
+        CreateUserCommand request,
+        CancellationToken ct)
     {
         return await userManagementService.CreateUserAsync(
             request.Username,

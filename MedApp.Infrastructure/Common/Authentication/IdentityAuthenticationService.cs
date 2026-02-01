@@ -1,4 +1,5 @@
 ﻿using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 

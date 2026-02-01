@@ -1,15 +1,18 @@
 ﻿using MediatR;
 using MedApp.Application.Common.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Application.Auth.Commands.AssignRole;
 
 public sealed class AssignRoleHandler(
-    IUserRoleService userRoleService)
-    : IRequestHandler<AssignRoleCommand>
+    IdentityUserRoleService userRoleService)
+    : IRequestHandler<AssignRoleCommand, IdentityRole<Guid>?>
 {
-    public async Task Handle(AssignRoleCommand request, CancellationToken ct)
+    public async Task<IdentityRole<Guid>?> Handle(
+        AssignRoleCommand request,
+        CancellationToken ct)
     {
-        await userRoleService.AssignRoleAsync(
+        return await userRoleService.AssignRoleAsync(
             request.Username,
             request.Role,
             ct);

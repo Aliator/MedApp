@@ -1,8 +1,10 @@
-﻿using MedApp.API.Dtos.Requests;
-using MedApp.Application.Auth.Commands.AssignRole;
+﻿using MedApp.Application.Auth.Commands.AssignRole;
 using MedApp.Application.Auth.Commands.CreateRole;
 using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Auth.Commands.Login;
+using MedApp.Application.Auth.Queries.GetAllRoles;
+using MedApp.Application.Auth.Queries.GetAllUsers;
+using MedApp.Domain.Dtos.Requests;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,25 +26,56 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [HttpPost("users")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
-        var id = await mediator.Send(
+        var result = await mediator.Send(
             new CreateUserCommand(request.Username, request.Password));
 
-        return CreatedAtAction(nameof(CreateUser), new { id }, null);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return NoContent();
     }
+
 
     [HttpPost("roles")]
     public async Task<IActionResult> CreateRole(CreateRoleRequest request)
     {
-        await mediator.Send(new CreateRoleCommand(request.Name));
+        var role = await mediator.Send(
+            new CreateRoleCommand(request.Name));
+
+        if (role is null)
+            return BadRequest();
+
         return NoContent();
     }
+
 
     [HttpPost("roles/assign")]
     public async Task<IActionResult> AssignRole(AssignRoleRequest request)
     {
-        await mediator.Send(
+        var role = await mediator.Send(
             new AssignRoleCommand(request.Username, request.Role));
+
+        if (role is null)
+            return BadRequest();
 
         return NoContent();
     }
+    
+    [HttpGet("users")]
+    [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var users = await mediator.Send(new GetAllUsersQuery());
+        return Ok(users);
+    }
+    
+    [HttpGet("roles")]
+    [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllRoles()
+    {
+        var roles = await mediator.Send(new GetAllRolesQuery());
+        return Ok(roles);
+    }
+
+
 }

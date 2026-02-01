@@ -5,6 +5,7 @@ using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Repositories;
+using MedApp.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -59,12 +60,13 @@ public static class ServiceExtensions
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<MedAppDbContext>()
             .AddDefaultTokenProviders();
-        
-        services.AddScoped<IAuthenticationService, IdentityAuthenticationService>();
-        services.AddScoped<IUserManagementService, IdentityUserManagementService>();
-        services.AddScoped<IUserRoleService, IdentityUserRoleService>();
 
+        services.AddScoped<IAuthenticationService, IdentityAuthenticationService>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.AddScoped<IIdentityReadService, IdentityReadService>();
+        services.AddScoped<IdentityUserManagementService>();
+        services.AddScoped<IdentityUserRoleService>();
 
         return services;
     }

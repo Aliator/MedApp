@@ -1,4 +1,5 @@
-﻿using MedApp.Domain.Patients;
+﻿using MedApp.Application.Common.Identity;
+using MedApp.Domain.Patients;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
