@@ -7,6 +7,7 @@ using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Auth.Queries.GetUserRoles;
 using MedApp.Domain.Dtos.Requests;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Controllers;
@@ -25,6 +26,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("users")]
+    [Authorize(Roles = "Test")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var result = await mediator.Send(
@@ -38,6 +40,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
 
 
     [HttpPost("roles")]
+    [Authorize(Roles = "Test")]
     public async Task<IActionResult> CreateRole(CreateRoleRequest request)
     {
         var role = await mediator.Send(
@@ -51,6 +54,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
 
 
     [HttpPost("roles/assign")]
+    [Authorize(Roles = "Test")]
     public async Task<IActionResult> AssignRole(AssignRoleRequest request)
     {
         var role = await mediator.Send(
@@ -63,6 +67,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     }
     
     [HttpGet("users")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllUsers()
     {
@@ -71,6 +76,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     }
     
     [HttpGet("roles")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllRoles()
     {
@@ -79,6 +85,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     }
     
     [HttpGet("users/{username}/roles")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserRoles(string username)
     {
