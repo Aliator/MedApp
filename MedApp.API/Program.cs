@@ -1,10 +1,7 @@
-using FluentValidation;
 using FluentValidation.AspNetCore;
-using MedApp.Application;
 using MedApp.Application.Common.Extensions;
-using MedApp.Application.Patients.Commands.CreatePatient;
-using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Infrastructure;
+using MedApp.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +22,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<ExceptionHandling>();
 
 app.MapControllers();
 
