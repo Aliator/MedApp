@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using FluentValidation.AspNetCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 namespace MedApp.API.Common.Extensions;
 
@@ -13,7 +14,35 @@ public static class ServiceExtensions
         services.AddControllers();
         services.AddFluentValidationAutoValidation();
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+
+        services.AddSwaggerGen(options =>
+        {
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "Bearer",
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "Enter your JWT token without the 'Bearer ' prefix"
+            });
+
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+        });
+
 
         services.AddApiAuthentication(configuration);
 

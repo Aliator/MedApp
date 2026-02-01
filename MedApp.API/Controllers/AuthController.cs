@@ -77,5 +77,13 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         return Ok(roles);
     }
 
-
+    [HttpGet("whoami")]
+    public IActionResult WhoAmI()
+    {
+        return Ok(new
+        {
+            IsAuthenticated = User.Identity?.IsAuthenticated,
+            Name = User.Identity?.Name
+        });
+    }
 }
