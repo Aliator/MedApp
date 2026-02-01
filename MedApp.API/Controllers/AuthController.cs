@@ -4,6 +4,7 @@ using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
+using MedApp.Application.Auth.Queries.GetUserRoles;
 using MedApp.Domain.Dtos.Requests;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -76,6 +77,17 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         var roles = await mediator.Send(new GetAllRolesQuery());
         return Ok(roles);
     }
+    
+    [HttpGet("users/{username}/roles")]
+    [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserRoles(string username)
+    {
+        var roles = await mediator.Send(
+            new GetUserRolesQuery(username));
+
+        return Ok(roles);
+    }
+
 
     [HttpGet("whoami")]
     public IActionResult WhoAmI()

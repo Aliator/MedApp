@@ -1,6 +1,5 @@
 ﻿using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Identity;
 
@@ -9,17 +8,29 @@ public sealed class IdentityReadService(
     RoleManager<IdentityRole<Guid>> roleManager)
     : IIdentityReadService
 {
-    public async Task<IReadOnlyList<string>> GetUsernamesAsync(CancellationToken ct)
+    public Task<IReadOnlyList<string>> GetUsernamesAsync(CancellationToken ct)
     {
-        return await userManager.Users
+        return Task.FromResult<IReadOnlyList<string>>(userManager.Users
             .Select(u => u.UserName!)
-            .ToListAsync(ct);
+            .ToList());
     }
 
-    public async Task<IReadOnlyList<string>> GetRoleNamesAsync(CancellationToken ct)
+    public Task<IReadOnlyList<string>> GetRoleNamesAsync(CancellationToken ct)
     {
-        return await roleManager.Roles
+        return Task.FromResult<IReadOnlyList<string>>(roleManager.Roles
             .Select(r => r.Name!)
-            .ToListAsync(ct);
+            .ToList());
+    }
+
+    public async Task<IReadOnlyList<string>> GetRolesForUserAsync(
+        string username,
+        CancellationToken ct)
+    {
+        var user = await userManager.FindByNameAsync(username);
+        if (user is null)
+            return [];
+
+        var roles = await userManager.GetRolesAsync(user);
+        return roles.ToList();
     }
 }
