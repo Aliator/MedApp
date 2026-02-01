@@ -1,14 +1,22 @@
-﻿using MedApp.Domain.Patients;
+﻿using MedApp.Application.Common.Identity;
+using MedApp.Domain.Patients;
+using MedApp.Infrastructure.Common.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data;
 
-public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options) : DbContext(options)
+public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Patient> Patients => Set<Patient>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(MedAppDbContext).Assembly);
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(MedAppDbContext).Assembly);
     }
 }

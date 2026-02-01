@@ -1,4 +1,4 @@
-﻿using MedApp.Domain.Patients;
+﻿using MedApp.Domain.Dtos.Responses;
 using MediatR;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
@@ -9,4 +9,4 @@ public sealed record UpdatePatientCommand(
     string? LastName,
     DateOnly? DateOfBirth,
     string? Email
-) : IRequest<Patient?>;
+) : IRequest<PatientResponse?>;

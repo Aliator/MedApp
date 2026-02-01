@@ -13,23 +13,32 @@ public sealed class ExceptionHandling(RequestDelegate next)
         }
         catch (ValidationException ex)
         {
-            var errors = ex.Errors
-                .GroupBy(e => e.PropertyName)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Select(e => e.ErrorMessage).ToArray()
-                );
-
-            var problemDetails = new ValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "One or more validation errors occurred."
-            };
-
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            context.Response.ContentType = "application/problem+json";
-
-            await context.Response.WriteAsJsonAsync(problemDetails);
+            await WriteValidationProblem(
+                context,
+                ex.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(e => e.ErrorMessage).ToArray()),
+                "One or more validation errors occurred.");
         }
     }
+
+    private static async Task WriteValidationProblem(
+        HttpContext context,
+        IDictionary<string, string[]> errors,
+        string title)
+    {
+        var problemDetails = new ValidationProblemDetails(errors)
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = title
+        };
+
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        context.Response.ContentType = "application/problem+json";
+
+        await context.Response.WriteAsJsonAsync(problemDetails);
+    }
+
 }

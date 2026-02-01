@@ -1,13 +1,15 @@
 ﻿using MediatR;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Domain.Patients;
+using MedApp.Domain.Dtos.Responses;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 
 public sealed class UpdatePatientHandler(IPatientRepository repository)
-    : IRequestHandler<UpdatePatientCommand, Patient?>
+    : IRequestHandler<UpdatePatientCommand, PatientResponse?>
 {
-    public async Task<Patient?> Handle(UpdatePatientCommand request, CancellationToken cancellationToken)
+    public async Task<PatientResponse?> Handle(
+        UpdatePatientCommand request,
+        CancellationToken cancellationToken)
     {
         var patient = await repository.GetByIdAsync(request.Id, cancellationToken);
 
@@ -30,6 +32,12 @@ public sealed class UpdatePatientHandler(IPatientRepository repository)
 
         await repository.UpdateAsync(patient, cancellationToken);
 
-        return patient;
+        return new PatientResponse(
+            patient.Id,
+            patient.FirstName,
+            patient.LastName,
+            patient.DateOfBirth,
+            patient.Email
+        );
     }
 }

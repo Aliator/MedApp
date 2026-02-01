@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using MedApp.Domain.Dtos.Responses;
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 
@@ -7,4 +8,4 @@ public sealed record CreatePatientCommand(
     string LastName,
     DateOnly DateOfBirth,
     string? Email
-) : IRequest<Guid>;
+) : IRequest<PatientResponse>;

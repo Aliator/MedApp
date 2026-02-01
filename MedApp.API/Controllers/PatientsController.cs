@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MedApp.API.Dtos.Requests;
-using MedApp.API.Dtos.Responses;
 using MedApp.Application.Patients.Commands.CreatePatient;
 using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Queries.GetPatientById;
+using MedApp.Domain.Dtos.Requests;
+using MedApp.Domain.Dtos.Responses;
 using MediatR;
 
 namespace MedApp.API.Controllers;
@@ -14,6 +14,8 @@ namespace MedApp.API.Controllers;
 [Route("api/patients")]
 public sealed class PatientsController(IMediator mediator) : ControllerBase
 {
+    [HttpPost]
+    [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
     [HttpPost]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
@@ -25,19 +27,14 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.Email
         );
 
-        var id = await mediator.Send(command);
+        var patient = await mediator.Send(command);
 
-        var response = new PatientResponse
-        {
-            Id = id,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            DateOfBirth = request.DateOfBirth,
-            Email = request.Email
-        };
-
-        return CreatedAtAction(nameof(GetPatientById), new { id }, response);
+        return CreatedAtAction(
+            nameof(CreatePatient),
+            patient
+        );
     }
+
     
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
