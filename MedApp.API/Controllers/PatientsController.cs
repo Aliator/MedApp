@@ -65,7 +65,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
         return Ok(patients);
     }
     
-    [HttpPut("{id:guid}")]
+    [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdatePatient(
