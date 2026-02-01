@@ -7,5 +7,6 @@ public class PatientResponse
     public string LastName { get; set; }
     public DateOnly DateOfBirth { get; set; }
     public string? Email { get; set; }
-
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastUpdated { get; set; }
 }

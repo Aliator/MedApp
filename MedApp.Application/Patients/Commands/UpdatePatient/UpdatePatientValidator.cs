@@ -1,11 +1,10 @@
 ﻿using FluentValidation;
-using MedApp.Application.Patients.Commands.CreatePatient;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 
-public sealed class CreatePatientValidator : AbstractValidator<CreatePatientCommand>
+public sealed class UpdatePatientValidator : AbstractValidator<UpdatePatientCommand>
 {
-    public CreatePatientValidator()
+    public UpdatePatientValidator()
     {
         RuleFor(x => x.FirstName)
             .NotEmpty()
