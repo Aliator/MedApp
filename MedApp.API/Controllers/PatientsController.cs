@@ -7,6 +7,7 @@ using MedApp.Application.Patients.Queries.GetPatientById;
 using MedApp.Domain.Dtos.Requests;
 using MedApp.Domain.Dtos.Responses;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MedApp.API.Controllers;
 
@@ -16,8 +17,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
-    [HttpPost]
-    [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
     {
         var command = new CreatePatientCommand(
@@ -39,6 +39,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetPatientById(Guid id)
     {
         var query = new GetPatientByIdQuery(id);
@@ -53,6 +54,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<PatientResponse>), StatusCodes.Status200OK)]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllPatients()
     {
         var query = new GetAllPatientsQuery();
@@ -65,6 +67,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdatePatient(
         Guid id,
         [FromBody] UpdatePatientRequest request)
@@ -88,6 +91,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeletePatient(Guid id)
     {
         var command = new DeletePatientCommand(id);
