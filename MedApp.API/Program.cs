@@ -1,9 +1,12 @@
-using MedApp.Application;
+using FluentValidation.AspNetCore;
+using MedApp.Application.Common.Extensions;
 using MedApp.Infrastructure;
+using MedApp.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -19,6 +22,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<ExceptionHandling>();
 
 app.MapControllers();
 

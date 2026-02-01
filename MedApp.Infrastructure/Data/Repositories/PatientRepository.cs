@@ -11,6 +11,20 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         context.Patients.Add(patient);
         await context.SaveChangesAsync(cancellationToken);
     }
+    
+    public async Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await context.Patients
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        return await context.Patients
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
 
     public async Task UpdateAsync(Patient patient, CancellationToken cancellationToken)
     {
@@ -29,19 +43,5 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
 
         context.Patients.Remove(patient);
         await context.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
-    {
-        return await context.Patients
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-    }
-
-    public async Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken)
-    {
-        return await context.Patients
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
     }
 }
