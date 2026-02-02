@@ -15,6 +15,8 @@ public static class ApplicationBuilderExtensions
         app.UseHttpsRedirection();
 
         app.UseMiddleware<ExceptionHandling>();
+        
+        app.UseCors("MedApp.Client");
 
         app.UseAuthentication();
         app.UseAuthorization();

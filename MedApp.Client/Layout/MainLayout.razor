@@ -1,0 +1,18 @@
+﻿@inherits LayoutComponentBase
+
+@if (IsLoginPage)
+{
+    @Body
+}
+else
+{
+    <div class="layout">
+        <aside class="layout-sidebar">
+            <NavMenu />
+        </aside>
+
+        <main class="layout-main">
+            @Body
+        </main>
+    </div>
+}

@@ -4,8 +4,8 @@ using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Queries.GetPatientById;
-using MedApp.Domain.Dtos.Requests;
-using MedApp.Domain.Dtos.Responses;
+using MedApp.Contracts.Patients.Requests;
+using MedApp.Contracts.Patients.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 
@@ -30,10 +30,12 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
         var patient = await mediator.Send(command);
 
         return CreatedAtAction(
-            nameof(CreatePatient),
+            nameof(GetPatientById),
+            new { id = patient.Id },
             patient
         );
     }
+
 
     
     [HttpGet("{id:guid}")]

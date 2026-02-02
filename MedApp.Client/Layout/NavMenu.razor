@@ -1,0 +1,24 @@
+﻿<nav class="nav">
+    <ul class="nav-list">
+        @if (!Auth.IsAuthenticated)
+        {
+            <li>
+                <NavLink href="/login">Login</NavLink>
+            </li>
+        }
+        else
+        {
+            <li>
+                <NavLink href="/">Home</NavLink>
+            </li>
+            <li>
+                <NavLink href="/patients">Patients</NavLink>
+            </li>
+            <li>
+                <button class="nav-button" @onclick="Logout">
+                    Logout
+                </button>
+            </li>
+        }
+    </ul>
+</nav>

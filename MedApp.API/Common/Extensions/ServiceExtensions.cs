@@ -43,6 +43,16 @@ public static class ServiceExtensions
             });
         });
 
+        services.AddCors(options =>
+        {
+            options.AddPolicy("MedApp.Client", policy =>
+            {
+                policy
+                    .WithOrigins("https://localhost:7292")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+        });
 
         services.AddApiAuthentication(configuration);
 

@@ -8,9 +8,11 @@ public sealed class LoginValidator
     public LoginValidator()
     {
         RuleFor(x => x.Username)
-            .NotEmpty();
+            .NotEmpty()
+            .WithMessage("Username must not be empty.");
 
         RuleFor(x => x.Password)
-            .NotEmpty();
+            .NotEmpty()
+            .WithMessage("Password must not be empty.");
     }
 }
