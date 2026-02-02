@@ -1,7 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.UnitTests.Common;
-using NUnit.Framework;
 
 namespace MedApp.UnitTests.Application.Patients.Validators;
 

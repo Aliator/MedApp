@@ -6,7 +6,6 @@ using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
-using NUnit.Framework;
 
 namespace MedApp.UnitTests.Application.Patients.Commands;
 

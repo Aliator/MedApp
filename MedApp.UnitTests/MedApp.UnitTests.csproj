@@ -32,8 +32,4 @@
       <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Application\Patients\Queries\" />
-    </ItemGroup>
-
 </Project>

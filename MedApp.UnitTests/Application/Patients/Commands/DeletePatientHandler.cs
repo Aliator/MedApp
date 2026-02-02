@@ -19,9 +19,13 @@ public sealed class DeletePatientHandlerTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
-        _repository = _fixture.Freeze<Mock<IPatientRepository>>();
+
+        _repository = new Mock<IPatientRepository>();
+        _fixture.Inject<IPatientRepository>(_repository.Object);
+
         _handler = _fixture.Create<DeletePatientHandler>();
     }
+
 
     [Test]
     public async Task Handle_PatientDoesNotExist_ReturnsFalse()

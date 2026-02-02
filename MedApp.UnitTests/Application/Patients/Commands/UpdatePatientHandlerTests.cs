@@ -125,13 +125,11 @@ public sealed class UpdatePatientHandlerTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingPatient);
 
-        var newDob = new DateOnly(1995, 5, 5);
-
         var command = new UpdatePatientCommand(
             existingPatient.Id,
             TestConstants.Patients.ValidFirstName,
             TestConstants.Patients.ValidLastName,
-            newDob,
+            TestConstants.Patients.ValidDateOfBirth,
             TestConstants.Patients.ValidEmail
         );
 
@@ -140,7 +138,7 @@ public sealed class UpdatePatientHandlerTests
         result.Should().NotBeNull();
         result!.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
         result.LastName.Should().Be(TestConstants.Patients.ValidLastName);
-        result.DateOfBirth.Should().Be(newDob);
+        result.DateOfBirth.Should().Be(TestConstants.Patients.ValidDateOfBirth);
         result.Email.Should().Be(TestConstants.Patients.ValidEmail);
 
         _repository.Verify(
@@ -148,7 +146,7 @@ public sealed class UpdatePatientHandlerTests
                 It.Is<Patient>(p =>
                     p.FirstName == TestConstants.Patients.ValidFirstName &&
                     p.LastName == TestConstants.Patients.ValidLastName &&
-                    p.DateOfBirth == newDob &&
+                    p.DateOfBirth == TestConstants.Patients.ValidDateOfBirth &&
                     p.Email == TestConstants.Patients.ValidEmail
                 ),
                 It.IsAny<CancellationToken>()),
