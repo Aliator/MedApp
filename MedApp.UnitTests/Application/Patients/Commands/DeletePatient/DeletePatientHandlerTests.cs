@@ -6,7 +6,7 @@ using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
-namespace MedApp.UnitTests.Application.Patients.Commands;
+namespace MedApp.UnitTests.Application.Patients.Commands.DeletePatient;
 
 [TestFixture]
 public sealed class DeletePatientHandlerTests

@@ -2,7 +2,7 @@
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.UnitTests.Common;
 
-namespace MedApp.UnitTests.Application.Patients.Validators;
+namespace MedApp.UnitTests.Application.Patients.Commands.UpdatePatient;
 
 [TestFixture]
 public sealed class UpdatePatientValidatorTests

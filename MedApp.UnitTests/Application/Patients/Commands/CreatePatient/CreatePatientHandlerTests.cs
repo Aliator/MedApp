@@ -7,7 +7,7 @@ using MedApp.UnitTests.Common;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
-namespace MedApp.UnitTests.Application.Patients.Commands;
+namespace MedApp.UnitTests.Application.Patients.Commands.CreatePatient;
 
 [TestFixture]
 public sealed class CreatePatientHandlerTests

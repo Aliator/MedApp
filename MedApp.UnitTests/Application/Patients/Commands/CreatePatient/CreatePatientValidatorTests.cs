@@ -1,9 +1,8 @@
 ﻿using FluentAssertions;
 using MedApp.Application.Patients.Commands.CreatePatient;
 using MedApp.UnitTests.Common;
-using NUnit.Framework;
 
-namespace MedApp.UnitTests.Application.Patients.Validators;
+namespace MedApp.UnitTests.Application.Patients.Commands.CreatePatient;
 
 [TestFixture]
 public sealed class CreatePatientValidatorTests

@@ -6,7 +6,7 @@ using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
-namespace MedApp.UnitTests.Application.Patients.Queries;
+namespace MedApp.UnitTests.Application.Patients.Queries.GetAllPatients;
 
 [TestFixture]
 public sealed class GetAllPatientsHandlerTests
