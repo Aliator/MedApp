@@ -21,16 +21,17 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
     {
         var command = new CreatePatientCommand(
-            request.FirstName,
-            request.LastName,
-            request.DateOfBirth,
+            request.FirstName!,
+            request.LastName!,
+            request.DateOfBirth!.Value,
             request.Email
         );
 
         var patient = await mediator.Send(command);
 
         return CreatedAtAction(
-            nameof(CreatePatient),
+            nameof(GetPatientById),
+            new { id = patient.Id },
             patient
         );
     }

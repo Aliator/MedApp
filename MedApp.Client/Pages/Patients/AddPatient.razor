@@ -1,0 +1,71 @@
+﻿@page "/patients/add"
+
+<h3>Add Patient</h3>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="error-banner">
+        <strong>@_errorMessage</strong>
+
+        @if (_validationErrors.Any())
+        {
+            <ul>
+                @foreach (var error in _validationErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        }
+    </div>
+}
+
+<div class="form-card">
+    <label>
+        First name
+        <input @bind="_model.FirstName" />
+    </label>
+
+    <label>
+        Last name
+        <input @bind="_model.LastName" />
+    </label>
+
+    <label>
+        Date of birth
+        <input type="date" @bind="_model.DateOfBirth" />
+    </label>
+
+    <label>
+        Email
+        <input @bind="_model.Email" />
+    </label>
+
+    <div class="actions">
+        <button class="primary-button" disabled="@_isSaving" @onclick="ShowSave">
+            Add patient
+        </button>
+
+        <button class="secondary-button" @onclick="Cancel">
+            Cancel
+        </button>
+    </div>
+</div>
+
+@if (_confirmSave)
+{
+    <div class="modal-backdrop">
+        <div class="modal">
+            <p>Add this patient?</p>
+
+            <div class="modal-actions">
+                <button class="primary-button" @onclick="Save">
+                    Add
+                </button>
+
+                <button class="secondary-button" @onclick="HideSave">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}

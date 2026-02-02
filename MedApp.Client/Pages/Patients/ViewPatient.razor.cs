@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace MedApp.Client.Pages.Patients;
 
-public partial class PatientDetails
+public partial class ViewPatient
 {
     [Parameter] public Guid Id { get; set; }
 

@@ -1,30 +1,26 @@
 ﻿using MedApp.Client.Auth;
 using MedApp.Contracts.Patients.Requests;
-using MedApp.Contracts.Patients.Responses;
 using Microsoft.AspNetCore.Components;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MedApp.Contracts.Common;
 
-
 namespace MedApp.Client.Pages.Patients;
 
-public partial class EditPatient
+public partial class AddPatient
 {
-    [Parameter] public Guid Id { get; set; }
-
     [Inject] private HttpClient Http { get; set; } = null!;
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
 
-    private UpdatePatientRequest? _model;
-    private bool _confirmDelete;
+    private CreatePatientRequest _model = new();
     private bool _confirmSave;
-    private string? _errorMessage;
     private bool _isSaving;
+    private string? _errorMessage;
     private List<string> _validationErrors = [];
-    
-    protected override async Task OnInitializedAsync()
+
+    protected override void OnInitialized()
     {
         if (!Auth.IsAuthenticated)
         {
@@ -33,22 +29,6 @@ public partial class EditPatient
         }
 
         Auth.Apply(Http);
-
-        var response = await Http.GetAsync($"api/patients/{Id}");
-        if (!response.IsSuccessStatusCode)
-            return;
-
-        var patient = await response.Content.ReadFromJsonAsync<PatientResponse>();
-        if (patient is null)
-            return;
-
-        _model = new UpdatePatientRequest
-        {
-            FirstName = patient.FirstName,
-            LastName = patient.LastName,
-            DateOfBirth = patient.DateOfBirth,
-            Email = patient.Email
-        };
     }
 
     private void ShowSave()
@@ -63,15 +43,12 @@ public partial class EditPatient
 
     private async Task Save()
     {
-        if (_model is null)
-            return;
-
         _errorMessage = null;
         _validationErrors.Clear();
         _isSaving = true;
 
-        var response = await Http.PatchAsJsonAsync(
-            $"api/patients/{Id}",
+        var response = await Http.PostAsJsonAsync(
+            "api/patients",
             _model);
 
         _isSaving = false;
@@ -82,12 +59,9 @@ public partial class EditPatient
             return;
         }
 
-        if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        if (response.StatusCode == HttpStatusCode.BadRequest)
         {
             var content = await response.Content.ReadAsStringAsync();
-
-            _validationErrors.Clear();
-            _errorMessage = "There were one or more unknown errors.";
 
             try
             {
@@ -101,8 +75,6 @@ public partial class EditPatient
 
                 if (errorResponse?.Errors is not null && errorResponse.Errors.Count > 0)
                 {
-                    _errorMessage = "Please fix the following errors:";
-                    
                     foreach (var entry in errorResponse.Errors)
                     {
                         foreach (var message in entry.Value)
@@ -110,6 +82,10 @@ public partial class EditPatient
                             _validationErrors.Add(message);
                         }
                     }
+
+                    _errorMessage =
+                        errorResponse.Title ??
+                        "Please fix the following errors:";
                 }
                 else
                 {
@@ -124,25 +100,15 @@ public partial class EditPatient
             }
 
             HideSave();
-        }
-    }
-    
-    private void ShowDelete()
-    {
-        _confirmDelete = true;
-    }
-
-    private void HideDelete()
-    {
-        _confirmDelete = false;
-    }
-
-    private async Task Delete()
-    {
-        var response = await Http.DeleteAsync($"api/patients/{Id}");
-        if (!response.IsSuccessStatusCode)
             return;
+        }
 
+        _errorMessage = "An unexpected error occurred while adding the patient.";
+        HideSave();
+    }
+
+    private void Cancel()
+    {
         Nav.NavigateTo("/patients");
     }
 }

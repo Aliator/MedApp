@@ -34,4 +34,9 @@ public partial class PatientsList
     {
         Nav.NavigateTo($"/patients/{id}");
     }
+    private void AddPatient()
+    {
+        Nav.NavigateTo("/patients/add");
+    }
+
 }
