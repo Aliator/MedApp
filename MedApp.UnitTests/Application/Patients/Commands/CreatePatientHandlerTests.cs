@@ -21,7 +21,10 @@ public sealed class CreatePatientHandlerTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
-        _repository = _fixture.Freeze<Mock<IPatientRepository>>();
+
+        _repository = new Mock<IPatientRepository>();
+        _fixture.Inject<IPatientRepository>(_repository.Object);
+
         _handler = _fixture.Create<CreatePatientHandler>();
     }
 
@@ -35,16 +38,14 @@ public sealed class CreatePatientHandlerTests
             TestConstants.Patients.ValidEmail
         );
 
-        var result = await _handler.Handle(
-            command,
-            CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().NotBeNull();
+        result.Id.Should().NotBe(Guid.Empty);
         result.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
         result.LastName.Should().Be(TestConstants.Patients.ValidLastName);
         result.DateOfBirth.Should().Be(TestConstants.Patients.ValidDateOfBirth);
         result.Email.Should().Be(TestConstants.Patients.ValidEmail);
-        result.Id.Should().NotBe(Guid.Empty);
     }
 
     [Test]
@@ -57,18 +58,16 @@ public sealed class CreatePatientHandlerTests
             TestConstants.Patients.ValidEmail
         );
 
-        await _handler.Handle(
-            command,
-            CancellationToken.None);
+        await _handler.Handle(command, CancellationToken.None);
 
         _repository.Verify(
             r => r.AddAsync(
                 It.Is<Patient>(p =>
+                    p.Id != Guid.Empty &&
                     p.FirstName == TestConstants.Patients.ValidFirstName &&
                     p.LastName == TestConstants.Patients.ValidLastName &&
                     p.DateOfBirth == TestConstants.Patients.ValidDateOfBirth &&
                     p.Email == TestConstants.Patients.ValidEmail &&
-                    p.Id != Guid.Empty &&
                     p.CreatedAt <= DateTime.UtcNow &&
                     p.LastUpdated <= DateTime.UtcNow
                 ),
@@ -88,9 +87,7 @@ public sealed class CreatePatientHandlerTests
 
         using var cts = new CancellationTokenSource();
 
-        await _handler.Handle(
-            command,
-            cts.Token);
+        await _handler.Handle(command, cts.Token);
 
         _repository.Verify(
             r => r.AddAsync(

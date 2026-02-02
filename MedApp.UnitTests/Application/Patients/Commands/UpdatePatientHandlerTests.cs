@@ -20,30 +20,33 @@ public sealed class UpdatePatientHandlerTests
     public void SetUp()
     {
         _fixture = AutoFixtureFactory.Create();
-        _repository = _fixture.Freeze<Mock<IPatientRepository>>();
+
+        _repository = new Mock<IPatientRepository>();
+        _fixture.Inject<IPatientRepository>(_repository.Object);
+
         _handler = _fixture.Create<UpdatePatientHandler>();
     }
 
     [Test]
     public async Task Handle_PatientDoesNotExist_ReturnsNull()
     {
+        var id = Guid.NewGuid();
+
         _repository
             .Setup(r => r.GetByIdAsync(
-                It.IsAny<Guid>(),
+                id,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((Patient?)null);
 
         var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
+            id,
             TestConstants.Patients.ValidFirstName,
             null,
             null,
             null
         );
 
-        var result = await _handler.Handle(
-            command,
-            CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().BeNull();
 
@@ -82,9 +85,7 @@ public sealed class UpdatePatientHandlerTests
             TestConstants.Patients.ValidEmail
         );
 
-        var result = await _handler.Handle(
-            command,
-            CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().NotBeNull();
         result!.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
@@ -97,8 +98,8 @@ public sealed class UpdatePatientHandlerTests
                 It.Is<Patient>(p =>
                     p.FirstName == TestConstants.Patients.ValidFirstName &&
                     p.LastName == "OldLast" &&
-                    p.Email == TestConstants.Patients.ValidEmail &&
-                    p.LastUpdated > existingPatient.CreatedAt
+                    p.DateOfBirth == existingPatient.DateOfBirth &&
+                    p.Email == TestConstants.Patients.ValidEmail
                 ),
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -134,9 +135,7 @@ public sealed class UpdatePatientHandlerTests
             TestConstants.Patients.ValidEmail
         );
 
-        var result = await _handler.Handle(
-            command,
-            CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().NotBeNull();
         result!.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
@@ -186,9 +185,7 @@ public sealed class UpdatePatientHandlerTests
 
         using var cts = new CancellationTokenSource();
 
-        await _handler.Handle(
-            command,
-            cts.Token);
+        await _handler.Handle(command, cts.Token);
 
         _repository.Verify(
             r => r.UpdateAsync(

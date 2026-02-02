@@ -20,6 +20,11 @@ public static class AutoFixtureFactory
 
         fixture.Behaviors.Add(new OmitOnRecursionBehavior());
 
+        fixture.Customize<DateOnly>(c =>
+            c.FromFactory(() =>
+                DateOnly.FromDateTime(
+                    DateTime.UtcNow.AddYears(-30))));
+
         return fixture;
     }
 }
