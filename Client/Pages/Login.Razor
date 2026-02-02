@@ -1,0 +1,54 @@
+﻿@page "/login"
+@using MedApp.Client.Auth
+@using MedApp.Contracts.Auth.Requests
+@using MedApp.Contracts.Auth.Responses
+@inject HttpClient Http
+@inject AuthState Auth
+@inject NavigationManager Nav
+
+<h3>Login</h3>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <p style="color:red">@_error</p>
+}
+
+<input placeholder="Username" @bind="_username" />
+<br />
+<input placeholder="Password" type="password" @bind="_password" />
+<br />
+<button @onclick="HandleLogin">Login</button>
+
+@code {
+    private string _username = "";
+    private string _password = "";
+    private string? _error;
+
+    private async Task HandleLogin()
+    {
+        _error = null;
+
+        var response = await Http.PostAsJsonAsync(
+            "api/auth/login",
+            new LoginRequest(_username, _password));
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _error = "Invalid credentials";
+            return;
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+        if (result is null)
+        {
+            _error = "Invalid response";
+            return;
+        }
+
+        Auth.SetToken(result.AccessToken);
+        Auth.Apply(Http);
+
+        Nav.NavigateTo("/");
+    }
+}
