@@ -6,6 +6,7 @@ using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
+using NUnit.Framework;
 
 namespace MedApp.UnitTests.Application.Patients.Commands;
 
@@ -25,7 +26,7 @@ public sealed class CreatePatientHandlerTests
     }
 
     [Test]
-    public async Task Handle_ValidCommand_CreatesPatient()
+    public async Task Handle_ValidCommand_ReturnsPatientResponse()
     {
         var command = new CreatePatientCommand(
             TestConstants.Patients.ValidFirstName,
@@ -38,13 +39,63 @@ public sealed class CreatePatientHandlerTests
             command,
             CancellationToken.None);
 
-        result.Email.Should().Be(
-            TestConstants.Patients.ValidEmail);
+        result.Should().NotBeNull();
+        result.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
+        result.LastName.Should().Be(TestConstants.Patients.ValidLastName);
+        result.DateOfBirth.Should().Be(TestConstants.Patients.ValidDateOfBirth);
+        result.Email.Should().Be(TestConstants.Patients.ValidEmail);
+        result.Id.Should().NotBe(Guid.Empty);
+    }
+
+    [Test]
+    public async Task Handle_ValidCommand_PersistsPatient()
+    {
+        var command = new CreatePatientCommand(
+            TestConstants.Patients.ValidFirstName,
+            TestConstants.Patients.ValidLastName,
+            TestConstants.Patients.ValidDateOfBirth,
+            TestConstants.Patients.ValidEmail
+        );
+
+        await _handler.Handle(
+            command,
+            CancellationToken.None);
+
+        _repository.Verify(
+            r => r.AddAsync(
+                It.Is<Patient>(p =>
+                    p.FirstName == TestConstants.Patients.ValidFirstName &&
+                    p.LastName == TestConstants.Patients.ValidLastName &&
+                    p.DateOfBirth == TestConstants.Patients.ValidDateOfBirth &&
+                    p.Email == TestConstants.Patients.ValidEmail &&
+                    p.Id != Guid.Empty &&
+                    p.CreatedAt <= DateTime.UtcNow &&
+                    p.LastUpdated <= DateTime.UtcNow
+                ),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PassesCancellationToken_ToRepository()
+    {
+        var command = new CreatePatientCommand(
+            TestConstants.Patients.ValidFirstName,
+            TestConstants.Patients.ValidLastName,
+            TestConstants.Patients.ValidDateOfBirth,
+            TestConstants.Patients.ValidEmail
+        );
+
+        using var cts = new CancellationTokenSource();
+
+        await _handler.Handle(
+            command,
+            cts.Token);
 
         _repository.Verify(
             r => r.AddAsync(
                 It.IsAny<Patient>(),
-                It.IsAny<CancellationToken>()),
+                cts.Token),
             Times.Once);
     }
 }

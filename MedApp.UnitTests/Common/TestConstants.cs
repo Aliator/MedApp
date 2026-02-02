@@ -7,8 +7,8 @@ public static class TestConstants
         public const string ValidFirstName = "John";
         public const string ValidLastName = "Smith";
         public const string ValidEmail = "john.smith@test.com";
-        public static readonly DateOnly ValidDateOfBirth =
-            new(1990, 1, 1);
+        public static readonly DateOnly ValidDateOfBirth = new(1990, 1, 1);
+        public const int MaxNameLength = 100;
     }
 
     public static class Auth
