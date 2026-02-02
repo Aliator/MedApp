@@ -20,6 +20,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "E2ETests", "E2ETests\E2ETes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Contracts", "MedApp.Contracts\MedApp.Contracts.csproj", "{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,6 +60,10 @@ Global
 		{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{FDA9B3A7-D94F-4F9E-ABA2-85F81D1A9BEB} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}

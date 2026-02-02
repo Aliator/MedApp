@@ -6,6 +6,7 @@ using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Auth.Queries.GetUserRoles;
 using MedApp.Contracts.Auth.Requests;
+using MedApp.Contracts.Auth.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +18,13 @@ namespace MedApp.API.Controllers;
 public sealed class AuthController(IMediator mediator) : ControllerBase
 {
     [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var token = await mediator.Send(
             new LoginCommand(request.Username, request.Password));
 
-        return Ok(new { accessToken = token });
+        return Ok(new LoginResponse(token));
     }
 
     [HttpPost("users")]
