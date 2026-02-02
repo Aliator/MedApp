@@ -21,9 +21,9 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
     {
         var command = new CreatePatientCommand(
-            request.FirstName!,
-            request.LastName!,
-            request.DateOfBirth!.Value,
+            request.FirstName,
+            request.LastName,
+            request.DateOfBirth,
             request.Email
         );
 
@@ -35,6 +35,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             patient
         );
     }
+
 
     
     [HttpGet("{id:guid}")]
