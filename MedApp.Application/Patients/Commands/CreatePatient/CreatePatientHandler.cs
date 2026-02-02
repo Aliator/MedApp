@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Dtos.Responses;
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 

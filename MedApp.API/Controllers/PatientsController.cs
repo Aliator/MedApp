@@ -4,8 +4,8 @@ using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Queries.GetPatientById;
-using MedApp.Domain.Dtos.Requests;
-using MedApp.Domain.Dtos.Responses;
+using MedApp.Contracts.Patients.Requests;
+using MedApp.Contracts.Patients.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 

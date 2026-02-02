@@ -5,7 +5,7 @@ using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Auth.Queries.GetUserRoles;
-using MedApp.Domain.Dtos.Requests;
+using MedApp.Contracts.Auth.Requests;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

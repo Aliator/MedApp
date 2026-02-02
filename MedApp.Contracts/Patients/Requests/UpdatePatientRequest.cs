@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Dtos.Requests;
+﻿namespace MedApp.Contracts.Patients.Requests;
 
 public sealed record UpdatePatientRequest(
     string? FirstName,

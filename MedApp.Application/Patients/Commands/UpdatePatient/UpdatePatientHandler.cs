@@ -1,6 +1,6 @@
 ﻿using MediatR;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Domain.Dtos.Responses;
+using MedApp.Contracts.Patients.Responses;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 

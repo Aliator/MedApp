@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Dtos.Responses;
+﻿namespace MedApp.Contracts.Patients.Responses;
 
 public sealed record PatientResponse(
     Guid Id,

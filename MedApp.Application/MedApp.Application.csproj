@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
       <ProjectReference Include="..\MedApp.Domain\MedApp.Domain.csproj" />
     </ItemGroup>
 

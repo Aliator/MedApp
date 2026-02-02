@@ -1,5 +1,5 @@
-﻿using MediatR;
-using MedApp.Domain.Dtos.Responses;
+﻿using MedApp.Contracts.Patients.Responses;
+using MediatR;
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 
