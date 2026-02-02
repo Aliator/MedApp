@@ -8,9 +8,11 @@ public sealed class AssignRoleValidator
     public AssignRoleValidator()
     {
         RuleFor(x => x.Username)
-            .NotEmpty();
+            .NotEmpty()
+            .WithMessage("Username must not be empty.");
 
         RuleFor(x => x.Role)
-            .NotEmpty();
+            .NotEmpty()
+            .WithMessage("Role must not be empty.");
     }
 }

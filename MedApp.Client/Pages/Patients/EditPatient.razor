@@ -1,0 +1,98 @@
+﻿@page "/patients/{Id:guid}/edit"
+
+<h3>Edit Patient</h3>
+
+@if (_model is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="error-banner">
+            <strong>@_errorMessage</strong>
+
+            @if (_validationErrors.Any())
+            {
+                <ul>
+                    @foreach (var error in _validationErrors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
+
+    <div class="form-card">
+        <label>
+            First name
+            <input @bind="_model.FirstName" />
+        </label>
+
+        <label>
+            Last name
+            <input @bind="_model.LastName" />
+        </label>
+
+        <label>
+            Date of birth
+            <input type="date" @bind="_model.DateOfBirth" />
+        </label>
+
+        <label>
+            Email
+            <input @bind="_model.Email" />
+        </label>
+
+        <div class="actions">
+            <button class="primary-button" disabled="@_isSaving" @onclick="ShowSave">
+                Save changes
+            </button>
+
+            <button class="danger-button" @onclick="ShowDelete">
+                Delete patient
+            </button>
+        </div>
+    </div>
+}
+
+@if (_confirmSave)
+{
+    <div class="modal-backdrop">
+        <div class="modal">
+            <p>Save changes to this patient?</p>
+
+            <div class="modal-actions">
+                <button class="primary-button" @onclick="Save">
+                    Save
+                </button>
+
+                <button class="secondary-button" @onclick="HideSave">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_confirmDelete)
+{
+    <div class="modal-backdrop">
+        <div class="modal">
+            <p>Are you sure you want to delete this patient?</p>
+
+            <div class="modal-actions">
+                <button class="danger-button" @onclick="Delete">
+                    Delete
+                </button>
+
+                <button class="secondary-button" @onclick="HideDelete">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}

@@ -9,6 +9,8 @@ public sealed class CreateRoleValidator
     {
         RuleFor(x => x.Name)
             .NotEmpty()
-            .MaximumLength(50);
+            .WithMessage("Role name must not be empty.")
+            .MaximumLength(50)
+            .WithMessage("Role name must not exceed 50 characters.");
     }
 }

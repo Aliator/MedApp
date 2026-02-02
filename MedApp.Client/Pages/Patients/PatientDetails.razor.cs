@@ -36,4 +36,10 @@ public partial class PatientDetails
     {
         Nav.NavigateTo("/patients");
     }
+    
+    private void Edit()
+    {
+        Nav.NavigateTo($"/patients/{Id}/edit");
+    }
+
 }
