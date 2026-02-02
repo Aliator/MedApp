@@ -6,18 +6,31 @@
 @inject AuthState Auth
 @inject NavigationManager Nav
 
-<h3>Login</h3>
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Sign in</h2>
 
-@if (!string.IsNullOrEmpty(_error))
-{
-    <p style="color:red">@_error</p>
-}
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="auth-error">@_error</div>
+        }
 
-<input placeholder="Username" @bind="_username" />
-<br />
-<input placeholder="Password" type="password" @bind="_password" />
-<br />
-<button @onclick="HandleLogin">Login</button>
+        <input
+            class="auth-input"
+            placeholder="Username"
+            @bind="_username" />
+
+        <input
+            class="auth-input"
+            type="password"
+            placeholder="Password"
+            @bind="_password" />
+
+        <button class="auth-button" @onclick="HandleLogin">
+            Login
+        </button>
+    </div>
+</div>
 
 @code {
     private string _username = "";
@@ -49,6 +62,6 @@
         Auth.SetToken(result.AccessToken);
         Auth.Apply(Http);
 
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("/patients");
     }
 }

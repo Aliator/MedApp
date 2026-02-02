@@ -1,0 +1,22 @@
+﻿@page "/"
+@using MedApp.Client.Auth
+@inject AuthState Auth
+@inject NavigationManager Nav
+
+@if (!Auth.IsAuthenticated)
+{
+    <p>Redirecting…</p>
+}
+else
+{
+    <h3>Welcome</h3>
+    <p>You are logged in.</p>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!Auth.IsAuthenticated)
+            Nav.NavigateTo("/login", true);
+    }
+}
