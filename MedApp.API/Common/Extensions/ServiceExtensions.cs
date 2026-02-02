@@ -45,7 +45,7 @@ public static class ServiceExtensions
 
         services.AddCors(options =>
         {
-            options.AddPolicy("Client", policy =>
+            options.AddPolicy("MedApp.Client", policy =>
             {
                 policy
                     .WithOrigins("https://localhost:7292")

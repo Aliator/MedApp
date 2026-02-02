@@ -1,0 +1,32 @@
+.nav {
+    display: block;
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-list li {
+    margin-bottom: 0.75rem;
+}
+
+.nav-list a {
+    color: #e5e7eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.nav-list a.active {
+    color: #ffffff;
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #e5e7eb;
+    font: inherit;
+    cursor: pointer;
+}

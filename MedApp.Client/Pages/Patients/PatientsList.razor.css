@@ -1,0 +1,30 @@
+﻿table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th,
+td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+}
+
+thead {
+    background: #f3f4f6;
+}
+
+tbody tr:not(:last-child) td {
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.table-button {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    border: none;
+    background: #4f46e5;
+    color: white;
+    cursor: pointer;
+}

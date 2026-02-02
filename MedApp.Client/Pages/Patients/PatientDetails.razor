@@ -1,0 +1,24 @@
+﻿@page "/patients/{Id:guid}"
+
+<h3>Patient Details</h3>
+
+@if (!Auth.IsAuthenticated)
+{
+    <p>Redirecting…</p>
+}
+else if (_patient is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <div class="details-card">
+        <div><strong>Name:</strong> @_patient.FirstName @_patient.LastName</div>
+        <div><strong>Date of Birth:</strong> @_patient.DateOfBirth</div>
+        <div><strong>Email:</strong> @_patient.Email</div>
+    </div>
+
+    <button class="secondary-button" @onclick="GoBack">
+        Back to patients
+    </button>
+}

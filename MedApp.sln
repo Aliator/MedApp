@@ -20,7 +20,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "E2ETests", "E2ETests\E2ETes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Contracts", "MedApp.Contracts\MedApp.Contracts.csproj", "{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Client", "MedApp.Client\MedApp.Client.csproj", "{C120E6FE-5077-46D9-B3BC-31A30CAA9AB7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

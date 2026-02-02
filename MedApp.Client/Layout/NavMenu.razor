@@ -1,8 +1,4 @@
-﻿@using MedApp.Client.Auth
-@inject AuthState Auth
-@inject NavigationManager Nav
-
-<nav>
+﻿<nav class="nav">
     <ul class="nav-list">
         @if (!Auth.IsAuthenticated)
         {
@@ -19,14 +15,10 @@
                 <NavLink href="/patients">Patients</NavLink>
             </li>
             <li>
-                <button class="nav-button" @onclick="Logout">Logout</button>
+                <button class="nav-button" @onclick="Logout">
+                    Logout
+                </button>
             </li>
         }
     </ul>
 </nav>
-
-@code {
-    private void Logout() {
-        Auth.Clear(); Nav.NavigateTo("/login", true);
-    }
-}

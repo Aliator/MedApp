@@ -16,4 +16,13 @@
       <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
     </ItemGroup>
 
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>MedApp.Client</RootNamespace>
+        <AssemblyName>MedApp.Client</AssemblyName>
+        <EnableRazorCompileOnBuild>true</EnableRazorCompileOnBuild>
+    </PropertyGroup>
+
 </Project>
