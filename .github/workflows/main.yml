@@ -1,39 +1,35 @@
 name: PR Unit Tests & Coverage
-
 on:
   pull_request:
     branches:
       - main
-
 permissions:
   contents: read
   pull-requests: write
-
 jobs:
   unit-tests:
     name: Unit Tests & Coverage
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+      
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-
+      
       - name: Restore dependencies
         run: dotnet restore
-
+      
       - name: Run unit tests with coverage
         run: |
           dotnet test tests/MedApp.UnitTests \
             --configuration Release \
             /p:CollectCoverage=true \
-            /p:CoverletOutput=./coverage/ \
-            /p:CoverletOutputFormat=opencover
-
+            /p:CoverletOutputFormat=opencover \
+            /p:CoverletOutput=../../coverage/coverage.opencover.xml
+      
       - name: Generate coverage summary
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
@@ -42,7 +38,7 @@ jobs:
           output: both
           badge: false
           fail_below_min: false
-
+      
       - name: Post coverage comment to PR
         uses: marocchino/sticky-pull-request-comment@v2
         with:
