@@ -2,7 +2,6 @@
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Common.Behaviors;
-using MediatR;
 using Moq;
 
 namespace MedApp.UnitTests.Application.Common.Behaviors;
@@ -15,64 +14,88 @@ public sealed class ValidationBehaviourTests
     [Test]
     public async Task Handle_NoValidators_CallsNext()
     {
-        var behaviour = new ValidationBehaviour<object, string>(
-            []);
+        var behaviour = new ValidationBehaviour<object, string>(Array.Empty<IValidator<object>>());
 
-        Task<string> Next(CancellationToken ct) => Task.FromResult("ok");
+        var nextCalled = false;
 
-        var result = await behaviour.Handle(
-            Request,
-            Next,
-            CancellationToken.None);
+        var result = await behaviour.Handle(Request, Next, CancellationToken.None);
 
         result.Should().Be("ok");
+        nextCalled.Should().BeTrue();
+        return;
+
+        Task<string> Next(CancellationToken ct)
+        {
+            nextCalled = true;
+            return Task.FromResult("ok");
+        }
     }
 
     [Test]
     public async Task Handle_ValidatorsPass_CallsNext()
     {
-        var validator = new Mock<IValidator<object>>();
-        validator
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<object>>()))
-            .Returns(new ValidationResult());
+        var validator = CreateValidatorReturning(new ValidationResult());
+        var behaviour = new ValidationBehaviour<object, string>([validator.Object]);
 
-        var behaviour = new ValidationBehaviour<object, string>(
-            [validator.Object]);
+        var nextCalled = false;
 
-        Task<string> Next(CancellationToken ct) => Task.FromResult("ok");
-
-        var result = await behaviour.Handle(
-            Request,
-            Next,
-            CancellationToken.None);
+        var result = await behaviour.Handle(Request, Next, CancellationToken.None);
 
         result.Should().Be("ok");
+        nextCalled.Should().BeTrue();
+
+        validator.As<IValidator>().Verify(
+            v => v.ValidateAsync(It.IsAny<IValidationContext>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        return;
+
+        Task<string> Next(CancellationToken ct)
+        {
+            nextCalled = true;
+            return Task.FromResult("ok");
+        }
     }
 
     [Test]
-    public async Task Handle_ValidationFails_ThrowsValidationException()
+    public async Task Handle_ValidationFails_ThrowsValidationException_AndDoesNotCallNext()
     {
-        var failure = new ValidationFailure("Property", "error");
+        var validationResult = new ValidationResult([new ValidationFailure("Property", "error")]);
+        var validator = CreateValidatorReturning(validationResult);
+        var behaviour = new ValidationBehaviour<object, string>([validator.Object]);
 
+        var nextCalled = false;
+
+        var act = async () => await behaviour.Handle(Request, Next, CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(f => f.PropertyName == "Property" && f.ErrorMessage == "error");
+
+        nextCalled.Should().BeFalse();
+
+        validator.As<IValidator>().Verify(
+            v => v.ValidateAsync(It.IsAny<IValidationContext>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        return;
+
+        Task<string> Next(CancellationToken ct)
+        {
+            nextCalled = true;
+            return Task.FromResult("ok");
+        }
+    }
+
+    private static Mock<IValidator<object>> CreateValidatorReturning(ValidationResult result)
+    {
         var validator = new Mock<IValidator<object>>();
+
         validator
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<object>>()))
-            .Returns(new ValidationResult(new[] { failure }));
+            .Setup(v => v.ValidateAsync(It.IsAny<ValidationContext<object>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
 
-        var behaviour = new ValidationBehaviour<object, string>(
-            [validator.Object]);
+        validator.As<IValidator>()
+            .Setup(v => v.ValidateAsync(It.IsAny<IValidationContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
 
-        Task<string> Next(CancellationToken ct) => Task.FromResult("ok");
-
-        var act = async () =>
-            await behaviour.Handle(
-                Request,
-                Next,
-                CancellationToken.None);
-
-        var exception = await act.Should()
-            .ThrowAsync<ValidationException>();
-
-        exception.Which.Errors.Should().ContainSingle();
+        return validator;
     }
 }

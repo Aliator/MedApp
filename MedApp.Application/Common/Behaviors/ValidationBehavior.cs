@@ -1,10 +1,13 @@
 ﻿using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 
 namespace MedApp.Application.Common.Behaviors;
 
-public sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
-    : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+public sealed class ValidationBehaviour<TRequest, TResponse>(
+    IEnumerable<IValidator<TRequest>> validators)
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
 {
     public async Task<TResponse> Handle(
         TRequest request,
@@ -16,10 +19,13 @@ public sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValida
 
         var context = new ValidationContext<TRequest>(request);
 
-        var failures = validators
-            .Select(v => v.Validate(context))
+        var results = await Task.WhenAll(
+            validators.Select(async v =>
+                await v.ValidateAsync(context, cancellationToken) ?? new ValidationResult()));
+
+        var failures = results
             .SelectMany(r => r.Errors)
-            .Where(f => f != null)
+            .Where(f => f is not null)
             .ToList();
 
         if (failures.Count != 0)
@@ -27,5 +33,4 @@ public sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValida
 
         return await next(cancellationToken);
     }
-
 }
