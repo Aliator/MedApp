@@ -33,8 +33,4 @@
       <ProjectReference Include="..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Content Include=".github\workflows\pr-unit-tests.yml" />
-    </ItemGroup>
-
 </Project>
