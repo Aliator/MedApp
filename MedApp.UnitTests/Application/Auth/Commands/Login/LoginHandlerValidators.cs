@@ -18,7 +18,7 @@ public sealed class LoginValidatorTests
     public void Validate_ValidCommand_Passes()
     {
         var command = new LoginCommand(
-            "user",
+            "username",
             "password");
 
         var result = _validator.Validate(command);
@@ -43,7 +43,7 @@ public sealed class LoginValidatorTests
     public void Validate_EmptyPassword_Fails()
     {
         var command = new LoginCommand(
-            "user",
+            "username",
             string.Empty);
 
         var result = _validator.Validate(command);

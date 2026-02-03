@@ -28,7 +28,7 @@ public sealed class GetUserRolesHandlerTests
     [Test]
     public async Task Handle_ReturnsRolesForUser()
     {
-        var username = "user";
+        var username = "username";
         var roles = new[] { "Admin", "User" };
 
         _identityReadService
@@ -49,7 +49,7 @@ public sealed class GetUserRolesHandlerTests
     [Test]
     public async Task Handle_PassesUsername_AndCancellationToken()
     {
-        var username = "user";
+        var username = "username";
         using var cts = new CancellationTokenSource();
 
         _identityReadService

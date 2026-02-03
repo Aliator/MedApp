@@ -34,22 +34,22 @@ public sealed class GetAllPatientsHandlerTests
             new Patient
             {
                 Id = Guid.NewGuid(),
-                FirstName = "John",
-                LastName = "Smith",
-                DateOfBirth = new DateOnly(1990, 1, 1),
-                Email = "john@test.com",
-                CreatedAt = DateTime.UtcNow.AddDays(-10),
-                LastUpdated = DateTime.UtcNow.AddDays(-5)
+                FirstName = "FirstName",
+                LastName = "LastName",
+                DateOfBirth = new DateOnly(1111, 1, 1),
+                Email = "test@test.com",
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                LastUpdated = DateTime.UtcNow.AddDays(-1)
             },
             new Patient
             {
                 Id = Guid.NewGuid(),
-                FirstName = "Jane",
-                LastName = "Doe",
-                DateOfBirth = new DateOnly(1985, 6, 6),
-                Email = "jane@test.com",
-                CreatedAt = DateTime.UtcNow.AddDays(-8),
-                LastUpdated = DateTime.UtcNow.AddDays(-3)
+                FirstName = "FirstName",
+                LastName = "LastName",
+                DateOfBirth = new DateOnly(1111, 1, 1),
+                Email = "test@test.com",
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                LastUpdated = DateTime.UtcNow.AddDays(-1)
             }
         };
 

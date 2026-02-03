@@ -43,7 +43,7 @@ public sealed class CreateUserValidatorTests
     public void Validate_UsernameTooShort_Fails()
     {
         var command = new CreateUserCommand(
-            "ab",
+            "aa",
             "password123");
 
         var result = _validator.Validate(command);

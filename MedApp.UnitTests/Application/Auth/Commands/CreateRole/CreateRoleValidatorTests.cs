@@ -17,7 +17,7 @@ public sealed class CreateRoleValidatorTests
     [Test]
     public void Validate_ValidName_Passes()
     {
-        var command = new CreateRoleCommand("Admin");
+        var command = new CreateRoleCommand("Role");
 
         var result = _validator.Validate(command);
 

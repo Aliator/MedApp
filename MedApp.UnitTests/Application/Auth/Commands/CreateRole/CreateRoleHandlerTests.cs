@@ -36,13 +36,13 @@ public sealed class CreateRoleHandlerTests
     [Test]
     public async Task Handle_RoleAlreadyExists_ReturnsExistingRole()
     {
-        var role = new IdentityRole<Guid>("Admin");
+        var role = new IdentityRole<Guid>("Role");
 
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync("Role"))
             .ReturnsAsync(role);
 
-        var command = new CreateRoleCommand("Admin");
+        var command = new CreateRoleCommand("Role");
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -57,33 +57,33 @@ public sealed class CreateRoleHandlerTests
     public async Task Handle_RoleDoesNotExist_CreateSucceeds_ReturnsNewRole()
     {
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync("Role"))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
         _roleManager
             .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
             .ReturnsAsync(IdentityResult.Success);
 
-        var command = new CreateRoleCommand("Admin");
+        var command = new CreateRoleCommand("Role");
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Admin");
+        result!.Name.Should().Be("Role");
     }
 
     [Test]
     public async Task Handle_RoleDoesNotExist_CreateFails_ReturnsNull()
     {
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync("Role"))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
         _roleManager
             .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
             .ReturnsAsync(IdentityResult.Failed());
 
-        var command = new CreateRoleCommand("Admin");
+        var command = new CreateRoleCommand("Role");
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -94,7 +94,7 @@ public sealed class CreateRoleHandlerTests
     public async Task Handle_PassesCancellationToken_ToCreateAsync()
     {
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync("Role"))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
         using var cts = new CancellationTokenSource();
@@ -103,7 +103,7 @@ public sealed class CreateRoleHandlerTests
             .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
             .ReturnsAsync(IdentityResult.Success);
 
-        var command = new CreateRoleCommand("Admin");
+        var command = new CreateRoleCommand("Role");
 
         await _handler.Handle(command, cts.Token);
 

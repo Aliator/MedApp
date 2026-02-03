@@ -4,10 +4,10 @@ public static class TestConstants
 {
     public static class Patients
     {
-        public const string ValidFirstName = "John";
-        public const string ValidLastName = "Smith";
-        public const string ValidEmail = "john.smith@test.com";
-        public static readonly DateOnly ValidDateOfBirth = new(1990, 1, 1);
+        public const string ValidFirstName = "FirstName";
+        public const string ValidLastName = "LastName";
+        public const string ValidEmail = "test@test.com";
+        public static readonly DateOnly ValidDateOfBirth = new(1111, 1, 1);
         public const int MaxNameLength = 100;
     }
 

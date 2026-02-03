@@ -159,8 +159,8 @@ public sealed class UpdatePatientHandlerTests
         var patient = new Patient
         {
             Id = Guid.NewGuid(),
-            FirstName = "Old",
-            LastName = "Name",
+            FirstName = "OldFirst",
+            LastName = "OldLast",
             DateOfBirth = new DateOnly(1980, 1, 1),
             Email = "old@email.com",
             CreatedAt = DateTime.UtcNow.AddDays(-5),

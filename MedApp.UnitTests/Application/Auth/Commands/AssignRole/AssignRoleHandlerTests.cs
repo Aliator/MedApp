@@ -35,7 +35,7 @@ public sealed class AssignRoleHandlerTests
             Name = "Admin"
         };
 
-        var command = new AssignRoleCommand("alice", "Admin");
+        var command = new AssignRoleCommand("Username", "Role");
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -52,7 +52,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_RoleNotAssigned_ReturnsNull()
     {
-        var command = new AssignRoleCommand("alice", "Admin");
+        var command = new AssignRoleCommand("Username", "Role");
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -69,7 +69,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_CallsService_WithCorrectArguments()
     {
-        var command = new AssignRoleCommand("alice", "Admin");
+        var command = new AssignRoleCommand("Username", "Role");
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -82,8 +82,8 @@ public sealed class AssignRoleHandlerTests
 
         _service.Verify(
             s => s.AssignRoleAsync(
-                "alice",
-                "Admin",
+                "Username",
+                "Role",
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -91,7 +91,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_PassesCancellationToken()
     {
-        var command = new AssignRoleCommand("alice", "Admin");
+        var command = new AssignRoleCommand("Username", "Role");
 
         using var cts = new CancellationTokenSource();
 

@@ -32,10 +32,10 @@ public sealed class GetPatientByIdHandlerTests
         var patient = new Patient
         {
             Id = Guid.NewGuid(),
-            FirstName = "John",
-            LastName = "Smith",
+            FirstName = "FirstName",
+            LastName = "LastName",
             DateOfBirth = new DateOnly(1990, 1, 1),
-            Email = "john@test.com",
+            Email = "test@test.com",
             CreatedAt = DateTime.UtcNow.AddDays(-10),
             LastUpdated = DateTime.UtcNow.AddDays(-5)
         };
