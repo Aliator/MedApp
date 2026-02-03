@@ -97,7 +97,7 @@ public sealed class UpdatePatientHandlerTests
             r => r.UpdateAsync(
                 It.Is<Patient>(p =>
                     p.FirstName == TestConstants.Patients.ValidFirstName &&
-                    p.LastName == "OldLast" &&
+                    p.LastName == existingPatient.LastName &&
                     p.DateOfBirth == existingPatient.DateOfBirth &&
                     p.Email == TestConstants.Patients.ValidEmail
                 ),

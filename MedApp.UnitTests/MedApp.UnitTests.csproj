@@ -32,14 +32,4 @@
       <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Application\Auth\Commands\AssignRole\" />
-      <Folder Include="Application\Auth\Commands\CreateRole\" />
-      <Folder Include="Application\Auth\Commands\CreateUser\" />
-      <Folder Include="Application\Auth\Commands\Login\" />
-      <Folder Include="Application\Auth\Queries\GetAllRoles\" />
-      <Folder Include="Application\Auth\Queries\GetAllUsers\" />
-      <Folder Include="Application\Auth\Queries\GetUserRoles\" />
-    </ItemGroup>
-
 </Project>
