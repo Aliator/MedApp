@@ -24,6 +24,15 @@ jobs:
             /p:CoverletOutputFormat=cobertura \
             /p:Exclude="[MedApp.API]*%2c[*]*.Program%2c[*]*.Startup"
       
+      - name: Debug - Find coverage files
+        run: |
+          echo "=== Looking for coverage files ==="
+          find . -name "*.cobertura.xml" -o -name "coverage.cobertura.xml"
+          echo "=== Contents of MedApp.UnitTests ==="
+          ls -la MedApp.UnitTests/
+          echo "=== Root coverage folder (if exists) ==="
+          ls -la coverage/ || echo "No coverage folder in root"
+      
       - name: Coverage report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
