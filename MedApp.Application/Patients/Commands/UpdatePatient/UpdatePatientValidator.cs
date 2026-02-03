@@ -8,12 +8,10 @@ public sealed class UpdatePatientValidator : AbstractValidator<UpdatePatientComm
     {
         RuleFor(x => x.FirstName)
             .NotEmpty()
-            .When(x => x.FirstName is not null);
-
-        RuleFor(x => x.FirstName)
+            .WithMessage("First name must not be empty.")
             .MaximumLength(100)
+            .WithMessage("First name must not exceed 100 characters.")
             .When(x => x.FirstName is not null);
-
 
         RuleFor(x => x.LastName)
             .NotEmpty()

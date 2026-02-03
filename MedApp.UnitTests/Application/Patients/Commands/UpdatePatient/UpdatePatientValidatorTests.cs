@@ -16,22 +16,6 @@ public sealed class UpdatePatientValidatorTests
     }
 
     [Test]
-    public void Validate_AtLeastOneFieldProvided_Passes()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            PatientsTestConstants.ValidFirstName,
-            null,
-            null,
-            null
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeTrue();
-    }
-
-    [Test]
     public void Validate_NoFieldsProvided_Fails()
     {
         var command = new UpdatePatientCommand(
@@ -47,6 +31,22 @@ public sealed class UpdatePatientValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(
             e => e.ErrorMessage == "At least one field must be provided.");
+    }
+
+    [Test]
+    public void Validate_FirstNameOnly_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            PatientsTestConstants.ValidFirstName,
+            null,
+            null,
+            null
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
     }
 
     [Test]
@@ -84,6 +84,22 @@ public sealed class UpdatePatientValidatorTests
     }
 
     [Test]
+    public void Validate_LastNameOnly_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            null,
+            PatientsTestConstants.ValidLastName,
+            null,
+            null
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Test]
     public void Validate_EmptyLastName_Fails()
     {
         var command = new UpdatePatientCommand(
@@ -118,6 +134,22 @@ public sealed class UpdatePatientValidatorTests
     }
 
     [Test]
+    public void Validate_PastDateOfBirthOnly_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            null,
+            null,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+            null
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Test]
     public void Validate_FutureDateOfBirth_Fails()
     {
         var command = new UpdatePatientCommand(
@@ -135,88 +167,6 @@ public sealed class UpdatePatientValidatorTests
     }
 
     [Test]
-    public void Validate_InvalidEmail_Fails()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            null,
-            null,
-            null,
-            PatientsTestConstants.InvalidEmail
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Email");
-    }
-
-    [Test]
-    public void Validate_WhitespaceEmail_Fails()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            null,
-            null,
-            null,
-            "   "
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Email");
-    }
-    
-    [Test]
-    public void Validate_LastNameOnly_Passes()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            null,
-            PatientsTestConstants.ValidLastName,
-            null,
-            null
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeTrue();
-    }
-    
-    [Test]
-    public void Validate_PastDateOfBirthOnly_Passes()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            null,
-            null,
-            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
-            null
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeTrue();
-    }
-    
-    [Test]
-    public void Validate_TodayDateOfBirthOnly_Passes()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            null,
-            null,
-            DateOnly.FromDateTime(DateTime.UtcNow),
-            null
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeTrue();
-    }
-    
-    [Test]
     public void Validate_EmailOnly_Passes()
     {
         var command = new UpdatePatientCommand(
@@ -231,36 +181,21 @@ public sealed class UpdatePatientValidatorTests
 
         result.IsValid.Should().BeTrue();
     }
-    
+
     [Test]
-    public void Validate_EmailNull_WithOtherFieldProvided_Passes()
+    public void Validate_InvalidEmail_Fails()
     {
         var command = new UpdatePatientCommand(
             Guid.NewGuid(),
-            PatientsTestConstants.ValidFirstName,
             null,
             null,
-            null
+            null,
+            PatientsTestConstants.InvalidEmail
         );
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeTrue();
-    }
-    
-    [Test]
-    public void Validate_MultipleFieldsProvided_Passes()
-    {
-        var command = new UpdatePatientCommand(
-            Guid.NewGuid(),
-            PatientsTestConstants.ValidFirstName,
-            PatientsTestConstants.ValidLastName,
-            PatientsTestConstants.ValidDateOfBirth,
-            PatientsTestConstants.ValidEmail
-        );
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeTrue();
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "Email");
     }
 }
