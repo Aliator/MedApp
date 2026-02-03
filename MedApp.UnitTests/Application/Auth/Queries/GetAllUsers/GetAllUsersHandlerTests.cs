@@ -1,6 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Queries.GetAllRoles;
+using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
@@ -9,11 +9,11 @@ using Moq;
 namespace MedApp.UnitTests.Application.Auth.Queries.GetAllUsers;
 
 [TestFixture]
-public sealed class GetAllRolesHandlerTests
+public sealed class GetAllUsersHandlerTests
 {
     private IFixture _fixture = null!;
     private Mock<IIdentityReadService> _identityReadService = null!;
-    private GetAllRolesHandler _handler = null!;
+    private GetAllUsersHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
@@ -23,22 +23,22 @@ public sealed class GetAllRolesHandlerTests
         _identityReadService = new Mock<IIdentityReadService>();
         _fixture.Inject(_identityReadService.Object);
 
-        _handler = _fixture.Create<GetAllRolesHandler>();
+        _handler = _fixture.Create<GetAllUsersHandler>();
     }
 
     [Test]
-    public async Task Handle_ReturnsAllRoleNames()
+    public async Task Handle_ReturnsAllUsernames()
     {
         _identityReadService
-            .Setup(s => s.GetRoleNamesAsync(
+            .Setup(s => s.GetUsernamesAsync(
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(AuthTestConstants.Roles);
+            .ReturnsAsync(AuthTestConstants.Usernames);
 
         var result = await _handler.Handle(
-            new GetAllRolesQuery(),
+            new GetAllUsersQuery(),
             CancellationToken.None);
 
-        result.Should().BeEquivalentTo(AuthTestConstants.Roles);
+        result.Should().BeEquivalentTo(AuthTestConstants.Usernames);
     }
 
     [Test]
@@ -47,16 +47,16 @@ public sealed class GetAllRolesHandlerTests
         using var cts = new CancellationTokenSource();
 
         _identityReadService
-            .Setup(s => s.GetRoleNamesAsync(
+            .Setup(s => s.GetUsernamesAsync(
                 cts.Token))
             .ReturnsAsync(Array.Empty<string>());
 
         await _handler.Handle(
-            new GetAllRolesQuery(),
+            new GetAllUsersQuery(),
             cts.Token);
 
         _identityReadService.Verify(
-            s => s.GetRoleNamesAsync(cts.Token),
+            s => s.GetUsernamesAsync(cts.Token),
             Times.Once);
     }
 }
