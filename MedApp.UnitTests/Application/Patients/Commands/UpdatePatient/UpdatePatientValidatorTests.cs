@@ -185,6 +185,38 @@ public sealed class UpdatePatientValidatorTests
     }
     
     [Test]
+    public void Validate_PastDateOfBirthOnly_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            null,
+            null,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+            null
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+    
+    [Test]
+    public void Validate_EmailNull_WithOtherFieldProvided_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            PatientsTestConstants.ValidFirstName,
+            null,
+            null,
+            null
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+    
+    [Test]
     public void Validate_MultipleFieldsProvided_Passes()
     {
         var command = new UpdatePatientCommand(
