@@ -167,7 +167,24 @@ public sealed class UpdatePatientValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "Email");
     }
+    
+    [Test]
+    public void Validate_EmailNull_SkipsEmailRule()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            null,
+            null,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-20)),
+            null
+        );
 
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().NotContain(e => e.PropertyName == "Email");
+    }
+    
     [Test]
     public void Validate_MultipleFieldsProvided_Passes()
     {
