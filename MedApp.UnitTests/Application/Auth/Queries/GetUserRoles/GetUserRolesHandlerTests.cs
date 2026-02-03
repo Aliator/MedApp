@@ -29,7 +29,7 @@ public sealed class GetUserRolesHandlerTests
     public async Task Handle_ReturnsRolesForUser()
     {
         var username = "username";
-        var roles = new[] { "Admin", "User" };
+        var roles = new[] { "Role", "Role2" };
 
         _identityReadService
             .Setup(s => s.GetRolesForUserAsync(

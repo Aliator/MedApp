@@ -32,10 +32,10 @@ public sealed class AssignRoleHandlerTests
         var role = new IdentityRole<Guid>
         {
             Id = Guid.NewGuid(),
-            Name = "Admin"
+            Name = "Role"
         };
 
-        var command = new AssignRoleCommand("Username", "Role");
+        var command = new AssignRoleCommand("username", role.Name);
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -49,10 +49,11 @@ public sealed class AssignRoleHandlerTests
         result.Should().BeSameAs(role);
     }
 
+
     [Test]
     public async Task Handle_RoleNotAssigned_ReturnsNull()
     {
-        var command = new AssignRoleCommand("Username", "Role");
+        var command = new AssignRoleCommand("username", "Role");
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -69,7 +70,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_CallsService_WithCorrectArguments()
     {
-        var command = new AssignRoleCommand("Username", "Role");
+        var command = new AssignRoleCommand("username", "Role");
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -82,7 +83,7 @@ public sealed class AssignRoleHandlerTests
 
         _service.Verify(
             s => s.AssignRoleAsync(
-                "Username",
+                "username",
                 "Role",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -91,7 +92,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_PassesCancellationToken()
     {
-        var command = new AssignRoleCommand("Username", "Role");
+        var command = new AssignRoleCommand("username", "Role");
 
         using var cts = new CancellationTokenSource();
 

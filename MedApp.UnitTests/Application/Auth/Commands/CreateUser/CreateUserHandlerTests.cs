@@ -34,13 +34,13 @@ public sealed class CreateUserHandlerTests
         _userService
             .Setup(s => s.CreateUserAsync(
                 "username",
-                "password123",
+                "password",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         var command = new CreateUserCommand(
             "username",
-            "password123");
+            "password");
 
         var response = await _handler.Handle(
             command,
@@ -61,14 +61,14 @@ public sealed class CreateUserHandlerTests
 
         var command = new CreateUserCommand(
             "username",
-            "password123");
+            "password");
 
         await _handler.Handle(command, CancellationToken.None);
 
         _userService.Verify(
             s => s.CreateUserAsync(
                 "username",
-                "password123",
+                "password",
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -87,7 +87,7 @@ public sealed class CreateUserHandlerTests
 
         var command = new CreateUserCommand(
             "username",
-            "password123");
+            "password");
 
         await _handler.Handle(command, cts.Token);
 

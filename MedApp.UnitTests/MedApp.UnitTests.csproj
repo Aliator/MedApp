@@ -30,6 +30,7 @@
     <ItemGroup>
       <ProjectReference Include="..\MedApp.Application\MedApp.Application.csproj" />
       <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
+      <ProjectReference Include="..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

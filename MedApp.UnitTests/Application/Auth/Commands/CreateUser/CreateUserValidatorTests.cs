@@ -19,7 +19,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             "username",
-            "password123");
+            "password");
 
         var result = _validator.Validate(command);
 
@@ -31,7 +31,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             string.Empty,
-            "password123");
+            "password");
 
         var result = _validator.Validate(command);
 
@@ -44,7 +44,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             "aa",
-            "password123");
+            "password");
 
         var result = _validator.Validate(command);
 
@@ -57,7 +57,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             new string('a', 51),
-            "password123");
+            "password");
 
         var result = _validator.Validate(command);
 
@@ -71,19 +71,6 @@ public sealed class CreateUserValidatorTests
         var command = new CreateUserCommand(
             "username",
             string.Empty);
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Password");
-    }
-
-    [Test]
-    public void Validate_PasswordTooShort_Fails()
-    {
-        var command = new CreateUserCommand(
-            "username",
-            "short");
 
         var result = _validator.Validate(command);
 

@@ -34,7 +34,7 @@ public sealed class LoginHandlerTests
     {
         var userId = Guid.NewGuid();
         var username = "username";
-        var roles = new[] { "Admin", "User" };
+        var roles = new[] { "Role", "Role2" };
         var token = "jwt-token";
 
         _authService
@@ -66,7 +66,7 @@ public sealed class LoginHandlerTests
     {
         var userId = Guid.NewGuid();
         var username = "username";
-        var roles = new[] { "User" };
+        var roles = new[] { "Role" };
 
         _authService
             .Setup(s => s.ValidateCredentialsAsync(
@@ -82,7 +82,7 @@ public sealed class LoginHandlerTests
             .Returns("token");
 
         var command = new LoginCommand(
-            "user",
+            "username",
             "password");
 
         await _handler.Handle(command, CancellationToken.None);

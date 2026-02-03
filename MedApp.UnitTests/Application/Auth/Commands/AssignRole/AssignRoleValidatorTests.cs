@@ -17,7 +17,7 @@ public sealed class AssignRoleValidatorTests
     [Test]
     public void Validate_ValidCommand_Passes()
     {
-        var command = new AssignRoleCommand("Username", "Role");
+        var command = new AssignRoleCommand("username", "Role");
 
         var result = _validator.Validate(command);
 
@@ -39,7 +39,7 @@ public sealed class AssignRoleValidatorTests
     [Test]
     public void Validate_EmptyRole_Fails()
     {
-        var command = new AssignRoleCommand("Username", string.Empty);
+        var command = new AssignRoleCommand("username", string.Empty);
 
         var result = _validator.Validate(command);
 

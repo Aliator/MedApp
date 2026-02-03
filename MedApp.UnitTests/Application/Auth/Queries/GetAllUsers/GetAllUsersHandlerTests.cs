@@ -28,7 +28,7 @@ public sealed class GetAllRolesHandlerTests
     [Test]
     public async Task Handle_ReturnsAllRoleNames()
     {
-        var roles = new[] { "Admin", "User" };
+        var roles = new[] { "Role", "Role2" };
 
         _identityReadService
             .Setup(s => s.GetRoleNamesAsync(

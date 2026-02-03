@@ -17,8 +17,6 @@ public sealed class CreateUserValidator
 
         RuleFor(x => x.Password)
             .NotEmpty()
-            .WithMessage("Password must not be empty.")
-            .MinimumLength(8)
-            .WithMessage("Password must be at least 8 characters long.");
+            .WithMessage("Password must not be empty.");
     }
 }
