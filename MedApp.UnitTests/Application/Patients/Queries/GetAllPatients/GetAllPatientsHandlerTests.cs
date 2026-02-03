@@ -3,6 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -31,26 +32,8 @@ public sealed class GetAllPatientsHandlerTests
     {
         var patients = new[]
         {
-            new Patient
-            {
-                Id = Guid.NewGuid(),
-                FirstName = "FirstName",
-                LastName = "LastName",
-                DateOfBirth = new DateOnly(1111, 1, 1),
-                Email = "test@test.com",
-                CreatedAt = DateTime.UtcNow.AddDays(-1),
-                LastUpdated = DateTime.UtcNow.AddDays(-1)
-            },
-            new Patient
-            {
-                Id = Guid.NewGuid(),
-                FirstName = "FirstName",
-                LastName = "LastName",
-                DateOfBirth = new DateOnly(1111, 1, 1),
-                Email = "test@test.com",
-                CreatedAt = DateTime.UtcNow.AddDays(-1),
-                LastUpdated = DateTime.UtcNow.AddDays(-1)
-            }
+            PatientsTestConstants.CreateValidPatient(),
+            PatientsTestConstants.CreateValidPatient()
         };
 
         _repository

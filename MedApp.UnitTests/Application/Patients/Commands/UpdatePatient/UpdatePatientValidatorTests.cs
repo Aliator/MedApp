@@ -1,6 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Application.Patients.Commands.UpdatePatient;
-using MedApp.UnitTests.Common;
+using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Patients.Commands.UpdatePatient;
 
@@ -20,7 +20,7 @@ public sealed class UpdatePatientValidatorTests
     {
         var command = new UpdatePatientCommand(
             Guid.NewGuid(),
-            TestConstants.Patients.ValidFirstName,
+            PatientsTestConstants.ValidFirstName,
             null,
             null,
             null
@@ -71,7 +71,7 @@ public sealed class UpdatePatientValidatorTests
     {
         var command = new UpdatePatientCommand(
             Guid.NewGuid(),
-            new string('a', TestConstants.Patients.MaxNameLength + 1),
+            new string('a', PatientsTestConstants.MaxNameLength + 1),
             null,
             null,
             null
@@ -106,7 +106,7 @@ public sealed class UpdatePatientValidatorTests
         var command = new UpdatePatientCommand(
             Guid.NewGuid(),
             null,
-            new string('a', TestConstants.Patients.MaxNameLength + 1),
+            new string('a', PatientsTestConstants.MaxNameLength + 1),
             null,
             null
         );
@@ -142,7 +142,7 @@ public sealed class UpdatePatientValidatorTests
             null,
             null,
             null,
-            "not-an-email"
+            PatientsTestConstants.InvalidEmail
         );
 
         var result = _validator.Validate(command);
@@ -173,10 +173,10 @@ public sealed class UpdatePatientValidatorTests
     {
         var command = new UpdatePatientCommand(
             Guid.NewGuid(),
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);

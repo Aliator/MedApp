@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Application.Auth.Commands.CreateUser;
+using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Commands.CreateUser;
 
@@ -18,8 +19,8 @@ public sealed class CreateUserValidatorTests
     public void Validate_ValidCommand_Passes()
     {
         var command = new CreateUserCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         var result = _validator.Validate(command);
 
@@ -31,7 +32,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             string.Empty,
-            "password");
+            AuthTestConstants.Password);
 
         var result = _validator.Validate(command);
 
@@ -44,7 +45,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             "aa",
-            "password");
+            AuthTestConstants.Password);
 
         var result = _validator.Validate(command);
 
@@ -57,7 +58,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             new string('a', 51),
-            "password");
+            AuthTestConstants.Password);
 
         var result = _validator.Validate(command);
 
@@ -69,7 +70,7 @@ public sealed class CreateUserValidatorTests
     public void Validate_EmptyPassword_Fails()
     {
         var command = new CreateUserCommand(
-            "username",
+            AuthTestConstants.Usernames[0],
             string.Empty);
 
         var result = _validator.Validate(command);

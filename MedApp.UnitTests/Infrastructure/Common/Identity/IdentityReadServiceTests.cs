@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Infrastructure.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 
@@ -29,43 +30,39 @@ public sealed class IdentityReadServiceTests
     [Test]
     public async Task GetUsernamesAsync_ReturnsAllUsernames()
     {
-        var users = new[]
-        {
-            new ApplicationUser { UserName = "username" },
-            new ApplicationUser { UserName = "username2" }
-        }.AsQueryable();
+        var users = AuthTestConstants.Usernames
+            .Select(u => new ApplicationUser { UserName = u })
+            .AsQueryable();
 
         _userManager.SetupGet(u => u.Users).Returns(users);
 
         var result = await _service.GetUsernamesAsync(CancellationToken.None);
 
-        result.Should().BeEquivalentTo(["username", "username2"]);
+        result.Should().BeEquivalentTo(AuthTestConstants.Usernames);
     }
 
     [Test]
     public async Task GetRoleNamesAsync_ReturnsAllRoleNames()
     {
-        var roles = new[]
-        {
-            new IdentityRole<Guid>("Role"),
-            new IdentityRole<Guid>("Role2")
-        }.AsQueryable();
+        var roles = AuthTestConstants.Roles
+            .Select(r => new IdentityRole<Guid>(r))
+            .AsQueryable();
 
         _roleManager.SetupGet(r => r.Roles).Returns(roles);
 
         var result = await _service.GetRoleNamesAsync(CancellationToken.None);
 
-        result.Should().BeEquivalentTo(["Role", "Role2"]);
+        result.Should().BeEquivalentTo(AuthTestConstants.Roles);
     }
 
     [Test]
     public async Task GetRolesForUserAsync_UserDoesNotExist_ReturnsEmpty()
     {
         _userManager
-            .Setup(u => u.FindByNameAsync("alice"))
+            .Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0]))
             .ReturnsAsync((ApplicationUser?)null);
 
-        var result = await _service.GetRolesForUserAsync("alice", CancellationToken.None);
+        var result = await _service.GetRolesForUserAsync(AuthTestConstants.Usernames[0], CancellationToken.None);
 
         result.Should().BeEmpty();
     }
@@ -73,18 +70,18 @@ public sealed class IdentityReadServiceTests
     [Test]
     public async Task GetRolesForUserAsync_UserExists_ReturnsRoles()
     {
-        var user = new ApplicationUser { UserName = "alice" };
+        var user = AuthTestConstants.CreateValidUser();
 
         _userManager
-            .Setup(u => u.FindByNameAsync("alice"))
+            .Setup(u => u.FindByNameAsync(user.UserName!))
             .ReturnsAsync(user);
 
         _userManager
             .Setup(u => u.GetRolesAsync(user))
-            .ReturnsAsync(new[] { "Admin", "User" });
+            .ReturnsAsync(AuthTestConstants.Roles.ToList());
 
-        var result = await _service.GetRolesForUserAsync("alice", CancellationToken.None);
+        var result = await _service.GetRolesForUserAsync(user.UserName!, CancellationToken.None);
 
-        result.Should().BeEquivalentTo(["Admin", "User"]);
+        result.Should().BeEquivalentTo(AuthTestConstants.Roles);
     }
 }

@@ -2,6 +2,7 @@
 using FluentAssertions;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Common.Authentication;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -33,65 +34,60 @@ public sealed class LoginHandlerTests
     public async Task Handle_ValidCredentials_ReturnsGeneratedToken()
     {
         var userId = Guid.NewGuid();
-        var username = "username";
-        var roles = new[] { "Role", "Role2" };
-        var token = "jwt-token";
 
         _authService
             .Setup(s => s.ValidateCredentialsAsync(
-                username,
-                "password"))
-            .ReturnsAsync((userId, username, roles));
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Password))
+            .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
 
         _tokenGenerator
             .Setup(g => g.GenerateToken(
                 userId,
-                username,
-                roles))
-            .Returns(token);
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Roles))
+            .Returns(AuthTestConstants.Token);
 
         var command = new LoginCommand(
-            username,
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         var result = await _handler.Handle(
             command,
             CancellationToken.None);
 
-        result.Should().Be(token);
+        result.Should().Be(AuthTestConstants.Token);
     }
 
     [Test]
     public async Task Handle_UsesValuesReturnedFromAuthenticationService()
     {
         var userId = Guid.NewGuid();
-        var username = "username";
-        var roles = new[] { "Role" };
 
         _authService
             .Setup(s => s.ValidateCredentialsAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>()))
-            .ReturnsAsync((userId, username, roles));
+            .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
 
         _tokenGenerator
             .Setup(g => g.GenerateToken(
                 It.IsAny<Guid>(),
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<string>>()))
-            .Returns("token");
+            .Returns(AuthTestConstants.Token);
 
         var command = new LoginCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         await _handler.Handle(command, CancellationToken.None);
 
         _tokenGenerator.Verify(
             g => g.GenerateToken(
                 userId,
-                username,
-                roles),
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Roles),
             Times.Once);
     }
 
@@ -102,25 +98,25 @@ public sealed class LoginHandlerTests
             .Setup(s => s.ValidateCredentialsAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>()))
-            .ReturnsAsync((Guid.NewGuid(), "username", Array.Empty<string>()));
+            .ReturnsAsync((Guid.NewGuid(), AuthTestConstants.Usernames[0], Array.Empty<string>()));
 
         _tokenGenerator
             .Setup(g => g.GenerateToken(
                 It.IsAny<Guid>(),
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<string>>()))
-            .Returns("token");
+            .Returns(AuthTestConstants.Token);
 
         var command = new LoginCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         await _handler.Handle(command, CancellationToken.None);
 
         _authService.Verify(
             s => s.ValidateCredentialsAsync(
-                "username",
-                "password"),
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Password),
             Times.Once);
     }
 }

@@ -2,6 +2,7 @@
 using FluentAssertions;
 using MedApp.Application.Auth.Queries.GetUserRoles;
 using MedApp.Application.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -28,37 +29,33 @@ public sealed class GetUserRolesHandlerTests
     [Test]
     public async Task Handle_ReturnsRolesForUser()
     {
-        var username = "username";
-        var roles = new[] { "Role", "Role2" };
-
         _identityReadService
             .Setup(s => s.GetRolesForUserAsync(
-                username,
+                AuthTestConstants.Usernames[0],
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
+            .ReturnsAsync(AuthTestConstants.Roles);
 
-        var query = new GetUserRolesQuery(username);
+        var query = new GetUserRolesQuery(AuthTestConstants.Usernames[0]);
 
         var result = await _handler.Handle(
             query,
             CancellationToken.None);
 
-        result.Should().BeEquivalentTo(roles);
+        result.Should().BeEquivalentTo(AuthTestConstants.Roles);
     }
 
     [Test]
     public async Task Handle_PassesUsername_AndCancellationToken()
     {
-        var username = "username";
         using var cts = new CancellationTokenSource();
 
         _identityReadService
             .Setup(s => s.GetRolesForUserAsync(
-                username,
+                AuthTestConstants.Usernames[0],
                 cts.Token))
             .ReturnsAsync(Array.Empty<string>());
 
-        var query = new GetUserRolesQuery(username);
+        var query = new GetUserRolesQuery(AuthTestConstants.Usernames[0]);
 
         await _handler.Handle(
             query,
@@ -66,7 +63,7 @@ public sealed class GetUserRolesHandlerTests
 
         _identityReadService.Verify(
             s => s.GetRolesForUserAsync(
-                username,
+                AuthTestConstants.Usernames[0],
                 cts.Token),
             Times.Once);
     }

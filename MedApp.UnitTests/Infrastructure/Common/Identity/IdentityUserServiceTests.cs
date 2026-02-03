@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Infrastructure.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 
@@ -27,12 +28,12 @@ public sealed class IdentityUserServiceTests
         _userManager
             .Setup(u => u.CreateAsync(
                 It.IsAny<ApplicationUser>(),
-                "password"))
+                AuthTestConstants.Password))
             .ReturnsAsync(IdentityResult.Success);
 
         var result = await _service.CreateUserAsync(
-            "alice",
-            "password",
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password,
             CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
@@ -40,9 +41,9 @@ public sealed class IdentityUserServiceTests
         _userManager.Verify(
             u => u.CreateAsync(
                 It.Is<ApplicationUser>(u =>
-                    u.UserName == "alice" &&
+                    u.UserName == AuthTestConstants.Usernames[0] &&
                     u.CreatedAt <= DateTime.UtcNow),
-                "password"),
+                AuthTestConstants.Password),
             Times.Once);
     }
 }

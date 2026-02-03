@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Application.Auth.Commands.Login;
+using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Commands.Login;
 
@@ -18,8 +19,8 @@ public sealed class LoginValidatorTests
     public void Validate_ValidCommand_Passes()
     {
         var command = new LoginCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         var result = _validator.Validate(command);
 
@@ -31,7 +32,7 @@ public sealed class LoginValidatorTests
     {
         var command = new LoginCommand(
             string.Empty,
-            "password");
+            AuthTestConstants.Password);
 
         var result = _validator.Validate(command);
 
@@ -43,7 +44,7 @@ public sealed class LoginValidatorTests
     public void Validate_EmptyPassword_Fails()
     {
         var command = new LoginCommand(
-            "username",
+            AuthTestConstants.Usernames[0],
             string.Empty);
 
         var result = _validator.Validate(command);

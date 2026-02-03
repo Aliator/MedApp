@@ -3,7 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Patients.Commands.CreatePatient;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
-using MedApp.UnitTests.Common;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -31,30 +31,30 @@ public sealed class CreatePatientHandlerTests
     public async Task Handle_ValidCommand_ReturnsPatientResponse()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().NotBeNull();
         result.Id.Should().NotBe(Guid.Empty);
-        result.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
-        result.LastName.Should().Be(TestConstants.Patients.ValidLastName);
-        result.DateOfBirth.Should().Be(TestConstants.Patients.ValidDateOfBirth);
-        result.Email.Should().Be(TestConstants.Patients.ValidEmail);
+        result.FirstName.Should().Be(PatientsTestConstants.ValidFirstName);
+        result.LastName.Should().Be(PatientsTestConstants.ValidLastName);
+        result.DateOfBirth.Should().Be(PatientsTestConstants.ValidDateOfBirth);
+        result.Email.Should().Be(PatientsTestConstants.ValidEmail);
     }
 
     [Test]
     public async Task Handle_ValidCommand_PersistsPatient()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         await _handler.Handle(command, CancellationToken.None);
@@ -63,10 +63,10 @@ public sealed class CreatePatientHandlerTests
             r => r.AddAsync(
                 It.Is<Patient>(p =>
                     p.Id != Guid.Empty &&
-                    p.FirstName == TestConstants.Patients.ValidFirstName &&
-                    p.LastName == TestConstants.Patients.ValidLastName &&
-                    p.DateOfBirth == TestConstants.Patients.ValidDateOfBirth &&
-                    p.Email == TestConstants.Patients.ValidEmail &&
+                    p.FirstName == PatientsTestConstants.ValidFirstName &&
+                    p.LastName == PatientsTestConstants.ValidLastName &&
+                    p.DateOfBirth == PatientsTestConstants.ValidDateOfBirth &&
+                    p.Email == PatientsTestConstants.ValidEmail &&
                     p.CreatedAt <= DateTime.UtcNow &&
                     p.LastUpdated <= DateTime.UtcNow
                 ),
@@ -78,10 +78,10 @@ public sealed class CreatePatientHandlerTests
     public async Task Handle_PassesCancellationToken_ToRepository()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         using var cts = new CancellationTokenSource();

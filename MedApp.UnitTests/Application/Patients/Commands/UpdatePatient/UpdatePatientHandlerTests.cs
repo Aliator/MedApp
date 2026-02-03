@@ -3,7 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
-using MedApp.UnitTests.Common;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -40,7 +40,7 @@ public sealed class UpdatePatientHandlerTests
 
         var command = new UpdatePatientCommand(
             id,
-            TestConstants.Patients.ValidFirstName,
+            PatientsTestConstants.ValidFirstName,
             null,
             null,
             null
@@ -60,112 +60,7 @@ public sealed class UpdatePatientHandlerTests
     [Test]
     public async Task Handle_UpdatesProvidedFields_Only()
     {
-        var existingPatient = new Patient
-        {
-            Id = Guid.NewGuid(),
-            FirstName = "OldFirst",
-            LastName = "OldLast",
-            DateOfBirth = new DateOnly(1980, 1, 1),
-            Email = "old@email.com",
-            CreatedAt = DateTime.UtcNow.AddDays(-10),
-            LastUpdated = DateTime.UtcNow.AddDays(-10)
-        };
-
-        _repository
-            .Setup(r => r.GetByIdAsync(
-                existingPatient.Id,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingPatient);
-
-        var command = new UpdatePatientCommand(
-            existingPatient.Id,
-            TestConstants.Patients.ValidFirstName,
-            null,
-            null,
-            TestConstants.Patients.ValidEmail
-        );
-
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        result.Should().NotBeNull();
-        result!.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
-        result.LastName.Should().Be("OldLast");
-        result.DateOfBirth.Should().Be(existingPatient.DateOfBirth);
-        result.Email.Should().Be(TestConstants.Patients.ValidEmail);
-
-        _repository.Verify(
-            r => r.UpdateAsync(
-                It.Is<Patient>(p =>
-                    p.FirstName == TestConstants.Patients.ValidFirstName &&
-                    p.LastName == existingPatient.LastName &&
-                    p.DateOfBirth == existingPatient.DateOfBirth &&
-                    p.Email == TestConstants.Patients.ValidEmail
-                ),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Test]
-    public async Task Handle_UpdatesAllFields_WhenProvided()
-    {
-        var existingPatient = new Patient
-        {
-            Id = Guid.NewGuid(),
-            FirstName = "OldFirst",
-            LastName = "OldLast",
-            DateOfBirth = new DateOnly(1980, 1, 1),
-            Email = "old@email.com",
-            CreatedAt = DateTime.UtcNow.AddDays(-10),
-            LastUpdated = DateTime.UtcNow.AddDays(-10)
-        };
-
-        _repository
-            .Setup(r => r.GetByIdAsync(
-                existingPatient.Id,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingPatient);
-
-        var command = new UpdatePatientCommand(
-            existingPatient.Id,
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
-        );
-
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        result.Should().NotBeNull();
-        result!.FirstName.Should().Be(TestConstants.Patients.ValidFirstName);
-        result.LastName.Should().Be(TestConstants.Patients.ValidLastName);
-        result.DateOfBirth.Should().Be(TestConstants.Patients.ValidDateOfBirth);
-        result.Email.Should().Be(TestConstants.Patients.ValidEmail);
-
-        _repository.Verify(
-            r => r.UpdateAsync(
-                It.Is<Patient>(p =>
-                    p.FirstName == TestConstants.Patients.ValidFirstName &&
-                    p.LastName == TestConstants.Patients.ValidLastName &&
-                    p.DateOfBirth == TestConstants.Patients.ValidDateOfBirth &&
-                    p.Email == TestConstants.Patients.ValidEmail
-                ),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Test]
-    public async Task Handle_PassesCancellationToken_ToRepository()
-    {
-        var patient = new Patient
-        {
-            Id = Guid.NewGuid(),
-            FirstName = "OldFirst",
-            LastName = "OldLast",
-            DateOfBirth = new DateOnly(1980, 1, 1),
-            Email = "old@email.com",
-            CreatedAt = DateTime.UtcNow.AddDays(-5),
-            LastUpdated = DateTime.UtcNow.AddDays(-5)
-        };
+        var patient = PatientsTestConstants.CreateValidPatient();
 
         _repository
             .Setup(r => r.GetByIdAsync(
@@ -175,7 +70,85 @@ public sealed class UpdatePatientHandlerTests
 
         var command = new UpdatePatientCommand(
             patient.Id,
-            TestConstants.Patients.ValidFirstName,
+            PatientsTestConstants.ValidFirstName,
+            null,
+            null,
+            PatientsTestConstants.ValidEmail
+        );
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.FirstName.Should().Be(PatientsTestConstants.ValidFirstName);
+        result.LastName.Should().Be(patient.LastName);
+        result.DateOfBirth.Should().Be(patient.DateOfBirth);
+        result.Email.Should().Be(PatientsTestConstants.ValidEmail);
+
+        _repository.Verify(
+            r => r.UpdateAsync(
+                It.Is<Patient>(p =>
+                    p.FirstName == PatientsTestConstants.ValidFirstName &&
+                    p.LastName == patient.LastName &&
+                    p.DateOfBirth == patient.DateOfBirth &&
+                    p.Email == PatientsTestConstants.ValidEmail
+                ),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_UpdatesAllFields_WhenProvided()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+
+        _repository
+            .Setup(r => r.GetByIdAsync(
+                patient.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+
+        var command = new UpdatePatientCommand(
+            patient.Id,
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
+        );
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.FirstName.Should().Be(PatientsTestConstants.ValidFirstName);
+        result.LastName.Should().Be(PatientsTestConstants.ValidLastName);
+        result.DateOfBirth.Should().Be(PatientsTestConstants.ValidDateOfBirth);
+        result.Email.Should().Be(PatientsTestConstants.ValidEmail);
+
+        _repository.Verify(
+            r => r.UpdateAsync(
+                It.Is<Patient>(p =>
+                    p.FirstName == PatientsTestConstants.ValidFirstName &&
+                    p.LastName == PatientsTestConstants.ValidLastName &&
+                    p.DateOfBirth == PatientsTestConstants.ValidDateOfBirth &&
+                    p.Email == PatientsTestConstants.ValidEmail
+                ),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PassesCancellationToken_ToRepository()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+
+        _repository
+            .Setup(r => r.GetByIdAsync(
+                patient.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+
+        var command = new UpdatePatientCommand(
+            patient.Id,
+            PatientsTestConstants.ValidFirstName,
             null,
             null,
             null

@@ -1,6 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Application.Patients.Commands.CreatePatient;
-using MedApp.UnitTests.Common;
+using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Patients.Commands.CreatePatient;
 
@@ -19,10 +19,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_ValidCommand_Passes()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -35,9 +35,9 @@ public sealed class CreatePatientValidatorTests
     {
         var command = new CreatePatientCommand(
             "",
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -50,10 +50,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_FirstNameTooLong_Fails()
     {
         var command = new CreatePatientCommand(
-            new string('a', TestConstants.Patients.MaxNameLength + 1),
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            new string('a', PatientsTestConstants.MaxNameLength + 1),
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -66,10 +66,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_EmptyLastName_Fails()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
+            PatientsTestConstants.ValidFirstName,
             "",
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -82,10 +82,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_LastNameTooLong_Fails()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            new string('a', TestConstants.Patients.MaxNameLength + 1),
-            TestConstants.Patients.ValidDateOfBirth,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidFirstName,
+            new string('a', PatientsTestConstants.MaxNameLength + 1),
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -98,10 +98,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_DefaultDateOfBirth_Fails()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
             default,
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -114,10 +114,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_FutureDateOfBirth_Fails()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)),
-            TestConstants.Patients.ValidEmail
+            PatientsTestConstants.ValidEmail
         );
 
         var result = _validator.Validate(command);
@@ -130,9 +130,9 @@ public sealed class CreatePatientValidatorTests
     public void Validate_EmptyEmail_Fails()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
             ""
         );
 
@@ -146,10 +146,10 @@ public sealed class CreatePatientValidatorTests
     public void Validate_InvalidEmail_Fails()
     {
         var command = new CreatePatientCommand(
-            TestConstants.Patients.ValidFirstName,
-            TestConstants.Patients.ValidLastName,
-            TestConstants.Patients.ValidDateOfBirth,
-            "not-an-email"
+            PatientsTestConstants.ValidFirstName,
+            PatientsTestConstants.ValidLastName,
+            PatientsTestConstants.ValidDateOfBirth,
+            PatientsTestConstants.InvalidEmail
         );
 
         var result = _validator.Validate(command);

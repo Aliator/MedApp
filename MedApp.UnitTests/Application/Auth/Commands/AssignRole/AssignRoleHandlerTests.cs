@@ -2,6 +2,7 @@
 using FluentAssertions;
 using MedApp.Application.Auth.Commands.AssignRole;
 using MedApp.Application.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Moq;
@@ -35,7 +36,7 @@ public sealed class AssignRoleHandlerTests
             Name = "Role"
         };
 
-        var command = new AssignRoleCommand("username", role.Name);
+        var command = new AssignRoleCommand(AuthTestConstants.Roles[0], role.Name);
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -53,7 +54,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_RoleNotAssigned_ReturnsNull()
     {
-        var command = new AssignRoleCommand("username", "Role");
+        var command = new AssignRoleCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Roles[0]);
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -70,7 +71,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_CallsService_WithCorrectArguments()
     {
-        var command = new AssignRoleCommand("username", "Role");
+        var command = new AssignRoleCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Roles[0]);
 
         _service
             .Setup(s => s.AssignRoleAsync(
@@ -83,8 +84,8 @@ public sealed class AssignRoleHandlerTests
 
         _service.Verify(
             s => s.AssignRoleAsync(
-                "username",
-                "Role",
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Roles[0],
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -92,7 +93,7 @@ public sealed class AssignRoleHandlerTests
     [Test]
     public async Task Handle_PassesCancellationToken()
     {
-        var command = new AssignRoleCommand("username", "Role");
+        var command = new AssignRoleCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Roles[0]);
 
         using var cts = new CancellationTokenSource();
 

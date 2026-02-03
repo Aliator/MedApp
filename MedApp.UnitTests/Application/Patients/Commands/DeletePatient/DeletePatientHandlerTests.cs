@@ -3,6 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -54,16 +55,7 @@ public sealed class DeletePatientHandlerTests
     [Test]
     public async Task Handle_PatientExists_DeletesPatient_AndReturnsTrue()
     {
-        var patient = new Patient
-        {
-            Id = Guid.NewGuid(),
-            FirstName = "John",
-            LastName = "Smith",
-            DateOfBirth = new DateOnly(1990, 1, 1),
-            Email = "john.smith@test.com",
-            CreatedAt = DateTime.UtcNow.AddDays(-5),
-            LastUpdated = DateTime.UtcNow.AddDays(-5)
-        };
+        var patient = PatientsTestConstants.CreateValidPatient();
 
         _repository
             .Setup(r => r.GetByIdAsync(
@@ -89,16 +81,7 @@ public sealed class DeletePatientHandlerTests
     [Test]
     public async Task Handle_PassesCancellationToken_ToRepository()
     {
-        var patient = new Patient
-        {
-            Id = Guid.NewGuid(),
-            FirstName = "John",
-            LastName = "Smith",
-            DateOfBirth = new DateOnly(1990, 1, 1),
-            Email = "john.smith@test.com",
-            CreatedAt = DateTime.UtcNow.AddDays(-5),
-            LastUpdated = DateTime.UtcNow.AddDays(-5)
-        };
+        var patient = PatientsTestConstants.CreateValidPatient();
 
         _repository
             .Setup(r => r.GetByIdAsync(

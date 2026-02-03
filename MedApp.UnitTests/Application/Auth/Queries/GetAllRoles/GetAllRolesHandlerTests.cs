@@ -2,6 +2,7 @@
 using FluentAssertions;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -28,18 +29,16 @@ public sealed class GetAllRolesHandlerTests
     [Test]
     public async Task Handle_ReturnsAllRoleNames()
     {
-        var roles = new[] { "Role", "Role2" };
-
         _identityReadService
             .Setup(s => s.GetRoleNamesAsync(
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
+            .ReturnsAsync(AuthTestConstants.Roles);
 
         var result = await _handler.Handle(
             new GetAllRolesQuery(),
             CancellationToken.None);
 
-        result.Should().BeEquivalentTo(roles);
+        result.Should().BeEquivalentTo(AuthTestConstants.Roles);
     }
 
     [Test]

@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using MedApp.Infrastructure.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 
@@ -30,10 +31,13 @@ public sealed class IdentityRoleServiceTests
     public async Task AssignRoleAsync_UserNotFound_ReturnsNull()
     {
         _userManager
-            .Setup(u => u.FindByNameAsync("alice"))
+            .Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0]))
             .ReturnsAsync((ApplicationUser?)null);
 
-        var result = await _service.AssignRoleAsync("alice", "Admin", CancellationToken.None);
+        var result = await _service.AssignRoleAsync(
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Roles[0],
+            CancellationToken.None);
 
         result.Should().BeNull();
     }
@@ -41,17 +45,20 @@ public sealed class IdentityRoleServiceTests
     [Test]
     public async Task AssignRoleAsync_RoleNotFound_ReturnsNull()
     {
-        var user = new ApplicationUser { UserName = "alice" };
+        var user = AuthTestConstants.CreateValidUser();
 
         _userManager
-            .Setup(u => u.FindByNameAsync("alice"))
+            .Setup(u => u.FindByNameAsync(user.UserName!))
             .ReturnsAsync(user);
 
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
-        var result = await _service.AssignRoleAsync("alice", "Admin", CancellationToken.None);
+        var result = await _service.AssignRoleAsync(
+            user.UserName!,
+            AuthTestConstants.Roles[0],
+            CancellationToken.None);
 
         result.Should().BeNull();
     }
@@ -59,22 +66,25 @@ public sealed class IdentityRoleServiceTests
     [Test]
     public async Task AssignRoleAsync_AddToRoleFails_ReturnsNull()
     {
-        var user = new ApplicationUser { UserName = "alice" };
-        var role = new IdentityRole<Guid>("Admin");
+        var user = AuthTestConstants.CreateValidUser();
+        var role = AuthTestConstants.CreateValidRole();
 
         _userManager
-            .Setup(u => u.FindByNameAsync("alice"))
+            .Setup(u => u.FindByNameAsync(user.UserName!))
             .ReturnsAsync(user);
 
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync(role.Name!))
             .ReturnsAsync(role);
 
         _userManager
-            .Setup(u => u.AddToRoleAsync(user, "Admin"))
+            .Setup(u => u.AddToRoleAsync(user, role.Name!))
             .ReturnsAsync(IdentityResult.Failed());
 
-        var result = await _service.AssignRoleAsync("alice", "Admin", CancellationToken.None);
+        var result = await _service.AssignRoleAsync(
+            user.UserName!,
+            role.Name!,
+            CancellationToken.None);
 
         result.Should().BeNull();
     }
@@ -82,22 +92,25 @@ public sealed class IdentityRoleServiceTests
     [Test]
     public async Task AssignRoleAsync_Succeeds_ReturnsRole()
     {
-        var user = new ApplicationUser { UserName = "alice" };
-        var role = new IdentityRole<Guid>("Admin");
+        var user = AuthTestConstants.CreateValidUser();
+        var role = AuthTestConstants.CreateValidRole();
 
         _userManager
-            .Setup(u => u.FindByNameAsync("alice"))
+            .Setup(u => u.FindByNameAsync(user.UserName!))
             .ReturnsAsync(user);
 
         _roleManager
-            .Setup(r => r.FindByNameAsync("Admin"))
+            .Setup(r => r.FindByNameAsync(role.Name!))
             .ReturnsAsync(role);
 
         _userManager
-            .Setup(u => u.AddToRoleAsync(user, "Admin"))
+            .Setup(u => u.AddToRoleAsync(user, role.Name!))
             .ReturnsAsync(IdentityResult.Success);
 
-        var result = await _service.AssignRoleAsync("alice", "Admin", CancellationToken.None);
+        var result = await _service.AssignRoleAsync(
+            user.UserName!,
+            role.Name!,
+            CancellationToken.None);
 
         result.Should().BeSameAs(role);
     }

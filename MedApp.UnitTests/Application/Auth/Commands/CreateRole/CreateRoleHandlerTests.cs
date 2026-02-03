@@ -1,6 +1,7 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Auth.Commands.CreateRole;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Moq;
@@ -36,13 +37,13 @@ public sealed class CreateRoleHandlerTests
     [Test]
     public async Task Handle_RoleAlreadyExists_ReturnsExistingRole()
     {
-        var role = new IdentityRole<Guid>("Role");
+        var role = new IdentityRole<Guid>(AuthTestConstants.Roles[0]);
 
         _roleManager
-            .Setup(r => r.FindByNameAsync("Role"))
+            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
             .ReturnsAsync(role);
 
-        var command = new CreateRoleCommand("Role");
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -57,33 +58,33 @@ public sealed class CreateRoleHandlerTests
     public async Task Handle_RoleDoesNotExist_CreateSucceeds_ReturnsNewRole()
     {
         _roleManager
-            .Setup(r => r.FindByNameAsync("Role"))
+            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
         _roleManager
             .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
             .ReturnsAsync(IdentityResult.Success);
 
-        var command = new CreateRoleCommand("Role");
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Role");
+        result!.Name.Should().Be(AuthTestConstants.Roles[0]);
     }
 
     [Test]
     public async Task Handle_RoleDoesNotExist_CreateFails_ReturnsNull()
     {
         _roleManager
-            .Setup(r => r.FindByNameAsync("Role"))
+            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
         _roleManager
             .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
             .ReturnsAsync(IdentityResult.Failed());
 
-        var command = new CreateRoleCommand("Role");
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -94,7 +95,7 @@ public sealed class CreateRoleHandlerTests
     public async Task Handle_PassesCancellationToken_ToCreateAsync()
     {
         _roleManager
-            .Setup(r => r.FindByNameAsync("Role"))
+            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
             .ReturnsAsync((IdentityRole<Guid>?)null);
 
         using var cts = new CancellationTokenSource();
@@ -103,7 +104,7 @@ public sealed class CreateRoleHandlerTests
             .Setup(r => r.CreateAsync(It.IsAny<IdentityRole<Guid>>()))
             .ReturnsAsync(IdentityResult.Success);
 
-        var command = new CreateRoleCommand("Role");
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
 
         await _handler.Handle(command, cts.Token);
 

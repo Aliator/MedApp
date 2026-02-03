@@ -3,6 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Patients.Queries.GetPatientById;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
@@ -29,17 +30,8 @@ public sealed class GetPatientByIdHandlerTests
     [Test]
     public async Task Handle_PatientExists_ReturnsPatient()
     {
-        var patient = new Patient
-        {
-            Id = Guid.NewGuid(),
-            FirstName = "FirstName",
-            LastName = "LastName",
-            DateOfBirth = new DateOnly(1990, 1, 1),
-            Email = "test@test.com",
-            CreatedAt = DateTime.UtcNow.AddDays(-10),
-            LastUpdated = DateTime.UtcNow.AddDays(-5)
-        };
-
+        var patient = PatientsTestConstants.CreateValidPatient();
+        
         _repository
             .Setup(r => r.GetByIdAsync(
                 patient.Id,

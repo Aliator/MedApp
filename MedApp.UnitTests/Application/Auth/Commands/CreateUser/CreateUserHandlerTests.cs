@@ -2,6 +2,7 @@
 using FluentAssertions;
 using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Moq;
@@ -33,14 +34,14 @@ public sealed class CreateUserHandlerTests
 
         _userService
             .Setup(s => s.CreateUserAsync(
-                "username",
-                "password",
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Password,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
         var command = new CreateUserCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         var response = await _handler.Handle(
             command,
@@ -60,15 +61,15 @@ public sealed class CreateUserHandlerTests
             .ReturnsAsync(IdentityResult.Success);
 
         var command = new CreateUserCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         await _handler.Handle(command, CancellationToken.None);
 
         _userService.Verify(
             s => s.CreateUserAsync(
-                "username",
-                "password",
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Password,
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -86,8 +87,8 @@ public sealed class CreateUserHandlerTests
         using var cts = new CancellationTokenSource();
 
         var command = new CreateUserCommand(
-            "username",
-            "password");
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Password);
 
         await _handler.Handle(command, cts.Token);
 
