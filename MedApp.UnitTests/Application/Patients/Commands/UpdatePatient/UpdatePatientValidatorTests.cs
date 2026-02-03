@@ -201,6 +201,22 @@ public sealed class UpdatePatientValidatorTests
     }
     
     [Test]
+    public void Validate_TodayDateOfBirthOnly_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            null,
+            null,
+            DateOnly.FromDateTime(DateTime.UtcNow),
+            null
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+    
+    [Test]
     public void Validate_EmailOnly_Passes()
     {
         var command = new UpdatePatientCommand(
