@@ -201,6 +201,22 @@ public sealed class UpdatePatientValidatorTests
     }
     
     [Test]
+    public void Validate_EmailOnly_Passes()
+    {
+        var command = new UpdatePatientCommand(
+            Guid.NewGuid(),
+            null,
+            null,
+            null,
+            PatientsTestConstants.ValidEmail
+        );
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+    
+    [Test]
     public void Validate_EmailNull_WithOtherFieldProvided_Passes()
     {
         var command = new UpdatePatientCommand(
