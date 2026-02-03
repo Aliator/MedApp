@@ -17,7 +17,7 @@ jobs:
       
       - name: Run unit tests with coverage
         run: |
-          dotnet test tests/MedApp.UnitTests \
+          dotnet test test/MedApp.UnitTests \
             --configuration Release \
             /p:CollectCoverage=true \
             /p:CoverletOutput=../../coverage/ \
