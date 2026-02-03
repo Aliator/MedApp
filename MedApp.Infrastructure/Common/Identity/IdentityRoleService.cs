@@ -17,7 +17,7 @@ public sealed class IdentityRoleService(
             return null;
 
         var role = await roleManager.FindByNameAsync(roleName);
-        if (role is null)
+        if (role?.Name is null)
             return null;
 
         var result = await userManager.AddToRoleAsync(user, role.Name);
