@@ -28,7 +28,7 @@ public sealed class UpdatePatientValidator : AbstractValidator<UpdatePatientComm
         RuleFor(x => x.Email)
             .EmailAddress()
             .WithMessage("Email must be a valid email address.")
-            .When(x => !string.IsNullOrWhiteSpace(x.Email));
+            .When(x => x.Email is not null);
 
         RuleFor(x => x)
             .Must(x =>

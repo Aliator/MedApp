@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace MedApp.Application.Common.Identity;
+namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class ApplicationUser : IdentityUser<Guid>
 {

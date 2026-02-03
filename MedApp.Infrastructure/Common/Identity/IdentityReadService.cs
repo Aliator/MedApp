@@ -1,7 +1,7 @@
 ﻿using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 
-namespace MedApp.Infrastructure.Identity;
+namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class IdentityReadService(
     UserManager<ApplicationUser> userManager,

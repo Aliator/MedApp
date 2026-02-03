@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using MedApp.Application.Common.Identity;
+using Microsoft.AspNetCore.Identity;
 
-namespace MedApp.Application.Common.Identity;
+namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
@@ -16,7 +17,7 @@ public sealed class IdentityRoleService(
             return null;
 
         var role = await roleManager.FindByNameAsync(roleName);
-        if (role is null)
+        if (role?.Name is null)
             return null;
 
         var result = await userManager.AddToRoleAsync(user, role.Name);

@@ -2,7 +2,8 @@
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 
-public sealed class CreatePatientValidator : AbstractValidator<CreatePatientCommand>
+public sealed class CreatePatientValidator
+    : AbstractValidator<CreatePatientCommand>
 {
     public CreatePatientValidator()
     {
@@ -19,12 +20,15 @@ public sealed class CreatePatientValidator : AbstractValidator<CreatePatientComm
             .WithMessage("Last name must not exceed 100 characters.");
 
         RuleFor(x => x.DateOfBirth)
+            .Must(d => d != default)
+            .WithMessage("Date of birth must be provided.")
             .Must(d => d <= DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("Date of birth must be in the past.");
 
         RuleFor(x => x.Email)
+            .NotEmpty()
+            .WithMessage("Email must not be empty.")
             .EmailAddress()
-            .WithMessage("Email must be a valid email address.")
-            .When(x => !string.IsNullOrWhiteSpace(x.Email));
+            .WithMessage("Email must be a valid email address.");
     }
 }

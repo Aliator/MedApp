@@ -12,11 +12,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Application", "MedAp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Infrastructure", "MedApp.Infrastructure\MedApp.Infrastructure.csproj", "{483E32DF-C309-4E22-AC42-7B0B68001781}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{61394B79-209A-4EFC-ABFD-F7B2100F404A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.UnitTests", "MedApp.UnitTests\MedApp.UnitTests.csproj", "{61394B79-209A-4EFC-ABFD-F7B2100F404A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntegrationTests", "IntegrationTests\IntegrationTests.csproj", "{FC45D25B-B2D0-48E8-9784-AD9746C614A2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.IntegrationTests", "MedApp.IntegrationTests\MedApp.IntegrationTests.csproj", "{FC45D25B-B2D0-48E8-9784-AD9746C614A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "E2ETests", "E2ETests\E2ETests.csproj", "{08FE9B45-3E16-4964-88B9-035BD72A6C8D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.E2ETests", "MedApp.E2ETests\MedApp.E2ETests.csproj", "{08FE9B45-3E16-4964-88B9-035BD72A6C8D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Contracts", "MedApp.Contracts\MedApp.Contracts.csproj", "{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6}"
 EndProject
