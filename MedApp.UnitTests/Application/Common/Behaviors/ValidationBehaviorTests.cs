@@ -83,6 +83,39 @@ public sealed class ValidationBehaviourTests
             return Task.FromResult("ok");
         }
     }
+    
+    [Test]
+    public async Task Handle_NullValidationResult_AndNullFailureEntry_CallsNext()
+    {
+        var v1 = CreateValidatorReturning(null!);
+
+        var withNullFailure = new ValidationResult(new ValidationFailure?[] { null });
+        var v2 = CreateValidatorReturning(withNullFailure);
+
+        var behaviour = new ValidationBehaviour<object, string>([v1.Object, v2.Object]);
+
+        var nextCalled = false;
+
+        var result = await behaviour.Handle(Request, Next, CancellationToken.None);
+
+        result.Should().Be("ok");
+        nextCalled.Should().BeTrue();
+
+        v1.As<IValidator>().Verify(
+            x => x.ValidateAsync(It.IsAny<IValidationContext>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        v2.As<IValidator>().Verify(
+            x => x.ValidateAsync(It.IsAny<IValidationContext>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        return;
+
+        Task<string> Next(CancellationToken ct)
+        {
+            nextCalled = true;
+            return Task.FromResult("ok");
+        }
+    }
 
     private static Mock<IValidator<object>> CreateValidatorReturning(ValidationResult result)
     {
