@@ -15,19 +15,12 @@ jobs:
         with:
           dotnet-version: 8.0.x
       
-      - name: Debug - Show directory structure
-        run: |
-          echo "=== Root directory ==="
-          ls -la
-          echo "=== Looking for test projects ==="
-          find . -name "*.csproj" -path "*/test/*" -o -name "*.csproj" -path "*/tests/*"
-      
       - name: Run unit tests with coverage
         run: |
-          dotnet test test/MedApp.UnitTests \
+          dotnet test MedApp.UnitTests \
             --configuration Release \
             /p:CollectCoverage=true \
-            /p:CoverletOutput=../../coverage/ \
+            /p:CoverletOutput=../coverage/ \
             /p:CoverletOutputFormat=cobertura \
             /p:Exclude="[MedApp.API]*%2c[*]*.Program%2c[*]*.Startup"
       
