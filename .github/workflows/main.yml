@@ -31,7 +31,7 @@ jobs:
           assemblyfilters: '+MedApp.*;-MedApp.Contracts;-MedApp.API'
           filefilters: '-**/Migrations/*.cs;-**/Program.cs;-**/Startup.cs'
           classfilters: >-
-            -*Query;-*Command;-*ServiceExtensions;-*Configuration;-*Settings;-MedApp.Infrastructure.Data.MedAppDbContext;-MedApp.Infrastructure.Data.Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService
+            -*Command;-*Query;-*Result;-*ServiceExtensions;-*Configuration;-*Settings;-*DbContext;-*Repository;-*Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService
 
       
       - name: Upload coverage report
