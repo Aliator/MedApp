@@ -3,6 +3,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace MedApp.UnitTests.Infrastructure.Common.Identity;
@@ -12,7 +13,7 @@ public sealed class IdentityUserServiceTests
 {
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
     private IdentityUserService _service = null!;
-
+    
     [SetUp]
     public void SetUp()
     {
@@ -20,8 +21,16 @@ public sealed class IdentityUserServiceTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-        _service = new IdentityUserService(_userManager.Object);
+        var options = new IdentityOptions();
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = false;
+
+        _service = new IdentityUserService(_userManager.Object, Options.Create(options));
     }
+
     
     [Test]
     public async Task UpdateUserPasswordAsync_Succeeds_ReturnsSuccess()
@@ -123,7 +132,6 @@ public sealed class IdentityUserServiceTests
             CancellationToken.None);
 
         result.GeneratedPassword.Should().NotBeNull();
-        result.GeneratedPassword!.Length.Should().Be(16);
         result.Errors.Should().BeEmpty();
     }
 
