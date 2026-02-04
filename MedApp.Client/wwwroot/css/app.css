@@ -244,3 +244,32 @@ tbody tr:hover {
     margin: 0.5rem 0 0 1rem;
     padding: 0;
 }
+
+/* ---------------------------
+   Link resets
+---------------------------- */
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+a:visited {
+    color: inherit;
+}
+
+a:hover {
+    text-decoration: none;
+}
+
+a:focus {
+    outline: none;
+}
+
+.nav-link,
+.nav-link:visited,
+.nav-link:hover,
+.nav-link:active {
+    color: inherit;
+    text-decoration: none;
+}
