@@ -30,15 +30,9 @@ jobs:
           reporttypes: 'Html;MarkdownSummaryGithub;Cobertura'
           assemblyfilters: '+MedApp.*;-MedApp.Contracts;-MedApp.API'
           filefilters: '-**/Migrations/*.cs;-**/Program.cs;-**/Startup.cs'
-          classfilters: >
-            -*Query;
-            -*Command;
-            -*ServiceExtensions;
-            -*Configuration;
-            -*Settings;
-            -MedApp.Infrastructure.Data.MedAppDbContext;
-            -MedApp.Infrastructure.Data.Repositories.*;
-            -MedApp.Infrastructure.Common.Authentication.SessionService
+          classfilters: >-
+            -*Query;-*Command;-*ServiceExtensions;-*Configuration;-*Settings;-MedApp.Infrastructure.Data.MedAppDbContext;-MedApp.Infrastructure.Data.Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService
+
       
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
