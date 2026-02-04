@@ -48,36 +48,46 @@ jobs:
           echo "" >> coverage-details.md
           echo "| Class | Line Coverage | Branch Coverage |" >> coverage-details.md
           echo "|-------|---------------|-----------------|" >> coverage-details.md
-          
-          # Parse Cobertura XML for class-level coverage
+
           python3 << 'EOF'
           import xml.etree.ElementTree as ET
-          
+
+          EXCLUDED_PATTERNS = [
+              ".Domain.",
+              ".Repositories.",
+              "Repository",
+          ]
+
+          def is_excluded(name):
+              return any(p in name for p in EXCLUDED_PATTERNS)
+
           tree = ET.parse('coverage-report/Cobertura.xml')
           root = tree.getroot()
-          
-          classes_below_threshold = []
-          
+
+          rows = []
+
           for package in root.findall('.//package'):
               for cls in package.findall('.//class'):
                   class_name = cls.get('name')
+                  if not class_name or is_excluded(class_name):
+                      continue
+
                   line_rate = float(cls.get('line-rate', 0)) * 100
                   branch_rate = float(cls.get('branch-rate', 0)) * 100 if cls.get('branch-rate') else 100
-                  
+
                   if line_rate < 80:
-                      classes_below_threshold.append((class_name, line_rate, branch_rate))
-          
-          # Sort by line coverage (lowest first)
-          classes_below_threshold.sort(key=lambda x: x[1])
-          
-          # Write to markdown
+                      rows.append((class_name, line_rate, branch_rate))
+
+          rows.sort(key=lambda x: x[1])
+
           with open('coverage-details.md', 'a') as f:
-              if classes_below_threshold:
-                  for class_name, line_cov, branch_cov in classes_below_threshold:
-                      f.write(f"| `{class_name}` | {line_cov:.1f}% | {branch_cov:.1f}% |\n")
+              if rows:
+                  for name, line, branch in rows:
+                      f.write(f"| `{name}` | {line:.1f}% | {branch:.1f}% |\n")
               else:
                   f.write("| *All classes above 80% coverage!* 🎉 | - | - |\n")
           EOF
+
       
       - name: Comment PR with coverage summary
         uses: marocchino/sticky-pull-request-comment@v2
