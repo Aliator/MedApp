@@ -47,7 +47,23 @@ public static class ServiceExtensions
                 SessionAuthenticationDefaults.Scheme,
                 _ => { });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("SelfUserOnly", policy =>
+                policy.RequireAssertion(context =>
+                {
+                    var routeUsername =
+                        context.Resource is HttpContext http
+                            ? http.Request.RouteValues["username"]?.ToString()
+                            : null;
+
+                    var userName = context.User.Identity?.Name;
+
+                    return routeUsername is not null
+                           && userName is not null
+                           && routeUsername == userName;
+                }));
+        });
 
         return services;
     }
