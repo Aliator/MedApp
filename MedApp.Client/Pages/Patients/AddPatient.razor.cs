@@ -20,9 +20,9 @@ public partial class AddPatient
     private string? _errorMessage;
     private List<string> _validationErrors = [];
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated)
+        if (!await Auth.EnsureAuthenticatedAsync())
         {
             Nav.NavigateTo("/login");
             return;

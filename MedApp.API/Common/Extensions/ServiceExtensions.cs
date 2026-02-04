@@ -26,6 +26,7 @@ public static class ServiceExtensions
             });
         });
 
+        services.AddSingleton<ISessionCookieService, SessionCookieService>();
         services.AddApiAuthentication();
 
         return services;

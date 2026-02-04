@@ -26,7 +26,7 @@ public partial class EditPatient
     
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated)
+        if (!await Auth.EnsureAuthenticatedAsync())
         {
             Nav.NavigateTo("/login");
             return;

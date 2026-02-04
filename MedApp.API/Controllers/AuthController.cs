@@ -17,7 +17,10 @@ namespace MedApp.API.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IMediator mediator) : ControllerBase
+public sealed class AuthController(
+    IMediator mediator,
+    ISessionCookieService cookieService)
+    : ControllerBase
 {
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
@@ -30,16 +33,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
                 HttpContext.Connection.RemoteIpAddress?.ToString(),
                 Request.Headers.UserAgent.ToString()));
 
-        Response.Cookies.Append(
-            SessionAuthenticationDefaults.CookieName,
-            session.SessionId.ToString(),
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = session.ExpiresAtUtc
-            });
+        cookieService.AppendSessionCookie(Response, session);
 
         return Ok(new LoginResponse(
             session.SessionId,
@@ -61,14 +55,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
                 HttpContext.RequestAborted);
         }
 
-        Response.Cookies.Delete(
-            SessionAuthenticationDefaults.CookieName,
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None
-            });
+        cookieService.DeleteSessionCookie(Response);
 
         return NoContent();
     }
@@ -147,10 +134,8 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [HttpGet("whoami")]
     public IActionResult WhoAmI()
     {
-        return Ok(new
-        {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Name = User.Identity?.Name
-        });
+        return Ok(new WhoAmIResponse(
+            User.Identity?.IsAuthenticated ?? false,
+            User.Identity?.Name));
     }
 }

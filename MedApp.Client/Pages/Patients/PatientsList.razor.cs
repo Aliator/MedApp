@@ -15,7 +15,7 @@ public partial class PatientsList
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated)
+        if (!await Auth.EnsureAuthenticatedAsync())
         {
             Nav.NavigateTo("/login", true);
             return;
