@@ -14,7 +14,7 @@ public sealed class SessionService(
 {
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
 
-    public async Task<SessionToken> CreateSessionAsync(
+    public async Task<LoginResult> CreateSessionAsync(
         Guid userId,
         string? ipAddress,
         string? userAgent,
@@ -27,7 +27,7 @@ public sealed class SessionService(
         context.UserSessions.Add(session);
         await context.SaveChangesAsync(ct);
 
-        return new SessionToken(session.Id, session.ExpiresAtUtc);
+        return new LoginResult(session.Id, session.ExpiresAtUtc);
     }
 
     public async Task<SessionValidationResult?> ValidateSessionAsync(

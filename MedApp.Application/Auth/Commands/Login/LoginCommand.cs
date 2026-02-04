@@ -8,4 +8,4 @@ public sealed record LoginCommand(
     string Password,
     string? IpAddress,
     string? UserAgent
-    ) : IRequest<SessionToken>;
+    ) : IRequest<LoginResult>;

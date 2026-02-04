@@ -34,7 +34,7 @@ public sealed class LoginHandlerTests
     public async Task Handle_ValidCredentials_ReturnsCreatedSession()
     {
         var userId = Guid.NewGuid();
-        var expectedSession = new SessionToken(
+        var expectedSession = new LoginResult(
             AuthTestConstants.SessionId,
             AuthTestConstants.SessionExpiresAtUtc);;
 
@@ -82,7 +82,7 @@ public sealed class LoginHandlerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SessionToken(
+            .ReturnsAsync(new LoginResult(
                 AuthTestConstants.SessionId,
                 AuthTestConstants.SessionExpiresAtUtc));
 
@@ -118,7 +118,7 @@ public sealed class LoginHandlerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SessionToken(
+            .ReturnsAsync(new LoginResult(
                 AuthTestConstants.SessionId,
                 AuthTestConstants.SessionExpiresAtUtc));
 

@@ -2,7 +2,7 @@
 
 public interface ISessionService
 {
-    Task<SessionToken> CreateSessionAsync(
+    Task<LoginResult> CreateSessionAsync(
         Guid userId,
         string? ipAddress,
         string? userAgent,

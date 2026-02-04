@@ -6,9 +6,9 @@ namespace MedApp.Application.Auth.Commands.Login;
 public sealed class LoginHandler(
     IAuthenticationService authenticationService,
     ISessionService sessionService)
-    : IRequestHandler<LoginCommand, SessionToken>
+    : IRequestHandler<LoginCommand, LoginResult>
 {
-    public async Task<SessionToken> Handle(LoginCommand request, CancellationToken ct)
+    public async Task<LoginResult> Handle(LoginCommand request, CancellationToken ct)
     {
         var (userId, _, _) =
             await authenticationService.ValidateCredentialsAsync(

@@ -4,6 +4,6 @@ namespace MedApp.API.Common.Authentication;
 
 public interface ISessionCookieService
 {
-    void AppendSessionCookie(HttpResponse response, SessionToken session);
+    void AppendSessionCookie(HttpResponse response, LoginResult session);
     void DeleteSessionCookie(HttpResponse response);
 }

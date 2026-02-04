@@ -4,7 +4,7 @@ namespace MedApp.API.Common.Authentication;
 
 public sealed class SessionCookieService(IWebHostEnvironment environment) : ISessionCookieService
 {
-    public void AppendSessionCookie(HttpResponse response, SessionToken session)
+    public void AppendSessionCookie(HttpResponse response, LoginResult session)
     {
         response.Cookies.Append(
             SessionAuthenticationDefaults.CookieName,

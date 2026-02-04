@@ -1,6 +1,6 @@
 ﻿namespace MedApp.Application.Common.Authentication;
 
-public sealed record SessionToken(
+public sealed record LoginResult(
     Guid SessionId,
     DateTime ExpiresAtUtc
 );
