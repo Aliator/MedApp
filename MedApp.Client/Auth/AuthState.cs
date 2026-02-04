@@ -7,10 +7,11 @@ public sealed class AuthState(HttpClient http)
 {
     private bool? _isAuthenticated;
     private IReadOnlyList<string> _roles = Array.Empty<string>();
+    private string _username { get; set; } = string.Empty;
 
     public bool IsAuthenticated => _isAuthenticated == true;
-    public IReadOnlyList<string> Roles => _roles;
     public bool IsAdmin => _roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
+    public string Username => _username;
 
     public async Task<bool> EnsureAuthenticatedAsync(
         CancellationToken ct = default)
@@ -35,6 +36,7 @@ public sealed class AuthState(HttpClient http)
 
         _isAuthenticated = result?.IsAuthenticated ?? false;
         _roles = result?.Roles ?? Array.Empty<string>();
+        _username = result?.Name ?? string.Empty;
         
         return _isAuthenticated.Value;
     }

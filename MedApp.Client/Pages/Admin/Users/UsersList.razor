@@ -1,0 +1,144 @@
+﻿@page "/admin/users"
+
+<h3>Users</h3>
+
+@if (!Auth.IsAuthenticated)
+{
+    <p>Redirecting…</p>
+}
+else if (_users is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <table>
+        <thead>
+        <tr>
+            <th>Username</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var user in _users)
+        {
+            <tr>
+                <td>@user</td>
+                <td class="table-actions">
+                    <button class="table-button"
+                            @onclick="() => ShowAssignRole(user)">
+                        Assign role
+                    </button>
+
+                    <button class="danger-button"
+                            disabled="@(user == Auth.Username)"
+                            @onclick="() => ShowDelete(user)">
+                        Delete
+                    </button>
+
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <button class="primary-button" @onclick="ShowAddUser">
+        Add user
+    </button>
+}
+
+@if (_showAssignRole)
+{
+    <div class="modal-backdrop">
+        <div class="modal">
+            <p>Assign roles to <strong>@_selectedUser</strong></p>
+
+            @if (!AssignableRoles.Any())
+            {
+                <p>This user already has all available roles.</p>
+            }
+            else
+            {
+                <table>
+                    <tbody>
+                    @foreach (var role in AssignableRoles)
+                    {
+                        <tr>
+                            <td>
+                                <label>
+                                    <input type="checkbox"
+                                           checked="@_selectedRoles.Contains(role)"
+                                           @onchange="e => ToggleRole(role, (bool)e.Value!)" />
+                                    @role
+                                </label>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            }
+
+            <div class="modal-actions">
+                <button class="primary-button"
+                        disabled="@(!_selectedRoles.Any())"
+                        @onclick="AssignRoles">
+                    Assign
+                </button>
+
+                <button class="secondary-button"
+                        @onclick="HideAssignRole">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@if (_confirmDelete)
+{
+    <div class="modal-backdrop">
+        <div class="modal">
+            <p>Delete user <strong>@_selectedUser</strong>?</p>
+
+            <div class="modal-actions">
+                <button class="danger-button"
+                        @onclick="DeleteUser">
+                    Delete
+                </button>
+
+                <button class="secondary-button"
+                        @onclick="HideDelete">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showAddUser)
+{
+    <div class="modal-backdrop">
+        <div class="modal">
+            <p>Create new user</p>
+
+            <label>
+                Username
+                <input @bind="_newUsername" />
+            </label>
+
+            <div class="modal-actions">
+                <button class="primary-button"
+                        disabled="@string.IsNullOrWhiteSpace(_newUsername)"
+                        @onclick="CreateUser">
+                    Create
+                </button>
+
+                <button class="secondary-button"
+                        @onclick="HideAddUser">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
