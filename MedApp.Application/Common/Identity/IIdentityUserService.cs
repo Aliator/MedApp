@@ -8,4 +8,8 @@ public interface IIdentityUserService
         string username,
         string password,
         CancellationToken ct);
+    
+    Task<IdentityResult> DeleteUserAsync(
+        string username,
+        CancellationToken ct);
 }

@@ -2,6 +2,7 @@
 using MedApp.Application.Auth.Commands.AssignRole;
 using MedApp.Application.Auth.Commands.CreateRole;
 using MedApp.Application.Auth.Commands.CreateUser;
+using MedApp.Application.Auth.Commands.DeleteUser;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
@@ -121,6 +122,18 @@ public sealed class AuthController(
 
         return Ok(new UserResponse(user.Username, user.Roles));
     }
+    
+    [HttpDelete("users/{username}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteUser(string username)
+    {
+        var result = await mediator.Send(new DeleteUserCommand(username));
+
+        if (!result.Succeeded)
+            return NotFound();
+
+        return NoContent();
+    }
 
     [HttpGet("roles")]
     [Authorize(Roles = "Admin")]
@@ -142,9 +155,6 @@ public sealed class AuthController(
         return Ok(roles);
     }
     
-    
-
-
     [HttpGet("whoami")]
     public IActionResult WhoAmI()
     {
