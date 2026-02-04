@@ -7,5 +7,8 @@ public interface IIdentityReadService
     Task<IReadOnlyList<string>> GetRolesForUserAsync(
         string username,
         CancellationToken ct);
+    Task<UserDetails?> GetUserAsync(
+        string username,
+        CancellationToken ct);
 
 }

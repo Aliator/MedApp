@@ -5,6 +5,7 @@ using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
+using MedApp.Application.Auth.Queries.GetUserByUsername;
 using MedApp.Application.Auth.Queries.GetUserRoles;
 using MedApp.Application.Common.Authentication;
 using MedApp.Contracts.Auth.Requests;
@@ -73,7 +74,6 @@ public sealed class AuthController(
         return NoContent();
     }
 
-
     [HttpPost("roles")]
     [Authorize(Roles = "Test")]
     public async Task<IActionResult> CreateRole(CreateRoleRequest request)
@@ -109,7 +109,19 @@ public sealed class AuthController(
         var users = await mediator.Send(new GetAllUsersQuery());
         return Ok(users);
     }
-    
+
+    [HttpGet("users/{username}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserByUsername(string username)
+    {
+        var user = await mediator.Send(new GetUserByUsernameQuery(username));
+        if (user is null)
+            return NotFound();
+
+        return Ok(new UserResponse(user.Username, user.Roles));
+    }
+
     [HttpGet("roles")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
@@ -129,6 +141,8 @@ public sealed class AuthController(
 
         return Ok(roles);
     }
+    
+    
 
 
     [HttpGet("whoami")]

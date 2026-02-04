@@ -33,4 +33,16 @@ public sealed class IdentityReadService(
         var roles = await userManager.GetRolesAsync(user);
         return roles.ToList();
     }
+    
+    public async Task<UserDetails?> GetUserAsync(
+        string username,
+        CancellationToken ct)
+    {
+        var user = await userManager.FindByNameAsync(username);
+        if (user is null)
+            return null;
+
+        var roles = await userManager.GetRolesAsync(user);
+        return new UserDetails(user.UserName!, roles.ToList());
+    }
 }
