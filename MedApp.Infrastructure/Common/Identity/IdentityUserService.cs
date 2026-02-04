@@ -8,9 +8,6 @@ namespace MedApp.Infrastructure.Common.Identity;
 public sealed class IdentityUserService(
     UserManager<ApplicationUser> userManager) : IIdentityUserService
 {
-    private const string UserNotFoundCode = "UserNotFound";
-    private const string OldPasswordIncorrectCode = "OldPasswordRequired";
-    
     public async Task<IdentityResult> CreateUserAsync(
         string username,
         string password,
@@ -24,7 +21,7 @@ public sealed class IdentityUserService(
 
         return await userManager.CreateAsync(user, password);
     }
-    
+
     public async Task<IdentityResult> UpdateUserPasswordAsync(
         string username,
         string oldPassword,
@@ -33,19 +30,11 @@ public sealed class IdentityUserService(
     {
         var user = await userManager.FindByNameAsync(username);
         if (user is null)
-            return IdentityResult.Failed(new IdentityError
-            {
-                Code = UserNotFoundCode,
-                Description = "User not found."
-            });
+            return IdentityResult.Failed(IdentityErrors.UserNotFound);
 
         var passwordValid = await userManager.CheckPasswordAsync(user, oldPassword);
         if (!passwordValid)
-            return IdentityResult.Failed(new IdentityError
-            {
-                Code = OldPasswordIncorrectCode,
-                Description = "Old password is incorrect."
-            });
+            return IdentityResult.Failed(IdentityErrors.OldPasswordIncorrect);
 
         return await userManager.ChangePasswordAsync(
             user,
@@ -61,13 +50,7 @@ public sealed class IdentityUserService(
         if (user is null)
             return new ResetUserPasswordResponse(
                 null,
-                [
-                    new IdentityError
-                    {
-                        Code = UserNotFoundCode,
-                        Description = "User not found."
-                    }
-                ]);
+                [IdentityErrors.UserNotFound]);
 
         var newPassword = GeneratePassword();
 
@@ -82,22 +65,17 @@ public sealed class IdentityUserService(
             : new ResetUserPasswordResponse(null, result.Errors);
     }
 
-    
     public async Task<IdentityResult> DeleteUserAsync(
         string username,
         CancellationToken ct)
     {
         var user = await userManager.FindByNameAsync(username);
         if (user is null)
-            return IdentityResult.Failed(new IdentityError
-            {
-                Code = UserNotFoundCode,
-                Description = "User not found."
-            });
+            return IdentityResult.Failed(IdentityErrors.UserNotFound);
 
         return await userManager.DeleteAsync(user);
     }
-    
+
     private static string GeneratePassword()
     {
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";

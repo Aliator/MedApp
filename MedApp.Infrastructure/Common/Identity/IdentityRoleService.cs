@@ -7,8 +7,6 @@ public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager) : IIdentityRoleService
 {
-    private const string RoleNotFoundCode = "RoleNotFound";
-    
     public async Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,
         string roleName,
@@ -23,21 +21,17 @@ public sealed class IdentityRoleService(
             return null;
 
         var result = await userManager.AddToRoleAsync(user, role.Name);
-        
+
         return !result.Succeeded ? null : role;
     }
-    
+
     public async Task<IdentityResult> DeleteRoleAsync(
         string roleName,
         CancellationToken ct)
     {
         var role = await roleManager.FindByNameAsync(roleName);
         if (role is null)
-            return IdentityResult.Failed(new IdentityError
-            {
-                Code = RoleNotFoundCode,
-                Description = "Role not found."
-            });
+            return IdentityResult.Failed(IdentityErrors.RoleNotFound);
 
         return await roleManager.DeleteAsync(role);
     }

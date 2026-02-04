@@ -17,8 +17,17 @@ public static class AuthTestConstants
         "User"
     ];
 
-    public const string Password = "password";
-    public static readonly Guid SessionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public static readonly IReadOnlyList<string> Passwords =
+    [
+        "oldPassword",
+        "newPassword",
+    ];
+
+    public const string ValidPassword = "ValidPassword1";
+
+    public static readonly Guid SessionId =
+        Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     public static readonly DateTime SessionExpiresAtUtc =
         new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 

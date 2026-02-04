@@ -41,7 +41,7 @@ public sealed class LoginHandlerTests
         _authService
             .Setup(s => s.ValidateCredentialsAsync(
                 AuthTestConstants.Usernames[0],
-                AuthTestConstants.Password))
+                AuthTestConstants.Passwords[0]))
             .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
 
         _sessionService
@@ -54,7 +54,7 @@ public sealed class LoginHandlerTests
 
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password,
+            AuthTestConstants.Passwords[0],
             null,
             null);
 
@@ -88,7 +88,7 @@ public sealed class LoginHandlerTests
 
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password,
+            AuthTestConstants.Passwords[0],
             "127.0.0.1",
             "agent");
 
@@ -124,7 +124,7 @@ public sealed class LoginHandlerTests
 
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password,
+            AuthTestConstants.Passwords[0],
             null,
             null);
 
@@ -133,7 +133,7 @@ public sealed class LoginHandlerTests
         _authService.Verify(
             s => s.ValidateCredentialsAsync(
                 AuthTestConstants.Usernames[0],
-                AuthTestConstants.Password),
+                AuthTestConstants.Passwords[0]),
             Times.Once);
     }
 }

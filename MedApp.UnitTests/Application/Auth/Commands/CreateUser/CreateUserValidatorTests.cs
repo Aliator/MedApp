@@ -20,7 +20,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password);
+            AuthTestConstants.Passwords[0]);
 
         var result = _validator.Validate(command);
 
@@ -32,7 +32,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             string.Empty,
-            AuthTestConstants.Password);
+            AuthTestConstants.Passwords[0]);
 
         var result = _validator.Validate(command);
 
@@ -45,7 +45,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             "aa",
-            AuthTestConstants.Password);
+            AuthTestConstants.Passwords[0]);
 
         var result = _validator.Validate(command);
 
@@ -58,7 +58,7 @@ public sealed class CreateUserValidatorTests
     {
         var command = new CreateUserCommand(
             new string('a', 51),
-            AuthTestConstants.Password);
+            AuthTestConstants.Passwords[0]);
 
         var result = _validator.Validate(command);
 

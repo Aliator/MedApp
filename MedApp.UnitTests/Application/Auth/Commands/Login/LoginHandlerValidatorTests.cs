@@ -20,7 +20,7 @@ public sealed class LoginHandlerValidatorTests
     {
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password,
+            AuthTestConstants.Passwords[0],
             null,
             null);
 
@@ -34,7 +34,7 @@ public sealed class LoginHandlerValidatorTests
     {
         var command = new LoginCommand(
             string.Empty,
-            AuthTestConstants.Password,
+            AuthTestConstants.Passwords[0],
             null,
             null);
 

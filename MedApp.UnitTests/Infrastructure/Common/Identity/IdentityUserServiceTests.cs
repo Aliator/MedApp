@@ -28,12 +28,12 @@ public sealed class IdentityUserServiceTests
         _userManager
             .Setup(u => u.CreateAsync(
                 It.IsAny<ApplicationUser>(),
-                AuthTestConstants.Password))
+                AuthTestConstants.Passwords[0]))
             .ReturnsAsync(IdentityResult.Success);
 
         var result = await _service.CreateUserAsync(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password,
+            AuthTestConstants.Passwords[0],
             CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
@@ -43,7 +43,7 @@ public sealed class IdentityUserServiceTests
                 It.Is<ApplicationUser>(u =>
                     u.UserName == AuthTestConstants.Usernames[0] &&
                     u.CreatedAt <= DateTime.UtcNow),
-                AuthTestConstants.Password),
+                AuthTestConstants.Passwords[0]),
             Times.Once);
     }
 }

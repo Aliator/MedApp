@@ -33,7 +33,7 @@ public sealed class IdentityAuthenticationServiceTests
         var act = async () =>
             await _service.ValidateCredentialsAsync(
                 AuthTestConstants.Usernames[0],
-                AuthTestConstants.Password);
+                AuthTestConstants.Passwords[0]);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
     }
@@ -49,13 +49,13 @@ public sealed class IdentityAuthenticationServiceTests
             .ReturnsAsync(user);
 
         _userManager
-            .Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Password))
+            .Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Passwords[0]))
             .ReturnsAsync(false);
 
         var act = async () =>
             await _service.ValidateCredentialsAsync(
                 user.UserName!,
-                AuthTestConstants.Password);
+                AuthTestConstants.Passwords[0]);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
     }
@@ -71,7 +71,7 @@ public sealed class IdentityAuthenticationServiceTests
             .ReturnsAsync(user);
 
         _userManager
-            .Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Password))
+            .Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Passwords[0]))
             .ReturnsAsync(true);
 
         _userManager
@@ -80,7 +80,7 @@ public sealed class IdentityAuthenticationServiceTests
 
         var result = await _service.ValidateCredentialsAsync(
             user.UserName!,
-            AuthTestConstants.Password);
+            AuthTestConstants.Passwords[0]);
 
         result.Item1.Should().Be(user.Id);
         result.Item2.Should().Be(user.UserName);
