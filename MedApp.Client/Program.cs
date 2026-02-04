@@ -7,8 +7,9 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(_ =>
-    new HttpClient
+builder.Services.AddScoped<CredentialHandler>();
+builder.Services.AddScoped(sp =>
+    new HttpClient(sp.GetRequiredService<CredentialHandler>())
     {
         BaseAddress = new Uri("https://localhost:44305/")
     });

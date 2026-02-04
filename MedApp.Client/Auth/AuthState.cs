@@ -1,29 +1,45 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net.Http.Json;
+using MedApp.Contracts.Auth.Responses;
 
 namespace MedApp.Client.Auth;
 
-public sealed class AuthState
+public sealed class AuthState(HttpClient http)
 {
-    private string? _token;
+    private bool? _isAuthenticated;
 
-    public bool IsAuthenticated => _token is not null;
-    public string? Token => _token;
+    public bool IsAuthenticated => _isAuthenticated == true;
 
-    public void SetToken(string token)
+    public async Task<bool> EnsureAuthenticatedAsync(
+        CancellationToken ct = default)
     {
-        _token = token;
+        if (_isAuthenticated.HasValue)
+            return _isAuthenticated.Value;
+
+        var response = await http.GetAsync(
+            "api/auth/whoami",
+            ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _isAuthenticated = false;
+            return false;
+        }
+
+        var result =
+            await response.Content.ReadFromJsonAsync<WhoAmIResponse>(
+                cancellationToken: ct);
+
+        _isAuthenticated = result?.IsAuthenticated ?? false;
+        return _isAuthenticated.Value;
+    }
+
+    public void SetAuthenticated()
+    {
+        _isAuthenticated = true;
     }
 
     public void Clear()
     {
-        _token = null;
-    }
-
-    public void Apply(HttpClient http)
-    {
-        http.DefaultRequestHeaders.Authorization =
-            _token is null
-                ? null
-                : new AuthenticationHeaderValue("Bearer", _token);
+        _isAuthenticated = false;
     }
 }

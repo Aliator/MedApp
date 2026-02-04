@@ -5,7 +5,7 @@ using MedApp.UnitTests.Common.Constants;
 namespace MedApp.UnitTests.Application.Auth.Commands.Login;
 
 [TestFixture]
-public sealed class LoginValidatorTests
+public sealed class LoginHandlerValidatorTests
 {
     private LoginValidator _validator = null!;
 
@@ -20,7 +20,9 @@ public sealed class LoginValidatorTests
     {
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password);
+            AuthTestConstants.Password,
+            null,
+            null);
 
         var result = _validator.Validate(command);
 
@@ -32,7 +34,9 @@ public sealed class LoginValidatorTests
     {
         var command = new LoginCommand(
             string.Empty,
-            AuthTestConstants.Password);
+            AuthTestConstants.Password,
+            null,
+            null);
 
         var result = _validator.Validate(command);
 
@@ -45,7 +49,9 @@ public sealed class LoginValidatorTests
     {
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            string.Empty);
+            string.Empty,
+            null,
+            null);
 
         var result = _validator.Validate(command);
 

@@ -17,13 +17,11 @@ public partial class ViewPatient
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated)
+        if (!await Auth.EnsureAuthenticatedAsync())
         {
             Nav.NavigateTo("/login", true);
             return;
         }
-
-        Auth.Apply(Http);
 
         var response = await Http.GetAsync($"api/patients/{Id}");
         if (!response.IsSuccessStatusCode)

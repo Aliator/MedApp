@@ -37,8 +37,7 @@ public partial class Login
             return;
         }
 
-        Auth.SetToken(result.AccessToken);
-        Auth.Apply(Http);
+        Auth.SetAuthenticated();
 
         Nav.NavigateTo("/patients");
     }

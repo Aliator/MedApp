@@ -26,13 +26,11 @@ public partial class EditPatient
     
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated)
+        if (!await Auth.EnsureAuthenticatedAsync())
         {
             Nav.NavigateTo("/login");
             return;
         }
-
-        Auth.Apply(Http);
 
         var response = await Http.GetAsync($"api/patients/{Id}");
         if (!response.IsSuccessStatusCode)

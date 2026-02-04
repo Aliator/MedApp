@@ -1,47 +1,18 @@
-﻿using System.Text;
-using FluentValidation.AspNetCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+﻿using FluentValidation.AspNetCore;
+using MedApp.API.Common.Authentication;
+using Microsoft.AspNetCore.Authentication;
 
 namespace MedApp.API.Common.Extensions;
 
 public static class ServiceExtensions
 {
     public static IServiceCollection AddApi(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        this IServiceCollection services)
     {
         services.AddControllers();
         services.AddFluentValidationAutoValidation();
         services.AddEndpointsApiExplorer();
-
-        services.AddSwaggerGen(options =>
-        {
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = "Bearer",
-                BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Enter your JWT token without the 'Bearer ' prefix"
-            });
-
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
-                    Array.Empty<string>()
-                }
-            });
-        });
+        services.AddSwaggerGen();
 
         services.AddCors(options =>
         {
@@ -50,34 +21,31 @@ public static class ServiceExtensions
                 policy
                     .WithOrigins("https://localhost:7292")
                     .AllowAnyHeader()
-                    .AllowAnyMethod();
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 
-        services.AddApiAuthentication(configuration);
+        services.AddSingleton<ISessionCookieService, SessionCookieService>();
+        services.AddApiAuthentication();
 
         return services;
     }
 
     private static IServiceCollection AddApiAuthentication(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        this IServiceCollection services)
     {
-        services.AddAuthentication("Bearer")
-            .AddJwtBearer(options =>
+        services
+            .AddAuthentication(options =>
             {
-                options.TokenValidationParameters = new()
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = configuration["Jwt:Issuer"],
-                    ValidAudience = configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!))
-                };
-            });
+                options.DefaultAuthenticateScheme =
+                    SessionAuthenticationDefaults.Scheme;
+                options.DefaultChallengeScheme =
+                    SessionAuthenticationDefaults.Scheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(
+                SessionAuthenticationDefaults.Scheme,
+                _ => { });
 
         services.AddAuthorization();
 

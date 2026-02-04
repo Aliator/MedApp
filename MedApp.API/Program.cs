@@ -4,7 +4,7 @@ using MedApp.Infrastructure.Common.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddApi(builder.Configuration);
+builder.Services.AddApi();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 

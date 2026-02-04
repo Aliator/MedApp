@@ -15,13 +15,11 @@ public partial class PatientsList
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated)
+        if (!await Auth.EnsureAuthenticatedAsync())
         {
             Nav.NavigateTo("/login", true);
             return;
         }
-
-        Auth.Apply(Http);
 
         var response = await Http.GetAsync("api/patients");
         if (!response.IsSuccessStatusCode)

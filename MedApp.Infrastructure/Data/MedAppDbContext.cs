@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Identity;
+﻿using MedApp.Domain.Authentication;
 using MedApp.Domain.Patients;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -11,6 +11,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

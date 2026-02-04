@@ -1,10 +1,12 @@
-﻿using MedApp.Application.Auth.Commands.AssignRole;
+﻿using MedApp.API.Common.Authentication;
+using MedApp.Application.Auth.Commands.AssignRole;
 using MedApp.Application.Auth.Commands.CreateRole;
 using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Auth.Queries.GetUserRoles;
+using MedApp.Application.Common.Authentication;
 using MedApp.Contracts.Auth.Requests;
 using MedApp.Contracts.Auth.Responses;
 using MediatR;
@@ -15,16 +17,47 @@ namespace MedApp.API.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IMediator mediator) : ControllerBase
+public sealed class AuthController(
+    IMediator mediator,
+    ISessionCookieService cookieService)
+    : ControllerBase
 {
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var token = await mediator.Send(
-            new LoginCommand(request.Username, request.Password));
+        var session = await mediator.Send(
+            new LoginCommand(
+                request.Username,
+                request.Password,
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Request.Headers.UserAgent.ToString()));
 
-        return Ok(new LoginResponse(token));
+        cookieService.AppendSessionCookie(Response, session);
+
+        return Ok(new LoginResponse(
+            session.SessionId,
+            session.ExpiresAtUtc));
+    }
+    
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout(
+        [FromServices] ISessionService sessionService)
+    {
+        if (Request.Cookies.TryGetValue(
+                SessionAuthenticationDefaults.CookieName,
+                out var rawSessionId)
+            && Guid.TryParse(rawSessionId, out var sessionId))
+        {
+            await sessionService.RevokeSessionAsync(
+                sessionId,
+                HttpContext.RequestAborted);
+        }
+
+        cookieService.DeleteSessionCookie(Response);
+
+        return NoContent();
     }
 
     [HttpPost("users")]
@@ -101,10 +134,8 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [HttpGet("whoami")]
     public IActionResult WhoAmI()
     {
-        return Ok(new
-        {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Name = User.Identity?.Name
-        });
+        return Ok(new WhoAmIResponse(
+            User.Identity?.IsAuthenticated ?? false,
+            User.Identity?.Name));
     }
 }

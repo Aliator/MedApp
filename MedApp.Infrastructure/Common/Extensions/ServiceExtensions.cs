@@ -61,7 +61,7 @@ public static class ServiceExtensions
             .AddDefaultTokenProviders();
 
         services.AddScoped<IAuthenticationService, IdentityAuthenticationService>();
-        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<ISessionService, SessionService>();
 
         services.AddScoped<IIdentityReadService, IdentityReadService>();
         services.AddScoped<IIdentityUserService, IdentityUserService>();
