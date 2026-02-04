@@ -5,6 +5,8 @@ using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Auth.Commands.DeleteRole;
 using MedApp.Application.Auth.Commands.DeleteUser;
 using MedApp.Application.Auth.Commands.Login;
+using MedApp.Application.Auth.Commands.ResetUserPassword;
+using MedApp.Application.Auth.Commands.UpdateUserPassword;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Auth.Queries.GetUserByUsername;
@@ -26,6 +28,7 @@ public sealed class AuthController(
     : ControllerBase
 {
     [HttpPost("login")]
+    [Tags("Login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
@@ -44,7 +47,7 @@ public sealed class AuthController(
     }
     
     [HttpPost("logout")]
-    [Authorize]
+    [Tags("Login")]
     public async Task<IActionResult> Logout(
         [FromServices] ISessionService sessionService)
     {
@@ -65,6 +68,7 @@ public sealed class AuthController(
 
     [HttpPost("users")]
     [Authorize(Roles = "Admin")]
+    [Tags("Users")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var result = await mediator.Send(
@@ -75,36 +79,10 @@ public sealed class AuthController(
 
         return NoContent();
     }
-
-    [HttpPost("roles")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateRole(CreateRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new CreateRoleCommand(request.Name));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
-    }
-
-
-    [HttpPost("roles/assign")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AssignRole(AssignRoleRequest request)
-    {
-        var role = await mediator.Send(
-            new AssignRoleCommand(request.Username, request.Role));
-
-        if (role is null)
-            return BadRequest();
-
-        return NoContent();
-    }
     
     [HttpGet("users")]
     [Authorize(Roles = "Admin")]
+    [Tags("Users")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllUsers()
     {
@@ -114,6 +92,7 @@ public sealed class AuthController(
 
     [HttpGet("users/{username}")]
     [Authorize(Roles = "Admin")]
+    [Tags("Users")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserByUsername(string username)
     {
@@ -124,8 +103,42 @@ public sealed class AuthController(
         return Ok(new UserResponse(user.Username, user.Roles));
     }
     
+    [HttpPut("users/{username}")]
+    [Authorize(Roles = "User")]
+    [Tags("Users")]
+    public async Task<IActionResult> UpdateUserPassword(
+        string username,
+        UpdateUserPasswordRequest request)
+    {
+        var result = await mediator.Send(
+            new UpdateUserPasswordCommand(
+                username,
+                request.OldPassword,
+                request.NewPassword));
+
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return NoContent();
+    }
+    
+    [HttpPut("users/{username}/reset-password")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Users")]
+    public async Task<IActionResult> ResetUserPassword(string username)
+    {
+        var response = await mediator.Send(
+            new ResetUserPasswordCommand(username));
+
+        if (response.Errors.Any())
+            return BadRequest(response.Errors);
+
+        return Ok(response.GeneratedPassword);
+    }
+    
     [HttpDelete("users/{username}")]
     [Authorize(Roles = "Admin")]
+    [Tags("Users")]
     public async Task<IActionResult> DeleteUser(string username)
     {
         var result = await mediator.Send(new DeleteUserCommand(username));
@@ -138,6 +151,7 @@ public sealed class AuthController(
 
     [HttpGet("roles")]
     [Authorize(Roles = "Admin")]
+    [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllRoles()
     {
@@ -147,6 +161,7 @@ public sealed class AuthController(
     
     [HttpGet("users/{username}/roles")]
     [Authorize(Roles = "Admin")]
+    [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserRoles(string username)
     {
@@ -156,8 +171,37 @@ public sealed class AuthController(
         return Ok(roles);
     }
     
+    [HttpPost("roles")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Roles")]
+    public async Task<IActionResult> CreateRole(CreateRoleRequest request)
+    {
+        var role = await mediator.Send(
+            new CreateRoleCommand(request.Name));
+
+        if (role is null)
+            return BadRequest();
+
+        return NoContent();
+    }
+
+    [HttpPost("roles/assign")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Roles")]
+    public async Task<IActionResult> AssignRole(AssignRoleRequest request)
+    {
+        var role = await mediator.Send(
+            new AssignRoleCommand(request.Username, request.Role));
+
+        if (role is null)
+            return BadRequest();
+
+        return NoContent();
+    }
+    
     [HttpDelete("roles/{roleName}")]
     [Authorize(Roles = "Admin")]
+    [Tags("Roles")]
     public async Task<IActionResult> DeleteRole(string roleName)
     {
         var result = await mediator.Send(new DeleteRoleCommand(roleName));
@@ -169,6 +213,7 @@ public sealed class AuthController(
     }
     
     [HttpGet("whoami")]
+    [Tags("Login")]
     public IActionResult WhoAmI()
     {
         return Ok(new WhoAmIResponse(

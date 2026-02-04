@@ -7,6 +7,8 @@ public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager) : IIdentityRoleService
 {
+    private const string RoleNotFoundCode = "RoleNotFound";
+    
     public async Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,
         string roleName,
@@ -33,7 +35,7 @@ public sealed class IdentityRoleService(
         if (role is null)
             return IdentityResult.Failed(new IdentityError
             {
-                Code = "RoleNotFound",
+                Code = RoleNotFoundCode,
                 Description = "Role not found."
             });
 
