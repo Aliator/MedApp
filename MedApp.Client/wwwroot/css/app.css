@@ -19,7 +19,7 @@ h3 {
 }
 
 /* ---------------------------
-   Forms & cards
+   Cards
 ---------------------------- */
 
 .form-card {
@@ -65,7 +65,7 @@ input:focus {
 }
 
 /* ---------------------------
-   Actions row
+   Page-level actions (forms, modals)
 ---------------------------- */
 
 .actions {
@@ -76,19 +76,20 @@ input:focus {
     gap: 0.75rem;
 }
 
-/* ---------------------------
-   Buttons
----------------------------- */
-
-.primary-button {
-    background: #4f46e5;
-    color: white;
-    border: none;
+.primary-button,
+.secondary-button,
+.danger-button {
     padding: 0.6rem 1.2rem;
     border-radius: 8px;
     font-size: 0.95rem;
     font-weight: 500;
     cursor: pointer;
+    border: none;
+}
+
+.primary-button {
+    background: #4f46e5;
+    color: white;
 }
 
 .primary-button:hover {
@@ -103,10 +104,7 @@ input:focus {
 .secondary-button {
     background: white;
     border: 1px solid #d1d5db;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    cursor: pointer;
+    color: #111827;
 }
 
 .secondary-button:hover {
@@ -116,15 +114,88 @@ input:focus {
 .danger-button {
     background: #dc2626;
     color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    cursor: pointer;
 }
 
 .danger-button:hover {
     background: #b91c1c;
+}
+
+/* ---------------------------
+   Tables
+---------------------------- */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+}
+
+thead {
+    background: #f3f4f6;
+}
+
+th {
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    padding: 0.75rem 1rem;
+}
+
+td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.95rem;
+}
+
+tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* ---------------------------
+   Table actions (small buttons)
+---------------------------- */
+
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* shared sizing */
+.table-action {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    white-space: nowrap;
+}
+
+/* variants */
+.table-action.primary {
+    background: #4f46e5;
+    color: white;
+}
+
+.table-action.primary:hover {
+    background: #4338ca;
+}
+
+.table-action.danger {
+    background: #dc2626;
+    color: white;
+}
+
+.table-action.danger:hover {
+    background: #b91c1c;
+}
+
+.table-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* ---------------------------
@@ -173,56 +244,3 @@ input:focus {
     margin: 0.5rem 0 0 1rem;
     padding: 0;
 }
-/* ---------------------------
-   Tables
----------------------------- */
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
-}
-
-thead {
-    background: #f3f4f6;
-}
-
-th {
-    text-align: left;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #374151;
-    padding: 0.75rem 1rem;
-}
-
-td {
-    padding: 0.75rem 1rem;
-    border-top: 1px solid #e5e7eb;
-    font-size: 0.95rem;
-}
-
-tbody tr:hover {
-    background: #f9fafb;
-}
-
-/* ---------------------------
-   Table actions
----------------------------- */
-
-.table-button {
-    background: #4f46e5;
-    color: white;
-    border: none;
-    padding: 0.4rem 0.9rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-}
-
-.table-button:hover {
-    background: #4338ca;
-}
-

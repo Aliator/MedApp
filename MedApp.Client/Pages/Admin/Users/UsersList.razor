@@ -25,17 +25,15 @@ else
             <tr>
                 <td>@user</td>
                 <td class="table-actions">
-                    <button class="table-button"
+                    <button class="table-action primary"
                             @onclick="() => ShowAssignRole(user)">
                         Assign role
                     </button>
 
-                    <button class="danger-button"
-                            disabled="@(user == Auth.Username)"
+                    <button class="table-action danger"
                             @onclick="() => ShowDelete(user)">
                         Delete
                     </button>
-
                 </td>
             </tr>
         }
