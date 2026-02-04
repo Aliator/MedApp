@@ -6,8 +6,11 @@ namespace MedApp.Client.Auth;
 public sealed class AuthState(HttpClient http)
 {
     private bool? _isAuthenticated;
+    private IReadOnlyList<string> _roles = Array.Empty<string>();
 
     public bool IsAuthenticated => _isAuthenticated == true;
+    public IReadOnlyList<string> Roles => _roles;
+    public bool IsAdmin => _roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
 
     public async Task<bool> EnsureAuthenticatedAsync(
         CancellationToken ct = default)
@@ -22,6 +25,7 @@ public sealed class AuthState(HttpClient http)
         if (!response.IsSuccessStatusCode)
         {
             _isAuthenticated = false;
+            _roles = Array.Empty<string>();
             return false;
         }
 
@@ -35,11 +39,13 @@ public sealed class AuthState(HttpClient http)
 
     public void SetAuthenticated()
     {
-        _isAuthenticated = true;
+        _isAuthenticated = null;
+        _roles = Array.Empty<string>();
     }
 
     public void Clear()
     {
         _isAuthenticated = false;
+        _roles = Array.Empty<string>();
     }
 }

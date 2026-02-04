@@ -2,5 +2,6 @@
 
 public sealed record WhoAmIResponse(
     bool IsAuthenticated,
-    string? Name
+    string? Name,
+    IReadOnlyList<string> Roles
 );

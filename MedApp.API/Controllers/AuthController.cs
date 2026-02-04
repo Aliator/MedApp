@@ -1,4 +1,5 @@
-﻿using MedApp.API.Common.Authentication;
+﻿using System.Security.Claims;
+using MedApp.API.Common.Authentication;
 using MedApp.Application.Auth.Roles.Commands.AssignRole;
 using MedApp.Application.Auth.Roles.Commands.CreateRole;
 using MedApp.Application.Auth.Roles.Commands.DeleteRole;
@@ -221,8 +222,14 @@ public sealed class AuthController(
     [Tags("Login")]
     public IActionResult WhoAmI()
     {
+        var roles = User.Claims
+            .Where(claim => claim.Type == ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToArray();
+        
         return Ok(new WhoAmIResponse(
             User.Identity?.IsAuthenticated ?? false,
-            User.Identity?.Name));
+            User.Identity?.Name,
+            roles));
     }
 }
