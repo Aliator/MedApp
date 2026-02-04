@@ -1,10 +1,12 @@
-﻿using MedApp.Application.Auth.Commands.AssignRole;
+﻿using MedApp.API.Common.Authentication;
+using MedApp.Application.Auth.Commands.AssignRole;
 using MedApp.Application.Auth.Commands.CreateRole;
 using MedApp.Application.Auth.Commands.CreateUser;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
 using MedApp.Application.Auth.Queries.GetAllUsers;
 using MedApp.Application.Auth.Queries.GetUserRoles;
+using MedApp.Application.Common.Authentication;
 using MedApp.Contracts.Auth.Requests;
 using MedApp.Contracts.Auth.Responses;
 using MediatR;
@@ -21,10 +23,54 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var token = await mediator.Send(
-            new LoginCommand(request.Username, request.Password));
+        var session = await mediator.Send(
+            new LoginCommand(
+                request.Username,
+                request.Password,
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Request.Headers.UserAgent.ToString()));
 
-        return Ok(new LoginResponse(token));
+        Response.Cookies.Append(
+            SessionAuthenticationDefaults.CookieName,
+            session.SessionId.ToString(),
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = session.ExpiresAtUtc
+            });
+
+        return Ok(new LoginResponse(
+            session.SessionId,
+            session.ExpiresAtUtc));
+    }
+    
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout(
+        [FromServices] ISessionService sessionService)
+    {
+        if (Request.Cookies.TryGetValue(
+                SessionAuthenticationDefaults.CookieName,
+                out var rawSessionId)
+            && Guid.TryParse(rawSessionId, out var sessionId))
+        {
+            await sessionService.RevokeSessionAsync(
+                sessionId,
+                HttpContext.RequestAborted);
+        }
+
+        Response.Cookies.Delete(
+            SessionAuthenticationDefaults.CookieName,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None
+            });
+
+        return NoContent();
     }
 
     [HttpPost("users")]

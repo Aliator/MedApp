@@ -13,7 +13,7 @@ public sealed class LoginHandlerTests
 {
     private IFixture _fixture = null!;
     private Mock<IAuthenticationService> _authService = null!;
-    private Mock<IJwtTokenGenerator> _tokenGenerator = null!;
+    private Mock<ISessionService> _sessionService = null!;
     private LoginHandler _handler = null!;
 
     [SetUp]
@@ -22,18 +22,21 @@ public sealed class LoginHandlerTests
         _fixture = AutoFixtureFactory.Create();
 
         _authService = new Mock<IAuthenticationService>();
-        _tokenGenerator = new Mock<IJwtTokenGenerator>();
+        _sessionService = new Mock<ISessionService>();
 
         _fixture.Inject(_authService.Object);
-        _fixture.Inject(_tokenGenerator.Object);
+        _fixture.Inject(_sessionService.Object);
 
         _handler = _fixture.Create<LoginHandler>();
     }
 
     [Test]
-    public async Task Handle_ValidCredentials_ReturnsGeneratedToken()
+    public async Task Handle_ValidCredentials_ReturnsCreatedSession()
     {
         var userId = Guid.NewGuid();
+        var expectedSession = new SessionToken(
+            AuthTestConstants.SessionId,
+            AuthTestConstants.SessionExpiresAtUtc);;
 
         _authService
             .Setup(s => s.ValidateCredentialsAsync(
@@ -41,22 +44,25 @@ public sealed class LoginHandlerTests
                 AuthTestConstants.Password))
             .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
 
-        _tokenGenerator
-            .Setup(g => g.GenerateToken(
+        _sessionService
+            .Setup(s => s.CreateSessionAsync(
                 userId,
-                AuthTestConstants.Usernames[0],
-                AuthTestConstants.Roles))
-            .Returns(AuthTestConstants.Token);
+                null,
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedSession);
 
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password);
+            AuthTestConstants.Password,
+            null,
+            null);
 
         var result = await _handler.Handle(
             command,
             CancellationToken.None);
 
-        result.Should().Be(AuthTestConstants.Token);
+        result.Should().Be(expectedSession);
     }
 
     [Test]
@@ -70,25 +76,31 @@ public sealed class LoginHandlerTests
                 It.IsAny<string>()))
             .ReturnsAsync((userId, AuthTestConstants.Usernames[0], AuthTestConstants.Roles));
 
-        _tokenGenerator
-            .Setup(g => g.GenerateToken(
+        _sessionService
+            .Setup(s => s.CreateSessionAsync(
                 It.IsAny<Guid>(),
-                It.IsAny<string>(),
-                It.IsAny<IEnumerable<string>>()))
-            .Returns(AuthTestConstants.Token);
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionToken(
+                AuthTestConstants.SessionId,
+                AuthTestConstants.SessionExpiresAtUtc));
 
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password);
+            AuthTestConstants.Password,
+            "127.0.0.1",
+            "agent");
 
         await _handler.Handle(command, CancellationToken.None);
 
-        _tokenGenerator.Verify(
-            g => g.GenerateToken(
+        _sessionService.Verify(
+            s => s.CreateSessionAsync(
                 userId,
-                AuthTestConstants.Usernames[0],
-                AuthTestConstants.Roles),
-            Times.Once);
+            "127.0.0.1",
+            "agent",
+            It.IsAny<CancellationToken>()),
+        Times.Once);
     }
 
     [Test]
@@ -99,17 +111,22 @@ public sealed class LoginHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<string>()))
             .ReturnsAsync((Guid.NewGuid(), AuthTestConstants.Usernames[0], Array.Empty<string>()));
-
-        _tokenGenerator
-            .Setup(g => g.GenerateToken(
+        
+        _sessionService
+            .Setup(s => s.CreateSessionAsync(
                 It.IsAny<Guid>(),
-                It.IsAny<string>(),
-                It.IsAny<IEnumerable<string>>()))
-            .Returns(AuthTestConstants.Token);
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionToken(
+                AuthTestConstants.SessionId,
+                AuthTestConstants.SessionExpiresAtUtc));
 
         var command = new LoginCommand(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Password);
+            AuthTestConstants.Password,
+            null,
+            null);
 
         await _handler.Handle(command, CancellationToken.None);
 

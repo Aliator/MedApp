@@ -18,7 +18,9 @@ public static class AuthTestConstants
     ];
 
     public const string Password = "password";
-    public const string Token = "jwt-token";
+    public static readonly Guid SessionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public static readonly DateTime SessionExpiresAtUtc =
+        new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     public static ApplicationUser CreateValidUser()
     {

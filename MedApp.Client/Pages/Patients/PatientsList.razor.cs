@@ -21,8 +21,6 @@ public partial class PatientsList
             return;
         }
 
-        Auth.Apply(Http);
-
         var response = await Http.GetAsync("api/patients");
         if (!response.IsSuccessStatusCode)
             return;

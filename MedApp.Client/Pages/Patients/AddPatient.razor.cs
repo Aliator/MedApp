@@ -27,8 +27,6 @@ public partial class AddPatient
             Nav.NavigateTo("/login");
             return;
         }
-
-        Auth.Apply(Http);
     }
 
     private void ShowSave()

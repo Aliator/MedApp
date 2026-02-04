@@ -5,16 +5,20 @@ namespace MedApp.Application.Auth.Commands.Login;
 
 public sealed class LoginHandler(
     IAuthenticationService authenticationService,
-    IJwtTokenGenerator tokenGenerator)
-    : IRequestHandler<LoginCommand, string>
+    ISessionService sessionService)
+    : IRequestHandler<LoginCommand, SessionToken>
 {
-    public async Task<string> Handle(LoginCommand request, CancellationToken ct)
+    public async Task<SessionToken> Handle(LoginCommand request, CancellationToken ct)
     {
-        var (userId, username, roles) =
+        var (userId, _, _) =
             await authenticationService.ValidateCredentialsAsync(
                 request.Username,
                 request.Password);
 
-        return tokenGenerator.GenerateToken(userId, username, roles);
+        return await sessionService.CreateSessionAsync(
+            userId,
+            request.IpAddress,
+            request.UserAgent,
+            ct);
     }
 }

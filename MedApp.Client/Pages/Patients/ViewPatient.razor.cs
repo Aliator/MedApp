@@ -23,8 +23,6 @@ public partial class ViewPatient
             return;
         }
 
-        Auth.Apply(Http);
-
         var response = await Http.GetAsync($"api/patients/{Id}");
         if (!response.IsSuccessStatusCode)
             return;
