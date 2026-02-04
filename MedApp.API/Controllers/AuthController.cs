@@ -103,8 +103,8 @@ public sealed class AuthController(
         return Ok(new UserResponse(user.Username, user.Roles));
     }
     
-    [HttpPut("users/{username}")]
-    [Authorize(Roles = "User")]
+    [HttpPut("users/{username}/update-password")]
+    [Authorize(Roles = "User", Policy = "SelfUserOnly")]
     [Tags("Users")]
     public async Task<IActionResult> UpdateUserPassword(
         string username,
