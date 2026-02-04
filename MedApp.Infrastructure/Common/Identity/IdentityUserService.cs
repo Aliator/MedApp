@@ -2,12 +2,16 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Auth.Responses;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class IdentityUserService(
-    UserManager<ApplicationUser> userManager) : IIdentityUserService
+    UserManager<ApplicationUser> userManager,
+    IOptions<IdentityOptions> identityOptions) : IIdentityUserService
 {
+    private readonly IdentityOptions _identityOptions = identityOptions.Value;
+    
     public async Task<IdentityResult> CreateUserAsync(
         string username,
         string password,
@@ -76,17 +80,85 @@ public sealed class IdentityUserService(
         return await userManager.DeleteAsync(user);
     }
 
-    private static string GeneratePassword()
+    private string GeneratePassword()
     {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-        var buffer = new char[16];
-        using var rng = RandomNumberGenerator.Create();
+        var rules = _identityOptions.Password;
 
-        var bytes = new byte[16];
-        rng.GetBytes(bytes);
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lower = "abcdefghijkmnopqrstuvwxyz";
+        const string digits = "23456789";
+        const string nonAlpha = "!@#$%";
 
-        for (var i = 0; i < buffer.Length; i++)
-            buffer[i] = chars[bytes[i] % chars.Length];
+        var required = new List<char>(4);
+        var allowed = "";
+
+        if (rules.RequireUppercase)
+        {
+            required.Add(upper[RandomNumberGenerator.GetInt32(upper.Length)]);
+            allowed += upper;
+        }
+
+        if (rules.RequireLowercase)
+        {
+            required.Add(lower[RandomNumberGenerator.GetInt32(lower.Length)]);
+            allowed += lower;
+        }
+
+        if (rules.RequireDigit)
+        {
+            required.Add(digits[RandomNumberGenerator.GetInt32(digits.Length)]);
+            allowed += digits;
+        }
+
+        if (rules.RequireNonAlphanumeric)
+        {
+            required.Add(nonAlpha[RandomNumberGenerator.GetInt32(nonAlpha.Length)]);
+            allowed += nonAlpha;
+        }
+
+        if (allowed.Length == 0)
+            allowed = upper + lower + digits;
+
+        var length = rules.RequiredLength < 1 ? 8 : rules.RequiredLength;
+        if (length < required.Count)
+            length = required.Count;
+
+        var uniqueRequired = rules.RequiredUniqueChars < 1 ? 1 : rules.RequiredUniqueChars;
+        if (length < uniqueRequired)
+            length = uniqueRequired;
+
+        var buffer = new char[length];
+        var used = new HashSet<char>();
+
+        for (var i = 0; i < required.Count; i++)
+        {
+            buffer[i] = required[i];
+            used.Add(required[i]);
+        }
+
+        for (var i = required.Count; i < buffer.Length; i++)
+        {
+            if (used.Count < uniqueRequired)
+            {
+                char c;
+                do
+                {
+                    c = allowed[RandomNumberGenerator.GetInt32(allowed.Length)];
+                } while (!used.Add(c));
+
+                buffer[i] = c;
+            }
+            else
+            {
+                buffer[i] = allowed[RandomNumberGenerator.GetInt32(allowed.Length)];
+            }
+        }
+
+        for (var i = buffer.Length - 1; i > 0; i--)
+        {
+            var j = RandomNumberGenerator.GetInt32(i + 1);
+            (buffer[i], buffer[j]) = (buffer[j], buffer[i]);
+        }
 
         return new string(buffer);
     }

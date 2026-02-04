@@ -18,10 +18,14 @@ public partial class UsersList
     private Dictionary<string, IReadOnlyList<string>> _userRolesCache = new();
 
     private bool _showAssignRole;
+    private bool _showRevokeRole;
+    private bool _showResetPassword;
     private bool _confirmDelete;
     private bool _showAddUser;
     
     private string _newUsername = string.Empty;
+    private string _newPassword = string.Empty;
+    
     private IReadOnlyList<string> _userRoles = Array.Empty<string>();
     
     private IEnumerable<string> AssignableRoles =>
@@ -121,6 +125,7 @@ public partial class UsersList
         return Array.Empty<string>();
     }
 
+    // Assign Roles
     private async Task ShowAssignRole(string username)
     {
         _selectedUser = username;
@@ -169,6 +174,95 @@ public partial class UsersList
         HideAssignRole();
     }
 
+    private async Task ShowRevokeRole(string username)
+    {
+        _selectedUser = username;
+        _selectedRoles.Clear();
+
+        // Load current roles for the selected user
+        _userRoles = await LoadRolesForUserAsync(username);
+
+        _showRevokeRole = true;
+    }
+
+    private void HideRevokeRole()
+    {
+        _showRevokeRole = false;
+        _selectedUser = null;
+        _selectedRoles.Clear();
+        _userRoles = Array.Empty<string>();
+    }
+
+    private async Task RevokeRoles()
+    {
+        if (string.IsNullOrEmpty(_selectedUser) || !_selectedRoles.Any())
+            return;
+
+        try
+        {
+            // DELETE api/auth/users/{username}/roles/{role}
+            foreach (var role in _selectedRoles)
+            {
+                // await Http.DeleteAsync($"api/auth/users/{_selectedUser}/roles/{role}");
+            }
+
+            // Refresh user roles cache
+            if (_selectedUser != null)
+            {
+                var updatedRoles = await LoadRolesForUserAsync(_selectedUser);
+                _userRolesCache[_selectedUser] = updatedRoles;
+            }
+        }
+        catch (Exception)
+        {
+            // Handle error
+        }
+
+        HideRevokeRole();
+    }
+
+    // Reset Password
+    private void ShowResetPassword(string username)
+    {
+        _selectedUser = username;
+        _newPassword = string.Empty;
+        _showResetPassword = true;
+    }
+
+    private void HideResetPassword()
+    {
+        _showResetPassword = false;
+        _selectedUser = null;
+        _newPassword = string.Empty;
+    }
+
+    private async Task ResetPassword()
+    {
+        if (string.IsNullOrEmpty(_selectedUser))
+            return;
+
+        try
+        {
+            // Call your existing endpoint: PUT api/auth/users/{username}/reset-password
+            var response = await Http.PutAsync($"api/auth/users/{_selectedUser}/reset-password", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Your endpoint returns the password directly as a string
+                _newPassword = await response.Content.ReadAsStringAsync();
+                
+                // Remove quotes if present
+                _newPassword = _newPassword.Trim('"');
+                
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Handle error
+        }
+    }
+
     private void ToggleRole(string role, bool isChecked)
     {
         if (isChecked)
@@ -177,6 +271,7 @@ public partial class UsersList
             _selectedRoles.Remove(role);
     }
 
+    // Delete User
     private void ShowDelete(string username)
     {
         _selectedUser = username;
@@ -214,6 +309,7 @@ public partial class UsersList
         }
     }
 
+    // Add User
     private void ShowAddUser()
     {
         _newUsername = string.Empty;

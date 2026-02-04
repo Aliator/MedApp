@@ -662,3 +662,106 @@
         display: none;
     }
 }
+
+/* Add these additional styles to the existing UsersList.razor.css */
+
+/* Warning Button */
+.btn-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #f59e0b;
+    color: white;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-warning:hover:not(:disabled) {
+    background-color: #d97706;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.btn-warning:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-warning:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Revoke Button in Table */
+.btn-revoke:hover {
+    color: #f59e0b;
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+}
+
+/* Password Button in Table */
+.btn-password:hover {
+    color: #8b5cf6;
+    border-color: #8b5cf6;
+    background-color: #f5f3ff;
+}
+
+/* Warning Confirmation Icon */
+.confirmation-icon-warning {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+
+/* Password Display */
+.password-display {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.password-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.password-value {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    padding: 0.75rem;
+    background-color: white;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    word-break: break-all;
+    user-select: all;
+}
+
+.password-hint {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* Adjust actions column width for 4 buttons */
+.actions-column {
+    width: 240px;
+}
+
+@media (max-width: 1024px) {
+    .actions-column {
+        width: auto;
+    }
+}
