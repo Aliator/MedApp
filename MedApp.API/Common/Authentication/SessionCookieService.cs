@@ -2,7 +2,7 @@
 
 namespace MedApp.API.Common.Authentication;
 
-public sealed class SessionCookieService : ISessionCookieService
+public sealed class SessionCookieService(IWebHostEnvironment environment) : ISessionCookieService
 {
     public void AppendSessionCookie(HttpResponse response, SessionToken session)
     {
@@ -19,14 +19,15 @@ public sealed class SessionCookieService : ISessionCookieService
             BuildCookieOptions());
     }
 
-    private static CookieOptions BuildCookieOptions(
-        DateTime? expiresAtUtc = null)
+    private CookieOptions BuildCookieOptions(DateTime? expiresAtUtc = null)
     {
+        var isHttps = environment.IsProduction() || environment.IsStaging();
+
         return new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
+            Secure = isHttps,
+            SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
             Expires = expiresAtUtc
         };
     }
