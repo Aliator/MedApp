@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
@@ -113,5 +114,45 @@ public sealed class IdentityRoleServiceTests
             CancellationToken.None);
 
         result.Should().BeSameAs(role);
+    }
+    
+    [Test]
+    public async Task DeleteRoleAsync_RoleNotFound_ReturnsFailedResult()
+    {
+        _roleManager
+            .Setup(r => r.FindByNameAsync(AuthTestConstants.Roles[0]))
+            .ReturnsAsync((IdentityRole<Guid>?)null);
+
+        var result = await _service.DeleteRoleAsync(
+            AuthTestConstants.Roles[0],
+            CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e =>
+            e.Code == IdentityErrors.RoleNotFoundCode);
+    }
+
+    [Test]
+    public async Task DeleteRoleAsync_RoleExists_DeletesRole()
+    {
+        var role = AuthTestConstants.CreateValidRole();
+
+        _roleManager
+            .Setup(r => r.FindByNameAsync(role.Name!))
+            .ReturnsAsync(role);
+
+        _roleManager
+            .Setup(r => r.DeleteAsync(role))
+            .ReturnsAsync(IdentityResult.Success);
+
+        var result = await _service.DeleteRoleAsync(
+            role.Name!,
+            CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+
+        _roleManager.Verify(
+            r => r.DeleteAsync(role),
+            Times.Once);
     }
 }

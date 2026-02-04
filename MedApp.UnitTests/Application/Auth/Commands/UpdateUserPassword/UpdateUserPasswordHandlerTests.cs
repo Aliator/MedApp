@@ -1,105 +1,127 @@
-﻿using FluentAssertions;
+﻿using AutoFixture;
+using FluentAssertions;
 using MedApp.Application.Auth.Commands.UpdateUserPassword;
+using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.UnitTests.Common.Fixtures;
+using Microsoft.AspNetCore.Identity;
+using Moq;
 
 namespace MedApp.UnitTests.Application.Auth.Commands.UpdateUserPassword;
 
 [TestFixture]
-public sealed class UpdateUserValidatorTests
+public sealed class UpdateUserPasswordHandlerTests
 {
-    private UpdateUserValidator _validator = null!;
+    private IFixture _fixture = null!;
+    private Mock<IIdentityUserService> _service = null!;
+    private UpdateUserPasswordHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _validator = new UpdateUserValidator();
+        _fixture = AutoFixtureFactory.Create();
+
+        _service = new Mock<IIdentityUserService>();
+        _fixture.Inject<IIdentityUserService>(_service.Object);
+
+        _handler = _fixture.Create<UpdateUserPasswordHandler>();
     }
 
     [Test]
-    public void Validate_ValidCommand_Passes()
+    public async Task Handle_PasswordUpdated_ReturnsSuccess()
     {
         var command = new UpdateUserPasswordCommand(
             AuthTestConstants.Usernames[0],
             AuthTestConstants.Passwords[0],
             AuthTestConstants.Passwords[1]);
 
-        var result = _validator.Validate(command);
+        _service
+            .Setup(s => s.UpdateUserPasswordAsync(
+                command.Username,
+                command.OldPassword,
+                command.NewPassword,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Success);
 
-        result.IsValid.Should().BeTrue();
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
     }
 
     [Test]
-    public void Validate_EmptyUsername_Fails()
-    {
-        var command = new UpdateUserPasswordCommand(
-            string.Empty,
-            AuthTestConstants.Passwords[0],
-            AuthTestConstants.Passwords[1]);
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e =>
-            e.PropertyName == "Username");
-    }
-
-    [Test]
-    public void Validate_UsernameTooShort_Fails()
-    {
-        var command = new UpdateUserPasswordCommand(
-            "ab",
-            AuthTestConstants.Passwords[0],
-            AuthTestConstants.Passwords[1]);
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Username");
-    }
-
-    [Test]
-    public void Validate_UsernameTooLong_Fails()
-    {
-        var command = new UpdateUserPasswordCommand(
-            new string('a', 51),
-            AuthTestConstants.Passwords[0],
-            AuthTestConstants.Passwords[1]);
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Username");
-    }
-
-    [Test]
-    public void Validate_EmptyOldPassword_Fails()
-    {
-        var command = new UpdateUserPasswordCommand(
-            AuthTestConstants.Usernames[0],
-            string.Empty,
-            AuthTestConstants.Passwords[1]);
-
-        var result = _validator.Validate(command);
-
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "OldPassword");
-    }
-
-    [Test]
-    public void Validate_EmptyNewPassword_Fails()
+    public async Task Handle_PasswordNotUpdated_ReturnsFailure()
     {
         var command = new UpdateUserPasswordCommand(
             AuthTestConstants.Usernames[0],
             AuthTestConstants.Passwords[0],
-            string.Empty);
+            AuthTestConstants.Passwords[1]);
 
-        var result = _validator.Validate(command);
+        _service
+            .Setup(s => s.UpdateUserPasswordAsync(
+                command.Username,
+                command.OldPassword,
+                command.NewPassword,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed());
 
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "NewPassword");
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Handle_CallsService_WithCorrectArguments()
+    {
+        var command = new UpdateUserPasswordCommand(
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Passwords[0],
+            AuthTestConstants.Passwords[1]);
+
+        _service
+            .Setup(s => s.UpdateUserPasswordAsync(
+                command.Username,
+                command.OldPassword,
+                command.NewPassword,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Success);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _service.Verify(
+            s => s.UpdateUserPasswordAsync(
+                AuthTestConstants.Usernames[0],
+                AuthTestConstants.Passwords[0],
+                AuthTestConstants.Passwords[1],
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PassesCancellationToken()
+    {
+        var command = new UpdateUserPasswordCommand(
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Passwords[0],
+            AuthTestConstants.Passwords[1]);
+
+        using var cts = new CancellationTokenSource();
+
+        _service
+            .Setup(s => s.UpdateUserPasswordAsync(
+                command.Username,
+                command.OldPassword,
+                command.NewPassword,
+                cts.Token))
+            .ReturnsAsync(IdentityResult.Success);
+
+        await _handler.Handle(command, cts.Token);
+
+        _service.Verify(
+            s => s.UpdateUserPasswordAsync(
+                command.Username,
+                command.OldPassword,
+                command.NewPassword,
+                cts.Token),
+            Times.Once);
     }
 }

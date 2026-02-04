@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
@@ -45,5 +46,47 @@ public sealed class IdentityUserServiceTests
                     u.CreatedAt <= DateTime.UtcNow),
                 AuthTestConstants.Passwords[0]),
             Times.Once);
+    }
+    
+    [Test]
+    public async Task UpdateUserPasswordAsync_UserNotFound_ReturnsFailedResult()
+    {
+        _userManager
+            .Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0]))
+            .ReturnsAsync((ApplicationUser?)null);
+
+        var result = await _service.UpdateUserPasswordAsync(
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Passwords[0],
+            AuthTestConstants.Passwords[1],
+            CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e =>
+            e.Code == IdentityErrors.UserNotFoundCode);
+    }
+
+    [Test]
+    public async Task UpdateUserPasswordAsync_OldPasswordIncorrect_ReturnsFailedResult()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+
+        _userManager
+            .Setup(u => u.FindByNameAsync(user.UserName!))
+            .ReturnsAsync(user);
+
+        _userManager
+            .Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Passwords[0]))
+            .ReturnsAsync(false);
+
+        var result = await _service.UpdateUserPasswordAsync(
+            user.UserName!,
+            AuthTestConstants.Passwords[0],
+            AuthTestConstants.Passwords[1],
+            CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e =>
+            e.Code == IdentityErrors.OldPasswordIncorrectCode);
     }
 }

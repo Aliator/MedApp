@@ -84,4 +84,40 @@ public sealed class IdentityReadServiceTests
 
         result.Should().BeEquivalentTo(AuthTestConstants.Roles);
     }
+    
+    [Test]
+    public async Task GetUserAsync_UserDoesNotExist_ReturnsNull()
+    {
+        _userManager
+            .Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0]))
+            .ReturnsAsync((ApplicationUser?)null);
+
+        var result = await _service.GetUserAsync(
+            AuthTestConstants.Usernames[0],
+            CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public async Task GetUserAsync_UserExists_ReturnsUserDetails()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+
+        _userManager
+            .Setup(u => u.FindByNameAsync(user.UserName!))
+            .ReturnsAsync(user);
+
+        _userManager
+            .Setup(u => u.GetRolesAsync(user))
+            .ReturnsAsync(AuthTestConstants.Roles.ToList());
+
+        var result = await _service.GetUserAsync(
+            user.UserName!,
+            CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Username.Should().Be(user.UserName);
+        result.Roles.Should().BeEquivalentTo(AuthTestConstants.Roles);
+    }
 }

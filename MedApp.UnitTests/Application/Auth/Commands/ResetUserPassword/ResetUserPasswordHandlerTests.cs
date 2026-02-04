@@ -55,11 +55,7 @@ public sealed class ResetUserPasswordHandlerTests
     {
         var errors = new[]
         {
-            new IdentityError
-            {
-                Code = IdentityErrors.UserNotFoundCode,
-                Description = "User not found."
-            }
+            IdentityErrors.UserNotFound
         };
 
         var response = new ResetUserPasswordResponse(
