@@ -21,20 +21,64 @@ public partial class PatientsList
             return;
         }
 
-        var response = await Http.GetAsync("api/patients");
-        if (!response.IsSuccessStatusCode)
-            return;
+        await LoadPatientsAsync();
+    }
 
-        _patients = await response.Content.ReadFromJsonAsync<IReadOnlyList<PatientResponse>>();
+    private async Task LoadPatientsAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync("api/patients");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _patients = await response.Content.ReadFromJsonAsync<IReadOnlyList<PatientResponse>>();
+            }
+            else
+            {
+                // Handle error - could show error message to user
+                _patients = new List<PatientResponse>();
+            }
+        }
+        catch (Exception)
+        {
+            // Handle exception gracefully
+            _patients = new List<PatientResponse>();
+        }
     }
 
     private void ViewPatient(Guid id)
     {
         Nav.NavigateTo($"/patients/{id}");
     }
+
+    private void EditPatient(Guid id)
+    {
+        Nav.NavigateTo($"/patients/{id}/edit");
+    }
+    
     private void AddPatient()
     {
         Nav.NavigateTo("/patients/add");
     }
 
+    private int CalculateAge(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        
+        if (dateOfBirth > today.AddYears(-age))
+        {
+            age--;
+        }
+        
+        return age;
+    }
+
+    private string GetInitials(string firstName, string lastName)
+    {
+        var firstInitial = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString().ToUpper() : "";
+        var lastInitial = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";
+        return $"{firstInitial}{lastInitial}";
+    }
 }
