@@ -34,7 +34,7 @@ public sealed class AssignRoleValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Username");
+            e.PropertyName == nameof(AssignRoleCommand.Username));
     }
 
     [Test]
@@ -46,6 +46,6 @@ public sealed class AssignRoleValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Role");
+            e.PropertyName == nameof(AssignRoleCommand.Role));
     }
 }

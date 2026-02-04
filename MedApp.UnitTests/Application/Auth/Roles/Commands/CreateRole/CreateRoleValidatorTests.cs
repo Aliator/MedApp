@@ -34,7 +34,7 @@ public sealed class CreateRoleValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Name");
+            e.PropertyName == nameof(CreateRoleCommand.Name));
     }
 
     [Test]
@@ -46,6 +46,6 @@ public sealed class CreateRoleValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Name");
+            e.PropertyName == nameof(CreateRoleCommand.Name));
     }
 }

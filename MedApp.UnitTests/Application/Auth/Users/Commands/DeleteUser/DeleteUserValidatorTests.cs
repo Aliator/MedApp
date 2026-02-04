@@ -34,7 +34,7 @@ public sealed class DeleteUserValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e =>
-            e.PropertyName == "Username");
+            e.PropertyName == nameof(DeleteUserCommand.Username));
     }
 
     [Test]
@@ -46,7 +46,7 @@ public sealed class DeleteUserValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Username");
+            e.PropertyName == nameof(DeleteUserCommand.Username));
     }
 
     [Test]
@@ -58,6 +58,6 @@ public sealed class DeleteUserValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "Username");
+            e.PropertyName == nameof(DeleteUserCommand.Username));
     }
 }

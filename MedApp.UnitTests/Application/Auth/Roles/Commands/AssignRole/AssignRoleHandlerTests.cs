@@ -33,10 +33,10 @@ public sealed class AssignRoleHandlerTests
         var role = new IdentityRole<Guid>
         {
             Id = Guid.NewGuid(),
-            Name = "Role"
+            Name = AuthTestConstants.Roles[0]
         };
 
-        var command = new AssignRoleCommand(AuthTestConstants.Roles[0], role.Name);
+        var command = new AssignRoleCommand(AuthTestConstants.Usernames[0], role.Name);
 
         _service
             .Setup(s => s.AssignRoleAsync(

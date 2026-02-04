@@ -34,7 +34,7 @@ public sealed class DeleteRoleValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "RoleName");
+            e.PropertyName == nameof(DeleteRoleCommand.RoleName));
     }
 
     [Test]
@@ -46,6 +46,6 @@ public sealed class DeleteRoleValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
-            e.PropertyName == "RoleName");
+            e.PropertyName == nameof(DeleteRoleCommand.RoleName));
     }
 }

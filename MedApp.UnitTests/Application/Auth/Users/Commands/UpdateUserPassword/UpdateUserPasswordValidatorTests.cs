@@ -39,7 +39,8 @@ public sealed class UpdateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Username");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(UpdateUserPasswordCommand.Username));
     }
 
     [Test]
@@ -53,7 +54,8 @@ public sealed class UpdateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Username");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(UpdateUserPasswordCommand.Username));
     }
 
     [Test]
@@ -67,7 +69,8 @@ public sealed class UpdateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Username");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(UpdateUserPasswordCommand.Username));
     }
 
     [Test]
@@ -81,7 +84,8 @@ public sealed class UpdateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "OldPassword");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(UpdateUserPasswordCommand.OldPassword));
     }
 
     [Test]
@@ -95,6 +99,7 @@ public sealed class UpdateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "NewPassword");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(UpdateUserPasswordCommand.NewPassword));
     }
 }

@@ -37,7 +37,8 @@ public sealed class CreateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Username");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(CreateUserCommand.Username));
     }
 
     [Test]
@@ -50,7 +51,8 @@ public sealed class CreateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Username");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(CreateUserCommand.Username));
     }
 
     [Test]
@@ -63,7 +65,8 @@ public sealed class CreateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Username");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(CreateUserCommand.Username));
     }
 
     [Test]
@@ -76,6 +79,7 @@ public sealed class CreateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "Password");
+        result.Errors.Should().Contain(e 
+            => e.PropertyName == nameof(CreateUserCommand.Password));
     }
 }
