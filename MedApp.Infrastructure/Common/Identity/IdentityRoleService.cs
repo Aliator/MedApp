@@ -24,4 +24,19 @@ public sealed class IdentityRoleService(
         
         return !result.Succeeded ? null : role;
     }
+    
+    public async Task<IdentityResult> DeleteRoleAsync(
+        string roleName,
+        CancellationToken ct)
+    {
+        var role = await roleManager.FindByNameAsync(roleName);
+        if (role is null)
+            return IdentityResult.Failed(new IdentityError
+            {
+                Code = "RoleNotFound",
+                Description = "Role not found."
+            });
+
+        return await roleManager.DeleteAsync(role);
+    }
 }

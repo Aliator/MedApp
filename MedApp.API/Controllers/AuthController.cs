@@ -2,6 +2,7 @@
 using MedApp.Application.Auth.Commands.AssignRole;
 using MedApp.Application.Auth.Commands.CreateRole;
 using MedApp.Application.Auth.Commands.CreateUser;
+using MedApp.Application.Auth.Commands.DeleteRole;
 using MedApp.Application.Auth.Commands.DeleteUser;
 using MedApp.Application.Auth.Commands.Login;
 using MedApp.Application.Auth.Queries.GetAllRoles;
@@ -63,7 +64,7 @@ public sealed class AuthController(
     }
 
     [HttpPost("users")]
-    [Authorize(Roles = "Test")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var result = await mediator.Send(
@@ -76,7 +77,7 @@ public sealed class AuthController(
     }
 
     [HttpPost("roles")]
-    [Authorize(Roles = "Test")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateRole(CreateRoleRequest request)
     {
         var role = await mediator.Send(
@@ -90,7 +91,7 @@ public sealed class AuthController(
 
 
     [HttpPost("roles/assign")]
-    [Authorize(Roles = "Test")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AssignRole(AssignRoleRequest request)
     {
         var role = await mediator.Send(
@@ -153,6 +154,18 @@ public sealed class AuthController(
             new GetUserRolesQuery(username));
 
         return Ok(roles);
+    }
+    
+    [HttpDelete("roles/{roleName}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteRole(string roleName)
+    {
+        var result = await mediator.Send(new DeleteRoleCommand(roleName));
+
+        if (!result.Succeeded)
+            return NotFound();
+
+        return NoContent();
     }
     
     [HttpGet("whoami")]

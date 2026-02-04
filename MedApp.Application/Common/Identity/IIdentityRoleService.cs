@@ -8,4 +8,8 @@ public interface IIdentityRoleService
         string username,
         string role,
         CancellationToken ct);
+    
+    Task<IdentityResult> DeleteRoleAsync(
+        string roleName,
+        CancellationToken ct);
 }
