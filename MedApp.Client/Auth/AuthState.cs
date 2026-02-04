@@ -34,6 +34,8 @@ public sealed class AuthState(HttpClient http)
                 cancellationToken: ct);
 
         _isAuthenticated = result?.IsAuthenticated ?? false;
+        _roles = result?.Roles ?? Array.Empty<string>();
+        
         return _isAuthenticated.Value;
     }
 
