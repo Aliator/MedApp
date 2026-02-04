@@ -1,16 +1,17 @@
 ﻿using MedApp.API.Common.Authentication;
-using MedApp.Application.Auth.Commands.AssignRole;
-using MedApp.Application.Auth.Commands.CreateRole;
-using MedApp.Application.Auth.Commands.CreateUser;
-using MedApp.Application.Auth.Commands.DeleteRole;
-using MedApp.Application.Auth.Commands.DeleteUser;
-using MedApp.Application.Auth.Commands.Login;
-using MedApp.Application.Auth.Commands.ResetUserPassword;
-using MedApp.Application.Auth.Commands.UpdateUserPassword;
-using MedApp.Application.Auth.Queries.GetAllRoles;
-using MedApp.Application.Auth.Queries.GetAllUsers;
-using MedApp.Application.Auth.Queries.GetUserByUsername;
-using MedApp.Application.Auth.Queries.GetUserRoles;
+using MedApp.Application.Auth.Roles.Commands.AssignRole;
+using MedApp.Application.Auth.Roles.Commands.CreateRole;
+using MedApp.Application.Auth.Roles.Commands.DeleteRole;
+using MedApp.Application.Auth.Roles.Queries.GetAllRoles;
+using MedApp.Application.Auth.Roles.Queries.GetUserRoles;
+using MedApp.Application.Auth.Sessions.Commands.Login;
+using MedApp.Application.Auth.Sessions.Commands.Logout;
+using MedApp.Application.Auth.Users.Commands.CreateUser;
+using MedApp.Application.Auth.Users.Commands.DeleteUser;
+using MedApp.Application.Auth.Users.Commands.ResetUserPassword;
+using MedApp.Application.Auth.Users.Commands.UpdateUserPassword;
+using MedApp.Application.Auth.Users.Queries.GetAllUsers;
+using MedApp.Application.Auth.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Authentication;
 using MedApp.Contracts.Auth.Requests;
 using MedApp.Contracts.Auth.Responses;
@@ -48,23 +49,27 @@ public sealed class AuthController(
     
     [HttpPost("logout")]
     [Tags("Login")]
-    public async Task<IActionResult> Logout(
-        [FromServices] ISessionService sessionService)
+    public async Task<IActionResult> Logout()
     {
+        Guid? sessionId = null;
+
         if (Request.Cookies.TryGetValue(
                 SessionAuthenticationDefaults.CookieName,
                 out var rawSessionId)
-            && Guid.TryParse(rawSessionId, out var sessionId))
+            && Guid.TryParse(rawSessionId, out var parsed))
         {
-            await sessionService.RevokeSessionAsync(
-                sessionId,
-                HttpContext.RequestAborted);
+            sessionId = parsed;
         }
+
+        await mediator.Send(
+            new LogoutCommand(sessionId),
+            HttpContext.RequestAborted);
 
         cookieService.DeleteSessionCookie(Response);
 
         return NoContent();
     }
+
 
     [HttpPost("users")]
     [Authorize(Roles = "Admin")]

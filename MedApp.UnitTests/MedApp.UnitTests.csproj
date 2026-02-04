@@ -33,4 +33,11 @@
         <ProjectReference Include="..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Application\Auth\Roles\" />
+      <Folder Include="Application\Auth\Session\Commands\" />
+      <Folder Include="Application\Auth\Users\Commands\" />
+      <Folder Include="Application\Auth\Users\Queries\" />
+    </ItemGroup>
+
 </Project>

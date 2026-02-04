@@ -1,0 +1,24 @@
+﻿using MedApp.Application.Common.Authentication;
+using MediatR;
+
+namespace MedApp.Application.Auth.Sessions.Commands.Login;
+
+public sealed class LoginHandler(
+    IAuthenticationService authenticationService,
+    ISessionService sessionService)
+    : IRequestHandler<LoginCommand, LoginResult>
+{
+    public async Task<LoginResult> Handle(LoginCommand request, CancellationToken ct)
+    {
+        var (userId, _, _) =
+            await authenticationService.ValidateCredentialsAsync(
+                request.Username,
+                request.Password);
+
+        return await sessionService.CreateSessionAsync(
+            userId,
+            request.IpAddress,
+            request.UserAgent,
+            ct);
+    }
+}

@@ -19,4 +19,11 @@
       <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="8.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Auth\Roles\" />
+      <Folder Include="Auth\Sessions\Commands\" />
+      <Folder Include="Auth\Users\Commands\" />
+      <Folder Include="Auth\Users\Queries\" />
+    </ItemGroup>
+
 </Project>
