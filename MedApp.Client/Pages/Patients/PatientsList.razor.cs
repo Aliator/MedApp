@@ -36,13 +36,11 @@ public partial class PatientsList
             }
             else
             {
-                // Handle error - could show error message to user
                 _patients = new List<PatientResponse>();
             }
         }
         catch (Exception)
         {
-            // Handle exception gracefully
             _patients = new List<PatientResponse>();
         }
     }

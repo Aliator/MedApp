@@ -14,7 +14,6 @@ public partial class UsersList
     private IReadOnlyList<string>? _users;
     private IReadOnlyList<string> _roles = Array.Empty<string>();
     
-    // Cache for user roles to display in table
     private Dictionary<string, IReadOnlyList<string>> _userRolesCache = new();
 
     private bool _showAssignRole;
@@ -123,19 +122,17 @@ public partial class UsersList
         }
         catch (Exception)
         {
-            // Return empty if error
+            // ignored
         }
 
         return Array.Empty<string>();
     }
 
-    // Assign Roles
     private async Task ShowAssignRole(string username)
     {
         _selectedUser = username;
         _selectedRoles.Clear();
 
-        // Load current roles for the selected user
         _userRoles = await LoadRolesForUserAsync(username);
 
         _showAssignRole = true;
@@ -163,7 +160,6 @@ public partial class UsersList
                     new AssignRoleRequest(_selectedUser, role));
             }
 
-            // Refresh user roles cache
             if (_selectedUser != null)
             {
                 var updatedRoles = await LoadRolesForUserAsync(_selectedUser);
@@ -172,7 +168,7 @@ public partial class UsersList
         }
         catch (Exception)
         {
-            // Handle error
+            // ignored
         }
 
         HideAssignRole();
@@ -215,12 +211,12 @@ public partial class UsersList
         }
         catch (Exception)
         {
+            // ignored
         }
 
         HideRevokeRole();
     }
 
-    // Reset Password
     private void ShowResetPassword(string username)
     {
         _selectedUser = username;
@@ -242,15 +238,12 @@ public partial class UsersList
 
         try
         {
-            // Call your existing endpoint: PUT api/auth/users/{username}/reset-password
             var response = await Http.PutAsync($"api/auth/users/{_selectedUser}/reset-password", null);
 
             if (response.IsSuccessStatusCode)
             {
-                // Your endpoint returns the password directly as a string
                 _newPassword = await response.Content.ReadAsStringAsync();
                 
-                // Remove quotes if present
                 _newPassword = _newPassword.Trim('"');
                 
                 StateHasChanged();
@@ -258,7 +251,7 @@ public partial class UsersList
         }
         catch (Exception)
         {
-            // Handle error
+            // ignored
         }
     }
 
@@ -270,7 +263,6 @@ public partial class UsersList
             _selectedRoles.Remove(role);
     }
 
-    // Delete User
     private void ShowDelete(string username)
     {
         _selectedUser = username;
@@ -294,7 +286,6 @@ public partial class UsersList
 
             if (response.IsSuccessStatusCode)
             {
-                // Remove from cache
                 _userRolesCache.Remove(_selectedUser);
                 
                 HideDelete();
@@ -303,12 +294,10 @@ public partial class UsersList
         }
         catch (Exception)
         {
-            // Handle error
             HideDelete();
         }
     }
 
-    // Add User
     private void ShowAddUser()
     {
         _newUsername = string.Empty;
@@ -341,7 +330,7 @@ public partial class UsersList
         }
         catch (Exception)
         {
-            // Handle error
+            // ignored
         }
     }
 
