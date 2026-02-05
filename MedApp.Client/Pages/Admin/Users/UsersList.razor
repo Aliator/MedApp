@@ -233,7 +233,7 @@
                     Select roles to revoke from <strong>@_selectedUser</strong>
                 </p>
 
-                @if (!_userRoles.Any())
+                @if (!RevokableRoles.Any())
                 {
                     <div class="info-message">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -247,7 +247,7 @@
                 else
                 {
                     <div class="roles-list">
-                        @foreach (var role in _userRoles)
+                        @foreach (var role in RevokableRoles)
                         {
                             <label class="role-checkbox">
                                 <input
@@ -265,7 +265,7 @@
                 <button class="btn-outline" @onclick="HideRevokeRole">
                     Cancel
                 </button>
-                <button class="btn-warning"
+                <button class="btn-primary"
                         disabled="@(!_selectedRoles.Any())"
                         @onclick="RevokeRoles">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

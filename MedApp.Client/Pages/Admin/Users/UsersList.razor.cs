@@ -28,11 +28,15 @@ public partial class UsersList
     
     private IReadOnlyList<string> _userRoles = Array.Empty<string>();
     
+    
     private IEnumerable<string> AssignableRoles =>
         _roles.Except(_userRoles, StringComparer.OrdinalIgnoreCase);
+    private IEnumerable<string> RevokableRoles =>
+        _userRoles.Distinct(StringComparer.OrdinalIgnoreCase);
 
     private string? _selectedUser;
     private HashSet<string> _selectedRoles = new(StringComparer.OrdinalIgnoreCase);
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -179,7 +183,6 @@ public partial class UsersList
         _selectedUser = username;
         _selectedRoles.Clear();
 
-        // Load current roles for the selected user
         _userRoles = await LoadRolesForUserAsync(username);
 
         _showRevokeRole = true;
@@ -200,22 +203,18 @@ public partial class UsersList
 
         try
         {
-            // DELETE api/auth/users/{username}/roles/{role}
             foreach (var role in _selectedRoles)
             {
-                // await Http.DeleteAsync($"api/auth/users/{_selectedUser}/roles/{role}");
+                await Http.PostAsJsonAsync(
+                    "api/auth/roles/revoke",
+                    new RevokeRoleRequest(_selectedUser, role));
             }
 
-            // Refresh user roles cache
-            if (_selectedUser != null)
-            {
-                var updatedRoles = await LoadRolesForUserAsync(_selectedUser);
-                _userRolesCache[_selectedUser] = updatedRoles;
-            }
+            var updatedRoles = await LoadRolesForUserAsync(_selectedUser);
+            _userRolesCache[_selectedUser] = updatedRoles;
         }
         catch (Exception)
         {
-            // Handle error
         }
 
         HideRevokeRole();
