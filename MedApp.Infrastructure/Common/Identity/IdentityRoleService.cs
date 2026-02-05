@@ -7,6 +7,20 @@ public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager) : IIdentityRoleService
 {
+    public async Task<IdentityRole<Guid>?> CreateRoleAsync(
+        string roleName,
+        CancellationToken ct)
+    {
+        var existingRole = await roleManager.FindByNameAsync(roleName);
+        if (existingRole is not null)
+            return existingRole;
+
+        var role = new IdentityRole<Guid>(roleName);
+        var result = await roleManager.CreateAsync(role);
+
+        return result.Succeeded ? role : null;
+    }
+
     public async Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,
         string roleName,
