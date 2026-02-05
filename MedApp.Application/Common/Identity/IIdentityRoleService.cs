@@ -9,6 +9,11 @@ public interface IIdentityRoleService
         string role,
         CancellationToken ct);
     
+    Task<IdentityRole<Guid>?> RevokeRoleAsync(
+        string username,
+        string roleName,
+        CancellationToken ct);
+    
     Task<IdentityResult> DeleteRoleAsync(
         string roleName,
         CancellationToken ct);

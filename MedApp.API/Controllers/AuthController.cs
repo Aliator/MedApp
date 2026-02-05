@@ -3,6 +3,7 @@ using MedApp.API.Common.Authentication;
 using MedApp.Application.Auth.Roles.Commands.AssignRole;
 using MedApp.Application.Auth.Roles.Commands.CreateRole;
 using MedApp.Application.Auth.Roles.Commands.DeleteRole;
+using MedApp.Application.Auth.Roles.Commands.RevokeRole;
 using MedApp.Application.Auth.Roles.Queries.GetAllRoles;
 using MedApp.Application.Auth.Roles.Queries.GetUserRoles;
 using MedApp.Application.Auth.Sessions.Commands.Login;
@@ -204,6 +205,21 @@ public sealed class AuthController(
 
         return NoContent();
     }
+    
+    [HttpPost("roles/revoke")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Roles")]
+    public async Task<IActionResult> RevokeRole(RevokeRoleRequest request)
+    {
+        var role = await mediator.Send(
+            new RevokeRoleCommand(request.Username, request.Role));
+
+        if (role is null)
+            return BadRequest();
+
+        return NoContent();
+    }
+
     
     [HttpDelete("roles/{roleName}")]
     [Authorize(Roles = "Admin")]
