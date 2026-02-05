@@ -4,9 +4,9 @@
 }
 
 .layout-sidebar {
-    width: 220px;
-    background: #111827;
-    padding: 1rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
 }
 
 .layout-main {

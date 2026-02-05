@@ -7,6 +7,20 @@ public sealed class IdentityRoleService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager) : IIdentityRoleService
 {
+    public async Task<IdentityRole<Guid>?> CreateRoleAsync(
+        string roleName,
+        CancellationToken ct)
+    {
+        var existingRole = await roleManager.FindByNameAsync(roleName);
+        if (existingRole is not null)
+            return existingRole;
+
+        var role = new IdentityRole<Guid>(roleName);
+        var result = await roleManager.CreateAsync(role);
+
+        return result.Succeeded ? role : null;
+    }
+
     public async Task<IdentityRole<Guid>?> AssignRoleAsync(
         string username,
         string roleName,
@@ -21,6 +35,24 @@ public sealed class IdentityRoleService(
             return null;
 
         var result = await userManager.AddToRoleAsync(user, role.Name);
+
+        return !result.Succeeded ? null : role;
+    }
+
+    public async Task<IdentityRole<Guid>?> RevokeRoleAsync(
+        string username,
+        string roleName,
+        CancellationToken ct)
+    {
+        var user = await userManager.FindByNameAsync(username);
+        if (user is null)
+            return null;
+
+        var role = await roleManager.FindByNameAsync(roleName);
+        if (role?.Name is null)
+            return null;
+
+        var result = await userManager.RemoveFromRoleAsync(user, role.Name);
 
         return !result.Succeeded ? null : role;
     }

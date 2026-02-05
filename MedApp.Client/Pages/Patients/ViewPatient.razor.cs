@@ -23,11 +23,30 @@ public partial class ViewPatient
             return;
         }
 
-        var response = await Http.GetAsync($"api/patients/{Id}");
-        if (!response.IsSuccessStatusCode)
-            return;
+        await LoadPatientAsync();
+    }
 
-        _patient = await response.Content.ReadFromJsonAsync<PatientResponse>();
+    private async Task LoadPatientAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/patients/{Id}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _patient = await response.Content.ReadFromJsonAsync<PatientResponse>();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // Patient not found, redirect to list
+                Nav.NavigateTo("/patients");
+            }
+        }
+        catch (Exception)
+        {
+            // Handle error gracefully - could add error state here
+            Nav.NavigateTo("/patients");
+        }
     }
 
     private void GoBack()
@@ -40,4 +59,16 @@ public partial class ViewPatient
         Nav.NavigateTo($"/patients/{Id}/edit");
     }
 
+    private int CalculateAge(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        
+        if (dateOfBirth > today.AddYears(-age))
+        {
+            age--;
+        }
+        
+        return age;
+    }
 }
