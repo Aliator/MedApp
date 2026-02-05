@@ -1,85 +1,109 @@
-﻿using FluentAssertions;
+﻿using AutoFixture;
+using FluentAssertions;
 using MedApp.Application.Auth.Roles.Commands.CreateRole;
 using MedApp.Application.Common.Identity;
+using MedApp.UnitTests.Common.Constants;
+using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Moq;
-using NUnit.Framework;
 
 namespace MedApp.UnitTests.Application.Auth.Roles.Commands.CreateRole;
 
+[TestFixture]
 public sealed class CreateRoleHandlerTests
 {
-    [Test]
-    public async Task Handle_PassesCancellationToken_ToService()
+    private IFixture _fixture = null!;
+    private Mock<IIdentityRoleService> _service = null!;
+    private CreateRoleHandler _handler = null!;
+
+    [SetUp]
+    public void SetUp()
     {
-        var ct = new CancellationTokenSource().Token;
-        var roleService = new Mock<IIdentityRoleService>(MockBehavior.Strict);
+        _fixture = AutoFixtureFactory.Create();
 
-        roleService
-            .Setup(s => s.CreateRoleAsync("Admin", ct))
-            .ReturnsAsync(new IdentityRole<Guid>("Admin"));
+        _service = new Mock<IIdentityRoleService>();
+        _fixture.Inject<IIdentityRoleService>(_service.Object);
 
-        var handler = new CreateRoleHandler(roleService.Object);
-
-        await handler.Handle(new CreateRoleCommand("Admin"), ct);
-
-        roleService.Verify(s => s.CreateRoleAsync("Admin", ct), Times.Once);
-    }
-
-    [Test]
-    public async Task Handle_RoleAlreadyExists_ReturnsExistingRole()
-    {
-        var ct = CancellationToken.None;
-        var roleService = new Mock<IIdentityRoleService>(MockBehavior.Strict);
-
-        var existing = new IdentityRole<Guid>("Admin");
-
-        roleService
-            .Setup(s => s.CreateRoleAsync("Admin", ct))
-            .ReturnsAsync(existing);
-
-        var handler = new CreateRoleHandler(roleService.Object);
-
-        var result = await handler.Handle(new CreateRoleCommand("Admin"), ct);
-
-        result.Should().BeSameAs(existing);
-        result!.Name.Should().Be("Admin");
-    }
-
-    [Test]
-    public async Task Handle_CreateFails_ReturnsNull()
-    {
-        var ct = CancellationToken.None;
-        var roleService = new Mock<IIdentityRoleService>(MockBehavior.Strict);
-
-        roleService
-            .Setup(s => s.CreateRoleAsync("Admin", ct))
-            .ReturnsAsync((IdentityRole<Guid>?)null);
-
-        var handler = new CreateRoleHandler(roleService.Object);
-
-        var result = await handler.Handle(new CreateRoleCommand("Admin"), ct);
-
-        result.Should().BeNull();
+        _handler = _fixture.Create<CreateRoleHandler>();
     }
 
     [Test]
     public async Task Handle_CreateSucceeds_ReturnsRole()
     {
-        var ct = CancellationToken.None;
-        var roleService = new Mock<IIdentityRoleService>(MockBehavior.Strict);
+        var role = new IdentityRole<Guid>
+        {
+            Id = Guid.NewGuid(),
+            Name = AuthTestConstants.Roles[0]
+        };
 
-        var created = new IdentityRole<Guid>("Admin");
+        var command = new CreateRoleCommand(role.Name);
 
-        roleService
-            .Setup(s => s.CreateRoleAsync("Admin", ct))
-            .ReturnsAsync(created);
+        _service
+            .Setup(s => s.CreateRoleAsync(
+                command.Name,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(role);
 
-        var handler = new CreateRoleHandler(roleService.Object);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
-        var result = await handler.Handle(new CreateRoleCommand("Admin"), ct);
+        result.Should().BeSameAs(role);
+    }
 
-        result.Should().BeSameAs(created);
-        result!.Name.Should().Be("Admin");
+    [Test]
+    public async Task Handle_CreateFails_ReturnsNull()
+    {
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
+
+        _service
+            .Setup(s => s.CreateRoleAsync(
+                command.Name,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IdentityRole<Guid>?)null);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Handle_CallsService_WithCorrectArguments()
+    {
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
+
+        _service
+            .Setup(s => s.CreateRoleAsync(
+                command.Name,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IdentityRole<Guid>?)null);
+
+        await _handler.Handle(command, CancellationToken.None);
+
+        _service.Verify(
+            s => s.CreateRoleAsync(
+                AuthTestConstants.Roles[0],
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PassesCancellationToken()
+    {
+        var command = new CreateRoleCommand(AuthTestConstants.Roles[0]);
+
+        using var cts = new CancellationTokenSource();
+
+        _service
+            .Setup(s => s.CreateRoleAsync(
+                command.Name,
+                cts.Token))
+            .ReturnsAsync((IdentityRole<Guid>?)null);
+
+        await _handler.Handle(command, cts.Token);
+
+        _service.Verify(
+            s => s.CreateRoleAsync(
+                command.Name,
+                cts.Token),
+            Times.Once);
     }
 }
