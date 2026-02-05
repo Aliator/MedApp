@@ -37,12 +37,6 @@ public partial class NavMenu : IDisposable
         isMenuOpen = false;
     }
 
-    private void CloseMenuOnMobile()
-    {
-        // Only close on mobile - JS will handle this
-        _ = module?.InvokeVoidAsync("closeMenuOnMobile");
-    }
-
     private async Task Logout()
     {
         CloseMenu();

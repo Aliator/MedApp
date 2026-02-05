@@ -38,13 +38,11 @@ public partial class ViewPatient
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                // Patient not found, redirect to list
                 Nav.NavigateTo("/patients");
             }
         }
         catch (Exception)
         {
-            // Handle error gracefully - could add error state here
             Nav.NavigateTo("/patients");
         }
     }

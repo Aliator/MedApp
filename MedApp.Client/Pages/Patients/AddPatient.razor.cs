@@ -14,14 +14,13 @@ public partial class AddPatient
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
 
-    private CreatePatientRequest _model = new();
+    private readonly CreatePatientRequest _model = new();
     private bool _confirmSave;
     private bool _isSaving;
     private string? _errorMessage;
     private string? _dateError;
     private List<string> _validationErrors = [];
 
-    // Date picker dropdowns
     private int _selectedMonth;
     private int _selectedDay;
     private int _selectedYear;
@@ -75,7 +74,6 @@ public partial class AddPatient
             {
                 var date = new DateOnly(_selectedYear, _selectedMonth, _selectedDay);
                 
-                // Validate date is not in the future
                 if (date > DateOnly.FromDateTime(DateTime.Today))
                 {
                     _dateError = "Date of birth cannot be in the future";
@@ -87,7 +85,6 @@ public partial class AddPatient
             }
             catch (ArgumentOutOfRangeException)
             {
-                // Invalid date combination (e.g., Feb 30, April 31)
                 _dateError = "Invalid date combination";
                 _model.DateOfBirth = default;
             }
@@ -100,11 +97,9 @@ public partial class AddPatient
 
     private void ShowSave()
     {
-        // Clear previous errors
         _errorMessage = null;
         _validationErrors.Clear();
         
-        // Show confirmation modal
         _confirmSave = true;
     }
 
@@ -125,7 +120,6 @@ public partial class AddPatient
 
             if (response.IsSuccessStatusCode)
             {
-                // Success - navigate to patients list
                 Nav.NavigateTo("/patients");
                 return;
             }
@@ -137,7 +131,6 @@ public partial class AddPatient
                 return;
             }
 
-            // Other error status codes
             _errorMessage = response.StatusCode switch
             {
                 HttpStatusCode.Unauthorized => "You are not authorized to add patients.",
@@ -200,7 +193,7 @@ public partial class AddPatient
         Nav.NavigateTo("/patients");
     }
 
-    private int CalculateAge(DateOnly dateOfBirth)
+    private static int CalculateAge(DateOnly dateOfBirth)
     {
         if (dateOfBirth == default)
             return 0;
