@@ -60,7 +60,7 @@ public partial class PatientsList
         Nav.NavigateTo("/patients/add");
     }
 
-    private int CalculateAge(DateOnly dateOfBirth)
+    private static int CalculateAge(DateOnly dateOfBirth)
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var age = today.Year - dateOfBirth.Year;
@@ -73,7 +73,7 @@ public partial class PatientsList
         return age;
     }
 
-    private string GetInitials(string firstName, string lastName)
+    private static string GetInitials(string firstName, string lastName)
     {
         var firstInitial = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString().ToUpper() : "";
         var lastInitial = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";

@@ -26,7 +26,6 @@ public partial class EditPatient
     private bool _isDeleting;
     private List<string> _validationErrors = [];
 
-    // Date picker dropdowns
     private int _selectedMonth;
     private int _selectedDay;
     private int _selectedYear;
@@ -80,14 +79,12 @@ public partial class EditPatient
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                // Patient not found, redirect to list
                 Nav.NavigateTo("/patients");
                 return;
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                // Other error, redirect to list
                 Nav.NavigateTo("/patients");
                 return;
             }
@@ -107,7 +104,6 @@ public partial class EditPatient
                 Email = patient.Email
             };
 
-            // Initialize dropdown values from existing date
             InitializeDateDropdowns(patient.DateOfBirth);
         }
         catch (Exception)
@@ -135,7 +131,6 @@ public partial class EditPatient
             {
                 var date = new DateOnly(_selectedYear, _selectedMonth, _selectedDay);
                 
-                // Validate date is not in the future
                 if (date > DateOnly.FromDateTime(DateTime.Today))
                 {
                     _dateError = "Date of birth cannot be in the future";
@@ -146,7 +141,6 @@ public partial class EditPatient
             }
             catch (ArgumentOutOfRangeException)
             {
-                // Invalid date combination (e.g., Feb 30, April 31)
                 _dateError = "Invalid date combination";
             }
         }
@@ -154,11 +148,9 @@ public partial class EditPatient
 
     private void ShowSave()
     {
-        // Clear previous errors
         _errorMessage = null;
         _validationErrors.Clear();
         
-        // Show confirmation modal
         _confirmSave = true;
     }
 
@@ -182,7 +174,6 @@ public partial class EditPatient
 
             if (response.IsSuccessStatusCode)
             {
-                // Success - navigate back to patient view
                 Nav.NavigateTo($"/patients/{Id}");
                 return;
             }
@@ -201,7 +192,6 @@ public partial class EditPatient
                 return;
             }
 
-            // Other error status codes
             _errorMessage = response.StatusCode switch
             {
                 HttpStatusCode.Unauthorized => "You are not authorized to edit patients.",
@@ -279,19 +269,16 @@ public partial class EditPatient
 
             if (response.IsSuccessStatusCode)
             {
-                // Success - navigate to patients list
                 Nav.NavigateTo("/patients");
                 return;
             }
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                // Already deleted, just navigate away
                 Nav.NavigateTo("/patients");
                 return;
             }
 
-            // Show error but stay on page
             _errorMessage = response.StatusCode switch
             {
                 HttpStatusCode.Unauthorized => "You are not authorized to delete patients.",
@@ -323,7 +310,7 @@ public partial class EditPatient
         Nav.NavigateTo($"/patients/{Id}");
     }
 
-    private int CalculateAge(DateOnly dateOfBirth)
+    private static int CalculateAge(DateOnly dateOfBirth)
     {
         if (dateOfBirth == default)
             return 0;

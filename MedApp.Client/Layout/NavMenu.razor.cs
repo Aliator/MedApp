@@ -49,4 +49,9 @@ public partial class NavMenu : IDisposable
     {
         module?.DisposeAsync();
     }
+
+    private void ViewAccount()
+    {
+        Nav.NavigateTo("/account");
+    }
 }
