@@ -57,7 +57,7 @@ public partial class ViewPatient
         Nav.NavigateTo($"/patients/{Id}/edit");
     }
 
-    private int CalculateAge(DateOnly dateOfBirth)
+    private static int CalculateAge(DateOnly dateOfBirth)
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var age = today.Year - dateOfBirth.Year;
