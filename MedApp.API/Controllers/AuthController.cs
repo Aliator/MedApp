@@ -111,6 +111,7 @@ public sealed class AuthController(
     }
     
     [HttpPut("users/{username}/update-password")]
+    [Authorize(Roles = "User", Policy = "SelfUserOnly")]
     [Tags("Users")]
     public async Task<IActionResult> UpdateUserPassword(
         string username,
@@ -129,7 +130,7 @@ public sealed class AuthController(
     }
     
     [HttpPut("users/{username}/reset-password")]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     [Tags("Users")]
     public async Task<IActionResult> ResetUserPassword(string username)
     {
@@ -156,6 +157,7 @@ public sealed class AuthController(
     }
 
     [HttpGet("roles")]
+    [Authorize(Roles = "Admin")]
     [Tags("Roles")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllRoles()
