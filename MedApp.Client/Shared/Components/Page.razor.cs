@@ -25,7 +25,8 @@ public partial class Page
 
     private bool _isLoading = true;
 
-    private string ContainerStyle => $"max-width: {MaxWidth}px; margin: 0 auto;";
+    private string ContainerStyle =>
+        $"max-width: {MaxWidth}px; margin: 0 auto";
 
     protected override async Task OnInitializedAsync()
     {
