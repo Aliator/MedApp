@@ -32,7 +32,6 @@
       <AdditionalFiles Include="Components\Pages\Page.razor" />
       <AdditionalFiles Include="Components\Pages\PageHeader.razor" />
       <AdditionalFiles Include="Components\Shared\AlertMessage.razor" />
-      <AdditionalFiles Include="Components\Shared\ConfirmDialogue.razor" />
       <AdditionalFiles Include="Components\Shared\Icon.razor" />
       <AdditionalFiles Include="Components\Shared\SummaryItem.razor" />
       <AdditionalFiles Include="Components\Views\ViewCard.razor" />

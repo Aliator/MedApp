@@ -18,7 +18,6 @@ public partial class AddPatient
     private bool _confirmSave;
     private bool _isSaving;
     private string? _errorMessage;
-    private string? _dateError;
     private List<string> _validationErrors = [];
 
     private int _selectedMonth;
@@ -57,8 +56,8 @@ public partial class AddPatient
 
     private void UpdateDateOfBirth()
     {
-        _dateError = null;
-
+        _errorMessage = null;
+        
         if (_selectedYear > 0 && _selectedMonth > 0 && _selectedDay > 0)
         {
             try
@@ -67,7 +66,7 @@ public partial class AddPatient
                 
                 if (date > DateOnly.FromDateTime(DateTime.Today))
                 {
-                    _dateError = "Date of birth cannot be in the future";
+                    _errorMessage = "Date of birth cannot be in the future";
                     _model.DateOfBirth = default;
                     return;
                 }
@@ -76,7 +75,7 @@ public partial class AddPatient
             }
             catch (ArgumentOutOfRangeException)
             {
-                _dateError = "Invalid date combination";
+                _errorMessage = "Invalid date combination";
                 _model.DateOfBirth = default;
             }
         }

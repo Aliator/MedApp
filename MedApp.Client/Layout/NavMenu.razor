@@ -33,14 +33,14 @@
     </div>
 
     <div class="sidebar-footer">
-        <button class="user-profile" @onclick="ViewAccount" type="button">
-            <div class="user-avatar">
+        <button class="sidebar-user-profile" @onclick="ViewAccount" type="button">
+            <div class="sidebar-user-avatar">
                 <Icon Type="IconType.Users" Size="20" />
             </div>
 
-            <div class="user-info">
-                <div class="user-name">@Auth.Username</div>
-                <div class="user-role">
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name">@Auth.Username</div>
+                <div class="sidebar-user-role">
                     @(Auth.IsAdmin ? "Administrator" : "User")
                 </div>
             </div>

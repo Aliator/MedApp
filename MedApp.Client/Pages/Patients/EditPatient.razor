@@ -1,4 +1,5 @@
 ﻿@page "/patients/{Id:guid}/edit"
+@using MedApp.Client.Components.Modals
 
 <PageTitle>Edit Patient - MedApp</PageTitle>
 
@@ -74,7 +75,7 @@
     </Content>
 
     <Dialogs>
-        <ConfirmDialogue IsVisible="@_confirmSave"
+        <ConfirmModal IsVisible="@_confirmSave"
                          Title="Confirm Changes"
                          Message="Are you sure you want to save these changes?"
                          ConfirmText="Confirm Save"
@@ -90,9 +91,9 @@
                                 DateOfBirth="@_model?.DateOfBirth"
                                 Email="@_model?.Email" />
             </ChildContent>
-        </ConfirmDialogue>
+        </ConfirmModal>
 
-        <ConfirmDialogue IsVisible="@_confirmDelete"
+        <ConfirmModal IsVisible="@_confirmDelete"
                          Title="Confirm Delete"
                          Message="This action cannot be undone."
                          ConfirmText="Delete Patient"
@@ -107,7 +108,7 @@
                 <PatientSummary FirstName="@_model?.FirstName"
                                 LastName="@_model?.LastName" />
             </ChildContent>
-        </ConfirmDialogue>
+        </ConfirmModal>
     </Dialogs>
 
 </Page>

@@ -15,6 +15,7 @@ public enum IconType
     Warning,
     Info,
     UserPlus,
+    UserMinus,
     Home,
     Patients,
     Users,
@@ -25,7 +26,13 @@ public enum IconType
     Add,
     Password,
     Assign,
-    Revoke
+    Revoke,
+    Refresh,
+    Search,
+    Menu,
+    ChevronDown,
+    ChevronRight,
+    Lock
 }
 
 public partial class Icon

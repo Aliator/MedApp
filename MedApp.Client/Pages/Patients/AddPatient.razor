@@ -1,4 +1,5 @@
 ﻿@page "/patients/add"
+@using MedApp.Client.Components.Modals
 
 <PageTitle>Add Patient - MedApp</PageTitle>
 
@@ -60,7 +61,7 @@
     </Content>
 
     <Dialogs>
-        <ConfirmDialogue IsVisible="@_confirmSave"
+        <ConfirmModal IsVisible="@_confirmSave"
                        Title="Confirm Add Patient"
                        Message="Are you sure you want to add this patient to the system?"
                        ConfirmText="Confirm Add"
@@ -77,6 +78,6 @@
                                 DateOfBirth="@_model.DateOfBirth"
                                 Email="@_model.Email" />
             </ChildContent>
-        </ConfirmDialogue>
+        </ConfirmModal>
     </Dialogs>
 </Page>

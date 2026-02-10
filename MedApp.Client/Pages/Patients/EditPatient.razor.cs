@@ -21,7 +21,6 @@ public partial class EditPatient
     private bool _confirmDelete;
     private bool _confirmSave;
     private string? _errorMessage;
-    private string? _dateError;
     private bool _isSaving;
     private bool _isDeleting;
     private List<string> _validationErrors = [];
@@ -117,7 +116,7 @@ public partial class EditPatient
     {
         if (_model is null) return;
 
-        _dateError = null;
+        _errorMessage = null;
 
         if (_selectedYear > 0 && _selectedMonth > 0 && _selectedDay > 0)
         {
@@ -127,7 +126,7 @@ public partial class EditPatient
                 
                 if (date > DateOnly.FromDateTime(DateTime.Today))
                 {
-                    _dateError = "Date of birth cannot be in the future";
+                    _errorMessage = "Date of birth cannot be in the future";
                     return;
                 }
 
@@ -135,7 +134,7 @@ public partial class EditPatient
             }
             catch (ArgumentOutOfRangeException)
             {
-                _dateError = "Invalid date combination";
+                _errorMessage = "Invalid date combination";
             }
         }
     }

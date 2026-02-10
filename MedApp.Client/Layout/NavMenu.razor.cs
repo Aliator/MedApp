@@ -4,14 +4,13 @@ using Microsoft.JSInterop;
 
 namespace MedApp.Client.Layout;
 
-public partial class NavMenu : IDisposable
+public partial class NavMenu
 {
     [Inject] private HttpClient Http { get; set; } = null!;
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
     
     private bool _isMenuOpen = false;
-    private IJSObjectReference? _module;
 
     protected override async Task OnInitializedAsync()
     {
@@ -34,11 +33,6 @@ public partial class NavMenu : IDisposable
         await Http.PostAsync("api/auth/logout", null);
         Auth.Clear();
         Nav.NavigateTo("/login", true);
-    }
-
-    public void Dispose()
-    {
-        _module?.DisposeAsync();
     }
 
     private void ViewAccount()

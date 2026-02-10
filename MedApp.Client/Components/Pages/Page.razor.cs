@@ -8,20 +8,26 @@ public partial class Page
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
 
-    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string LoadingMessage { get; set; } = "Loading...";
+
+    [Parameter] public string Title { get; set; } = "";
     [Parameter] public string? Subtitle { get; set; }
+
     [Parameter] public bool ShowHeader { get; set; } = true;
-    [Parameter] public bool ShowBackButton { get; set; } = true;
+
+    [Parameter] public bool ShowBackButton { get; set; }
     [Parameter] public string BackButtonTitle { get; set; } = "Back";
     [Parameter] public EventCallback OnBack { get; set; }
+
+    [Parameter] public int? MaxWidth { get; set; }
+
     [Parameter] public RenderFragment? HeaderActions { get; set; }
     [Parameter] public RenderFragment? Content { get; set; }
     [Parameter] public RenderFragment? Dialogs { get; set; }
     [Parameter] public bool RequireAuth { get; set; } = true;
     [Parameter] public string LoginRedirectUrl { get; set; } = "/login";
     [Parameter] public EventCallback OnLoad { get; set; }
-    [Parameter] public string LoadingMessage { get; set; } = "Loading...";
-    [Parameter] public int MaxWidth { get; set; } = 1200;
 
     private bool _isLoading = true;
 

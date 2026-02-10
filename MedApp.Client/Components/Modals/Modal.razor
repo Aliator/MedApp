@@ -1,0 +1,24 @@
+﻿@if (IsVisible)
+{
+    <div class="modal-overlay" @onclick="OnClose">
+        <div class="modal-container @(IsDanger ? "modal-danger" : "")" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">@Title</h3>
+                <button class="modal-close" @onclick="OnClose" aria-label="Close">
+                    <Icon Type="IconType.Cancel" Size="20" />
+                </button>
+            </div>
+
+            <div class="modal-body">
+                @Body
+            </div>
+
+            @if (Footer != null)
+            {
+                <div class="modal-footer">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
