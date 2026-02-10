@@ -4,7 +4,6 @@ namespace MedApp.Client.Shared.Components;
 
 public partial class FormCard
 {
-    [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? Sections { get; set; }
     [Parameter] public RenderFragment? FooterActions { get; set; }
     [Parameter] public bool ShowFooter { get; set; } = true;

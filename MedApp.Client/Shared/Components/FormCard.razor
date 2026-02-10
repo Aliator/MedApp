@@ -1,12 +1,5 @@
 ﻿<div class="form-card">
-    @if (Sections != null)
-    {
-        @Sections
-    }
-    else
-    {
-        @ChildContent
-    }
+    @Sections
 
     @if (ShowFooter)
     {
@@ -18,6 +11,12 @@
                     @DeleteText
                 </button>
             }
+
+            @if (FooterActions != null)
+            {
+                @FooterActions
+            }
+
             <div class="form-actions-right">
                 @if (OnCancel.HasDelegate)
                 {
@@ -26,6 +25,7 @@
                         @CancelText
                     </button>
                 }
+
                 @if (OnSave.HasDelegate)
                 {
                     <button class="btn-primary" @onclick="OnSave" disabled="@IsProcessing">
@@ -40,10 +40,6 @@
                             <span>@SaveText</span>
                         }
                     </button>
-                }
-                @if (FooterActions != null)
-                {
-                    @FooterActions
                 }
             </div>
         </div>

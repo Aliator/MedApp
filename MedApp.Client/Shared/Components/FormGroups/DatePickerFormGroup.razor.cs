@@ -7,7 +7,6 @@ public partial class DatePickerFormGroup
     [Parameter] public DateOnly Value { get; set; }
     [Parameter] public EventCallback<DateOnly> ValueChanged { get; set; }
     [Parameter] public string Label { get; set; } = "Date of Birth";
-    [Parameter] public string SectionTitle { get; set; } = "Personal Information";
     [Parameter] public bool Required { get; set; } = true;
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool ShowAge { get; set; } = true;
