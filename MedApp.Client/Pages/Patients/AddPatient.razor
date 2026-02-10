@@ -1,236 +1,86 @@
 ﻿@page "/patients/add"
+@using MedApp.Client.Shared.Components
+@using MedApp.Client.Shared.Components.Summaries
+@using MedApp.Client.Shared.Components.FormGroups
 
 <PageTitle>Add Patient - MedApp</PageTitle>
 
-<div class="page-container">
-    <div class="page-header">
-        <div class="header-content">
-            <button class="btn-back" @onclick="Cancel" title="Back to patients">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>
-            <div class="header-text">
-                <h1 class="page-title">Add New Patient</h1>
-                <p class="page-subtitle">Enter patient information to create a new record</p>
-            </div>
-        </div>
-    </div>
+<Page Title="Add New Patient"
+      Subtitle="Enter patient information to create a new record"
+      BackButtonTitle="Back to patients"
+      OnBack="Cancel"
+      MaxWidth=900>
+    <Content>
+        <AlertMessage Message="@_errorMessage" ValidationErrors="@_validationErrors" />
 
-    @if (!string.IsNullOrEmpty(_errorMessage))
-    {
-        <div class="alert alert-error">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div class="alert-content">
-                <div class="alert-title">@_errorMessage</div>
-                @if (_validationErrors.Any())
-                {
-                    <ul class="alert-list">
-                        @foreach (var error in _validationErrors)
-                        {
-                            <li>@error</li>
-                        }
-                    </ul>
-                }
-            </div>
-        </div>
-    }
-
-    <div class="form-card">
-        <div class="form-section">
-            <h2 class="section-title">Personal Information</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="form-label">
-                        First Name
-                        <span class="required">*</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        class="form-input" 
-                        @bind="_model.FirstName"
-                        placeholder="Enter first name"
-                        disabled="@_isSaving" />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">
-                        Last Name
-                        <span class="required">*</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        class="form-input" 
-                        @bind="_model.LastName"
-                        placeholder="Enter last name"
-                        disabled="@_isSaving" />
-                </div>
-
-                <div class="form-group form-group-date">
-                    <label class="form-label">
-                        Date of Birth
-                        <span class="required">*</span>
-                    </label>
-                    <div class="date-picker-group">
-                        <select class="form-select" @bind="SelectedMonth" disabled="@_isSaving">
-                            <option value="0">Month</option>
-                            <option value="1">January</option>
-                            <option value="2">February</option>
-                            <option value="3">March</option>
-                            <option value="4">April</option>
-                            <option value="5">May</option>
-                            <option value="6">June</option>
-                            <option value="7">July</option>
-                            <option value="8">August</option>
-                            <option value="9">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
-                        <select class="form-select" @bind="SelectedDay" disabled="@_isSaving">
-                            <option value="0">Day</option>
-                            @for (int i = 1; i <= 31; i++)
-                            {
-                                <option value="@i">@i</option>
-                            }
-                        </select>
-                        <select class="form-select" @bind="SelectedYear" disabled="@_isSaving">
-                            <option value="0">Year</option>
-                            @for (int year = DateTime.Now.Year; year >= 1900; year--)
-                            {
-                                <option value="@year">@year</option>
-                            }
-                        </select>
-                    </div>
-                    @if (_selectedMonth > 0 && _selectedDay > 0 && _selectedYear > 0 && _model.DateOfBirth != default)
-                    {
-                        <div class="form-hint">
-                            Age: @CalculateAge(_model.DateOfBirth) years old
-                        </div>
-                    }
-                    @if (!string.IsNullOrEmpty(_dateError))
-                    {
-                        <div class="form-error">@_dateError</div>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="form-section">
-            <h2 class="section-title">Contact Information</h2>
-            <div class="form-grid">
-                <div class="form-group form-group-wide">
-                    <label class="form-label">
-                        Email Address
-                        <span class="required">*</span>
-                    </label>
-                    <div class="input-with-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                            <polyline points="22,6 12,13 2,6"/>
-                        </svg>
-                        <input 
-                            type="email" 
-                            class="form-input input-with-padding" 
-                            @bind="_model.Email"
-                            placeholder="patient@example.com"
+        <FormCard OnSave="ShowSave"
+                  OnCancel="Cancel"
+                  IsProcessing="@_isSaving"
+                  SaveText="Add Patient"
+                  ProcessingText="Saving...">
+            <Sections>
+                <FormSection Title="Personal Information">
+                    <FormGroup Label="First Name" Required="true">
+                        <input
+                            type="text"
+                            class="form-input"
+                            @bind="_model.FirstName"
+                            placeholder="Enter first name"
                             disabled="@_isSaving" />
-                    </div>
-                </div>
-            </div>
-        </div>
+                    </FormGroup>
 
-        <div class="form-footer">
-            <button class="btn-secondary" @onclick="Cancel" disabled="@_isSaving">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-                Cancel
-            </button>
-            <button class="btn-primary" @onclick="ShowSave" disabled="@_isSaving">
-                @if (_isSaving)
-                {
-                    <span class="spinner-small"></span>
-                    <span>Saving...</span>
-                }
-                else
-                {
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17 21 17 13 7 13 7 21"/>
-                        <polyline points="7 3 7 8 15 8"/>
-                    </svg>
-                    <span>Add Patient</span>
-                }
-            </button>
-        </div>
-    </div>
-</div>
+                    <FormGroup Label="Last Name" Required="true">
+                        <input
+                            type="text"
+                            class="form-input"
+                            @bind="_model.LastName"
+                            placeholder="Enter last name"
+                            disabled="@_isSaving" />
+                    </FormGroup>
+                </FormSection>
 
-@if (_confirmSave)
-{
-    <div class="modal-overlay" @onclick="HideSave">
-        <div class="modal-container" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3 class="modal-title">Confirm Add Patient</h3>
-                <button class="modal-close" @onclick="HideSave" aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            
-            <div class="modal-body">
-                <div class="confirmation-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <line x1="19" y1="8" x2="19" y2="14"/>
-                        <line x1="22" y1="11" x2="16" y2="11"/>
-                    </svg>
-                </div>
-                <p class="modal-text">Are you sure you want to add this patient to the system?</p>
-                <div class="patient-summary">
-                    <div class="summary-item">
-                        <span class="summary-label">Name:</span>
-                        <span class="summary-value">@_model.FirstName @_model.LastName</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="summary-label">Date of Birth:</span>
-                        <span class="summary-value">@_model.DateOfBirth.ToString("MMMM dd, yyyy")</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="summary-label">Email:</span>
-                        <span class="summary-value">@_model.Email</span>
-                    </div>
-                </div>
-            </div>
+                <DatePickerFormGroup @bind-Value="_model.DateOfBirth"
+                                     Label="Date of Birth"
+                                     SectionTitle=""
+                                     Required="true"
+                                     Disabled="@_isSaving"
+                                     ShowAge="true" />
 
-            <div class="modal-footer">
-                <button class="btn-outline" @onclick="HideSave" disabled="@_isSaving">
-                    Cancel
-                </button>
-                <button class="btn-primary" @onclick="Save" disabled="@_isSaving">
-                    @if (_isSaving)
-                    {
-                        <span class="spinner-small"></span>
-                        <span>Adding...</span>
-                    }
-                    else
-                    {
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        <span>Confirm Add</span>
-                    }
-                </button>
-            </div>
-        </div>
-    </div>
-}
+                <FormSection Title="Contact Information">
+                    <FormGroup Label="Email Address" Required="true" CssClass="form-group-wide">
+                        <div class="input-with-icon">
+                            <Icon Type="IconType.Email" Size="18" />
+                            <input
+                                type="email"
+                                class="form-input input-with-padding"
+                                @bind="_model.Email"
+                                placeholder="patient@example.com"
+                                disabled="@_isSaving" />
+                        </div>
+                    </FormGroup>
+                </FormSection>
+            </Sections>
+        </FormCard>
+    </Content>
+
+    <Dialogs>
+        <ConfirmDialogue IsVisible="@_confirmSave"
+                       Title="Confirm Add Patient"
+                       Message="Are you sure you want to add this patient to the system?"
+                       ConfirmText="Confirm Add"
+                       ProcessingText="Adding..."
+                       IsProcessing="@_isSaving"
+                       OnConfirm="Save"
+                       OnCancel="HideSave">
+            <CustomIcon>
+                <Icon Type="IconType.UserPlus" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <PatientSummary FirstName="@_model.FirstName"
+                                LastName="@_model.LastName"
+                                DateOfBirth="@_model.DateOfBirth"
+                                Email="@_model.Email" />
+            </ChildContent>
+        </ConfirmDialogue>
+    </Dialogs>
+</Page>
