@@ -1,7 +1,4 @@
 ﻿@page "/patients/add"
-@using MedApp.Client.Shared.Components
-@using MedApp.Client.Shared.Components.Summaries
-@using MedApp.Client.Shared.Components.FormGroups
 
 <PageTitle>Add Patient - MedApp</PageTitle>
 
@@ -9,7 +6,7 @@
       Subtitle="Enter patient information to create a new record"
       BackButtonTitle="Back to patients"
       OnBack="Cancel"
-      MaxWidth=900>
+      MaxWidth="900">
     <Content>
         <AlertMessage Message="@_errorMessage" ValidationErrors="@_validationErrors" />
 
@@ -37,14 +34,13 @@
                             placeholder="Enter last name"
                             disabled="@_isSaving" />
                     </FormGroup>
-                </FormSection>
 
-                <DatePickerFormGroup @bind-Value="_model.DateOfBirth"
-                                     Label="Date of Birth"
-                                     SectionTitle=""
-                                     Required="true"
-                                     Disabled="@_isSaving"
-                                     ShowAge="true" />
+                    <DatePickerFormGroup @bind-Value="_model.DateOfBirth"
+                                         Label="Date of Birth"
+                                         Required="true"
+                                         Disabled="@_isSaving"
+                                         ShowAge="true" />
+                </FormSection>
 
                 <FormSection Title="Contact Information">
                     <FormGroup Label="Email Address" Required="true" CssClass="form-group-wide">

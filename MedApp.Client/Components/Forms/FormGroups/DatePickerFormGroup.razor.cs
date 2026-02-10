@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 
-namespace MedApp.Client.Shared.Components.FormGroups;
+namespace MedApp.Client.Components.Forms.FormGroups;
 
 public partial class DatePickerFormGroup
 {

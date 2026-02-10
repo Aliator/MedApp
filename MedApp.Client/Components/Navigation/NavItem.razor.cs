@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Components;
+﻿using MedApp.Client.Components.Shared;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
 
-namespace MedApp.Client.Shared.Components;
+namespace MedApp.Client.Components.Navigation;
 
 public partial class NavItem
 {

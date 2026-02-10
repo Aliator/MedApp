@@ -55,15 +55,6 @@ public partial class AddPatient
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (!await Auth.EnsureAuthenticatedAsync())
-        {
-            Nav.NavigateTo("/login", true);
-            return;
-        }
-    }
-
     private void UpdateDateOfBirth()
     {
         _dateError = null;

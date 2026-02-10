@@ -79,4 +79,12 @@ public partial class PatientsList
         var lastInitial = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";
         return $"{firstInitial}{lastInitial}";
     }
+    
+    private string GetSubtitle()
+    {
+        if (_patients is null)
+            return "Loading patients...";
+
+        return $"{_patients.Count} {(_patients.Count == 1 ? "patient" : "patients")} registered";
+    }
 }

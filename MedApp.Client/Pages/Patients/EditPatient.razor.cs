@@ -60,17 +60,6 @@ public partial class EditPatient
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (!await Auth.EnsureAuthenticatedAsync())
-        {
-            Nav.NavigateTo("/login", true);
-            return;
-        }
-
-        await LoadPatientAsync();
-    }
-
     private async Task LoadPatientAsync()
     {
         try

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 
-namespace MedApp.Client.Shared.Components;
+namespace MedApp.Client.Components.Forms;
 
 public partial class FormSection
 {

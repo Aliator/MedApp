@@ -18,5 +18,25 @@
 
     <ItemGroup>
       <_ContentIncludedByDefault Remove="Shared\Components\Forms\FormGroups\DatePickerFormGroup.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Components\FormGroups\DatePickerFormGroup.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Components\Summaries\PatientSummary.razor" />
+      <_ContentIncludedByDefault Remove="Components\Shared\Summaries\PatientSummary.razor" />
+      <_ContentIncludedByDefault Remove="Components\Summaries\PatientSummary.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="Components\Forms\FormCard.razor" />
+      <AdditionalFiles Include="Components\Forms\FormGroup.razor" />
+      <AdditionalFiles Include="Components\Forms\FormGroups\DatePickerFormGroup.razor" />
+      <AdditionalFiles Include="Components\Forms\FormSection.razor" />
+      <AdditionalFiles Include="Components\Pages\Page.razor" />
+      <AdditionalFiles Include="Components\Pages\PageHeader.razor" />
+      <AdditionalFiles Include="Components\Shared\AlertMessage.razor" />
+      <AdditionalFiles Include="Components\Shared\ConfirmDialogue.razor" />
+      <AdditionalFiles Include="Components\Shared\Icon.razor" />
+      <AdditionalFiles Include="Components\Shared\SummaryItem.razor" />
+      <AdditionalFiles Include="Components\Views\ViewCard.razor" />
+      <AdditionalFiles Include="Components\Views\ViewGroup.razor" />
+      <AdditionalFiles Include="Components\Views\ViewSection.razor" />
     </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 
-namespace MedApp.Client.Shared.Components;
+namespace MedApp.Client.Components.Shared;
 
 public enum IconType
 {
@@ -19,7 +19,13 @@ public enum IconType
     Patients,
     Users,
     Logout,
-    Shield
+    Shield,
+    View,
+    Edit,
+    Add,
+    Password,
+    Assign,
+    Revoke
 }
 
 public partial class Icon

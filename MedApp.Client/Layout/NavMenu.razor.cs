@@ -9,32 +9,23 @@ public partial class NavMenu : IDisposable
     [Inject] private HttpClient Http { get; set; } = null!;
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
-    [Inject] private IJSRuntime JS { get; set; } = null!;
-
-    private bool isMenuOpen = false;
-    private IJSObjectReference? module;
+    
+    private bool _isMenuOpen = false;
+    private IJSObjectReference? _module;
 
     protected override async Task OnInitializedAsync()
     {
         await Auth.EnsureAuthenticatedAsync();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Layout/NavMenu.razor.js");
-        }
-    }
-
     private void ToggleMenu()
     {
-        isMenuOpen = !isMenuOpen;
+        _isMenuOpen = !_isMenuOpen;
     }
 
     private void CloseMenu()
     {
-        isMenuOpen = false;
+        _isMenuOpen = false;
     }
 
     private async Task Logout()
@@ -47,7 +38,7 @@ public partial class NavMenu : IDisposable
 
     public void Dispose()
     {
-        module?.DisposeAsync();
+        _module?.DisposeAsync();
     }
 
     private void ViewAccount()

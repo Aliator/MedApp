@@ -1,0 +1,9 @@
+﻿<div class="empty-state">
+    <Icon Type="@Icon" Size="64" />
+    <h2 class="empty-title">@Title</h2>
+    <p class="empty-description">@Description</p>
+    @if (Action is not null)
+    {
+        @Action
+    }
+</div>

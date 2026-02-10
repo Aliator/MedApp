@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 
-namespace MedApp.Client.Shared.Components.Summaries;
+namespace MedApp.Client.Components.Forms.Summaries;
 
 public partial class PatientSummary
 {
