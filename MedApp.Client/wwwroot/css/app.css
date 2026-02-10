@@ -278,6 +278,7 @@ a:focus {
 
 .btn-primary,
 .btn-secondary,
+.btn-tertiary,
 .btn-outline,
 .btn-danger,
 .btn-warning {
@@ -294,22 +295,38 @@ a:focus {
 }
 
 .btn-primary,
-.btn-secondary {
-    background-color: var(--primary-500);
+.btn-secondary,
+.btn-tertiary {
     color: white;
     border: none;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    justify-content: center;
+}
+
+.btn-primary,
+.btn-secondary {
+    background-color: var(--primary-500);
+}
+.btn-tertiary {
+    background-color: var(--gray-500);
 }
 
 .btn-primary:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled)  {
     background-color: var(--primary-600);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
 }
 
+.btn-tertiary:hover:not(:disabled) {
+    background-color: var(--gray-400);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
 .btn-primary:active:not(:disabled),
-.btn-secondary:active:not(:disabled) {
+.btn-secondary:active:not(:disabled),
+.btn-tertiary:active:not(:disabled) {
     transform: translateY(0);
 }
 
@@ -358,6 +375,7 @@ a:focus {
 
 .btn-primary:disabled,
 .btn-secondary:disabled,
+.btn-tertiary:disabled,
 .btn-outline:disabled,
 .btn-danger:disabled,
 .btn-warning:disabled {

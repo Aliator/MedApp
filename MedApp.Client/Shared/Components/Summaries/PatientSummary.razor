@@ -1,0 +1,15 @@
+﻿<div class="patient-summary @(IsDanger ? "patient-summary-danger" : "")">
+    <SummaryItem Label="Name" Value="@GetFullName()" />
+    @if (ShowDateOfBirth && DateOfBirth.HasValue)
+    {
+        <SummaryItem Label="Date of Birth" Value="@DateOfBirth.Value.ToString(DateFormat)" />
+    }
+    @if (ShowEmail && !string.IsNullOrEmpty(Email))
+    {
+        <SummaryItem Label="Email" Value="@Email" />
+    }
+    @if (AdditionalItems != null)
+    {
+        @AdditionalItems
+    }
+</div>

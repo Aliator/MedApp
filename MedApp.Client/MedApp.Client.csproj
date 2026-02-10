@@ -15,4 +15,12 @@
     <ItemGroup>
         <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Shared\Components\Forms\FormGroups\DatePickerFormGroup.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Shared\Components\Forms\" />
+    </ItemGroup>
 </Project>

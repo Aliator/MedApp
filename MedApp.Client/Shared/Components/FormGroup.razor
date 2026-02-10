@@ -1,0 +1,21 @@
+﻿<div class="form-group @CssClass">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="form-label" for="@Id">
+            @Label
+            @if (Required)
+            {
+                <span class="required">*</span>
+            }
+        </label>
+    }
+    @ChildContent
+    @if (!string.IsNullOrEmpty(Hint))
+    {
+        <div class="form-hint">@Hint</div>
+    }
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <div class="form-error">@Error</div>
+    }
+</div>
