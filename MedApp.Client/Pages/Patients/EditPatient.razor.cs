@@ -60,6 +60,11 @@ public partial class EditPatient
         }
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatientAsync();
+    }
+
     private async Task LoadPatientAsync()
     {
         try
