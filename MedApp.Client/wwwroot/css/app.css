@@ -116,47 +116,6 @@ a:focus {
     }
 }
 
-.table-card,
-.content-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    overflow: hidden;
-}
-
-.card-section {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.card-section:last-child {
-    border-bottom: none;
-}
-
-.btn-back {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    background-color: var(--gray-100);
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: var(--gray-700);
-}
-
-.btn-back:hover {
-    background-color: var(--gray-200);
-    border-color: var(--gray-300);
-    transform: translateX(-2px);
-}
-
-.btn-back:active {
-    transform: translateX(-3px);
-}
-
 .btn-primary,
 .btn-secondary,
 .btn-tertiary,
@@ -331,40 +290,6 @@ a:focus {
     justify-content: flex-end;
 }
 
-.user-avatar,
-.patient-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.875rem;
-    font-weight: 600;
-    flex-shrink: 0;
-}
-
-.user-info,
-.patient-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-}
-
-.user-name,
-.patient-name {
-    font-weight: 500;
-    color: var(--gray-900);
-}
-
-.patient-id {
-    font-size: 0.75rem;
-    color: var(--gray-400);
-    font-family: "Courier New", Courier, monospace;
-}
-
 .link {
     color: var(--primary-500);
     text-decoration: none;
@@ -419,10 +344,6 @@ a:focus {
 .alert-list li:last-child {
     margin-bottom: 0;
 }
-
-/* ========================================
-   Forms
-   ======================================== */
 
 .form-group {
     display: flex;
@@ -544,29 +465,11 @@ a:focus {
     padding-left: 2.75rem;
 }
 
-.form-section {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.form-section:last-of-type {
-    border-bottom: none;
-}
-
 .section-title {
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--gray-900);
     margin: 0 0 1.25rem 0;
-}
-
-.form-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    background-color: var(--gray-50);
-    border-top: 1px solid var(--gray-200);
 }
 
 .form-readonly {
@@ -580,10 +483,6 @@ a:focus {
 .form-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-
-/* ========================================
-   Modals
-   ======================================== */
 
 .modal-overlay {
     position: fixed;
