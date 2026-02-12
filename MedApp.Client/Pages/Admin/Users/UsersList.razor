@@ -198,12 +198,9 @@
                 <Icon Type="IconType.Warning" Size="48" />
             </CustomIcon>
             <ChildContent>
-                <div class="patient-summary patient-summary-danger">
-                    <div class="summary-item">
-                        <span class="summary-label">User</span>
-                        <span class="summary-value">@_selectedUser</span>
-                    </div>
-                </div>
+                <Summary IsDanger="true">
+                    <SummaryItem Label="User" Value="@_selectedUser" />
+                </Summary>
             </ChildContent>
         </ConfirmModal>
 

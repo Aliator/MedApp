@@ -1,4 +1,4 @@
-﻿<div class="patient-summary @(IsDanger ? "patient-summary-danger" : "")">
+﻿<Summary IsDanger="@IsDanger">
     <SummaryItem Label="Name" Value="@GetFullName()" />
     @if (ShowDateOfBirth && DateOfBirth.HasValue)
     {
@@ -12,4 +12,4 @@
     {
         @AdditionalItems
     }
-</div>
+</Summary>
