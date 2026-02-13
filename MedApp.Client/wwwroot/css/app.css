@@ -415,8 +415,7 @@ a:focus {
 
 .form-select {
     width: 100%;
-    padding: 0.625rem 0.875rem;
-    padding-right: 2.5rem;
+    padding: 0.625rem 2.5rem 0.625rem 0.875rem;
     font-size: 0.875rem;
     line-height: 1.5;
     color: var(--gray-900);
