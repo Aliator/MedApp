@@ -72,6 +72,7 @@
                                 <TableActions>
                                     <button class="btn-table-action btn-assign"
                                             @onclick="() => ShowAssignRole(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
                                             title="Assign role">
                                         <Icon Type="IconType.Add" Size="16" />
                                         <span class="mobile-hidden">Assign</span>
@@ -79,6 +80,7 @@
 
                                     <button class="btn-table-action btn-revoke"
                                             @onclick="() => ShowRevokeRole(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
                                             title="Revoke role">
                                         <Icon Type="IconType.Cancel" Size="16" />
                                         <span class="mobile-hidden">Revoke</span>
@@ -86,6 +88,7 @@
 
                                     <button class="btn-table-action btn-password"
                                             @onclick="() => ShowResetPassword(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
                                             title="Reset password">
                                         <Icon Type="IconType.Lock" Size="16" />
                                         <span class="mobile-hidden">Reset</span>
@@ -93,6 +96,7 @@
 
                                     <button class="btn-table-action btn-delete"
                                             @onclick="() => ShowDelete(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
                                             title="Delete user">
                                         <Icon Type="IconType.Delete" Size="16" />
                                         <span class="mobile-hidden">Delete</span>

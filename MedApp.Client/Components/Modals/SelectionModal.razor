@@ -61,7 +61,7 @@
 
         <button class="@(IsDanger ? "btn-danger" : "btn-primary")"
                 @onclick="OnConfirm"
-                disabled="@IsProcessing || ConfirmDisabled">
+                disabled="@(IsProcessing || ConfirmDisabled)">
             @if (IsProcessing)
             {
                 <span class="spinner-small"></span>

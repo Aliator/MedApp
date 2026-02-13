@@ -153,6 +153,7 @@ public partial class UsersList
         }
         catch
         {
+            // ignored
         }
 
         return Array.Empty<string>();

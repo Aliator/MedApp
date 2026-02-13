@@ -218,7 +218,8 @@ a:focus {
 .btn-tertiary:disabled,
 .btn-outline:disabled,
 .btn-danger:disabled,
-.btn-warning:disabled {
+.btn-warning:disabled,
+.btn-table-action:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
