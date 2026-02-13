@@ -302,50 +302,6 @@ a:focus {
     text-decoration: underline;
 }
 
-.alert {
-    display: flex;
-    align-items: start;
-    gap: 0.75rem;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-}
-
-.alert-error {
-    background-color: var(--danger-50);
-    color: var(--danger-800);
-    border: 1px solid var(--danger-200);
-}
-
-.alert-error svg {
-    color: var(--danger-600);
-    flex-shrink: 0;
-    margin-top: 0.125rem;
-}
-
-.alert-content {
-    flex: 1;
-}
-
-.alert-title {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.alert-list {
-    margin: 0.5rem 0 0 1.25rem;
-    padding: 0;
-}
-
-.alert-list li {
-    margin-bottom: 0.25rem;
-    font-size: 0.875rem;
-}
-
-.alert-list li:last-child {
-    margin-bottom: 0;
-}
-
 .form-group {
     display: flex;
     flex-direction: column;
