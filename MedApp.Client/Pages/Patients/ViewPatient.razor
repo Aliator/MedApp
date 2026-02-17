@@ -1,91 +1,61 @@
 ﻿@page "/patients/{Id:guid}"
 
-<PageTitle>Patient Details - MedApp</PageTitle>
+<PageTitle>View Patient - MedApp</PageTitle>
 
-<div class="page-container">
-    @if (!Auth.IsAuthenticated)
-    {
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Redirecting to login...</p>
-        </div>
-    }
-    else if (_patient is null)
-    {
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading patient details...</p>
-        </div>
-    }
-    else
-    {
-        <div class="page-header">
-            <div class="header-content">
-                <button class="btn-back" @onclick="GoBack" title="Back to patients">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 12H5M12 19l-7-7 7-7"/>
-                    </svg>
-                </button>
-                <div class="header-text">
-                    <h1 class="page-title">Patient Details</h1>
-                    <p class="page-subtitle">View patient information</p>
-                </div>
-            </div>
-            <div class="header-actions">
+<Page Title="View Patient"
+      Subtitle="Update patient information"
+      ShowBackButton="true"
+      BackButtonTitle="Back to patient"
+      OnBack="GoBack"
+      MaxWidth="900">
+
+    <Content>
+        <ViewCard>
+            <Sections>
+                <ViewSection Title="Personal Information">
+                    <ViewGroup Label="First Name">
+                        @_patient?.FirstName
+                    </ViewGroup>
+
+                    <ViewGroup Label="Last Name">
+                        @_patient?.LastName
+                    </ViewGroup>
+
+                    <ViewGroup Label="Date of Birth">
+                        @_patient?.DateOfBirth.ToString("MMMM dd, yyyy")
+                    </ViewGroup>
+
+                    <ViewGroup Label="Age">
+                        @if (_patient != null)
+                        {
+                            @CalculateAge(_patient.DateOfBirth)
+                        }
+                        years
+                    </ViewGroup>
+                </ViewSection>
+
+                <ViewSection Title="Contact Information">
+                    <ViewGroup Label="Email Address" CssClass="view-group-wide">
+                        <a href="mailto:@_patient?.Email" class="link">
+                            @_patient?.Email
+                        </a>
+                    </ViewGroup>
+                </ViewSection>
+
+                <ViewSection Title="Record Information">
+                    <ViewGroup Label="Patient ID">
+                        <span class="mono">@_patient?.Id</span>
+                    </ViewGroup>
+                </ViewSection>
+            </Sections>
+
+            <FooterActions>
                 <button class="btn-secondary" @onclick="Edit">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
+                    <Icon Type="IconType.Edit" Size="16" />
                     Edit Patient
                 </button>
-            </div>
-        </div>
+            </FooterActions>
+        </ViewCard>
 
-        <div class="content-card">
-            <div class="card-section">
-                <h2 class="section-title">Personal Information</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">First Name</span>
-                        <span class="info-value">@_patient.FirstName</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Last Name</span>
-                        <span class="info-value">@_patient.LastName</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Date of Birth</span>
-                        <span class="info-value">@_patient.DateOfBirth.ToString("MMMM dd, yyyy")</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Age</span>
-                        <span class="info-value">@CalculateAge(_patient.DateOfBirth) years</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-section">
-                <h2 class="section-title">Contact Information</h2>
-                <div class="info-grid">
-                    <div class="info-item info-item-wide">
-                        <span class="info-label">Email Address</span>
-                        <span class="info-value">
-                            <a href="mailto:@_patient.Email" class="link">@_patient.Email</a>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-section">
-                <h2 class="section-title">Record Information</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Patient ID</span>
-                        <span class="info-value info-value-mono">@_patient.Id</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-</div>
+    </Content>
+</Page>

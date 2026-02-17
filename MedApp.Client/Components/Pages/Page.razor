@@ -1,0 +1,30 @@
+﻿<div class="page-container" style="@ContainerStyle">
+    @if (ShowHeader)
+    {
+        <PageHeader Title="@Title"
+                    Subtitle="@Subtitle"
+                    ShowBackButton="@ShowBackButton"
+                    BackButtonTitle="@BackButtonTitle"
+                    OnBack="@OnBack">
+            <Actions>
+                @HeaderActions
+            </Actions>
+        </PageHeader>
+    }
+
+    <div class="page-content">
+        @if (_isLoading)
+        {
+            <LoadingState Message="@LoadingMessage" />
+        }
+        else
+        {
+            @Content
+        }
+    </div>
+</div>
+
+@if (!_isLoading)
+{
+    @Dialogs
+}

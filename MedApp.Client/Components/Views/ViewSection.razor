@@ -1,0 +1,17 @@
+﻿<div class="view-section">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <h2 class="section-title">@Title</h2>
+    }
+
+    @if (UseGrid)
+    {
+        <div class="view-grid">
+            @ChildContent
+        </div>
+    }
+    else
+    {
+        @ChildContent
+    }
+</div>

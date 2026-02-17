@@ -1,0 +1,25 @@
+﻿<div class="page-header">
+    <div class="header-left">
+        @if (ShowBackButton)
+        {
+            <button class="btn-back" @onclick="OnBack" title="@BackButtonTitle">
+                <Icon Type="IconType.Back" Size="20" />
+            </button>
+        }
+
+        <div class="header-text">
+            <h1 class="page-title">@Title</h1>
+            @if (!string.IsNullOrEmpty(Subtitle))
+            {
+                <p class="page-subtitle">@Subtitle</p>
+            }
+        </div>
+    </div>
+
+    @if (Actions != null)
+    {
+        <div class="header-actions">
+            @Actions
+        </div>
+    }
+</div>

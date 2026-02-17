@@ -1,0 +1,35 @@
+﻿@if (!string.IsNullOrEmpty(Message) || ValidationErrors.Any())
+{
+    <div class="alert @GetAlertClass()">
+        @switch (Type)
+        {
+            case AlertType.Success:
+                <Icon Type="IconType.Success" Size="20" />
+                break;
+            case AlertType.Warning:
+                <Icon Type="IconType.Warning" Size="20" />
+                break;
+            case AlertType.Info:
+                <Icon Type="IconType.Info" Size="20" />
+                break;
+            default:
+                <Icon Type="IconType.Alert" Size="20" />
+                break;
+        }
+        <div class="alert-content">
+            @if (!string.IsNullOrEmpty(Message))
+            {
+                <div class="alert-title">@Message</div>
+            }
+            @if (ValidationErrors.Any())
+            {
+                <ul class="alert-list">
+                    @foreach (var error in ValidationErrors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}

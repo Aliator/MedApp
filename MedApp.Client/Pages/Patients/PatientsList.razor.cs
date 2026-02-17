@@ -12,6 +12,7 @@ public partial class PatientsList
     [Inject] private NavigationManager Nav { get; set; } = null!;
 
     private IReadOnlyList<PatientResponse>? _patients;
+    private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -22,10 +23,12 @@ public partial class PatientsList
         }
 
         await LoadPatientsAsync();
+        _isLoading = false;
     }
 
     private async Task LoadPatientsAsync()
     {
+        await Task.Delay(500);
         try
         {
             var response = await Http.GetAsync("api/patients");
@@ -78,5 +81,13 @@ public partial class PatientsList
         var firstInitial = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString().ToUpper() : "";
         var lastInitial = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";
         return $"{firstInitial}{lastInitial}";
+    }
+    
+    private string GetSubtitle()
+    {
+        if (_isLoading)
+            return "Loading patients...";
+
+        return $"{_patients?.Count ?? 0} {(_patients?.Count == 1 ? "patient" : "patients")} registered";
     }
 }

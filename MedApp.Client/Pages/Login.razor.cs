@@ -22,6 +22,7 @@ public partial class Login
     private bool _isSendingReset;
     private string? _resetError;
     private bool _resetEmailSent;
+    
 
     private async Task HandleLogin()
     {
@@ -72,6 +73,7 @@ public partial class Login
         _resetEmail = "";
         _resetEmailSent = false;
     }
+    
     
     private async Task RequestPasswordReset()
     {
@@ -124,5 +126,12 @@ public partial class Login
         {
             return false;
         }
+    }
+    
+    private Task HandleForgotPasswordConfirm()
+    {
+        if (!_resetEmailSent) return RequestPasswordReset();
+        CloseForgotPassword();
+        return Task.CompletedTask;
     }
 }

@@ -1,0 +1,88 @@
+﻿@typeparam TItem
+
+<Modal IsVisible="@IsVisible"
+       Title="@Title"
+       IsDanger="@IsDanger"
+       OnClose="@OnCancel">
+
+    <Body>
+        <div class="confirmation-icon @(IsDanger ? "confirmation-icon-danger" : "confirmation-icon-save")">
+            @if (CustomIcon != null)
+            {
+                @CustomIcon
+            }
+            else if (IsDanger)
+            {
+                <Icon Type="IconType.Alert" Size="48" />
+            }
+            else
+            {
+                <Icon Type="IconType.Save" Size="48" />
+            }
+        </div>
+
+        <p class="modal-text @(IsDanger ? "modal-text-danger" : "")">@Message</p>
+
+        @if (InfoContent != null)
+        {
+            @InfoContent
+        }
+
+        @if (Items is null || !Items.Any())
+        {
+            @if (EmptyContent != null)
+            {
+                @EmptyContent
+            }
+        }
+        else
+        {
+            <div class="roles-list">
+                @foreach (var item in Items)
+                {
+                    var selected = IsSelected(item);
+
+                    <label class="role-checkbox">
+                        <input type="checkbox"
+                               checked="@selected"
+                               disabled="@IsProcessing"
+                               @onchange="e => OnToggle(item, (bool)e.Value!)" />
+                        <span class="role-checkbox-label">@GetLabel(item)</span>
+                    </label>
+                }
+            </div>
+        }
+    </Body>
+
+    <Footer>
+        <button class="btn-outline" @onclick="OnCancel" disabled="@IsProcessing">
+            @CancelText
+        </button>
+
+        <button class="@(IsDanger ? "btn-danger" : "btn-primary")"
+                @onclick="OnConfirm"
+                disabled="@(IsProcessing || ConfirmDisabled)">
+            @if (IsProcessing)
+            {
+                <Spinner Size="SpinnerSize.Small" Color="SpinnerColor.White" />
+                <span>@ProcessingText</span>
+            }
+            else
+            {
+                @if (ConfirmIcon != null)
+                {
+                    @ConfirmIcon
+                }
+                else if (IsDanger)
+                {
+                    <Icon Type="IconType.Delete" Size="18" />
+                }
+                else
+                {
+                    <Icon Type="IconType.Check" Size="18" />
+                }
+                <span>@ConfirmText</span>
+            }
+        </button>
+    </Footer>
+</Modal>

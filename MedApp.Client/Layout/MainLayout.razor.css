@@ -13,4 +13,7 @@
     flex: 1;
     padding: 2rem;
     background: #f9fafb;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
 }

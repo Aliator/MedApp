@@ -1,0 +1,16 @@
+﻿<div class="@(HasSecondary ? "patient-cell" : "user-cell")">
+    <div class="@(HasSecondary ? "patient-avatar" : "user-avatar")">
+        @AvatarText
+    </div>
+    <div class="@(HasSecondary ? "patient-info" : "user-info")">
+        <div class="@(HasSecondary ? "patient-name" : "user-name")">
+            @PrimaryText
+        </div>
+        @if (HasSecondary)
+        {
+            <div class="patient-id">
+                @SecondaryText
+            </div>
+        }
+    </div>
+</div>

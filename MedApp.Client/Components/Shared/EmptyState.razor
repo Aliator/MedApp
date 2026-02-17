@@ -1,0 +1,27 @@
+﻿<div class="empty-state">
+    @if (CustomIcon != null)
+    {
+        @CustomIcon
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <h2 class="empty-title">@Title</h2>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="empty-description">@Description</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(ButtonText))
+    {
+        <button class="btn-primary" @onclick="OnButtonClick">
+            @if (ButtonIcon != null)
+            {
+                @ButtonIcon
+            }
+            <span>@ButtonText</span>
+        </button>
+    }
+</div>

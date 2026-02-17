@@ -2,122 +2,97 @@
 
 <PageTitle>Patients - MedApp</PageTitle>
 
-<div class="page-container">
-    @if (!Auth.IsAuthenticated)
-    {
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Redirecting to login...</p>
-        </div>
-    }
-    else if (_patients is null)
-    {
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading patients...</p>
-        </div>
-    }
-    else
-    {
-        <div class="page-header">
-            <div class="header-text">
-                <h1 class="page-title">Patients</h1>
-                <p class="page-subtitle">@_patients.Count @(_patients.Count == 1 ? "patient" : "patients") registered</p>
-            </div>
-            <div class="header-actions">
-                <button class="btn-primary" @onclick="AddPatient">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    Add Patient
-                </button>
-            </div>
-        </div>
+<Page Title="Patients"
+      Subtitle="@GetSubtitle()"
+      ShowBackButton="false"
+      MaxWidth="1400">
 
-        @if (_patients.Count == 0)
+    <HeaderActions>
+        <button class="btn-primary" @onclick="AddPatient">
+            <Icon Type="IconType.Add" Size="18" />
+            Add Patient
+        </button>
+    </HeaderActions>
+
+    <Content>
+        @if (_isLoading)
         {
-            <div class="empty-state">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                <h2 class="empty-title">No patients yet</h2>
-                <p class="empty-description">Get started by adding your first patient to the system.</p>
-                <button class="btn-primary" @onclick="AddPatient">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    Add Your First Patient
-                </button>
-            </div>
+            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="5"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
+                <Columns>
+                    <th>Patient</th>
+                    <th>Date of Birth</th>
+                    <th>Age</th>
+                    <th>Email</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+            </DataTable>
+        }
+        else if (!Auth.IsAuthenticated)
+        {
+            <LoadingState Message="Redirecting to login..." />
+        }
+        else if (_patients is null || _patients.Count == 0)
+        {
+            <EmptyState Title="No patients yet"
+                        Description="Get started by adding your first patient to the system."
+                        ButtonText="Add Your First Patient">
+                <CustomIcon>
+                    <Icon Type="IconType.Patients" Size="64"/>
+                </CustomIcon>
+            </EmptyState>
         }
         else
         {
-            <div class="table-card">
-                <div class="table-container">
-                    <table class="patients-table">
-                        <thead>
-                        <tr>
-                            <th>Patient</th>
-                            <th>Date of Birth</th>
-                            <th>Age</th>
-                            <th>Email</th>
-                            <th class="actions-column">Actions</th>
+            <DataTable TableWidth="900" Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
+                <Columns>
+                    <th>Patient</th>
+                    <th>Date of Birth</th>
+                    <th>Age</th>
+                    <th>Email</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+                <Rows>
+                    @foreach (var patient in _patients)
+                    {
+                        <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
+                            <td>
+                                <AvatarCell AvatarText="@GetInitials(patient.FirstName, patient.LastName)"
+                                            PrimaryText="@($"{patient.FirstName} {patient.LastName}")"
+                                            SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")" />
+                            </td>
+                            <td>@patient.DateOfBirth.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                            </td>
+                            <td>
+                                <a href="mailto:@patient.Email" class="link" @onclick:stopPropagation="true">
+                                    @patient.Email
+                                </a>
+                            </td>
+                            <td class="actions-cell" @onclick:stopPropagation="true">
+                                <TableActions>
+                                    <button class="btn-table-action btn-view"
+                                            @onclick="() => ViewPatient(patient.Id)"
+                                            title="View patient">
+                                        <Icon Type="IconType.View" Size="16" />
+                                        <span class="mobile-hidden">View</span>
+                                    </button>
+
+                                    <button class="btn-table-action btn-edit"
+                                            @onclick="() => EditPatient(patient.Id)"
+                                            title="Edit patient">
+                                        <Icon Type="IconType.Edit" Size="16" />
+                                        <span class="mobile-hidden">Edit</span>
+                                    </button>
+                                </TableActions>
+                            </td>
                         </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var patient in _patients)
-                        {
-                            <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
-                                <td>
-                                    <div class="patient-cell">
-                                        <div class="patient-avatar">
-                                            @GetInitials(patient.FirstName, patient.LastName)
-                                        </div>
-                                        <div class="patient-info">
-                                            <div class="patient-name">@patient.FirstName @patient.LastName</div>
-                                            <div class="patient-id">ID: @patient.Id.ToString().Substring(0, 8)</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>@patient.DateOfBirth.ToString("MMM dd, yyyy")</td>
-                                <td>
-                                    <span class="age-badge">@CalculateAge(patient.DateOfBirth) yrs</span>
-                                </td>
-                                <td>
-                                    <a href="mailto:@patient.Email" class="email-link" @onclick:stopPropagation="true">
-                                        @patient.Email
-                                    </a>
-                                </td>
-                                <td class="actions-cell" @onclick:stopPropagation="true">
-                                    <div class="action-buttons">
-                                        <button class="btn-table-action btn-view"
-                                                @onclick="() => ViewPatient(patient.Id)"
-                                                title="View patient">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                                <circle cx="12" cy="12" r="3"/>
-                                            </svg>
-                                            <span class="mobile-hidden">View</span>
-                                        </button>
-                                        <button class="btn-table-action btn-edit"
-                                                @onclick="() => EditPatient(patient.Id)"
-                                                title="Edit patient">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                            </svg>
-                                            <span class="mobile-hidden">Edit</span>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                    }
+                </Rows>
+            </DataTable>
         }
-    }
-</div>
+    </Content>
+</Page>

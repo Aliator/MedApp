@@ -1,11 +1,16 @@
-﻿.page-container {
-    max-width: 1400px;
+﻿.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.625rem;
+    background-color: var(--primary-100);
+    color: var(--primary-700);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
-.patients-table tbody tr.clickable-row {
+.clickable-row {
     cursor: pointer;
-}
-
-.actions-column {
-    width: 160px;
 }

@@ -2,9 +2,7 @@
     <div class="sidebar-header">
         <div class="brand">
             <div class="brand-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                </svg>
+                <Icon Type="IconType.Shield" Size="24" />
             </div>
             <span class="brand-text">MedApp</span>
         </div>
@@ -12,31 +10,14 @@
 
     <div class="sidebar-content">
         <ul class="nav-list">
-            <li class="nav-item">
-                <NavLink href="/" class="nav-link" Match="NavLinkMatch.All">
-                    <div class="nav-link-content">
-                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                            <polyline points="9 22 9 12 15 12 15 22"/>
-                        </svg>
-                        <span class="nav-text">Home</span>
-                    </div>
-                </NavLink>
-            </li>
+            <NavItem Href="/"
+                     Text="Home"
+                     Icon="IconType.Home"
+                     Match="NavLinkMatch.All" />
 
-            <li class="nav-item">
-                <NavLink href="/patients" class="nav-link">
-                    <div class="nav-link-content">
-                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                        </svg>
-                        <span class="nav-text">Patients</span>
-                    </div>
-                </NavLink>
-            </li>
+            <NavItem Href="/patients"
+                     Text="Patients"
+                     Icon="IconType.Patients" />
 
             @if (Auth.IsAdmin)
             {
@@ -44,42 +25,29 @@
                     <span class="divider-text">Administration</span>
                 </li>
 
-                <li class="nav-item">
-                    <NavLink href="/admin/users" class="nav-link">
-                        <div class="nav-link-content">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                            </svg>
-                            <span class="nav-text">Users</span>
-                        </div>
-                    </NavLink>
-                </li>
+                <NavItem Href="/admin/users"
+                         Text="Users"
+                         Icon="IconType.Users" />
             }
         </ul>
     </div>
 
     <div class="sidebar-footer">
-        <button class="user-profile" @onclick="ViewAccount" type="button">
-            <div class="user-avatar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                </svg>
+        <button class="sidebar-user-profile" @onclick="ViewAccount" type="button">
+            <div class="sidebar-user-avatar">
+                <Icon Type="IconType.Users" Size="20" />
             </div>
 
-            <div class="user-info">
-                <div class="user-name">@Auth.Username</div>
-                <div class="user-role">@(Auth.IsAdmin ? "Administrator" : "User")</div>
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name">@Auth.Username</div>
+                <div class="sidebar-user-role">
+                    @(Auth.IsAdmin ? "Administrator" : "User")
+                </div>
             </div>
         </button>
 
         <button class="logout-btn" @onclick="Logout">
-            <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
+            <Icon Type="IconType.Logout" Size="20" />
             <span>Logout</span>
         </button>
     </div>

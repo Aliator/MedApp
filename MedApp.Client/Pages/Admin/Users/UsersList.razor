@@ -2,305 +2,184 @@
 
 <PageTitle>Users - MedApp</PageTitle>
 
-<div class="page-container">
-    @if (!Auth.IsAuthenticated)
-    {
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Redirecting to login...</p>
-        </div>
-    }
-    else if (_users is null)
-    {
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading users...</p>
-        </div>
-    }
-    else
-    {
-        <div class="page-header">
-            <div class="header-text">
-                <h1 class="page-title">User Management</h1>
-                <p class="page-subtitle">@_users.Count @(_users.Count == 1 ? "user" : "users") in the system</p>
-            </div>
-            <div class="header-actions">
-                <button class="btn-primary" @onclick="ShowAddUser">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <line x1="19" y1="8" x2="19" y2="14"/>
-                        <line x1="22" y1="11" x2="16" y2="11"/>
-                    </svg>
-                    Add User
-                </button>
-            </div>
-        </div>
+<Page Title="User Management"
+      Subtitle="@GetSubtitle()"
+      ShowBackButton="false"
+      MaxWidth="1400">
 
-        @if (_users.Count == 0)
+    <HeaderActions>
+        <button class="btn-primary" @onclick="ShowAddUser">
+            <Icon Type="IconType.Add" Size="18" />
+            Add User
+        </button>
+    </HeaderActions>
+
+    <Content>
+        @if (_isLoading)
         {
-            <div class="empty-state">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                <h2 class="empty-title">No users yet</h2>
-                <p class="empty-description">Get started by adding your first user to the system.</p>
-                <button class="btn-primary" @onclick="ShowAddUser">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    Add Your First User
-                </button>
-            </div>
+            <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "25%", "35%", "40%" }'>
+                <Columns>
+                    <th>User</th>
+                    <th>Roles</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+            </DataTable>
+        }
+        else if (!Auth.IsAuthenticated)
+        {
+            <LoadingState Message="Redirecting to login..." />
+        }
+        else if (_users is null || _users.Count == 0)
+        {
+            <EmptyState Title="No users yet"
+                        Description="Get started by adding your first user to the system."
+                        ButtonText="Add Your First User">
+                <CustomIcon>
+                    <Icon Type="IconType.Users" Size="64" />
+                </CustomIcon>
+            </EmptyState>
         }
         else
         {
-            <div class="table-card">
-                <div class="table-container">
-                    <table class="users-table">
-                        <thead>
+            <DataTable TableWidth="900" Widths='new[] { "20%", "30%", "45%" }'>
+                <Columns>
+                    <th>User</th>
+                    <th>Roles</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+                <Rows>
+                    @foreach (var user in _users)
+                    {
                         <tr>
-                            <th>User</th>
-                            <th>Roles</th>
-                            <th class="actions-column">Actions</th>
+                            <td>
+                                <AvatarCell AvatarText="@GetInitial(user)"
+                                            PrimaryText="@user" />
+                            </td>
+                            <td>
+                                <div class="roles-display">
+                                    @if (_userRolesCache.TryGetValue(user, out var userRoles) && userRoles.Any())
+                                    {
+                                        @foreach (var role in userRoles)
+                                        {
+                                            <span class="badge">@role</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="no-roles">No roles assigned</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="actions-cell">
+                                <TableActions>
+                                    <button class="btn-table-action btn-assign"
+                                            @onclick="() => ShowAssignRole(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Assign role">
+                                        <Icon Type="IconType.Add" Size="16" />
+                                        <span class="mobile-hidden">Assign</span>
+                                    </button>
+
+                                    <button class="btn-table-action btn-revoke"
+                                            @onclick="() => ShowRevokeRole(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Revoke role">
+                                        <Icon Type="IconType.Cancel" Size="16" />
+                                        <span class="mobile-hidden">Revoke</span>
+                                    </button>
+
+                                    <button class="btn-table-action btn-password"
+                                            @onclick="() => ShowResetPassword(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Reset password">
+                                        <Icon Type="IconType.Lock" Size="16" />
+                                        <span class="mobile-hidden">Reset</span>
+                                    </button>
+
+                                    <button class="btn-table-action btn-delete"
+                                            @onclick="() => ShowDelete(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Delete user">
+                                        <Icon Type="IconType.Delete" Size="16" />
+                                        <span class="mobile-hidden">Delete</span>
+                                    </button>
+                                </TableActions>
+                            </td>
                         </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var user in _users)
-                        {
-                            <tr>
-                                <td>
-                                    <div class="user-cell">
-                                        <div class="user-avatar">
-                                            @GetInitial(user)
-                                        </div>
-                                        <div class="user-info">
-                                            <div class="user-name">@user</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="roles-display">
-                                        @if (_userRolesCache.TryGetValue(user, out var userRoles) && userRoles.Any())
-                                        {
-                                            @foreach (var role in userRoles)
-                                            {
-                                                <span class="role-badge">@role</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="no-roles">No roles assigned</span>
-                                        }
-                                    </div>
-                                </td>
-                                <td class="actions-cell">
-                                    <div class="action-buttons">
-                                        <button class="btn-table-action btn-assign"
-                                                @onclick="() => ShowAssignRole(user)"
-                                                title="Assign role">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                                                <circle cx="9" cy="7" r="4"/>
-                                                <path d="M22 11h-4M20 9v4"/>
-                                            </svg>
-                                            <span class="mobile-hidden">Assign</span>
-                                        </button>
-                                        <button class="btn-table-action btn-revoke"
-                                                @onclick="() => ShowRevokeRole(user)"
-                                                title="Revoke role">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                                                <circle cx="9" cy="7" r="4"/>
-                                                <line x1="17" y1="11" x2="23" y2="11"/>
-                                            </svg>
-                                            <span class="mobile-hidden">Revoke</span>
-                                        </button>
-                                        <button class="btn-table-action btn-password"
-                                                @onclick="() => ShowResetPassword(user)"
-                                                title="Reset password">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                                            </svg>
-                                            <span class="mobile-hidden">Reset</span>
-                                        </button>
-                                        <button class="btn-table-action btn-delete"
-                                                @onclick="() => ShowDelete(user)"
-                                                title="Delete user">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <polyline points="3 6 5 6 21 6"/>
-                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                            </svg>
-                                            <span class="mobile-hidden">Delete</span>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                    }
+                </Rows>
+            </DataTable>
         }
-    }
-</div>
+    </Content>
 
-@if (_showAssignRole)
-{
-    <div class="modal-overlay" @onclick="HideAssignRole">
-        <div class="modal-container" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3 class="modal-title">Assign Roles</h3>
-                <button class="modal-close" @onclick="HideAssignRole" aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <p class="modal-description">
-                    Select roles to assign to <strong>@_selectedUser</strong>
-                </p>
-
-                @if (!AssignableRoles.Any())
-                {
-                    <div class="info-message">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="16" x2="12" y2="12"/>
-                            <line x1="12" y1="8" x2="12.01" y2="8"/>
-                        </svg>
-                        <span>This user already has all available roles.</span>
-                    </div>
-                }
-                else
-                {
-                    <div class="roles-list">
-                        @foreach (var role in AssignableRoles)
-                        {
-                            <label class="role-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked="@_selectedRoles.Contains(role)"
-                                    @onchange="e => ToggleRole(role, (bool)e.Value!)" />
-                                <span class="role-checkbox-label">@role</span>
-                            </label>
-                        }
-                    </div>
-                }
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn-outline" @onclick="HideAssignRole">
-                    Cancel
-                </button>
-                <button class="btn-primary"
-                        disabled="@(!_selectedRoles.Any())"
-                        @onclick="AssignRoles">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    Assign Roles
-                </button>
-            </div>
-        </div>
-    </div>
-}
-
-@if (_showRevokeRole)
-{
-    <div class="modal-overlay" @onclick="HideRevokeRole">
-        <div class="modal-container" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3 class="modal-title">Revoke Roles</h3>
-                <button class="modal-close" @onclick="HideRevokeRole" aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <p class="modal-description">
-                    Select roles to revoke from <strong>@_selectedUser</strong>
-                </p>
-
-                @if (!RevokableRoles.Any())
-                {
-                    <div class="info-message">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="16" x2="12" y2="12"/>
-                            <line x1="12" y1="8" x2="12.01" y2="8"/>
-                        </svg>
-                        <span>This user has no roles to revoke.</span>
-                    </div>
-                }
-                else
-                {
-                    <div class="roles-list">
-                        @foreach (var role in RevokableRoles)
-                        {
-                            <label class="role-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked="@_selectedRoles.Contains(role)"
-                                    @onchange="e => ToggleRole(role, (bool)e.Value!)" />
-                                <span class="role-checkbox-label">@role</span>
-                            </label>
-                        }
-                    </div>
-                }
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn-outline" @onclick="HideRevokeRole">
-                    Cancel
-                </button>
-                <button class="btn-primary"
-                        disabled="@(!_selectedRoles.Any())"
-                        @onclick="RevokeRoles">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                    Revoke Roles
-                </button>
-            </div>
-        </div>
-    </div>
-}
-
-@if (_showResetPassword)
-{
-    <div class="modal-overlay" @onclick="HideResetPassword">
-        <div class="modal-container" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3 class="modal-title">Reset Password</h3>
-                <button class="modal-close" @onclick="HideResetPassword" aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <div class="confirmation-icon confirmation-icon-warning">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
+    <Dialogs>
+        <SelectionModal TItem="string"
+                        IsVisible="@_showAssignRole"
+                        Title="Assign Roles"
+                        Message="@GetSelectionMessage("assign")"
+                        Items="@AssignableRoles.ToList()"
+                        SelectedPredicate="r => _selectedRoles.Contains(r)"
+                        LabelSelector="r => r"
+                        ConfirmText="Assign Roles"
+                        ConfirmDisabled="@(!_selectedRoles.Any())"
+                        IsProcessing="@_isProcessingRoles"
+                        ProcessingText="Assigning..."
+                        Toggle="OnRoleToggled"
+                        OnConfirm="AssignRoles"
+                        OnCancel="HideAssignRole">
+            <CustomIcon>
+                <Icon Type="IconType.Check" Size="48" />
+            </CustomIcon>
+            <EmptyContent>
+                <div class="info-message">
+                    <Icon Type="IconType.Info" Size="20" />
+                    <span>This user already has all available roles.</span>
                 </div>
-                <p class="modal-text">
-                    Reset password for <strong>@_selectedUser</strong>?
-                </p>
+            </EmptyContent>
+        </SelectionModal>
+
+        <SelectionModal TItem="string"
+                        IsVisible="@_showRevokeRole"
+                        Title="Revoke Roles"
+                        Message="@GetSelectionMessage("revoke")"
+                        Items="@RevokableRoles.ToList()"
+                        SelectedPredicate="r => _selectedRoles.Contains(r)"
+                        LabelSelector="r => r"
+                        ConfirmText="Revoke Roles"
+                        ConfirmDisabled="@(!_selectedRoles.Any())"
+                        IsProcessing="@_isProcessingRoles"
+                        ProcessingText="Revoking..."
+                        Toggle="OnRoleToggled"
+                        OnConfirm="RevokeRoles"
+                        OnCancel="HideRevokeRole">
+            <CustomIcon>
+                <Icon Type="IconType.Cancel" Size="48" />
+            </CustomIcon>
+            <EmptyContent>
+                <div class="info-message">
+                    <Icon Type="IconType.Info" Size="20" />
+                    <span>This user has no roles to revoke.</span>
+                </div>
+            </EmptyContent>
+        </SelectionModal>
+
+        <ConfirmModal IsVisible="@_showResetPassword"
+                      Title="Reset Password"
+                      Message="@GetResetPasswordMessage()"
+                      ConfirmText="Reset Password"
+                      CancelText="Cancel"
+                      IsDanger="false"
+                      IsProcessing="@_isResettingPassword"
+                      ProcessingText="Resetting..."
+                      OnConfirm="ResetPassword"
+                      OnCancel="HideResetPassword">
+            <CustomIcon>
+                <Icon Type="IconType.Lock" Size="48" />
+            </CustomIcon>
+            <ChildContent>
                 @if (!string.IsNullOrEmpty(_newPassword))
                 {
                     <div class="password-display">
@@ -309,119 +188,51 @@
                         <div class="password-hint">Please save this password and share it securely with the user.</div>
                     </div>
                 }
-            </div>
+            </ChildContent>
+        </ConfirmModal>
 
-            <div class="modal-footer">
-                <button class="btn-outline" @onclick="HideResetPassword">
-                    @(string.IsNullOrEmpty(_newPassword) ? "Cancel" : "Close")
-                </button>
-                @if (string.IsNullOrEmpty(_newPassword))
-                {
-                    <button class="btn-warning" @onclick="ResetPassword">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="1 4 1 10 7 10"/>
-                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                        </svg>
-                        Reset Password
-                    </button>
-                }
-            </div>
-        </div>
-    </div>
-}
+        <ConfirmModal IsVisible="@_confirmDelete"
+                      Title="Confirm Delete"
+                      Message="This action cannot be undone."
+                      ConfirmText="Delete User"
+                      CancelText="Cancel"
+                      IsDanger="true"
+                      IsProcessing="@_isDeletingUser"
+                      ProcessingText="Deleting..."
+                      OnConfirm="DeleteUser"
+                      OnCancel="HideDelete">
+            <CustomIcon>
+                <Icon Type="IconType.Warning" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <Summary IsDanger="true">
+                    <SummaryItem Label="User" Value="@_selectedUser" />
+                </Summary>
+            </ChildContent>
+        </ConfirmModal>
 
-@* Delete Confirmation Modal *@
-@if (_confirmDelete)
-{
-    <div class="modal-overlay" @onclick="HideDelete">
-        <div class="modal-container modal-danger" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3 class="modal-title">Confirm Delete</h3>
-                <button class="modal-close" @onclick="HideDelete" aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <div class="confirmation-icon confirmation-icon-danger">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                </div>
-                <p class="modal-text modal-text-danger">
-                    Are you sure you want to delete user <strong>@_selectedUser</strong>? This action cannot be undone.
-                </p>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn-outline" @onclick="HideDelete">
-                    Cancel
-                </button>
-                <button class="btn-danger" @onclick="DeleteUser">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                    Delete User
-                </button>
-            </div>
-        </div>
-    </div>
-}
-
-@* Add User Modal *@
-@if (_showAddUser)
-{
-    <div class="modal-overlay" @onclick="HideAddUser">
-        <div class="modal-container" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3 class="modal-title">Create New User</h3>
-                <button class="modal-close" @onclick="HideAddUser" aria-label="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">
-                        Username
-                        <span class="required">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        class="form-input"
-                        @bind="_newUsername"
-                        placeholder="Enter username" />
-                    <div class="form-hint">
-                        Default password will be: DefaultPassword1
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn-outline" @onclick="HideAddUser">
-                    Cancel
-                </button>
-                <button class="btn-primary"
-                        disabled="@string.IsNullOrWhiteSpace(_newUsername)"
-                        @onclick="CreateUser">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <line x1="19" y1="8" x2="19" y2="14"/>
-                        <line x1="22" y1="11" x2="16" y2="11"/>
-                    </svg>
-                    Create User
-                </button>
-            </div>
-        </div>
-    </div>
-}
+        <ConfirmModal IsVisible="@_showAddUser"
+                      Title="Create New User"
+                      Message="Enter a username for the new user."
+                      ConfirmText="Create User"
+                      CancelText="Cancel"
+                      IsDanger="false"
+                      IsProcessing="@_isCreatingUser"
+                      ProcessingText="Creating..."
+                      OnConfirm="CreateUser"
+                      OnCancel="HideAddUser">
+            <CustomIcon>
+                <Icon Type="IconType.Add" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <FormGroup Label="Username" Required="true" Hint="Default password will be: DefaultPassword1">
+                    <input type="text"
+                           class="form-input"
+                           @bind="_newUsername"
+                           disabled="@_isCreatingUser"
+                           placeholder="Enter username" />
+                </FormGroup>
+            </ChildContent>
+        </ConfirmModal>
+    </Dialogs>
+</Page>
