@@ -3,110 +3,53 @@
 
 <PageTitle>Account Settings - MedApp</PageTitle>
 
-<div class="page-container">
-    <div class="page-header">
-        <div class="header-text">
-            <h1 class="page-title">Account Settings</h1>
-            <p class="page-subtitle">Manage your account password</p>
-        </div>
-    </div>
+<Page Title="Account Settings"
+      Subtitle="Manage your account password"
+      ShowBackButton="false">
+    <Content>
+        <FormCard OnSave="ChangePassword"
+                  SaveText="Update password"
+                  ProcessingText="Updating..."
+                  IsProcessing="@_isChanging">
+            <Sections>
+                <FormSection Title="Change Password">
+                    <FormGroup Label="Current password" Id="current-password">
+                        <input
+                            id="current-password"
+                            class="form-input"
+                            type="password"
+                            placeholder="Enter your current password"
+                            @bind="_currentPassword"
+                            autocomplete="current-password"
+                            required />
+                    </FormGroup>
 
-    <div class="form-card">
-        <div class="form-section">
-            <h3 class="section-title">Change Password</h3>
+                    <FormGroup Label="New password" Id="new-password">
+                        <input
+                            id="new-password"
+                            class="form-input"
+                            type="password"
+                            placeholder="Enter your new password"
+                            @bind="_newPassword"
+                            autocomplete="new-password"
+                            required />
+                    </FormGroup>
 
-            <form @onsubmit="ChangePassword" @onsubmit:preventDefault>
-                <div class="form-group">
-                    <label class="form-label" for="current-password">Current password</label>
-                    <input
-                        id="current-password"
-                        class="form-input"
-                        type="password"
-                        placeholder="Enter your current password"
-                        @bind="_currentPassword"
-                        autocomplete="current-password"
-                        required />
-                </div>
+                    <FormGroup Label="Confirm new password" Id="confirm-password">
+                        <input
+                            id="confirm-password"
+                            class="form-input"
+                            type="password"
+                            placeholder="Confirm your new password"
+                            @bind="_confirmNewPassword"
+                            autocomplete="new-password"
+                            required />
+                    </FormGroup>
 
-                <div class="form-group">
-                    <label class="form-label" for="new-password">New password</label>
-                    <input
-                        id="new-password"
-                        class="form-input"
-                        type="password"
-                        placeholder="Enter your new password"
-                        @bind="_newPassword"
-                        autocomplete="new-password"
-                        required />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="confirm-password">Confirm new password</label>
-                    <input
-                        id="confirm-password"
-                        class="form-input"
-                        type="password"
-                        placeholder="Confirm your new password"
-                        @bind="_confirmNewPassword"
-                        autocomplete="new-password"
-                        required />
-                </div>
-
-                @if (_validationErrors.Count > 0)
-                {
-                    <div class="alert alert-error">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        <div class="alert-content">
-                            <ul class="alert-list">
-                                @foreach (var error in _validationErrors)
-                                {
-                                    <li>@error</li>
-                                }
-                            </ul>
-                        </div>
-                    </div>
-                }
-
-                @if (!string.IsNullOrEmpty(_error))
-                {
-                    <div class="alert alert-error">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        <div class="alert-content">
-                            @_error
-                        </div>
-                    </div>
-                }
-
-                @if (!string.IsNullOrEmpty(_successMessage))
-                {
-                    <div class="alert alert-success">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                        <div class="alert-content">
-                            @_successMessage
-                        </div>
-                    </div>
-                }
-
-                <div class="form-footer">
-                    <button type="submit" class="btn-primary" disabled="@_isChanging">
-                        @if (_isChanging)
-                        {
-                            <span class="spinner-small"></span>
-                            <span>Updating...</span>
-                        }
-                        else
-                        {
-                            <span>Update password</span>
-                        }
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+                    <AlertMessage Message="@_error" ValidationErrors="@_validationErrors" />
+                    <AlertMessage Message="@_successMessage" Type="AlertMessage.AlertType.Success" />
+                </FormSection>
+            </Sections>
+        </FormCard>
+    </Content>
+</Page>
