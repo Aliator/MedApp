@@ -96,6 +96,7 @@ public partial class UsersList
 
     private async Task LoadUsersAsync()
     {
+        await Task.Delay(500);
         try
         {
             var response = await Http.GetAsync("api/auth/users");

@@ -15,9 +15,12 @@
     </HeaderActions>
 
     <Content>
-        @if (_patients is null)
+        @if (_isLoading)
         {
-            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="5">
+            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="5"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
                 <Columns>
                     <th>Patient</th>
                     <th>Date of Birth</th>
@@ -27,7 +30,11 @@
                 </Columns>
             </DataTable>
         }
-        else if (_patients.Count == 0)
+        else if (!Auth.IsAuthenticated)
+        {
+            <LoadingState Message="Redirecting to login..." />
+        }
+        else if (_patients is null || _patients.Count == 0)
         {
             <EmptyState Title="No patients yet"
                         Description="Get started by adding your first patient to the system."
@@ -39,7 +46,7 @@
         }
         else
         {
-            <DataTable>
+            <DataTable TableWidth="900" Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
                 <Columns>
                     <th>Patient</th>
                     <th>Date of Birth</th>
@@ -58,7 +65,7 @@
                             </td>
                             <td>@patient.DateOfBirth.ToString("MMM dd, yyyy")</td>
                             <td>
-                                <span class="age-badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                                <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
                             </td>
                             <td>
                                 <a href="mailto:@patient.Email" class="link" @onclick:stopPropagation="true">

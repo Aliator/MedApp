@@ -1,5 +1,14 @@
 ﻿<TableCard>
-    <table class="data-table">
+    <table class="data-table" style="@(TableWidth > 0 ? $"width: {TableWidth}px" : "")">
+        @if (Widths != null && Widths.Length > 0)
+        {
+            <colgroup>
+                @foreach (var width in Widths)
+                {
+                    <col style="width: @width" />
+                }
+            </colgroup>
+        }
         <thead>
         <tr>
             @Columns
@@ -13,9 +22,19 @@
                 <tr class="skeleton-row">
                     @for (var j = 0; j < SkeletonColumns; j++)
                     {
-                        <td>
-                            <div class="skeleton skeleton-cell"></div>
-                        </td>
+                        @if (j == 0 && AvatarFirstColumn)
+                        {
+                            <td>
+                                <div class="skeleton-avatar-cell">
+                                    <div class="skeleton skeleton-avatar-circle"></div>
+                                    <div class="skeleton skeleton-cell"></div>
+                                </div>
+                            </td>
+                        }
+                        else
+                        {
+                            <td><div class="skeleton skeleton-cell"></div></td>
+                        }
                     }
                 </tr>
             }

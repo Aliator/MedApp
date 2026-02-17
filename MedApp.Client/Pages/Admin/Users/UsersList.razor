@@ -17,7 +17,10 @@
     <Content>
         @if (_isLoading)
         {
-            <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3">
+            <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "25%", "35%", "40%" }'>
                 <Columns>
                     <th>User</th>
                     <th>Roles</th>
@@ -41,7 +44,7 @@
         }
         else
         {
-            <DataTable>
+            <DataTable TableWidth="900" Widths='new[] { "20%", "30%", "45%" }'>
                 <Columns>
                     <th>User</th>
                     <th>Roles</th>
@@ -61,7 +64,7 @@
                                     {
                                         @foreach (var role in userRoles)
                                         {
-                                            <span class="role-badge">@role</span>
+                                            <span class="badge">@role</span>
                                         }
                                     }
                                     else
