@@ -37,7 +37,7 @@
                 disabled="@(IsProcessing || ConfirmDisabled)">
             @if (IsProcessing)
             {
-                <span class="spinner-small"></span>
+                <Spinner Size="SpinnerSize.Small" Color="SpinnerColor.White" />
                 <span>@ProcessingText</span>
             }
             else

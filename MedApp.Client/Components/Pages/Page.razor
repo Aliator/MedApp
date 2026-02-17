@@ -2,7 +2,7 @@
 {
     <div class="page-container" style="@ContainerStyle">
         <div class="loading-state">
-            <div class="spinner"></div>
+            <Spinner />
             <p>@LoadingMessage</p>
         </div>
     </div>
@@ -22,9 +22,9 @@ else
                 </Actions>
             </PageHeader>
         }
-        
+
         @Content
     </div>
-    
+
     @Dialogs
 }
