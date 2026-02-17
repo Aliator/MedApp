@@ -39,6 +39,18 @@
     justify-content: center;
 }
 
+.auth-card .btn-tertiary {
+    width: 100%;
+    justify-content: center;
+}
+
+.auth-card .form-footer {
+    flex-direction: column;
+    margin: 0 -2.5rem -2.5rem;
+    border-radius: 0 0 12px 12px;
+    padding: 1.25rem 2.5rem;
+}
+
 .auth-error {
     display: flex;
     align-items: center;
