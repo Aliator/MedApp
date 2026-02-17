@@ -17,7 +17,15 @@
     <Content>
         @if (_patients is null)
         {
-            <LoadingState Message="Redirecting to login..." />
+            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="5">
+                <Columns>
+                    <th>Patient</th>
+                    <th>Date of Birth</th>
+                    <th>Age</th>
+                    <th>Email</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+            </DataTable>
         }
         else if (_patients.Count == 0)
         {
@@ -31,18 +39,15 @@
         }
         else
         {
-            <TableCard>
-                <table class="patients-table">
-                    <thead>
-                    <tr>
-                        <th>Patient</th>
-                        <th>Date of Birth</th>
-                        <th>Age</th>
-                        <th>Email</th>
-                        <th class="actions-column">Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
+            <DataTable>
+                <Columns>
+                    <th>Patient</th>
+                    <th>Date of Birth</th>
+                    <th>Age</th>
+                    <th>Email</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+                <Rows>
                     @foreach (var patient in _patients)
                     {
                         <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
@@ -79,9 +84,8 @@
                             </td>
                         </tr>
                     }
-                    </tbody>
-                </table>
-            </TableCard>
+                </Rows>
+            </DataTable>
         }
     </Content>
 </Page>

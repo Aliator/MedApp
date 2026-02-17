@@ -1,0 +1,29 @@
+﻿<TableCard>
+    <table class="data-table">
+        <thead>
+        <tr>
+            @Columns
+        </tr>
+        </thead>
+        <tbody>
+        @if (IsLoading)
+        {
+            @for (var i = 0; i < SkeletonRows; i++)
+            {
+                <tr class="skeleton-row">
+                    @for (var j = 0; j < SkeletonColumns; j++)
+                    {
+                        <td>
+                            <div class="skeleton skeleton-cell"></div>
+                        </td>
+                    }
+                </tr>
+            }
+        }
+        else
+        {
+            @Rows
+        }
+        </tbody>
+    </table>
+</TableCard>

@@ -5,9 +5,7 @@
 <Page Title="User Management"
       Subtitle="@GetSubtitle()"
       ShowBackButton="false"
-      MaxWidth="1400"
-      IsLoading="@_isLoading"
-      LoadingMessage="@_loadingMessage">
+      MaxWidth="1400">
 
     <HeaderActions>
         <button class="btn-primary" @onclick="ShowAddUser">
@@ -17,7 +15,17 @@
     </HeaderActions>
 
     <Content>
-        @if (!Auth.IsAuthenticated)
+        @if (_isLoading)
+        {
+            <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3">
+                <Columns>
+                    <th>User</th>
+                    <th>Roles</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+            </DataTable>
+        }
+        else if (!Auth.IsAuthenticated)
         {
             <LoadingState Message="Redirecting to login..." />
         }
@@ -33,16 +41,13 @@
         }
         else
         {
-            <TableCard>
-                <table class="users-table">
-                    <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Roles</th>
-                        <th class="actions-column">Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
+            <DataTable>
+                <Columns>
+                    <th>User</th>
+                    <th>Roles</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+                <Rows>
                     @foreach (var user in _users)
                     {
                         <tr>
@@ -102,27 +107,26 @@
                             </td>
                         </tr>
                     }
-                    </tbody>
-                </table>
-            </TableCard>
+                </Rows>
+            </DataTable>
         }
     </Content>
 
     <Dialogs>
         <SelectionModal TItem="string"
-                         IsVisible="@_showAssignRole"
-                         Title="Assign Roles"
-                         Message="@GetSelectionMessage("assign")"
-                         Items="@AssignableRoles.ToList()"
-                         SelectedPredicate="r => _selectedRoles.Contains(r)"
-                         LabelSelector="r => r"
-                         ConfirmText="Assign Roles"
-                         ConfirmDisabled="@(!_selectedRoles.Any())"
-                         IsProcessing="@_isProcessingRoles"
-                         ProcessingText="Assigning..."
-                         Toggle="OnRoleToggled"
-                         OnConfirm="AssignRoles"
-                         OnCancel="HideAssignRole">
+                        IsVisible="@_showAssignRole"
+                        Title="Assign Roles"
+                        Message="@GetSelectionMessage("assign")"
+                        Items="@AssignableRoles.ToList()"
+                        SelectedPredicate="r => _selectedRoles.Contains(r)"
+                        LabelSelector="r => r"
+                        ConfirmText="Assign Roles"
+                        ConfirmDisabled="@(!_selectedRoles.Any())"
+                        IsProcessing="@_isProcessingRoles"
+                        ProcessingText="Assigning..."
+                        Toggle="OnRoleToggled"
+                        OnConfirm="AssignRoles"
+                        OnCancel="HideAssignRole">
             <CustomIcon>
                 <Icon Type="IconType.Check" Size="48" />
             </CustomIcon>
@@ -135,19 +139,19 @@
         </SelectionModal>
 
         <SelectionModal TItem="string"
-                         IsVisible="@_showRevokeRole"
-                         Title="Revoke Roles"
-                         Message="@GetSelectionMessage("revoke")"
-                         Items="@RevokableRoles.ToList()"
-                         SelectedPredicate="r => _selectedRoles.Contains(r)"
-                         LabelSelector="r => r"
-                         ConfirmText="Revoke Roles"
-                         ConfirmDisabled="@(!_selectedRoles.Any())"
-                         IsProcessing="@_isProcessingRoles"
-                         ProcessingText="Revoking..."
-                         Toggle="OnRoleToggled"
-                         OnConfirm="RevokeRoles"
-                         OnCancel="HideRevokeRole">
+                        IsVisible="@_showRevokeRole"
+                        Title="Revoke Roles"
+                        Message="@GetSelectionMessage("revoke")"
+                        Items="@RevokableRoles.ToList()"
+                        SelectedPredicate="r => _selectedRoles.Contains(r)"
+                        LabelSelector="r => r"
+                        ConfirmText="Revoke Roles"
+                        ConfirmDisabled="@(!_selectedRoles.Any())"
+                        IsProcessing="@_isProcessingRoles"
+                        ProcessingText="Revoking..."
+                        Toggle="OnRoleToggled"
+                        OnConfirm="RevokeRoles"
+                        OnCancel="HideRevokeRole">
             <CustomIcon>
                 <Icon Type="IconType.Cancel" Size="48" />
             </CustomIcon>
@@ -160,15 +164,15 @@
         </SelectionModal>
 
         <ConfirmModal IsVisible="@_showResetPassword"
-                         Title="Reset Password"
-                         Message="@GetResetPasswordMessage()"
-                         ConfirmText="Reset Password"
-                         CancelText="Cancel"
-                         IsDanger="false"
-                         IsProcessing="@_isResettingPassword"
-                         ProcessingText="Resetting..."
-                         OnConfirm="ResetPassword"
-                         OnCancel="HideResetPassword">
+                      Title="Reset Password"
+                      Message="@GetResetPasswordMessage()"
+                      ConfirmText="Reset Password"
+                      CancelText="Cancel"
+                      IsDanger="false"
+                      IsProcessing="@_isResettingPassword"
+                      ProcessingText="Resetting..."
+                      OnConfirm="ResetPassword"
+                      OnCancel="HideResetPassword">
             <CustomIcon>
                 <Icon Type="IconType.Lock" Size="48" />
             </CustomIcon>
@@ -185,15 +189,15 @@
         </ConfirmModal>
 
         <ConfirmModal IsVisible="@_confirmDelete"
-                         Title="Confirm Delete"
-                         Message="This action cannot be undone."
-                         ConfirmText="Delete User"
-                         CancelText="Cancel"
-                         IsDanger="true"
-                         IsProcessing="@_isDeletingUser"
-                         ProcessingText="Deleting..."
-                         OnConfirm="DeleteUser"
-                         OnCancel="HideDelete">
+                      Title="Confirm Delete"
+                      Message="This action cannot be undone."
+                      ConfirmText="Delete User"
+                      CancelText="Cancel"
+                      IsDanger="true"
+                      IsProcessing="@_isDeletingUser"
+                      ProcessingText="Deleting..."
+                      OnConfirm="DeleteUser"
+                      OnCancel="HideDelete">
             <CustomIcon>
                 <Icon Type="IconType.Warning" Size="48" />
             </CustomIcon>
@@ -205,31 +209,26 @@
         </ConfirmModal>
 
         <ConfirmModal IsVisible="@_showAddUser"
-                         Title="Create New User"
-                         Message="Enter a username for the new user."
-                         ConfirmText="Create User"
-                         CancelText="Cancel"
-                         IsDanger="false"
-                         IsProcessing="@_isCreatingUser"
-                         ProcessingText="Creating..."
-                         OnConfirm="CreateUser"
-                         OnCancel="HideAddUser">
+                      Title="Create New User"
+                      Message="Enter a username for the new user."
+                      ConfirmText="Create User"
+                      CancelText="Cancel"
+                      IsDanger="false"
+                      IsProcessing="@_isCreatingUser"
+                      ProcessingText="Creating..."
+                      OnConfirm="CreateUser"
+                      OnCancel="HideAddUser">
             <CustomIcon>
                 <Icon Type="IconType.Add" Size="48" />
             </CustomIcon>
             <ChildContent>
-                <div class="form-group">
-                    <label class="form-label">
-                        Username
-                        <span class="required">*</span>
-                    </label>
+                <FormGroup Label="Username" Required="true" Hint="Default password will be: DefaultPassword1">
                     <input type="text"
                            class="form-input"
                            @bind="_newUsername"
                            disabled="@_isCreatingUser"
                            placeholder="Enter username" />
-                    <div class="form-hint">Default password will be: DefaultPassword1</div>
-                </div>
+                </FormGroup>
             </ChildContent>
         </ConfirmModal>
     </Dialogs>
