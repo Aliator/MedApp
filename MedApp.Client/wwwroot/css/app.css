@@ -1,7 +1,3 @@
-/* ========================================
-   CSS Variables - Color Palette
-   ======================================== */
-
 :root {
     /* Primary Blue */
     --primary-50: #eff6ff;
@@ -348,13 +344,6 @@ a:focus {
     padding-left: 2.75rem;
 }
 
-.section-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--gray-900);
-    margin: 0 0 1.25rem 0;
-}
-
 .form-readonly {
     padding: 0.6rem 0.75rem;
     background: #f9fafb;
@@ -365,78 +354,4 @@ a:focus {
 
 .form-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.confirmation-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 1rem;
-    border-radius: 50%;
-}
-
-.confirmation-icon-save {
-    background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
-    color: var(--primary-700);
-}
-
-.confirmation-icon-danger {
-    background: linear-gradient(135deg, var(--danger-100) 0%, var(--danger-200) 100%);
-    color: var(--danger-800);
-}
-
-.confirmation-icon-warning {
-    background: linear-gradient(135deg, var(--warning-100) 0%, var(--warning-200) 100%);
-    color: var(--warning-800);
-}
-
-.modal-text {
-    text-align: center;
-    color: var(--gray-500);
-    font-size: 0.875rem;
-    margin: 0 0 1.5rem 0;
-}
-
-.modal-text-danger {
-    color: var(--danger-800);
-    font-weight: 500;
-}
-
-.password-display {
-    background-color: var(--gray-50);
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-top: 1rem;
-}
-
-.password-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--gray-500);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
-}
-
-.password-value {
-    font-family: "Courier New", Courier, monospace;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--gray-900);
-    padding: 0.75rem;
-    background-color: white;
-    border: 2px solid var(--primary-500);
-    border-radius: 6px;
-    word-break: break-all;
-    user-select: all;
-}
-
-.password-hint {
-    font-size: 0.75rem;
-    color: var(--gray-500);
-    margin-top: 0.5rem;
-    font-style: italic;
 }

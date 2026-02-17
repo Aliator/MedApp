@@ -12,3 +12,10 @@
 .form-section:last-of-type {
     border-bottom: none;
 }
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 1.25rem 0;
+}
