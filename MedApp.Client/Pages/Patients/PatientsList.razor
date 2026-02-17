@@ -17,10 +17,7 @@
     <Content>
         @if (_patients is null)
         {
-            <div class="loading-state">
-                <Spinner />
-                <p>Redirecting to login...</p>
-            </div>
+            <LoadingState Message="Redirecting to login..." />
         }
         else if (_patients.Count == 0)
         {

@@ -19,10 +19,7 @@
     <Content>
         @if (!Auth.IsAuthenticated)
         {
-            <div class="loading-state">
-                <Spinner />
-                <p>Redirecting to login...</p>
-            </div>
+            <LoadingState Message="Redirecting to login..." />
         }
         else if (_users is null || _users.Count == 0)
         {

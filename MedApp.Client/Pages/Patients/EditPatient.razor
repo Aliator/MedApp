@@ -15,10 +15,7 @@
 
         @if (_model is null)
         {
-            <div class="loading-state">
-                <Spinner />
-                <p>Redirecting to login...</p>
-            </div>
+            <LoadingState Message="Redirecting to login..." />
         }
         else
         {
