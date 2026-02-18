@@ -1,0 +1,53 @@
+﻿<Modal IsVisible="@IsVisible"
+       Title="Search Patients"
+       OnClose="@OnClose">
+
+    <Body>
+    <div class="search-fields">
+        <div class="form-group">
+            <label class="form-label">Name</label>
+            <input class="form-input"
+                   type="text"
+                   placeholder="First or last name..."
+                   @bind="_name"
+                   @bind:event="oninput"
+                   @ref="_firstInputRef" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input"
+                   type="text"
+                   placeholder="Email address..."
+                   @bind="_email"
+                   @bind:event="oninput" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Age</label>
+            <div class="search-range">
+                <input class="form-input"
+                       type="number"
+                       placeholder="Min"
+                       @bind="_ageMin"
+                       @bind:event="oninput" />
+                <span class="search-range-sep">to</span>
+                <input class="form-input"
+                       type="number"
+                       placeholder="Max"
+                       @bind="_ageMax"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+    </div>
+    </Body>
+
+    <Footer>
+        <button class="btn-outline" @onclick="Clear">
+            Clear
+        </button>
+        <button class="btn-primary" @onclick="Apply">
+            <Icon Type="IconType.Search" Size="16" />
+            Search
+        </button>
+    </Footer>
+
+</Modal>

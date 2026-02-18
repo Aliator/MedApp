@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using MedApp.Client.Auth;
+using MedApp.Client.Components.Modals;
 using MedApp.Contracts.Patients.Responses;
 using Microsoft.AspNetCore.Components;
 
@@ -21,18 +22,37 @@ public partial class PatientsList
 
     private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)(_patients?.Count ?? 0) / _pageSize));
 
+    private bool _showSearch;
+
+    private PatientSearchCriteria _search = new(string.Empty, string.Empty, null, null);
+
+    private IEnumerable<PatientResponse> FilteredPatients =>
+        (_patients ?? Array.Empty<PatientResponse>()).Where(p =>
+            (string.IsNullOrWhiteSpace(_search.Name) ||
+             $"{p.FirstName} {p.LastName}".Contains(_search.Name, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(_search.Email) ||
+             p.Email.Contains(_search.Email, StringComparison.OrdinalIgnoreCase)) &&
+            (_search.AgeMin == null || CalculateAge(p.DateOfBirth) >= _search.AgeMin) &&
+            (_search.AgeMax == null || CalculateAge(p.DateOfBirth) <= _search.AgeMax));
+
+    private void HandleSearch(PatientSearchCriteria criteria)
+    {
+        _search = criteria;
+        _currentPage = 1;
+    }
+    
     private IEnumerable<PatientResponse> SortedPatients => _sortColumn switch
     {
         "Patient" => _sortAscending
-            ? (_patients ?? Array.Empty<PatientResponse>()).OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
-            : (_patients ?? Array.Empty<PatientResponse>()).OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName),
+            ? FilteredPatients.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+            : FilteredPatients.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName),
         "DateOfBirth" => _sortAscending
-            ? (_patients ?? Array.Empty<PatientResponse>()).OrderBy(p => p.DateOfBirth)
-            : (_patients ?? Array.Empty<PatientResponse>()).OrderByDescending(p => p.DateOfBirth),
+            ? FilteredPatients.OrderBy(p => p.DateOfBirth)
+            : FilteredPatients.OrderByDescending(p => p.DateOfBirth),
         "Email" => _sortAscending
-            ? (_patients ?? Array.Empty<PatientResponse>()).OrderBy(p => p.Email, StringComparer.OrdinalIgnoreCase)
-            : (_patients ?? Array.Empty<PatientResponse>()).OrderByDescending(p => p.Email, StringComparer.OrdinalIgnoreCase),
-        _ => _patients ?? Array.Empty<PatientResponse>()
+            ? FilteredPatients.OrderBy(p => p.Email, StringComparer.OrdinalIgnoreCase)
+            : FilteredPatients.OrderByDescending(p => p.Email, StringComparer.OrdinalIgnoreCase),
+        _ => FilteredPatients
     };
 
     private IEnumerable<PatientResponse> PagedPatients =>

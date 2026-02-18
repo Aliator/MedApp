@@ -8,6 +8,10 @@
       MaxWidth="1400">
 
     <HeaderActions>
+        <button class="btn-outline" @onclick="() => _showSearch = true">
+            <Icon Type="IconType.Search" Size="18" />
+            Search
+        </button>
         <button class="btn-primary" @onclick="AddPatient">
             <Icon Type="IconType.Add" Size="18" />
             Add Patient
@@ -20,7 +24,8 @@
             <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="4"
                        AvatarFirstColumn="true"
                        TableWidth="900"
-                       Widths='new[] { "30%", "22%", "22%", "26%" }'>
+                       Widths='new[] { "30%", "22%", "22%", "26%" }'
+                       TotalRows="@FilteredPatients.Count()">
                 <Columns>
                     <th>Patient</th>
                     <th>Date of Birth</th>
@@ -50,7 +55,7 @@
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
                        OnSort="HandleSort"
-                       TotalRows="@(_patients.Count)"
+                       TotalRows="@FilteredPatients.Count()"
                        TotalPages="@TotalPages"
                        CurrentPage="@_currentPage"
                        OnPageChange="HandlePageChange"
@@ -104,4 +109,9 @@
             </DataTable>
         }
     </Content>
+    <Dialogs>
+        <SearchModal IsVisible="@_showSearch"
+                     OnSearch="HandleSearch"
+                     OnClose="() => _showSearch = false" />
+    </Dialogs>
 </Page>

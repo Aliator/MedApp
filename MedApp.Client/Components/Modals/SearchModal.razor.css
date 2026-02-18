@@ -1,0 +1,21 @@
+﻿.search-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.search-range {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.search-range .form-input {
+    flex: 1;
+}
+
+.search-range-sep {
+    font-size: 0.875rem;
+    color: var(--gray-400);
+    flex-shrink: 0;
+}
