@@ -84,6 +84,49 @@ thead th {
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--gray-500);
-    min-width: 7rem;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.pagination-page-number {
+    display: inline-block;
+    padding: 0.1rem 0.15rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.pagination-page-number:hover {
+    background-color: var(--gray-200);
+}
+
+.pagination-page-number--static {
+    cursor: default;
+}
+
+.pagination-page-number--static:hover {
+    background-color: transparent;
+}
+
+.pagination-page-input {
+    width: 2.5rem;
+    padding: 0.1rem 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--gray-700);
+    text-align: center;
+    border: 1px solid var(--primary-500);
+    border-radius: 4px;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.pagination-page-input::-webkit-inner-spin-button,
+.pagination-page-input::-webkit-outer-spin-button {
+    appearance: none;
 }

@@ -63,7 +63,24 @@
                                     <Icon Type="IconType.ChevronLeft" Size="16" />
                                 </button>
                                 <span class="pagination-label">
-                                    Page @CurrentPage of @TotalPages
+                                    Page
+                                    @if (_editingPage)
+                                    {
+                                        <input class="pagination-page-input"
+                                               type="number"
+                                               min="1"
+                                               max="@TotalPages"
+                                               @bind="_pageInputValue"
+                                               @onkeydown="HandlePageInputKey"
+                                               @onblur="CommitPageInput"
+                                               @ref="_pageInputRef" />
+                                    }
+                                    else
+                                    {
+                                        <span class="pagination-page-number"
+                                              @ondblclick="StartEditingPage">@CurrentPage</span>
+                                    }
+                                    of <span class="pagination-page-number pagination-page-number--static">@TotalPages</span>
                                 </span>
                                 <button class="pagination-btn"
                                         @onclick="NextPage"

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
 namespace MedApp.Client.Components.Tables;
@@ -29,6 +30,32 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     private IJSObjectReference? _module;
     private DotNetObjectReference<DataTable>? _dotNetRef;
     private int _lastPageSize;
+
+    private bool _editingPage;
+    private int _pageInputValue;
+    private ElementReference _pageInputRef;
+
+    private async Task StartEditingPage()
+    {
+        _pageInputValue = CurrentPage;
+        _editingPage = true;
+        await Task.Yield();
+        await Js.InvokeVoidAsync("eval", "document.querySelector('.pagination-page-input')?.focus()");
+    }
+
+    private async Task CommitPageInput()
+    {
+        _editingPage = false;
+        var clamped = Math.Clamp(_pageInputValue, 1, TotalPages);
+        if (clamped != CurrentPage)
+            await OnPageChange.InvokeAsync(clamped);
+    }
+
+    private async Task HandlePageInputKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await CommitPageInput();
+        else if (e.Key == "Escape") _editingPage = false;
+    }
 
     [JSInvokable]
     public async Task UpdatePageSize(int pageSize)
