@@ -105,4 +105,16 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
 
         _dotNetRef?.Dispose();
     }
+    
+    private async Task FirstPage()
+    {
+        if (CurrentPage > 1)
+            await OnPageChange.InvokeAsync(1);
+    }
+
+    private async Task LastPage()
+    {
+        if (CurrentPage < TotalPages)
+            await OnPageChange.InvokeAsync(TotalPages);
+    }
 }

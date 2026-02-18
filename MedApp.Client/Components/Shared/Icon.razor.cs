@@ -33,6 +33,8 @@ public enum IconType
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    ChevronDoubleLeft,
+    ChevronDoubleRight,
     Lock,
     SortAsc,
     SortDesc

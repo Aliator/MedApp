@@ -89,16 +89,18 @@ thead th {
     align-items: center;
     justify-content: center;
     gap: 0.2rem;
+    min-width: 0.5rem;
 }
 
 .pagination-page-number {
     display: inline-block;
+    min-width: 1rem;
     padding: 0.1rem 0.15rem;
     border-radius: 4px;
     cursor: pointer;
+    text-align: center;
     transition: background-color 0.15s ease;
 }
-
 .pagination-page-number:hover {
     background-color: var(--gray-200);
 }

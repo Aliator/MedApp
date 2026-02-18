@@ -58,8 +58,15 @@
                         <td colspan="100" class="pagination-footer">
                             <div class="pagination-inner">
                                 <button class="pagination-btn"
+                                        @onclick="FirstPage"
+                                        disabled="@(CurrentPage <= 1)"
+                                        @onmousedown:preventDefault="true">
+                                    <Icon Type="IconType.ChevronDoubleLeft" Size="16" />
+                                </button>
+                                <button class="pagination-btn"
                                         @onclick="PrevPage"
-                                        disabled="@(CurrentPage <= 1)">
+                                        disabled="@(CurrentPage <= 1)"
+                                        @onmousedown:preventDefault="true">
                                     <Icon Type="IconType.ChevronLeft" Size="16" />
                                 </button>
                                 <span class="pagination-label">
@@ -84,8 +91,15 @@
                                 </span>
                                 <button class="pagination-btn"
                                         @onclick="NextPage"
-                                        disabled="@(CurrentPage >= TotalPages)">
+                                        disabled="@(CurrentPage >= TotalPages)"
+                                        @onmousedown:preventDefault="true">
                                     <Icon Type="IconType.ChevronRight" Size="16" />
+                                </button>
+                                <button class="pagination-btn"
+                                        @onclick="LastPage"
+                                        disabled="@(CurrentPage >= TotalPages)"
+                                        @onmousedown:preventDefault="true">
+                                    <Icon Type="IconType.ChevronDoubleRight" Size="16" />
                                 </button>
                             </div>
                         </td>
