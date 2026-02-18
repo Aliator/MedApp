@@ -32,8 +32,8 @@ public partial class UsersTable
 
     private readonly List<SearchFieldDefinition> _searchFields =
     [
-        new() { Label = "Username", Placeholder = "Search by username..." },
-        new() { Label = "Role", Placeholder = "Search by role..." }
+        new() { Label = "Username", Placeholder = "Search by username" },
+        new() { Label = "Role", Placeholder = "Search by role" }
     ];
 
     private bool _showAssignRole;
