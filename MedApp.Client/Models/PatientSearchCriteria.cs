@@ -1,11 +1,11 @@
-﻿namespace MedApp.Client.Pages.Patients.Models;
+﻿namespace MedApp.Client.Models;
 
 public sealed class PatientSearchCriteria
 {
-    private string? Query { get; init; }
-    private string? FirstName { get; init; }
-    private string? LastName { get; init; }
-    private DateOnly? DateOfBirth { get; init; }
+    public string? Query { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public DateOnly? DateOfBirth { get; init; }
 
     public bool HasFilters =>
         !string.IsNullOrWhiteSpace(Query) ||

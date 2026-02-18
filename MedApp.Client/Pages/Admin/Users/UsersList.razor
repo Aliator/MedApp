@@ -11,7 +11,7 @@
         @if (IsSearchActive)
         {
             <button class="btn-outline" @onclick="ClearSearch">
-                Clear search
+                Clear Search
             </button>
         }
         <button class="btn-outline" @onclick="() => _showSearch = true">
@@ -136,10 +136,12 @@
     </Content>
 
     <Dialogs>
-        <UserSearchModal IsVisible="@_showSearch"
-                         Criteria="@_search"
-                         OnSearch="HandleSearch"
-                         OnClose="() => _showSearch = false" />
+        <SearchModal IsVisible="@_showSearch"
+                     Title="Search Users"
+                     Fields="@_searchFields"
+                     OnSearch="ApplySearch"
+                     OnClear="ClearSearch"
+                     OnClose="() => _showSearch = false" />
 
         <SelectionModal TItem="string"
                         IsVisible="@_showAssignRole"

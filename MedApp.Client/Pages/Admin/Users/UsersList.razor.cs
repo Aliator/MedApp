@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using MedApp.Client.Auth;
 using MedApp.Client.Components.Modals;
+using MedApp.Client.Models;
 using MedApp.Contracts.Auth.Requests;
 using Microsoft.AspNetCore.Components;
 
@@ -28,6 +29,12 @@ public partial class UsersList
 
     private bool _showSearch;
     private UserSearchCriteria _search = new(string.Empty, string.Empty);
+
+    private readonly List<SearchFieldDefinition> _searchFields =
+    [
+        new() { Label = "Username", Placeholder = "Search by username..." },
+        new() { Label = "Role", Placeholder = "Search by role..." }
+    ];
 
     private bool _showAssignRole;
     private bool _showRevokeRole;
@@ -92,9 +99,12 @@ public partial class UsersList
 
         _sortColumn = NormalizeSortColumn(Sort) ?? "User";
         _sortAscending = Asc ?? true;
-
         _pageSize = Math.Max(1, PageSize ?? _pageSize);
         _currentPage = Math.Max(1, Page ?? 1);
+
+        _searchFields[0].Value = Username ?? string.Empty;
+        _searchFields[1].Value = Role ?? string.Empty;
+
         ClampCurrentPage();
     }
 
@@ -128,25 +138,25 @@ public partial class UsersList
         }
     }
 
-    private void HandleSearch(UserSearchCriteria criteria)
+    private void ApplySearch()
     {
-        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: criteria, replace: false);
+        var criteria = new UserSearchCriteria(_searchFields[0].Value, _searchFields[1].Value);
+        NavigateToState(1, _pageSize, _sortColumn, _sortAscending, criteria, false);
     }
 
     private void ClearSearch()
     {
-        var empty = new UserSearchCriteria(string.Empty, string.Empty);
-        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: empty, replace: false);
+        NavigateToState(1, _pageSize, _sortColumn, _sortAscending, new UserSearchCriteria(string.Empty, string.Empty), false);
     }
 
     private void HandleSort((string Column, bool Ascending) args)
     {
-        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: args.Column, sortAscending: args.Ascending, criteria: _search, replace: false);
+        NavigateToState(1, _pageSize, args.Column, args.Ascending, _search, false);
     }
 
     private void HandlePageChange(int page)
     {
-        NavigateToState(page: page, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: _search, replace: false);
+        NavigateToState(page, _pageSize, _sortColumn, _sortAscending, _search, false);
     }
 
     private void HandlePageSizeChanged(int newSize)
@@ -154,25 +164,20 @@ public partial class UsersList
         newSize = Math.Max(1, newSize);
         if (newSize == _pageSize) return;
 
-        var maxPage = GetTotalPages(TotalRows, newSize);
-        var targetPage = Math.Min(_currentPage, maxPage);
-
-        NavigateToState(page: targetPage, pageSize: newSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: _search, replace: true);
+        var targetPage = Math.Min(_currentPage, GetTotalPages(TotalRows, newSize));
+        NavigateToState(targetPage, newSize, _sortColumn, _sortAscending, _search, true);
     }
 
     private void NavigateToState(int page, int pageSize, string sortColumn, bool sortAscending, UserSearchCriteria criteria, bool replace)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Max(1, pageSize);
-
         var sort = NormalizeSortColumn(sortColumn) ?? "User";
 
         var parts = new List<string>
         {
-            $"page={page}",
-            $"ps={pageSize}",
+            $"page={Math.Max(1, page)}",
+            $"ps={Math.Max(1, pageSize)}",
             $"sort={Uri.EscapeDataString(sort)}",
-            $"asc={(sortAscending ? "true" : "false")}"
+            $"asc={sortAscending.ToString().ToLower()}"
         };
 
         if (!string.IsNullOrWhiteSpace(criteria.Username))
@@ -181,15 +186,12 @@ public partial class UsersList
         if (!string.IsNullOrWhiteSpace(criteria.Role))
             parts.Add($"role={Uri.EscapeDataString(criteria.Role)}");
 
-        var uri = "/admin/users" + "?" + string.Join("&", parts);
-        Nav.NavigateTo(uri, replace: replace);
+        Nav.NavigateTo("/admin/users?" + string.Join("&", parts), replace: replace);
     }
 
     private void ClampCurrentPage()
     {
-        var maxPage = TotalPages;
-        if (_currentPage > maxPage) _currentPage = maxPage;
-        if (_currentPage < 1) _currentPage = 1;
+        _currentPage = Math.Clamp(_currentPage, 1, TotalPages);
     }
 
     private static int GetTotalPages(int totalRows, int pageSize) =>
@@ -256,7 +258,6 @@ public partial class UsersList
     private async Task LoadAllUserRolesAsync()
     {
         if (_users is null) return;
-
         _userRolesCache.Clear();
         foreach (var user in _users)
             _userRolesCache[user] = await LoadRolesForUserAsync(user);

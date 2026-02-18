@@ -38,4 +38,8 @@
       <AdditionalFiles Include="Components\Views\ViewGroup.razor" />
       <AdditionalFiles Include="Components\Views\ViewSection.razor" />
     </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Pages\Patients\Models\" />
+    </ItemGroup>
 </Project>

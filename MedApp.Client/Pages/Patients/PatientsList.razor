@@ -11,7 +11,7 @@
         @if (IsSearchActive)
         {
             <button class="btn-outline" @onclick="ClearSearch">
-                Clear search
+                Clear Search
             </button>
         }
         <button class="btn-outline" @onclick="() => _showSearch = true">
@@ -100,7 +100,6 @@
                                         <Icon Type="IconType.View" Size="16" />
                                         <span class="mobile-hidden">View</span>
                                     </button>
-
                                     <button class="btn-table-action btn-edit"
                                             @onclick="() => EditPatient(patient.Id)"
                                             title="Edit patient">
@@ -118,8 +117,10 @@
 
     <Dialogs>
         <SearchModal IsVisible="@_showSearch"
-                     Criteria="@_search"
-                     OnSearch="HandleSearch"
+                     Title="Search Patients"
+                     Fields="@_searchFields"
+                     OnSearch="ApplySearch"
+                     OnClear="ClearSearch"
                      OnClose="() => _showSearch = false" />
     </Dialogs>
 </Page>
