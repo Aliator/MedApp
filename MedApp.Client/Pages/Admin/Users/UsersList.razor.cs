@@ -46,6 +46,10 @@ public partial class UsersList
 
     private string _sortColumn = "User";
     private bool _sortAscending = true;
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)(_users?.Count ?? 0) / _pageSize));
 
     private IEnumerable<string> SortedUsers => _sortColumn switch
     {
@@ -55,10 +59,24 @@ public partial class UsersList
         _ => _users ?? Array.Empty<string>()
     };
 
+    private IEnumerable<string> PagedUsers =>
+        SortedUsers.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+
     private void HandleSort((string Column, bool Ascending) args)
     {
         _sortColumn = args.Column;
         _sortAscending = args.Ascending;
+        _currentPage = 1;
+    }
+
+    private void HandlePageChange(int page) => _currentPage = page;
+
+    private void HandlePageSizeChanged(int newSize)
+    {
+        _pageSize = newSize;
+        var maxPage = Math.Max(1, (int)Math.Ceiling((double)(_users?.Count ?? 0) / _pageSize));
+        if (_currentPage > maxPage) _currentPage = maxPage;
+        StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()
@@ -132,14 +150,9 @@ public partial class UsersList
         try
         {
             var response = await Http.GetAsync("api/auth/roles");
-            if (response.IsSuccessStatusCode)
-            {
-                _roles = await response.Content.ReadFromJsonAsync<IReadOnlyList<string>>() ?? Array.Empty<string>();
-            }
-            else
-            {
-                _roles = Array.Empty<string>();
-            }
+            _roles = response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<IReadOnlyList<string>>() ?? Array.Empty<string>()
+                : Array.Empty<string>();
         }
         catch
         {
@@ -150,13 +163,9 @@ public partial class UsersList
     private async Task LoadAllUserRolesAsync()
     {
         if (_users is null) return;
-
         _userRolesCache.Clear();
-
         foreach (var user in _users)
-        {
             _userRolesCache[user] = await LoadRolesForUserAsync(user);
-        }
     }
 
     private async Task<IReadOnlyList<string>> LoadRolesForUserAsync(string username)
@@ -165,14 +174,9 @@ public partial class UsersList
         {
             var response = await Http.GetAsync($"api/auth/users/{username}/roles");
             if (response.IsSuccessStatusCode)
-            {
                 return await response.Content.ReadFromJsonAsync<IReadOnlyList<string>>() ?? Array.Empty<string>();
-            }
         }
-        catch
-        {
-            // ignored
-        }
+        catch { }
 
         return Array.Empty<string>();
     }
@@ -181,9 +185,7 @@ public partial class UsersList
     {
         _selectedUser = username;
         _selectedRoles.Clear();
-
         _userRoles = await LoadRolesForUserAsync(username);
-
         _showAssignRole = true;
     }
 
@@ -197,17 +199,13 @@ public partial class UsersList
 
     private async Task AssignRoles()
     {
-        if (string.IsNullOrEmpty(_selectedUser) || !_selectedRoles.Any())
-            return;
+        if (string.IsNullOrEmpty(_selectedUser) || !_selectedRoles.Any()) return;
 
         _isProcessingRoles = true;
         try
         {
             foreach (var role in _selectedRoles)
-            {
                 await Http.PostAsJsonAsync("api/auth/roles/assign", new AssignRoleRequest(_selectedUser, role));
-            }
-
             _userRolesCache[_selectedUser] = await LoadRolesForUserAsync(_selectedUser);
         }
         finally
@@ -221,9 +219,7 @@ public partial class UsersList
     {
         _selectedUser = username;
         _selectedRoles.Clear();
-
         _userRoles = await LoadRolesForUserAsync(username);
-
         _showRevokeRole = true;
     }
 
@@ -237,17 +233,13 @@ public partial class UsersList
 
     private async Task RevokeRoles()
     {
-        if (string.IsNullOrEmpty(_selectedUser) || !_selectedRoles.Any())
-            return;
+        if (string.IsNullOrEmpty(_selectedUser) || !_selectedRoles.Any()) return;
 
         _isProcessingRoles = true;
         try
         {
             foreach (var role in _selectedRoles)
-            {
                 await Http.PostAsJsonAsync("api/auth/roles/revoke", new RevokeRoleRequest(_selectedUser, role));
-            }
-
             _userRolesCache[_selectedUser] = await LoadRolesForUserAsync(_selectedUser);
         }
         finally
@@ -273,8 +265,7 @@ public partial class UsersList
 
     private async Task ResetPassword()
     {
-        if (string.IsNullOrEmpty(_selectedUser))
-            return;
+        if (string.IsNullOrEmpty(_selectedUser)) return;
 
         _isResettingPassword = true;
         try
@@ -306,8 +297,7 @@ public partial class UsersList
 
     private async Task DeleteUser()
     {
-        if (string.IsNullOrEmpty(_selectedUser))
-            return;
+        if (string.IsNullOrEmpty(_selectedUser)) return;
 
         _isDeletingUser = true;
         try
@@ -341,8 +331,7 @@ public partial class UsersList
 
     private async Task CreateUser()
     {
-        if (string.IsNullOrWhiteSpace(_newUsername))
-            return;
+        if (string.IsNullOrWhiteSpace(_newUsername)) return;
 
         _isCreatingUser = true;
         try
@@ -363,10 +352,8 @@ public partial class UsersList
 
     private void OnRoleToggled(SelectionToggle<string> e)
     {
-        if (e.IsSelected)
-            _selectedRoles.Add(e.Item);
-        else
-            _selectedRoles.Remove(e.Item);
+        if (e.IsSelected) _selectedRoles.Add(e.Item);
+        else _selectedRoles.Remove(e.Item);
     }
 
     private string GetInitial(string username) =>

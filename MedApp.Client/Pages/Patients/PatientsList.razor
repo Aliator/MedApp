@@ -51,6 +51,7 @@
                        SortAscending="@_sortAscending"
                        OnSort="HandleSort"
                        TotalRows="@(_patients.Count)"
+                       TotalPages="@TotalPages"
                        CurrentPage="@_currentPage"
                        OnPageChange="HandlePageChange"
                        OnPageSizeChanged="HandlePageSizeChanged">
@@ -96,7 +97,7 @@
                                         <span class="mobile-hidden">Edit</span>
                                     </button>
                                 </TableActions>
-                            </td>
+                            </td>   
                         </tr>
                     }
                 </Rows>

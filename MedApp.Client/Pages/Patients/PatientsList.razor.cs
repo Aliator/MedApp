@@ -19,6 +19,8 @@ public partial class PatientsList
     private int _currentPage = 1;
     private int _pageSize = 10;
 
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)(_patients?.Count ?? 0) / _pageSize));
+
     private IEnumerable<PatientResponse> SortedPatients => _sortColumn switch
     {
         "Patient" => _sortAscending
@@ -51,6 +53,7 @@ public partial class PatientsList
         var totalRows = _patients?.Count ?? 0;
         var maxPage = Math.Max(1, (int)Math.Ceiling((double)totalRows / _pageSize));
         if (_currentPage > maxPage) _currentPage = maxPage;
+        StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()

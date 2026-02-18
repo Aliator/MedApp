@@ -48,14 +48,19 @@
                        Widths='new[] { "20%", "30%", "45%" }'
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
-                       OnSort="HandleSort">
+                       OnSort="HandleSort"
+                       TotalRows="@(_users.Count)"
+                       TotalPages="@TotalPages"
+                       CurrentPage="@_currentPage"
+                       OnPageChange="HandlePageChange"
+                       OnPageSizeChanged="HandlePageSizeChanged">
                 <Columns>
-                    <SortableHeader Column="User">Username</SortableHeader>
+                    <SortableHeader Column="User">User</SortableHeader>
                     <th>Roles</th>
                     <th class="actions-column">Actions</th>
                 </Columns>
                 <Rows>
-                    @foreach (var user in SortedUsers)
+                    @foreach (var user in PagedUsers)
                     {
                         <tr>
                             <td>

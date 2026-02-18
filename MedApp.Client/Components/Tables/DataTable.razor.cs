@@ -5,7 +5,7 @@ namespace MedApp.Client.Components.Tables;
 
 public partial class DataTable : ComponentBase, IAsyncDisposable
 {
-    [Inject] private IJSRuntime JS { get; set; } = null!;
+    [Inject] private IJSRuntime Js { get; set; } = null!;
 
     [Parameter] public RenderFragment? Columns { get; set; }
     [Parameter] public RenderFragment? Rows { get; set; }
@@ -19,6 +19,7 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     [Parameter] public bool SortAscending { get; set; } = true;
     [Parameter] public EventCallback<(string Column, bool Ascending)> OnSort { get; set; }
     [Parameter] public int TotalRows { get; set; }
+    [Parameter] public int TotalPages { get; set; } = 1;
     [Parameter] public int CurrentPage { get; set; } = 1;
     [Parameter] public EventCallback<int> OnPageChange { get; set; }
     [Parameter] public EventCallback<int> OnPageSizeChanged { get; set; }
@@ -28,10 +29,6 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     private IJSObjectReference? _module;
     private DotNetObjectReference<DataTable>? _dotNetRef;
     private int _lastPageSize;
-
-    private int TotalPages => _lastPageSize > 0
-        ? Math.Max(1, (int)Math.Ceiling((double)TotalRows / _lastPageSize))
-        : 1;
 
     [JSInvokable]
     public async Task UpdatePageSize(int pageSize)
@@ -59,7 +56,7 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
         if (firstRender)
         {
             _dotNetRef = DotNetObjectReference.Create(this);
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Tables/DataTable.razor.js");
+            _module = await Js.InvokeAsync<IJSObjectReference>("import", "./Components/Tables/DataTable.razor.js");
             _observer = await _module.InvokeAsync<IJSObjectReference>("measureAndObserve", _wrapperRef, _dotNetRef);
         }
         else if (_observer != null && !IsLoading)

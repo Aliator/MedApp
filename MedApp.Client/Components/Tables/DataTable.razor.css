@@ -37,12 +37,13 @@ thead th {
     background-color: white;
     color: var(--gray-600);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: none;
     padding: 0;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .pagination-btn:hover:not(:disabled) {
+    transition: all 0.2s ease;
     background-color: var(--primary-50);
     border-color: var(--primary-500);
     color: var(--primary-500);
@@ -50,8 +51,28 @@ thead th {
     transform: translateY(-1px);
 }
 
+
+.pagination-suppress-hover .pagination-btn,
+.pagination-suppress-hover .pagination-btn:hover {
+    pointer-events: none;
+    background-color: white;
+    color: var(--gray-600);
+    border-color: var(--gray-300);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transform: none;
+}
+
 .pagination-btn:active:not(:disabled) {
     transform: translateY(0);
+}
+
+.pagination-btn:focus {
+    outline: none;
+}
+
+.pagination-btn:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
 }
 
 .pagination-btn:disabled {
