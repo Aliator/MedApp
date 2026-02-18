@@ -54,12 +54,12 @@ thead th {
 
 .pagination-suppress-hover .pagination-btn,
 .pagination-suppress-hover .pagination-btn:hover {
-    pointer-events: none;
     background-color: white;
     color: var(--gray-600);
     border-color: var(--gray-300);
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     transform: none;
+    transition: none;
 }
 
 .pagination-btn:active:not(:disabled) {
