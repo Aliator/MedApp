@@ -1,0 +1,30 @@
+﻿.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sortable-header:hover {
+    background-color: var(--gray-100);
+}
+
+.sortable-header-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.sort-active {
+    background-color: var(--primary-200);
+    color: var(--primary-700);
+}
+
+.sort-active:hover {
+    background-color: var(--primary-100);
+}
+
+.sort-icon {
+    display: block;
+    color: var(--primary-500);
+}

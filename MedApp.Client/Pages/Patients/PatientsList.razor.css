@@ -11,6 +11,25 @@
     white-space: nowrap;
 }
 
+.dob-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dob-cell .badge {
+    flex-shrink: 0;
+    width: 3rem;
+    justify-content: center;
+}
+
 .clickable-row {
     cursor: pointer;
+}
+
+.email-cell {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

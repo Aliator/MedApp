@@ -1,1 +1,8 @@
-﻿
+﻿tbody td {
+    padding: 0.625rem 1rem;
+    vertical-align: middle;
+}
+
+thead th {
+    padding: 0.625rem 1rem;
+}

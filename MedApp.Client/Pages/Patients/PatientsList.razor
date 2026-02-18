@@ -17,14 +17,13 @@
     <Content>
         @if (_isLoading)
         {
-            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="5"
+            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="4"
                        AvatarFirstColumn="true"
                        TableWidth="900"
-                       Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
+                       Widths='new[] { "30%", "22%", "22%", "26%" }'>
                 <Columns>
                     <th>Patient</th>
                     <th>Date of Birth</th>
-                    <th>Age</th>
                     <th>Email</th>
                     <th class="actions-column">Actions</th>
                 </Columns>
@@ -46,16 +45,19 @@
         }
         else
         {
-            <DataTable TableWidth="900" Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
+            <DataTable TableWidth="900"
+                       Widths='new[] { "30%", "22%", "22%", "26%" }'
+                       SortColumn="@_sortColumn"
+                       SortAscending="@_sortAscending"
+                       OnSort="HandleSort">
                 <Columns>
-                    <th>Patient</th>
-                    <th>Date of Birth</th>
-                    <th>Age</th>
-                    <th>Email</th>
+                    <SortableHeader Column="Patient">Patient</SortableHeader>
+                    <SortableHeader Column="DateOfBirth">Date of Birth</SortableHeader>
+                    <SortableHeader Column="Email">Email</SortableHeader>
                     <th class="actions-column">Actions</th>
                 </Columns>
                 <Rows>
-                    @foreach (var patient in _patients)
+                    @foreach (var patient in SortedPatients)
                     {
                         <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
                             <td>
@@ -63,11 +65,13 @@
                                             PrimaryText="@($"{patient.FirstName} {patient.LastName}")"
                                             SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")" />
                             </td>
-                            <td>@patient.DateOfBirth.ToString("MMM dd, yyyy")</td>
                             <td>
-                                <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                                <div class="dob-cell">
+                                    <span>@patient.DateOfBirth.ToString("MMM dd, yyyy")</span>
+                                    <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                                </div>
                             </td>
-                            <td>
+                            <td class="email-cell">
                                 <a href="mailto:@patient.Email" class="link" @onclick:stopPropagation="true">
                                     @patient.Email
                                 </a>

@@ -44,6 +44,23 @@ public partial class UsersList
     private string? _selectedUser;
     private HashSet<string> _selectedRoles = new(StringComparer.OrdinalIgnoreCase);
 
+    private string _sortColumn = "User";
+    private bool _sortAscending = true;
+
+    private IEnumerable<string> SortedUsers => _sortColumn switch
+    {
+        "User" => _sortAscending
+            ? (_users ?? Array.Empty<string>()).OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
+            : (_users ?? Array.Empty<string>()).OrderByDescending(u => u, StringComparer.OrdinalIgnoreCase),
+        _ => _users ?? Array.Empty<string>()
+    };
+
+    private void HandleSort((string Column, bool Ascending) args)
+    {
+        _sortColumn = args.Column;
+        _sortAscending = args.Ascending;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (!await Auth.EnsureAuthenticatedAsync())

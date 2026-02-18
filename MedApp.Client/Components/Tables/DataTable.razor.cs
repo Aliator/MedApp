@@ -12,4 +12,7 @@ public partial class DataTable : ComponentBase
     [Parameter] public bool AvatarFirstColumn { get; set; }
     [Parameter] public int TableWidth { get; set; }
     [Parameter] public string[]? Widths { get; set; }
+    [Parameter] public string? SortColumn { get; set; }
+    [Parameter] public bool SortAscending { get; set; } = true;
+    [Parameter] public EventCallback<(string Column, bool Ascending)> OnSort { get; set; }
 }

@@ -50,6 +50,11 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
 body {
     margin: 0;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -247,14 +252,14 @@ a:focus {
 .actions-cell {
     justify-content: center;
     display: flex;
-    height: 0;
 }
 
 .action-buttons {
-    display: inline-flex;
-    gap: 0.5rem;
-    justify-content: center;
+    display: flex;
     align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    height: 100%;
 }
 
 .form-footer {
@@ -436,7 +441,7 @@ a:focus {
 }
 
 .data-table td {
-    padding: 1rem;
+    padding: 0.5rem;
     font-size: 0.875rem;
     font-weight: 400;
     color: var(--gray-900);

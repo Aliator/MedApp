@@ -11,7 +11,13 @@
         }
         <thead>
         <tr>
-            @Columns
+            <CascadingValue Name="SortColumn" Value="@SortColumn">
+                <CascadingValue Name="SortAscending" Value="@SortAscending">
+                    <CascadingValue Name="OnSort" Value="@OnSort">
+                        @Columns
+                    </CascadingValue>
+                </CascadingValue>
+            </CascadingValue>
         </tr>
         </thead>
         <tbody>

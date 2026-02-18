@@ -14,6 +14,29 @@ public partial class PatientsList
     private IReadOnlyList<PatientResponse>? _patients;
     private bool _isLoading = true;
 
+    private string _sortColumn = "Patient";
+    private bool _sortAscending = true;
+
+    private IEnumerable<PatientResponse> SortedPatients => _sortColumn switch
+    {
+        "Patient" => _sortAscending
+            ? (_patients ?? Array.Empty<PatientResponse>()).OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+            : (_patients ?? Array.Empty<PatientResponse>()).OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName),
+        "DateOfBirth" => _sortAscending
+            ? (_patients ?? Array.Empty<PatientResponse>()).OrderBy(p => p.DateOfBirth)
+            : (_patients ?? Array.Empty<PatientResponse>()).OrderByDescending(p => p.DateOfBirth),
+        "Email" => _sortAscending
+            ? (_patients ?? Array.Empty<PatientResponse>()).OrderBy(p => p.Email, StringComparer.OrdinalIgnoreCase)
+            : (_patients ?? Array.Empty<PatientResponse>()).OrderByDescending(p => p.Email, StringComparer.OrdinalIgnoreCase),
+        _ => _patients ?? Array.Empty<PatientResponse>()
+    };
+
+    private void HandleSort((string Column, bool Ascending) args)
+    {
+        _sortColumn = args.Column;
+        _sortAscending = args.Ascending;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (!await Auth.EnsureAuthenticatedAsync())
@@ -32,7 +55,7 @@ public partial class PatientsList
         try
         {
             var response = await Http.GetAsync("api/patients");
-            
+
             if (response.IsSuccessStatusCode)
             {
                 _patients = await response.Content.ReadFromJsonAsync<IReadOnlyList<PatientResponse>>();
@@ -57,7 +80,7 @@ public partial class PatientsList
     {
         Nav.NavigateTo($"/patients/{id}/edit");
     }
-    
+
     private void AddPatient()
     {
         Nav.NavigateTo("/patients/add");
@@ -67,12 +90,12 @@ public partial class PatientsList
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var age = today.Year - dateOfBirth.Year;
-        
+
         if (dateOfBirth > today.AddYears(-age))
         {
             age--;
         }
-        
+
         return age;
     }
 
@@ -82,7 +105,7 @@ public partial class PatientsList
         var lastInitial = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";
         return $"{firstInitial}{lastInitial}";
     }
-    
+
     private string GetSubtitle()
     {
         if (_isLoading)

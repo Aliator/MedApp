@@ -44,14 +44,18 @@
         }
         else
         {
-            <DataTable TableWidth="900" Widths='new[] { "20%", "30%", "45%" }'>
+            <DataTable TableWidth="900"
+                       Widths='new[] { "20%", "30%", "45%" }'
+                       SortColumn="@_sortColumn"
+                       SortAscending="@_sortAscending"
+                       OnSort="HandleSort">
                 <Columns>
-                    <th>User</th>
+                    <SortableHeader Column="User">Username</SortableHeader>
                     <th>Roles</th>
                     <th class="actions-column">Actions</th>
                 </Columns>
                 <Rows>
-                    @foreach (var user in _users)
+                    @foreach (var user in SortedUsers)
                     {
                         <tr>
                             <td>
