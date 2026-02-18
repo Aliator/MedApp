@@ -80,7 +80,8 @@
                             <td>
                                 <AvatarCell AvatarText="@GetInitials(patient.FirstName, patient.LastName)"
                                             PrimaryText="@($"{patient.FirstName} {patient.LastName}")"
-                                            SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")" />
+                                            SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")"
+                                            EnableNameTruncation="false" />
                             </td>
                             <td>
                                 <div class="dob-cell">

@@ -1,4 +1,10 @@
-﻿<div class="@(HasSecondary ? $"patient-cell{(ShowHoverFullName ? " is-truncated" : "")}" : "user-cell")" title="@PrimaryText">
+﻿@{
+    var rootClass = HasSecondary
+        ? $"patient-cell{(ShowHoverFullName ? " is-truncated" : "")}"
+        : "user-cell";
+}
+
+<div class="@rootClass" title="@PrimaryText">
     <div class="@(HasSecondary ? "patient-avatar" : "user-avatar")">
         @AvatarText
     </div>

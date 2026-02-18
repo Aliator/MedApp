@@ -8,16 +8,25 @@ public partial class AvatarCell : ComponentBase
     [Parameter] public string PrimaryText { get; set; } = "";
     [Parameter] public string? SecondaryText { get; set; }
 
+    [Parameter] public bool EnableNameTruncation { get; set; } = true;
+
     private bool HasSecondary => !string.IsNullOrWhiteSpace(SecondaryText);
 
     private bool _isNameTruncated;
     private string _displayPrimaryText = "";
 
     private string DisplayPrimaryText => _displayPrimaryText;
-    private bool ShowHoverFullName => HasSecondary && _isNameTruncated;
+    private bool ShowHoverFullName => HasSecondary && EnableNameTruncation && _isNameTruncated;
 
     protected override void OnParametersSet()
     {
+        if (!EnableNameTruncation)
+        {
+            _displayPrimaryText = PrimaryText;
+            _isNameTruncated = false;
+            return;
+        }
+
         (_displayPrimaryText, _isNameTruncated) = ShortenPatientName(PrimaryText);
     }
 
@@ -38,15 +47,10 @@ public partial class AvatarCell : ComponentBase
             return (p, truncated);
         }
 
-        TruncatePartInPlace(parts, 0, ref truncated);
-        TruncatePartInPlace(parts, parts.Length - 1, ref truncated);
+        parts[0] = TruncatePart(parts[0], ref truncated);
+        parts[^1] = TruncatePart(parts[^1], ref truncated);
 
         return (string.Join(' ', parts), truncated);
-    }
-
-    private static void TruncatePartInPlace(string[] parts, int index, ref bool truncated)
-    {
-        parts[index] = TruncatePart(parts[index], ref truncated);
     }
 
     private static string TruncatePart(string part, ref bool truncated)

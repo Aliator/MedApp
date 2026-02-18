@@ -30,7 +30,7 @@
             <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3"
                        AvatarFirstColumn="true"
                        TableWidth="900"
-                       Widths='new[] { "25%", "35%", "40%" }'
+                       Widths='new[] { "25%", "30%", "45%" }'
                        TotalRows="@TotalRows">
                 <Columns>
                     <th>User</th>
@@ -56,7 +56,7 @@
         else
         {
             <DataTable TableWidth="900"
-                       Widths='new[] { "20%", "30%", "45%" }'
+                       Widths='new[] { "25%", "30%", "45%" }'
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
                        OnSort="HandleSort"
@@ -76,7 +76,8 @@
                         <tr>
                             <td>
                                 <AvatarCell AvatarText="@GetInitial(user)"
-                                            PrimaryText="@user" />
+                                            PrimaryText="@user"
+                                            EnableNameTruncation="false"/>
                             </td>
                             <td>
                                 <div class="roles-display">
