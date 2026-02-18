@@ -8,6 +8,16 @@
       MaxWidth="1400">
 
     <HeaderActions>
+        @if (IsSearchActive)
+        {
+            <button class="btn-outline" @onclick="ClearSearch">
+                Clear search
+            </button>
+        }
+        <button class="btn-outline" @onclick="() => _showSearch = true">
+            <Icon Type="IconType.Search" Size="18" />
+            Search
+        </button>
         <button class="btn-primary" @onclick="ShowAddUser">
             <Icon Type="IconType.Add" Size="18" />
             Add User
@@ -20,7 +30,8 @@
             <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3"
                        AvatarFirstColumn="true"
                        TableWidth="900"
-                       Widths='new[] { "25%", "35%", "40%" }'>
+                       Widths='new[] { "25%", "35%", "40%" }'
+                       TotalRows="@TotalRows">
                 <Columns>
                     <th>User</th>
                     <th>Roles</th>
@@ -49,7 +60,7 @@
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
                        OnSort="HandleSort"
-                       TotalRows="@(_users.Count)"
+                       TotalRows="@TotalRows"
                        TotalPages="@TotalPages"
                        CurrentPage="@_currentPage"
                        OnPageChange="HandlePageChange"
@@ -125,6 +136,11 @@
     </Content>
 
     <Dialogs>
+        <UserSearchModal IsVisible="@_showSearch"
+                         Criteria="@_search"
+                         OnSearch="HandleSearch"
+                         OnClose="() => _showSearch = false" />
+
         <SelectionModal TItem="string"
                         IsVisible="@_showAssignRole"
                         Title="Assign Roles"

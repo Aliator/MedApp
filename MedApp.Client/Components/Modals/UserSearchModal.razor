@@ -1,0 +1,29 @@
+﻿<Modal IsVisible="@IsVisible"
+       Title="Search Users"
+       OnClose="@OnClose">
+
+    <Body>
+    <div class="search-fields">
+        <div class="form-group">
+            <label class="form-label">Username</label>
+            <input class="form-input"
+                   type="text"
+                   placeholder="Username"
+                   @bind="_username"
+                   @bind:event="oninput"
+                   @ref="_firstInputRef" />
+        </div>
+    </div>
+    </Body>
+
+    <Footer>
+        <button class="btn-outline" @onclick="Clear">
+            Clear
+        </button>
+        <button class="btn-primary" @onclick="Apply">
+            <Icon Type="IconType.Search" Size="16" />
+            Search
+        </button>
+    </Footer>
+
+</Modal>

@@ -12,12 +12,22 @@ public partial class UsersList
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
 
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+    [SupplyParameterFromQuery(Name = "ps")] public int? PageSize { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "asc")] public bool? Asc { get; set; }
+    [SupplyParameterFromQuery(Name = "username")] public string? Username { get; set; }
+    [SupplyParameterFromQuery(Name = "role")] public string? Role { get; set; }
+
     private IReadOnlyList<string>? _users;
     private IReadOnlyList<string> _roles = Array.Empty<string>();
     private Dictionary<string, IReadOnlyList<string>> _userRolesCache = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _isLoading = true;
     private string _loadingMessage = "Loading users...";
+
+    private bool _showSearch;
+    private UserSearchCriteria _search = new(string.Empty, string.Empty);
 
     private bool _showAssignRole;
     private bool _showRevokeRole;
@@ -49,34 +59,43 @@ public partial class UsersList
     private int _currentPage = 1;
     private int _pageSize = 10;
 
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)(_users?.Count ?? 0) / _pageSize));
+    private bool IsSearchActive =>
+        !string.IsNullOrWhiteSpace(_search.Username) ||
+        !string.IsNullOrWhiteSpace(_search.Role);
+
+    private IEnumerable<string> FilteredUsers =>
+        (_users ?? Array.Empty<string>()).Where(u =>
+            (string.IsNullOrWhiteSpace(_search.Username) ||
+             u.Contains(_search.Username, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(_search.Role) ||
+             (_userRolesCache.TryGetValue(u, out var roles) &&
+              roles.Any(r => r.Contains(_search.Role, StringComparison.OrdinalIgnoreCase)))));
+
+    private int TotalRows => FilteredUsers.Count();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalRows / _pageSize));
 
     private IEnumerable<string> SortedUsers => _sortColumn switch
     {
         "User" => _sortAscending
-            ? (_users ?? Array.Empty<string>()).OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
-            : (_users ?? Array.Empty<string>()).OrderByDescending(u => u, StringComparer.OrdinalIgnoreCase),
-        _ => _users ?? Array.Empty<string>()
+            ? FilteredUsers.OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
+            : FilteredUsers.OrderByDescending(u => u, StringComparer.OrdinalIgnoreCase),
+        _ => FilteredUsers
     };
 
     private IEnumerable<string> PagedUsers =>
         SortedUsers.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
 
-    private void HandleSort((string Column, bool Ascending) args)
+    protected override void OnParametersSet()
     {
-        _sortColumn = args.Column;
-        _sortAscending = args.Ascending;
-        _currentPage = 1;
-    }
+        _search = new UserSearchCriteria(Username ?? string.Empty, Role ?? string.Empty);
 
-    private void HandlePageChange(int page) => _currentPage = page;
+        _sortColumn = NormalizeSortColumn(Sort) ?? "User";
+        _sortAscending = Asc ?? true;
 
-    private void HandlePageSizeChanged(int newSize)
-    {
-        _pageSize = newSize;
-        var maxPage = Math.Max(1, (int)Math.Ceiling((double)(_users?.Count ?? 0) / _pageSize));
-        if (_currentPage > maxPage) _currentPage = maxPage;
-        StateHasChanged();
+        _pageSize = Math.Max(1, PageSize ?? _pageSize);
+        _currentPage = Math.Max(1, Page ?? 1);
+        ClampCurrentPage();
     }
 
     protected override async Task OnInitializedAsync()
@@ -101,11 +120,85 @@ public partial class UsersList
             await LoadUsersAsync();
             await LoadRolesAsync();
             await LoadAllUserRolesAsync();
+            ClampCurrentPage();
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    private void HandleSearch(UserSearchCriteria criteria)
+    {
+        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: criteria, replace: false);
+    }
+
+    private void ClearSearch()
+    {
+        var empty = new UserSearchCriteria(string.Empty, string.Empty);
+        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: empty, replace: false);
+    }
+
+    private void HandleSort((string Column, bool Ascending) args)
+    {
+        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: args.Column, sortAscending: args.Ascending, criteria: _search, replace: false);
+    }
+
+    private void HandlePageChange(int page)
+    {
+        NavigateToState(page: page, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: _search, replace: false);
+    }
+
+    private void HandlePageSizeChanged(int newSize)
+    {
+        newSize = Math.Max(1, newSize);
+        if (newSize == _pageSize) return;
+
+        var maxPage = GetTotalPages(TotalRows, newSize);
+        var targetPage = Math.Min(_currentPage, maxPage);
+
+        NavigateToState(page: targetPage, pageSize: newSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: _search, replace: true);
+    }
+
+    private void NavigateToState(int page, int pageSize, string sortColumn, bool sortAscending, UserSearchCriteria criteria, bool replace)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Max(1, pageSize);
+
+        var sort = NormalizeSortColumn(sortColumn) ?? "User";
+
+        var parts = new List<string>
+        {
+            $"page={page}",
+            $"ps={pageSize}",
+            $"sort={Uri.EscapeDataString(sort)}",
+            $"asc={(sortAscending ? "true" : "false")}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(criteria.Username))
+            parts.Add($"username={Uri.EscapeDataString(criteria.Username)}");
+
+        if (!string.IsNullOrWhiteSpace(criteria.Role))
+            parts.Add($"role={Uri.EscapeDataString(criteria.Role)}");
+
+        var uri = "/admin/users" + "?" + string.Join("&", parts);
+        Nav.NavigateTo(uri, replace: replace);
+    }
+
+    private void ClampCurrentPage()
+    {
+        var maxPage = TotalPages;
+        if (_currentPage > maxPage) _currentPage = maxPage;
+        if (_currentPage < 1) _currentPage = 1;
+    }
+
+    private static int GetTotalPages(int totalRows, int pageSize) =>
+        Math.Max(1, (int)Math.Ceiling((double)totalRows / Math.Max(1, pageSize)));
+
+    private static string? NormalizeSortColumn(string? value)
+    {
+        if (string.Equals(value, "User", StringComparison.OrdinalIgnoreCase)) return "User";
+        return null;
     }
 
     private string GetSubtitle()
@@ -163,6 +256,7 @@ public partial class UsersList
     private async Task LoadAllUserRolesAsync()
     {
         if (_users is null) return;
+
         _userRolesCache.Clear();
         foreach (var user in _users)
             _userRolesCache[user] = await LoadRolesForUserAsync(user);
@@ -206,7 +300,9 @@ public partial class UsersList
         {
             foreach (var role in _selectedRoles)
                 await Http.PostAsJsonAsync("api/auth/roles/assign", new AssignRoleRequest(_selectedUser, role));
+
             _userRolesCache[_selectedUser] = await LoadRolesForUserAsync(_selectedUser);
+            ClampCurrentPage();
         }
         finally
         {
@@ -240,7 +336,9 @@ public partial class UsersList
         {
             foreach (var role in _selectedRoles)
                 await Http.PostAsJsonAsync("api/auth/roles/revoke", new RevokeRoleRequest(_selectedUser, role));
+
             _userRolesCache[_selectedUser] = await LoadRolesForUserAsync(_selectedUser);
+            ClampCurrentPage();
         }
         finally
         {
@@ -308,6 +406,7 @@ public partial class UsersList
                 _userRolesCache.Remove(_selectedUser);
                 await LoadUsersAsync();
                 await LoadAllUserRolesAsync();
+                ClampCurrentPage();
             }
         }
         finally
@@ -342,6 +441,7 @@ public partial class UsersList
                 HideAddUser();
                 await LoadUsersAsync();
                 await LoadAllUserRolesAsync();
+                ClampCurrentPage();
             }
         }
         finally
