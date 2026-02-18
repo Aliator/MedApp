@@ -102,6 +102,35 @@ a:focus {
     border: 1px solid transparent;
 }
 
+:root {
+    --btn-height: 40px;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-tertiary,
+.btn-outline,
+.btn-danger,
+.btn-warning {
+    box-sizing: border-box;
+    height: var(--btn-height);
+    padding: 0 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1;
+}
+
+.btn-primary svg,
+.btn-secondary svg,
+.btn-tertiary svg,
+.btn-outline svg,
+.btn-danger svg,
+.btn-warning svg {
+    display: block;
+    flex-shrink: 0;
+}
+
 .btn-primary,
 .btn-secondary,
 .btn-tertiary {

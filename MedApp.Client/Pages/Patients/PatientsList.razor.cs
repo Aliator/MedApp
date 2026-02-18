@@ -12,6 +12,15 @@ public partial class PatientsList
     [Inject] private AuthState Auth { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
 
+    [SupplyParameterFromQuery(Name = "page")] public int? Page { get; set; }
+    [SupplyParameterFromQuery(Name = "ps")] public int? PageSize { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "asc")] public bool? Asc { get; set; }
+    [SupplyParameterFromQuery(Name = "name")] public string? Name { get; set; }
+    [SupplyParameterFromQuery(Name = "email")] public string? Email { get; set; }
+    [SupplyParameterFromQuery(Name = "agemin")] public int? AgeMin { get; set; }
+    [SupplyParameterFromQuery(Name = "agemax")] public int? AgeMax { get; set; }
+
     private IReadOnlyList<PatientResponse>? _patients;
     private bool _isLoading = true;
 
@@ -20,13 +29,14 @@ public partial class PatientsList
     private int _currentPage = 1;
     private int _pageSize = 10;
 
-    private int TotalRows => FilteredPatients.Count();
-
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalRows / _pageSize));
-
     private bool _showSearch;
-
     private PatientSearchCriteria _search = new(string.Empty, string.Empty, null, null);
+
+    private bool IsSearchActive =>
+        !string.IsNullOrWhiteSpace(_search.Name) ||
+        !string.IsNullOrWhiteSpace(_search.Email) ||
+        _search.AgeMin is not null ||
+        _search.AgeMax is not null;
 
     private IEnumerable<PatientResponse> FilteredPatients =>
         (_patients ?? Array.Empty<PatientResponse>()).Where(p =>
@@ -37,12 +47,10 @@ public partial class PatientsList
             (_search.AgeMin == null || CalculateAge(p.DateOfBirth) >= _search.AgeMin) &&
             (_search.AgeMax == null || CalculateAge(p.DateOfBirth) <= _search.AgeMax));
 
-    private void HandleSearch(PatientSearchCriteria criteria)
-    {
-        _search = criteria;
-        _currentPage = 1;
-    }
-    
+    private int TotalRows => FilteredPatients.Count();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalRows / _pageSize));
+
     private IEnumerable<PatientResponse> SortedPatients => _sortColumn switch
     {
         "Patient" => _sortAscending
@@ -60,25 +68,16 @@ public partial class PatientsList
     private IEnumerable<PatientResponse> PagedPatients =>
         SortedPatients.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
 
-    private void HandleSort((string Column, bool Ascending) args)
+    protected override void OnParametersSet()
     {
-        _sortColumn = args.Column;
-        _sortAscending = args.Ascending;
-        _currentPage = 1;
-    }
+        _search = new PatientSearchCriteria(Name ?? string.Empty, Email ?? string.Empty, AgeMin, AgeMax);
 
-    private void HandlePageChange(int page) => _currentPage = page;
+        _sortColumn = NormalizeSortColumn(Sort) ?? "Patient";
+        _sortAscending = Asc ?? true;
 
-    
-    private void HandlePageSizeChanged(int newSize)
-    {
-        _pageSize = newSize;
-
-        var maxPage = TotalPages;
-        if (_currentPage > maxPage) _currentPage = maxPage;
-        if (_currentPage < 1) _currentPage = 1;
-
-        StateHasChanged();
+        _pageSize = Math.Max(1, PageSize ?? _pageSize);
+        _currentPage = Math.Max(1, Page ?? 1);
+        ClampCurrentPage();
     }
 
     protected override async Task OnInitializedAsync()
@@ -91,6 +90,7 @@ public partial class PatientsList
 
         await LoadPatientsAsync();
         _isLoading = false;
+        ClampCurrentPage();
     }
 
     private async Task LoadPatientsAsync()
@@ -109,10 +109,91 @@ public partial class PatientsList
                 _patients = new List<PatientResponse>();
             }
         }
-        catch (Exception)
+        catch
         {
             _patients = new List<PatientResponse>();
         }
+    }
+
+    private void HandleSearch(PatientSearchCriteria criteria)
+    {
+        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: criteria, replace: false);
+    }
+
+    private void ClearSearch()
+    {
+        var empty = new PatientSearchCriteria(string.Empty, string.Empty, null, null);
+        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: empty, replace: false);
+    }
+
+    private void HandleSort((string Column, bool Ascending) args)
+    {
+        NavigateToState(page: 1, pageSize: _pageSize, sortColumn: args.Column, sortAscending: args.Ascending, criteria: _search, replace: false);
+    }
+
+    private void HandlePageChange(int page)
+    {
+        NavigateToState(page: page, pageSize: _pageSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: _search, replace: false);
+    }
+
+    private void HandlePageSizeChanged(int newSize)
+    {
+        newSize = Math.Max(1, newSize);
+        if (newSize == _pageSize) return;
+
+        var maxPage = GetTotalPages(TotalRows, newSize);
+        var targetPage = Math.Min(_currentPage, maxPage);
+
+        NavigateToState(page: targetPage, pageSize: newSize, sortColumn: _sortColumn, sortAscending: _sortAscending, criteria: _search, replace: true);
+    }
+
+    private void NavigateToState(int page, int pageSize, string sortColumn, bool sortAscending, PatientSearchCriteria criteria, bool replace)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Max(1, pageSize);
+
+        var sort = NormalizeSortColumn(sortColumn) ?? "Patient";
+
+        var parts = new List<string>
+        {
+            $"page={page}",
+            $"ps={pageSize}",
+            $"sort={Uri.EscapeDataString(sort)}",
+            $"asc={(sortAscending ? "true" : "false")}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(criteria.Name))
+            parts.Add($"name={Uri.EscapeDataString(criteria.Name)}");
+
+        if (!string.IsNullOrWhiteSpace(criteria.Email))
+            parts.Add($"email={Uri.EscapeDataString(criteria.Email)}");
+
+        if (criteria.AgeMin is not null)
+            parts.Add($"agemin={criteria.AgeMin.Value}");
+
+        if (criteria.AgeMax is not null)
+            parts.Add($"agemax={criteria.AgeMax.Value}");
+
+        var uri = "/patients" + "?" + string.Join("&", parts);
+        Nav.NavigateTo(uri, replace: replace);
+    }
+
+    private void ClampCurrentPage()
+    {
+        var maxPage = TotalPages;
+        if (_currentPage > maxPage) _currentPage = maxPage;
+        if (_currentPage < 1) _currentPage = 1;
+    }
+
+    private static int GetTotalPages(int totalRows, int pageSize) =>
+        Math.Max(1, (int)Math.Ceiling((double)totalRows / Math.Max(1, pageSize)));
+
+    private static string? NormalizeSortColumn(string? value)
+    {
+        if (string.Equals(value, "Patient", StringComparison.OrdinalIgnoreCase)) return "Patient";
+        if (string.Equals(value, "DateOfBirth", StringComparison.OrdinalIgnoreCase)) return "DateOfBirth";
+        if (string.Equals(value, "Email", StringComparison.OrdinalIgnoreCase)) return "Email";
+        return null;
     }
 
     private void ViewPatient(Guid id) => Nav.NavigateTo($"/patients/{id}");

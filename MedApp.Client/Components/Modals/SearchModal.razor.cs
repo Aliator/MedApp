@@ -6,6 +6,7 @@ namespace MedApp.Client.Components.Modals;
 public partial class SearchModal : ComponentBase
 {
     [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public PatientSearchCriteria Criteria { get; set; } = new(string.Empty, string.Empty, null, null);
     [Parameter] public EventCallback<PatientSearchCriteria> OnSearch { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 
@@ -20,6 +21,11 @@ public partial class SearchModal : ComponentBase
     {
         if (IsVisible)
         {
+            _name = Criteria.Name ?? string.Empty;
+            _email = Criteria.Email ?? string.Empty;
+            _ageMin = Criteria.AgeMin;
+            _ageMax = Criteria.AgeMax;
+
             await Task.Yield();
             try { await _firstInputRef.FocusAsync(); } catch { }
         }

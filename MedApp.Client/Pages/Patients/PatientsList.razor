@@ -8,6 +8,12 @@
       MaxWidth="1400">
 
     <HeaderActions>
+        @if (IsSearchActive)
+        {
+            <button class="btn-outline" @onclick="ClearSearch">
+                Clear search
+            </button>
+        }
         <button class="btn-outline" @onclick="() => _showSearch = true">
             <Icon Type="IconType.Search" Size="18" />
             Search
@@ -25,7 +31,7 @@
                        AvatarFirstColumn="true"
                        TableWidth="900"
                        Widths='new[] { "30%", "22%", "22%", "26%" }'
-                       TotalRows="@FilteredPatients.Count()">
+                       TotalRows="@TotalRows">
                 <Columns>
                     <th>Patient</th>
                     <th>Date of Birth</th>
@@ -55,7 +61,7 @@
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
                        OnSort="HandleSort"
-                       TotalRows="@FilteredPatients.Count()"
+                       TotalRows="@TotalRows"
                        TotalPages="@TotalPages"
                        CurrentPage="@_currentPage"
                        OnPageChange="HandlePageChange"
@@ -102,15 +108,17 @@
                                         <span class="mobile-hidden">Edit</span>
                                     </button>
                                 </TableActions>
-                            </td>   
+                            </td>
                         </tr>
                     }
                 </Rows>
             </DataTable>
         }
     </Content>
+
     <Dialogs>
         <SearchModal IsVisible="@_showSearch"
+                     Criteria="@_search"
                      OnSearch="HandleSearch"
                      OnClose="() => _showSearch = false" />
     </Dialogs>
