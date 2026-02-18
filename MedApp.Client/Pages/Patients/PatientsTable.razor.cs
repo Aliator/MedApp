@@ -20,6 +20,8 @@ public partial class PatientsTable
     [SupplyParameterFromQuery(Name = "first")] public string? First { get; set; }
     [SupplyParameterFromQuery(Name = "last")] public string? Last { get; set; }
     
+    [SupplyParameterFromQuery(Name = "email")] public string? Email { get; set; }
+    
     [SupplyParameterFromQuery(Name = "doby")] public int? DobYear { get; set; }
     [SupplyParameterFromQuery(Name = "dobm")] public int? DobMonth { get; set; }
     [SupplyParameterFromQuery(Name = "dobd")] public int? DobDay { get; set; }
@@ -37,9 +39,9 @@ public partial class PatientsTable
 
     private readonly List<SearchFieldDefinition> _searchFields =
     [
-        new() { Label = "General Search", Placeholder = "Search across all fields" },
         new() { Label = "First Name", Placeholder = "First name" },
         new() { Label = "Last Name", Placeholder = "Last name" },
+        new() { Label = "Email", Placeholder = "Email address" },
         new() { Label = "Date of Birth", Type = SearchFieldType.PartialDate }
     ];
 
@@ -50,19 +52,16 @@ public partial class PatientsTable
         {
             if (!_search.HasFilters) return true;
 
-            var fullName = $"{p.FirstName} {p.LastName}";
-
-            if (!string.IsNullOrWhiteSpace(_search.Query) &&
-                !fullName.Contains(_search.Query, StringComparison.OrdinalIgnoreCase) &&
-                !p.Email.Contains(_search.Query, StringComparison.OrdinalIgnoreCase))
-                return false;
-
             if (!string.IsNullOrWhiteSpace(_search.FirstName) &&
                 !p.FirstName.Contains(_search.FirstName, StringComparison.OrdinalIgnoreCase))
                 return false;
 
             if (!string.IsNullOrWhiteSpace(_search.LastName) &&
                 !p.LastName.Contains(_search.LastName, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(_search.Email) &&
+                !p.Email.Contains(_search.Email, StringComparison.OrdinalIgnoreCase))
                 return false;
 
             if (!_search.Dob.IsEmpty && !_search.Dob.Matches(p.DateOfBirth))
@@ -94,7 +93,7 @@ public partial class PatientsTable
 
     protected override void OnParametersSet()
     {
-        _search = PatientSearchCriteria.FromQuery(Query, First, Last, DobYear, DobMonth, DobDay);
+        _search = PatientSearchCriteria.FromQuery(First, Last, Email, DobYear, DobMonth, DobDay);
 
         _sortColumn = NormalizeSortColumn(Sort) ?? "Patient";
         _sortAscending = Asc ?? true;
@@ -120,9 +119,9 @@ public partial class PatientsTable
 
     private void SyncFieldsFromSearch()
     {
-        _searchFields[0].Value = Query ?? string.Empty;
-        _searchFields[1].Value = First ?? string.Empty;
-        _searchFields[2].Value = Last ?? string.Empty;
+        _searchFields[0].Value = First ?? string.Empty;
+        _searchFields[1].Value = Last ?? string.Empty;
+        _searchFields[2].Value = Email ?? string.Empty;
         _searchFields[3].PartialDateValue = PartialDate.From(DobYear, DobMonth, DobDay);
     }
 
@@ -136,7 +135,7 @@ public partial class PatientsTable
             dob.Year, dob.Month, dob.Day);
         NavigateToState(1, _pageSize, _sortColumn, _sortAscending, criteria, false);
     }
-
+    
     private void ClearSearch()
     {
         NavigateToState(1, _pageSize, _sortColumn, _sortAscending, PatientSearchCriteria.Empty, false);
@@ -173,12 +172,12 @@ public partial class PatientsTable
             $"asc={sortAscending.ToString().ToLower()}"
         };
 
-        if (!string.IsNullOrWhiteSpace(criteria.Query))
-            parts.Add($"q={Uri.EscapeDataString(criteria.Query)}");
         if (!string.IsNullOrWhiteSpace(criteria.FirstName))
             parts.Add($"first={Uri.EscapeDataString(criteria.FirstName)}");
         if (!string.IsNullOrWhiteSpace(criteria.LastName))
             parts.Add($"last={Uri.EscapeDataString(criteria.LastName)}");
+        if (!string.IsNullOrWhiteSpace(criteria.Email))
+            parts.Add($"email={Uri.EscapeDataString(criteria.Email)}");
         if (criteria.Dob.Year is not null)
             parts.Add($"doby={criteria.Dob.Year}");
         if (criteria.Dob.Month is not null)
