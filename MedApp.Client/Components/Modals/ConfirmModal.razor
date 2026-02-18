@@ -1,7 +1,8 @@
 ﻿<Modal IsVisible="@IsVisible"
        Title="@Title"
        IsDanger="@IsDanger"
-       OnClose="@OnCancel">
+       OnClose="@OnCancel"
+       CloseOnBackdropClick="false">
 
     <Body>
     <div class="confirmation-icon @(IsDanger ? "confirmation-icon-danger" : "confirmation-icon-save")">
