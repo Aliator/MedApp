@@ -20,7 +20,9 @@ public partial class PatientsList
     private int _currentPage = 1;
     private int _pageSize = 10;
 
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)(_patients?.Count ?? 0) / _pageSize));
+    private int TotalRows => FilteredPatients.Count();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalRows / _pageSize));
 
     private bool _showSearch;
 
@@ -67,12 +69,15 @@ public partial class PatientsList
 
     private void HandlePageChange(int page) => _currentPage = page;
 
+    
     private void HandlePageSizeChanged(int newSize)
     {
         _pageSize = newSize;
-        var totalRows = _patients?.Count ?? 0;
-        var maxPage = Math.Max(1, (int)Math.Ceiling((double)totalRows / _pageSize));
+
+        var maxPage = TotalPages;
         if (_currentPage > maxPage) _currentPage = maxPage;
+        if (_currentPage < 1) _currentPage = 1;
+
         StateHasChanged();
     }
 

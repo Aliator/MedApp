@@ -10,7 +10,7 @@
         const rowHeight = getRowHeight();
         if (!thead || !tfoot || rowHeight === 0) return;
 
-        const wrapperTop = wrapperEl.getBoundingClientRect().top;
+        const wrapperTop = Math.max(0, wrapperEl.getBoundingClientRect().top);
         const availableHeight = window.innerHeight - wrapperTop;
         const theadHeight = thead.getBoundingClientRect().height;
         const tfootHeight = tfoot.getBoundingClientRect().height;
