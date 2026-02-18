@@ -3,5 +3,5 @@
 public enum SearchFieldType
 {
     Text,
-    Date
+    PartialDate
 }

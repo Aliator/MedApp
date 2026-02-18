@@ -6,5 +6,5 @@ public class SearchFieldDefinition
     public string Placeholder { get; init; } = string.Empty;
     public SearchFieldType Type { get; init; } = SearchFieldType.Text;
     public string Value { get; set; } = string.Empty;
-    public DateOnly DateValue { get; set; }
+    public PartialDate PartialDateValue { get; set; } = PartialDate.Empty;
 }

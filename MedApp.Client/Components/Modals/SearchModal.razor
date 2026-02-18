@@ -6,13 +6,11 @@
     <div class="search-fields">
         @foreach (var field in Fields)
         {
-            @if (field.Type == SearchFieldType.Date)
+            @if (field.Type == SearchFieldType.PartialDate)
             {
-                <DatePickerFormGroup Label="@field.Label"
-                                     Required="false"
-                                     ShowAge="false"
-                                     Value="@field.DateValue"
-                                     ValueChanged="@(v => field.DateValue = v)" />
+                <PartialDatePickerFormGroup Label="@field.Label"
+                                            Value="@field.PartialDateValue"
+                                            ValueChanged="@(v => field.PartialDateValue = v)" />
             }
             else
             {

@@ -23,7 +23,7 @@ public partial class SearchModal : ComponentBase
         foreach (var field in Fields)
         {
             field.Value = string.Empty;
-            field.DateValue = default;
+            field.PartialDateValue = PartialDate.Empty;
         }
         await OnClear.InvokeAsync();
         await OnClose.InvokeAsync();
