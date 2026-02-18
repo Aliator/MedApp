@@ -31,7 +31,7 @@
             <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="4"
                        AvatarFirstColumn="true"
                        TableWidth="900"
-                       Widths='new[] { "30%", "22%", "22%", "26%" }'
+                       Widths='new[] { "25%", "22%", "27%", "26%" }'
                        TotalRows="@TotalRows">
                 <Columns>
                     <th>Patient</th>
@@ -58,7 +58,7 @@
         else
         {
             <DataTable TableWidth="900"
-                       Widths='new[] { "30%", "22%", "22%", "26%" }'
+                       Widths='new[] { "25%", "22%", "27%", "26%" }'
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
                        OnSort="HandleSort"
@@ -76,7 +76,7 @@
                 <Rows>
                     @foreach (var patient in PagedPatients)
                     {
-                        <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
+                        <tr class="clickable-row">
                             <td>
                                 <AvatarCell AvatarText="@GetInitials(patient.FirstName, patient.LastName)"
                                             PrimaryText="@($"{patient.FirstName} {patient.LastName}")"

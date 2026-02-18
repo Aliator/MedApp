@@ -1,11 +1,13 @@
-﻿<div class="@(HasSecondary ? "patient-cell" : "user-cell")">
+﻿<div class="@(HasSecondary ? $"patient-cell{(ShowHoverFullName ? " is-truncated" : "")}" : "user-cell")" title="@PrimaryText">
     <div class="@(HasSecondary ? "patient-avatar" : "user-avatar")">
         @AvatarText
     </div>
+
     <div class="@(HasSecondary ? "patient-info" : "user-info")">
         <div class="@(HasSecondary ? "patient-name" : "user-name")">
-            @PrimaryText
+            @DisplayPrimaryText
         </div>
+
         @if (HasSecondary)
         {
             <div class="patient-id">
@@ -13,4 +15,11 @@
             </div>
         }
     </div>
+
+    @if (ShowHoverFullName)
+    {
+        <div class="patient-cell-hover">
+            <span class="patient-cell-hover-name">@PrimaryText</span>
+        </div>
+    }
 </div>
