@@ -8,9 +8,12 @@
         {
             @if (field.Type == SearchFieldType.PartialDate)
             {
-                <PartialDatePickerFormGroup Label="@field.Label"
-                                            Value="@field.PartialDateValue"
-                                            ValueChanged="@(v => field.PartialDateValue = v)" />
+                <DatePickerFormGroup Label="@field.Label"
+                                     Partial="true"
+                                     Required="false"
+                                     ShowAge="false"
+                                     PartialValue="@field.PartialDateValue"
+                                     PartialValueChanged="@(v => field.PartialDateValue = v)" />
             }
             else
             {
