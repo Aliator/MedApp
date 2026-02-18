@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace MedApp.Client.Pages.Patients;
 
-public partial class PatientsList
+public partial class PatientsTable
 {
     [Inject] private HttpClient Http { get; set; } = null!;
     [Inject] private AuthState Auth { get; set; } = null!;
