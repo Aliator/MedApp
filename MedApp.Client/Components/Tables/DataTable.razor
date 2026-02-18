@@ -1,54 +1,80 @@
-﻿<TableCard>
-    <table class="data-table" style="@(TableWidth > 0 ? $"width: {TableWidth}px" : "")">
-        @if (Widths != null && Widths.Length > 0)
-        {
-            <colgroup>
-                @foreach (var width in Widths)
-                {
-                    <col style="width: @width" />
-                }
-            </colgroup>
-        }
-        <thead>
-        <tr>
-            <CascadingValue Name="SortColumn" Value="@SortColumn">
-                <CascadingValue Name="SortAscending" Value="@SortAscending">
-                    <CascadingValue Name="OnSort" Value="@OnSort">
-                        @Columns
+﻿<div class="table-clip-wrapper" @ref="_wrapperRef">
+    <TableCard>
+        <table class="data-table" style="@(TableWidth > 0 ? $"width: {TableWidth}px" : "")">
+            @if (Widths != null && Widths.Length > 0)
+            {
+                <colgroup>
+                    @foreach (var width in Widths)
+                    {
+                        <col style="width: @width" />
+                    }
+                </colgroup>
+            }
+            <thead>
+            <tr>
+                <CascadingValue Name="SortColumn" Value="@SortColumn">
+                    <CascadingValue Name="SortAscending" Value="@SortAscending">
+                        <CascadingValue Name="OnSort" Value="@OnSort">
+                            @Columns
+                        </CascadingValue>
                     </CascadingValue>
                 </CascadingValue>
-            </CascadingValue>
-        </tr>
-        </thead>
-        <tbody>
-        @if (IsLoading)
-        {
-            @for (var i = 0; i < SkeletonRows; i++)
+            </tr>
+            </thead>
+            <tbody>
+            @if (IsLoading)
             {
-                <tr class="skeleton-row">
-                    @for (var j = 0; j < SkeletonColumns; j++)
-                    {
-                        @if (j == 0 && AvatarFirstColumn)
+                @for (var i = 0; i < SkeletonRows; i++)
+                {
+                    <tr class="skeleton-row">
+                        @for (var j = 0; j < SkeletonColumns; j++)
                         {
-                            <td>
-                                <div class="skeleton-avatar-cell">
-                                    <div class="skeleton skeleton-avatar-circle"></div>
-                                    <div class="skeleton skeleton-cell"></div>
-                                </div>
-                            </td>
+                            @if (j == 0 && AvatarFirstColumn)
+                            {
+                                <td>
+                                    <div class="skeleton-avatar-cell">
+                                        <div class="skeleton skeleton-avatar-circle"></div>
+                                        <div class="skeleton skeleton-cell"></div>
+                                    </div>
+                                </td>
+                            }
+                            else
+                            {
+                                <td><div class="skeleton skeleton-cell"></div></td>
+                            }
                         }
-                        else
-                        {
-                            <td><div class="skeleton skeleton-cell"></div></td>
-                        }
-                    }
-                </tr>
+                    </tr>
+                }
             }
-        }
-        else
-        {
-            @Rows
-        }
-        </tbody>
-    </table>
-</TableCard>
+            else
+            {
+                @Rows
+            }
+            </tbody>
+            @if (!IsLoading && TotalRows > 0)
+            {
+                <tfoot>
+                <tr>
+                    <td colspan="100" class="pagination-footer">
+                        <div class="pagination-inner">
+                            <button class="pagination-btn"
+                                    @onclick="PrevPage"
+                                    disabled="@(CurrentPage <= 1)">
+                                <Icon Type="IconType.ChevronLeft" Size="16" />
+                            </button>
+                            <span class="pagination-label">
+                                    Page @CurrentPage of @TotalPages
+                                </span>
+                            <button class="pagination-btn"
+                                    @onclick="NextPage"
+                                    disabled="@(CurrentPage >= TotalPages)">
+                                <Icon Type="IconType.ChevronRight" Size="16" />
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                </tfoot>
+            }
+        </table>
+    </TableCard>
+</div>

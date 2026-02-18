@@ -49,7 +49,11 @@
                        Widths='new[] { "30%", "22%", "22%", "26%" }'
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
-                       OnSort="HandleSort">
+                       OnSort="HandleSort"
+                       TotalRows="@(_patients.Count)"
+                       CurrentPage="@_currentPage"
+                       OnPageChange="HandlePageChange"
+                       OnPageSizeChanged="HandlePageSizeChanged">
                 <Columns>
                     <SortableHeader Column="Patient">Patient</SortableHeader>
                     <SortableHeader Column="DateOfBirth">Date of Birth</SortableHeader>
@@ -57,7 +61,7 @@
                     <th class="actions-column">Actions</th>
                 </Columns>
                 <Rows>
-                    @foreach (var patient in SortedPatients)
+                    @foreach (var patient in PagedPatients)
                     {
                         <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
                             <td>

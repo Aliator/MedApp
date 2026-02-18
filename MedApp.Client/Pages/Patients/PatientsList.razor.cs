@@ -16,6 +16,8 @@ public partial class PatientsList
 
     private string _sortColumn = "Patient";
     private bool _sortAscending = true;
+    private int _currentPage = 1;
+    private int _pageSize = 10;
 
     private IEnumerable<PatientResponse> SortedPatients => _sortColumn switch
     {
@@ -31,10 +33,24 @@ public partial class PatientsList
         _ => _patients ?? Array.Empty<PatientResponse>()
     };
 
+    private IEnumerable<PatientResponse> PagedPatients =>
+        SortedPatients.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+
     private void HandleSort((string Column, bool Ascending) args)
     {
         _sortColumn = args.Column;
         _sortAscending = args.Ascending;
+        _currentPage = 1;
+    }
+
+    private void HandlePageChange(int page) => _currentPage = page;
+
+    private void HandlePageSizeChanged(int newSize)
+    {
+        _pageSize = newSize;
+        var totalRows = _patients?.Count ?? 0;
+        var maxPage = Math.Max(1, (int)Math.Ceiling((double)totalRows / _pageSize));
+        if (_currentPage > maxPage) _currentPage = maxPage;
     }
 
     protected override async Task OnInitializedAsync()
@@ -71,20 +87,11 @@ public partial class PatientsList
         }
     }
 
-    private void ViewPatient(Guid id)
-    {
-        Nav.NavigateTo($"/patients/{id}");
-    }
+    private void ViewPatient(Guid id) => Nav.NavigateTo($"/patients/{id}");
 
-    private void EditPatient(Guid id)
-    {
-        Nav.NavigateTo($"/patients/{id}/edit");
-    }
+    private void EditPatient(Guid id) => Nav.NavigateTo($"/patients/{id}/edit");
 
-    private void AddPatient()
-    {
-        Nav.NavigateTo("/patients/add");
-    }
+    private void AddPatient() => Nav.NavigateTo("/patients/add");
 
     private static int CalculateAge(DateOnly dateOfBirth)
     {
@@ -92,9 +99,7 @@ public partial class PatientsList
         var age = today.Year - dateOfBirth.Year;
 
         if (dateOfBirth > today.AddYears(-age))
-        {
             age--;
-        }
 
         return age;
     }
@@ -108,9 +113,7 @@ public partial class PatientsList
 
     private string GetSubtitle()
     {
-        if (_isLoading)
-            return "Loading patients...";
-
+        if (_isLoading) return "Loading patients...";
         return $"{_patients?.Count ?? 0} {(_patients?.Count == 1 ? "patient" : "patients")} registered";
     }
 }

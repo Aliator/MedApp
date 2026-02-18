@@ -1,8 +1,68 @@
-﻿tbody td {
+﻿.table-clip-wrapper {
+    overflow: hidden;
+    height: 100%;
+}
+
+tbody td {
     padding: 0.625rem 1rem;
     vertical-align: middle;
 }
 
 thead th {
     padding: 0.625rem 1rem;
+}
+
+.pagination-footer {
+    padding: 0;
+    border-top: 1px solid var(--gray-200);
+    background-color: var(--gray-50);
+}
+
+.pagination-inner {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+}
+
+.pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 8px;
+    background-color: white;
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: var(--primary-50);
+    border-color: var(--primary-500);
+    color: var(--primary-500);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.pagination-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--gray-500);
+    min-width: 7rem;
+    text-align: center;
 }
