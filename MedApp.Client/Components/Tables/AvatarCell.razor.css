@@ -3,6 +3,9 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    min-width: 0;
+    position: relative;
+    padding: 0rem 0.5rem;
 }
 
 .user-avatar,
@@ -17,7 +20,7 @@
     justify-content: center;
     font-size: 0.875rem;
     font-weight: 600;
-    flex-shrink: 0;
+    flex: 0 0 auto;
 }
 
 .user-info,
@@ -25,16 +28,56 @@
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
+    min-width: 0;
 }
 
 .user-name,
 .patient-name {
     font-weight: 500;
     color: var(--gray-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .patient-id {
     font-size: 0.75rem;
     color: var(--gray-400);
     font-family: "Courier New", Courier, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.patient-cell-hover {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    padding: 0.5rem 0.75rem;
+    max-width: 520px;
+    white-space: nowrap;
+}
+
+.patient-cell-hover-name {
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.patient-cell.is-truncated:hover .patient-avatar {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.patient-cell.is-truncated:hover .patient-cell-hover {
+    display: inline-flex;
+    align-items: center;
 }

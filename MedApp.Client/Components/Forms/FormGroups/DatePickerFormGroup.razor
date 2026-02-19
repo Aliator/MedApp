@@ -1,9 +1,16 @@
 ﻿<FormGroup Label="@Label"
-           Required="@Required"
+           Required="@(Required && !Partial)"
            CssClass="form-group-date"
-           Hint="@(ShowAge && SelectedMonth > 0 && SelectedDay > 0 && SelectedYear > 0 && Value != default ? $"Age: {CalculateAge(Value)} years old" : null)"
-           Error="@ErrorMessage">
+           Hint="@(ShowAge && !Partial && SelectedMonth > 0 && SelectedDay > 0 && SelectedYear > 0 && Value != default ? $"Age: {CalculateAge(Value)} years old" : null)"
+           Error="@_errorMessage">
     <div class="date-picker-group">
+        <select class="form-select" @bind="SelectedDay" disabled="@Disabled">
+            <option value="0">Day</option>
+            @for (var i = 1; i <= 31; i++)
+            {
+                <option value="@i">@i</option>
+            }
+        </select>
         <select class="form-select" @bind="SelectedMonth" disabled="@Disabled">
             <option value="0">Month</option>
             <option value="1">January</option>
@@ -19,16 +26,9 @@
             <option value="11">November</option>
             <option value="12">December</option>
         </select>
-        <select class="form-select" @bind="SelectedDay" disabled="@Disabled">
-            <option value="0">Day</option>
-            @for (int i = 1; i <= 31; i++)
-            {
-                <option value="@i">@i</option>
-            }
-        </select>
         <select class="form-select" @bind="SelectedYear" disabled="@Disabled">
             <option value="0">Year</option>
-            @for (int year = DateTime.Now.Year; year >= 1900; year--)
+            @for (var year = DateTime.Now.Year; year >= 1900; year--)
             {
                 <option value="@year">@year</option>
             }

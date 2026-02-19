@@ -8,6 +8,17 @@
       MaxWidth="1400">
 
     <HeaderActions>
+        @if (IsSearchActive)
+        {
+            <button class="btn-tertiary" @onclick="ClearSearch">
+                <Icon Type="IconType.Cancel" Size="18" />
+                Clear Search
+            </button>
+        }
+        <button class="btn-tertiary" @onclick="() => _showSearch = true">
+            <Icon Type="IconType.Search" Size="18" />
+            Search
+        </button>
         <button class="btn-primary" @onclick="AddPatient">
             <Icon Type="IconType.Add" Size="18" />
             Add Patient
@@ -15,26 +26,11 @@
     </HeaderActions>
 
     <Content>
-        @if (_isLoading)
-        {
-            <DataTable IsLoading="true" SkeletonRows="8" SkeletonColumns="5"
-                       AvatarFirstColumn="true"
-                       TableWidth="900"
-                       Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
-                <Columns>
-                    <th>Patient</th>
-                    <th>Date of Birth</th>
-                    <th>Age</th>
-                    <th>Email</th>
-                    <th class="actions-column">Actions</th>
-                </Columns>
-            </DataTable>
-        }
-        else if (!Auth.IsAuthenticated)
+        @if (!Auth.IsAuthenticated && !_isLoading)
         {
             <LoadingState Message="Redirecting to login..." />
         }
-        else if (_patients is null || _patients.Count == 0)
+        else if (!_isLoading && (_patients is null || _patients.Count == 0))
         {
             <EmptyState Title="No patients yet"
                         Description="Get started by adding your first patient to the system."
@@ -46,28 +42,43 @@
         }
         else
         {
-            <DataTable TableWidth="900" Widths='new[] { "28%", "16%", "10%", "20%", "26%" }'>
+            <DataTable IsLoading="@_isLoading"
+                       SkeletonColumns="4"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "25%", "22%", "27%", "26%" }'
+                       SortColumn="@_sortColumn"
+                       SortAscending="@_sortAscending"
+                       OnSort="HandleSort"
+                       TotalRows="@TotalRows"
+                       TotalPages="@TotalPages"
+                       CurrentPage="@_currentPage"
+                       OnPageChange="HandlePageChange"
+                       OnPageSizeChanged="HandlePageSizeChanged"
+                       SkeletonActionButtonCount="2"
+                       SkeletonLastColumnAsActions="true">
                 <Columns>
-                    <th>Patient</th>
-                    <th>Date of Birth</th>
-                    <th>Age</th>
-                    <th>Email</th>
+                    <SortableHeader Column="Patient">Patient</SortableHeader>
+                    <SortableHeader Column="DateOfBirth">Date of Birth</SortableHeader>
+                    <SortableHeader Column="Email">Email</SortableHeader>
                     <th class="actions-column">Actions</th>
                 </Columns>
                 <Rows>
-                    @foreach (var patient in _patients)
+                    @foreach (var patient in PagedPatients)
                     {
-                        <tr @onclick="() => ViewPatient(patient.Id)" class="clickable-row">
+                        <tr>
                             <td>
                                 <AvatarCell AvatarText="@GetInitials(patient.FirstName, patient.LastName)"
                                             PrimaryText="@($"{patient.FirstName} {patient.LastName}")"
-                                            SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")" />
-                            </td>
-                            <td>@patient.DateOfBirth.ToString("MMM dd, yyyy")</td>
-                            <td>
-                                <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                                            SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")"/>
                             </td>
                             <td>
+                                <div class="dob-cell">
+                                    <span>@patient.DateOfBirth.ToString("MMM dd, yyyy")</span>
+                                    <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                                </div>
+                            </td>
+                            <td class="email-cell">
                                 <a href="mailto:@patient.Email" class="link" @onclick:stopPropagation="true">
                                     @patient.Email
                                 </a>
@@ -80,7 +91,6 @@
                                         <Icon Type="IconType.View" Size="16" />
                                         <span class="mobile-hidden">View</span>
                                     </button>
-
                                     <button class="btn-table-action btn-edit"
                                             @onclick="() => EditPatient(patient.Id)"
                                             title="Edit patient">
@@ -95,4 +105,13 @@
             </DataTable>
         }
     </Content>
+
+    <Dialogs>
+        <SearchModal IsVisible="@_showSearch"
+                     Title="Search Patients"
+                     Fields="@_searchFields"
+                     OnSearch="ApplySearch"
+                     OnClear="ClearSearch"
+                     OnClose="() => _showSearch = false" />
+    </Dialogs>
 </Page>

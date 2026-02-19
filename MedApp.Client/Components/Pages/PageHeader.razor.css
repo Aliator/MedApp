@@ -33,6 +33,7 @@
     color: var(--gray-900);
     margin: 0;
     line-height: 1.2;
+    outline: none;
 }
 
 .page-subtitle {

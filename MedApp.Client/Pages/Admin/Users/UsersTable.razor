@@ -8,6 +8,16 @@
       MaxWidth="1400">
 
     <HeaderActions>
+        @if (IsSearchActive)
+        {
+            <button class="btn-tertiary" @onclick="ClearSearch">
+                Clear Search
+            </button>
+        }
+        <button class="btn-tertiary" @onclick="() => _showSearch = true">
+            <Icon Type="IconType.Search" Size="18" />
+            Search
+        </button>
         <button class="btn-primary" @onclick="ShowAddUser">
             <Icon Type="IconType.Add" Size="18" />
             Add User
@@ -15,24 +25,11 @@
     </HeaderActions>
 
     <Content>
-        @if (_isLoading)
-        {
-            <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3"
-                       AvatarFirstColumn="true"
-                       TableWidth="900"
-                       Widths='new[] { "25%", "35%", "40%" }'>
-                <Columns>
-                    <th>User</th>
-                    <th>Roles</th>
-                    <th class="actions-column">Actions</th>
-                </Columns>
-            </DataTable>
-        }
-        else if (!Auth.IsAuthenticated)
+        @if (!Auth.IsAuthenticated && !_isLoading)
         {
             <LoadingState Message="Redirecting to login..." />
         }
-        else if (_users is null || _users.Count == 0)
+        else if (!_isLoading && (_users is null || _users.Count == 0))
         {
             <EmptyState Title="No users yet"
                         Description="Get started by adding your first user to the system."
@@ -44,19 +41,34 @@
         }
         else
         {
-            <DataTable TableWidth="900" Widths='new[] { "20%", "30%", "45%" }'>
+            <DataTable IsLoading="@_isLoading"
+                       SkeletonColumns="3"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "25%", "30%", "45%" }'
+                       SortColumn="@_sortColumn"
+                       SortAscending="@_sortAscending"
+                       OnSort="HandleSort"
+                       TotalRows="@TotalRows"
+                       TotalPages="@TotalPages"
+                       CurrentPage="@_currentPage"
+                       OnPageChange="HandlePageChange"
+                       OnPageSizeChanged="HandlePageSizeChanged"
+                       SkeletonActionButtonCount="4"
+                       SkeletonLastColumnAsActions="true">
                 <Columns>
-                    <th>User</th>
+                    <SortableHeader Column="User">User</SortableHeader>
                     <th>Roles</th>
                     <th class="actions-column">Actions</th>
                 </Columns>
                 <Rows>
-                    @foreach (var user in _users)
+                    @foreach (var user in PagedUsers)
                     {
                         <tr>
                             <td>
                                 <AvatarCell AvatarText="@GetInitial(user)"
-                                            PrimaryText="@user" />
+                                            PrimaryText="@user"
+                                            EnableNameTruncation="false" />
                             </td>
                             <td>
                                 <div class="roles-display">
@@ -82,7 +94,6 @@
                                         <Icon Type="IconType.Add" Size="16" />
                                         <span class="mobile-hidden">Assign</span>
                                     </button>
-
                                     <button class="btn-table-action btn-revoke"
                                             @onclick="() => ShowRevokeRole(user)"
                                             disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
@@ -90,7 +101,6 @@
                                         <Icon Type="IconType.Cancel" Size="16" />
                                         <span class="mobile-hidden">Revoke</span>
                                     </button>
-
                                     <button class="btn-table-action btn-password"
                                             @onclick="() => ShowResetPassword(user)"
                                             disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
@@ -98,7 +108,6 @@
                                         <Icon Type="IconType.Lock" Size="16" />
                                         <span class="mobile-hidden">Reset</span>
                                     </button>
-
                                     <button class="btn-table-action btn-delete"
                                             @onclick="() => ShowDelete(user)"
                                             disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
@@ -116,6 +125,13 @@
     </Content>
 
     <Dialogs>
+        <SearchModal IsVisible="@_showSearch"
+                     Title="Search Users"
+                     Fields="@_searchFields"
+                     OnSearch="ApplySearch"
+                     OnClear="ClearSearch"
+                     OnClose="() => _showSearch = false" />
+
         <SelectionModal TItem="string"
                         IsVisible="@_showAssignRole"
                         Title="Assign Roles"

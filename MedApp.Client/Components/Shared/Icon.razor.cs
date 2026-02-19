@@ -31,8 +31,13 @@ public enum IconType
     Search,
     Menu,
     ChevronDown,
+    ChevronLeft,
     ChevronRight,
-    Lock
+    ChevronDoubleLeft,
+    ChevronDoubleRight,
+    Lock,
+    SortAsc,
+    SortDesc
 }
 
 public partial class Icon
