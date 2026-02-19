@@ -11,8 +11,7 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     [Parameter] public RenderFragment? Columns { get; set; }
     [Parameter] public RenderFragment? Rows { get; set; }
     [Parameter] public bool IsLoading { get; set; }
-    [Parameter] public int SkeletonRows { get; set; } = 8;
-    [Parameter] public int SkeletonColumns { get; set; } = 4;
+    [Parameter] public int SkeletonColumns { get; set; }
     [Parameter] public bool AvatarFirstColumn { get; set; }
     [Parameter] public int TableWidth { get; set; }
     [Parameter] public string[]? Widths { get; set; }
@@ -24,6 +23,10 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     [Parameter] public int CurrentPage { get; set; } = 1;
     [Parameter] public EventCallback<int> OnPageChange { get; set; }
     [Parameter] public EventCallback<int> OnPageSizeChanged { get; set; }
+    [Parameter] public bool SkeletonLastColumnAsActions { get; set; } = true;
+    [Parameter] public int SkeletonActionButtonCount { get; set; } = 1;
+
+    private int SkeletonCount => _lastPageSize > 0 ? _lastPageSize : 0;
 
     private ElementReference _wrapperRef;
     private IJSObjectReference? _observer;
@@ -34,6 +37,8 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     private bool _editingPage;
     private int _pageInputValue;
     private ElementReference _pageInputRef;
+    private bool _sized = false;
+
 
     private async Task StartEditingPage()
     {
@@ -53,8 +58,15 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
 
     private async Task HandlePageInputKey(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") await CommitPageInput();
-        else if (e.Key == "Escape") _editingPage = false;
+        switch (e.Key)
+        {
+            case "Enter":
+                await CommitPageInput();
+                break;
+            case "Escape":
+                _editingPage = false;
+                break;
+        }
     }
 
     [JSInvokable]
@@ -62,6 +74,7 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
     {
         if (pageSize == _lastPageSize) return;
         _lastPageSize = pageSize;
+        _sized = true;
         await OnPageSizeChanged.InvokeAsync(pageSize);
         StateHasChanged();
     }
@@ -85,11 +98,12 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
             _dotNetRef = DotNetObjectReference.Create(this);
             _module = await Js.InvokeAsync<IJSObjectReference>("import", "./Components/Tables/DataTable.razor.js");
             _observer = await _module.InvokeAsync<IJSObjectReference>("measureAndObserve", _wrapperRef, _dotNetRef);
-        }
-        else if (_observer != null && !IsLoading)
-        {
             await _observer.InvokeVoidAsync("recalculate");
+            return;
         }
+
+        if (_observer != null)
+            await _observer.InvokeVoidAsync("recalculate");
     }
 
     public async ValueTask DisposeAsync()
@@ -105,7 +119,7 @@ public partial class DataTable : ComponentBase, IAsyncDisposable
 
         _dotNetRef?.Dispose();
     }
-    
+
     private async Task FirstPage()
     {
         if (CurrentPage > 1)

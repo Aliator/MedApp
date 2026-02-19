@@ -1,15 +1,159 @@
 ﻿.table-clip-wrapper {
-    overflow: hidden;
     height: 100%;
+    overflow: hidden;
+
+    --dt-cell-px: 1rem;
+    --dt-cell-py: 0.625rem;
+
+    --dt-row-height: 67px;
+
+    --dt-avatar-size: 40px;
+
+    --dt-action-height: 32px;
+    --dt-action-radius: 6px;
+    --dt-action-gap: 0.5rem;
+
+    --dt-skeleton-radius: 6px;
 }
 
-tbody td {
-    padding: 0.625rem 1rem;
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.data-table thead {
+    background-color: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.data-table th {
+    padding: 0.75rem var(--dt-cell-px);
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.data-table td {
+    padding: var(--dt-cell-py) var(--dt-cell-px);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--gray-900);
     vertical-align: middle;
+    text-align: center;
+    overflow: hidden;
 }
 
-thead th {
-    padding: 0.625rem 1rem;
+.data-table td:first-child {
+    text-align: left;
+}
+
+.data-table tbody tr {
+    height: var(--dt-row-height);
+    border-bottom: 1px solid var(--gray-200);
+    transition: background-color 0.2s ease;
+}
+
+.data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+.data-table td:not(:first-child) .skeleton-cell {
+    margin: 0 auto;
+}
+
+.data-table .action-buttons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--dt-action-gap);
+    height: var(--dt-action-height);
+    min-height: var(--dt-action-height);
+}
+
+.data-table .btn-table-action {
+    height: var(--dt-action-height);
+    min-height: var(--dt-action-height);
+    padding: 0 0.75rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    border-radius: var(--dt-skeleton-radius);
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-avatar-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.skeleton-avatar-circle {
+    width: var(--dt-avatar-size);
+    height: var(--dt-avatar-size);
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.skeleton-cell {
+    height: 16px;
+    width: 70%;
+}
+
+.skeleton-avatar-cell .skeleton-cell {
+    width: 55%;
+    height: 14px;
+    position: relative;
+}
+
+.skeleton-avatar-cell .skeleton-cell::after {
+    content: "";
+    display: block;
+    margin-top: 6px;
+    width: 38%;
+    height: 12px;
+
+    background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    border-radius: var(--dt-skeleton-radius);
+}
+
+.skeleton-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: var(--dt-action-gap);
+    height: var(--dt-action-height);
+    min-height: var(--dt-action-height);
+}
+
+.skeleton-action-btn {
+    height: var(--dt-action-height);
+    width: 4.25rem;
+    border-radius: var(--dt-action-radius);
 }
 
 .pagination-footer {
@@ -23,7 +167,7 @@ thead th {
     align-items: center;
     justify-content: flex-end;
     gap: 0.75rem;
-    padding: 0.875rem 1rem;
+    padding: 0.2rem 1rem;
 }
 
 .pagination-btn {
@@ -50,7 +194,6 @@ thead th {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
 }
-
 
 .pagination-suppress-hover .pagination-btn,
 .pagination-suppress-hover .pagination-btn:hover {
@@ -101,6 +244,7 @@ thead th {
     text-align: center;
     transition: background-color 0.15s ease;
 }
+
 .pagination-page-number:hover {
     background-color: var(--gray-200);
 }
@@ -131,4 +275,19 @@ thead th {
 .pagination-page-input::-webkit-inner-spin-button,
 .pagination-page-input::-webkit-outer-spin-button {
     appearance: none;
+}
+
+.row-height-probe {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+}
+
+.pagination-footer--hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.table-unsized {
+    visibility: hidden;
 }

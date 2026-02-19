@@ -25,25 +25,11 @@
     </HeaderActions>
 
     <Content>
-        @if (_isLoading)
-        {
-            <DataTable IsLoading="true" SkeletonRows="6" SkeletonColumns="3"
-                       AvatarFirstColumn="true"
-                       TableWidth="900"
-                       Widths='new[] { "25%", "30%", "45%" }'
-                       TotalRows="@TotalRows">
-                <Columns>
-                    <th>User</th>
-                    <th>Roles</th>
-                    <th class="actions-column">Actions</th>
-                </Columns>
-            </DataTable>
-        }
-        else if (!Auth.IsAuthenticated)
+        @if (!Auth.IsAuthenticated && !_isLoading)
         {
             <LoadingState Message="Redirecting to login..." />
         }
-        else if (_users is null || _users.Count == 0)
+        else if (!_isLoading && (_users is null || _users.Count == 0))
         {
             <EmptyState Title="No users yet"
                         Description="Get started by adding your first user to the system."
@@ -55,7 +41,10 @@
         }
         else
         {
-            <DataTable TableWidth="900"
+            <DataTable IsLoading="@_isLoading"
+                       SkeletonColumns="3"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
                        Widths='new[] { "25%", "30%", "45%" }'
                        SortColumn="@_sortColumn"
                        SortAscending="@_sortAscending"
@@ -64,7 +53,9 @@
                        TotalPages="@TotalPages"
                        CurrentPage="@_currentPage"
                        OnPageChange="HandlePageChange"
-                       OnPageSizeChanged="HandlePageSizeChanged">
+                       OnPageSizeChanged="HandlePageSizeChanged"
+                       SkeletonActionButtonCount="4"
+                       SkeletonLastColumnAsActions="true">
                 <Columns>
                     <SortableHeader Column="User">User</SortableHeader>
                     <th>Roles</th>
@@ -77,7 +68,7 @@
                             <td>
                                 <AvatarCell AvatarText="@GetInitial(user)"
                                             PrimaryText="@user"
-                                            EnableNameTruncation="false"/>
+                                            EnableNameTruncation="false" />
                             </td>
                             <td>
                                 <div class="roles-display">
@@ -103,7 +94,6 @@
                                         <Icon Type="IconType.Add" Size="16" />
                                         <span class="mobile-hidden">Assign</span>
                                     </button>
-
                                     <button class="btn-table-action btn-revoke"
                                             @onclick="() => ShowRevokeRole(user)"
                                             disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
@@ -111,7 +101,6 @@
                                         <Icon Type="IconType.Cancel" Size="16" />
                                         <span class="mobile-hidden">Revoke</span>
                                     </button>
-
                                     <button class="btn-table-action btn-password"
                                             @onclick="() => ShowResetPassword(user)"
                                             disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
@@ -119,7 +108,6 @@
                                         <Icon Type="IconType.Lock" Size="16" />
                                         <span class="mobile-hidden">Reset</span>
                                     </button>
-
                                     <button class="btn-table-action btn-delete"
                                             @onclick="() => ShowDelete(user)"
                                             disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"

@@ -1,21 +1,28 @@
 ﻿export function measureAndObserve(wrapperEl, dotNetRef) {
-    function getRowHeight() {
-        const row = wrapperEl.querySelector('tbody tr:not(.skeleton-row)');
-        return row ? row.getBoundingClientRect().height : 0;
-    }
+    let debounceTimer = null;
 
     function calculate() {
         const thead = wrapperEl.querySelector('thead');
         const tfoot = wrapperEl.querySelector('tfoot');
-        const rowHeight = getRowHeight();
-        if (!thead || !tfoot || rowHeight === 0) return;
+        if (!thead || !tfoot) return;
+
+        const rowHeightStr = getComputedStyle(wrapperEl).getPropertyValue('--dt-row-height').trim();
+        const rowHeight = parseFloat(rowHeightStr);
+        if (!rowHeight || rowHeight === 0) return;
 
         const wrapperTop = Math.max(0, wrapperEl.getBoundingClientRect().top);
         const availableHeight = window.innerHeight - wrapperTop;
         const theadHeight = thead.getBoundingClientRect().height;
         const tfootHeight = tfoot.getBoundingClientRect().height;
-        const pageSize = Math.max(1, Math.floor((availableHeight - theadHeight - tfootHeight) / rowHeight));
+
+        const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const pageSize = Math.max(1, Math.floor((availableHeight - theadHeight - tfootHeight - remPx) / rowHeight));
         dotNetRef.invokeMethodAsync('UpdatePageSize', pageSize);
+    }
+
+    function scheduleCalculate() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(calculate, 50);
     }
 
     wrapperEl.addEventListener('mousedown', e => {
@@ -32,12 +39,15 @@
         window.addEventListener('mousemove', restore);
     });
 
-    const ro = new ResizeObserver(calculate);
+    const ro = new ResizeObserver(scheduleCalculate);
     ro.observe(wrapperEl);
     ro.observe(document.documentElement);
 
     return {
-        recalculate: calculate,
-        dispose: () => ro.disconnect()
+        recalculate: scheduleCalculate,
+        dispose: () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            ro.disconnect();
+        }
     };
 }

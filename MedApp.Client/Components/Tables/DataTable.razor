@@ -1,4 +1,4 @@
-﻿<div class="table-clip-wrapper" @ref="_wrapperRef">
+﻿<div class="table-clip-wrapper @(_sized ? "" : "table-unsized")" @ref="_wrapperRef">
     <TableCard>
         <table class="data-table" style="@(TableWidth > 0 ? $"width: {TableWidth}px" : "")">
             @if (Widths != null && Widths.Length > 0)
@@ -24,17 +24,30 @@
             <tbody>
                 @if (IsLoading)
                 {
-                    @for (var i = 0; i < SkeletonRows; i++)
+                    @for (var i = 0; i < SkeletonCount; i++)
                     {
                         <tr class="skeleton-row">
                             @for (var j = 0; j < SkeletonColumns; j++)
                             {
-                                @if (j == 0 && AvatarFirstColumn)
+                                @if (j == SkeletonColumns - 1 && SkeletonLastColumnAsActions)
                                 {
                                     <td>
-                                        <div class="skeleton-avatar-cell">
-                                            <div class="skeleton skeleton-avatar-circle"></div>
-                                            <div class="skeleton skeleton-cell"></div>
+                                        <div class="skeleton-actions">
+                                            @for (var k = 0; k < SkeletonActionButtonCount; k++)
+                                            {
+                                                <div class="skeleton skeleton-action-btn"></div>
+                                            }
+                                        </div>
+                                    </td>
+                                }
+                                else if (SkeletonLastColumnAsActions && j == SkeletonColumns - 1)
+                                {
+                                    <td class="actions-cell">
+                                        <div class="action-buttons skeleton-action-buttons">
+                                            @for (var k = 0; k < SkeletonActionButtonCount; k++)
+                                            {
+                                                <div class="skeleton skeleton-action-btn"></div>
+                                            }
                                         </div>
                                     </td>
                                 }
@@ -51,61 +64,62 @@
                     @Rows
                 }
             </tbody>
-            @if (!IsLoading && TotalRows > 0)
-            {
-                <tfoot>
-                    <tr>
-                        <td colspan="100" class="pagination-footer">
-                            <div class="pagination-inner">
-                                <button class="pagination-btn"
-                                        @onclick="FirstPage"
-                                        disabled="@(CurrentPage <= 1)"
-                                        @onmousedown:preventDefault="true">
-                                    <Icon Type="IconType.ChevronDoubleLeft" Size="16" />
-                                </button>
-                                <button class="pagination-btn"
-                                        @onclick="PrevPage"
-                                        disabled="@(CurrentPage <= 1)"
-                                        @onmousedown:preventDefault="true">
-                                    <Icon Type="IconType.ChevronLeft" Size="16" />
-                                </button>
-                                <span class="pagination-label">
-                                    Page
-                                    @if (_editingPage)
-                                    {
-                                        <input class="pagination-page-input"
-                                               type="number"
-                                               min="1"
-                                               max="@TotalPages"
-                                               @bind="_pageInputValue"
-                                               @onkeydown="HandlePageInputKey"
-                                               @onblur="CommitPageInput"
-                                               @ref="_pageInputRef" />
-                                    }
-                                    else
-                                    {
-                                        <span class="pagination-page-number"
-                                              @ondblclick="StartEditingPage">@CurrentPage</span>
-                                    }
-                                    of <span class="pagination-page-number pagination-page-number--static">@TotalPages</span>
-                                </span>
-                                <button class="pagination-btn"
-                                        @onclick="NextPage"
-                                        disabled="@(CurrentPage >= TotalPages)"
-                                        @onmousedown:preventDefault="true">
-                                    <Icon Type="IconType.ChevronRight" Size="16" />
-                                </button>
-                                <button class="pagination-btn"
-                                        @onclick="LastPage"
-                                        disabled="@(CurrentPage >= TotalPages)"
-                                        @onmousedown:preventDefault="true">
-                                    <Icon Type="IconType.ChevronDoubleRight" Size="16" />
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                </tfoot>
-            }
+            <tfoot>
+                <tr>
+                    <td colspan="100" class="pagination-footer @(!IsLoading && TotalRows > 0 ? "" : "pagination-footer--hidden")">
+                        <div class="pagination-inner">
+                            <button class="pagination-btn"
+                                    @onclick="FirstPage"
+                                    disabled="@(CurrentPage <= 1 || IsLoading)"
+                                    @onmousedown:preventDefault="true">
+                                <Icon Type="IconType.ChevronDoubleLeft" Size="16" />
+                            </button>
+    
+                            <button class="pagination-btn"
+                                    @onclick="PrevPage"
+                                    disabled="@(CurrentPage <= 1 || IsLoading)"
+                                    @onmousedown:preventDefault="true">
+                                <Icon Type="IconType.ChevronLeft" Size="16" />
+                            </button>
+    
+                            <span class="pagination-label">
+                        Page
+                                @if (!IsLoading && _editingPage)
+                                {
+                                    <input class="pagination-page-input"
+                                           type="number"
+                                           min="1"
+                                           max="@TotalPages"
+                                           @bind="_pageInputValue"
+                                           @onkeydown="HandlePageInputKey"
+                                           @onblur="CommitPageInput"
+                                           @ref="_pageInputRef" />
+                                }
+                                else
+                                {
+                                    <span class="pagination-page-number"
+                                          @ondblclick="@((IsLoading ? null : StartEditingPage)!)">@CurrentPage</span>
+                                }
+                                of <span class="pagination-page-number pagination-page-number--static">@TotalPages</span>
+                    </span>
+    
+                            <button class="pagination-btn"
+                                    @onclick="NextPage"
+                                    disabled="@(CurrentPage >= TotalPages || IsLoading)"
+                                    @onmousedown:preventDefault="true">
+                                <Icon Type="IconType.ChevronRight" Size="16" />
+                            </button>
+    
+                            <button class="pagination-btn"
+                                    @onclick="LastPage"
+                                    disabled="@(CurrentPage >= TotalPages || IsLoading)"
+                                    @onmousedown:preventDefault="true">
+                                <Icon Type="IconType.ChevronDoubleRight" Size="16" />
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
         </table>
     </TableCard>
 </div>

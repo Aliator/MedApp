@@ -235,6 +235,14 @@ a:focus {
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    box-sizing: border-box;
+    height: var(--table-action-height);
+    line-height: 1;
+}
+
+
+.btn-table-action svg {
+    display: block;
 }
 
 .btn-table-action:hover {
@@ -279,16 +287,15 @@ a:focus {
 }
 
 .actions-cell {
-    justify-content: center;
     display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .action-buttons {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 0.5rem;
-    height: 100%;
 }
 
 .form-footer {

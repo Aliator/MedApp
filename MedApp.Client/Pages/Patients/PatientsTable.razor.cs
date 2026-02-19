@@ -206,7 +206,7 @@ public partial class PatientsTable
 
     private async Task LoadPatientsAsync()
     {
-        await Task.Delay(500);
+        await Task.Delay(2500);
         try
         {
             var response = await Http.GetAsync("api/patients");
@@ -244,4 +244,6 @@ public partial class PatientsTable
         if (_isLoading) return "Loading patients...";
         return $"{_patients?.Count ?? 0} {(_patients?.Count == 1 ? "patient" : "patients")} registered";
     }
+    
+    
 }
