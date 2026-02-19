@@ -10,12 +10,12 @@
     <HeaderActions>
         @if (IsSearchActive)
         {
-            <button class="btn-outline" @onclick="ClearSearch">
+            <button class="btn-tertiary" @onclick="ClearSearch">
                 <Icon Type="IconType.Cancel" Size="18" />
                 Clear Search
             </button>
         }
-        <button class="btn-outline" @onclick="() => _showSearch = true">
+        <button class="btn-tertiary" @onclick="() => _showSearch = true">
             <Icon Type="IconType.Search" Size="18" />
             Search
         </button>

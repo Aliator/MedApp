@@ -206,7 +206,7 @@ public partial class PatientsTable
 
     private async Task LoadPatientsAsync()
     {
-        await Task.Delay(2500);
+        await Task.Delay(250);
         try
         {
             var response = await Http.GetAsync("api/patients");

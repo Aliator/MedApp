@@ -226,7 +226,6 @@ public partial class UsersTable
 
     private async Task LoadUsersAsync()
     {
-        await Task.Delay(500);
         try
         {
             var response = await Http.GetAsync("api/auth/users");
@@ -271,7 +270,10 @@ public partial class UsersTable
             if (response.IsSuccessStatusCode)
                 return await response.Content.ReadFromJsonAsync<IReadOnlyList<string>>() ?? Array.Empty<string>();
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
 
         return Array.Empty<string>();
     }
