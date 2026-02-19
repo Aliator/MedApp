@@ -91,6 +91,7 @@
                                            min="1"
                                            max="@TotalPages"
                                            @bind="_pageInputValue"
+                                           @bind:event="oninput"
                                            @onkeydown="HandlePageInputKey"
                                            @onblur="CommitPageInput"
                                            @ref="_pageInputRef" />

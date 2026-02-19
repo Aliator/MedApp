@@ -19,9 +19,7 @@ public partial class PatientsTable
     [SupplyParameterFromQuery(Name = "q")] public string? Query { get; set; }
     [SupplyParameterFromQuery(Name = "first")] public string? First { get; set; }
     [SupplyParameterFromQuery(Name = "last")] public string? Last { get; set; }
-    
     [SupplyParameterFromQuery(Name = "email")] public string? Email { get; set; }
-    
     [SupplyParameterFromQuery(Name = "doby")] public int? DobYear { get; set; }
     [SupplyParameterFromQuery(Name = "dobm")] public int? DobMonth { get; set; }
     [SupplyParameterFromQuery(Name = "dobd")] public int? DobDay { get; set; }
@@ -36,6 +34,9 @@ public partial class PatientsTable
 
     private bool _showSearch;
     private PatientSearchCriteria _search = PatientSearchCriteria.Empty;
+
+    private bool _dataLoaded;
+    private int? _requestedPage;
 
     private readonly List<SearchFieldDefinition> _searchFields =
     [
@@ -93,6 +94,8 @@ public partial class PatientsTable
 
     protected override void OnParametersSet()
     {
+        _requestedPage = Page;
+
         _search = PatientSearchCriteria.FromQuery(First, Last, Email, DobYear, DobMonth, DobDay);
 
         _sortColumn = NormalizeSortColumn(Sort) ?? "Patient";
@@ -101,7 +104,9 @@ public partial class PatientsTable
         _currentPage = Math.Max(1, Page ?? 1);
 
         SyncFieldsFromSearch();
-        ClampCurrentPage();
+
+        if (_dataLoaded)
+            ClampCurrentPage();
     }
 
     protected override async Task OnInitializedAsync()
@@ -113,8 +118,15 @@ public partial class PatientsTable
         }
 
         await LoadPatientsAsync();
+
         _isLoading = false;
+        _dataLoaded = true;
+
+        var before = _currentPage;
         ClampCurrentPage();
+
+        if ((_requestedPage ?? before) != _currentPage)
+            NavigateToState(_currentPage, _pageSize, _sortColumn, _sortAscending, _search, true);
     }
 
     private void SyncFieldsFromSearch()
@@ -133,9 +145,10 @@ public partial class PatientsTable
             _searchFields[1].Value,
             _searchFields[2].Value,
             dob.Year, dob.Month, dob.Day);
+
         NavigateToState(1, _pageSize, _sortColumn, _sortAscending, criteria, false);
     }
-    
+
     private void ClearSearch()
     {
         NavigateToState(1, _pageSize, _sortColumn, _sortAscending, PatientSearchCriteria.Empty, false);
@@ -143,11 +156,28 @@ public partial class PatientsTable
 
     private void HandleSort((string Column, bool Ascending) args)
     {
+        if (!_dataLoaded)
+        {
+            _sortColumn = NormalizeSortColumn(args.Column) ?? _sortColumn;
+            _sortAscending = args.Ascending;
+            return;
+        }
+
+        if (string.Equals(args.Column, _sortColumn, StringComparison.OrdinalIgnoreCase) &&
+            args.Ascending == _sortAscending)
+            return;
+
         NavigateToState(1, _pageSize, args.Column, args.Ascending, _search, false);
     }
 
     private void HandlePageChange(int page)
     {
+        if (!_dataLoaded)
+        {
+            _currentPage = Math.Max(1, page);
+            return;
+        }
+
         NavigateToState(page, _pageSize, _sortColumn, _sortAscending, _search, false);
     }
 
@@ -155,6 +185,12 @@ public partial class PatientsTable
     {
         newSize = Math.Max(1, newSize);
         if (newSize == _pageSize) return;
+
+        if (!_dataLoaded)
+        {
+            _pageSize = newSize;
+            return;
+        }
 
         var targetPage = Math.Min(_currentPage, GetTotalPages(TotalRows, newSize));
         NavigateToState(targetPage, newSize, _sortColumn, _sortAscending, _search, true);
@@ -198,9 +234,14 @@ public partial class PatientsTable
 
     private static string? NormalizeSortColumn(string? value)
     {
-        if (string.Equals(value, "Patient", StringComparison.OrdinalIgnoreCase)) return "Patient";
-        if (string.Equals(value, "DateOfBirth", StringComparison.OrdinalIgnoreCase)) return "DateOfBirth";
-        if (string.Equals(value, "Email", StringComparison.OrdinalIgnoreCase)) return "Email";
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        value = value.Trim();
+
+        if (value.Equals("Patient", StringComparison.OrdinalIgnoreCase)) return "Patient";
+        if (value.Equals("DateOfBirth", StringComparison.OrdinalIgnoreCase)) return "DateOfBirth";
+        if (value.Equals("Email", StringComparison.OrdinalIgnoreCase)) return "Email";
+
         return null;
     }
 
@@ -244,6 +285,4 @@ public partial class PatientsTable
         if (_isLoading) return "Loading patients...";
         return $"{_patients?.Count ?? 0} {(_patients?.Count == 1 ? "patient" : "patients")} registered";
     }
-    
-    
 }

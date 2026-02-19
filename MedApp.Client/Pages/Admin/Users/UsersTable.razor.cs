@@ -50,6 +50,9 @@ public partial class UsersTable
     private string _newUsername = string.Empty;
     private string _newPassword = string.Empty;
 
+    private bool _dataLoaded;
+    private int? _requestedPage;
+
     private IReadOnlyList<string> _userRoles = Array.Empty<string>();
 
     private IEnumerable<string> AssignableRoles =>
@@ -95,6 +98,8 @@ public partial class UsersTable
 
     protected override void OnParametersSet()
     {
+        _requestedPage = Page;
+
         _search = new UserSearchCriteria(Username ?? string.Empty, Role ?? string.Empty);
 
         _sortColumn = NormalizeSortColumn(Sort) ?? "User";
@@ -105,7 +110,8 @@ public partial class UsersTable
         _searchFields[0].Value = Username ?? string.Empty;
         _searchFields[1].Value = Role ?? string.Empty;
 
-        ClampCurrentPage();
+        if (_dataLoaded)
+            ClampCurrentPage();
     }
 
     protected override async Task OnInitializedAsync()
@@ -130,7 +136,14 @@ public partial class UsersTable
             await LoadUsersAsync();
             await LoadRolesAsync();
             await LoadAllUserRolesAsync();
+
+            _dataLoaded = true;
+
+            var before = _currentPage;
             ClampCurrentPage();
+
+            if ((_requestedPage ?? before) != _currentPage)
+                NavigateToState(_currentPage, _pageSize, _sortColumn, _sortAscending, _search, true);
         }
         finally
         {
@@ -151,11 +164,28 @@ public partial class UsersTable
 
     private void HandleSort((string Column, bool Ascending) args)
     {
+        if (!_dataLoaded)
+        {
+            _sortColumn = NormalizeSortColumn(args.Column) ?? _sortColumn;
+            _sortAscending = args.Ascending;
+            return;
+        }
+
+        if (string.Equals(args.Column, _sortColumn, StringComparison.OrdinalIgnoreCase) &&
+            args.Ascending == _sortAscending)
+            return;
+
         NavigateToState(1, _pageSize, args.Column, args.Ascending, _search, false);
     }
 
     private void HandlePageChange(int page)
     {
+        if (!_dataLoaded)
+        {
+            _currentPage = Math.Max(1, page);
+            return;
+        }
+
         NavigateToState(page, _pageSize, _sortColumn, _sortAscending, _search, false);
     }
 
@@ -163,6 +193,12 @@ public partial class UsersTable
     {
         newSize = Math.Max(1, newSize);
         if (newSize == _pageSize) return;
+
+        if (!_dataLoaded)
+        {
+            _pageSize = newSize;
+            return;
+        }
 
         var targetPage = Math.Min(_currentPage, GetTotalPages(TotalRows, newSize));
         NavigateToState(targetPage, newSize, _sortColumn, _sortAscending, _search, true);
@@ -199,7 +235,11 @@ public partial class UsersTable
 
     private static string? NormalizeSortColumn(string? value)
     {
-        if (string.Equals(value, "User", StringComparison.OrdinalIgnoreCase)) return "User";
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        value = value.Trim();
+
+        if (value.Equals("User", StringComparison.OrdinalIgnoreCase)) return "User";
         return null;
     }
 
@@ -272,7 +312,6 @@ public partial class UsersTable
         }
         catch
         {
-            // ignored
         }
 
         return Array.Empty<string>();
