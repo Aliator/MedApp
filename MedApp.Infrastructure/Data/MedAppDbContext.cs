@@ -15,7 +15,9 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<PatientTask> PatientTasks => Set<PatientTask>();
     public DbSet<PatientTaskStage> PatientTaskStages => Set<PatientTaskStage>();
-
+    public DbSet<PatientTaskAssignment> PatientTaskAssignments => Set<PatientTaskAssignment>();
+    public DbSet<PatientTaskStageDefinition> PatientTaskStageDefinitions => Set<PatientTaskStageDefinition>();
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
