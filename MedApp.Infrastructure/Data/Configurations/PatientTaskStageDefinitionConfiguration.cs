@@ -23,14 +23,16 @@ public sealed class PatientTaskStageDefinitionConfiguration : IEntityTypeConfigu
         builder.Property(x => x.Instructions)
             .IsRequired()
             .HasMaxLength(2000);
-
-        builder.Property(x => x.CreatedAt)
-            .IsRequired();
-
-        builder.Property(x => x.LastUpdated)
-            .IsRequired();
-
+        
         builder.HasIndex(x => x.Name)
             .IsUnique();
+        
+        builder.HasData(new PatientTaskStageDefinition
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Name = "Definition missing",
+            Description = "This stage definition was deleted.",
+            Instructions = "No instructions available."
+        });
     }
 }
