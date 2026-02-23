@@ -1,6 +1,12 @@
-﻿namespace MedApp.Contracts.Tasks.PatientTasks.Requests;
+﻿namespace MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Requests;
 
-public class UpdatePatientTaskStageDefinitionRequest
+public sealed class UpdatePatientTaskStageDefinitionRequest
 {
-    
+    public Guid StageDefinitionId { get; set; }
+
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? Instructions { get; set; }
+
+    public bool? IsActive { get; set; }
 }

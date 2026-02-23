@@ -1,6 +1,8 @@
-﻿namespace MedApp.Contracts.Tasks.PatientTasks.Requests;
+﻿namespace MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Requests;
 
-public class CreatePatientTaskStageDefinitionRequest
+public sealed class CreatePatientTaskStageDefinitionRequest
 {
-    
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Instructions { get; set; } = string.Empty;
 }
