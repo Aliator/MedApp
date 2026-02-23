@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.PatientTask;
+﻿namespace MedApp.Domain.Tasks.PatientTask;
 
 public enum PatientTaskStatus
 {

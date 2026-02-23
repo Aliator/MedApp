@@ -1,4 +1,4 @@
-﻿namespace MedApp.Contracts.Tasks.Responses;
+﻿namespace MedApp.Contracts.Tasks.PatientTasks.Responses;
 
 public class PatientTaskStageResponse
 {

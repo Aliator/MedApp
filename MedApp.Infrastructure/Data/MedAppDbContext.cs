@@ -1,6 +1,6 @@
 ﻿using MedApp.Domain.Authentication;
 using MedApp.Domain.Patients;
-using MedApp.Domain.PatientTask;
+using MedApp.Domain.Tasks.PatientTask;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;

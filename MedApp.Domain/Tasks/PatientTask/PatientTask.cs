@@ -1,6 +1,6 @@
 ﻿using MedApp.Domain.Patients;
 
-namespace MedApp.Domain.PatientTask;
+namespace MedApp.Domain.Tasks.PatientTask;
 
 public sealed class PatientTask
 {

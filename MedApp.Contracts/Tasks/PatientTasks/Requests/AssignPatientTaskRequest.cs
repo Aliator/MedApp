@@ -1,4 +1,4 @@
-﻿namespace MedApp.Contracts.Tasks.Requests;
+﻿namespace MedApp.Contracts.Tasks.PatientTasks.Requests;
 
 public class AssignPatientTaskRequest
 {
