@@ -8,6 +8,8 @@ public sealed class PatientTaskStageConfiguration : IEntityTypeConfiguration<Pat
 {
     public void Configure(EntityTypeBuilder<PatientTaskStage> builder)
     {
+        builder.ToTable("PatientTaskStages");
+
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.StageOrder)
@@ -19,6 +21,8 @@ public sealed class PatientTaskStageConfiguration : IEntityTypeConfiguration<Pat
         builder.Property(x => x.LastUpdated)
             .IsRequired();
 
+        builder.Property(x => x.CompletedAtUtc);
+
         builder.HasOne(x => x.PatientTask)
             .WithMany(x => x.Stages)
             .HasForeignKey(x => x.PatientTaskId)
@@ -27,14 +31,12 @@ public sealed class PatientTaskStageConfiguration : IEntityTypeConfiguration<Pat
         builder.HasOne(x => x.StageDefinition)
             .WithMany()
             .HasForeignKey(x => x.StageDefinitionId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.HasIndex(x => new { x.PatientTaskId, x.StageOrder })
             .IsUnique();
 
         builder.HasIndex(x => new { x.PatientTaskId, x.StageDefinitionId })
             .IsUnique();
-
-        builder.HasIndex(x => new { x.PatientTaskId, x.Id });
     }
 }

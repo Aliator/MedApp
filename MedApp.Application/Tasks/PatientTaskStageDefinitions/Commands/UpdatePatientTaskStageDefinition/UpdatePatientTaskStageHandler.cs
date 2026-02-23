@@ -1,4 +1,4 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTaskStage;
+﻿namespace MedApp.Application.Tasks.PatientTaskStageDefinitions.Commands.UpdatePatientTaskStageDefinition;
 
 public class UpdatePatientTaskStageHandler
 {

@@ -1,4 +1,4 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Queries.GetPatientTaskStageById;
+﻿namespace MedApp.Application.Tasks.PatientTaskStageDefinitions.Queries.GetPatientTaskStageDefinitionById;
 
 public class GetPatientTaskStageByIdQuery
 {

@@ -8,6 +8,8 @@ public sealed class PatientTaskConfiguration : IEntityTypeConfiguration<PatientT
 {
     public void Configure(EntityTypeBuilder<PatientTask> builder)
     {
+        builder.ToTable("PatientTasks");
+
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.Title)
@@ -36,7 +38,7 @@ public sealed class PatientTaskConfiguration : IEntityTypeConfiguration<PatientT
         builder.HasOne(x => x.Patient)
             .WithMany()
             .HasForeignKey(x => x.PatientId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.HasMany(x => x.Stages)
             .WithOne(x => x.PatientTask)

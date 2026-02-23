@@ -1,7 +1,7 @@
 ﻿using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Repositories;
-using MedApp.Application.Tasks.PatientTasks.Repositories;
+using MedApp.Application.Tasks.Repositories;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;

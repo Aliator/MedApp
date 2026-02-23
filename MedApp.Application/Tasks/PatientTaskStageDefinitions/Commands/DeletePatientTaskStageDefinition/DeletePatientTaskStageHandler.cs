@@ -1,4 +1,4 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Commands.DeletePatientTaskStage;
+﻿namespace MedApp.Application.Tasks.PatientTaskStageDefinitions.Commands.DeletePatientTaskStageDefinition;
 
 public class DeletePatientTaskStageHandler
 {

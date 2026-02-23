@@ -1,4 +1,4 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTaskStage;
+﻿namespace MedApp.Application.Tasks.PatientTaskStageDefinitions.Commands.CreatePatientTaskStageDefinition;
 
 public class CreatePatientTaskStageValidator
 {

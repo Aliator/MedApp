@@ -8,7 +8,7 @@ public sealed class PatientTaskAssignmentConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<PatientTaskAssignment> builder)
     {
-        builder.HasKey(x => new { x.PatientTaskId, x.UserId });
+        builder.ToTable("PatientTaskAssignments");
 
         builder.Property(x => x.AssignedAtUtc)
             .IsRequired();
@@ -20,10 +20,7 @@ public sealed class PatientTaskAssignmentConfiguration : IEntityTypeConfiguratio
             .WithMany(x => x.Assignments)
             .HasForeignKey(x => x.PatientTaskId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(x => new { x.PatientTaskId, x.UserId })
-            .IsUnique();
-
+        
         builder.HasIndex(x => x.AssignedByUserId);
     }
 }
