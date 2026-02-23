@@ -24,6 +24,8 @@
       <Folder Include="Auth\Sessions\Commands\" />
       <Folder Include="Auth\Users\Commands\" />
       <Folder Include="Auth\Users\Queries\" />
+      <Folder Include="Tasks\PatientTaskStageDefinitions\Commands\" />
+      <Folder Include="Tasks\PatientTaskStageDefinitions\Queries\" />
     </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 ﻿namespace MedApp.Contracts.Tasks.PatientTasks.Requests;
 
-public class CreatePatientTaskStageRequest
+public class UpdatePatientTaskStageDefinitionRequest
 {
     
 }
