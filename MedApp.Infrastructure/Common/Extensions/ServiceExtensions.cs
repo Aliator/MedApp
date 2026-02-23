@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using MedApp.Application.Tasks.Repositories;
 
 namespace MedApp.Infrastructure.Common.Extensions;
 
@@ -41,6 +42,7 @@ public static class ServiceExtensions
         this IServiceCollection services)
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<ITaskRepository, TaskRepository>();
 
         return services;
     }
