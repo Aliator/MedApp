@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Tasks.PatientTask;
+﻿namespace MedApp.Domain.Tasks.PatientTasks;
 
 public enum PatientTaskPriority
 {

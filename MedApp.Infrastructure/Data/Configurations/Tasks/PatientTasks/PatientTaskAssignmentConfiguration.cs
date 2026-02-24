@@ -9,6 +9,8 @@ public sealed class PatientTaskAssignmentConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<PatientTaskAssignment> builder)
     {
         builder.ToTable("PatientTaskAssignments");
+        
+        builder.HasKey(x => new { x.PatientTaskId, x.UserId });
 
         builder.Property(x => x.AssignedAtUtc)
             .IsRequired();
