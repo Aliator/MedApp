@@ -10,12 +10,8 @@ public sealed class AssignPatientTaskValidator : AbstractValidator<AssignPatient
             .NotEmpty()
             .WithMessage("Patient task id is required.");
 
-        RuleFor(x => x.AssignedByUserId)
+        RuleFor(x => x.UserId)
             .NotEmpty()
-            .WithMessage("Assigned by user id is required.");
-
-        RuleForEach(x => x.AssignedUserIds)
-            .NotEmpty()
-            .WithMessage("Assigned user id is required.");
+            .WithMessage("User id is required.");
     }
 }

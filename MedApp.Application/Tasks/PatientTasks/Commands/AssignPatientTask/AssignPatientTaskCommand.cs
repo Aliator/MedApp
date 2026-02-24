@@ -3,8 +3,5 @@ using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
 
-public sealed record AssignPatientTaskCommand(
-    Guid PatientTaskId,
-    IReadOnlyList<Guid> AssignedUserIds,
-    Guid AssignedByUserId
-) : IRequest<PatientTaskResponse?>;
+public sealed record AssignPatientTaskCommand(Guid PatientTaskId, Guid UserId, Guid AssignedByUserId)
+    : IRequest<PatientTaskResponse?>;

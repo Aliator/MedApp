@@ -8,49 +8,26 @@ namespace MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
 public sealed class AssignPatientTaskHandler(IPatientTaskRepository repository)
     : IRequestHandler<AssignPatientTaskCommand, PatientTaskResponse?>
 {
-    public async Task<PatientTaskResponse?> Handle(
-        AssignPatientTaskCommand request,
-        CancellationToken cancellationToken)
+    public async Task<PatientTaskResponse?> Handle(AssignPatientTaskCommand request, CancellationToken ct)
     {
-        var task = await repository.GetByIdAsync(request.PatientTaskId, cancellationToken);
-
-        if (task is null)
-        {
-            return null;
-        }
+        var task = await repository.GetByIdAsync(request.PatientTaskId, ct);
+        if (task is null) return null;
 
         var now = DateTime.UtcNow;
-        var assignedIds = request.AssignedUserIds.Distinct().ToHashSet();
 
-        task.Assignments = task.Assignments
-            .Where(x => assignedIds.Contains(x.UserId))
-            .ToList();
-
-        foreach (var userId in assignedIds)
+        if (task.Assignments.All(x => x.UserId != request.UserId))
         {
-            if (task.Assignments.Any(x => x.UserId == userId))
-            {
-                continue;
-            }
-
             task.Assignments.Add(new PatientTaskAssignment
             {
                 PatientTaskId = task.Id,
-                UserId = userId,
+                UserId = request.UserId,
                 AssignedByUserId = request.AssignedByUserId,
                 AssignedAtUtc = now
             });
+
+            task.LastUpdated = now;
+            await repository.UpdateAsync(task, ct);
         }
-
-        task.Status = task.Assignments.Count == 0
-            ? PatientTaskStatus.Unassigned
-            : task.Status == PatientTaskStatus.Unassigned
-                ? PatientTaskStatus.NotStarted
-                : task.Status;
-
-        task.LastUpdated = now;
-
-        await repository.UpdateAsync(task, cancellationToken);
 
         return new PatientTaskResponse
         {

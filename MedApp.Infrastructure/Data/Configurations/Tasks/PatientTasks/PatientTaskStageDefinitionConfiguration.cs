@@ -8,7 +8,7 @@ public sealed class PatientTaskStageDefinitionConfiguration : IEntityTypeConfigu
 {
     public void Configure(EntityTypeBuilder<PatientTaskStageDefinition> builder)
     {
-        builder.ToTable("PatientTaskStages");
+        builder.ToTable("PatientTaskStageDefinitions");
 
         builder.HasKey(x => x.Id);
 

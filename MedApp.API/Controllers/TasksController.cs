@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
+﻿using System.Security.Claims;
+using MedApp.Application.Common.Authentication;
+using MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.DeletePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
@@ -14,7 +16,7 @@ namespace MedApp.API.Controllers;
 
 [ApiController]
 [Route("api/tasks/patient-tasks")]
-public sealed class TasksController(IMediator mediator) : ControllerBase
+public sealed class TasksController(IMediator mediator, ISessionService sessionService) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status201Created)]
@@ -59,25 +61,14 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
         return Ok(updatedTask);
     }
 
-    [HttpPost("{id:guid}/assign")]
-    [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AssignPatientTask(Guid id, [FromBody] AssignPatientTaskRequest request)
+    [HttpPost("patient-tasks/{patientTaskId:guid}/assign/{userId:guid}")]
+    public async Task<IActionResult> AssignPatientTask(Guid patientTaskId, Guid userId, CancellationToken ct)
     {
-        var command = new AssignPatientTaskCommand(
-            id,
-            request.AssignedUserIds,
-            request.AssignedByUserId);
+        var assignedByUserId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
 
-        var updatedTask = await mediator.Send(command);
+        var result = await mediator.Send(new AssignPatientTaskCommand(patientTaskId, userId, assignedByUserId), ct);
 
-        if (updatedTask is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(updatedTask);
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpDelete("{id:guid}")]
