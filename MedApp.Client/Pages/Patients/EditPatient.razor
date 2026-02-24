@@ -1,8 +1,8 @@
 ﻿@page "/patients/{Id:guid}/edit"
 
-<PageTitle>Edit Patient - MedApp</PageTitle>
+<PageTitle>Edit Patients - MedApp</PageTitle>
 
-<Page Title="Edit Patient"
+<Page Title="Edit Patients"
       Subtitle="Update patient information"
       ShowBackButton="true"
       BackButtonTitle="Back to patient"
@@ -64,7 +64,7 @@
 
                 <FooterActions>
                     <button class="btn-danger" @onclick="ShowDelete" disabled="@_isSaving">
-                        Delete Patient
+                        Delete Patients
                     </button>
                 </FooterActions>
             </FormCard>
@@ -93,7 +93,7 @@
         <ConfirmModal IsVisible="@_confirmDelete"
                          Title="Confirm Delete"
                          Message="This action cannot be undone."
-                         ConfirmText="Delete Patient"
+                         ConfirmText="Delete Patients"
                          IsDanger="true"
                          IsProcessing="@_isDeleting"
                          OnConfirm="Delete"

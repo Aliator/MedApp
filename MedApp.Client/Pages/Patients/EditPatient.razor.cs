@@ -180,7 +180,7 @@ public partial class EditPatient
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                _errorMessage = "Patient not found. It may have been deleted.";
+                _errorMessage = "Patients not found. It may have been deleted.";
                 HideSave();
                 return;
             }

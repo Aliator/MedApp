@@ -1,8 +1,8 @@
 ﻿@page "/patients/{Id:guid}"
 
-<PageTitle>View Patient - MedApp</PageTitle>
+<PageTitle>View Patients - MedApp</PageTitle>
 
-<Page Title="View Patient"
+<Page Title="View Patients"
       Subtitle="Update patient information"
       ShowBackButton="true"
       BackButtonTitle="Back to patient"
@@ -43,7 +43,7 @@
                 </ViewSection>
 
                 <ViewSection Title="Record Information">
-                    <ViewGroup Label="Patient ID">
+                    <ViewGroup Label="Patients ID">
                         <span class="mono">@_patient?.Id</span>
                     </ViewGroup>
                 </ViewSection>
@@ -52,7 +52,7 @@
             <FooterActions>
                 <button class="btn-secondary" @onclick="Edit">
                     <Icon Type="IconType.Edit" Size="16" />
-                    Edit Patient
+                    Edit Patients
                 </button>
             </FooterActions>
         </ViewCard>

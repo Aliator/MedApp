@@ -75,7 +75,7 @@ public sealed class AuthController(
 
     [HttpPost("users")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Auth")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var result = await mediator.Send(
@@ -89,7 +89,7 @@ public sealed class AuthController(
     
     [HttpGet("users")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Auth")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllUsers()
     {
@@ -99,7 +99,7 @@ public sealed class AuthController(
 
     [HttpGet("users/{username}")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Auth")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserByUsername(string username)
     {
@@ -112,7 +112,7 @@ public sealed class AuthController(
     
     [HttpPut("users/{username}/update-password")]
     [Authorize(Roles = "User", Policy = "SelfUserOnly")]
-    [Tags("Users")]
+    [Tags("Auth")]
     public async Task<IActionResult> UpdateUserPassword(
         string username,
         UpdateUserPasswordRequest request)
@@ -131,7 +131,7 @@ public sealed class AuthController(
     
     [HttpPut("users/{username}/reset-password")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Auth")]
     public async Task<IActionResult> ResetUserPassword(string username)
     {
         var response = await mediator.Send(
@@ -145,7 +145,7 @@ public sealed class AuthController(
     
     [HttpDelete("users/{username}")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Auth")]
     public async Task<IActionResult> DeleteUser(string username)
     {
         var result = await mediator.Send(new DeleteUserCommand(username));

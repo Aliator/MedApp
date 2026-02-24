@@ -27,7 +27,7 @@ public partial class PatientsTable
     private IReadOnlyList<PatientResponse>? _patients;
     private bool _isLoading = true;
 
-    private string _sortColumn = "Patient";
+    private string _sortColumn = "Patients";
     private bool _sortAscending = true;
     private int _currentPage = 1;
     private int _pageSize = 10;
@@ -77,7 +77,7 @@ public partial class PatientsTable
 
     private IEnumerable<PatientResponse> SortedPatients => _sortColumn switch
     {
-        "Patient" => _sortAscending
+        "Patients" => _sortAscending
             ? FilteredPatients.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
             : FilteredPatients.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName),
         "DateOfBirth" => _sortAscending
@@ -98,7 +98,7 @@ public partial class PatientsTable
 
         _search = PatientSearchCriteria.FromQuery(First, Last, Email, DobYear, DobMonth, DobDay);
 
-        _sortColumn = NormalizeSortColumn(Sort) ?? "Patient";
+        _sortColumn = NormalizeSortColumn(Sort) ?? "Patients";
         _sortAscending = Asc ?? true;
         _pageSize = Math.Max(1, PageSize ?? _pageSize);
         _currentPage = Math.Max(1, Page ?? 1);
@@ -198,7 +198,7 @@ public partial class PatientsTable
 
     private void NavigateToState(int page, int pageSize, string sortColumn, bool sortAscending, PatientSearchCriteria criteria, bool replace)
     {
-        var sort = NormalizeSortColumn(sortColumn) ?? "Patient";
+        var sort = NormalizeSortColumn(sortColumn) ?? "Patients";
 
         var parts = new List<string>
         {
@@ -238,7 +238,7 @@ public partial class PatientsTable
 
         value = value.Trim();
 
-        if (value.Equals("Patient", StringComparison.OrdinalIgnoreCase)) return "Patient";
+        if (value.Equals("Patients", StringComparison.OrdinalIgnoreCase)) return "Patients";
         if (value.Equals("DateOfBirth", StringComparison.OrdinalIgnoreCase)) return "DateOfBirth";
         if (value.Equals("Email", StringComparison.OrdinalIgnoreCase)) return "Email";
 

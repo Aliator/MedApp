@@ -1,8 +1,8 @@
 ﻿@page "/patients/add"
 
-<PageTitle>Add Patient - MedApp</PageTitle>
+<PageTitle>Add Patients - MedApp</PageTitle>
 
-<Page Title="Add New Patient"
+<Page Title="Add New Patients"
       Subtitle="Enter patient information to create a new record"
       ShowBackButton="true"
       BackButtonTitle="Back to patients"
@@ -14,7 +14,7 @@
         <FormCard OnSave="ShowSave"
                   OnCancel="Cancel"
                   IsProcessing="@_isSaving"
-                  SaveText="Add Patient"
+                  SaveText="Add Patients"
                   ProcessingText="Saving...">
             <Sections>
                 <FormSection Title="Personal Information">
@@ -62,7 +62,7 @@
 
     <Dialogs>
         <ConfirmModal IsVisible="@_confirmSave"
-                       Title="Confirm Add Patient"
+                       Title="Confirm Add Patients"
                        Message="Are you sure you want to add this patient to the system?"
                        ConfirmText="Confirm Add"
                        ProcessingText="Adding..."
