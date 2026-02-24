@@ -1,6 +1,6 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Queries.GetPatientTaskById;
+﻿using MedApp.Contracts.Tasks.PatientTasks.Responses;
+using MediatR;
 
-public class GetPatientTaskByIdQuery
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTasks.Queries.GetPatientTaskById;
+
+public sealed record GetPatientTaskByIdQuery(Guid PatientTaskId) : IRequest<PatientTaskResponse?>;

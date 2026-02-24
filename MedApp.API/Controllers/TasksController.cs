@@ -2,6 +2,8 @@
 using MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.DeletePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
+using MedApp.Application.Tasks.PatientTasks.Queries.GetAllPatientTasks;
+using MedApp.Application.Tasks.PatientTasks.Queries.GetPatientTaskById;
 using MedApp.Contracts.Tasks.PatientTasks.Requests;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
 using MediatR;
@@ -94,5 +96,33 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
         }
 
         return NoContent();
+    }
+    
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllPatientTasks()
+    {
+        var query = new GetAllPatientTasksQuery();
+        var tasks = await mediator.Send(query);
+
+        return Ok(tasks);
+    }
+
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPatientTaskById(Guid id)
+    {
+        var query = new GetPatientTaskByIdQuery(id);
+        var task = await mediator.Send(query);
+
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(task);
     }
 }

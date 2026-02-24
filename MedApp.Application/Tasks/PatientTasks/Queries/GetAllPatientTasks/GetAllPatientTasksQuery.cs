@@ -1,6 +1,6 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Queries.GetAllPatientTasks;
+﻿using MedApp.Contracts.Tasks.PatientTasks.Responses;
+using MediatR;
 
-public class GetAllPatientTasksQuery
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTasks.Queries.GetAllPatientTasks;
+
+public sealed record GetAllPatientTasksQuery : IRequest<IReadOnlyList<PatientTaskResponse>>;
