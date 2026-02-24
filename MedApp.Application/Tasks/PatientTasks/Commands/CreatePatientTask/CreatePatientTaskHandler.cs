@@ -1,5 +1,6 @@
 ﻿using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
+using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
 using MedApp.Domain.Tasks.PatientTasks;
 using MediatR;
 
@@ -54,8 +55,29 @@ public sealed class CreatePatientTaskHandler(
             Status = task.Status.ToString(),
             CreatedAt = task.CreatedAt,
             LastUpdated = task.LastUpdated,
-            Stages = [],
-            Assignments = []
+            Stages = task.Stages
+                .OrderBy(x => x.StageOrder)
+                .Select(x => new PatientTaskStageResponse
+                {
+                    Id = x.Id,
+                    StageDefinitionId = x.StageDefinitionId,
+                    StageOrder = x.StageOrder,
+                    IsCompleted = x.IsCompleted,
+                    CompletedAtUtc = x.CompletedAtUtc,
+                    CompletedByUserId = x.CompletedByUserId,
+                    StageName = x.StageDefinition?.Name ?? string.Empty,
+                    StageDescription = x.StageDefinition?.Description ?? string.Empty,
+                    StageInstructions = x.StageDefinition?.Instructions ?? string.Empty
+                })
+                .ToList(),
+            Assignments = task.Assignments
+                .Select(x => new PatientTaskAssignmentResponse
+                {
+                    UserId = x.UserId,
+                    AssignedByUserId = x.AssignedByUserId,
+                    AssignedAtUtc = x.AssignedAtUtc
+                })
+                .ToList()
         };
     }
 }

@@ -1,6 +1,98 @@
-﻿namespace MedApp.API.Controllers;
+﻿using MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
+using MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
+using MedApp.Application.Tasks.PatientTasks.Commands.DeletePatientTask;
+using MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
+using MedApp.Contracts.Tasks.PatientTasks.Requests;
+using MedApp.Contracts.Tasks.PatientTasks.Responses;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
-public class TasksController
+namespace MedApp.API.Controllers;
+
+[ApiController]
+[Route("api/tasks/patient-tasks")]
+public sealed class TasksController(IMediator mediator) : ControllerBase
 {
-    
+    [HttpPost]
+    [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status201Created)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreatePatientTask([FromBody] CreatePatientTaskRequest request)
+    {
+        var command = new CreatePatientTaskCommand(
+            request.PatientId,
+            request.Title,
+            request.Notes,
+            request.DueDateUtc,
+            request.Priority,
+            request.StageDefinitionIdsInOrder);
+
+        var task = await mediator.Send(command);
+
+        return Created($"/api/tasks/patient-tasks/{task.Id}", task);
+    }
+
+    [HttpPatch("{id:guid}")]
+    [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdatePatientTask(Guid id, [FromBody] UpdatePatientTaskRequest request)
+    {
+        var command = new UpdatePatientTaskCommand(
+            id,
+            request.Title,
+            request.Notes,
+            request.DueDateUtc,
+            request.Priority,
+            request.Status,
+            request.StageDefinitionIdsInOrder);
+
+        var updatedTask = await mediator.Send(command);
+
+        if (updatedTask is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(updatedTask);
+    }
+
+    [HttpPost("{id:guid}/assign")]
+    [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AssignPatientTask(Guid id, [FromBody] AssignPatientTaskRequest request)
+    {
+        var command = new AssignPatientTaskCommand(
+            id,
+            request.AssignedUserIds,
+            request.AssignedByUserId);
+
+        var updatedTask = await mediator.Send(command);
+
+        if (updatedTask is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(updatedTask);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeletePatientTask(Guid id)
+    {
+        var command = new DeletePatientTaskCommand(id);
+
+        var deleted = await mediator.Send(command);
+
+        if (!deleted)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
 }

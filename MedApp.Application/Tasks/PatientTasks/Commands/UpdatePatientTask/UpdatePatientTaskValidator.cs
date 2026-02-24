@@ -1,11 +1,12 @@
 ﻿using FluentValidation;
+using MedApp.Application.Tasks.Repositories;
 using MedApp.Domain.Tasks.PatientTasks;
 
 namespace MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
 
 public sealed class UpdatePatientTaskValidator : AbstractValidator<UpdatePatientTaskCommand>
 {
-    public UpdatePatientTaskValidator()
+    public UpdatePatientTaskValidator(IPatientTaskStagesRepository taskStagesRepository)
     {
         RuleFor(x => x.PatientTaskId)
             .NotEmpty()
@@ -33,5 +34,28 @@ public sealed class UpdatePatientTaskValidator : AbstractValidator<UpdatePatient
             .NotEmpty()
             .When(x => x.StageDefinitionIdsInOrder is not null)
             .WithMessage("Stage definition id is required.");
+        
+        RuleFor(x => x.StageDefinitionIdsInOrder)
+            .MustAsync(async (stageDefinitionIds, cancellationToken) =>
+            {
+                if (stageDefinitionIds == null) return true;
+                
+                var uniqueIds = stageDefinitionIds.Distinct();
+
+                foreach (var stageDefinitionId in uniqueIds)
+                {
+                    var stageDefinition = await taskStagesRepository.GetStageDefinitionByIdAsync(
+                        stageDefinitionId,
+                        cancellationToken);
+
+                    if (stageDefinition is null)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
+            .WithMessage("One or more stage definitions do not exist.");
     }
 }
