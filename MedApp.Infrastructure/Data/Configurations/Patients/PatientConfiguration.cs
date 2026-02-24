@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace MedApp.Infrastructure.Data.Configurations;
+namespace MedApp.Infrastructure.Data.Configurations.Patients;
 
 public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
 {

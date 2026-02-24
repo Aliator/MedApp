@@ -1,6 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Users.Queries.GetAllUsers;
+using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;

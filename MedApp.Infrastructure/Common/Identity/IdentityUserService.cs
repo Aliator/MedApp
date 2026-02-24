@@ -1,6 +1,6 @@
 ﻿using System.Security.Cryptography;
 using MedApp.Application.Common.Identity;
-using MedApp.Contracts.Auth.Responses;
+using MedApp.Contracts.Authentication.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 

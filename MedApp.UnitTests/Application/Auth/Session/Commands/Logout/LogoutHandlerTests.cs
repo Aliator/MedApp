@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Auth.Sessions.Commands.Logout;
+﻿using MedApp.Application.Authentication.Sessions.Commands.Logout;
 using MedApp.Application.Common.Authentication;
 using MedApp.UnitTests.Common.Constants;
 using Moq;

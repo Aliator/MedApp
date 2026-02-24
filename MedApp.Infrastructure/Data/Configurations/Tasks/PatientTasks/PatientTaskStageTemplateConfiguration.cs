@@ -1,8 +1,8 @@
-﻿using MedApp.Domain.Tasks.PatientTask;
+﻿using MedApp.Domain.Tasks.PatientTasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace MedApp.Infrastructure.Data.Configurations;
+namespace MedApp.Infrastructure.Data.Configurations.Tasks.PatientTasks;
 
 public sealed class PatientTaskStageTemplateConfiguration : IEntityTypeConfiguration<PatientTaskStageTemplate>
 {
@@ -17,12 +17,10 @@ public sealed class PatientTaskStageTemplateConfiguration : IEntityTypeConfigura
             .HasMaxLength(150);
 
         builder.Property(x => x.CreatedAt)
-            .IsRequired()
-            .HasPrecision(3);
+            .IsRequired();
 
         builder.Property(x => x.LastUpdated)
-            .IsRequired()
-            .HasPrecision(3);
+            .IsRequired();
 
         builder.HasMany(x => x.Maps)
             .WithOne(x => x.Template)

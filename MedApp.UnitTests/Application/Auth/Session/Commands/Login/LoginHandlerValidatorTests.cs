@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using MedApp.Application.Auth.Sessions.Commands.Login;
+using MedApp.Application.Authentication.Sessions.Commands.Login;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Session.Commands.Login;

@@ -2,7 +2,7 @@
 using MedApp.Client.Auth;
 using MedApp.Client.Components.Modals;
 using MedApp.Client.Models;
-using MedApp.Contracts.Auth.Requests;
+using MedApp.Contracts.Authentication.Requests;
 using Microsoft.AspNetCore.Components;
 
 namespace MedApp.Client.Pages.Admin.Users;

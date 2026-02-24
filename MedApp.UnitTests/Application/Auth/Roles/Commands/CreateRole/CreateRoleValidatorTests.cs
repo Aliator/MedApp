@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using MedApp.Application.Auth.Roles.Commands.CreateRole;
+using MedApp.Application.Authentication.Roles.Commands.CreateRole;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Roles.Commands.CreateRole;

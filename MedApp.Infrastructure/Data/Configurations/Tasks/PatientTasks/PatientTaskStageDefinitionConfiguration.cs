@@ -1,8 +1,8 @@
-﻿using MedApp.Domain.Tasks.PatientTask;
+﻿using MedApp.Domain.Tasks.PatientTasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace MedApp.Infrastructure.Data.Configurations;
+namespace MedApp.Infrastructure.Data.Configurations.Tasks.PatientTasks;
 
 public sealed class PatientTaskStageDefinitionConfiguration : IEntityTypeConfiguration<PatientTaskStageDefinition>
 {

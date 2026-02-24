@@ -2,7 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using MedApp.Client.Auth;
-using MedApp.Contracts.Auth.Requests;
+using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Common;
 using Microsoft.AspNetCore.Components;
 

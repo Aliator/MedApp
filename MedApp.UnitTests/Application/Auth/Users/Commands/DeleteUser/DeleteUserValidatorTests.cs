@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using MedApp.Application.Auth.Users.Commands.DeleteUser;
+using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Users.Commands.DeleteUser;

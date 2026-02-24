@@ -20,10 +20,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Auth\Roles\" />
-      <Folder Include="Auth\Sessions\Commands\" />
-      <Folder Include="Auth\Users\Commands\" />
-      <Folder Include="Auth\Users\Queries\" />
+      <Folder Include="Authentication\Roles\" />
+      <Folder Include="Authentication\Sessions\Commands\" />
+      <Folder Include="Authentication\Users\Commands\" />
+      <Folder Include="Authentication\Users\Queries\" />
       <Folder Include="Tasks\PatientTaskStageDefinitions\Commands\" />
       <Folder Include="Tasks\PatientTaskStageDefinitions\Queries\" />
     </ItemGroup>

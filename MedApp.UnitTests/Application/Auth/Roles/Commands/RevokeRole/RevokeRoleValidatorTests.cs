@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using MedApp.Application.Auth.Roles.Commands.RevokeRole;
+using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Roles.Commands.RevokeRole;
