@@ -51,7 +51,29 @@ public sealed class PatientTaskRepository(MedAppDbContext context) : IPatientTas
 
     public async Task UpdateAsync(PatientTask task, CancellationToken ct)
     {
-        context.PatientTasks.Update(task);
+        var existing = await context.PatientTasks
+            .Include(x => x.Stages)
+            .Include(x => x.Assignments)
+            .FirstOrDefaultAsync(x => x.Id == task.Id, ct);
+
+        if (existing is null)
+        {
+            return;
+        }
+
+        existing.Title = task.Title;
+        existing.Notes = task.Notes;
+        existing.DueDateUtc = task.DueDateUtc;
+        existing.Priority = task.Priority;
+        existing.Status = task.Status;
+        existing.LastUpdated = task.LastUpdated;
+
+        context.Set<PatientTaskStage>().RemoveRange(existing.Stages);
+        existing.Stages = task.Stages;
+
+        context.Set<PatientTaskAssignment>().RemoveRange(existing.Assignments);
+        existing.Assignments = task.Assignments;
+
         await context.SaveChangesAsync(ct);
     }
 

@@ -16,5 +16,5 @@ public interface IPatientTaskStagesRepository
     Task UpdateStageTemplateAsync(PatientTaskStageTemplate template, CancellationToken ct);
     Task DeleteStageTemplateAsync(Guid id, CancellationToken ct);
 
-    Task ReplaceStageTemplateMappingsAsync(Guid templateId, IEnumerable<Guid> stageDefinitionIdsInOrder, CancellationToken ct);
+    Task ReplaceStageTemplateMapsAsync(Guid templateId, IEnumerable<Guid> stageDefinitionIdsInOrder, CancellationToken ct);
 }

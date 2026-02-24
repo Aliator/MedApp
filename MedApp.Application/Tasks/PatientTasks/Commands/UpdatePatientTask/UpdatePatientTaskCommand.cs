@@ -1,6 +1,14 @@
-﻿namespace MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
+﻿using MedApp.Contracts.Tasks.PatientTasks.Responses;
+using MediatR;
 
-public class UpdatePatientTaskCommand
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
+
+public sealed record UpdatePatientTaskCommand(
+    Guid PatientTaskId,
+    string? Title,
+    string? Notes,
+    DateTime? DueDateUtc,
+    string? Priority,
+    string? Status,
+    IReadOnlyList<Guid>? StageDefinitionIdsInOrder
+) : IRequest<PatientTaskResponse?>;

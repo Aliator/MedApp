@@ -104,7 +104,7 @@ public sealed class PatientTaskStagesRepository(MedAppDbContext context) : IPati
         await context.SaveChangesAsync(ct);
     }
 
-    public async Task ReplaceStageTemplateMappingsAsync(Guid templateId, IEnumerable<Guid> stageDefinitionIdsInOrder, CancellationToken ct)
+    public async Task ReplaceStageTemplateMapsAsync(Guid templateId, IEnumerable<Guid> stageDefinitionIdsInOrder, CancellationToken ct)
     {
         var ids = stageDefinitionIdsInOrder.ToList();
 

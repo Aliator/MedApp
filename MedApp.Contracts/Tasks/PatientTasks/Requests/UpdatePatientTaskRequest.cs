@@ -13,6 +13,4 @@ public sealed class UpdatePatientTaskRequest
     public string? Status { get; set; }
 
     public List<Guid>? StageDefinitionIdsInOrder { get; set; }
-
-    public List<Guid>? AssignedUserIds { get; set; }
 }

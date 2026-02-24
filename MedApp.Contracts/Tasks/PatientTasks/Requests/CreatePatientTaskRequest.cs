@@ -12,6 +12,4 @@ public sealed class CreatePatientTaskRequest
     public string Priority { get; set; } = string.Empty;
 
     public List<Guid> StageDefinitionIdsInOrder { get; set; } = [];
-
-    public List<Guid> AssignedUserIds { get; set; } = [];
 }
