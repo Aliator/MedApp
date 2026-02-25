@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Tasks.Repositories;
+﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
 using MedApp.Domain.Tasks.PatientTasks;
 using MediatR;
@@ -7,13 +9,29 @@ namespace MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
 
 public sealed class CreatePatientTaskHandler(
     IPatientTaskRepository taskRepository,
-    IPatientTaskStagesRepository stagesRepository)
+    IPatientTaskStagesRepository stagesRepository,
+    IPatientRepository patientRepository)
     : IRequestHandler<CreatePatientTaskCommand, PatientTaskResponse>
 {
     public async Task<PatientTaskResponse> Handle(
         CreatePatientTaskCommand request,
         CancellationToken cancellationToken)
     {
+        var patient = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken);
+        if (patient is null)
+            throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
+
+        var stageDefinitionIds = request.StageDefinitionIdsInOrder.Distinct().ToList();
+        var allDefinitions = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
+        var defsById = allDefinitions.ToDictionary(x => x.Id);
+
+        var missingStageDefinitionIds = stageDefinitionIds
+            .Where(id => !defsById.ContainsKey(id))
+            .ToList();
+
+        if (missingStageDefinitionIds.Count != 0)
+            throw new NotFoundException($"Stage definition(s) not found: {string.Join(", ", missingStageDefinitionIds)}.");
+        
         var priority = Enum.Parse<PatientTaskPriority>(request.Priority, true);
         var now = DateTime.UtcNow;
 
@@ -28,7 +46,7 @@ public sealed class CreatePatientTaskHandler(
             Status = PatientTaskStatus.Unassigned,
             CreatedAt = now,
             LastUpdated = now,
-            Stages = request.StageDefinitionIdsInOrder
+            Stages = stageDefinitionIds
                 .Distinct()
                 .Select((stageDefinitionId, index) => new PatientTaskStage
                 {
@@ -43,9 +61,6 @@ public sealed class CreatePatientTaskHandler(
         };
 
         await taskRepository.AddAsync(task, cancellationToken);
-
-        var allDefinitions = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
-        var defsById = allDefinitions.ToDictionary(x => x.Id);
 
         return new PatientTaskResponse
         {

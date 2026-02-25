@@ -1,35 +1,44 @@
-﻿using MedApp.Application.Tasks.Repositories;
+﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
 using MedApp.Domain.Tasks.PatientTasks;
 using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
 
-public sealed class AssignPatientTaskHandler(IPatientTaskRepository repository)
-    : IRequestHandler<AssignPatientTaskCommand, List<PatientTaskAssignmentResponse>?>
+public sealed class AssignPatientTaskHandler(
+    IPatientTaskRepository repository,
+    IIdentityReadService identityReadService)
+    : IRequestHandler<AssignPatientTaskCommand, List<PatientTaskAssignmentResponse>>
 {
-    public async Task<List<PatientTaskAssignmentResponse>?> Handle(
+    public async Task<List<PatientTaskAssignmentResponse>> Handle(
         AssignPatientTaskCommand request,
         CancellationToken ct)
     {
-        var task = await repository.GetByIdAsync(request.PatientTaskId, ct);
-        if (task is null) return null;
+        var task = await repository.GetByIdAsync(request.PatientTaskId, ct)
+                   ?? throw new NotFoundException($"Patient task '{request.PatientTaskId}' was not found.");
+
+        var users = await identityReadService.GetUsersAsync(ct);
+        if (users.All(u => u.UserId != request.UserId))
+            throw new NotFoundException($"User '{request.UserId}' was not found.");
+
+        if (task.Assignments.Any(x => x.UserId == request.UserId))
+            throw new ConflictException("This user is already assigned to the patient task.");
 
         var now = DateTime.UtcNow;
-
-        if (task.Assignments.All(x => x.UserId != request.UserId))
+       
+        task.Assignments.Add(new PatientTaskAssignment
         {
-            task.Assignments.Add(new PatientTaskAssignment
-            {
-                PatientTaskId = task.Id,
-                UserId = request.UserId,
-                AssignedByUserId = request.AssignedByUserId,
-                AssignedAtUtc = now
+            PatientTaskId = task.Id,
+            UserId = request.UserId,
+            AssignedByUserId = request.AssignedByUserId,
+            AssignedAtUtc = now
             });
-
-            task.LastUpdated = now;
-            await repository.UpdateAsync(task, ct);
-        }
+        
+        task.LastUpdated = now;
+       
+        await repository.UpdateAsync(task, ct);
 
         return task.Assignments
             .Select(x => new PatientTaskAssignmentResponse

@@ -1,12 +1,11 @@
 ﻿using FluentValidation;
-using MedApp.Application.Tasks.Repositories;
 using MedApp.Domain.Tasks.PatientTasks;
 
 namespace MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
 
 public sealed class CreatePatientTaskValidator : AbstractValidator<CreatePatientTaskCommand>
 {
-    public CreatePatientTaskValidator(IPatientTaskStagesRepository taskStagesRepository)
+    public CreatePatientTaskValidator()
     {
         RuleFor(x => x.PatientId)
             .NotEmpty()
@@ -27,6 +26,12 @@ public sealed class CreatePatientTaskValidator : AbstractValidator<CreatePatient
         RuleFor(x => x.Priority)
             .Must(value => Enum.TryParse<PatientTaskPriority>(value, true, out _))
             .WithMessage("Priority is invalid.");
+        
+        RuleFor(x => x.StageDefinitionIdsInOrder)
+            .NotEmpty()
+            .WithMessage("At least one stage definition is required.")
+            .Must(ids => ids.Distinct().Count() == ids.Count)
+            .WithMessage("Stage definition ids must be unique.");
 
         RuleForEach(x => x.StageDefinitionIdsInOrder)
             .NotEmpty()

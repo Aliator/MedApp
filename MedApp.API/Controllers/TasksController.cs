@@ -62,13 +62,17 @@ public sealed class TasksController(IMediator mediator, ISessionService sessionS
     }
 
     [HttpPost("patient-tasks/{patientTaskId:guid}/assign/{userId:guid}")]
+    [ProducesResponseType(typeof(List<PatientTaskAssignmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> AssignPatientTask(Guid patientTaskId, Guid userId, CancellationToken ct)
     {
         var assignedByUserId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
 
         var result = await mediator.Send(new AssignPatientTaskCommand(patientTaskId, userId, assignedByUserId), ct);
 
-        return result is null ? NotFound() : Ok(result);
+        return Ok(result);
     }
 
     [HttpDelete("{id:guid}")]

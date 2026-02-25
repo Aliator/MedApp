@@ -7,4 +7,4 @@ public sealed record AssignPatientTaskCommand(
     Guid PatientTaskId,
     Guid UserId,
     Guid AssignedByUserId)
-    : IRequest<List<PatientTaskAssignmentResponse>?>;
+    : IRequest<List<PatientTaskAssignmentResponse>>;
