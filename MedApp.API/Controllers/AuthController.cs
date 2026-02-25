@@ -14,7 +14,6 @@ using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
-using MedApp.Application.Common.Authentication;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MediatR;
