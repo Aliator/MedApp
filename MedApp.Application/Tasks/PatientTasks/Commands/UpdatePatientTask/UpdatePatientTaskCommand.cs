@@ -11,4 +11,4 @@ public sealed record UpdatePatientTaskCommand(
     string? Priority,
     string? Status,
     IReadOnlyList<Guid>? StageDefinitionIdsInOrder
-) : IRequest<PatientTaskResponse?>;
+) : IRequest<PatientTaskResponse>;

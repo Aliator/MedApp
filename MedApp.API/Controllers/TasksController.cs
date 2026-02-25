@@ -38,7 +38,8 @@ public sealed class TasksController(IMediator mediator, ISessionService sessionS
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdatePatientTask(Guid id, [FromBody] UpdatePatientTaskRequest request)
     {
@@ -52,12 +53,7 @@ public sealed class TasksController(IMediator mediator, ISessionService sessionS
             request.StageDefinitionIdsInOrder);
 
         var updatedTask = await mediator.Send(command);
-
-        if (updatedTask is null)
-        {
-            return NotFound();
-        }
-
+        
         return Ok(updatedTask);
     }
 
@@ -68,7 +64,7 @@ public sealed class TasksController(IMediator mediator, ISessionService sessionS
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> AssignPatientTask(Guid patientTaskId, Guid userId, CancellationToken ct)
     {
-        var assignedByUserId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var assignedByUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
         var result = await mediator.Send(new AssignPatientTaskCommand(patientTaskId, userId, assignedByUserId), ct);
 

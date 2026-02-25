@@ -3,4 +3,4 @@ using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTasks.Queries.GetPatientTaskById;
 
-public sealed record GetPatientTaskByIdQuery(Guid PatientTaskId) : IRequest<PatientTaskResponse?>;
+public sealed record GetPatientTaskByIdQuery(Guid PatientTaskId) : IRequest<PatientTaskResponse>;

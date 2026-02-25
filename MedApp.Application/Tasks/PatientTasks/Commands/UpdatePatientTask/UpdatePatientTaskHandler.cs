@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Tasks.Repositories;
+﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
 using MedApp.Domain.Tasks.PatientTasks;
 using MediatR;
@@ -8,27 +9,28 @@ namespace MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
 public sealed class UpdatePatientTaskHandler(
     IPatientTaskRepository repository,
     IPatientTaskStagesRepository stagesRepository)
-    : IRequestHandler<UpdatePatientTaskCommand, PatientTaskResponse?>
+    : IRequestHandler<UpdatePatientTaskCommand, PatientTaskResponse>
 {
-    public async Task<PatientTaskResponse?> Handle(
+    public async Task<PatientTaskResponse> Handle(
         UpdatePatientTaskCommand request,
         CancellationToken cancellationToken)
     {
-        var task = await repository.GetByIdAsync(request.PatientTaskId, cancellationToken);
-
-        if (task is null)
-        {
-            return null;
-        }
-
-        if (request.Title is not null) task.Title = request.Title;
-        if (request.Notes is not null) task.Notes = request.Notes;
-        if (request.DueDateUtc.HasValue) task.DueDateUtc = request.DueDateUtc.Value;
-        if (request.Priority is not null) task.Priority = Enum.Parse<PatientTaskPriority>(request.Priority, true);
-        if (request.Status is not null) task.Status = Enum.Parse<PatientTaskStatus>(request.Status, true);
+        var task = await repository.GetByIdAsync(request.PatientTaskId, cancellationToken)
+                   ?? throw new NotFoundException($"Patient task '{request.PatientTaskId}' was not found.");
+        
+        var defs = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
+        var defsById = defs.ToDictionary(x => x.Id);
 
         if (request.StageDefinitionIdsInOrder is not null)
         {
+            var missingStageDefinitionIds = request.StageDefinitionIdsInOrder
+                .Distinct()
+                .Where(id => !defsById.ContainsKey(id))
+                .ToList();
+
+            if (missingStageDefinitionIds.Count != 0)
+                throw new NotFoundException($"Stage definition(s) not found: {string.Join(", ", missingStageDefinitionIds)}.");
+            
             var now = DateTime.UtcNow;
             var stageIds = request.StageDefinitionIdsInOrder.Distinct().ToList();
 
@@ -60,13 +62,17 @@ public sealed class UpdatePatientTaskHandler(
 
             task.Stages = nextStages;
         }
+         
+        if (request.Title is not null) task.Title = request.Title;
+        if (request.Notes is not null) task.Notes = request.Notes;
+        if (request.DueDateUtc.HasValue) task.DueDateUtc = request.DueDateUtc.Value;
+        if (request.Priority is not null) task.Priority = Enum.Parse<PatientTaskPriority>(request.Priority, true);
+        if (request.Status is not null) task.Status = Enum.Parse<PatientTaskStatus>(request.Status, true);
+        
 
         task.LastUpdated = DateTime.UtcNow;
 
         await repository.UpdateAsync(task, cancellationToken);
-
-        var defs = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
-        var defsById = defs.ToDictionary(x => x.Id);
 
         return new PatientTaskResponse
         {
