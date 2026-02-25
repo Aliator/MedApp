@@ -19,8 +19,6 @@ public sealed class GetPatientTaskTemplateByIdHandler(IPatientTaskStagesReposito
         {
             Id = template.Id,
             Name = template.Name,
-            CreatedAt = template.CreatedAt,
-            LastUpdated = template.LastUpdated,
             StageDefinitionIdsInOrder = template.Maps
                 .OrderBy(x => x.StageOrder)
                 .Select(x => x.StageDefinitionId)

@@ -39,8 +39,6 @@ public sealed class UpdatePatientTaskTemplateHandler(IPatientTaskStagesRepositor
                 throw new NotFoundException($"Stage definition(s) not found: {string.Join(", ", missingStageDefinitionIds)}.");
         }
 
-        template.LastUpdated = DateTime.UtcNow;
-
         await repository.UpdateStageTemplateAsync(template, cancellationToken);
 
         if (stageDefinitionIds is not null)
@@ -56,8 +54,6 @@ public sealed class UpdatePatientTaskTemplateHandler(IPatientTaskStagesRepositor
         {
             Id = template.Id,
             Name = template.Name,
-            CreatedAt = template.CreatedAt,
-            LastUpdated = template.LastUpdated,
             StageDefinitionIdsInOrder = stageDefinitionIds ?? template.Maps
                 .OrderBy(x => x.StageOrder)
                 .Select(x => x.StageDefinitionId)

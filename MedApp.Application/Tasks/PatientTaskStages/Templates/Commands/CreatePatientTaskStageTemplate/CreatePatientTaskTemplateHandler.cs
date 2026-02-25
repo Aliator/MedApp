@@ -34,8 +34,6 @@ public sealed class CreatePatientTaskTemplateHandler(IPatientTaskStagesRepositor
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            CreatedAt = now,
-            LastUpdated = now
         };
 
         await repository.AddStageTemplateAsync(template, cancellationToken);
@@ -45,8 +43,6 @@ public sealed class CreatePatientTaskTemplateHandler(IPatientTaskStagesRepositor
         {
             Id = template.Id,
             Name = template.Name,
-            CreatedAt = template.CreatedAt,
-            LastUpdated = template.LastUpdated,
             StageDefinitionIdsInOrder = stageDefinitionIds
         };
     }

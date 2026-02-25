@@ -16,12 +16,6 @@ public sealed class PatientTaskStageTemplateConfiguration : IEntityTypeConfigura
             .IsRequired()
             .HasMaxLength(150);
 
-        builder.Property(x => x.CreatedAt)
-            .IsRequired();
-
-        builder.Property(x => x.LastUpdated)
-            .IsRequired();
-
         builder.HasMany(x => x.Maps)
             .WithOne(x => x.Template)
             .HasForeignKey(x => x.TemplateId)
