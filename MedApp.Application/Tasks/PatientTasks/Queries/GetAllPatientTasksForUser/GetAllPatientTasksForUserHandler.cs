@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Tasks.Repositories;
+﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
 using MediatR;
 
@@ -11,8 +13,10 @@ public sealed class GetAllPatientTasksForUserHandler(IPatientTaskRepository repo
         GetAllPatientTasksForUserQuery request,
         CancellationToken cancellationToken)
     {
-        var tasks = await repository.GetAllForUserAsync(request.UserId, cancellationToken);
-
+        var tasks = (await repository.GetAllForUserAsync(request.UserId, cancellationToken)).ToList();
+        if (tasks.Count == 0)
+            throw new NotFoundException($"User '{request.UserId}' was not found.");
+        
         return tasks
             .Select(task => new PatientTaskResponse
             {
