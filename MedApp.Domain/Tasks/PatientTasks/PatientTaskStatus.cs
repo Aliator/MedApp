@@ -3,11 +3,12 @@
 public enum PatientTaskStatus
 {
     Unassigned = 0,
-    NotStarted = 1,
-    InProgress = 2,
-    InReview = 3,
-    Completed = 4,
-    Cancelled = 5,
-    Blocked = 6,
-    Archived = 7
+    Assigned = 1,
+    NotStarted = 2,
+    InProgress = 3,
+    InReview = 4,
+    Completed = 5,
+    Cancelled = 6,
+    Blocked = 7,
+    Archived = 8
 }

@@ -36,6 +36,11 @@ public sealed class AssignPatientTaskHandler(
             AssignedAtUtc = now
             });
         
+        if (task.Status == PatientTaskStatus.Unassigned)
+        {
+            task.Status = PatientTaskStatus.Assigned;
+        }
+        
         task.LastUpdated = now;
        
         await repository.UpdateAsync(task, ct);
