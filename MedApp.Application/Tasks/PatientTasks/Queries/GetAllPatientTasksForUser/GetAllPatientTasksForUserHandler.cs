@@ -1,5 +1,4 @@
 ﻿using MedApp.Application.Common.Exceptions;
-using MedApp.Application.Common.Identity;
 using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
 using MediatR;
