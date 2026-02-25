@@ -16,8 +16,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 [ApiController]
-[Route("api/tasks/")]
-public sealed class TasksController(IMediator mediator) : ControllerBase
+[Route("api/tasks/patient-tasks")]
+public sealed class PatientTasksController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status201Created)]
@@ -38,7 +38,7 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
         return Created($"/api/tasks/patient-tasks/{task.Id}", task);
     }
 
-    [HttpPatch("patient-tasks/{id:guid}")]
+    [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -56,26 +56,29 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
             request.StageDefinitionIdsInOrder);
 
         var updatedTask = await mediator.Send(command);
-        
+
         return Ok(updatedTask);
     }
 
-    [HttpPost("patient-tasks/{patientTaskId:guid}/assign/{userId:guid}")]
+    [HttpPost("{patientTaskId:guid}/assign/{userId:guid}")]
     [ProducesResponseType(typeof(List<PatientTaskAssignmentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize]
     [Tags("Patient Tasks")]
     public async Task<IActionResult> AssignPatientTask(Guid patientTaskId, Guid userId, CancellationToken ct)
     {
         var assignedByUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        var result = await mediator.Send(new AssignPatientTaskCommand(patientTaskId, userId, assignedByUserId), ct);
+        var result = await mediator.Send(
+            new AssignPatientTaskCommand(patientTaskId, userId, assignedByUserId),
+            ct);
 
         return Ok(result);
     }
 
-    [HttpDelete("patient-tasks/{id:guid}")]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize(Roles = "Admin")]
@@ -93,8 +96,8 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
 
         return NoContent();
     }
-    
-    [HttpGet("patient-tasks/")]
+
+    [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin")]
     [Tags("Patient Tasks")]
@@ -106,7 +109,7 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
         return Ok(tasks);
     }
 
-    [HttpGet("patient-tasks/{id:guid}")]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Authorize(Roles = "Admin")]
@@ -118,8 +121,8 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
 
         return Ok(task);
     }
-    
-    [HttpGet("patient-tasks/user/self")]
+
+    [HttpGet("user/self")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
     [Authorize]
     [Tags("Patient Tasks")]
@@ -132,7 +135,7 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
         return Ok(tasks);
     }
 
-    [HttpGet("patient-tasks/user/{userId:guid}")]
+    [HttpGet("user/{userId:guid}")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin")]
     [Tags("Patient Tasks")]
@@ -144,7 +147,7 @@ public sealed class TasksController(IMediator mediator) : ControllerBase
         return Ok(tasks);
     }
 
-    [HttpGet("patient-tasks/patient/{patientId:guid}")]
+    [HttpGet("patient/{patientId:guid}")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
     [Authorize(Roles = "Admin")]
     [Tags("Patient Tasks")]
