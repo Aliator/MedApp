@@ -90,7 +90,7 @@ public sealed class AuthController(
     [HttpGet("users")]
     [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
-    [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await mediator.Send(new GetAllUsersQuery());
@@ -107,7 +107,7 @@ public sealed class AuthController(
         if (user is null)
             return NotFound();
 
-        return Ok(new UserResponse(user.Username, user.Roles));
+        return Ok(new UserResponse(user.UserId, user.Username, user.Roles));
     }
     
     [HttpPut("users/{username}/update-password")]

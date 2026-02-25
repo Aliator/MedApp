@@ -5,7 +5,9 @@ using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
 
-public sealed class UpdatePatientTaskHandler(IPatientTaskRepository repository)
+public sealed class UpdatePatientTaskHandler(
+    IPatientTaskRepository repository,
+    IPatientTaskStagesRepository stagesRepository)
     : IRequestHandler<UpdatePatientTaskCommand, PatientTaskResponse?>
 {
     public async Task<PatientTaskResponse?> Handle(
@@ -19,43 +21,24 @@ public sealed class UpdatePatientTaskHandler(IPatientTaskRepository repository)
             return null;
         }
 
-        if (request.Title is not null)
-        {
-            task.Title = request.Title;
-        }
-
-        if (request.Notes is not null)
-        {
-            task.Notes = request.Notes;
-        }
-
-        if (request.DueDateUtc.HasValue)
-        {
-            task.DueDateUtc = request.DueDateUtc.Value;
-        }
-
-        if (request.Priority is not null)
-        {
-            task.Priority = Enum.Parse<PatientTaskPriority>(request.Priority, true);
-        }
-
-        if (request.Status is not null)
-        {
-            task.Status = Enum.Parse<PatientTaskStatus>(request.Status, true);
-        }
+        if (request.Title is not null) task.Title = request.Title;
+        if (request.Notes is not null) task.Notes = request.Notes;
+        if (request.DueDateUtc.HasValue) task.DueDateUtc = request.DueDateUtc.Value;
+        if (request.Priority is not null) task.Priority = Enum.Parse<PatientTaskPriority>(request.Priority, true);
+        if (request.Status is not null) task.Status = Enum.Parse<PatientTaskStatus>(request.Status, true);
 
         if (request.StageDefinitionIdsInOrder is not null)
         {
             var now = DateTime.UtcNow;
             var stageIds = request.StageDefinitionIdsInOrder.Distinct().ToList();
 
-            var existingStagesByDefinition = task.Stages
-                .ToDictionary(x => x.StageDefinitionId);
+            var existingStagesByDefinition = task.Stages.ToDictionary(x => x.StageDefinitionId);
 
             var nextStages = new List<PatientTaskStage>(stageIds.Count);
             for (var index = 0; index < stageIds.Count; index++)
             {
                 var stageDefinitionId = stageIds[index];
+
                 if (existingStagesByDefinition.TryGetValue(stageDefinitionId, out var existingStage))
                 {
                     existingStage.StageOrder = index + 1;
@@ -82,6 +65,9 @@ public sealed class UpdatePatientTaskHandler(IPatientTaskRepository repository)
 
         await repository.UpdateAsync(task, cancellationToken);
 
+        var defs = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
+        var defsById = defs.ToDictionary(x => x.Id);
+
         return new PatientTaskResponse
         {
             Id = task.Id,
@@ -95,17 +81,22 @@ public sealed class UpdatePatientTaskHandler(IPatientTaskRepository repository)
             LastUpdated = task.LastUpdated,
             Stages = task.Stages
                 .OrderBy(x => x.StageOrder)
-                .Select(x => new PatientTaskStageResponse
+                .Select(x =>
                 {
-                    Id = x.Id,
-                    StageDefinitionId = x.StageDefinitionId,
-                    StageOrder = x.StageOrder,
-                    IsCompleted = x.IsCompleted,
-                    CompletedAtUtc = x.CompletedAtUtc,
-                    CompletedByUserId = x.CompletedByUserId,
-                    StageName = x.StageDefinition?.Name ?? string.Empty,
-                    StageDescription = x.StageDefinition?.Description ?? string.Empty,
-                    StageInstructions = x.StageDefinition?.Instructions ?? string.Empty
+                    defsById.TryGetValue(x.StageDefinitionId, out var def);
+
+                    return new PatientTaskStageResponse
+                    {
+                        Id = x.Id,
+                        StageDefinitionId = x.StageDefinitionId,
+                        StageOrder = x.StageOrder,
+                        IsCompleted = x.IsCompleted,
+                        CompletedAtUtc = x.CompletedAtUtc,
+                        CompletedByUserId = x.CompletedByUserId,
+                        StageName = def?.Name ?? string.Empty,
+                        StageDescription = def?.Description ?? string.Empty,
+                        StageInstructions = def?.Instructions ?? string.Empty
+                    };
                 })
                 .ToList(),
             Assignments = task.Assignments

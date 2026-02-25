@@ -1,8 +1,8 @@
-﻿using MedApp.Application.Common.Identity;
+﻿using MedApp.Contracts.Authentication.Responses;
 using MediatR;
 
 namespace MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 
 public sealed record GetUserByUsernameQuery(
     string Username
-) : IRequest<UserDetails?>;
+) : IRequest<UserResponse?>;

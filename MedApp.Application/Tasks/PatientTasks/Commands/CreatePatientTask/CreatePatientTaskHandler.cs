@@ -1,13 +1,13 @@
 ﻿using MedApp.Application.Tasks.Repositories;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
-using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
 using MedApp.Domain.Tasks.PatientTasks;
 using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
 
 public sealed class CreatePatientTaskHandler(
-    IPatientTaskRepository taskRepository)
+    IPatientTaskRepository taskRepository,
+    IPatientTaskStagesRepository stagesRepository)
     : IRequestHandler<CreatePatientTaskCommand, PatientTaskResponse>
 {
     public async Task<PatientTaskResponse> Handle(
@@ -44,6 +44,9 @@ public sealed class CreatePatientTaskHandler(
 
         await taskRepository.AddAsync(task, cancellationToken);
 
+        var allDefinitions = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
+        var defsById = allDefinitions.ToDictionary(x => x.Id);
+
         return new PatientTaskResponse
         {
             Id = task.Id,
@@ -57,17 +60,22 @@ public sealed class CreatePatientTaskHandler(
             LastUpdated = task.LastUpdated,
             Stages = task.Stages
                 .OrderBy(x => x.StageOrder)
-                .Select(x => new PatientTaskStageResponse
+                .Select(x =>
                 {
-                    Id = x.Id,
-                    StageDefinitionId = x.StageDefinitionId,
-                    StageOrder = x.StageOrder,
-                    IsCompleted = x.IsCompleted,
-                    CompletedAtUtc = x.CompletedAtUtc,
-                    CompletedByUserId = x.CompletedByUserId,
-                    StageName = x.StageDefinition?.Name ?? string.Empty,
-                    StageDescription = x.StageDefinition?.Description ?? string.Empty,
-                    StageInstructions = x.StageDefinition?.Instructions ?? string.Empty
+                    defsById.TryGetValue(x.StageDefinitionId, out var def);
+
+                    return new PatientTaskStageResponse
+                    {
+                        Id = x.Id,
+                        StageDefinitionId = x.StageDefinitionId,
+                        StageOrder = x.StageOrder,
+                        IsCompleted = x.IsCompleted,
+                        CompletedAtUtc = x.CompletedAtUtc,
+                        CompletedByUserId = x.CompletedByUserId,
+                        StageName = def?.Name ?? string.Empty,
+                        StageDescription = def?.Description ?? string.Empty,
+                        StageInstructions = def?.Instructions ?? string.Empty
+                    };
                 })
                 .ToList(),
             Assignments = task.Assignments

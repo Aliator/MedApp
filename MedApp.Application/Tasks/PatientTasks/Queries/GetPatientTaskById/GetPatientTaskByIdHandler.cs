@@ -47,6 +47,7 @@ public sealed class GetPatientTaskByIdHandler(IPatientTaskRepository repository)
             Assignments = task.Assignments
                 .Select(x => new PatientTaskAssignmentResponse
                 {
+                    PatientTaskId = x.PatientTaskId,
                     UserId = x.UserId,
                     AssignedByUserId = x.AssignedByUserId,
                     AssignedAtUtc = x.AssignedAtUtc

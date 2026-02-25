@@ -1,4 +1,6 @@
-﻿namespace MedApp.Application.Common.Identity;
+﻿using MedApp.Contracts.Authentication.Responses;
+
+namespace MedApp.Application.Common.Identity;
 
 public interface IIdentityReadService
 {
@@ -7,8 +9,9 @@ public interface IIdentityReadService
     Task<IReadOnlyList<string>> GetRolesForUserAsync(
         string username,
         CancellationToken ct);
-    Task<UserDetails?> GetUserAsync(
+    Task<UserResponse?> GetUserAsync(
         string username,
         CancellationToken ct);
 
+    Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct);
 }

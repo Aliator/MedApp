@@ -31,26 +31,5 @@ public sealed class CreatePatientTaskValidator : AbstractValidator<CreatePatient
         RuleForEach(x => x.StageDefinitionIdsInOrder)
             .NotEmpty()
             .WithMessage("Stage definition id is required.");
-
-        RuleFor(x => x.StageDefinitionIdsInOrder)
-            .MustAsync(async (stageDefinitionIds, cancellationToken) =>
-            {
-                var uniqueIds = stageDefinitionIds.Distinct();
-
-                foreach (var stageDefinitionId in uniqueIds)
-                {
-                    var stageDefinition = await taskStagesRepository.GetStageDefinitionByIdAsync(
-                        stageDefinitionId,
-                        cancellationToken);
-
-                    if (stageDefinition is null)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            })
-            .WithMessage("One or more stage definitions do not exist.");
     }
 }

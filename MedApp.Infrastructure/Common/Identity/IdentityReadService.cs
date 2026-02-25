@@ -1,5 +1,7 @@
 ﻿using MedApp.Application.Common.Identity;
+using MedApp.Contracts.Authentication.Responses;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Common.Identity;
 
@@ -27,22 +29,40 @@ public sealed class IdentityReadService(
         CancellationToken ct)
     {
         var user = await userManager.FindByNameAsync(username);
-        if (user is null)
-            return [];
+        if (user is null) return [];
 
         var roles = await userManager.GetRolesAsync(user);
         return roles.ToList();
     }
-    
-    public async Task<UserDetails?> GetUserAsync(
+
+    public async Task<UserResponse?> GetUserAsync(
         string username,
         CancellationToken ct)
     {
         var user = await userManager.FindByNameAsync(username);
-        if (user is null)
-            return null;
+        if (user is null) return null;
 
         var roles = await userManager.GetRolesAsync(user);
-        return new UserDetails(user.UserName!, roles.ToList());
+        return new UserResponse(user.Id, user.UserName!, roles.ToList());
+    }
+
+    public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)
+    {
+        var users = await userManager.Users
+            .Select(u => new { u.Id, u.UserName })
+            .ToListAsync(ct);
+
+        var results = new List<UserResponse>(users.Count);
+
+        foreach (var u in users)
+        {
+            var user = await userManager.FindByIdAsync(u.Id.ToString());
+            if (user is null) continue;
+
+            var roles = await userManager.GetRolesAsync(user);
+            results.Add(new UserResponse(user.Id, user.UserName!, roles.ToList()));
+        }
+
+        return results;
     }
 }
