@@ -2,9 +2,9 @@
 
 namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.CreatePatientTaskStageDefinition;
 
-public sealed class CreatePatientTaskStageValidator : AbstractValidator<CreatePatientTaskStageCommand>
+public sealed class CreatePatientTaskStageDefinitionValidator : AbstractValidator<CreatePatientTaskStageDefinitionCommand>
 {
-    public CreatePatientTaskStageValidator()
+    public CreatePatientTaskStageDefinitionValidator()
     {
         RuleFor(x => x.Name)
             .NotEmpty()

@@ -2,9 +2,9 @@
 
 namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.UpdatePatientTaskStageDefinition;
 
-public sealed class UpdatePatientTaskStageValidator : AbstractValidator<UpdatePatientTaskStageCommand>
+public sealed class UpdatePatientTaskStageDefinitionValidator : AbstractValidator<UpdatePatientTaskStageDefinitionCommand>
 {
-    public UpdatePatientTaskStageValidator()
+    public UpdatePatientTaskStageDefinitionValidator()
     {
         RuleFor(x => x.StageDefinitionId)
             .NotEmpty()

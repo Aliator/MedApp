@@ -1,6 +1,6 @@
-﻿namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Queries.GetAllPatientTaskStageTemplates;
+﻿using MedApp.Contracts.Tasks.PatientTaskStages.Templates.Responses;
+using MediatR;
 
-public class GetAllPatientTaskTemplatesQuery
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Queries.GetAllPatientTaskStageTemplates;
+
+public sealed record GetAllPatientTaskTemplatesQuery : IRequest<IReadOnlyList<PatientTaskStageTemplateResponse>>;

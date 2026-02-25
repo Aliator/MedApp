@@ -3,10 +3,10 @@ using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.DeletePatientTaskStageDefinition;
 
-public sealed class DeletePatientTaskStageHandler(IPatientTaskStagesRepository repository)
-    : IRequestHandler<DeletePatientTaskStageCommand, bool>
+public sealed class DeletePatientTaskStageDefinitionHandler(IPatientTaskStagesRepository repository)
+    : IRequestHandler<DeletePatientTaskStageDefinitionCommand, bool>
 {
-    public async Task<bool> Handle(DeletePatientTaskStageCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(DeletePatientTaskStageDefinitionCommand request, CancellationToken cancellationToken)
     {
         var stageDefinition = await repository.GetStageDefinitionByIdAsync(request.StageDefinitionId, cancellationToken);
 

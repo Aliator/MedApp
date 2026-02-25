@@ -1,18 +1,17 @@
 ﻿using MedApp.Application.Tasks.Repositories;
-using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
+using MedApp.Contracts.Tasks.PatientTaskStages.Definitions.Responses;
 using MedApp.Domain.Tasks.PatientTasks;
 using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.CreatePatientTaskStageDefinition;
 
-public sealed class CreatePatientTaskStageHandler(IPatientTaskStagesRepository repository)
-    : IRequestHandler<CreatePatientTaskStageCommand, PatientTaskStageDefinitionResponse>
+public sealed class CreatePatientTaskStageDefinitionHandler(IPatientTaskStagesRepository repository)
+    : IRequestHandler<CreatePatientTaskStageDefinitionCommand, PatientTaskStageDefinitionResponse>
 {
     public async Task<PatientTaskStageDefinitionResponse> Handle(
-        CreatePatientTaskStageCommand request,
+        CreatePatientTaskStageDefinitionCommand request,
         CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
         var stageDefinition = new PatientTaskStageDefinition
         {
             Id = Guid.NewGuid(),

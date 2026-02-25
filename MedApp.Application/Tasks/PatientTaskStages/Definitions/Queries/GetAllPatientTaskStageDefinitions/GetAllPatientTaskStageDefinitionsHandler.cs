@@ -1,14 +1,14 @@
 ﻿using MedApp.Application.Tasks.Repositories;
-using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
+using MedApp.Contracts.Tasks.PatientTaskStages.Definitions.Responses;
 using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Queries.GetAllPatientTaskStageDefinitions;
 
-public sealed class GetAllPatientTaskStagesHandler(IPatientTaskStagesRepository repository)
-    : IRequestHandler<GetAllPatientTaskStagesQuery, IReadOnlyList<PatientTaskStageDefinitionResponse>>
+public sealed class GetAllPatientTaskStageDefinitionsHandler(IPatientTaskStagesRepository repository)
+    : IRequestHandler<GetAllPatientTaskStageDefinitionsQuery, IReadOnlyList<PatientTaskStageDefinitionResponse>>
 {
     public async Task<IReadOnlyList<PatientTaskStageDefinitionResponse>> Handle(
-        GetAllPatientTaskStagesQuery request,
+        GetAllPatientTaskStageDefinitionsQuery request,
         CancellationToken cancellationToken)
     {
         var stageDefinitions = await repository.GetAllStageDefinitionsAsync(cancellationToken);

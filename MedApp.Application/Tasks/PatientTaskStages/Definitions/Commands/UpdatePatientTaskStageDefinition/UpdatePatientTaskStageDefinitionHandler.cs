@@ -1,15 +1,15 @@
 ﻿using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Tasks.Repositories;
-using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
+using MedApp.Contracts.Tasks.PatientTaskStages.Definitions.Responses;
 using MediatR;
 
 namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.UpdatePatientTaskStageDefinition;
 
-public sealed class UpdatePatientTaskStageHandler(IPatientTaskStagesRepository repository)
-    : IRequestHandler<UpdatePatientTaskStageCommand, PatientTaskStageDefinitionResponse>
+public sealed class UpdatePatientTaskStageDefinitionHandler(IPatientTaskStagesRepository repository)
+    : IRequestHandler<UpdatePatientTaskStageDefinitionCommand, PatientTaskStageDefinitionResponse>
 {
     public async Task<PatientTaskStageDefinitionResponse> Handle(
-        UpdatePatientTaskStageCommand request,
+        UpdatePatientTaskStageDefinitionCommand request,
         CancellationToken cancellationToken)
     {
         var stageDefinition = await repository.GetStageDefinitionByIdAsync(request.StageDefinitionId, cancellationToken)

@@ -1,4 +1,4 @@
-﻿namespace MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Requests;
+﻿namespace MedApp.Contracts.Tasks.PatientTaskStages.Definitions.Requests;
 
 public sealed class UpdatePatientTaskStageDefinitionRequest
 {

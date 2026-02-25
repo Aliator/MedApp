@@ -1,6 +1,5 @@
-﻿namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Commands.DeletePatientTaskStageTemplate;
+﻿using MediatR;
 
-public class DeletePatientTaskTemplateCommand
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Commands.DeletePatientTaskStageTemplate;
+
+public sealed record DeletePatientTaskTemplateCommand(Guid TemplateId) : IRequest<bool>;

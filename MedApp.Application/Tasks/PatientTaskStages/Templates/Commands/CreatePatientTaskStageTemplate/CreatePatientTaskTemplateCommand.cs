@@ -1,6 +1,9 @@
-﻿namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Commands.CreatePatientTaskStageTemplate;
+﻿using MedApp.Contracts.Tasks.PatientTaskStages.Templates.Responses;
+using MediatR;
 
-public class CreatePatientTaskTemplateCommand
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Commands.CreatePatientTaskStageTemplate;
+
+public sealed record CreatePatientTaskTemplateCommand(
+    string Name,
+    IReadOnlyList<Guid> StageDefinitionIdsInOrder
+) : IRequest<PatientTaskStageTemplateResponse>;

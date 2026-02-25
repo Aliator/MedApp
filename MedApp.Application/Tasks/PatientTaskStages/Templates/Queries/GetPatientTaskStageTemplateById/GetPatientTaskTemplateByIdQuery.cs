@@ -1,6 +1,6 @@
-﻿namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Queries.GetPatientTaskStageTemplateById;
+﻿using MedApp.Contracts.Tasks.PatientTaskStages.Templates.Responses;
+using MediatR;
 
-public class GetPatientTaskTemplateByIdQuery
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTaskStages.Templates.Queries.GetPatientTaskStageTemplateById;
+
+public sealed record GetPatientTaskTemplateByIdQuery(Guid TemplateId) : IRequest<PatientTaskStageTemplateResponse>;

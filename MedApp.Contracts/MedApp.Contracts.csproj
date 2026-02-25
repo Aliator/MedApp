@@ -10,8 +10,4 @@
       <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.0" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Tasks\PatientTasks\" />
-    </ItemGroup>
-
 </Project>
