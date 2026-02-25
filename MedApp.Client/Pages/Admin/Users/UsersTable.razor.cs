@@ -3,6 +3,7 @@ using MedApp.Client.Auth;
 using MedApp.Client.Components.Modals;
 using MedApp.Client.Models;
 using MedApp.Contracts.Authentication.Requests;
+using MedApp.Contracts.Authentication.Responses;
 using Microsoft.AspNetCore.Components;
 
 namespace MedApp.Client.Pages.Admin.Users;
@@ -269,13 +270,32 @@ public partial class UsersTable
         try
         {
             var response = await Http.GetAsync("api/auth/users");
-            _users = response.IsSuccessStatusCode
-                ? await response.Content.ReadFromJsonAsync<IReadOnlyList<string>>() ?? Array.Empty<string>()
-                : Array.Empty<string>();
+            if (!response.IsSuccessStatusCode)
+            {
+                _users = Array.Empty<string>();
+                return;
+            }
+
+            var users = await response.Content.ReadFromJsonAsync<IReadOnlyList<UserResponse>>()
+                        ?? Array.Empty<UserResponse>();
+
+            _users = users
+                .Select(user => user.Username)
+                .Where(username => !string.IsNullOrWhiteSpace(username))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            _userRolesCache = users
+                .Where(user => !string.IsNullOrWhiteSpace(user.Username))
+                .ToDictionary(
+                    user => user.Username,
+                    user => (IReadOnlyList<string>)(user.Roles ?? Array.Empty<string>()),
+                    StringComparer.OrdinalIgnoreCase);
         }
         catch
         {
             _users = Array.Empty<string>();
+            _userRolesCache.Clear();
         }
     }
 
@@ -297,9 +317,14 @@ public partial class UsersTable
     private async Task LoadAllUserRolesAsync()
     {
         if (_users is null) return;
-        _userRolesCache.Clear();
+
         foreach (var user in _users)
+        {
+            if (_userRolesCache.ContainsKey(user))
+                continue;
+
             _userRolesCache[user] = await LoadRolesForUserAsync(user);
+        }
     }
 
     private async Task<IReadOnlyList<string>> LoadRolesForUserAsync(string username)
@@ -312,6 +337,7 @@ public partial class UsersTable
         }
         catch
         {
+            // ignored
         }
 
         return Array.Empty<string>();
