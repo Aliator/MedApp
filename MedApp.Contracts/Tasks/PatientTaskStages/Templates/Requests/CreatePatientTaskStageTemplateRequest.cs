@@ -3,5 +3,5 @@
 public sealed class CreatePatientTaskStageTemplateRequest
 {
     public string Name { get; set; } = string.Empty;
-    public List<Guid> StageDefinitionIdsInOrder { get; set; } = [];
+    public IReadOnlyList<Guid> StageDefinitionIdsInOrder { get; set; } = Array.Empty<Guid>();
 }
