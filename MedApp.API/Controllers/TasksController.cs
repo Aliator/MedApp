@@ -1,10 +1,11 @@
 ﻿using System.Security.Claims;
-using MedApp.Application.Common.Authentication;
 using MedApp.Application.Tasks.PatientTasks.Commands.AssignPatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.CreatePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.DeletePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Commands.UpdatePatientTask;
 using MedApp.Application.Tasks.PatientTasks.Queries.GetAllPatientTasks;
+using MedApp.Application.Tasks.PatientTasks.Queries.GetAllPatientTasksForPatient;
+using MedApp.Application.Tasks.PatientTasks.Queries.GetAllPatientTasksForUser;
 using MedApp.Application.Tasks.PatientTasks.Queries.GetPatientTaskById;
 using MedApp.Contracts.Tasks.PatientTasks.Requests;
 using MedApp.Contracts.Tasks.PatientTasks.Responses;
@@ -16,7 +17,7 @@ namespace MedApp.API.Controllers;
 
 [ApiController]
 [Route("api/tasks/patient-tasks")]
-public sealed class TasksController(IMediator mediator, ISessionService sessionService) : ControllerBase
+public sealed class TasksController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(PatientTaskResponse), StatusCodes.Status201Created)]
@@ -57,7 +58,7 @@ public sealed class TasksController(IMediator mediator, ISessionService sessionS
         return Ok(updatedTask);
     }
 
-    [HttpPost("patient-tasks/{patientTaskId:guid}/assign/{userId:guid}")]
+    [HttpPost("{patientTaskId:guid}/assign/{userId:guid}")]
     [ProducesResponseType(typeof(List<PatientTaskAssignmentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -115,5 +116,39 @@ public sealed class TasksController(IMediator mediator, ISessionService sessionS
         }
 
         return Ok(task);
+    }
+    
+    [HttpGet("user/self")]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
+    [Authorize]
+    public async Task<IActionResult> GetAllPatientTasksForCurrentUser(CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var query = new GetAllPatientTasksForUserQuery(userId);
+        var tasks = await mediator.Send(query, ct);
+
+        return Ok(tasks);
+    }
+
+    [HttpGet("user/{userId:guid}")]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllPatientTasksForUser(Guid userId, CancellationToken ct)
+    {
+        var query = new GetAllPatientTasksForUserQuery(userId);
+        var tasks = await mediator.Send(query, ct);
+
+        return Ok(tasks);
+    }
+
+    [HttpGet("patient/{patientId:guid}")]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientTaskResponse>), StatusCodes.Status200OK)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllPatientTasksForPatient(Guid patientId, CancellationToken ct)
+    {
+        var query = new GetAllPatientTasksForPatientQuery(patientId);
+        var tasks = await mediator.Send(query, ct);
+
+        return Ok(tasks);
     }
 }

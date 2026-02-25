@@ -48,6 +48,44 @@ public sealed class PatientTaskRepository(MedAppDbContext context) : IPatientTas
 
         return tasks;
     }
+    
+    public async Task<IEnumerable<PatientTask>> GetAllForUserAsync(Guid userId, CancellationToken ct)
+    {
+        var tasks = await context.PatientTasks
+            .AsNoTracking()
+            .Include(x => x.Patient)
+            .Include(x => x.Assignments)
+            .Include(x => x.Stages)
+            .ThenInclude(x => x.StageDefinition)
+            .Where(x => x.Assignments.Any(assignment => assignment.UserId == userId))
+            .ToListAsync(ct);
+
+        foreach (var task in tasks)
+        {
+            task.Stages = task.Stages.OrderBy(x => x.StageOrder).ToList();
+        }
+
+        return tasks;
+    }
+
+    public async Task<IEnumerable<PatientTask>> GetAllForPatientAsync(Guid patientId, CancellationToken ct)
+    {
+        var tasks = await context.PatientTasks
+            .AsNoTracking()
+            .Include(x => x.Patient)
+            .Include(x => x.Assignments)
+            .Include(x => x.Stages)
+            .ThenInclude(x => x.StageDefinition)
+            .Where(x => x.PatientId == patientId)
+            .ToListAsync(ct);
+
+        foreach (var task in tasks)
+        {
+            task.Stages = task.Stages.OrderBy(x => x.StageOrder).ToList();
+        }
+
+        return tasks;
+    }
 
     public async Task UpdateAsync(PatientTask task, CancellationToken ct)
     {
