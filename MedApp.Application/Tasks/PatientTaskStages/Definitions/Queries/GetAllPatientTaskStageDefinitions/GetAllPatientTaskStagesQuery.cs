@@ -1,6 +1,6 @@
-﻿namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Queries.GetAllPatientTaskStageDefinitions;
+﻿using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
+using MediatR;
 
-public class GetAllPatientTaskStagesQuery
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Queries.GetAllPatientTaskStageDefinitions;
+
+public sealed record GetAllPatientTaskStagesQuery : IRequest<IReadOnlyList<PatientTaskStageDefinitionResponse>>;

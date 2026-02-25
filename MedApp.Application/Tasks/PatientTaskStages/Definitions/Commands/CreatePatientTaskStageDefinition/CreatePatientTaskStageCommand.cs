@@ -1,6 +1,10 @@
-﻿namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.CreatePatientTaskStageDefinition;
+﻿using MedApp.Contracts.Tasks.PatientTaskStageDefinitions.Responses;
+using MediatR;
 
-public class CreatePatientTaskStageCommand
-{
-    
-}
+namespace MedApp.Application.Tasks.PatientTaskStages.Definitions.Commands.CreatePatientTaskStageDefinition;
+
+public sealed record CreatePatientTaskStageCommand(
+    string Name,
+    string Description,
+    string Instructions
+) : IRequest<PatientTaskStageDefinitionResponse>;
