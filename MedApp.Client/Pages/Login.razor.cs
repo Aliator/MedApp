@@ -1,8 +1,8 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using MedApp.Client.Auth;
-using MedApp.Contracts.Auth.Requests;
-using MedApp.Contracts.Auth.Responses;
+using MedApp.Contracts.Authentication.Requests;
+using MedApp.Contracts.Authentication.Responses;
 using Microsoft.AspNetCore.Components;
 
 namespace MedApp.Client.Pages;

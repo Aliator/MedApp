@@ -1,6 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Users.Commands.DeleteUser;
+using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;

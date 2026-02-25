@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using MedApp.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Middleware;
@@ -22,6 +23,14 @@ public sealed class ExceptionHandling(RequestDelegate next)
                         g => g.Select(e => e.ErrorMessage).ToArray()),
                 "One or more validation errors occurred.");
         }
+        catch (NotFoundException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status404NotFound, ex.Message);
+        }
+        catch (ConflictException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status409Conflict, ex.Message);
+        }
     }
 
     private static async Task WriteValidationProblem(
@@ -40,5 +49,20 @@ public sealed class ExceptionHandling(RequestDelegate next)
 
         await context.Response.WriteAsJsonAsync(problemDetails);
     }
+    private static async Task WriteProblem(
+        HttpContext context,
+        int statusCode,
+        string title)
+    {
+        var problemDetails = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = title
+        };
 
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/problem+json";
+
+        await context.Response.WriteAsJsonAsync(problemDetails);
+    }
 }

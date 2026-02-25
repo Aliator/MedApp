@@ -1,6 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Roles.Commands.DeleteRole;
+using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;

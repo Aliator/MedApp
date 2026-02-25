@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using MedApp.Application.Auth.Users.Commands.UpdateUserPassword;
+using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Users.Commands.UpdateUserPassword;

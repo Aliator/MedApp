@@ -21,7 +21,7 @@
         </button>
         <button class="btn-primary" @onclick="AddPatient">
             <Icon Type="IconType.Add" Size="18" />
-            Add Patient
+            Add Patients
         </button>
     </HeaderActions>
 
@@ -34,7 +34,7 @@
         {
             <EmptyState Title="No patients yet"
                         Description="Get started by adding your first patient to the system."
-                        ButtonText="Add Your First Patient">
+                        ButtonText="Add Your First Patients">
                 <CustomIcon>
                     <Icon Type="IconType.Patients" Size="64"/>
                 </CustomIcon>
@@ -58,7 +58,7 @@
                        SkeletonActionButtonCount="2"
                        SkeletonLastColumnAsActions="true">
                 <Columns>
-                    <SortableHeader Column="Patient">Patient</SortableHeader>
+                    <SortableHeader Column="Patients">Patients</SortableHeader>
                     <SortableHeader Column="DateOfBirth">Date of Birth</SortableHeader>
                     <SortableHeader Column="Email">Email</SortableHeader>
                     <th class="actions-column">Actions</th>
@@ -108,7 +108,7 @@
 
     <Dialogs>
         <SearchModal IsVisible="@_showSearch"
-                     Title="Search Patients"
+                     Title="Search Patientss"
                      Fields="@_searchFields"
                      OnSearch="ApplySearch"
                      OnClear="ClearSearch"

@@ -1,8 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Common.Identity;
-using MedApp.Contracts.Auth.Responses;
+using MedApp.Contracts.Authentication.Responses;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;

@@ -1,7 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Users.Queries.GetUserByUsername;
+using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Identity;
+using MedApp.Contracts.Authentication.Responses;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -29,7 +30,10 @@ public sealed class GetUserByUsernameHandlerTests
     [Test]
     public async Task Handle_UserExists_ReturnsUserDetails()
     {
-        var user = new UserDetails(
+        var userId = Guid.NewGuid();
+
+        var user = new UserResponse(
+            userId,
             AuthTestConstants.Usernames[0],
             AuthTestConstants.Roles);
 
@@ -57,7 +61,7 @@ public sealed class GetUserByUsernameHandlerTests
             .Setup(s => s.GetUserAsync(
                 query.Username,
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UserDetails?)null);
+            .ReturnsAsync((UserResponse?)null);
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
@@ -74,7 +78,7 @@ public sealed class GetUserByUsernameHandlerTests
             .Setup(s => s.GetUserAsync(
                 query.Username,
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UserDetails?)null);
+            .ReturnsAsync((UserResponse?)null);
 
         await _handler.Handle(query, CancellationToken.None);
 
@@ -97,7 +101,7 @@ public sealed class GetUserByUsernameHandlerTests
             .Setup(s => s.GetUserAsync(
                 query.Username,
                 cts.Token))
-            .ReturnsAsync((UserDetails?)null);
+            .ReturnsAsync((UserResponse?)null);
 
         await _handler.Handle(query, cts.Token);
 

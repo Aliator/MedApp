@@ -20,7 +20,6 @@ public sealed class UserSession(
 
     public void Revoke(DateTime utcNow)
     {
-        if (RevokedAtUtc is null)
-            RevokedAtUtc = utcNow;
+        RevokedAtUtc ??= utcNow;
     }
 }

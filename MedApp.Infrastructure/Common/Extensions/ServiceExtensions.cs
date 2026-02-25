@@ -1,6 +1,8 @@
 ﻿using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Tasks.Repositories;
+using MedApp.Domain.Tasks.PatientTasks;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
@@ -41,7 +43,9 @@ public static class ServiceExtensions
         this IServiceCollection services)
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
-
+        services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();
+        services.AddScoped<IPatientTaskStagesRepository, PatientTaskStagesRepository>();
+        
         return services;
     }
 

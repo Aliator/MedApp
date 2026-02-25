@@ -1,5 +1,5 @@
 ﻿using System.Net.Http.Json;
-using MedApp.Contracts.Auth.Responses;
+using MedApp.Contracts.Authentication.Responses;
 
 namespace MedApp.Client.Auth;
 

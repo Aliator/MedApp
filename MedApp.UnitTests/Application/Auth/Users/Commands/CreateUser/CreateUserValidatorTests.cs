@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using MedApp.Application.Auth.Users.Commands.CreateUser;
+using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Users.Commands.CreateUser;

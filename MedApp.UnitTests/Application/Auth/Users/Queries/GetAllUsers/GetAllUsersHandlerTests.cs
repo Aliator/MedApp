@@ -1,7 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Auth.Users.Queries.GetAllUsers;
+using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Common.Identity;
+using MedApp.Contracts.Authentication.Responses;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -27,36 +28,50 @@ public sealed class GetAllUsersHandlerTests
     }
 
     [Test]
-    public async Task Handle_ReturnsAllUsernames()
+    public async Task Handle_ReturnsAllUsers()
     {
+        UserResponse[] users =
+        [
+            new(Guid.NewGuid(), AuthTestConstants.Usernames[0], new[] { AuthTestConstants.Roles[0] }),
+            new(Guid.NewGuid(), AuthTestConstants.Usernames[1], new[] { AuthTestConstants.Roles[1] })
+        ];
+
         _identityReadService
-            .Setup(s => s.GetUsernamesAsync(
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(AuthTestConstants.Usernames);
+            .Setup(s => s.GetUsersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(users);
 
-        var result = await _handler.Handle(
-            new GetAllUsersQuery(),
-            CancellationToken.None);
+        var result = await _handler.Handle(new GetAllUsersQuery(), CancellationToken.None);
 
-        result.Should().BeEquivalentTo(AuthTestConstants.Usernames);
+        result.Should().BeEquivalentTo(users);
     }
 
     [Test]
-    public async Task Handle_PassesCancellationToken()
+    public async Task Handle_CallsServiceOnce()
+    {
+        _identityReadService
+            .Setup(s => s.GetUsersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<UserResponse>());
+
+        await _handler.Handle(new GetAllUsersQuery(), CancellationToken.None);
+
+        _identityReadService.Verify(
+            s => s.GetUsersAsync(It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PassesCancellationToken_ToService()
     {
         using var cts = new CancellationTokenSource();
 
         _identityReadService
-            .Setup(s => s.GetUsernamesAsync(
-                cts.Token))
-            .ReturnsAsync(Array.Empty<string>());
+            .Setup(s => s.GetUsersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<UserResponse>());
 
-        await _handler.Handle(
-            new GetAllUsersQuery(),
-            cts.Token);
+        await _handler.Handle(new GetAllUsersQuery(), cts.Token);
 
         _identityReadService.Verify(
-            s => s.GetUsernamesAsync(cts.Token),
+            s => s.GetUsersAsync(cts.Token),
             Times.Once);
     }
 }

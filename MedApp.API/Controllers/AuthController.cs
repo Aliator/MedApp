@@ -1,22 +1,22 @@
 ﻿using System.Security.Claims;
 using MedApp.API.Common.Authentication;
-using MedApp.Application.Auth.Roles.Commands.AssignRole;
-using MedApp.Application.Auth.Roles.Commands.CreateRole;
-using MedApp.Application.Auth.Roles.Commands.DeleteRole;
-using MedApp.Application.Auth.Roles.Commands.RevokeRole;
-using MedApp.Application.Auth.Roles.Queries.GetAllRoles;
-using MedApp.Application.Auth.Roles.Queries.GetUserRoles;
-using MedApp.Application.Auth.Sessions.Commands.Login;
-using MedApp.Application.Auth.Sessions.Commands.Logout;
-using MedApp.Application.Auth.Users.Commands.CreateUser;
-using MedApp.Application.Auth.Users.Commands.DeleteUser;
-using MedApp.Application.Auth.Users.Commands.ResetUserPassword;
-using MedApp.Application.Auth.Users.Commands.UpdateUserPassword;
-using MedApp.Application.Auth.Users.Queries.GetAllUsers;
-using MedApp.Application.Auth.Users.Queries.GetUserByUsername;
+using MedApp.Application.Authentication.Roles.Commands.AssignRole;
+using MedApp.Application.Authentication.Roles.Commands.CreateRole;
+using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
+using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
+using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
+using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
+using MedApp.Application.Authentication.Sessions.Commands.Login;
+using MedApp.Application.Authentication.Sessions.Commands.Logout;
+using MedApp.Application.Authentication.Users.Commands.CreateUser;
+using MedApp.Application.Authentication.Users.Commands.DeleteUser;
+using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
+using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
+using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Authentication;
-using MedApp.Contracts.Auth.Requests;
-using MedApp.Contracts.Auth.Responses;
+using MedApp.Contracts.Authentication.Requests;
+using MedApp.Contracts.Authentication.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -75,7 +75,7 @@ public sealed class AuthController(
 
     [HttpPost("users")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Authentication")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var result = await mediator.Send(
@@ -89,8 +89,8 @@ public sealed class AuthController(
     
     [HttpGet("users")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
-    [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
+    [Tags("Authentication")]
+    [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await mediator.Send(new GetAllUsersQuery());
@@ -99,7 +99,7 @@ public sealed class AuthController(
 
     [HttpGet("users/{username}")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Authentication")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserByUsername(string username)
     {
@@ -107,12 +107,12 @@ public sealed class AuthController(
         if (user is null)
             return NotFound();
 
-        return Ok(new UserResponse(user.Username, user.Roles));
+        return Ok(new UserResponse(user.UserId, user.Username, user.Roles));
     }
     
     [HttpPut("users/{username}/update-password")]
     [Authorize(Roles = "User", Policy = "SelfUserOnly")]
-    [Tags("Users")]
+    [Tags("Authentication")]
     public async Task<IActionResult> UpdateUserPassword(
         string username,
         UpdateUserPasswordRequest request)
@@ -131,7 +131,7 @@ public sealed class AuthController(
     
     [HttpPut("users/{username}/reset-password")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Authentication")]
     public async Task<IActionResult> ResetUserPassword(string username)
     {
         var response = await mediator.Send(
@@ -145,7 +145,7 @@ public sealed class AuthController(
     
     [HttpDelete("users/{username}")]
     [Authorize(Roles = "Admin")]
-    [Tags("Users")]
+    [Tags("Authentication")]
     public async Task<IActionResult> DeleteUser(string username)
     {
         var result = await mediator.Send(new DeleteUserCommand(username));
