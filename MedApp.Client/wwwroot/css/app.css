@@ -305,20 +305,6 @@ a:focus {
     gap: 0.5rem;
 }
 
-.form-footer {
-    display: flex;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    background-color: var(--gray-50);
-    border-top: 1px solid var(--gray-200);
-}
-
-.form-actions-right {
-    display: flex;
-    gap: 0.75rem;
-    margin-left: auto;
-}
-
 .link {
     color: var(--primary-500);
     text-decoration: none;

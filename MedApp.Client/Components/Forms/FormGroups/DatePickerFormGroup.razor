@@ -1,6 +1,6 @@
 ﻿<FormGroup Label="@Label"
            Required="@(Required && !Partial)"
-           CssClass="form-group-date"
+           CssClass="form-group-wide"
            Hint="@(ShowAge && !Partial && SelectedMonth > 0 && SelectedDay > 0 && SelectedYear > 0 && Value != default ? $"Age: {CalculateAge(Value)} years old" : null)"
            Error="@_errorMessage">
     <div class="date-picker-group">

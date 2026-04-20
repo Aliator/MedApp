@@ -1,9 +1,9 @@
 ﻿@page "/patients/{Id:guid}"
 
-<PageTitle>View Patients - MedApp</PageTitle>
+<PageTitle>View Patient - MedApp</PageTitle>
 
-<Page Title="View Patients"
-      Subtitle="Update patient information"
+<Page Title="View Patient"
+      Subtitle="View patient information"
       ShowBackButton="true"
       BackButtonTitle="Back to patient"
       OnBack="GoBack"
@@ -12,7 +12,7 @@
     <Content>
         <ViewCard>
             <Sections>
-                <ViewSection Title="Personal Information">
+                <CardSection Title="Personal Information">
                     <ViewGroup Label="First Name">
                         @_patient?.FirstName
                     </ViewGroup>
@@ -32,27 +32,27 @@
                         }
                         years
                     </ViewGroup>
-                </ViewSection>
+                </CardSection>
 
-                <ViewSection Title="Contact Information">
+                <CardSection Title="Contact Information">
                     <ViewGroup Label="Email Address" CssClass="view-group-wide">
                         <a href="mailto:@_patient?.Email" class="link">
                             @_patient?.Email
                         </a>
                     </ViewGroup>
-                </ViewSection>
+                </CardSection>
 
-                <ViewSection Title="Record Information">
+                <CardSection Title="Record Information">
                     <ViewGroup Label="Patients ID">
                         <span class="mono">@_patient?.Id</span>
                     </ViewGroup>
-                </ViewSection>
+                </CardSection>
             </Sections>
 
             <FooterActions>
                 <button class="btn-secondary" @onclick="Edit">
                     <Icon Type="IconType.Edit" Size="16" />
-                    Edit Patients
+                    Edit Patient
                 </button>
             </FooterActions>
         </ViewCard>

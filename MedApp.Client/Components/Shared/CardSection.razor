@@ -1,12 +1,11 @@
-﻿<div class="view-section">
+﻿<div class="card-section">
     @if (!string.IsNullOrEmpty(Title))
     {
         <h2 class="section-title">@Title</h2>
     }
-
     @if (UseGrid)
     {
-        <div class="view-grid">
+        <div class="card-grid">
             @ChildContent
         </div>
     }

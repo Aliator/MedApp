@@ -1,10 +1,9 @@
-﻿<div class="view-card">
-    @Sections
+﻿<Card ShowFooter="@ShowFooter">
+    <ChildContent>
+        @Sections
+    </ChildContent>
 
-    @if (ShowFooter && FooterActions != null)
-    {
-        <div class="view-footer">
-            @FooterActions
-        </div>
-    }
-</div>
+    <RightActions>
+        @FooterActions
+    </RightActions>
+</Card>

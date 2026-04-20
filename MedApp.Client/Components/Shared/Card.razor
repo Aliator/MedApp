@@ -1,0 +1,22 @@
+﻿<div class="card">
+    <div class="card-body">
+        @ChildContent
+    </div>
+
+    @if (ShowFooter && (FooterContent != null || RightActions != null))
+    {
+        <div class="card-footer">
+            @if (FooterContent != null)
+            {
+                @FooterContent
+            }
+
+            @if (RightActions != null)
+            {
+                <div class="card-actions-right">
+                    @RightActions
+                </div>
+            }
+        </div>
+    }
+</div>

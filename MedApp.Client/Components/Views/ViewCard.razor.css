@@ -1,13 +1,1 @@
-﻿.view-card {
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-}
-
-.view-footer {
-    margin-top: 2rem;
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
+﻿

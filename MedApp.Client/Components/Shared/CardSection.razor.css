@@ -1,15 +1,16 @@
-﻿.form-grid {
+﻿.card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.25rem;
 }
 
-.form-section {
+.card-section {
     padding: 1.5rem;
     border-bottom: 1px solid var(--gray-200);
+    min-width: 600px;
 }
 
-.form-section:last-of-type {
+.card-section:last-of-type {
     border-bottom: none;
 }
 

@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Components;
 
-namespace MedApp.Client.Components.Forms;
+namespace MedApp.Client.Components.Shared;
 
-public partial class FormSection
+public partial class CardSection
 {
     [Parameter] public string? Title { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }

@@ -298,9 +298,14 @@ public partial class EditPatient
         }
     }
 
-    private void Cancel()
+    private void Back()
     {
         Nav.NavigateTo($"/patients/{Id}");
+    }
+    
+    private void Cancel()
+    {
+        Nav.NavigateTo($"/patients");
     }
 
     private static int CalculateAge(DateOnly dateOfBirth)

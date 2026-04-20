@@ -1,12 +1,10 @@
 ﻿@page "/patients/{Id:guid}/edit"
 
-<PageTitle>Edit Patients - MedApp</PageTitle>
-
-<Page Title="Edit Patients"
+<Page Title="Edit Patient"
       Subtitle="Update patient information"
       ShowBackButton="true"
       BackButtonTitle="Back to patient"
-      OnBack="Cancel"
+      OnBack="Back"
       MaxWidth="900">
 
     <Content>
@@ -24,7 +22,7 @@
                       ProcessingText="Saving...">
 
                 <Sections>
-                    <FormSection Title="Personal Information">
+                    <CardSection Title="Personal Information">
                         <FormGroup Label="First Name" Required="true">
                             <input
                                 type="text"
@@ -46,9 +44,9 @@
                                              Required="true"
                                              Disabled="@_isSaving"
                                              ShowAge="true" />
-                    </FormSection>
+                    </CardSection>
 
-                    <FormSection Title="Contact Information">
+                    <CardSection Title="Contact Information">
                         <FormGroup Label="Email Address" Required="true" CssClass="form-group-wide">
                             <div class="input-with-icon">
                                 <Icon Type="IconType.Email" Size="18" />
@@ -59,7 +57,7 @@
                                     disabled="@_isSaving" />
                             </div>
                         </FormGroup>
-                    </FormSection>
+                    </CardSection>
                 </Sections>
 
                 <FooterActions>
@@ -93,7 +91,7 @@
         <ConfirmModal IsVisible="@_confirmDelete"
                          Title="Confirm Delete"
                          Message="This action cannot be undone."
-                         ConfirmText="Delete Patients"
+                         ConfirmText="Delete Patient"
                          IsDanger="true"
                          IsProcessing="@_isDeleting"
                          OnConfirm="Delete"

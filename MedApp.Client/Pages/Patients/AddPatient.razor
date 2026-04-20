@@ -1,8 +1,6 @@
 ﻿@page "/patients/add"
 
-<PageTitle>Add Patients - MedApp</PageTitle>
-
-<Page Title="Add New Patients"
+<Page Title="Add New Patient"
       Subtitle="Enter patient information to create a new record"
       ShowBackButton="true"
       BackButtonTitle="Back to patients"
@@ -17,7 +15,7 @@
                   SaveText="Add Patients"
                   ProcessingText="Saving...">
             <Sections>
-                <FormSection Title="Personal Information">
+                <CardSection Title="Personal Information">
                     <FormGroup Label="First Name" Required="true">
                         <input
                             type="text"
@@ -41,9 +39,9 @@
                                          Required="true"
                                          Disabled="@_isSaving"
                                          ShowAge="true" />
-                </FormSection>
+                </CardSection>
 
-                <FormSection Title="Contact Information">
+                <CardSection Title="Contact Information">
                     <FormGroup Label="Email Address" Required="true" CssClass="form-group-wide">
                         <div class="input-with-icon">
                             <Icon Type="IconType.Email" Size="18" />
@@ -55,7 +53,7 @@
                                 disabled="@_isSaving" />
                         </div>
                     </FormGroup>
-                </FormSection>
+                </CardSection>
             </Sections>
         </FormCard>
     </Content>

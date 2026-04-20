@@ -1,47 +1,46 @@
-﻿<div class="form-card">
-    @Sections
+﻿<Card ShowFooter="@ShowFooter">
+    <ChildContent>
+        @Sections
+    </ChildContent>
 
-    @if (ShowFooter)
-    {
-        <div class="form-footer">
-            @if (OnDelete.HasDelegate)
-            {
-                <button class="btn-danger" @onclick="OnDelete" disabled="@IsProcessing">
-                    <Icon Type="IconType.Delete" Size="18" />
-                    @DeleteText
-                </button>
-            }
+    <FooterContent>
+        @if (OnDelete.HasDelegate)
+        {
+            <button class="btn-danger" @onclick="OnDelete" disabled="@IsProcessing">
+                <Icon Type="IconType.Delete" Size="18" />
+                @DeleteText
+            </button>
+        }
 
-            @if (FooterActions != null)
-            {
-                @FooterActions
-            }
+        @if (FooterActions != null)
+        {
+            @FooterActions
+        }
+    </FooterContent>
 
-            <div class="form-actions-right">
-                @if (OnCancel.HasDelegate)
+    <RightActions>
+        @if (OnCancel.HasDelegate)
+        {
+            <button class="btn-secondary" @onclick="OnCancel" disabled="@IsProcessing">
+                <Icon Type="IconType.Cancel" Size="18" />
+                @CancelText
+            </button>
+        }
+
+        @if (OnSave.HasDelegate)
+        {
+            <button class="btn-primary" @onclick="OnSave" disabled="@IsProcessing">
+                @if (IsProcessing)
                 {
-                    <button class="btn-secondary" @onclick="OnCancel" disabled="@IsProcessing">
-                        <Icon Type="IconType.Cancel" Size="18" />
-                        @CancelText
-                    </button>
+                    <span class="spinner-small"></span>
+                    <span>@ProcessingText</span>
                 }
-
-                @if (OnSave.HasDelegate)
+                else
                 {
-                    <button class="btn-primary" @onclick="OnSave" disabled="@IsProcessing">
-                        @if (IsProcessing)
-                        {
-                            <span class="spinner-small"></span>
-                            <span>@ProcessingText</span>
-                        }
-                        else
-                        {
-                            <Icon Type="IconType.Save" Size="18" />
-                            <span>@SaveText</span>
-                        }
-                    </button>
+                    <Icon Type="IconType.Save" Size="18" />
+                    <span>@SaveText</span>
                 }
-            </div>
-        </div>
-    }
-</div>
+            </button>
+        }
+    </RightActions>
+</Card>

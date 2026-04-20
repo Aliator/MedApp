@@ -1,13 +1,17 @@
 ﻿@page "/"
 
-@if (!Auth.IsAuthenticated)
-{
-    <p>Redirecting…</p>
-}
-else
-{
-    <div class="home-card">
-        <h3>Welcome</h3>
-        <p>You are logged in.</p>
-    </div>
-}
+<Page Title="Home"
+      MaxWidth="900"
+      MinWidth="900">
+
+    <Content>
+        <Card ShowFooter="false">
+            <ChildContent>
+                <div class="home-card">
+                    <h3>Welcome</h3>
+                    <p>You are logged in.</p>
+                </div>
+            </ChildContent>
+        </Card>
+    </Content>
+</Page>
