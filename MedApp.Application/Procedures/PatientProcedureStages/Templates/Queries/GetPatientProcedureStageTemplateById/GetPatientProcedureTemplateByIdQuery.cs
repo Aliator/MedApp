@@ -1,0 +1,6 @@
+﻿using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
+using MediatR;
+
+namespace MedApp.Application.Procedures.PatientProcedureStages.Templates.Queries.GetPatientProcedureStageTemplateById;
+
+public sealed record GetPatientProcedureTemplateByIdQuery(Guid TemplateId) : IRequest<PatientProcedureStageTemplateResponse>;
