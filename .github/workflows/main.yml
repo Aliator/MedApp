@@ -46,10 +46,7 @@ jobs:
           echo "" >> coverage-details.md
           cat coverage-report/SummaryGithub.md >> coverage-details.md
           echo "" >> coverage-details.md
-          echo "### 📉 Classes Below 80% Coverage" >> coverage-details.md
-          echo "" >> coverage-details.md
-          echo "| Class | Line Coverage | Branch Coverage |" >> coverage-details.md
-          echo "|-------|---------------|-----------------|" >> coverage-details.md
+          echo "## 📉 Classes Below 80% Coverage" >> coverage-details.md
 
           python3 << 'EOF'
           import xml.etree.ElementTree as ET
@@ -82,12 +79,18 @@ jobs:
 
           rows.sort(key=lambda x: x[1])
 
+          # Collapsible like ReportGenerator's sections. The blank line after
+          # <summary> is required for GitHub to render the table inside it.
           with open('coverage-details.md', 'a') as f:
+              f.write(f"<details><summary>{len(rows)} classes below 80%</summary>\n\n")
+              f.write("|**Class**|**Line**|**Branch**|\n")
+              f.write("|:---|---:|---:|\n")
               if rows:
                   for name, line, branch in rows:
-                      f.write(f"| `{name}` | {line:.1f}% | {branch:.1f}% |\n")
+                      f.write(f"|`{name}`|{line:.1f}%|{branch:.1f}%|\n")
               else:
-                  f.write("| *All classes above 80% coverage!* 🎉 | - | - |\n")
+                  f.write("|*All classes above 80% coverage!* 🎉|-|-|\n")
+              f.write("\n</details>\n")
           EOF
 
       
