@@ -137,6 +137,28 @@ Handlers map Domain entities to `Contracts` responses by hand, with inline `new 
 
 `.github/workflows/main.yml` runs on PRs to `main`. It runs `dotnet test MedApp.UnitTests` in Release with coverage, then posts a sticky PR comment listing classes under 80% line coverage. Commands, queries, DTOs, repositories, DbContext, migrations and `ServiceExtensions` are excluded from coverage. Handlers and validators are what count.
 
+### Checking CI on PRs you opened or pushed to
+
+After you open a PR, or push to the branch of one you opened, check its CI result before you call the work done. Don't stop at "pushed".
+
+**Don't block the user while CI runs.** Hand steps 1–3 to a background subagent (in Claude Code, the `Agent` tool; it notifies you when it's done). Tell the user it's watching CI, and carry on with whatever they ask next. Give the subagent the branch, the pushed commit SHA and this section to follow. Rules for the subagent:
+- **Read-only:** no edits, commits or pushes. Its job is to report, not to fix.
+- **Waiting:** poll about every 30 seconds using the harness's wait mechanism (a background command or monitor; foreground `sleep` may be blocked). The workflow usually takes 2–3 minutes. Give up after 15 minutes and report the run as still pending, with its URL.
+- **Report:** return the run URL, the result, and for a failure the failing step, the error, the cause, whether it's already broken on `main`, and a proposed fix as an exact diff.
+
+When the subagent reports back, do step 4 yourself, and don't interrupt the user's current task to do it. Mention the result at the next natural break, or right away if it failed.
+
+1. **Find the run for your commit.** The repo is public, so the GitHub REST API works without auth. Use `gh` instead if it's installed and logged in (it may not be).
+   - Runs: `GET https://api.github.com/repos/Aliator/MedApp/actions/runs?branch=<branch>`. Only trust a run whose `head_sha` matches the commit you just pushed. A new run can take a minute or so to appear, and until then the API returns the previous run. If you don't see a matching run, say the check is still pending and check again later. Don't report the old run's result as the new one.
+   - Then read its jobs (`/actions/runs/<run_id>/jobs`) to see each step's `conclusion`.
+2. **If it passed**, say so in one line, and mention any coverage problems from the sticky PR comment, such as handlers or validators under 80%.
+3. **If it failed**, find the cause before reporting.
+   - Note which step failed. A failure in "Set up job" means the workflow itself is broken (bad action ref, runner image), not the code.
+   - Read the annotations with `GET /repos/Aliator/MedApp/check-runs/<job_id>/annotations`. Full job logs need auth, so read them through `gh run view <run_id> --log-failed` when `gh` is available.
+   - Reproduce the failure locally the way CI runs it (`dotnet test MedApp.UnitTests --configuration Release`).
+   - Check whether the failure is yours or already broken on `main`, for example when the workflow file is unchanged by your branch.
+4. **Prompt the user before fixing.** Tell them which step failed and the error, the cause, whether your change caused it or it was already broken, and the fix you propose with the exact diff. Wait for them to approve before you commit or push it, unless they've already told you to fix it. After pushing a fix, check the new run again (step 1).
+
 ## Git workflow
 
 - Branch from `main` as `feature/<name>`, and merge back through a PR to `main`.
