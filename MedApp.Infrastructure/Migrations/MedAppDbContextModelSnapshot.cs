@@ -92,7 +92,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("Patients", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTask", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -132,12 +132,12 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("PatientId", "Status");
 
-                    b.ToTable("PatientTasks", (string)null);
+                    b.ToTable("PatientProcedures", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskAssignment", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAssignment", b =>
                 {
-                    b.Property<Guid>("PatientTaskId")
+                    b.Property<Guid>("PatientProcedureId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("UserId")
@@ -149,14 +149,14 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("AssignedByUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.HasKey("PatientTaskId", "UserId");
+                    b.HasKey("PatientProcedureId", "UserId");
 
                     b.HasIndex("AssignedByUserId");
 
-                    b.ToTable("PatientTaskAssignments", (string)null);
+                    b.ToTable("PatientProcedureAssignments", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStage", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -177,7 +177,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("PatientTaskId")
+                    b.Property<Guid>("PatientProcedureId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("StageDefinitionId")
@@ -190,16 +190,16 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("StageDefinitionId");
 
-                    b.HasIndex("PatientTaskId", "StageDefinitionId")
+                    b.HasIndex("PatientProcedureId", "StageDefinitionId")
                         .IsUnique();
 
-                    b.HasIndex("PatientTaskId", "StageOrder")
+                    b.HasIndex("PatientProcedureId", "StageOrder")
                         .IsUnique();
 
-                    b.ToTable("PatientTaskStages", (string)null);
+                    b.ToTable("PatientProcedureStages", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageDefinition", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageDefinition", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -225,7 +225,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("PatientTaskStageDefinitions", (string)null);
+                    b.ToTable("PatientProcedureStageDefinitions", (string)null);
 
                     b.HasData(
                         new
@@ -237,7 +237,7 @@ namespace MedApp.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageTemplate", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -253,10 +253,10 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("PatientTaskStageTemplates", (string)null);
+                    b.ToTable("PatientProcedureStageTemplates", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageTemplateMap", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplateMap", b =>
                 {
                     b.Property<Guid>("TemplateId")
                         .HasColumnType("uniqueidentifier");
@@ -274,7 +274,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("TemplateId", "StageOrder")
                         .IsUnique();
 
-                    b.ToTable("PatientTaskStageTemplateMaps", (string)null);
+                    b.ToTable("PatientProcedureStageTemplateMaps", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Infrastructure.Common.Identity.ApplicationUser", b =>
@@ -477,7 +477,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTask", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
                 {
                     b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
                         .WithMany()
@@ -488,45 +488,45 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Patient");
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskAssignment", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAssignment", b =>
                 {
-                    b.HasOne("MedApp.Domain.Tasks.PatientTasks.PatientTask", "PatientTask")
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
                         .WithMany("Assignments")
-                        .HasForeignKey("PatientTaskId")
+                        .HasForeignKey("PatientProcedureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("PatientTask");
+                    b.Navigation("PatientProcedure");
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStage", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
                 {
-                    b.HasOne("MedApp.Domain.Tasks.PatientTasks.PatientTask", "PatientTask")
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
                         .WithMany("Stages")
-                        .HasForeignKey("PatientTaskId")
+                        .HasForeignKey("PatientProcedureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageDefinition", "StageDefinition")
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageDefinition", "StageDefinition")
                         .WithMany()
                         .HasForeignKey("StageDefinitionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("PatientTask");
+                    b.Navigation("PatientProcedure");
 
                     b.Navigation("StageDefinition");
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageTemplateMap", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplateMap", b =>
                 {
-                    b.HasOne("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageDefinition", "StageDefinition")
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageDefinition", "StageDefinition")
                         .WithMany()
                         .HasForeignKey("StageDefinitionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageTemplate", "Template")
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", "Template")
                         .WithMany("Maps")
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -588,14 +588,14 @@ namespace MedApp.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTask", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
                 {
                     b.Navigation("Assignments");
 
                     b.Navigation("Stages");
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Tasks.PatientTasks.PatientTaskStageTemplate", b =>
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", b =>
                 {
                     b.Navigation("Maps");
                 });
