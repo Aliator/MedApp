@@ -2,6 +2,7 @@ import {Card} from '@astryxdesign/core/Card';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import type {ReactNode} from 'react';
+import {InCardContext} from './CardSection';
 
 export interface ViewCardProps {
   /** The card's sections, usually ViewSection. */
@@ -13,18 +14,19 @@ export interface ViewCardProps {
   fill?: boolean;
 }
 
-/** Read-only details in a card (replaces Blazor's ViewCard); the read-only twin of FormCard. */
+/**
+ * Read-only details in a card (replaces Blazor's ViewCard); the read-only twin of FormCard. Each ViewSection's
+ * title is a header bar across the card, as on the procedure page's cards.
+ */
 export function ViewCard({children, footerActions, showFooter = true, fill = false}: ViewCardProps) {
   return (
     <Card padding={0} width="100%" height={fill ? '100%' : undefined}>
       <VStack gap={0} height={fill ? '100%' : undefined}>
         <StackItem size={fill ? 'fill' : 'static'} isScrollable={fill}>
-          <Section variant="transparent" padding={6}>
-            <VStack gap={8}>{children}</VStack>
-          </Section>
+          <InCardContext.Provider value>{children}</InCardContext.Provider>
         </StackItem>
         {showFooter && footerActions && (
-          <Section variant="muted" padding={4} dividers={['top']}>
+          <Section variant="muted" padding={4}>
             <HStack gap={2} vAlign="center" hAlign="end">
               {footerActions}
             </HStack>

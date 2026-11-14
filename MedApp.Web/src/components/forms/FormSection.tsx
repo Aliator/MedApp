@@ -1,8 +1,7 @@
 import {FormLayout} from '@astryxdesign/core/FormLayout';
 import {Grid} from '@astryxdesign/core/Grid';
-import {VStack} from '@astryxdesign/core/Stack';
-import {Heading} from '@astryxdesign/core/Text';
 import type {ReactNode} from 'react';
+import {CardSection} from '../views/CardSection';
 
 export interface FormSectionProps {
   title?: string;
@@ -12,11 +11,13 @@ export interface FormSectionProps {
   children: ReactNode;
 }
 
-/** A titled group of fields in a FormCard (replaces Blazor's FormSection). Fields mark required ones themselves. */
+/**
+ * A titled group of fields in a FormCard (replaces Blazor's FormSection); in a card, its title is a header bar.
+ * Fields mark required ones themselves.
+ */
 export function FormSection({title, useGrid = true, children}: FormSectionProps) {
   return (
-    <VStack gap={4}>
-      {title && <Heading level={2}>{title}</Heading>}
+    <CardSection title={title}>
       <FormLayout defaultOptionality="optional">
         {useGrid ? (
           <Grid columns={2} gap={4}>
@@ -26,6 +27,6 @@ export function FormSection({title, useGrid = true, children}: FormSectionProps)
           children
         )}
       </FormLayout>
-    </VStack>
+    </CardSection>
   );
 }

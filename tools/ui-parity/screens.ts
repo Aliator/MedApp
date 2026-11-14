@@ -17,6 +17,16 @@ export interface Screen {
   prepare?: (page: Page, ctx: { app: AppName; data: ParityData }) => Promise<void>;
 }
 
+/**
+ * Changing a procedure that isn't assigned to you first asks "Not assigned to you". Continue only opens the
+ * next dialog; nothing is changed until that one is confirmed, which these screens never do.
+ */
+async function passNotAssignedCheck(page: Page) {
+  const proceed = page.locator(DIALOG).getByRole('button', { name: 'Continue' });
+  const asked = await proceed.waitFor({ state: 'visible', timeout: 1500 }).then(() => true, () => false);
+  if (asked) await proceed.click();
+}
+
 export const screens: Screen[] = [
   { name: 'login', title: 'Login', path: '/login', signedOut: true },
   {
@@ -87,7 +97,46 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'procedure-view', title: 'Procedure page (read-only): details beside the stages', path: (d) => `/procedures/${d.procedureId}` },
+  { name: 'procedure-view', title: 'Procedure page: details and current stage beside the stages', path: (d) => `/procedures/${d.procedureId}` },
+  {
+    name: 'procedure-narrow',
+    title: 'Procedure page on a narrow window: one card, Details and Current stage open (half each), Stages folded',
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-narrow-stages',
+    title: 'Procedure page on a narrow window, Stages opened too: three sections, a third each',
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.getByRole('button', { name: 'Show stages' }).click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-block',
+    title: 'Block procedure dialog, asking for a reason (not confirmed)',
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Block' }).click();
+      await passNotAssignedCheck(page);
+      await waitVisible(page, DIALOG);
+    },
+  },
+  {
+    name: 'procedure-finish',
+    title: 'Finish stage confirmation (not confirmed)',
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Finish Stage' }).click();
+      await passNotAssignedCheck(page);
+      await waitVisible(page, DIALOG);
+    },
+  },
   { name: 'patient-add', title: 'Add patient, empty', path: '/patients/add' },
   {
     name: 'patient-add-errors',

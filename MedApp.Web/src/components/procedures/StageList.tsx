@@ -3,6 +3,7 @@ import {Section} from '@astryxdesign/core/Section';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
+import type {ReactNode} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
 import {formatDateTime} from '../../utils/dates';
 
@@ -43,7 +44,7 @@ function StageActivity({stage}: {stage: ProcedureStage}) {
 }
 
 /** The stage's notes, a paragraph per line, or a note that there are none. */
-function StageNotes({notes}: {notes: string}) {
+export function StageNotes({notes}: {notes: string}) {
   const lines = notes.split('\n');
   return (
     <VStack gap={1}>
@@ -65,15 +66,29 @@ function StageNotes({notes}: {notes: string}) {
   );
 }
 
-/** The stage's instructions, always shown while the stage is open. */
-function StageInstructions({instructions}: {instructions: string}) {
+/** Whether a stage's instructions are open, held by the page; without it, they start folded and open on their own. */
+export interface InstructionsFolding {
+  isOpen: (stage: ProcedureStage) => boolean;
+  onOpenChange: (stage: ProcedureStage, isOpen: boolean) => void;
+}
+
+/** The stage's instructions, folded under their heading until it's clicked. */
+function StageInstructions({stage, folding}: {stage: ProcedureStage; folding?: InstructionsFolding}) {
   return (
-    <VStack gap={1}>
-      <Text type="body" weight="semibold">
-        Instructions
-      </Text>
-      <Text type="body">{instructions}</Text>
-    </VStack>
+    <Collapsible
+      defaultIsOpen={false}
+      isOpen={folding?.isOpen(stage)}
+      onOpenChange={folding ? (isOpen) => folding.onOpenChange(stage, isOpen) : undefined}
+      chevronPosition="end"
+      trigger={
+        <Text type="body" weight="semibold">
+          Instructions
+        </Text>
+      }>
+      <VStack gap={0} paddingBlockStart={1}>
+        <Text type="body">{stage.instructions}</Text>
+      </VStack>
+    </Collapsible>
   );
 }
 
@@ -87,8 +102,18 @@ export function StageTitle({stage}: {stage: ProcedureStage}) {
   );
 }
 
-/** Everything about one stage under its title: description, who started and finished it, instructions and notes. */
-export function StageDetails({stage}: {stage: ProcedureStage}) {
+export interface StageDetailsProps {
+  stage: ProcedureStage;
+  /** Replaces the read-only notes, e.g. with a notes box and the stage's actions. */
+  work?: ReactNode;
+  instructions?: InstructionsFolding;
+}
+
+/**
+ * Everything about one stage under its title: description, who started and finished it, instructions (which fold)
+ * and notes.
+ */
+export function StageDetails({stage, work, instructions}: StageDetailsProps) {
   return (
     <VStack gap={3}>
       {stage.description && (
@@ -97,8 +122,8 @@ export function StageDetails({stage}: {stage: ProcedureStage}) {
         </Text>
       )}
       <StageActivity stage={stage} />
-      {stage.instructions && <StageInstructions instructions={stage.instructions} />}
-      <StageNotes notes={stage.notes ?? ''} />
+      {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
+      {work ?? <StageNotes notes={stage.notes ?? ''} />}
     </VStack>
   );
 }
@@ -110,6 +135,16 @@ export interface StageListProps {
    * full elsewhere on the page, so every stage starts closed.
    */
   isCurrentOpen?: boolean;
+  /** What to show in place of a stage's read-only notes, e.g. its notes box and actions; nothing keeps them read-only. */
+  renderWork?: (stage: ProcedureStage) => ReactNode;
+  /**
+   * Which stages are open, held by the page (with `onStageOpenChange`), e.g. so they stay open or closed when the
+   * page changes layout. Without it, each stage keeps its own state and `isCurrentOpen` sets where it starts.
+   */
+  openStageIds?: readonly string[];
+  onStageOpenChange?: (stageId: string, isOpen: boolean) => void;
+  /** Whether each stage's instructions are open, held by the page. Without it, they start folded. */
+  instructions?: InstructionsFolding;
 }
 
 /**
@@ -117,7 +152,7 @@ export interface StageListProps {
  * opening it shows who started and finished it, its instructions and its notes. The current stage starts open
  * (unless `isCurrentOpen` is false) and the others closed, so the page leads with the work in hand.
  */
-export function StageList({stages, isCurrentOpen = true}: StageListProps) {
+export function StageList({stages, isCurrentOpen = true, renderWork, openStageIds, onStageOpenChange, instructions}: StageListProps) {
   return (
     <VStack gap={0}>
       {[...stages]
@@ -126,9 +161,11 @@ export function StageList({stages, isCurrentOpen = true}: StageListProps) {
           <Section key={stage.id} variant="transparent" paddingBlock={4} paddingInline={6} dividers={index > 0 ? ['top'] : []}>
             <Collapsible
               defaultIsOpen={isCurrentOpen && (stage.isCurrent ?? false)}
+              isOpen={openStageIds ? openStageIds.includes(stage.id ?? '') : undefined}
+              onOpenChange={openStageIds ? (isOpen) => onStageOpenChange?.(stage.id ?? '', isOpen) : undefined}
               chevronPosition="end"
               trigger={<StageTitle stage={stage} />}>
-              <StageDetails stage={stage} />
+              <StageDetails stage={stage} work={renderWork?.(stage)} instructions={instructions} />
             </Collapsible>
           </Section>
         ))}

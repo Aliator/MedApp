@@ -1,6 +1,7 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, mockApi, mockFetch, renderWithApp, staffUser} from '../../test/render';
-import {AppSideNav, isCurrentSection, openPatientId} from './AppSideNav';
+import {adminUser, isDisabled, json, mockApi, mockFetch, renderWithApp, staffUser} from '../../test/render';
+import {AppSideNav, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
+import {pinsKey} from './pins';
 
 describe('isCurrentSection', () => {
   it.each([
@@ -109,5 +110,138 @@ describe('AppSideNav with a patient open', () => {
 
     expect(await screen.findByRole('link', {name: /^patients$/i})).toHaveAttribute('aria-current', 'page');
     expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
+  });
+});
+
+describe('AppSideNav pinned patients', () => {
+  const patients: Record<string, [string, string]> = {
+    [patientId]: ['Freya', 'Ahmed'],
+    'a0000000-0000-4000-8000-000000000002': ['Priya', 'Ali'],
+  };
+
+  function renderAt(path: string, pinned: string[] = []) {
+    if (pinned.length) localStorage.setItem(pinsKey('patients', staffUser.username), JSON.stringify(pinned));
+    mockApi({
+      'GET /api/patients/*': (request) => {
+        const id = new URL(request.url).pathname.split('/').pop()!;
+        const name = patients[id];
+        return name
+          ? json({id, firstName: name[0], lastName: name[1], dateOfBirth: '1976-12-01', email: 'p@example.com'})
+          : json({title: 'Not found'}, 404);
+      },
+    });
+    return renderWithApp(<AppSideNav />, {user: staffUser, path});
+  }
+
+  it('pins the open patient', async () => {
+    const {user} = renderAt(`/patients/${patientId}`);
+
+    await user.click(await screen.findByRole('button', {name: 'Pin Freya Ahmed'}));
+
+    expect(screen.getByRole('button', {name: 'Unpin Freya Ahmed'})).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]);
+  });
+
+  it('keeps pinned patients under Patients on other pages', async () => {
+    renderAt('/procedures', [patientId, 'a0000000-0000-4000-8000-000000000002']);
+
+    const freya = await screen.findByRole('link', {name: 'Freya Ahmed'});
+    expect(freya).toHaveAttribute('href', `/patients/${patientId}`);
+    expect(freya).not.toHaveAttribute('aria-current');
+    expect(await screen.findByRole('link', {name: 'Priya Ali'})).toBeInTheDocument();
+  });
+
+  it('marks a pinned patient as current while their pages are open', async () => {
+    renderAt(`/patients/${patientId}/procedures`, [patientId]);
+
+    expect(await screen.findByRole('link', {name: 'Freya Ahmed'})).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('link', {name: 'Freya Ahmed'})).toHaveLength(1);
+  });
+
+  it('unpins a patient, who then goes when their pages are not open', async () => {
+    const {user} = renderAt('/procedures', [patientId]);
+
+    await user.click(await screen.findByRole('button', {name: 'Unpin Freya Ahmed'}));
+
+    expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([]);
+  });
+
+  it('stops pinning at five, saying why', async () => {
+    const five = ['p1', 'p2', 'p3', 'p4', 'p5'].map((n) => `${n}000000-0000-4000-8000-000000000000`.slice(0, 36));
+    renderAt(`/patients/${patientId}`, five);
+
+    const pin = await screen.findByRole('button', {name: /you can pin up to 5 patients/i});
+    expect(isDisabled(pin)).toBe(true);
+  });
+
+  it('drops a pinned patient who no longer exists', async () => {
+    const gone = 'b0000000-0000-4000-8000-000000000009';
+    renderAt('/procedures', [patientId, gone]);
+
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]));
+  });
+});
+
+describe('openProcedureId', () => {
+  it.each([
+    [`/procedures/${patientId}`, patientId],
+    ['/procedures', null],
+    [`/patients/${patientId}/procedures`, null],
+  ])('pathname %s has open procedure %s', (pathname, expected) => {
+    expect(openProcedureId(pathname)).toBe(expected);
+  });
+});
+
+describe('AppSideNav pinned procedures', () => {
+  const knee = 'c0000000-0000-4000-8000-000000000001';
+  const scope = 'c0000000-0000-4000-8000-000000000002';
+  const procedures: Record<string, {title: string; patientName: string}> = {
+    [knee]: {title: 'Total knee replacement', patientName: 'Freya Ahmed'},
+    [scope]: {title: 'Bronchoscopy', patientName: 'Priya Ali'},
+  };
+
+  function renderAt(path: string, pinned: string[] = []) {
+    if (pinned.length) localStorage.setItem(pinsKey('procedures', staffUser.username), JSON.stringify(pinned));
+    mockApi({
+      'GET /api/procedures/patient-procedures/*': (request) => {
+        const id = new URL(request.url).pathname.split('/').pop()!;
+        return procedures[id] ? json({id, ...procedures[id]}) : json({title: 'Not found'}, 404);
+      },
+    });
+    return renderWithApp(<AppSideNav />, {user: staffUser, path});
+  }
+
+  it("labels the open procedure with the patient's initials and the procedure's acronym, and pins it", async () => {
+    const {user} = renderAt(`/procedures/${knee}`);
+
+    const item = await screen.findByRole('link', {name: 'FA TKR'});
+    expect(item).toHaveAttribute('href', `/procedures/${knee}`);
+    expect(item).toHaveAttribute('aria-current', 'page');
+
+    // The full name shows on hover.
+    await user.hover(item);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Total knee replacement for Freya Ahmed');
+
+    await user.click(screen.getByRole('button', {name: 'Pin Total knee replacement for Freya Ahmed'}));
+
+    expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]);
+  });
+
+  it('keeps pinned procedures under Procedures on other pages, apart from pinned patients', async () => {
+    renderAt('/patients', [knee, scope]);
+
+    expect(await screen.findByRole('link', {name: 'FA TKR'})).not.toHaveAttribute('aria-current');
+    expect(await screen.findByRole('link', {name: 'PA B'})).toBeInTheDocument();
+    expect(localStorage.getItem(pinsKey('patients', staffUser.username))).toBeNull();
+  });
+
+  it('drops a pinned procedure that no longer exists', async () => {
+    const gone = 'c0000000-0000-4000-8000-000000000009';
+    renderAt('/', [knee, gone]);
+
+    await screen.findByRole('link', {name: 'FA TKR'});
+    await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]));
   });
 });

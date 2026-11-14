@@ -2,9 +2,10 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Card} from '@astryxdesign/core/Card';
 import {Section} from '@astryxdesign/core/Section';
-import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
+import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import type {FormEvent, ReactNode} from 'react';
 import {AppIcon} from '../shared/icons';
+import {InCardContext} from '../views/CardSection';
 
 export interface FormCardProps {
   /** The form's sections, usually FormSection. */
@@ -25,8 +26,9 @@ export interface FormCardProps {
 }
 
 /**
- * A form in a card (replaces Blazor's FormCard): sections, then a footer with Delete at the start and
- * Cancel and Save at the end. It is a native <form>, so Enter submits it, and Save is its submit button.
+ * A form in a card (replaces Blazor's FormCard): sections, each with its title as a header bar across the card,
+ * then a footer with Delete at the start and Cancel and Save at the end. It is a native <form>, so Enter submits
+ * it, and Save is its submit button.
  */
 export function FormCard({
   children,
@@ -48,11 +50,9 @@ export function FormCard({
   return (
     <Card padding={0} width="100%">
       <form onSubmit={handleSubmit} noValidate>
-        <Section variant="transparent" padding={6}>
-          <VStack gap={8}>{children}</VStack>
-        </Section>
+        <InCardContext.Provider value>{children}</InCardContext.Provider>
         {showFooter && (
-          <Section variant="muted" padding={4} dividers={['top']}>
+          <Section variant="muted" padding={4}>
             <HStack gap={2} vAlign="center">
               {onDelete && (
                 <Button

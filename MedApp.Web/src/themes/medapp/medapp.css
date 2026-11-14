@@ -715,6 +715,10 @@
     --astryx-section-padding: var(--spacing-3);
   }
 
+  .astryx-table-header-cell {
+    background-color: var(--color-background-muted);
+  }
+
   .astryx-dialog-header-title-block {
     align-items: center;
     text-align: center;
