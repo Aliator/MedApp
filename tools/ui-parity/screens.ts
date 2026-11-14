@@ -76,6 +76,18 @@ export const screens: Screen[] = [
   },
   { name: 'patients-sorted', title: 'Patients sorted by date of birth, newest first', path: '/patients?sort=DateOfBirth&asc=false' },
   { name: 'patient-view', title: 'View patient', path: (d) => `/patients/${d.patientId}` },
+  { name: 'patient-procedures', title: "A patient's procedures", path: (d) => `/patients/${d.patientId}/procedures` },
+  { name: 'procedures-list', title: 'All procedures, page 1', path: '/procedures' },
+  {
+    name: 'procedures-search',
+    title: 'Search procedures dialog',
+    path: '/procedures',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: /^search$/i }).first().click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'procedure-view', title: 'Procedure page (read-only): details beside the stages', path: (d) => `/procedures/${d.procedureId}` },
   { name: 'patient-add', title: 'Add patient, empty', path: '/patients/add' },
   {
     name: 'patient-add-errors',

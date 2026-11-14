@@ -7,6 +7,7 @@ const fields: SearchField[] = [
   {type: 'text', key: 'firstName', label: 'First name', placeholder: 'Search by first name'},
   {type: 'select', key: 'role', label: 'Role', options: [{value: 'Admin', label: 'Admin'}, {value: 'User', label: 'User'}]},
   {type: 'dateRange', key: 'dob', label: 'Date of birth'},
+  {type: 'checkbox', key: 'overdue', label: 'Overdue only'},
 ];
 
 function Search({onSearch, onClear}: {onSearch: (values: SearchValues) => void; onClear?: () => void}) {
@@ -63,5 +64,21 @@ describe('SearchDialog', () => {
 
     expect(onClear).toHaveBeenCalledOnce();
     expect(input).toHaveValue('');
+  });
+});
+
+describe('SearchDialog checkboxes', () => {
+  it("records a ticked box as 'true' and an unticked one as ''", async () => {
+    const onSearch = vi.fn();
+    const {user} = renderWithApp(<Search onSearch={onSearch} />);
+
+    const box = await screen.findByRole('checkbox', {name: 'Overdue only'});
+    await user.click(box);
+    await user.click(screen.getByRole('button', {name: 'Search'}));
+    expect(onSearch).toHaveBeenLastCalledWith(expect.objectContaining({overdue: 'true'}));
+
+    await user.click(box);
+    await user.click(screen.getByRole('button', {name: 'Search'}));
+    expect(onSearch).toHaveBeenLastCalledWith(expect.objectContaining({overdue: ''}));
   });
 });

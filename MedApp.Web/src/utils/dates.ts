@@ -42,5 +42,22 @@ function format(iso: string, month: 'long' | 'short'): string {
 /** A date as UK users read it, e.g. "14 March 1980"; the input itself if it isn't a valid YYYY-MM-DD date. */
 export const formatDate = (iso: string) => format(iso, 'long');
 
+/**
+ * A moment (an ISO date-time from the API, in UTC) in UK time, e.g. "3 Nov 2026, 14:05". The input itself if it
+ * can't be read.
+ */
+export function formatDateTime(isoUtc: string): string {
+  const date = new Date(isoUtc);
+  if (Number.isNaN(date.getTime())) return isoUtc;
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/London',
+  }).format(date);
+}
+
 /** The same, shorter, for tables: "14 Mar 1980". */
 export const formatShortDate = (iso: string) => format(iso, 'short');

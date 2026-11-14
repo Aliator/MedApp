@@ -2,6 +2,8 @@ import {queryOptions} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 
 export type ProcedureSummary = Schemas['PatientProcedureSummaryResponse'];
+export type Procedure = Schemas['PatientProcedureResponse'];
+export type ProcedureStage = Schemas['PatientProcedureStageResponse'];
 
 /**
  * Every procedure query is keyed under ['procedures'], so a change to any procedure refreshes them all.
@@ -11,6 +13,14 @@ export const procedureKeys = {
   all: ['procedures'] as const,
   countForPatient: (patientId: string) => ['patients', patientId, 'procedures', 'count'] as const,
 };
+
+/** One procedure in full (`GET api/procedures/patient-procedures/{id}`). A missing one is an ApiError with status 404. */
+export function procedureQuery(id: string) {
+  return queryOptions({
+    queryKey: ['procedures', id],
+    queryFn: () => unwrap(api.GET('/api/procedures/patient-procedures/{id}', {params: {path: {id}}})),
+  });
+}
 
 /** How many procedures a patient has, in any status (one row of a search, for its total). */
 export function patientProcedureCountQuery(patientId: string) {

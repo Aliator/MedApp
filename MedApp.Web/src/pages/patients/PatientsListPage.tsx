@@ -132,6 +132,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           actions={[
             {label: 'View patient', icon: AppIcon.View, href: `/patients/${p.id}`},
             {label: 'Edit patient', icon: AppIcon.Edit, href: `/patients/${p.id}/edit`},
+            {label: 'Procedures', icon: AppIcon.Procedures, href: `/patients/${p.id}/procedures`},
           ]}
         />
       ),
@@ -150,7 +151,6 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
     <Page
       title="Patients"
       subtitle={subtitle}
-      maxWidth={1400}
       fill
       actions={
         <>

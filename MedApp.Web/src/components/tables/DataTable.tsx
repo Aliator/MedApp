@@ -37,8 +37,9 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   /** Shown when there are no rows, e.g. an EmptyState with an action. */
   emptyState?: ReactNode;
   /**
-   * A narrow panel inside the card, along its whole start or end edge and divided from the table, e.g. Home's
-   * switch to the other task list.
+   * A narrow panel inside the card, beside the table (its header and rows, not the page controls) and divided
+   * from it, e.g. Home's switch to the other task list. The page controls run under both, so they stay in the
+   * same place whether there's a panel or not.
    */
   edge?: {side: 'start' | 'end'; content: ReactNode};
 }
@@ -103,7 +104,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   const edgePanel = edge && (
     <StackItem>
-      <Section variant="transparent" padding={0} width={56} height="100%" dividers={[edge.side === 'start' ? 'end' : 'start']}>
+      <Section variant="transparent" padding={0} width={44} height="100%" dividers={[edge.side === 'start' ? 'end' : 'start']}>
         {edge.content}
       </Section>
     </StackItem>
@@ -111,30 +112,33 @@ export function DataTable<T extends Record<string, unknown>>({
 
   return (
     <Card padding={0} width="100%" height="100%">
-      <HStack gap={0} height="100%">
-        {edge?.side === 'start' && edgePanel}
+      <VStack gap={0} height="100%">
         <StackItem size="fill">
-          <VStack gap={0} height="100%">
+          <HStack gap={0} height="100%">
+            {edge?.side === 'start' && edgePanel}
             <StackItem size="fill" isScrollable>
-              {table}
-            </StackItem>
-            {showPaging && (
-              <Section variant="transparent" padding={3} dividers={['top']}>
-                <HStack hAlign="end">
-                  <Pagination
-                    page={pagination.page}
-                    pageSize={pagination.pageSize}
-                    totalItems={pagination.totalItems}
-                    onChange={pagination.onPageChange}
-                    label="Table pagination"
-                  />
-                </HStack>
+              {/* A little room between the card's edges and the first and last columns (Table has no prop for it). */}
+              <Section variant="transparent" paddingBlock={0} paddingInline={4}>
+                {table}
               </Section>
-            )}
-          </VStack>
+            </StackItem>
+            {edge?.side === 'end' && edgePanel}
+          </HStack>
         </StackItem>
-        {edge?.side === 'end' && edgePanel}
-      </HStack>
+        {showPaging && (
+          <Section variant="transparent" padding={3} dividers={['top']}>
+            <HStack hAlign="end">
+              <Pagination
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                totalItems={pagination.totalItems}
+                onChange={pagination.onPageChange}
+                label="Table pagination"
+              />
+            </HStack>
+          </Section>
+        )}
+      </VStack>
     </Card>
   );
 }

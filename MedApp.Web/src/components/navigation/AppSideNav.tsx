@@ -3,7 +3,9 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {NavIcon} from '@astryxdesign/core/NavIcon';
 import {SideNav, SideNavHeading, SideNavItem, SideNavSection} from '@astryxdesign/core/SideNav';
 import {Text} from '@astryxdesign/core/Text';
+import {useQuery} from '@tanstack/react-query';
 import {useRouterState} from '@tanstack/react-router';
+import {patientQuery} from '../../api/patients';
 import {useColorMode} from '../../app/colorMode';
 import {useCurrentUser, useLogout} from '../../auth/auth';
 import {AppIcon} from '../shared/icons';
@@ -14,7 +16,18 @@ export function isCurrentSection(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-/** Side navigation (replaces Blazor's NavMenu): main pages, admin pages for admins, and the account footer. */
+const PATIENT_PAGE = /^\/patients\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/i;
+
+/** The patient whose pages (view, edit, procedures) are open, from the path; null elsewhere. */
+export function openPatientId(pathname: string): string | null {
+  return PATIENT_PAGE.exec(pathname)?.[1] ?? null;
+}
+
+/**
+ * Side navigation (replaces Blazor's NavMenu): main pages, admin pages for admins, and the account footer.
+ * While a patient's pages are open, that patient appears under Patients as an indented sub-item, with the
+ * open arrow on Patients.
+ */
 export function AppSideNav() {
   const user = useCurrentUser();
   const logout = useLogout();
@@ -22,6 +35,11 @@ export function AppSideNav() {
   const pathname = useRouterState({select: (state) => state.location.pathname});
   const isAt = (path: string) => isCurrentSection(pathname, path);
   const nextMode = mode === 'dark' ? 'light' : 'dark';
+
+  const patientId = openPatientId(pathname);
+  // The page has usually loaded the patient already, so this is the cached copy.
+  const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== null});
+  const patientName = patient.data ? `${patient.data.firstName} ${patient.data.lastName}` : 'Patient';
 
   return (
     <SideNav
@@ -64,7 +82,14 @@ export function AppSideNav() {
       }>
       <SideNavSection title="Main" isHeaderHidden>
         <SideNavItem label="Home" icon={AppIcon.Home} href="/" isSelected={isAt('/')} />
-        <SideNavItem label="Patients" icon={AppIcon.Patients} href="/patients" isSelected={isAt('/patients')} />
+        {patientId ? (
+          <SideNavItem label="Patients" icon={AppIcon.Patients} href="/patients" collapsible>
+            <SideNavItem label={patientName} icon={AppIcon.SubItem} href={`/patients/${patientId}`} isSelected />
+          </SideNavItem>
+        ) : (
+          <SideNavItem label="Patients" icon={AppIcon.Patients} href="/patients" isSelected={isAt('/patients')} />
+        )}
+        <SideNavItem label="Procedures" icon={AppIcon.Procedures} href="/procedures" isSelected={isAt('/procedures')} />
       </SideNavSection>
       {user.isAdmin && (
         <SideNavSection title="Administration">

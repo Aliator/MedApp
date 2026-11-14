@@ -62,7 +62,7 @@ export function AccountPage() {
   };
 
   return (
-    <Page title="Account Settings" subtitle="Manage your account password" maxWidth={640}>
+    <Page title="Account Settings" subtitle="Manage your account password">
       <FormCard onSave={submit} saveText="Update password" isProcessing={change.isPending}>
         <FormSection title="Change Password" useGrid={false}>
           <TextInput

@@ -28,6 +28,7 @@ Then, in this folder:
 | `npm run parity` | Every app whose URL is set in `.env`: React, plus Blazor only when `BLAZOR_URL` is set |
 | `npm run parity:blazor` | Blazor only |
 | `npm run parity:react` | React only |
+| `npm run parity:react -- -g "home\|patient-view"` | Only the named screens (a regex over the names in `screens.ts`); sign-in still runs first |
 | `npx playwright test --project=blazor -g "patient-view"` | One screen |
 
 Screenshots are desktop only (1440×900); mobile layouts are out of scope for now. They land in `screenshots/<screen>/{blazor,react}.png`, and `report.html` is regenerated after every run. Screens not yet captured for an app show as "missing".

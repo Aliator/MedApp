@@ -150,7 +150,9 @@ All UI work goes in `MedApp.Web`. Its conventions are in `MedApp.Web/AGENTS.md`,
 ### UI parity screenshots
 
 `tools/ui-parity/` is the Playwright tool that compared the Blazor and React apps screen by screen during the migration. It writes `tools/ui-parity/report.html`. It's a development aid, not E2E tests.
-- **When you change a page or shared component:** with the AppHost running, run `npm run parity:react` in `tools/ui-parity`, and look at the affected screens' `react.png` before calling the work done.
+- **Don't capture every screen after every change.** A full run takes about a minute, and reading the images costs tokens, so keep it targeted:
+  - **While working,** capture only the screens your change affects, by name (from `screens.ts`), and look at their `react.png`. With the AppHost running, in `tools/ui-parity`: `npm run parity:react -- -g "patient-view|patients-list"`. Sign-in still runs first; one screen takes a few seconds. For a shared component (`Page`, `DataTable`, the side nav), pick two or three screens that use it rather than all of them.
+  - **When merging** (step 1 of the merge flow), run the whole set once (`npm run parity:react`) and check that every screen still passes. Then look only at the screens the branch changed.
 - The Blazor screenshots on disk are the last baseline from before cutover. Capturing Blazor again means running `MedApp.Client.Deprecated` by hand and allowing its origin in the API again.
 - **New screens or states** go in `tools/ui-parity/screens.ts`. Never make a screen confirm a destructive action; only open the dialog.
 - **Credentials** live in the git-ignored `tools/ui-parity/.env`; never commit them. Setup and run steps are in `tools/ui-parity/README.md`.
@@ -239,7 +241,7 @@ When the subagent reports back, do step 4 yourself, and don't interrupt the user
 **Only run this when the user explicitly asks you to merge.** Without that, stop at committing or at an open PR, as usual. Opening a PR or seeing CI pass is not permission to merge.
 
 When the user says to merge, do every step, in order, without stopping to ask again:
-1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push.
+1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. If the branch changed the UI, run the full set of UI parity screenshots first (see [UI parity screenshots](#ui-parity-screenshots)).
 2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
 3. **Wait for the workflow** run whose `head_sha` is the pushed commit to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
    - **If it fails, stop.** Don't merge. Report it and propose a fix, as in step 4 of the CI section.

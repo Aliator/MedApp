@@ -1,6 +1,6 @@
 import {screen} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {DueDateCell, PriorityToken, ProcedureCell, StageProgressCell, StatusToken, statusLabel} from './ProcedureCells';
+import {AssigneesCell, DueDateCell, PriorityToken, ProcedureCell, StageProgressCell, StatusToken, statusLabel} from './ProcedureCells';
 
 describe('ProcedureCells', () => {
   it('puts statuses into words', () => {
@@ -8,11 +8,30 @@ describe('ProcedureCells', () => {
     expect(statusLabel('Blocked')).toBe('Blocked');
   });
 
-  it('shows the title with a link to the patient', async () => {
-    renderWithApp(<ProcedureCell title="Colonoscopy" patientId="p-1" patientName="Test Patient" />);
+  it('links the title to the procedure and the patient to theirs', async () => {
+    renderWithApp(<ProcedureCell id="proc-1" title="Colonoscopy" patientId="p-1" patientName="Test Patient" />);
 
-    expect(await screen.findByText('Colonoscopy')).toBeInTheDocument();
+    expect(await screen.findByRole('link', {name: 'Colonoscopy'})).toHaveAttribute('href', '/procedures/proc-1');
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/p-1');
+  });
+
+  it('shows secondary text instead of the patient when given no patient', async () => {
+    renderWithApp(<ProcedureCell id="proc-1" title="Colonoscopy" secondary="Diagnostic procedure" />);
+
+    expect(await screen.findByText('Diagnostic procedure')).toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('lists the assignees, or says nobody is assigned', async () => {
+    renderWithApp(
+      <>
+        <AssigneesCell assignees={['a.user', 'b.user']} />
+        <AssigneesCell assignees={[]} />
+      </>,
+    );
+
+    expect(await screen.findByText('a.user, b.user')).toBeInTheDocument();
+    expect(screen.getByText('Nobody')).toBeInTheDocument();
   });
 
   it('flags an overdue date', async () => {

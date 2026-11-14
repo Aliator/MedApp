@@ -9,7 +9,10 @@ export interface PageProps extends PageHeaderProps {
   /** Shows a spinner instead of the content, e.g. while the page's data loads. */
   isLoading?: boolean;
   loadingMessage?: string;
-  /** Caps the content width (px), centred; forms use this. */
+  /**
+   * Caps the content width (px), centred. Every page uses the same width by default, so titles and cards line up
+   * from page to page.
+   */
   maxWidth?: number;
   /**
    * Makes the content fill the window's height below the header, e.g. so a list's table reaches the bottom of
@@ -25,7 +28,24 @@ export interface PageProps extends PageHeaderProps {
  * The frame of every signed-in page (replaces Blazor's Page): header, then content or a loading spinner.
  * Auth checks and data loading live in the route (guard and queries), not here.
  */
-export function Page({isLoading = false, loadingMessage = 'Loading...', maxWidth, fill = false, dialogs, children, ...header}: PageProps) {
+/** The content width every page shares. */
+export const PAGE_MAX_WIDTH = 1600;
+
+/**
+ * Below this width, pages with two side-by-side columns (Home, a procedure) don't fit them, and show one at a
+ * time or stack them instead.
+ */
+export const NARROW_WINDOW_QUERY = '(max-width: 1399px)';
+
+export function Page({
+  isLoading = false,
+  loadingMessage = 'Loading...',
+  maxWidth = PAGE_MAX_WIDTH,
+  fill = false,
+  dialogs,
+  children,
+  ...header
+}: PageProps) {
   return (
     // A Layout sits flush in AppShell's content area and insets only its regions, so the page goes in a
     // LayoutContent region with the same 24px inset as pages without a Layout.

@@ -1,9 +1,11 @@
 import {
   hasPatientFilters,
+  hasProcedureFilters,
   hasTaskFilters,
   hasUserFilters,
   parseHomeSearch,
   parsePatientsSearch,
+  parseProceduresSearch,
   parseUsersSearch,
   taskListSearch,
   withTaskListSearch,
@@ -118,5 +120,34 @@ describe('parseHomeSearch', () => {
   it('knows when a task list is filtered', () => {
     expect(hasTaskFilters({page: 2, sort: 'Due'})).toBe(false);
     expect(hasTaskFilters({overdue: true})).toBe(true);
+  });
+});
+
+describe('parseProceduresSearch', () => {
+  it('reads the page, sort and filters, dropping anything invalid', () => {
+    expect(
+      parseProceduresSearch({
+        page: '2',
+        sort: 'status',
+        asc: 'false',
+        q: ' colon ',
+        status: 'inreview',
+        priority: 'HIGH',
+        overdue: 'true',
+        mine: 'false',
+        closed: 'true',
+        dueFrom: '2026-12-01',
+        dueTo: 'later',
+      }),
+    ).toEqual({page: 2, sort: 'Status', asc: false, q: 'colon', status: 'InReview', priority: 'High', overdue: true, closed: true, dueFrom: '2026-12-01'});
+  });
+
+  it('ignores an unknown status and sort', () => {
+    expect(parseProceduresSearch({status: 'Finished', sort: 'colour'})).toEqual({});
+  });
+
+  it('knows when the list is filtered', () => {
+    expect(hasProcedureFilters({page: 3, sort: 'Due'})).toBe(false);
+    expect(hasProcedureFilters({closed: true})).toBe(true);
   });
 });
