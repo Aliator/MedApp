@@ -16,10 +16,10 @@ Captures the same screens in the Blazor app (`MedApp.Client`) and the React app 
 Start the apps first, from the repo root (Docker must be running):
 
 ```bash
-dotnet run --project MedApp.AppHost   # SQL container, API (https://localhost:7038), Blazor client (https://localhost:7292)
+dotnet run --project MedApp.AppHost   # SQL container, API (https://localhost:7038), Blazor (https://localhost:7292), React (http://localhost:5173)
 ```
 
-Wait until the dashboard shows the API and the Blazor client as running. If either fails with "the default developer certificate could not be found", run `dotnet dev-certs https` once.
+Wait until the dashboard shows the API and both UIs as running. Until a page is ported, its React screen captures a "Not ported yet" placeholder, and screens that open a dialog on it time out (about a minute each), so run `npm run parity:blazor` or filter with `-g` to skip them. If either fails with "the default developer certificate could not be found", run `dotnet dev-certs https` once.
 
 Then, in this folder:
 

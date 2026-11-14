@@ -31,6 +31,10 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status409Conflict, ex.Message);
         }
+        catch (InvalidCredentialsException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status401Unauthorized, ex.Message);
+        }
     }
 
     private static async Task WriteValidationProblem(

@@ -2,7 +2,7 @@
 
 Status: **decisions settled** · 2026-11-14
 
-Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Phase 2 (Aspire foundation and Blazor baseline) was completed on 2026-11-14.
+Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Phase 2 (Aspire foundation and Blazor baseline) and phase 3 (React shell) were completed on 2026-11-14.
 
 ## 1. Goals and fixed decisions
 
@@ -231,6 +231,24 @@ Each phase ends with a working app. Blazor stays the default UI until phase 5, a
    - Set up lint and unit tests.
 
    *Exit:* log in, navigate, and log out against the real API.
+
+   ✅ **Done (2026-11-14).** Logging in, navigating and logging out work against the real API, in the browser (checked with the parity tool's React sign-in) and in unit tests.
+   - **`MedApp.Web`**: React 19, TypeScript 5.9, Vite 8 and `@astryxdesign/core` 0.7.15 (exact). The AppHost runs it as `web` on a fixed `http://localhost:5173`, with `/api` and `/swagger` proxied to the API. It's a solution folder in `MedApp.sln` (Q5c).
+   - **Shell:** `AppShell` + `SideNav`, with admin items for admins only, the account and Logout in the footer, and the light/dark toggle in its icon row.
+   - **Auth:** a `whoami` query, the `_app` layout route's guard, and an admin guard on `/admin/users` (non-admins go to `/`, as in Blazor).
+   - **API:** `openapi-typescript` types plus an `openapi-fetch` client, and the shared 400 → field-error mapper.
+   - **Pages:** Login (from Astryx's `login` template) and Home are ported. Patients, Account and Users show a "Not ported yet" placeholder until phase 5.
+   - **Theme:** the `medapp` theme (Q11) is in `src/themes/medapp/`, where Astryx's CLI expects a local theme, rather than `src/theme/`. Its fonts are set through stone's `typography` config, because a token override alone left stone's fonts in place.
+   - **Icons:** `AppIcon` (`src/components/shared/icons.ts`) maps every `IconType` to Remix as in Q8.
+   - **Checks:** ESLint, Vitest + React Testing Library (34 tests), and a `web` job in the PR workflow. The job came forward from phase 5 so phases 3–4 are checked; adding Vitest coverage to the sticky comment is still phase 5.
+   - **E2E (Q13b):** `MedApp.E2ETests` has a Playwright for .NET base fixture, a sign-in step, a `README.md` and the manual `e2e.yml`, with no tests.
+
+   Deviations and findings:
+   - **TypeScript 5.9, not 6 or 7:** `openapi-typescript` 7 (Q6) only supports TypeScript 5.
+   - **Astryx 0.7.16 came out during the phase.** It stays on 0.7.15, per Q14.
+   - **`GET api/auth/whoami`** gained a `[ProducesResponseType]`, so its response type is generated. That changes the Swagger document only, not the API's behaviour.
+   - **"Forgot password?" isn't ported yet.** Blazor's version is a stub (a fake one-second delay, with no API behind it). Its dialog will be built on `ConfirmDialog` in phase 4.
+   - **A wrong password made the API return a 500,** because `UnauthorizedAccessException` wasn't handled by the exception middleware. Fixed in the same PR: the credential check throws a new `InvalidCredentialsException`, which the middleware answers with a 401. Both UIs still show "Invalid credentials" for any failed sign-in.
 4. **Components:** build the section 4 composites, each with a unit test. *Exit:* every Blazor component has a React replacement.
 5. **Pages and cutover:**
    - Port the pages: Patients list, view, add and edit; Admin Users; Account; Home.

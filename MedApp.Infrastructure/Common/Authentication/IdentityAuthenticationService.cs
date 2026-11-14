@@ -1,4 +1,5 @@
 ﻿using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -14,11 +15,11 @@ public sealed class IdentityAuthenticationService(
     {
         var user = await userManager.FindByNameAsync(username);
         if (user is null)
-            throw new UnauthorizedAccessException();
+            throw new InvalidCredentialsException();
 
         var valid = await userManager.CheckPasswordAsync(user, password);
         if (!valid)
-            throw new UnauthorizedAccessException();
+            throw new InvalidCredentialsException();
 
         var roles = await userManager.GetRolesAsync(user);
 

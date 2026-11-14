@@ -15,8 +15,9 @@ dotnet build MedApp.sln                     # build everything
 dotnet test MedApp.UnitTests                # the only project with tests (CI runs this)
 dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run a subset
 
-dotnet run --project MedApp.AppHost         # everything (needs Docker running): SQL Server container, API, Blazor client, Aspire dashboard
+dotnet run --project MedApp.AppHost         # everything (needs Docker running): SQL Server container, API, both UIs, Aspire dashboard
 #   API + Swagger:  https://localhost:7038/swagger
+#   React app:      http://localhost:5173   (MedApp.Web; its commands are in MedApp.Web/README.md)
 #   Blazor client:  https://localhost:7292
 #   Dashboard:      the login URL the command prints
 
@@ -45,11 +46,13 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.Application` | Commands, queries, handlers and validators (MediatR + FluentValidation). Also repository and service **interfaces** and app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repository implementations, Identity and session services, and migrations. |
 | `MedApp.API` | Thin controllers, the session auth handler, exception middleware and CORS. |
-| `MedApp.Client` | Blazor WASM UI. It references only `Contracts` and talks to the API over `HttpClient`. |
-| `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the Blazor client. |
+| `MedApp.Client` | Blazor WASM UI. It references only `Contracts` and talks to the API over `HttpClient`. Being replaced by `MedApp.Web`. |
+| `MedApp.Web` | React UI (React 19, TypeScript, Vite, Astryx) replacing `MedApp.Client`. Not a .NET project: a solution folder in `MedApp.sln`, built with npm. |
+| `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and both UIs. |
 | `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive` in Development), used by the API. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators and Infrastructure services. |
-| `MedApp.IntegrationTests`, `MedApp.E2ETests` | Empty project shells, with no tests yet. |
+| `MedApp.IntegrationTests` | Empty project shell, with no tests yet. |
+| `MedApp.E2ETests` | Playwright for .NET setup (base fixture, sign-in) for end-to-end tests of `MedApp.Web`. No tests yet; see its `README.md`. |
 
 The top-level `Application/`, `Domain/`, `Infrastructure/`, `UnitTests/`, `IntegrationTests/` and `E2ETests/` folders hold only stale `bin/`/`obj/` output from an old layout. Ignore them and never add code there.
 
@@ -78,7 +81,7 @@ To add a feature end to end:
 ### Validation and errors
 
 - Validation runs in the MediatR pipeline (`ValidationBehaviour` in `Application/Common/Behaviors`). It throws `FluentValidation.ValidationException`, which `API/Middleware/ExceptionHandling.cs` turns into a 400 `ValidationProblemDetails`.
-- **Preferred style for new code:** throw `NotFoundException` (becomes 404) or `ConflictException` (becomes 409) from handlers. The Procedures area follows this.
+- **Preferred style for new code:** throw `NotFoundException` (becomes 404) or `ConflictException` (becomes 409) from handlers. The Procedures area follows this. A wrong username or password throws `InvalidCredentialsException` (becomes 401).
 - The Patients and Auth slices predate that and return `null`/`bool`/`IdentityResult`, leaving controllers to choose the status code. Keep that existing style when you edit those slices, unless the task is to migrate them.
 - Unhandled exceptions are not caught by the middleware, so they surface as 500s.
 
@@ -108,6 +111,15 @@ Handlers map Domain entities to `Contracts` responses by hand, with inline `new 
 - The roles are `Admin` and `User`. Most endpoints are `[Authorize(Roles = "Admin")]`. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - No admin user is seeded. The only `HasData` seed is a default stage definition.
 - Identity password and lockout rules live under the `Identity` section of `appsettings.json`.
+
+## Frontend conventions (MedApp.Web)
+
+New UI work goes in `MedApp.Web`. Its conventions are in `MedApp.Web/AGENTS.md`, and its layout and scripts are in `MedApp.Web/README.md`. In short:
+- UI is built only from Astryx components, or composites of them; icons come from `AppIcon`.
+- Data goes through TanStack Query and the typed `api` client.
+- Every component and page has a Vitest test.
+- Before calling a change done, `npm run lint`, `npm run typecheck` and `npm test` must pass in `MedApp.Web`.
+- After an API DTO or endpoint change, run `npm run gen:api` with the AppHost running, and commit `src/api/schema.d.ts`.
 
 ## Frontend conventions (MedApp.Client)
 
@@ -174,7 +186,11 @@ It only runs against a local database: by default the AppHost's SQL container, u
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`. It runs `dotnet test MedApp.UnitTests` in Release with coverage, then posts a sticky PR comment listing classes under 80% line coverage. Commands, queries, DTOs, repositories, DbContext, migrations and `ServiceExtensions` are excluded from coverage. Handlers and validators are what count.
+`.github/workflows/main.yml` runs on PRs to `main`, with two jobs:
+- `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest, and `vite build`.
+- `unit-tests` runs `dotnet test MedApp.UnitTests` in Release with coverage, then posts a sticky PR comment listing classes under 80% line coverage.
+
+`.github/workflows/e2e.yml` runs the (empty) E2E suite, only when started by hand. Commands, queries, DTOs, repositories, DbContext, migrations and `ServiceExtensions` are excluded from coverage. Handlers and validators are what count.
 
 ### Checking CI on PRs you opened or pushed to
 
