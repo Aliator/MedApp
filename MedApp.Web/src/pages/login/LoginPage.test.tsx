@@ -10,7 +10,7 @@ describe('LoginPage', () => {
     const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
 
     await user.type(await screen.findByLabelText(/username/i), 'test-admin');
-    await user.type(screen.getByLabelText(/password/i), 'Synthetic-Passw0rd');
+    await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
@@ -48,7 +48,7 @@ describe('LoginPage', () => {
     const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
 
     await user.type(await screen.findByLabelText(/username/i), 'test-admin');
-    await user.type(screen.getByLabelText(/password/i), 'wrong');
+    await user.type(screen.getByLabelText(/^password/i), 'wrong');
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();

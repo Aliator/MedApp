@@ -63,5 +63,15 @@ export function mockFetch(handler: (request: Request) => Response | Promise<Resp
   return fn;
 }
 
+/**
+ * Astryx keeps disabled buttons focusable, so it marks them with aria-disabled rather than the disabled
+ * attribute, which jest-dom's toBeDisabled doesn't look at. This checks both.
+ */
+export const isDisabled = (element: HTMLElement) =>
+  element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true';
+
+/** The dialog that is open, or null: closed Astryx dialogs stay in the DOM without `open`. */
+export const openDialog = () => document.querySelector<HTMLDialogElement>('dialog[open]');
+
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}});

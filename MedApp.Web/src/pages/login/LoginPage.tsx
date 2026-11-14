@@ -10,6 +10,7 @@ import {useState, type CSSProperties, type FormEvent} from 'react';
 import {ApiValidationError, fieldStatus} from '../../api/errors';
 import {useLogin} from '../../auth/auth';
 import {AppIcon} from '../../components/shared/icons';
+import {ForgotPasswordDialog} from './ForgotPasswordDialog';
 
 // The login page has no AppShell, so it paints the body background itself (from Astryx's `login` template).
 const pageStyle: CSSProperties = {minHeight: '100dvh', backgroundColor: 'var(--color-background-body)'};
@@ -23,6 +24,7 @@ const columnStyle: CSSProperties = {width: '100%', maxWidth: 400};
 export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
   const login = useLogin();
 
   const validation = login.error instanceof ApiValidationError ? login.error.errors : null;
@@ -75,10 +77,12 @@ export function LoginPage() {
               />
 
               <Button type="submit" label="Sign in" variant="primary" size="lg" isLoading={login.isPending} />
+              <Button label="Forgot password?" variant="ghost" size="lg" onClick={() => setIsForgotOpen(true)} />
             </VStack>
           </form>
         </Card>
       </VStack>
+      <ForgotPasswordDialog isOpen={isForgotOpen} onClose={() => setIsForgotOpen(false)} />
     </Center>
   );
 }

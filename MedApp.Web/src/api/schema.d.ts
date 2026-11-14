@@ -64,6 +64,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    Ascending?: boolean;
+                    Username?: string;
+                    Role?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["UserResponsePagedResponse"];
+                        "application/json": components["schemas"]["UserResponsePagedResponse"];
+                        "text/json": components["schemas"]["UserResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/users/{username}": {
         parameters: {
             query?: never;
@@ -1334,6 +1389,64 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/patients/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    Ascending?: boolean;
+                    FirstName?: string;
+                    LastName?: string;
+                    Email?: string;
+                    DateOfBirthFrom?: string;
+                    DateOfBirthTo?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientResponsePagedResponse"];
+                        "application/json": components["schemas"]["PatientResponsePagedResponse"];
+                        "text/json": components["schemas"]["PatientResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/roles": {
         parameters: {
             query?: never;
@@ -1658,6 +1771,17 @@ export interface components {
             dateOfBirth?: string;
             email?: string | null;
         };
+        PatientResponsePagedResponse: {
+            items?: components["schemas"]["PatientResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
         ProblemDetails: {
             type?: string | null;
             title?: string | null;
@@ -1710,6 +1834,17 @@ export interface components {
             userId?: string;
             username?: string | null;
             roles?: string[] | null;
+        };
+        UserResponsePagedResponse: {
+            items?: components["schemas"]["UserResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
         };
         ValidationProblemDetails: {
             type?: string | null;

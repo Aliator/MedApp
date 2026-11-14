@@ -28,13 +28,17 @@ dotnet run --project MedApp.AppHost   # from the repo root
 
 ```
 src/
-  api/          openapi-fetch client, generated schema.d.ts, 400 → field-error mapper
+  api/          openapi-fetch client, generated schema.d.ts, 400 → field-error mapper, paged search queries
   app/          App, providers (theme, locale, links, query cache), light/dark mode
   auth/         whoami query, login and logout
-  components/   ports of MedApp.Client's Components/ (navigation, shared, …), built only from Astryx
+  components/   ports of MedApp.Client's Components/, built only from Astryx:
+                  pages/ (Page, PageHeader), forms/ (FormCard, FormSection, date-of-birth inputs, PatientSummary),
+                  tables/ (DataTable, TableActions, AvatarCell), modals/ (ConfirmDialog, SelectionDialog, SearchDialog),
+                  views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage)
   pages/        one folder per page
   routes/       TanStack Router file routes (src/routeTree.gen.ts is generated from them)
   themes/       the medapp theme: source (medappTheme.ts, icons.ts) and its built output
+  utils/        small helpers (dates: age, en-GB formatting, today)
   test/         Vitest setup and render helpers
 ```
 

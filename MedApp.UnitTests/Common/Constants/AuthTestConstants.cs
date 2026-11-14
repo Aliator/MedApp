@@ -1,4 +1,5 @@
-﻿using MedApp.Infrastructure.Common.Identity;
+﻿using MedApp.Application.Authentication.Users.Queries.SearchUsers;
+using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.UnitTests.Common.Constants;
@@ -36,6 +37,20 @@ public static class AuthTestConstants
         return new ApplicationUser
         {
             UserName = Usernames[0]
+        };
+    }
+
+    /// <summary>A search for the first page of users with no filters; override what a test needs.</summary>
+    public static SearchUsersQuery CreateSearchUsersQuery() => new(1, 10, null, true, null, null);
+
+    /// <summary>A user with a normalized name, as Identity stores it, for search tests.</summary>
+    public static ApplicationUser CreateUser(string username)
+    {
+        return new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = username,
+            NormalizedUserName = username.ToUpperInvariant()
         };
     }
 

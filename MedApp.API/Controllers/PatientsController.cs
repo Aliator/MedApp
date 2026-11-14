@@ -4,6 +4,8 @@ using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Queries.GetPatientById;
+using MedApp.Application.Patients.Queries.SearchPatients;
+using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
 using MediatR;
@@ -52,6 +54,30 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             return NotFound();
 
         return Ok(patient);
+    }
+
+    /// <summary>
+    /// One page of patients, filtered and sorted on the server. Used by MedApp.Web; the Blazor client still loads
+    /// the whole list from <c>GET api/patients</c>, which goes once it is retired.
+    /// </summary>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(PagedResponse<PatientResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SearchPatients([FromQuery] SearchPatientsRequest request, CancellationToken cancellationToken)
+    {
+        var query = new SearchPatientsQuery(
+            request.Page,
+            request.PageSize,
+            request.Sort,
+            request.Ascending,
+            request.FirstName,
+            request.LastName,
+            request.Email,
+            request.DateOfBirthFrom,
+            request.DateOfBirthTo);
+
+        return Ok(await mediator.Send(query, cancellationToken));
     }
 
     [HttpGet]

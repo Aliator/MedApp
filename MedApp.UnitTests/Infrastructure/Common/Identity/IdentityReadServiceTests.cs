@@ -120,4 +120,87 @@ public sealed class IdentityReadServiceTests
         result!.Username.Should().Be(user.UserName);
         result.Roles.Should().BeEquivalentTo(AuthTestConstants.Roles);
     }
+
+    private List<ApplicationUser> SetUpSearchUsers(params string[] usernames)
+    {
+        var users = usernames.Select(AuthTestConstants.CreateUser).ToList();
+        _userManager.SetupGet(u => u.Users).Returns(users.AsQueryable());
+        _userManager.Setup(u => u.NormalizeName(It.IsAny<string>())).Returns<string>(name => name.ToUpperInvariant());
+        _userManager.Setup(u => u.GetRolesAsync(It.IsAny<ApplicationUser>())).ReturnsAsync([AuthTestConstants.Roles[1]]);
+        return users;
+    }
+
+    [Test]
+    public async Task SearchUsersAsync_NoFilters_ReturnsFirstPageSortedByUsernameWithRoles()
+    {
+        SetUpSearchUsers("charlie", "Alpha", "bravo");
+
+        var result = await _service.SearchUsersAsync(AuthTestConstants.CreateSearchUsersQuery(), CancellationToken.None);
+
+        result.TotalCount.Should().Be(3);
+        result.Items.Select(u => u.Username).Should().Equal("Alpha", "bravo", "charlie");
+        result.Items.Should().OnlyContain(u => u.Roles.SequenceEqual(new[] { AuthTestConstants.Roles[1] }));
+    }
+
+    [Test]
+    public async Task SearchUsersAsync_Descending_ReversesTheOrder()
+    {
+        SetUpSearchUsers("charlie", "Alpha", "bravo");
+        var query = AuthTestConstants.CreateSearchUsersQuery() with { Ascending = false };
+
+        var result = await _service.SearchUsersAsync(query, CancellationToken.None);
+
+        result.Items.Select(u => u.Username).Should().Equal("charlie", "bravo", "Alpha");
+    }
+
+    [Test]
+    public async Task SearchUsersAsync_SecondPage_SkipsTheFirst()
+    {
+        SetUpSearchUsers("a1", "a2", "a3", "a4", "a5");
+        var query = AuthTestConstants.CreateSearchUsersQuery() with { Page = 2, PageSize = 2 };
+
+        var result = await _service.SearchUsersAsync(query, CancellationToken.None);
+
+        result.TotalCount.Should().Be(5);
+        result.Items.Select(u => u.Username).Should().Equal("a3", "a4");
+    }
+
+    [Test]
+    public async Task SearchUsersAsync_Username_MatchesPartIgnoringCase()
+    {
+        SetUpSearchUsers("a.hartwell", "k.ashford", "HARTLEY");
+        var query = AuthTestConstants.CreateSearchUsersQuery() with { Username = " hart " };
+
+        var result = await _service.SearchUsersAsync(query, CancellationToken.None);
+
+        result.TotalCount.Should().Be(2);
+        result.Items.Select(u => u.Username).Should().Equal("a.hartwell", "HARTLEY");
+    }
+
+    [Test]
+    public async Task SearchUsersAsync_Role_ReturnsOnlyUsersInIt()
+    {
+        var users = SetUpSearchUsers("alpha", "bravo", "charlie");
+        _userManager
+            .Setup(u => u.GetUsersInRoleAsync(AuthTestConstants.Roles[0]))
+            .ReturnsAsync([users[0], users[2]]);
+        var query = AuthTestConstants.CreateSearchUsersQuery() with { Role = AuthTestConstants.Roles[0] };
+
+        var result = await _service.SearchUsersAsync(query, CancellationToken.None);
+
+        result.TotalCount.Should().Be(2);
+        result.Items.Select(u => u.Username).Should().Equal("alpha", "charlie");
+    }
+
+    [Test]
+    public async Task SearchUsersAsync_Cancelled_Throws()
+    {
+        SetUpSearchUsers("alpha");
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var act = () => _service.SearchUsersAsync(AuthTestConstants.CreateSearchUsersQuery(), cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
 }

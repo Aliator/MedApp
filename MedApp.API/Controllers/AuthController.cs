@@ -13,10 +13,12 @@ using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
+using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Authentication;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Contracts.Common;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -88,6 +90,28 @@ public sealed class AuthController(
         return NoContent();
     }
     
+    /// <summary>
+    /// One page of users, filtered and sorted on the server. Used by MedApp.Web; the Blazor client still loads
+    /// every user from <c>GET api/auth/users</c>. The literal route wins over <c>users/{username}</c>.
+    /// </summary>
+    [HttpGet("users/search")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Authentication")]
+    [ProducesResponseType(typeof(PagedResponse<UserResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchUsers([FromQuery] SearchUsersRequest request, CancellationToken ct)
+    {
+        var query = new SearchUsersQuery(
+            request.Page,
+            request.PageSize,
+            request.Sort,
+            request.Ascending,
+            request.Username,
+            request.Role);
+
+        return Ok(await mediator.Send(query, ct));
+    }
+
     [HttpGet("users")]
     [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
