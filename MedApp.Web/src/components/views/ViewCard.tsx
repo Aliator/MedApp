@@ -1,3 +1,4 @@
+import {Card} from '@astryxdesign/core/Card';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import type {ReactNode} from 'react';
@@ -13,7 +14,7 @@ export interface ViewCardProps {
 /** Read-only details in a card (replaces Blazor's ViewCard); the read-only twin of FormCard. */
 export function ViewCard({children, footerActions, showFooter = true}: ViewCardProps) {
   return (
-    <Section padding={0}>
+    <Card padding={0} width="100%">
       <Section variant="transparent" padding={6}>
         <VStack gap={8}>{children}</VStack>
       </Section>
@@ -24,6 +25,6 @@ export function ViewCard({children, footerActions, showFooter = true}: ViewCardP
           </HStack>
         </Section>
       )}
-    </Section>
+    </Card>
   );
 }

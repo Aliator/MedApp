@@ -31,11 +31,16 @@ export function ageOn(dateOfBirth: string, on: string = todayIso()): number | nu
   return age >= 0 ? age : null;
 }
 
-/** A date as UK users read it, e.g. "14 March 1980"; the input itself if it isn't a valid YYYY-MM-DD date. */
-export function formatDate(iso: string): string {
+function format(iso: string, month: 'long' | 'short'): string {
   const date = parse(iso);
   if (!date) return iso;
-  return new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'}).format(
+  return new Intl.DateTimeFormat('en-GB', {day: 'numeric', month, year: 'numeric', timeZone: 'UTC'}).format(
     new Date(Date.UTC(date.year, date.month - 1, date.day)),
   );
 }
+
+/** A date as UK users read it, e.g. "14 March 1980"; the input itself if it isn't a valid YYYY-MM-DD date. */
+export const formatDate = (iso: string) => format(iso, 'long');
+
+/** The same, shorter, for tables: "14 Mar 1980". */
+export const formatShortDate = (iso: string) => format(iso, 'short');

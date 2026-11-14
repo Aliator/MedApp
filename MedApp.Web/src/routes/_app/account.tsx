@@ -1,6 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {NotPortedPage} from '../../pages/placeholder/NotPortedPage';
+import {AccountPage} from '../../pages/account/AccountPage';
 
 export const Route = createFileRoute('/_app/account')({
-  component: () => <NotPortedPage title="Account Settings" />,
+  component: AccountPage,
 });

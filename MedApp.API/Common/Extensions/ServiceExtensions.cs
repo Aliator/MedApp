@@ -14,17 +14,8 @@ public static class ServiceExtensions
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 
-        services.AddCors(options =>
-        {
-            options.AddPolicy("MedApp.Client", policy =>
-            {
-                policy
-                    .WithOrigins("https://localhost:7292")
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials();
-            });
-        });
+        // No CORS: the React app is served from the API's own origin in production, and through a same-origin
+        // dev proxy in development. The policy for the Blazor client's origin went with it at cutover.
 
         services.AddSingleton<ISessionCookieService, SessionCookieService>();
         services.AddApiAuthentication();

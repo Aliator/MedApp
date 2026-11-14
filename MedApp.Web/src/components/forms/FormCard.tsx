@@ -1,5 +1,6 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
+import {Card} from '@astryxdesign/core/Card';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import type {FormEvent, ReactNode} from 'react';
@@ -45,7 +46,7 @@ export function FormCard({
   };
 
   return (
-    <Section padding={0}>
+    <Card padding={0} width="100%">
       <form onSubmit={handleSubmit} noValidate>
         <Section variant="transparent" padding={6}>
           <VStack gap={8}>{children}</VStack>
@@ -86,6 +87,6 @@ export function FormCard({
           </Section>
         )}
       </form>
-    </Section>
+    </Card>
   );
 }

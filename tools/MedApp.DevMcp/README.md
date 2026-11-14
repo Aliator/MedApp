@@ -23,11 +23,17 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 | Area | Tools |
 |---|---|
 | State | `get_status`: database, migrations (applied/pending), row counts |
-| Accounts | `list_users`, `list_roles`, `create_user`, `set_password`, `set_roles`, `unlock_user`, `delete_user` |
+| Accounts | `list_users`, `list_roles`, `create_user`, `set_password`, `set_roles`, `unlock_user`, `delete_user`, `ensure_test_admin` |
 | Sessions | `list_sessions`, `revoke_sessions` (sign an account out everywhere) |
 | Patients | `list_patients`, `create_patient`, `seed_patients`, `delete_patient` |
 | Snapshots | `save_snapshot`, `list_snapshots`, `restore_snapshot` (whole-database backup/restore, files in the git-ignored `.backups/`; the AppHost bind-mounts that folder into the SQL container at `/var/opt/mssql/backups`) |
 | Demo data | `reset_demo_data` (needs `confirm: true`) |
+
+### The test login: `admin` / `admin`
+
+`ensure_test_admin` makes sure the local test login exists, with the Admin and User roles, and isn't locked out. It creates the account if it's missing, and otherwise puts the password back to `admin`. `reset_demo_data` runs it too, so the login is always there after a reset.
+
+`admin` is far too weak for the app's password rules, so the tool sets the password hash directly instead of going through the app's commands. That's only acceptable because medapp-dev refuses to run against anything but a local database. Never create this account anywhere else.
 
 `reset_demo_data` saves a `pre-reset-<timestamp>` snapshot first.
 

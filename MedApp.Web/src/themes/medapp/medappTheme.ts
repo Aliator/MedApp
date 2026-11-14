@@ -40,4 +40,10 @@ export const medappTheme = defineTheme({
     '--radius-element': '8px',
     '--radius-inner': '6px',
   },
+  components: {
+    // Dialog titles are centred in their header, between the dialog's icon (start) and its close button (end).
+    'dialog-header-title-block': {
+      base: {alignItems: 'center', textAlign: 'center'},
+    },
+  },
 });

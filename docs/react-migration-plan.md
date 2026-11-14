@@ -1,8 +1,8 @@
 # MedApp: Blazor to React migration plan
 
-Status: **decisions settled** · 2026-11-14
+Status: **complete** · 2026-11-14
 
-Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Phases 2 (Aspire foundation and Blazor baseline), 3 (React shell) and 4 (components) were completed on 2026-11-14.
+Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Every phase was completed on 2026-11-14: `MedApp.Web` is the app's only UI, and `MedApp.Client` is deprecated as `MedApp.Client.Deprecated`.
 
 ## 1. Goals and fixed decisions
 
@@ -293,6 +293,30 @@ Each phase ends with a working app. Blazor stays the default UI until phase 5, a
    - Update CORS and cookie settings, then CI and `AGENTS.md`.
 
    *Exit:* parity checklist complete, CI green, `MedApp.Web` is the only UI the AppHost runs, and `MedApp.Client` is marked deprecated.
+
+   ✅ **Done (2026-11-14).**
+   - **Pages:** Patients list, view, add and edit; Admin Users; Account. Home and Login were already done.
+     - The list pages keep `page`, `sort`, `asc` and their filters in the URL and use the paged search endpoints.
+     - Edit and Users confirm before every change, as in Blazor.
+     - The Users page fetches roles once, for both the role filter and the assign dialog.
+   - **Parity:**
+     - All 17 screens were captured in both apps against the same data, and compared by eye.
+     - A scripted browser run then added, viewed, edited and deleted a patient, paged and sorted the list, created a user, assigned and revoked a role, reset the password, searched by role, deleted the user, and tried a wrong current password on Account. It used synthetic data, against a database snapshot that was restored afterwards.
+   - **Tests:** 167 Vitest tests, at 96% line coverage, with no file under 80%. 204 .NET tests.
+   - **Cutover:**
+     - `MedApp.Client` is renamed `MedApp.Client.Deprecated` (Q5b): folder, `.csproj` and solution entry, with `AssemblyName` and `RootNamespace` still `MedApp.Client`. It has a `README.md` and a comment in its `.csproj`, and it's out of the AppHost.
+     - The API's CORS policy is gone, and the session cookie is `SameSite=Lax` everywhere (`Secure` outside Development), since the UI is always same-origin (Q3).
+     - The API serves the built app from `wwwroot`, with a fallback to `index.html` and a 404 for unknown `/api` paths. The AppHost copies the build there on publish (`PublishWithContainerFiles`, Q4). Checked by building into `wwwroot` and signing in on the API's own origin.
+   - **CI:** the sticky PR comment has a MedApp.Web section: total coverage, and files under 80% (Q13b). `AGENTS.md` is rewritten for MedApp.Web.
+
+   Differences from Blazor, and fixes along the way:
+   - **Copy fixed:** "View Patients", "Edit Patients", "Patients ID", "Add Patients" and "Search Patientss" became singular, and "Update patient information" on the view page became "Patient details".
+   - **List subtitle:** with a search active, it says "N matching patients" (or "N users found"), because the API's total counts the search, not every patient.
+   - **Users search:** "Role" is a choice from the real roles, matched exactly, where Blazor matched text anywhere in a role name.
+   - **Reset password:** the dialog's button becomes "Done" once the new password is shown.
+   - **Request fixes:** an empty date of birth is sent as `0001-01-01`, as Blazor did, so the API answers "Date of birth must be provided." rather than a JSON-conversion error. The reset-password response is read as text or JSON, because ASP.NET sends a bare string as text/plain unless the client asks for JSON.
+   - **Kept for now:** `GET api/patients` and `GET api/auth/users`, which only the deprecated client uses. The parity tool's sign-in step also uses `GET api/patients` to pick a patient.
+   - **Still stand-ins, as in Blazor:** "Forgot password?" sends nothing (there is no reset API), and new users get the fixed password `DefaultPassword1`. Both are worth replacing in their own PRs.
 
 Parity is checked by hand against the checklist below, with the Playwright screenshot pairs as the visual reference. End-to-end tests come later; the setup for them is ready (Q13).
 

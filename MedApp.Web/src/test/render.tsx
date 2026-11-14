@@ -1,6 +1,6 @@
 import {QueryClient} from '@tanstack/react-query';
 import {createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider} from '@tanstack/react-router';
-import {render} from '@testing-library/react';
+import {render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type {ReactNode} from 'react';
 import {AppProviders} from '../app/AppProviders';
@@ -75,3 +75,51 @@ export const openDialog = () => document.querySelector<HTMLDialogElement>('dialo
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}});
+
+type ApiHandler = (request: Request) => Response | Promise<Response>;
+
+/**
+ * Answers API calls by "METHOD /path" (path without the query string, e.g. "GET /api/patients/search").
+ * Paths may end in * to match a prefix. Anything else gets a 404, so an unexpected call shows up in the test.
+ * Returns the fetch mock, to inspect the requests made.
+ */
+export function mockApi(handlers: Record<string, ApiHandler>) {
+  return mockFetch((request) => {
+    const path = new URL(request.url).pathname;
+    for (const [key, handler] of Object.entries(handlers)) {
+      const [method, pattern] = key.split(' ');
+      const matches = pattern.endsWith('*') ? path.startsWith(pattern.slice(0, -1)) : path === pattern;
+      if (method === request.method && matches) return handler(request);
+    }
+    return json({title: `No mock for ${request.method} ${path}`}, 404);
+  });
+}
+
+/** The requests a fetch mock received, as "METHOD /path?query". */
+export const calls = (fetch: ReturnType<typeof mockFetch>) =>
+  fetch.mock.calls.map(([request]) => {
+    const url = new URL((request as Request).url);
+    return `${(request as Request).method} ${url.pathname}${url.search}`;
+  });
+
+/**
+ * Waits for an alert containing `text`. A page can have several role="alert" regions (a banner and field
+ * errors), so this looks through all of them.
+ */
+export async function findAlert(text: string | RegExp) {
+  const has = (el: HTMLElement) => (typeof text === 'string' ? el.textContent?.includes(text) : text.test(el.textContent ?? ''));
+  return waitFor(() => {
+    const match = screen.getAllByRole('alert').find(has);
+    if (!match) throw new Error(`No alert containing ${String(text)}`);
+    return match;
+  });
+}
+
+/** A synthetic page of results, shaped like the API's PagedResponse. */
+export const pageOf = <T,>(items: T[], totalCount = items.length, page = 1) => ({
+  items,
+  page,
+  pageSize: 10,
+  totalCount,
+  totalPages: Math.ceil(totalCount / 10),
+});

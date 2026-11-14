@@ -12,7 +12,7 @@ export interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
   message?: ReactNode;
-  /** The large icon above the message. Defaults to a warning icon for danger, otherwise a check. */
+  /** The icon at the start of the header, before the title. Defaults to a warning icon for danger, otherwise a check. */
   icon?: IconType;
   /** Colours the icon. Defaults to 'danger' when isDanger, otherwise 'accent'. */
   intent?: ConfirmIntent;
@@ -57,6 +57,7 @@ export function ConfirmDialog({
     <DialogFrame
       isOpen={isOpen}
       title={title}
+      icon={<Icon icon={resolvedIcon} size="lg" color={intentColor[resolvedIntent]} />}
       onClose={onCancel}
       purpose={isProcessing ? 'required' : 'form'}
       footer={
@@ -72,14 +73,11 @@ export function ConfirmDialog({
         </>
       }>
       <VStack gap={4} hAlign="stretch">
-        <VStack gap={3} hAlign="center">
-          <Icon icon={resolvedIcon} size="lg" color={intentColor[resolvedIntent]} />
-          {message && (
-            <Text type="body" color="secondary" justify="center">
-              {message}
-            </Text>
-          )}
-        </VStack>
+        {message && (
+          <Text type="body" color="secondary" justify="center">
+            {message}
+          </Text>
+        )}
         {children}
       </VStack>
     </DialogFrame>

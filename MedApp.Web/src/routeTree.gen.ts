@@ -15,6 +15,9 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
+import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
+import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$id/index'
+import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -45,20 +48,41 @@ const AppPatientsIndexRoute = AppPatientsIndexRouteImport.update({
   path: '/patients/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPatientsAddRoute = AppPatientsAddRouteImport.update({
+  id: '/patients/add',
+  path: '/patients/add',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPatientsIdIndexRoute = AppPatientsIdIndexRouteImport.update({
+  id: '/patients/$id/',
+  path: '/patients/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPatientsIdEditRoute = AppPatientsIdEditRouteImport.update({
+  id: '/patients/$id/edit',
+  path: '/patients/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/patients/add': typeof AppPatientsAddRoute
   '/patients/': typeof AppPatientsIndexRoute
+  '/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/patients/$id/': typeof AppPatientsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/patients/add': typeof AppPatientsAddRoute
   '/patients': typeof AppPatientsIndexRoute
+  '/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/patients/$id': typeof AppPatientsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -67,13 +91,32 @@ export interface FileRoutesById {
   '/_app/account': typeof AppAccountRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
+  '/_app/patients/add': typeof AppPatientsAddRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
+  '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/account' | '/admin/users' | '/patients/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/account'
+    | '/admin/users'
+    | '/patients/add'
+    | '/patients/'
+    | '/patients/$id/edit'
+    | '/patients/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/account' | '/' | '/admin/users' | '/patients'
+  to:
+    | '/login'
+    | '/account'
+    | '/'
+    | '/admin/users'
+    | '/patients/add'
+    | '/patients'
+    | '/patients/$id/edit'
+    | '/patients/$id'
   id:
     | '__root__'
     | '/_app'
@@ -81,7 +124,10 @@ export interface FileRouteTypes {
     | '/_app/account'
     | '/_app/'
     | '/_app/admin/users'
+    | '/_app/patients/add'
     | '/_app/patients/'
+    | '/_app/patients/$id/edit'
+    | '/_app/patients/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -133,6 +179,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/patients/add': {
+      id: '/_app/patients/add'
+      path: '/patients/add'
+      fullPath: '/patients/add'
+      preLoaderRoute: typeof AppPatientsAddRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/patients/$id/': {
+      id: '/_app/patients/$id/'
+      path: '/patients/$id'
+      fullPath: '/patients/$id/'
+      preLoaderRoute: typeof AppPatientsIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/patients/$id/edit': {
+      id: '/_app/patients/$id/edit'
+      path: '/patients/$id/edit'
+      fullPath: '/patients/$id/edit'
+      preLoaderRoute: typeof AppPatientsIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -140,14 +207,20 @@ interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
+  AppPatientsAddRoute: typeof AppPatientsAddRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
+  AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
+  AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
+  AppPatientsAddRoute: AppPatientsAddRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
+  AppPatientsIdEditRoute: AppPatientsIdEditRoute,
+  AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

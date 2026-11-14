@@ -6,6 +6,8 @@ import type {ReactNode} from 'react';
 export interface DialogFrameProps {
   isOpen: boolean;
   title: string;
+  /** Shown at the start of the header, before the centred title (e.g. ConfirmDialog's icon). */
+  icon?: ReactNode;
   /** Called when the dialog is dismissed (close button, Escape, or backdrop where allowed). */
   onClose: () => void;
   /** Buttons at the end of the footer. */
@@ -23,7 +25,7 @@ export interface DialogFrameProps {
  * The frame every app dialog shares (replaces Blazor's Modal): a titled header with a close button, scrolling
  * content, and a footer of buttons. Laid out as Astryx's dialog templates are.
  */
-export function DialogFrame({isOpen, title, onClose, footer, width = 440, purpose = 'form', children}: DialogFrameProps) {
+export function DialogFrame({isOpen, title, icon, onClose, footer, width = 440, purpose = 'form', children}: DialogFrameProps) {
   const handleOpenChange = (open: boolean) => {
     if (!open) onClose();
   };
@@ -34,7 +36,13 @@ export function DialogFrame({isOpen, title, onClose, footer, width = 440, purpos
         height="fill"
         padding={4}
         defaultHasDividers
-        header={<DialogHeader title={title} onOpenChange={purpose === 'required' ? undefined : handleOpenChange} />}
+        header={
+          <DialogHeader
+            title={title}
+            startContent={icon}
+            onOpenChange={purpose === 'required' ? undefined : handleOpenChange}
+          />
+        }
         content={<LayoutContent>{children}</LayoutContent>}
         footer={
           footer ? (

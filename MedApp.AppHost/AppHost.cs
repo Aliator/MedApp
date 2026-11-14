@@ -17,15 +17,10 @@ var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "htt
     .WaitFor(db)
     .WithHttpHealthCheck("/health");
 
-// The Blazor client (WASM) can't read Aspire's environment variables, so it calls the API's fixed https
-// port (7038, from the API's launch profile). Its own port (7292) is the one the API's CORS policy allows.
-builder.AddProject<Projects.MedApp_Client>("blazor", launchProfileName: "https")
-    .WaitFor(api);
-
-// The React app (MedApp.Web), built alongside Blazor until cutover (plan Q12). Vite proxies /api to the API's URL,
-// which WithReference passes in, so the session cookie stays first-party. Port 5173 is fixed so the UI parity
-// tool's WEB_URL doesn't change between runs.
-builder.AddViteApp("web", "../MedApp.Web")
+// The React app (MedApp.Web), the only UI since cutover (plan Q12; the Blazor client is deprecated and not run).
+// In development, Vite proxies /api to the API's URL, which WithReference passes in, so the session cookie stays
+// first-party. Port 5173 is fixed so the UI parity tool's WEB_URL and the E2E default don't change between runs.
+var web = builder.AddViteApp("web", "../MedApp.Web")
     .WithEndpoint("http", endpoint =>
     {
         endpoint.Port = 5173;
@@ -33,5 +28,8 @@ builder.AddViteApp("web", "../MedApp.Web")
     })
     .WithReference(api)
     .WaitFor(api);
+
+// In production the API serves the built React app from its wwwroot, on the same origin as /api (plan Q4).
+api.PublishWithContainerFiles(web, "./wwwroot");
 
 builder.Build().Run();

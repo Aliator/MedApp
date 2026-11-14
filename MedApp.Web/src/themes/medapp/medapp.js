@@ -592,6 +592,12 @@ export const medappTheme = {
       "base": {
         "padding": "var(--spacing-3)"
       }
+    },
+    "dialog-header-title-block": {
+      "base": {
+        "alignItems": "center",
+        "textAlign": "center"
+      }
     }
   },
   __onDark: {
