@@ -12,6 +12,9 @@ public interface IPatientRepository
     Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken);
 
+    /// <summary>How many procedures the patient has, in any status.</summary>
+    Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken);
+
     /// <summary>One page of patients matching the query's filters, in its sort order, and the total that match.</summary>
     Task<PagedResult<Patient>> SearchAsync(SearchPatientsQuery query, CancellationToken cancellationToken);
 }

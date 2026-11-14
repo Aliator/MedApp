@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.CreatePatientProcedureStageDefinition;
 
@@ -7,7 +7,7 @@ public sealed class CreatePatientProcedureStageDefinitionValidator : AbstractVal
     public CreatePatientProcedureStageDefinitionValidator()
     {
         RuleFor(x => x.Name)
-            .NotEmpty()
+            .Must(name => !string.IsNullOrWhiteSpace(name))
             .WithMessage("Name is required.")
             .MaximumLength(100)
             .WithMessage("Name must not exceed 100 characters.");

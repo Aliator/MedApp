@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -13,37 +13,23 @@ public sealed class CreatePatientProcedureTemplateHandler(IPatientProcedureStage
         CreatePatientProcedureTemplateCommand request,
         CancellationToken cancellationToken)
     {
-        var existingTemplates = await repository.GetAllStageTemplatesAsync(cancellationToken);
-        if (existingTemplates.Any(x => string.Equals(x.Name, request.Name, StringComparison.OrdinalIgnoreCase)))
-            throw new ConflictException($"Patient procedure stage template name '{request.Name}' already exists.");
+        var name = request.Name.Trim();
+        if (await repository.StageTemplateNameExistsAsync(name, null, cancellationToken))
+            throw new ConflictException($"A template called '{name}' already exists.");
 
-        var stageDefinitionIds = request.StageDefinitionIdsInOrder.Distinct().ToList();
-        var allDefinitions = await repository.GetAllStageDefinitionsAsync(cancellationToken);
-        var definitionsById = allDefinitions.ToDictionary(x => x.Id);
+        var definitions = await TemplateStages.CheckAsync(
+            repository, request.StageDefinitionIdsInOrder, new HashSet<Guid>(), cancellationToken);
 
-        var missingStageDefinitionIds = stageDefinitionIds
-            .Where(id => !definitionsById.ContainsKey(id))
-            .ToList();
-
-        if (missingStageDefinitionIds.Count != 0)
-            throw new NotFoundException($"Stage definition(s) not found: {string.Join(", ", missingStageDefinitionIds)}.");
-
-        var now = DateTime.UtcNow;
-
+        var templateId = Guid.NewGuid();
         var template = new PatientProcedureStageTemplate
         {
-            Id = Guid.NewGuid(),
-            Name = request.Name,
+            Id = templateId,
+            Name = name,
+            Maps = StageTemplateMapper.ToMaps(templateId, request.StageDefinitionIdsInOrder)
         };
 
         await repository.AddStageTemplateAsync(template, cancellationToken);
-        await repository.ReplaceStageTemplateMapsAsync(template.Id, stageDefinitionIds, cancellationToken);
 
-        return new PatientProcedureStageTemplateResponse
-        {
-            Id = template.Id,
-            Name = template.Name,
-            StageDefinitionIdsInOrder = stageDefinitionIds
-        };
+        return StageTemplateMapper.ToResponse(template, 0, definitions);
     }
 }

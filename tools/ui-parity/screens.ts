@@ -32,7 +32,37 @@ export const screens: Screen[] = [
       await waitVisible(page, ALERT);
     },
   },
-  { name: 'home', title: 'Home', path: '/' },
+  { name: 'home', title: 'Home: my task lists', path: '/' },
+  {
+    name: 'home-narrow',
+    title: 'Home on a narrow window: one list, with a strip to switch',
+    path: '/',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+    },
+  },
+  {
+    name: 'home-narrow-hover',
+    title: 'Home on a narrow window, hovering the switch to the started list',
+    path: '/',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+      await page.getByText('Started', { exact: true }).hover();
+    },
+  },
+  {
+    name: 'home-narrow-started',
+    title: 'Home on a narrow window, switched to the started list',
+    path: '/',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      // The card's own button is a visually hidden overlay, so click its visible label.
+      await page.getByText('Started', { exact: true }).click();
+      await settle(page);
+    },
+  },
   { name: 'account', title: 'Account', path: '/account' },
   { name: 'patients-list', title: 'Patients list, page 1', path: '/patients' },
   {

@@ -1,13 +1,15 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.CreatePatientProcedureStageTemplate;
 
 public sealed class CreatePatientProcedureTemplateValidator : AbstractValidator<CreatePatientProcedureTemplateCommand>
 {
+    public const int MaxStages = 50;
+
     public CreatePatientProcedureTemplateValidator()
     {
         RuleFor(x => x.Name)
-            .NotEmpty()
+            .Must(name => !string.IsNullOrWhiteSpace(name))
             .WithMessage("Name is required.")
             .MaximumLength(150)
             .WithMessage("Name must not exceed 150 characters.");
@@ -15,8 +17,10 @@ public sealed class CreatePatientProcedureTemplateValidator : AbstractValidator<
         RuleFor(x => x.StageDefinitionIdsInOrder)
             .NotNull()
             .WithMessage("Stage definition ids are required.")
-            .Must(x => x.Count > 0)
-            .WithMessage("At least one stage definition id is required.");
+            .Must(ids => ids is { Count: > 0 })
+            .WithMessage("A template needs at least one stage.")
+            .Must(ids => ids is null || ids.Count <= MaxStages)
+            .WithMessage($"A template can have at most {MaxStages} stages.");
 
         RuleForEach(x => x.StageDefinitionIdsInOrder)
             .NotEmpty()

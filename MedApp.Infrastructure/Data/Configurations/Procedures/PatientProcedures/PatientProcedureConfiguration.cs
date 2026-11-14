@@ -29,6 +29,19 @@ public sealed class PatientProcedureConfiguration : IEntityTypeConfiguration<Pat
         builder.Property(x => x.Status)
             .IsRequired();
 
+        builder.Property(x => x.BlockedFromStatus);
+
+        builder.Property(x => x.TemplateName)
+            .IsRequired()
+            .HasMaxLength(150)
+            .HasDefaultValue(string.Empty);
+
+        // The template a procedure came from. Templates in use are archived, never deleted, so no cascade.
+        builder.HasOne<PatientProcedureStageTemplate>()
+            .WithMany()
+            .HasForeignKey(x => x.TemplateId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 

@@ -151,6 +151,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       title="Patients"
       subtitle={subtitle}
       maxWidth={1400}
+      fill
       actions={
         <>
           {isFiltered && (

@@ -40,6 +40,8 @@ public static class ServiceExtensions
 
         services.AddAuthorization(options =>
         {
+            options.AddPolicy(AuthPolicies.Staff, policy => policy.RequireRole("Admin", "User"));
+
             options.AddPolicy("SelfUserOnly", policy =>
                 policy.RequireAssertion(context =>
                 {

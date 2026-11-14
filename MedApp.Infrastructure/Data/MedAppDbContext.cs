@@ -19,6 +19,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureStageDefinition> PatientProcedureStageDefinitions => Set<PatientProcedureStageDefinition>();
     public DbSet<PatientProcedureStageTemplate> PatientProcedureStageTemplates => Set<PatientProcedureStageTemplate>();
     public DbSet<PatientProcedureStageTemplateMap> PatientProcedureStageTemplateItems => Set<PatientProcedureStageTemplateMap>();
+    public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

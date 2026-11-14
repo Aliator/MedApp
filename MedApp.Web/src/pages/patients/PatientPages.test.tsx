@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {NO_DATE} from '../../api/patients';
-import {adminUser, calls, json, mockApi, openDialog, renderWithApp, findAlert} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
@@ -89,15 +89,51 @@ describe('EditPatientPage', () => {
   it('deletes the patient after confirming, then goes to the list', async () => {
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
+      'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
       [`DELETE /api/patients/${id}`]: () => new Response(null, {status: 204}),
     });
     const {user, router} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
     await user.click(await screen.findByRole('button', {name: 'Delete Patient'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Patient'}));
+    const confirm = within(openDialog()!).getByRole('button', {name: 'Delete Patient'});
+    await waitFor(() => expect(isDisabled(confirm)).toBe(false));
+    await user.click(confirm);
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
+    expect(calls(fetch)).toContain(
+      `GET /api/procedures/patient-procedures/search?PatientId=${id}&IncludeClosed=true&PageSize=1`,
+    );
     expect(calls(fetch)).toContain(`DELETE /api/patients/${id}`);
+  });
+
+  it('does not offer to delete a patient who has procedures', async () => {
+    const fetch = mockApi({
+      [`GET /api/patients/${id}`]: () => json(freya),
+      'GET /api/procedures/patient-procedures/search': () => json(pageOf([{}], 2)),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Delete Patient'}));
+
+    expect(await within(openDialog()!).findByText("This patient has 2 procedures, so they can't be deleted.")).toBeInTheDocument();
+    expect(isDisabled(within(openDialog()!).getByRole('button', {name: 'Delete Patient'}))).toBe(true);
+    expect(calls(fetch)).not.toContain(`DELETE /api/patients/${id}`);
+  });
+
+  it('shows why the API refused to delete the patient', async () => {
+    mockApi({
+      [`GET /api/patients/${id}`]: () => json(freya),
+      'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
+      [`DELETE /api/patients/${id}`]: () => json({title: "This patient has 1 procedure, so they can't be deleted.", status: 409}, 409),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Delete Patient'}));
+    const confirm = within(openDialog()!).getByRole('button', {name: 'Delete Patient'});
+    await waitFor(() => expect(isDisabled(confirm)).toBe(false));
+    await user.click(confirm);
+
+    await findAlert("This patient has 1 procedure, so they can't be deleted.");
   });
 
   it('says when the patient was deleted by someone else', async () => {

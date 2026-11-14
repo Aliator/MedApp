@@ -1,16 +1,15 @@
-﻿namespace MedApp.Contracts.Procedures.PatientProcedures.Requests;
+namespace MedApp.Contracts.Procedures.PatientProcedures.Requests;
 
+/// <summary>Edits a procedure's details. Only the fields that are set change; stages come from the template and don't.</summary>
 public sealed class UpdatePatientProcedureRequest
 {
-    public Guid PatientProcedureId { get; set; }
-
     public string? Title { get; set; }
+
     public string? Notes { get; set; }
 
-    public DateTime? DueDateUtc { get; set; }
+    /// <summary>Due by the end of this day, UK time.</summary>
+    public DateOnly? DueDate { get; set; }
 
+    /// <summary>Low, Medium, High or Urgent.</summary>
     public string? Priority { get; set; }
-    public string? Status { get; set; }
-
-    public List<Guid>? StageDefinitionIdsInOrder { get; set; }
 }

@@ -10,7 +10,8 @@ public sealed class PatientProcedureStageTemplateMapConfiguration : IEntityTypeC
     {
         builder.ToTable("PatientProcedureStageTemplateMaps");
 
-        builder.HasKey(x => new { x.TemplateId, x.StageDefinitionId });
+        // Keyed by position, so a template can list the same stage more than once.
+        builder.HasKey(x => new { x.TemplateId, x.StageOrder });
 
         builder.Property(x => x.StageOrder)
             .IsRequired();
@@ -25,7 +26,6 @@ public sealed class PatientProcedureStageTemplateMapConfiguration : IEntityTypeC
             .HasForeignKey(x => x.StageDefinitionId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        builder.HasIndex(x => new { x.TemplateId, x.StageOrder })
-            .IsUnique();
+        builder.HasIndex(x => x.StageDefinitionId);
     }
 }

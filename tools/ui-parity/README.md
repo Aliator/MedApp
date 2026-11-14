@@ -9,11 +9,7 @@ Captures the same screens in the React app (`MedApp.Web`) and, optionally, the d
 ## One-time setup
 
 1. Install Node.js, then run `npm install` and `npm run install-browser` (Chromium only) in this folder.
-2. Create a **dev-only admin account** for the screenshots:
-   - The easiest way is `medapp-dev`'s `create_user` with roles `["Admin", "User"]` (`reset_demo_data` keeps `parity-admin`).
-   - Or sign in to the app as an admin, open **Users → Add User**, create, for example, `parity-admin`, and use **Assign roles** to give it the `Admin` role.
-   - Use synthetic details only, never a real person's.
-3. Copy `.env.example` to `.env` (git-ignored) and fill in `PARITY_USERNAME` / `PARITY_PASSWORD`.
+2. Copy `.env.example` to `.env` (git-ignored). It signs in as the local test login `admin` / `admin`, the app's only Admin account. `medapp-dev` creates it (`ensure_test_admin`, and on every `reset_demo_data`). It needs to be an admin to reach `/admin/users`.
 
 ## Running it
 

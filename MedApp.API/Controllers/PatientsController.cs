@@ -8,6 +8,7 @@ using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
+using MedApp.API.Common.Authentication;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 
@@ -19,7 +20,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
     {
         var command = new CreatePatientCommand(
@@ -43,7 +44,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> GetPatientById(Guid id)
     {
         var query = new GetPatientByIdQuery(id);
@@ -63,7 +64,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<PatientResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> SearchPatients([FromQuery] SearchPatientsRequest request, CancellationToken cancellationToken)
     {
         var query = new SearchPatientsQuery(
@@ -82,7 +83,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<PatientResponse>), StatusCodes.Status200OK)]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> GetAllPatients()
     {
         var query = new GetAllPatientsQuery();
@@ -95,7 +96,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> UpdatePatient(
         Guid id,
         [FromBody] UpdatePatientRequest request)
@@ -119,7 +120,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> DeletePatient(Guid id)
     {
         var command = new DeletePatientCommand(id);

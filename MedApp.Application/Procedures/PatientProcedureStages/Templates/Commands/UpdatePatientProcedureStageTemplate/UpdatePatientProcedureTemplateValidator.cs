@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+using FluentValidation;
+using MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.CreatePatientProcedureStageTemplate;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.UpdatePatientProcedureStageTemplate;
 
@@ -11,17 +12,20 @@ public sealed class UpdatePatientProcedureTemplateValidator : AbstractValidator<
             .WithMessage("Template id is required.");
 
         RuleFor(x => x.Name)
-            .MaximumLength(150)
+            .Must(name => !string.IsNullOrWhiteSpace(name))
             .When(x => x.Name is not null)
+            .WithMessage("Name must not be blank.")
+            .MaximumLength(150)
             .WithMessage("Name must not exceed 150 characters.");
 
         RuleFor(x => x.StageDefinitionIdsInOrder)
-            .Must(x => x is null || x.Count > 0)
-            .WithMessage("At least one stage definition id is required when stage definitions are provided.");
+            .Must(ids => ids is null || ids.Count > 0)
+            .WithMessage("A template needs at least one stage.")
+            .Must(ids => ids is null || ids.Count <= CreatePatientProcedureTemplateValidator.MaxStages)
+            .WithMessage($"A template can have at most {CreatePatientProcedureTemplateValidator.MaxStages} stages.");
 
-        RuleForEach(x => x.StageDefinitionIdsInOrder!)
+        RuleForEach(x => x.StageDefinitionIdsInOrder)
             .NotEmpty()
-            .When(x => x.StageDefinitionIdsInOrder is not null)
             .WithMessage("Stage definition id is required.");
     }
 }

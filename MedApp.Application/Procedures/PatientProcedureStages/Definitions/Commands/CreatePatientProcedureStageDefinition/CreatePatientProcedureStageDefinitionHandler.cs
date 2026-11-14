@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MediatR;
@@ -12,22 +13,20 @@ public sealed class CreatePatientProcedureStageDefinitionHandler(IPatientProcedu
         CreatePatientProcedureStageDefinitionCommand request,
         CancellationToken cancellationToken)
     {
-        var stageDefinition = new PatientProcedureStageDefinition
+        var name = request.Name.Trim();
+        if (await repository.StageDefinitionNameExistsAsync(name, null, cancellationToken))
+            throw new ConflictException($"A stage called '{name}' already exists.");
+
+        var definition = new PatientProcedureStageDefinition
         {
             Id = Guid.NewGuid(),
-            Name = request.Name,
+            Name = name,
             Description = request.Description,
-            Instructions = request.Instructions,
+            Instructions = request.Instructions
         };
 
-        await repository.AddStageDefinitionAsync(stageDefinition, cancellationToken);
+        await repository.AddStageDefinitionAsync(definition, cancellationToken);
 
-        return new PatientProcedureStageDefinitionResponse
-        {
-            Id = stageDefinition.Id,
-            Name = stageDefinition.Name,
-            Description = stageDefinition.Description,
-            Instructions = stageDefinition.Instructions,
-        };
+        return StageDefinitionMapper.ToResponse(definition, StageDefinitionUsage.None);
     }
 }

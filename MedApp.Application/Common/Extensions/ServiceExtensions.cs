@@ -2,6 +2,7 @@
 using FluentValidation;
 using MedApp.Application.Common.Behaviors;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MedApp.Application.Common.Extensions;
 
@@ -16,6 +17,9 @@ public static class ServiceExtensions
         });
 
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // The clock, so handlers and validators that use "now" can be tested at a fixed time.
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }

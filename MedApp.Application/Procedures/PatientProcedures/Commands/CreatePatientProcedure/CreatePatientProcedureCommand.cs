@@ -1,13 +1,16 @@
-﻿using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Application.Procedures.Common;
+using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 
+/// <summary>Starts a procedure for a patient from a template, copying the template's stages. A blank title uses the template's name.</summary>
 public sealed record CreatePatientProcedureCommand(
     Guid PatientId,
-    string Title,
+    Guid TemplateId,
+    string? Title,
     string Notes,
-    DateTime DueDateUtc,
+    DateOnly DueDate,
     string Priority,
-    IReadOnlyList<Guid> StageDefinitionIdsInOrder
-) : IRequest<PatientProcedureResponse>;
+    ProcedureActor Actor)
+    : IRequest<PatientProcedureResponse>;

@@ -1,58 +1,38 @@
-﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Domain.Procedures.PatientProcedures;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 
 public sealed class AssignPatientProcedureHandler(
     IPatientProcedureRepository repository,
-    IIdentityReadService identityReadService)
-    : IRequestHandler<AssignPatientProcedureCommand, List<PatientProcedureAssignmentResponse>>
+    IIdentityReadService identityReadService,
+    TimeProvider timeProvider)
+    : IRequestHandler<AssignPatientProcedureCommand, PatientProcedureResponse>
 {
-    public async Task<List<PatientProcedureAssignmentResponse>> Handle(
-        AssignPatientProcedureCommand request,
-        CancellationToken ct)
+    public async Task<PatientProcedureResponse> Handle(AssignPatientProcedureCommand request, CancellationToken cancellationToken)
     {
-        var procedure = await repository.GetByIdAsync(request.PatientProcedureId, ct)
-                   ?? throw new NotFoundException($"Patient procedure '{request.PatientProcedureId}' was not found.");
+        var procedure = await repository.GetForUpdateOrThrowAsync(request.ProcedureId, cancellationToken);
 
-        var users = await identityReadService.GetUsersAsync(ct);
-        if (users.All(u => u.UserId != request.UserId))
+        if (!ProcedureWorkflow.CanChangeAssignments(procedure))
+            throw new ConflictException($"Staff can't be assigned to a procedure that's {ProcedureWorkflow.Describe(procedure.Status)}.");
+
+        var usernames = await identityReadService.GetUsernamesByIdAsync([request.UserId], cancellationToken);
+        if (!usernames.TryGetValue(request.UserId, out var username))
             throw new NotFoundException($"User '{request.UserId}' was not found.");
 
-        if (procedure.Assignments.Any(x => x.UserId == request.UserId))
-            throw new ConflictException("This user is already assigned to the patient procedure.");
+        if (procedure.Assignments.Any(a => a.UserId == request.UserId))
+            throw new ConflictException($"{username} is already assigned to this procedure.");
 
-        var now = DateTime.UtcNow;
-       
-        procedure.Assignments.Add(new PatientProcedureAssignment
-        {
-            PatientProcedureId = procedure.Id,
-            UserId = request.UserId,
-            AssignedByUserId = request.AssignedByUserId,
-            AssignedAtUtc = now
-            });
-        
-        if (procedure.Status == PatientProcedureStatus.Unassigned)
-        {
-            procedure.Status = PatientProcedureStatus.Assigned;
-        }
-        
-        procedure.LastUpdated = now;
-       
-        await repository.UpdateAsync(procedure, ct);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var change = new ProcedureChange(procedure, request.Actor, now);
+        change.Assign(request.UserId, username);
 
-        return procedure.Assignments
-            .Select(x => new PatientProcedureAssignmentResponse
-            {
-                PatientProcedureId = x.PatientProcedureId,
-                UserId = x.UserId,
-                AssignedByUserId = x.AssignedByUserId,
-                AssignedAtUtc = x.AssignedAtUtc
-            })
-            .ToList();
+        await repository.SaveAsync(change.AuditEntries, cancellationToken);
+
+        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }
 }

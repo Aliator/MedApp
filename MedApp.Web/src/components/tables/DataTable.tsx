@@ -1,5 +1,9 @@
+import {Card} from '@astryxdesign/core/Card';
+import {Pagination} from '@astryxdesign/core/Pagination';
+import {Section} from '@astryxdesign/core/Section';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
-import {Table, useTablePagination, useTableSortable, type TableColumn} from '@astryxdesign/core/Table';
+import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
+import {Table, useTableSortable, type TableColumn} from '@astryxdesign/core/Table';
 import {useMemo, type ReactNode} from 'react';
 import type {TableSort} from './sorting';
 
@@ -32,6 +36,11 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   pagination?: DataTablePagination;
   /** Shown when there are no rows, e.g. an EmptyState with an action. */
   emptyState?: ReactNode;
+  /**
+   * A narrow panel inside the card, along its whole start or end edge and divided from the table, e.g. Home's
+   * switch to the other task list.
+   */
+  edge?: {side: 'start' | 'end'; content: ReactNode};
 }
 
 type SkeletonRow = {skeletonId: number} & Record<string, unknown>;
@@ -40,6 +49,10 @@ type SkeletonRow = {skeletonId: number} & Record<string, unknown>;
  * A data table (replaces Blazor's DataTable and SortableHeader): sortable headers, page controls, skeleton
  * rows while loading, and an empty state. Sorting and paging are controlled, and done by the API, so the page
  * keeps them in the URL and the table only shows what it is given.
+ *
+ * It sits in a card that fills the height its parent gives it (e.g. a `Page` with `fill`): rows at the top,
+ * page controls pinned to the bottom, and empty space between when there are few rows. Rows that don't fit
+ * scroll inside the card.
  */
 export function DataTable<T extends Record<string, unknown>>({
   data,
@@ -51,6 +64,7 @@ export function DataTable<T extends Record<string, unknown>>({
   onSortChange,
   pagination,
   emptyState,
+  edge,
 }: DataTableProps<T>) {
   const sortable = useTableSortable<T>({
     sort: sort ? [{sortKey: sort.column, direction: sort.ascending ? 'ascending' : 'descending'}] : [],
@@ -59,21 +73,10 @@ export function DataTable<T extends Record<string, unknown>>({
       if (first) onSortChange?.({column: first.sortKey, ascending: first.direction === 'ascending'});
     },
   });
-  // Hooks can't be conditional, so the plugin always exists; it's only passed to the table with `pagination`.
-  const paging = useTablePagination<T>({
-    page: pagination?.page ?? 1,
-    pageSize: pagination?.pageSize,
-    totalItems: pagination?.totalItems ?? 0,
-    onPageChange: (page) => pagination?.onPageChange(page),
-    align: 'end',
-  });
-  const plugins = useMemo(() => {
-    const active: Record<string, typeof sortable> = {};
-    if (onSortChange) active.sortable = sortable;
-    if (pagination && pagination.totalItems > 0) active.pagination = paging;
-    return Object.keys(active).length > 0 ? active : undefined;
-  }, [onSortChange, sortable, pagination, paging]);
+  const plugins = useMemo(() => (onSortChange ? {sortable} : undefined), [onSortChange, sortable]);
+  const showPaging = !isLoading && pagination !== undefined && pagination.totalItems > 0;
 
+  let table: ReactNode;
   if (isLoading) {
     const rows: SkeletonRow[] = Array.from({length: skeletonRows}, (_, i) => ({skeletonId: i}));
     const skeletonColumns: TableColumn<SkeletonRow>[] = columns.map((column, c) => ({
@@ -83,18 +86,55 @@ export function DataTable<T extends Record<string, unknown>>({
       align: column.align,
       renderCell: (row) => <Skeleton height={16} width="80%" index={row.skeletonId * columns.length + c} />,
     }));
-    return <Table data={rows} columns={skeletonColumns} idKey="skeletonId" aria-busy="true" />;
+    table = <Table data={rows} columns={skeletonColumns} idKey="skeletonId" aria-busy="true" />;
+  } else {
+    table = (
+      <Table
+        data={data as T[]}
+        columns={columns}
+        idKey={idKey}
+        plugins={plugins}
+        emptyState={emptyState}
+        rowIndexStart={pagination ? (pagination.page - 1) * pagination.pageSize + 1 : undefined}
+        rowCount={pagination?.totalItems}
+      />
+    );
   }
 
+  const edgePanel = edge && (
+    <StackItem>
+      <Section variant="transparent" padding={0} width={56} height="100%" dividers={[edge.side === 'start' ? 'end' : 'start']}>
+        {edge.content}
+      </Section>
+    </StackItem>
+  );
+
   return (
-    <Table
-      data={data as T[]}
-      columns={columns}
-      idKey={idKey}
-      plugins={plugins}
-      emptyState={emptyState}
-      rowIndexStart={pagination ? (pagination.page - 1) * pagination.pageSize + 1 : undefined}
-      rowCount={pagination?.totalItems}
-    />
+    <Card padding={0} width="100%" height="100%">
+      <HStack gap={0} height="100%">
+        {edge?.side === 'start' && edgePanel}
+        <StackItem size="fill">
+          <VStack gap={0} height="100%">
+            <StackItem size="fill" isScrollable>
+              {table}
+            </StackItem>
+            {showPaging && (
+              <Section variant="transparent" padding={3} dividers={['top']}>
+                <HStack hAlign="end">
+                  <Pagination
+                    page={pagination.page}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.totalItems}
+                    onChange={pagination.onPageChange}
+                    label="Table pagination"
+                  />
+                </HStack>
+              </Section>
+            )}
+          </VStack>
+        </StackItem>
+        {edge?.side === 'end' && edgePanel}
+      </HStack>
+    </Card>
   );
 }

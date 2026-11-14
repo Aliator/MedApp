@@ -12,7 +12,7 @@ describe('route guards', () => {
   it('shows a signed-in user the page inside the app shell', async () => {
     renderApp({path: '/', user: staffUser});
 
-    expect(await screen.findByRole('heading', {name: /welcome/i})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'My tasks'})).toBeInTheDocument();
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 

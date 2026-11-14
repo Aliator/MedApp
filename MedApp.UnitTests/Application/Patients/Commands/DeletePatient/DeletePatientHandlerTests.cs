@@ -1,5 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
@@ -76,6 +77,29 @@ public sealed class DeletePatientHandlerTests
                 patient.Id,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PatientHasProcedures_ThrowsConflictAndKeepsThePatient()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+
+        _repository
+            .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+        _repository
+            .Setup(r => r.CountProceduresAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This patient has 2 procedures*");
+
+        _repository.Verify(
+            r => r.DeleteAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Test]

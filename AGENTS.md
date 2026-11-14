@@ -82,12 +82,12 @@ To add a feature end to end:
 - Validation runs in the MediatR pipeline (`ValidationBehaviour` in `Application/Common/Behaviors`). It throws `FluentValidation.ValidationException`, which `API/Middleware/ExceptionHandling.cs` turns into a 400 `ValidationProblemDetails`.
 - **Preferred style for new code:** throw `NotFoundException` (becomes 404) or `ConflictException` (becomes 409) from handlers. The Procedures area follows this. A wrong username or password throws `InvalidCredentialsException` (becomes 401).
 - An `/api` path that matches no endpoint is a 404. Every other unknown path gets the React app's `index.html`, so client-side routes work on reload.
-- The Patients and Auth slices predate that and return `null`/`bool`/`IdentityResult`, leaving controllers to choose the status code. Keep that existing style when you edit those slices, unless the task is to migrate them.
+- The Patients and Auth slices predate that and return `null`/`bool`/`IdentityResult`, leaving controllers to choose the status code (except that deleting a patient who has procedures throws `ConflictException`). Keep that existing style when you edit those slices, unless the task is to migrate them.
 - Unhandled exceptions are not caught by the middleware, so they surface as 500s.
 
 ### Lists
 
-- Lists are filtered, sorted and paged by the API: `GET api/patients/search` and `GET api/auth/users/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
+- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/procedures/patient-procedures/search` and `GET api/procedures/audit/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and in unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
 - `GET api/patients` and `GET api/auth/users` return everything. Only the deprecated Blazor client uses them; prefer the search endpoints.
 
@@ -99,8 +99,19 @@ Handlers map Domain entities to `Contracts` responses by hand, with inline `new 
 
 - Each repository method calls `SaveChangesAsync` itself, so there is no unit of work.
 - Read methods use `AsNoTracking()`, and updates go through `context.X.Update(entity)`.
+- **Procedures are the exception:** handlers load a tracked procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(auditEntries)` saves the change and its audit entries in one `SaveChangesAsync`. That way EF works out which stages and assignments changed, and no change can miss the audit log.
 - Pass `CancellationToken` all the way through. The tests check that it is passed on.
 - IDs are `Guid`s generated in handlers (`Guid.NewGuid()`). Timestamps are UTC (`CreatedAt`, `LastUpdated`), set in handlers.
+- Handlers and validators that need "now" take a `TimeProvider` (registered in `AddApplication`); tests pass a `FixedTimeProvider`.
+
+### Procedures
+
+The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins build **templates**, ordered lists of **stage definitions** in which a stage may repeat. Staff create a patient's **procedure** from a template, which copies its stages (name, description, instructions) onto the procedure. Stages are worked strictly in order: notes, then finish, which locks the stage until an admin unlocks it.
+- **The rules live in `MedApp.Application/Procedures/Common`:** `ProcedureWorkflow` (statuses, which stage is current, what can be edited, overdue), and `ProcedureChange` (applies a change, moves the status automatically and writes the audit entries). Use them; don't set `Status` or stage flags in a handler by hand.
+- **Every change to a procedure is audited** (`PatientProcedureAuditEntry`, no foreign keys so the history outlives deletes). New procedure commands must go through `ProcedureChange` so they're audited too.
+- **Due dates are whole days,** due by the end of the day UK time and stored as that moment in UTC (`DueDates`). The API takes and returns `DueDate` as a date.
+- **Definitions and templates in use are archived, not deleted;** deleting one that's in use is a 409. Patients with procedures can't be deleted (409).
+- Status numbers are stored, so never renumber `PatientProcedureStatus` or `PatientProcedureAuditAction`.
 
 ### Migrations
 
@@ -115,7 +126,8 @@ Handlers map Domain entities to `Contracts` responses by hand, with inline `new 
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Most endpoints are `[Authorize(Roles = "Admin")]`. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - Identity password and lockout rules live under the `Identity` section of `appsettings.json`.
 
@@ -179,7 +191,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - Test names follow `Method_Scenario_ExpectedResult`, for example `Handle_PatientDoesNotExist_ReturnsNull`.
 - Put shared test data in `MedApp.UnitTests/Common/Constants/*TestConstants.cs`, and add new constants there rather than inlining magic values.
 - Use synthetic data only. This is a medical app, so never put realistic patient PII in tests, seeds or fixtures.
-- **Gap:** the Procedures area (`Application/Procedures/**`) has no unit tests yet.
+- Procedure handler tests derive from `ProcedureHandlerTestBase` (mocked repository and username lookup, fixed clock), and build procedures with `ProceduresTestConstants.CreateProcedure`.
 
 ## CI
 

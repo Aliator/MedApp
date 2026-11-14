@@ -1,40 +1,32 @@
-﻿using FluentValidation;
-using MedApp.Domain.Procedures.PatientProcedures;
+using FluentValidation;
+using MedApp.Application.Procedures.Common;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 
 public sealed class CreatePatientProcedureValidator : AbstractValidator<CreatePatientProcedureCommand>
 {
-    public CreatePatientProcedureValidator()
+    public CreatePatientProcedureValidator(TimeProvider timeProvider)
     {
-        RuleFor(x => x.PatientId)
-            .NotEmpty()
-            .WithMessage("Patient id is required.");
+        RuleFor(x => x.PatientId).NotEmpty().WithMessage("Patient is required.");
+
+        RuleFor(x => x.TemplateId).NotEmpty().WithMessage("Template is required.");
 
         RuleFor(x => x.Title)
-            .NotEmpty()
-            .WithMessage("Title is required.")
             .MaximumLength(200)
             .WithMessage("Title must not exceed 200 characters.");
 
         RuleFor(x => x.Notes)
-            .NotEmpty()
-            .WithMessage("Notes are required.")
+            .NotNull()
+            .WithMessage("Notes must not be null.")
             .MaximumLength(4000)
             .WithMessage("Notes must not exceed 4000 characters.");
 
         RuleFor(x => x.Priority)
-            .Must(value => Enum.TryParse<PatientProcedurePriority>(value, true, out _))
-            .WithMessage("Priority is invalid.");
-        
-        RuleFor(x => x.StageDefinitionIdsInOrder)
-            .NotEmpty()
-            .WithMessage("At least one stage definition is required.")
-            .Must(ids => ids.Distinct().Count() == ids.Count)
-            .WithMessage("Stage definition ids must be unique.");
+            .Must(ProcedureEnums.IsPriority)
+            .WithMessage($"Priority must be one of: {ProcedureEnums.PriorityNames}.");
 
-        RuleForEach(x => x.StageDefinitionIdsInOrder)
-            .NotEmpty()
-            .WithMessage("Stage definition id is required.");
+        RuleFor(x => x.DueDate)
+            .Must(dueDate => dueDate >= DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime))
+            .WithMessage("The due date must not be in the past.");
     }
 }

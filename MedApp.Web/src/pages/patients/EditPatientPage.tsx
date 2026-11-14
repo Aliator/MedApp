@@ -3,6 +3,7 @@ import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
 import {ApiError} from '../../api/errors';
 import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
+import {patientProcedureCountQuery} from '../../api/procedures';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -60,6 +61,9 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
   const [dialog, setDialog] = useState<'save' | 'delete' | null>(null);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const isBusy = update.isPending || remove.isPending;
+  // A patient with procedures can't be deleted (their history is kept), so the delete dialog checks first.
+  const procedureCount = useQuery({...patientProcedureCountQuery(id), enabled: dialog === 'delete'});
+  const hasProcedures = (procedureCount.data ?? 0) > 0;
   const backToPatient = () => void navigate({to: '/patients/$id', params: {id}});
 
   const save = () =>
@@ -100,9 +104,16 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
           <ConfirmDialog
             isOpen={dialog === 'delete'}
             title="Confirm Delete"
-            message="This action cannot be undone."
+            message={
+              procedureCount.isPending
+                ? 'Checking for procedures...'
+                : hasProcedures
+                  ? `This patient has ${procedureCount.data} ${procedureCount.data === 1 ? 'procedure' : 'procedures'}, so they can't be deleted.`
+                  : 'This action cannot be undone.'
+            }
             isDanger
             confirmText="Delete Patient"
+            confirmDisabled={procedureCount.isPending || hasProcedures}
             isProcessing={remove.isPending}
             onConfirm={deletePatient}
             onCancel={() => setDialog(null)}>

@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch';
-import {ApiError, ApiValidationError, parseValidationErrors} from './errors';
+import {ApiError, ApiValidationError, parseValidationErrors, problemTitle} from './errors';
 import type {components, paths} from './schema';
 
 /**
@@ -22,5 +22,5 @@ export async function unwrap<T>(request: Promise<{data?: T; error?: unknown; res
   const {data, error, response} = await request;
   if (response.ok) return data as T;
   if (response.status === 400) throw new ApiValidationError(parseValidationErrors(error));
-  throw new ApiError(response.status);
+  throw new ApiError(response.status, undefined, problemTitle(error));
 }

@@ -23,6 +23,30 @@ public sealed class PatientProcedureStageConfiguration : IEntityTypeConfiguratio
 
         builder.Property(x => x.CompletedAtUtc);
 
+        // Copied from the stage definition when the procedure is created (same limits as the definition).
+        builder.Property(x => x.Name)
+            .IsRequired()
+            .HasMaxLength(100)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(x => x.Description)
+            .IsRequired()
+            .HasMaxLength(500)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(x => x.Instructions)
+            .IsRequired()
+            .HasMaxLength(2000)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(x => x.Notes)
+            .IsRequired()
+            .HasMaxLength(4000)
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(x => x.IsLocked)
+            .HasDefaultValue(false);
+
         builder.HasOne(x => x.PatientProcedure)
             .WithMany(x => x.Stages)
             .HasForeignKey(x => x.PatientProcedureId)
@@ -33,10 +57,8 @@ public sealed class PatientProcedureStageConfiguration : IEntityTypeConfiguratio
             .HasForeignKey(x => x.StageDefinitionId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Unique by position, not by definition: a procedure can have the same stage more than once.
         builder.HasIndex(x => new { x.PatientProcedureId, x.StageOrder })
-            .IsUnique();
-
-        builder.HasIndex(x => new { x.PatientProcedureId, x.StageDefinitionId })
             .IsUnique();
     }
 }

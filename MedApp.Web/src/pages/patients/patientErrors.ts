@@ -19,6 +19,10 @@ export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete'): 
         return {validation: null, message: 'You do not have permission to change patients.'};
       case 404:
         return {validation: null, message: 'Patient not found. It may have been deleted.'};
+      case 409:
+        // The API says why, e.g. "This patient has 2 procedures, so they can't be deleted."
+        if (error.title) return {validation: null, message: error.title};
+        break;
       default:
         if (error.status >= 500) return {validation: null, message: 'A server error occurred. Please try again later.'};
     }

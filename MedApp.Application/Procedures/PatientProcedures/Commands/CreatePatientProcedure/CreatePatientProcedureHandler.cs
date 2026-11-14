@@ -1,5 +1,6 @@
-﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -8,99 +9,70 @@ using MediatR;
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 
 public sealed class CreatePatientProcedureHandler(
-    IPatientProcedureRepository procedureRepository,
+    IPatientProcedureRepository repository,
+    IPatientRepository patientRepository,
     IPatientProcedureStagesRepository stagesRepository,
-    IPatientRepository patientRepository)
+    TimeProvider timeProvider)
     : IRequestHandler<CreatePatientProcedureCommand, PatientProcedureResponse>
 {
-    public async Task<PatientProcedureResponse> Handle(
-        CreatePatientProcedureCommand request,
-        CancellationToken cancellationToken)
+    public async Task<PatientProcedureResponse> Handle(CreatePatientProcedureCommand request, CancellationToken cancellationToken)
     {
-        var patient = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken);
-        if (patient is null)
-            throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
+        var patient = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken)
+                      ?? throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
 
-        var stageDefinitionIds = request.StageDefinitionIdsInOrder.Distinct().ToList();
-        var allDefinitions = await stagesRepository.GetAllStageDefinitionsAsync(cancellationToken);
-        var defsById = allDefinitions.ToDictionary(x => x.Id);
+        var template = await stagesRepository.GetStageTemplateByIdAsync(request.TemplateId, cancellationToken)
+                       ?? throw new NotFoundException($"Template '{request.TemplateId}' was not found.");
 
-        var missingStageDefinitionIds = stageDefinitionIds
-            .Where(id => !defsById.ContainsKey(id))
-            .ToList();
+        if (template.IsArchived)
+            throw new ConflictException($"The '{template.Name}' template is archived, so it can't be used for new procedures.");
+        if (template.Maps.Count == 0)
+            throw new ConflictException($"The '{template.Name}' template has no stages.");
 
-        if (missingStageDefinitionIds.Count != 0)
-            throw new NotFoundException($"Stage definition(s) not found: {string.Join(", ", missingStageDefinitionIds)}.");
-        
-        var priority = Enum.Parse<PatientProcedurePriority>(request.Priority, true);
-        var now = DateTime.UtcNow;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var procedureId = Guid.NewGuid();
 
         var procedure = new PatientProcedure
         {
-            Id = Guid.NewGuid(),
-            PatientId = request.PatientId,
-            Title = request.Title,
+            Id = procedureId,
+            PatientId = patient.Id,
+            TemplateId = template.Id,
+            TemplateName = template.Name,
+            Title = string.IsNullOrWhiteSpace(request.Title) ? template.Name : request.Title.Trim(),
             Notes = request.Notes,
-            DueDateUtc = request.DueDateUtc,
-            Priority = priority,
+            DueDateUtc = DueDates.EndOfDayUtc(request.DueDate),
+            Priority = ProcedureEnums.Parse<PatientProcedurePriority>(request.Priority),
             Status = PatientProcedureStatus.Unassigned,
             CreatedAt = now,
             LastUpdated = now,
-            Stages = stageDefinitionIds
-                .Distinct()
-                .Select((stageDefinitionId, index) => new PatientProcedureStage
+            // A copy of the template's stages, so later edits to the template or definitions don't change this record.
+            Stages = template.Maps
+                .OrderBy(m => m.StageOrder)
+                .Select((map, index) => new PatientProcedureStage
                 {
                     Id = Guid.NewGuid(),
-                    StageDefinitionId = stageDefinitionId,
+                    PatientProcedureId = procedureId,
+                    StageDefinitionId = map.StageDefinitionId,
                     StageOrder = index + 1,
+                    Name = map.StageDefinition.Name,
+                    Description = map.StageDefinition.Description,
+                    Instructions = map.StageDefinition.Instructions,
                     CreatedAt = now,
                     LastUpdated = now
                 })
-                .ToList(),
-            Assignments = []
-        };
-
-        await procedureRepository.AddAsync(procedure, cancellationToken);
-
-        return new PatientProcedureResponse
-        {
-            Id = procedure.Id,
-            PatientId = procedure.PatientId,
-            Title = procedure.Title,
-            Notes = procedure.Notes,
-            DueDateUtc = procedure.DueDateUtc,
-            Priority = procedure.Priority.ToString(),
-            Status = procedure.Status.ToString(),
-            CreatedAt = procedure.CreatedAt,
-            LastUpdated = procedure.LastUpdated,
-            Stages = procedure.Stages
-                .OrderBy(x => x.StageOrder)
-                .Select(x =>
-                {
-                    defsById.TryGetValue(x.StageDefinitionId, out var def);
-
-                    return new PatientProcedureStageResponse
-                    {
-                        Id = x.Id,
-                        StageDefinitionId = x.StageDefinitionId,
-                        StageOrder = x.StageOrder,
-                        IsCompleted = x.IsCompleted,
-                        CompletedAtUtc = x.CompletedAtUtc,
-                        CompletedByUserId = x.CompletedByUserId,
-                        StageName = def?.Name ?? string.Empty,
-                        StageDescription = def?.Description ?? string.Empty,
-                        StageInstructions = def?.Instructions ?? string.Empty
-                    };
-                })
-                .ToList(),
-            Assignments = procedure.Assignments
-                .Select(x => new PatientProcedureAssignmentResponse
-                {
-                    UserId = x.UserId,
-                    AssignedByUserId = x.AssignedByUserId,
-                    AssignedAtUtc = x.AssignedAtUtc
-                })
                 .ToList()
         };
+
+        var change = new ProcedureChange(procedure, request.Actor, now);
+        change.Audit(PatientProcedureAuditAction.Created, new
+        {
+            template = template.Name,
+            dueDate = request.DueDate,
+            priority = procedure.Priority.ToString(),
+            stageCount = procedure.Stages.Count
+        });
+
+        await repository.AddAsync(procedure, change.AuditEntries, cancellationToken);
+
+        return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, ProcedureMapper.PatientName(patient));
     }
 }
