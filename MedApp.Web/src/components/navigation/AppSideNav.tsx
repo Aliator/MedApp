@@ -3,7 +3,6 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {NavIcon} from '@astryxdesign/core/NavIcon';
 import {SideNav, SideNavHeading, SideNavItem, SideNavSection, type SideNavProps} from '@astryxdesign/core/SideNav';
 import {Text} from '@astryxdesign/core/Text';
-import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {useQuery} from '@tanstack/react-query';
 import {useRouterState} from '@tanstack/react-router';
 import {createContext, useContext, useEffect, useState, type FocusEvent, type ReactNode} from 'react';
@@ -45,8 +44,8 @@ export function openProcedureId(pathname: string): string | null {
 }
 
 /**
- * Which nav rows show their buttons (half view, pin): the one under the pointer, and the one with keyboard focus,
- * so the buttons are there to Tab to. The others keep their buttons' space but hide them, so a row doesn't
+ * Which nav rows show their buttons (half view, pin): the one under the pointer, and the one focused from the
+ * keyboard, so the buttons are there to Tab to (a click's focus doesn't count, so they don't linger). The others keep their buttons' space but hide them, so a row doesn't
  * change shape (or move its link) as the pointer passes.
  */
 const ActiveRowsContext = createContext<(href: string) => boolean>(() => true);
@@ -55,6 +54,18 @@ const ActiveRowsContext = createContext<(href: string) => boolean>(() => true);
 function rowHref(target: EventTarget | null): string | null {
   if (!(target instanceof Element)) return null;
   return target.closest('.astryx-side-nav-item')?.querySelector('a[href]')?.getAttribute('href') ?? null;
+}
+
+/**
+ * Focus from the keyboard (Tab), which shows the row's buttons so they can be reached. Focus from a click
+ * doesn't, so they go as soon as the pointer leaves the row.
+ */
+function isKeyboardFocus(target: EventTarget | null): boolean {
+  try {
+    return target instanceof Element && target.matches(':focus-visible');
+  } catch {
+    return false; // A browser without :focus-visible: hover alone.
+  }
 }
 
 /** Shown while its row is hovered or focused; otherwise hidden, keeping its place. */
@@ -94,7 +105,7 @@ interface PinnableItemProps {
 interface PinnableNavItemProps extends PinnableItemProps {
   kind: PinKind;
   label: string;
-  /** The full name: in its pin button's name, and shown on hover when the label is shorter. */
+  /** The full name, which its buttons' names use (the label may be short, as a procedure's is). */
   fullName: string;
   href: string;
   /** It no longer exists (a 404), so it drops out of the pins. */
@@ -117,7 +128,7 @@ function PinnableNavItem({id, isOpen, pins, kind, label, fullName, href, isGone}
       ? `You can pin up to ${MAX_PINS} ${kind}. Unpin one to pin ${fullName}.`
       : `Pin ${fullName}`;
 
-  const item = (
+  return (
     <SideNavItem
       label={label}
       icon={AppIcon.SubItem}
@@ -139,14 +150,6 @@ function PinnableNavItem({id, isOpen, pins, kind, label, fullName, href, isGone}
       }
     />
   );
-  // A short label (a procedure's "FA TKR") shows the full name on hover.
-  return fullName === label ? (
-    item
-  ) : (
-    <Tooltip content={fullName} placement="end">
-      {item}
-    </Tooltip>
-  );
 }
 
 /** A patient under Patients, by name. Usually already cached by the patient's page or an earlier visit. */
@@ -165,7 +168,7 @@ function PatientNavItem(props: PinnableItemProps) {
   );
 }
 
-/** A procedure under Procedures: the patient's initials and the procedure's acronym ("FA TKR"), in full as a tooltip. */
+/** A procedure under Procedures: the patient's initials and the procedure's acronym ("FA TKR"). */
 function ProcedureNavItem(props: PinnableItemProps) {
   const procedure = useQuery(procedureQuery(props.id));
   const data = procedure.data;
@@ -246,7 +249,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         collapsible={collapsible}
         onMouseOver={(event) => setHoveredRow(rowHref(event.target))}
         onMouseLeave={() => setHoveredRow(null)}
-        onFocus={(event) => setFocusedRow(rowHref(event.target))}
+        onFocus={(event) => setFocusedRow(isKeyboardFocus(event.target) ? rowHref(event.target) : null)}
         onBlur={leaveFocus}
         header={
           <SideNavHeading

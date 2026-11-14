@@ -38,7 +38,7 @@ describe('UsersPage', () => {
     renderUsers();
 
     const own = await rowOf(adminUser.username);
-    for (const name of ['Assign roles', 'Revoke roles', 'Reset password', 'Delete user']) {
+    for (const name of ['Edit roles', 'Reset password', 'Delete user']) {
       expect(isDisabled(within(own).getByRole('button', {name}))).toBe(true);
     }
     expect(isDisabled(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Delete user'}))).toBe(false);
@@ -64,33 +64,44 @@ describe('UsersPage', () => {
     expect(await bodies(fetch, 'POST')).toEqual([{username: 'new.user', password: DEFAULT_NEW_USER_PASSWORD}]);
   });
 
-  it('assigns only roles the user lacks, one request per role', async () => {
-    const {user, fetch} = renderUsers({}, {'POST /api/auth/roles/assign': () => new Response(null, {status: 200})});
+  it("edits a user's roles in one dialog, starting from theirs, saved in one request", async () => {
+    const {user, fetch} = renderUsers({}, {'PUT /api/auth/users/l.northcott/roles': () => new Response(null, {status: 204})});
 
-    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Assign roles'}));
-    const dialog = openDialog()!;
-    expect(within(dialog).queryByRole('checkbox', {name: 'User'})).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole('checkbox', {name: 'Admin'}));
-    await user.click(within(dialog).getByRole('button', {name: 'Assign Roles'}));
+    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Edit roles'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('checkbox', {name: 'User'})).toBeChecked();
+    expect(dialog.getByRole('checkbox', {name: 'Admin'})).not.toBeChecked();
+    // Nothing changed yet, so nothing to save.
+    expect(isDisabled(dialog.getByRole('button', {name: 'Save Roles'}))).toBe(true);
+
+    await user.click(dialog.getByRole('checkbox', {name: 'Admin'}));
+    await user.click(dialog.getByRole('checkbox', {name: 'User'}));
+    await user.click(dialog.getByRole('button', {name: 'Save Roles'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await bodies(fetch, 'POST')).toEqual([{username: 'l.northcott', role: 'Admin'}]);
+    expect(await bodies(fetch, 'PUT')).toEqual([{roles: ['Admin']}]);
   });
 
-  it("revokes only roles the user has", async () => {
-    const {user, fetch} = renderUsers({}, {'POST /api/auth/roles/revoke': () => new Response(null, {status: 200})});
+  it('can take every role away', async () => {
+    const {user, fetch} = renderUsers({}, {'PUT /api/auth/users/l.northcott/roles': () => new Response(null, {status: 204})});
 
-    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Revoke roles'}));
-    const dialog = openDialog()!;
-    await user.click(within(dialog).getByRole('checkbox', {name: 'Admin'}));
-    await user.click(within(dialog).getByRole('checkbox', {name: 'User'}));
-    await user.click(within(dialog).getByRole('button', {name: 'Revoke Roles'}));
+    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Edit roles'}));
+    const dialog = within(openDialog()!);
+    await user.click(dialog.getByRole('checkbox', {name: 'User'}));
+    await user.click(dialog.getByRole('button', {name: 'Save Roles'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await bodies(fetch, 'POST')).toEqual([
-      {username: 'a.hartwell', role: 'Admin'},
-      {username: 'a.hartwell', role: 'User'},
-    ]);
+    expect(await bodies(fetch, 'PUT')).toEqual([{roles: []}]);
+  });
+
+  it('says when the roles could not be saved', async () => {
+    const {user} = renderUsers({}, {'PUT /api/auth/users/l.northcott/roles': () => json([{code: 'RoleNotFound', description: 'Role not found.'}], 400)});
+
+    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Edit roles'}));
+    await user.click(within(openDialog()!).getByRole('checkbox', {name: 'Admin'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Save Roles'}));
+
+    expect(await findAlert('The roles could not be saved.')).toBeInTheDocument();
   });
 
   it('searches by username, starting on page 1', async () => {

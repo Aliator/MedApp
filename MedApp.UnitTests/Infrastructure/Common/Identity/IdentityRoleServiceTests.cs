@@ -12,6 +12,7 @@ public sealed class IdentityRoleServiceTests
 {
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
     private Mock<RoleManager<IdentityRole<Guid>>> _roleManager = null!;
+    private Mock<IIdentityTransactions> _transactions = null!;
     private IdentityRoleService _service = null!;
 
     [SetUp]
@@ -25,7 +26,13 @@ public sealed class IdentityRoleServiceTests
         _roleManager = new Mock<RoleManager<IdentityRole<Guid>>>(
             roleStore.Object, null!, null!, null!, null!);
 
-        _service = new IdentityRoleService(_userManager.Object, _roleManager.Object);
+        // The transaction runs the work as given (committing or rolling back is IdentityTransactions' job).
+        _transactions = new Mock<IIdentityTransactions>();
+        _transactions
+            .Setup(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()))
+            .Returns((Func<Task<IdentityResult>> work, CancellationToken _) => work());
+
+        _service = new IdentityRoleService(_userManager.Object, _roleManager.Object, _transactions.Object);
     }
 
     [Test]
@@ -354,5 +361,86 @@ public sealed class IdentityRoleServiceTests
         _roleManager.Verify(
             r => r.DeleteAsync(role),
             Times.Once);
+    }
+
+    private void SetUpRoles(params string[] names)
+    {
+        foreach (var name in names)
+            _roleManager
+                .Setup(r => r.FindByNameAsync(It.Is<string>(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase))))
+                .ReturnsAsync(new IdentityRole<Guid>(name));
+    }
+
+    [Test]
+    public async Task SetRolesAsync_UserMissing_FailsWithUserNotFound()
+    {
+        _userManager.Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0])).ReturnsAsync((ApplicationUser?)null);
+
+        var result = await _service.SetRolesAsync(AuthTestConstants.Usernames[0], AuthTestConstants.Roles, CancellationToken.None);
+
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.UserNotFoundCode);
+    }
+
+    [Test]
+    public async Task SetRolesAsync_RoleMissing_FailsWithoutChangingAnything()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        SetUpRoles(AuthTestConstants.Roles[0]);
+
+        var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[0], "Nonexistent"], CancellationToken.None);
+
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.RoleNotFoundCode);
+        _transactions.Verify(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SetRolesAsync_SameRoles_SucceedsWithoutChangingAnything()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GetRolesAsync(user)).ReturnsAsync([AuthTestConstants.Roles[1]]);
+        SetUpRoles(AuthTestConstants.Roles[1]);
+
+        var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[1].ToLowerInvariant()], CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        _transactions.Verify(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SetRolesAsync_ChangedRoles_RemovesAndAddsInOneTransaction()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        using var cts = new CancellationTokenSource();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GetRolesAsync(user)).ReturnsAsync([AuthTestConstants.Roles[1]]);
+        _userManager.Setup(u => u.RemoveFromRolesAsync(user, It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
+        _userManager.Setup(u => u.AddToRolesAsync(user, It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
+        SetUpRoles(AuthTestConstants.Roles[0]);
+
+        var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[0]], cts.Token);
+
+        result.Succeeded.Should().BeTrue();
+        _transactions.Verify(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), cts.Token), Times.Once);
+        _userManager.Verify(u => u.RemoveFromRolesAsync(user, new[] {AuthTestConstants.Roles[1]}), Times.Once);
+        _userManager.Verify(u => u.AddToRolesAsync(user, new[] {AuthTestConstants.Roles[0]}), Times.Once);
+    }
+
+    [Test]
+    public async Task SetRolesAsync_RemoveFails_ReturnsTheFailureWithoutAdding()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GetRolesAsync(user)).ReturnsAsync([AuthTestConstants.Roles[1]]);
+        _userManager
+            .Setup(u => u.RemoveFromRolesAsync(user, It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError {Code = "Failed"}));
+        SetUpRoles(AuthTestConstants.Roles[0]);
+
+        var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[0]], CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
     }
 }

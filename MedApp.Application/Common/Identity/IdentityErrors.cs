@@ -25,7 +25,15 @@ public static class IdentityErrors
             Description = "Role not found."
         };
 
+    public static IdentityError OwnRoles =>
+        new()
+        {
+            Code = OwnRolesCode,
+            Description = "You can't change your own roles."
+        };
+
     public const string UserNotFoundCode = "UserNotFound";
     public const string OldPasswordIncorrectCode = "OldPasswordIncorrect";
     public const string RoleNotFoundCode = "RoleNotFound";
+    public const string OwnRolesCode = "OwnRoles";
 }

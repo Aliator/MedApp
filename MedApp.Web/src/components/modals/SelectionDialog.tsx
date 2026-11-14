@@ -21,11 +21,13 @@ export interface SelectionDialogProps extends Omit<ConfirmDialogProps, 'children
   /** Shown instead of the list when there's nothing to choose, e.g. "This user already has every role". */
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Confirming with nothing ticked is a choice too, e.g. a user with no roles. Off by default. */
+  canConfirmNone?: boolean;
 }
 
 /**
- * Pick some items from a list, then confirm (replaces Blazor's SelectionModal), e.g. assigning or revoking roles.
- * Confirm is disabled until something is ticked.
+ * Pick some items from a list, then confirm (replaces Blazor's SelectionModal), e.g. a user's roles. Confirm is
+ * disabled until something is ticked, unless `canConfirmNone`.
  */
 export function SelectionDialog({
   items,
@@ -35,6 +37,7 @@ export function SelectionDialog({
   info,
   emptyTitle = 'Nothing to choose',
   emptyDescription,
+  canConfirmNone = false,
   confirmDisabled = false,
   isProcessing = false,
   ...confirm
@@ -43,7 +46,7 @@ export function SelectionDialog({
     <ConfirmDialog
       {...confirm}
       isProcessing={isProcessing}
-      confirmDisabled={confirmDisabled || items.length === 0 || selected.length === 0}>
+      confirmDisabled={confirmDisabled || items.length === 0 || (selected.length === 0 && !canConfirmNone)}>
       {info}
       {items.length === 0 ? (
         <EmptyState title={emptyTitle} description={emptyDescription} isCompact />

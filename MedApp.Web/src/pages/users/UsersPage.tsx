@@ -13,11 +13,10 @@ import {PAGE_SIZE, userSearchQuery, type UserPage} from '../../api/search';
 import {
   DEFAULT_NEW_USER_PASSWORD,
   rolesQuery,
-  useAssignRoles,
   useCreateUser,
   useDeleteUser,
   useResetPassword,
-  useRevokeRoles,
+  useSetRoles,
 } from '../../api/users';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -32,11 +31,14 @@ import {TableActions} from '../../components/tables/TableActions';
 import {hasUserFilters, type UsersListSearch} from '../listSearch';
 
 type User = NonNullable<UserPage['items']>[number];
+
+/** The same roles, in any order. */
+const sameRoles = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((r) => b.includes(r));
 type UserRow = User & Record<string, unknown>;
 
 type DialogState =
   | {kind: 'create'}
-  | {kind: 'assign' | 'revoke' | 'reset' | 'delete'; username: string; roles: string[]}
+  | {kind: 'roles' | 'reset' | 'delete'; username: string; roles: string[]}
   | null;
 
 export interface UsersPageProps {
@@ -46,7 +48,7 @@ export interface UsersPageProps {
 
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
- * dialogs to create users, assign and revoke roles, reset passwords and delete users. Admins can't change
+ * dialogs to create users, edit their roles (every role listed, theirs ticked), reset passwords and delete users. Admins can't change
  * their own account here, as in Blazor.
  */
 export function UsersPage({search, onSearchChange}: UsersPageProps) {
@@ -63,8 +65,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const rows = (data?.items ?? []) as UserRow[];
 
   const create = useCreateUser();
-  const assign = useAssignRoles();
-  const revoke = useRevokeRoles();
+  const setRoles = useSetRoles();
   const reset = useResetPassword();
   const remove = useDeleteUser();
 
@@ -77,7 +78,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const [draft, setDraft] = useState<SearchValues>({});
 
   const open = (next: DialogState) => {
-    setSelectedRoles([]);
+    // Edit roles starts from the user's current roles, ticked.
+    setSelectedRoles(next && next.kind !== 'create' ? next.roles : []);
     setNewUsername('');
     setNewPassword(null);
     create.reset();
@@ -133,8 +135,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
         return (
           <TableActions
             actions={[
-              {label: 'Assign roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'assign', ...target})},
-              {label: 'Revoke roles', icon: AppIcon.Revoke, isDisabled: isMe, onClick: () => open({kind: 'revoke', ...target})},
+              {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
               {label: 'Reset password', icon: AppIcon.Lock, isDisabled: isMe, onClick: () => open({kind: 'reset', ...target})},
               {label: 'Delete user', icon: AppIcon.Delete, isDisabled: isMe, isDestructive: true, onClick: () => open({kind: 'delete', ...target})},
             ]}
@@ -214,38 +215,21 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           </ConfirmDialog>
 
           <SelectionDialog
-            isOpen={dialog?.kind === 'assign'}
-            title="Assign Roles"
-            message={`Select roles to assign to ${target?.username}.`}
+            isOpen={dialog?.kind === 'roles'}
+            title="Edit Roles"
+            message={`Tick the roles ${target?.username} should have.`}
             icon={AppIcon.Assign}
-            listLabel="Roles to assign"
-            items={allRoles.filter((r) => !target?.roles.includes(r)).map((r) => ({value: r, label: r}))}
+            listLabel="Roles"
+            items={allRoles.map((r) => ({value: r, label: r}))}
             selected={selectedRoles}
             onSelectedChange={setSelectedRoles}
-            emptyTitle="This user already has every role."
-            confirmText="Assign Roles"
-            isProcessing={assign.isPending}
+            emptyTitle="There are no roles."
+            confirmText="Save Roles"
+            canConfirmNone
+            confirmDisabled={sameRoles(selectedRoles, target?.roles ?? [])}
+            isProcessing={setRoles.isPending}
             onConfirm={() =>
-              target && assign.mutate({username: target.username, roles: selectedRoles}, {onSuccess: close, onError: failed('The roles could not be assigned.')})
-            }
-            onCancel={close}
-          />
-
-          <SelectionDialog
-            isOpen={dialog?.kind === 'revoke'}
-            title="Revoke Roles"
-            message={`Select roles to revoke from ${target?.username}.`}
-            icon={AppIcon.Revoke}
-            intent="warning"
-            listLabel="Roles to revoke"
-            items={(target?.roles ?? []).map((r) => ({value: r, label: r}))}
-            selected={selectedRoles}
-            onSelectedChange={setSelectedRoles}
-            emptyTitle="This user has no roles to revoke."
-            confirmText="Revoke Roles"
-            isProcessing={revoke.isPending}
-            onConfirm={() =>
-              target && revoke.mutate({username: target.username, roles: selectedRoles}, {onSuccess: close, onError: failed('The roles could not be revoked.')})
+              target && setRoles.mutate({username: target.username, roles: selectedRoles}, {onSuccess: close, onError: failed('The roles could not be saved.')})
             }
             onCancel={close}
           />

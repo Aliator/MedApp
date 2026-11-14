@@ -2244,7 +2244,54 @@ export interface paths {
                 };
             };
         };
-        put?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    username: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SetUserRolesRequest"];
+                    "text/json": components["schemas"]["SetUserRolesRequest"];
+                    "application/*+json": components["schemas"]["SetUserRolesRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IdentityError"][];
+                        "application/json": components["schemas"]["IdentityError"][];
+                        "text/json": components["schemas"]["IdentityError"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -2410,6 +2457,10 @@ export interface components {
         CreateUserRequest: {
             username?: string | null;
             password?: string | null;
+        };
+        IdentityError: {
+            code?: string | null;
+            description?: string | null;
         };
         LoginRequest: {
             username?: string | null;
@@ -2623,6 +2674,9 @@ export interface components {
         RevokeRoleRequest: {
             username?: string | null;
             role?: string | null;
+        };
+        SetUserRolesRequest: {
+            roles?: string[] | null;
         };
         UpdatePatientProcedureRequest: {
             title?: string | null;

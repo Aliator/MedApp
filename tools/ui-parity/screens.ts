@@ -195,10 +195,10 @@ export const screens: Screen[] = [
   },
   {
     name: 'users-roles',
-    title: 'Assign roles dialog',
+    title: "Edit roles dialog: every role, the user's ticked (not saved)",
     path: '/admin/users',
     prepare: async (page) => {
-      await rowAction(page, /assign/i).click();
+      await rowAction(page, /edit roles/i).click();
       await waitVisible(page, DIALOG);
       await settle(page);
     },
