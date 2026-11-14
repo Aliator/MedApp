@@ -4,11 +4,11 @@ Guidance for AI coding agents working in this repository.
 
 ## Overview
 
-MedApp is a patient and procedure management app. It has a .NET 8 Web API backend built with Clean Architecture, CQRS and MediatR, and a Blazor WebAssembly frontend. Data is stored in SQL Server through EF Core, and ASP.NET Core Identity handles users. Authentication is a custom cookie-based session scheme.
+MedApp is a patient and procedure management app. It has a .NET 10 Web API backend built with Clean Architecture, CQRS and MediatR, and a Blazor WebAssembly frontend. Data is stored in SQL Server through EF Core, and ASP.NET Core Identity handles users. Authentication is a custom cookie-based session scheme.
 
 ## Commands
 
-Run everything from the repo root. `global.json` pins the SDK to 8.0.x.
+Run everything from the repo root. `global.json` pins the SDK to 10.0.x, and every project targets `net10.0`.
 
 ```bash
 dotnet build MedApp.sln                     # build everything
@@ -18,7 +18,7 @@ dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run
 dotnet run --project MedApp.API --launch-profile https       # API + Swagger at /swagger
 dotnet run --project MedApp.Client --launch-profile https    # Blazor client at https://localhost:7292
 
-# EF Core migrations (dotnet-ef 8.x is installed as a global tool)
+# EF Core migrations (dotnet-ef 10.x is installed as a global tool)
 dotnet ef migrations add <Name> --project MedApp.Infrastructure --startup-project MedApp.API
 dotnet ef database update      --project MedApp.Infrastructure --startup-project MedApp.API
 dotnet ef migrations has-pending-model-changes --project MedApp.Infrastructure --startup-project MedApp.API   # model and snapshot in sync?
