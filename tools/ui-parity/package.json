@@ -1,0 +1,15 @@
+{
+  "name": "medapp-ui-parity",
+  "private": true,
+  "description": "Captures screenshots of the same screens in the Blazor (MedApp.Client) and React (MedApp.Web) apps for side-by-side comparison during the migration. Not an E2E test suite.",
+  "scripts": {
+    "parity": "playwright test",
+    "parity:blazor": "playwright test --project=blazor",
+    "parity:react": "playwright test --project=react",
+    "install-browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2"
+  }
+}
