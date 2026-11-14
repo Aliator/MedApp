@@ -1,4 +1,6 @@
-﻿using MedApp.Contracts.Authentication.Responses;
+﻿using MedApp.Application.Authentication.Users.Queries.SearchUsers;
+using MedApp.Application.Common.Paging;
+using MedApp.Contracts.Authentication.Responses;
 
 namespace MedApp.Application.Common.Identity;
 
@@ -14,4 +16,7 @@ public interface IIdentityReadService
         CancellationToken ct);
 
     Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct);
+
+    /// <summary>One page of users matching the query's filters, sorted by username, and the total that match.</summary>
+    Task<PagedResult<UserResponse>> SearchUsersAsync(SearchUsersQuery query, CancellationToken ct);
 }

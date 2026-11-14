@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Common.Identity;
+﻿using MedApp.Application.Authentication.Users.Queries.SearchUsers;
+using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Paging;
 using MedApp.Contracts.Authentication.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +46,46 @@ public sealed class IdentityReadService(
 
         var roles = await userManager.GetRolesAsync(user);
         return new UserResponse(user.Id, user.UserName!, roles.ToList());
+    }
+
+    public async Task<PagedResult<UserResponse>> SearchUsersAsync(SearchUsersQuery query, CancellationToken ct)
+    {
+        IQueryable<ApplicationUser> users = userManager.Users;
+
+        if (!string.IsNullOrWhiteSpace(query.Role))
+        {
+            var ids = (await userManager.GetUsersInRoleAsync(query.Role.Trim())).Select(u => u.Id).ToList();
+            users = users.Where(u => ids.Contains(u.Id));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Username))
+        {
+            // Identity's normalized names are upper case, so this ignores case in SQL and in memory alike.
+            var term = userManager.NormalizeName(query.Username.Trim());
+            users = users.Where(u => u.NormalizedUserName!.Contains(term));
+        }
+
+        // The users table is small (staff accounts), so these run synchronously, like the methods above.
+        var totalCount = users.Count();
+
+        var ordered = query.Ascending
+            ? users.OrderBy(u => u.NormalizedUserName).ThenBy(u => u.Id)
+            : users.OrderByDescending(u => u.NormalizedUserName).ThenBy(u => u.Id);
+
+        var page = ordered
+            .Skip(Paging.Skip(query.Page, query.PageSize))
+            .Take(query.PageSize)
+            .ToList();
+
+        var items = new List<UserResponse>(page.Count);
+        foreach (var user in page)
+        {
+            ct.ThrowIfCancellationRequested();
+            var roles = await userManager.GetRolesAsync(user);
+            items.Add(new UserResponse(user.Id, user.UserName!, roles.ToList()));
+        }
+
+        return new PagedResult<UserResponse>(items, totalCount);
     }
 
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)

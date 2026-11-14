@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Patients.Repositories;
+﻿using MedApp.Application.Common.Paging;
+using MedApp.Application.Patients.Queries.SearchPatients;
+using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Patients;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +26,23 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         return await context.Patients
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<Patient>> SearchAsync(SearchPatientsQuery query, CancellationToken cancellationToken)
+    {
+        var matching = context.Patients
+            .AsNoTracking()
+            .Filter(query);
+
+        var totalCount = await matching.CountAsync(cancellationToken);
+
+        var items = await matching
+            .Sort(query.Sort, query.Ascending)
+            .Skip(Paging.Skip(query.Page, query.PageSize))
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Patient>(items, totalCount);
     }
 
     public async Task UpdateAsync(Patient patient, CancellationToken cancellationToken)

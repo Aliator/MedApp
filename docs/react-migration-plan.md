@@ -2,7 +2,7 @@
 
 Status: **decisions settled** · 2026-11-14
 
-Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Phase 2 (Aspire foundation and Blazor baseline) and phase 3 (React shell) were completed on 2026-11-14.
+Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Phases 2 (Aspire foundation and Blazor baseline), 3 (React shell) and 4 (components) were completed on 2026-11-14.
 
 ## 1. Goals and fixed decisions
 
@@ -91,7 +91,7 @@ MedApp.ServiceDefaults  (Aspire: OpenTelemetry, health checks, service discovery
 | `DatePickerFormGroup` (`Partial`) | 1:1 | `DateRangeInput` | Patient search only. A born-between range replaces the partial date (Q9) |
 | `PatientSummary` | Composite | `MetadataList` (+ `Avatar`) | Domain-specific; name, date of birth, email |
 | **Tables** | | | |
-| `DataTable` | Composite | `Table` + `useTableSortable` + `useTablePagination` + `Pagination` + `Skeleton` rows | `Table` shows a built-in empty state for empty data. Fixed page size of 10, with no viewport sizing (Q10) |
+| `DataTable` | Composite | `Table` + `useTableSortable` + `useTablePagination` + `Pagination` + `Skeleton` rows | `Table` shows a built-in empty state for empty data. Fixed page size of 10, with no viewport sizing (Q10), paged by the API (phase 4) |
 | `SortableHeader` | Removed | built into `Table` via `useTableSortable` | Sort glyphs come from the plugin |
 | `TableCard` | 1:1 | `Section` (or `Card`) | Astryx guidance: `Card` is for discrete items, not general layout |
 | `TableActions` | Composite | `HStack` of `IconButton`s | |
@@ -250,6 +250,42 @@ Each phase ends with a working app. Blazor stays the default UI until phase 5, a
    - **"Forgot password?" isn't ported yet.** Blazor's version is a stub (a fake one-second delay, with no API behind it). Its dialog will be built on `ConfirmDialog` in phase 4.
    - **A wrong password made the API return a 500,** because `UnauthorizedAccessException` wasn't handled by the exception middleware. Fixed in the same PR: the credential check throws a new `InvalidCredentialsException`, which the middleware answers with a 401. Both UIs still show "Invalid credentials" for any failed sign-in.
 4. **Components:** build the section 4 composites, each with a unit test. *Exit:* every Blazor component has a React replacement.
+
+   ✅ **Done (2026-11-14).** Every Blazor component now has a React replacement under `MedApp.Web/src/components/`, each with Vitest tests (98 tests in all):
+
+   | Blazor | React |
+   |---|---|
+   | `MainLayout`, `NavMenu`, `NavItem` | `navigation/AppLayout`, `AppSideNav` (phase 3) |
+   | `Page`, `PageHeader` | `pages/Page`, `PageHeader` |
+   | `FormCard`, `FormSection` | `forms/FormCard`, `FormSection` |
+   | `FormGroup` | Astryx inputs used directly: `TextInput` etc. carry `label`, `isRequired`, `description` and `status` |
+   | `DatePickerFormGroup` | `forms/DateOfBirthInput` (full date + age) and `DateOfBirthRangeInput` (search) |
+   | `PatientSummary` | `forms/PatientSummary` |
+   | `DataTable`, `SortableHeader` | `tables/DataTable` + the `sortRows` helper |
+   | `TableCard` | `Section`, used directly |
+   | `TableActions`, `ActionButton` | `tables/TableActions` |
+   | `AvatarCell` | `tables/AvatarCell` |
+   | `Modal` | `modals/DialogFrame` |
+   | `ConfirmModal`, `SelectionModal`, `SearchModal` | `modals/ConfirmDialog`, `SelectionDialog`, `SearchDialog` |
+   | `ViewCard`, `ViewSection`, `ViewGroup` | `views/ViewCard`, `ViewSection`, Astryx `MetadataListItem` |
+   | `AlertMessage` | `shared/AlertMessage` (+ `ValidationAlert` for a 400) |
+   | `EmptyState`, `LoadingState`, `Spinner`, `Summary`/`SummaryItem` | Astryx `EmptyState`, `Spinner` (with `label`), `MetadataList`, used directly |
+   | `Icon` | `shared/icons` (`AppIcon`, phase 3) |
+
+   Decisions and findings:
+   - **Paging is done by the API (decided 2026-11-14).** It's a change from Q10, which paged in the browser like Blazor:
+     - Two new endpoints filter, sort and page on the server: `GET api/patients/search` and `GET api/auth/users/search`.
+     - They take `page`, `pageSize` (default 10, at most 100), `sort` and `ascending`, plus the search filters. The patients search's filters are first name, last name, email, and a date-of-birth range (`dateOfBirthFrom`/`dateOfBirthTo`, inclusive, which Q9 needs).
+     - Both return a `PagedResponse<T>`: `items`, `page`, `pageSize`, `totalCount` and `totalPages`.
+     - Each has a validator, a handler and unit tests. The patient filters and sorts are plain LINQ (`PatientSearch`), so they run in SQL and in the tests alike; ties sort by ID, so paging never repeats or skips a row.
+     - The old `GET api/patients` and `GET api/auth/users` stay for the Blazor client and can go after cutover.
+     - **In MedApp.Web:** `DataTable` takes a `pagination` prop and shows Astryx's page controls. `patientSearchQuery` / `userSearchQuery` in `src/api/search.ts` fetch a page and keep the previous one on screen while the next loads.
+     - The pages (phase 5) keep `page`, `sort` and `asc` in the URL, and go back to page 1 when the sort or search changes.
+   - **Calendars start on Monday (Q15).** Astryx's date inputs default to Sunday whatever the locale, so both date-of-birth inputs pass `weekStartsOn="mon"`.
+   - **Row actions are icon-only** (`IconButton` with a tooltip), where Blazor's `ActionButton`s also showed a text label.
+   - **`AlertMessage` passes its details as the `Banner`'s description.** As children, Banner folds them behind an "Expand" toggle, and validation errors must stay visible.
+   - **Danger icons and destructive buttons use stone's muted error colour,** as Q11 decided, not the old app's red.
+   - **"Forgot password?" is ported** on the Login page. Like Blazor's, it is a stand-in: there is no password-reset API, so after a short delay it only says a link was sent. This is marked in `ForgotPasswordDialog.tsx`, and should be replaced (or the button removed) once the API supports resets.
 5. **Pages and cutover:**
    - Port the pages: Patients list, view, add and edit; Admin Users; Account; Home.
    - Check parity against the checklist below.
@@ -374,6 +410,7 @@ Each question lists options; where I have a recommendation, it's marked.
 10. **Table page size.** ✅ **Decided (2026-11-14): a fixed page size of 10, kept as plain as possible.**
     - 10 is the same default the Blazor tables start with before measuring.
     - There's no viewport measuring and no page-size picker: `Pagination` gets `page`, `totalPages` and `onChange` only.
+    - **Revised in phase 4 (2026-11-14):** the API does the paging, sorting and filtering (`GET api/patients/search`, `GET api/auth/users/search`), rather than the browser loading every row.
     - The `ps` query parameter is dropped; `page`, `sort`, `asc` and `q` stay.
     - Auto-sizing or a page-size picker can be revisited after the migration.
 11. **Theme and look.** ✅ **Decided (2026-11-14, revised with 11b): Astryx's stone theme, given MedApp's blues, dark mode by default, and one look on every page.**

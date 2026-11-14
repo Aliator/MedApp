@@ -5,8 +5,23 @@ import {afterEach, vi} from 'vitest';
 // jsdom doesn't implement scrolling; the router restores scroll position on navigation.
 window.scrollTo = () => {};
 
+// jsdom has <dialog> but not its methods, which Astryx's Dialog calls. Opening sets `open`; closing clears it
+// and fires `close`, as browsers do.
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.show = function show(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.showModal = HTMLDialogElement.prototype.show;
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement, returnValue?: string) {
+    if (returnValue !== undefined) this.returnValue = returnValue;
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+}
+
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   localStorage.clear();
