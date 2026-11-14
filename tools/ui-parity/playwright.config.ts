@@ -6,12 +6,12 @@ import { authFile, type AppName, type ProjectMeta } from './shared';
 const envFile = path.join(__dirname, '.env');
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
+// Each app is captured only when its URL is set. Since cutover the AppHost runs only the React app, so Blazor
+// (MedApp.Client.Deprecated) is opt-in: run it by hand and set BLAZOR_URL (see .env.example).
 const apps: { name: AppName; url: string; apiUrl: string }[] = [
-  {
-    name: 'blazor',
-    url: process.env.BLAZOR_URL || 'https://localhost:7292',
-    apiUrl: process.env.BLAZOR_API_URL || 'https://localhost:7038',
-  },
+  ...(process.env.BLAZOR_URL
+    ? [{ name: 'blazor' as const, url: process.env.BLAZOR_URL, apiUrl: process.env.BLAZOR_API_URL || 'https://localhost:7038' }]
+    : []),
   // MedApp.Web proxies /api to the API (same origin), so its API URL is its own URL.
   ...(process.env.WEB_URL ? [{ name: 'react' as const, url: process.env.WEB_URL, apiUrl: process.env.WEB_URL }] : []),
 ];

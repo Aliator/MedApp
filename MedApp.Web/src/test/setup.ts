@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import {cleanup} from '@testing-library/react';
+import {cleanup, configure} from '@testing-library/react';
 import {afterEach, vi} from 'vitest';
+
+// Routes are code-split, and loading a route chunk can take over a second while the whole suite runs.
+configure({asyncUtilTimeout: 5000});
 
 // jsdom doesn't implement scrolling; the router restores scroll position on navigation.
 window.scrollTo = () => {};

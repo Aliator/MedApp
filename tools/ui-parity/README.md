@@ -1,13 +1,17 @@
 # UI parity screenshots
 
-Captures the same screens in the Blazor app (`MedApp.Client`) and the React app (`MedApp.Web`), and writes `report.html` with each pair side by side. It's for comparing the two by eye during the migration (see `docs/react-migration-plan.md`). **It is not an E2E test suite**: nothing is asserted, and it doesn't run in CI.
+Captures the same screens in the React app (`MedApp.Web`) and, optionally, the deprecated Blazor app (`MedApp.Client.Deprecated`). It writes `report.html` with each pair side by side.
+- During the migration (see `docs/react-migration-plan.md`), it compared the two apps by eye.
+- Since cutover it captures React only, unless `BLAZOR_URL` is set. The last Blazor baseline stays in `screenshots/*/blazor.png` on the machine that took it, since screenshots are git-ignored.
+
+**It is not an E2E test suite**: nothing is asserted, and it doesn't run in CI.
 
 ## One-time setup
 
 1. Install Node.js, then run `npm install` and `npm run install-browser` (Chromium only) in this folder.
 2. Create a **dev-only admin account** for the screenshots:
    - The easiest way is `medapp-dev`'s `create_user` with roles `["Admin", "User"]` (`reset_demo_data` keeps `parity-admin`).
-   - Or sign in to the Blazor app as an admin, open **Users → Add User**, create, for example, `parity-admin`, and use **Assign** to give it the `Admin` role.
+   - Or sign in to the app as an admin, open **Users → Add User**, create, for example, `parity-admin`, and use **Assign roles** to give it the `Admin` role.
    - Use synthetic details only, never a real person's.
 3. Copy `.env.example` to `.env` (git-ignored) and fill in `PARITY_USERNAME` / `PARITY_PASSWORD`.
 
@@ -16,16 +20,16 @@ Captures the same screens in the Blazor app (`MedApp.Client`) and the React app 
 Start the apps first, from the repo root (Docker must be running):
 
 ```bash
-dotnet run --project MedApp.AppHost   # SQL container, API (https://localhost:7038), Blazor (https://localhost:7292), React (http://localhost:5173)
+dotnet run --project MedApp.AppHost   # SQL container, API (https://localhost:7038), React app (http://localhost:5173)
 ```
 
-Wait until the dashboard shows the API and both UIs as running. Until a page is ported, its React screen captures a "Not ported yet" placeholder, and screens that open a dialog on it time out (about a minute each), so run `npm run parity:blazor` or filter with `-g` to skip them. If either fails with "the default developer certificate could not be found", run `dotnet dev-certs https` once.
+Wait until the dashboard shows the API and the React app as running. If either fails with "the default developer certificate could not be found", run `dotnet dev-certs https` once.
 
 Then, in this folder:
 
 | Command | Captures |
 |---|---|
-| `npm run parity` | Both apps (React only when `WEB_URL` is set in `.env`) |
+| `npm run parity` | Every app whose URL is set in `.env`: React, plus Blazor only when `BLAZOR_URL` is set |
 | `npm run parity:blazor` | Blazor only |
 | `npm run parity:react` | React only |
 | `npx playwright test --project=blazor -g "patient-view"` | One screen |

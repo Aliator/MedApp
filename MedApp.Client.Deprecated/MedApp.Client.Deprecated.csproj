@@ -1,10 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
+    <!-- DEPRECATED: the original Blazor WebAssembly UI, replaced by the React app in MedApp.Web.
+         It is no longer run (the AppHost doesn't start it) and gets no new features; it is kept, and kept
+         building, only for reference. See README.md. -->
+
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>MedApp.Client</RootNamespace>
+        <AssemblyName>MedApp.Client</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>

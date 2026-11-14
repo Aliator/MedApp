@@ -36,6 +36,15 @@ describe('ConfirmDialog', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
+  it("cancels from the header's close button", async () => {
+    const onCancel = vi.fn();
+    const {user} = renderWithApp(<ConfirmDialog {...base} isOpen onCancel={onCancel} />);
+
+    await user.click(await screen.findByRole('button', {name: /close/i}));
+
+    expect(onCancel).toHaveBeenCalled();
+  });
+
   it('can disable confirming', async () => {
     renderWithApp(<ConfirmDialog {...base} isOpen confirmDisabled />);
 

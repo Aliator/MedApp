@@ -1,6 +1,6 @@
 # MedApp.Web
 
-The React UI that is replacing the Blazor client (`MedApp.Client`); see `docs/react-migration-plan.md`. Built with React 19, TypeScript, Vite and [Astryx](https://astryx.atmeta.com) (`@astryxdesign/core`, pinned to an exact version).
+MedApp's UI. It replaced the original Blazor client (now `MedApp.Client.Deprecated`) in the React migration; see `docs/react-migration-plan.md`. Built with React 19, TypeScript, Vite and [Astryx](https://astryx.atmeta.com) (`@astryxdesign/core`, pinned to an exact version).
 
 ## Running it
 
@@ -11,6 +11,8 @@ dotnet run --project MedApp.AppHost   # from the repo root
 ```
 
 `npm run dev` on its own also works while the API is running; it proxies `/api` to `https://localhost:7038`.
+
+In production there's no separate web server: on publish, the AppHost builds this app into the API's `wwwroot`, and the API serves it on the same origin as `/api` (plan Q4). Unknown paths fall back to `index.html`, so client-side routes survive a reload.
 
 ## Scripts
 
@@ -35,7 +37,8 @@ src/
                   pages/ (Page, PageHeader), forms/ (FormCard, FormSection, date-of-birth inputs, PatientSummary),
                   tables/ (DataTable, TableActions, AvatarCell), modals/ (ConfirmDialog, SelectionDialog, SearchDialog),
                   views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage)
-  pages/        one folder per page
+  pages/        one folder per page: patients/ (list, view, add, edit), users/, account/, login/, home/;
+                  listSearch.ts parses the list pages' URL state
   routes/       TanStack Router file routes (src/routeTree.gen.ts is generated from them)
   themes/       the medapp theme: source (medappTheme.ts, icons.ts) and its built output
   utils/        small helpers (dates: age, en-GB formatting, today)

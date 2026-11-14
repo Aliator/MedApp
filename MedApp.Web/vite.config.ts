@@ -30,8 +30,23 @@ export default defineConfig({
     css: false,
     coverage: {
       provider: 'v8',
+      // json-summary feeds the PR coverage comment (see .github/workflows/main.yml).
+      reporter: ['text-summary', 'json-summary'],
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/routeTree.gen.ts', 'src/api/schema.d.ts', 'src/themes/**', 'src/astryx-themes.ts', 'src/main.tsx'],
+      // Generated code, the theme build, test helpers, and the thin route files and app entry, which wire
+      // pages together and are covered through the route-guard and page tests.
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/routeTree.gen.ts',
+        'src/api/schema.d.ts',
+        'src/themes/**',
+        'src/astryx-themes.ts',
+        'src/main.tsx',
+        'src/routes/**',
+        'src/router.tsx',
+        'src/app/App.tsx',
+      ],
     },
   },
 });

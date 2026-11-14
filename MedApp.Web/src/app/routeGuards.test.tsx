@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, mockFetch, renderApp, signedOutUser, staffUser} from '../test/render';
 
 describe('route guards', () => {
   it('sends a signed-out visitor to the login page', async () => {
@@ -23,6 +23,11 @@ describe('route guards', () => {
   });
 
   it('lets an admin into the admin pages', async () => {
+    mockFetch((request) =>
+      new URL(request.url).pathname === '/api/auth/roles'
+        ? json(['Admin', 'User'])
+        : json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
+    );
     renderApp({path: '/admin/users', user: adminUser});
 
     expect(await screen.findByRole('heading', {name: /user management/i})).toBeInTheDocument();

@@ -6,8 +6,8 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
-  # MedApp.Web (React): lint, type check, theme drift, unit tests and a production build.
-  # Its coverage joins the sticky PR comment in phase 5 of the React migration.
+  # MedApp.Web (React): lint, type check, theme drift, unit tests with coverage, and a production build.
+  # Its coverage summary goes into the sticky PR comment, after the .NET coverage (coverage-comment job).
   web:
     runs-on: ubuntu-latest
     defaults:
@@ -34,8 +34,14 @@ jobs:
       - name: Check the built theme is up to date
         run: npm run theme:check
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests with coverage
+        run: npm run coverage
+
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-coverage
+          path: MedApp.Web/coverage/coverage-summary.json
 
       - name: Build
         run: npx vite build
@@ -127,7 +133,60 @@ jobs:
               f.write("\n</details>\n")
           EOF
 
-      
+
+      - name: Upload coverage comment
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-coverage-comment
+          path: coverage-details.md
+
+  # One sticky PR comment for both: the .NET section from unit-tests, then MedApp.Web's from its summary.
+  coverage-comment:
+    needs: [web, unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dotnet-coverage-comment
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-coverage
+          path: web-coverage
+
+      - name: Add MedApp.Web coverage
+        run: |
+          python3 << 'EOF'
+          import json
+
+          summary = json.load(open('web-coverage/coverage-summary.json'))
+          total = summary.pop('total')
+
+          def pct(metric):
+              return f"{metric['pct']:.1f}% ({metric['covered']} of {metric['total']})"
+
+          rows = sorted(
+              ((path.split('MedApp.Web/', 1)[-1], m['lines']['pct'], m['branches']['pct'])
+               for path, m in summary.items() if m['lines']['pct'] < 80),
+              key=lambda r: r[1])
+
+          with open('coverage-details.md', 'a', encoding='utf-8') as f:
+              f.write("\n## 🌐 MedApp.Web Coverage\n\n")
+              f.write("|||\n|:---|:---|\n")
+              f.write(f"| **Line coverage:** | {pct(total['lines'])} |\n")
+              f.write(f"| **Branch coverage:** | {pct(total['branches'])} |\n")
+              f.write(f"| **Function coverage:** | {pct(total['functions'])} |\n")
+              f.write(f"| **Statement coverage:** | {pct(total['statements'])} |\n\n")
+              f.write(f"<details><summary>{len(rows)} files below 80%</summary>\n\n")
+              f.write("|**File**|**Line**|**Branch**|\n|:---|---:|---:|\n")
+              if rows:
+                  for path, line, branch in rows:
+                      f.write(f"|`{path}`|{line:.1f}%|{branch:.1f}%|\n")
+              else:
+                  f.write("|*All files above 80% coverage!* 🎉|-|-|\n")
+              f.write("\n</details>\n")
+          EOF
+
       - name: Comment PR with coverage summary
         uses: marocchino/sticky-pull-request-comment@v2
         with:

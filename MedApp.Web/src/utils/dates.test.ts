@@ -1,4 +1,4 @@
-import {ageOn, formatDate, todayIso} from './dates';
+import {ageOn, formatDate, formatShortDate, todayIso} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -29,5 +29,9 @@ describe('formatDate', () => {
 
   it('returns anything else unchanged', () => {
     expect(formatDate('14/03/1980')).toBe('14/03/1980');
+  });
+
+  it('has a short form for tables', () => {
+    expect(formatShortDate('1976-12-01')).toBe('1 Dec 1976');
   });
 });

@@ -27,7 +27,7 @@ public sealed class DemoDataTools
     private static readonly Guid MissingDefinitionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     [McpServerTool(Name = "reset_demo_data", Destructive = true)]
-    [Description("WIPES all patients, procedures, stage definitions and templates, sessions, and every account except the kept ones (default: the protected accounts plus parity-admin). Then it fills the app with plausible synthetic data: 6 staff accounts, 60 patients, 8 stage definitions, 3 templates and about 80 procedures in every status. It saves a 'pre-reset-<timestamp>' snapshot first. Needs confirm: true. The same seed gives the same data.")]
+    [Description("WIPES all patients, procedures, stage definitions and templates, sessions, and every account except the kept ones (default: the protected accounts plus parity-admin). Then it makes sure the local test login admin / admin exists (see ensure_test_admin) and fills the app with plausible synthetic data: 6 staff accounts, 60 patients, 8 stage definitions, 3 templates and about 80 procedures in every status. It saves a 'pre-reset-<timestamp>' snapshot first. Needs confirm: true. The same seed gives the same data.")]
     public static async Task<object> ResetDemoData(
         IMediator mediator,
         MedAppDbContext db,
@@ -51,6 +51,7 @@ public sealed class DemoDataTools
                 Guards.Check(await roles.CreateAsync(new IdentityRole<Guid>(role)), $"Create role {role}");
 
         var removedUsers = await Wipe(db, users, keep, ct);
+        await TestAdminTools.EnsureTestAdmin(users, roles, ct);
         var random = new Random(seed);
         var now = DateTime.UtcNow;
 
@@ -67,6 +68,7 @@ public sealed class DemoDataTools
             seed,
             snapshotBeforeReset = snapshot,
             keptUsers = keep,
+            testLogin = new { username = TestAdminTools.Username, password = TestAdminTools.Password },
             removedUsers,
             staff = staff.Select(s => new { s.Username, roles = s.IsAdmin ? new[] { "Admin", "User" } : ["User"], s.Password }),
             patients = patientIds.Count,

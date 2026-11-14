@@ -1,7 +1,7 @@
 {
   "name": "medapp-ui-parity",
   "private": true,
-  "description": "Captures screenshots of the same screens in the Blazor (MedApp.Client) and React (MedApp.Web) apps for side-by-side comparison during the migration. Not an E2E test suite.",
+  "description": "Captures screenshots of the same screens in the React app (MedApp.Web) and, optionally, the deprecated Blazor app, for side-by-side comparison. Not an E2E test suite.",
   "scripts": {
     "parity": "playwright test",
     "parity:blazor": "playwright test --project=blazor",

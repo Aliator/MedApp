@@ -156,6 +156,7 @@ public sealed class AuthController(
     
     [HttpPut("users/{username}/reset-password")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [Tags("Authentication")]
     public async Task<IActionResult> ResetUserPassword(string username)
     {
