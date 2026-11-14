@@ -8,7 +8,9 @@ using ModelContextProtocol;
 
 namespace MedApp.DevMcp;
 
-public sealed record DevMcpOptions(IReadOnlyCollection<string> ProtectedUsers, string BackupDirectory)
+/// <param name="BackupDirectory">Where snapshot files live on this machine.</param>
+/// <param name="ServerBackupDirectory">The same folder as the SQL container sees it (unused for LocalDB).</param>
+public sealed record DevMcpOptions(IReadOnlyCollection<string> ProtectedUsers, string BackupDirectory, string? ServerBackupDirectory)
 {
     public bool IsProtected(string username) =>
         ProtectedUsers.Contains(username, StringComparer.OrdinalIgnoreCase);
@@ -24,7 +26,8 @@ public sealed record DevGuard(string ConnectionString, string Server, string Dat
     public static DevGuard Check(IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not set.");
+            ?? throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection is not set, and there's no SQL container password in the AppHost's user secrets. Run the AppHost once (dotnet run --project MedApp.AppHost) so Aspire creates it.");
         var csb = new SqlConnectionStringBuilder(connectionString);
         if (!LocalServer.IsMatch(csb.DataSource.Trim()))
             throw new InvalidOperationException(

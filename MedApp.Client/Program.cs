@@ -11,7 +11,8 @@ builder.Services.AddScoped<CredentialHandler>();
 builder.Services.AddScoped(sp =>
     new HttpClient(sp.GetRequiredService<CredentialHandler>())
     {
-        BaseAddress = new Uri("https://localhost:44305/")
+        // The API's https launch-profile port, which the Aspire AppHost keeps fixed.
+        BaseAddress = new Uri("https://localhost:7038/")
     });
 
 builder.Services.AddScoped<AuthState>();

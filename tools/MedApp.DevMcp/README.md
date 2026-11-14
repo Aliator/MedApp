@@ -9,7 +9,9 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 
 ## Safety
 
-- **Local database only.** It reads the API's `appsettings.json` and `appsettings.Development.json` (plus environment variables), and **refuses to start** unless `ConnectionStrings:DefaultConnection` points at LocalDB or a localhost SQL Server.
+- **Local database only.** It **refuses to start** unless the database is LocalDB or a localhost SQL Server.
+  - By default it connects to the Aspire AppHost's SQL container, using the connection string in `devmcp.json` (`DevMcp:SqlContainer`) and the `sa` password from the AppHost's user secrets. So the AppHost must have run once, and the container must be running (it's persistent, so it usually is).
+  - A `ConnectionStrings:DefaultConnection` in the API's `appsettings*.json` or an environment variable takes precedence.
 - **Protected accounts.** Accounts listed in `devmcp.json` → `DevMcp:ProtectedUsers` (default `admin`) can't be deleted, have their password changed, or lose roles.
 - **Destructive tools** (`delete_user`, `delete_patient`, `restore_snapshot`) do nothing unless called with `confirm: true`.
 - **`restore_snapshot`** first saves the current database as `pre-restore-<timestamp>`.
@@ -24,7 +26,7 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 | Accounts | `list_users`, `list_roles`, `create_user`, `set_password`, `set_roles`, `unlock_user`, `delete_user` |
 | Sessions | `list_sessions`, `revoke_sessions` (sign an account out everywhere) |
 | Patients | `list_patients`, `create_patient`, `seed_patients`, `delete_patient` |
-| Snapshots | `save_snapshot`, `list_snapshots`, `restore_snapshot` (whole-database backup/restore; LocalDB only, files in the git-ignored `.backups/`) |
+| Snapshots | `save_snapshot`, `list_snapshots`, `restore_snapshot` (whole-database backup/restore, files in the git-ignored `.backups/`; the AppHost bind-mounts that folder into the SQL container at `/var/opt/mssql/backups`) |
 | Demo data | `reset_demo_data` (needs `confirm: true`) |
 
 `reset_demo_data` saves a `pre-reset-<timestamp>` snapshot first.

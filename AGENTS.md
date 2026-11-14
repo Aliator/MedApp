@@ -15,13 +15,19 @@ dotnet build MedApp.sln                     # build everything
 dotnet test MedApp.UnitTests                # the only project with tests (CI runs this)
 dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run a subset
 
-dotnet run --project MedApp.API --launch-profile https       # API + Swagger at /swagger
-dotnet run --project MedApp.Client --launch-profile https    # Blazor client at https://localhost:7292
+dotnet run --project MedApp.AppHost         # everything (needs Docker running): SQL Server container, API, Blazor client, Aspire dashboard
+#   API + Swagger:  https://localhost:7038/swagger
+#   Blazor client:  https://localhost:7292
+#   Dashboard:      the login URL the command prints
 
 # EF Core migrations (dotnet-ef 10.x is installed as a global tool)
 dotnet ef migrations add <Name> --project MedApp.Infrastructure --startup-project MedApp.API
-dotnet ef database update      --project MedApp.Infrastructure --startup-project MedApp.API
 dotnet ef migrations has-pending-model-changes --project MedApp.Infrastructure --startup-project MedApp.API   # model and snapshot in sync?
+
+# Applying migrations to the dev database (the AppHost's SQL container) needs its connection string.
+# The sa password is in the AppHost's user secrets.
+PW=$(dotnet user-secrets list --project MedApp.AppHost | sed -n 's/^Parameters:sql-password = //p')
+dotnet ef database update --project MedApp.Infrastructure --startup-project MedApp.API --connection "Server=127.0.0.1,14330;Database=MedApp;User ID=sa;Password=$PW;TrustServerCertificate=True"
 ```
 
 See [Migrations](#migrations) before adding or applying one.
@@ -30,7 +36,7 @@ Before you call a change done, `dotnet build MedApp.sln` must succeed with no ne
 
 ## Solution layout
 
-Dependencies point inward: `API → Application → Domain` and `Infrastructure → Application`.
+Dependencies point inward: `API → Application → Domain` and `Infrastructure → Application`. `MedApp.AppHost` sits outside that and references the apps it runs.
 
 | Project | Responsibility |
 |---|---|
@@ -40,6 +46,8 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repository implementations, Identity and session services, and migrations. |
 | `MedApp.API` | Thin controllers, the session auth handler, exception middleware and CORS. |
 | `MedApp.Client` | Blazor WASM UI. It references only `Contracts` and talks to the API over `HttpClient`. |
+| `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the Blazor client. |
+| `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive` in Development), used by the API. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators and Infrastructure services. |
 | `MedApp.IntegrationTests`, `MedApp.E2ETests` | Empty project shells, with no tests yet. |
 
@@ -92,7 +100,7 @@ Handlers map Domain entities to `Contracts` responses by hand, with inline `new 
 - **Always read the scaffolded migration before keeping it.** EF can't detect renames of entities or of properties used as keys, so it scaffolds a rename as `DropTable` + `CreateTable`, which deletes the data. When `migrations add` warns that "An operation was scaffolded that may result in the loss of data", rewrite `Up` and `Down` by hand. Drop the keys and foreign keys whose names change, then call `RenameTable`, `RenameColumn` and `RenameIndex`, then re-add the keys and foreign keys with the same `onDelete` behaviour. `RenamedTasksToProcedures` is the reference example.
 - After editing a migration, `has-pending-model-changes` must report no changes. Otherwise the snapshot and the model disagree.
 - Test a non-trivial migration up **and** down against a throwaway LocalDB database, not the dev `MedApp` database. Pass `--connection "Server=(localdb)\MSSQLLocalDB;Database=MedApp_MigrationTest;Trusted_Connection=True;TrustServerCertificate=True"` to `dotnet ef database update`, seed synthetic rows, apply the migration, roll back with `database update <PreviousMigration>`, then drop the database.
-- Applying a migration to someone's local `MedApp` database changes their data, so do it only when asked, and take a `BACKUP DATABASE ... WITH COPY_ONLY` first.
+- Applying a migration to someone's local `MedApp` database changes their data, so do it only when asked, and take a `medapp-dev` `save_snapshot` first.
 
 ### Auth
 
@@ -137,16 +145,19 @@ The Blazor UI is being replaced by a React app, `MedApp.Web`; see `docs/react-mi
 - snapshot and restore the whole local database
 - reset everything to the standard synthetic demo data set (`reset_demo_data`)
 
-It only runs against a local database. It protects `admin`, and destructive tools need `confirm: true`.
+It only runs against a local database: by default the AppHost's SQL container, using the password from the AppHost's user secrets, so the AppHost must have run once. It protects `admin`, and destructive tools need `confirm: true`.
 - **Before a destructive experiment:** take a `save_snapshot`.
 - **Build it first:** `dotnet build tools/MedApp.DevMcp`, because `.mcp.json` runs it with `--no-build`.
 - **Docs:** see `tools/MedApp.DevMcp/README.md`.
 
 ## Local dev gotchas
 
-- The connection string points at `(localdb)\MSSQLLocalDB`, database `MedApp`, so local runs need Windows LocalDB.
-- The client's `HttpClient.BaseAddress` is hard-coded to `https://localhost:44305/` in `MedApp.Client/Program.cs`, which is the API's **IIS Express** SSL port. The API's Kestrel `https` profile listens on `7038`. When you run the API with `dotnet run`, the client won't reach it unless you change one side to match. Without changing code, `dotnet run --project MedApp.API --launch-profile https --urls "https://localhost:44305"` makes them match.
-- Build before running both apps, then use `dotnet run --no-build`. Two `dotnet run`s building at once fail with a file lock on `MedApp.Contracts.dll`.
+- **Docker Desktop must be running.** The dev database is SQL Server 2022 in a container started by the AppHost, with its data in the `medapp-sql-data` volume, on host port `14330` (bound to `127.0.0.1`).
+  - The container is **persistent**: it keeps running after the AppHost stops, so `dotnet ef` and `medapp-dev` can still reach it. `docker stop` it to free memory; the next AppHost run starts it again.
+  - Aspire generated the `sa` password on the first run and keeps it in the AppHost's user secrets (`Parameters:sql-password`). The volume only opens with that password, so don't delete or change it.
+- The API's `appsettings*.json` have **no connection string**: the AppHost injects `ConnectionStrings__DefaultConnection`. Running the API on its own needs that variable set.
+- **An empty database** (a new volume) isn't migrated at startup. Apply the migrations with the command under [Commands](#commands), then load the demo data with `medapp-dev`'s `reset_demo_data`.
+- The client's `HttpClient.BaseAddress` is hard-coded to `https://localhost:7038/` in `MedApp.Client/Program.cs`, the API's `https` launch-profile port, which the AppHost keeps fixed.
 - Kestrel's `https` profiles need the ASP.NET Core dev certificate. If startup fails with "the default developer certificate could not be found", run `dotnet dev-certs https`.
 - API CORS only allows `https://localhost:7292`, the client's `https` profile.
 - Session cookies are `Secure` with `SameSite=None` only in Production/Staging. In Development they are `SameSite=Lax`.

@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MedApp.API\MedApp.API.csproj" />
+    <ProjectReference Include="..\MedApp.Client\MedApp.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.6.5" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>56d045a8-4da5-4c69-a35c-0f96388e98f6</UserSecretsId>
+  </PropertyGroup>
+
+</Project>
