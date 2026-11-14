@@ -54,4 +54,18 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
   });
+
+  it('says when an account is locked after too many wrong passwords, and for how long', async () => {
+    const message = 'This account is locked after too many wrong passwords. Try again in 5 minutes.';
+    mockFetch(() => json({title: message, status: 423}, 423));
+    const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'wrong');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
+  });
 });

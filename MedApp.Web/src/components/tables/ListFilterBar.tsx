@@ -3,7 +3,7 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {PowerSearch, type PowerSearchConfig, type PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
-import {useMemo, type CSSProperties} from 'react';
+import {useEffect, useMemo, useRef, type CSSProperties} from 'react';
 import {AppIcon} from '../shared/icons';
 
 /** A text field the list's API filters by "contains" (e.g. a patient's first name), kept in the URL under `key`. */
@@ -231,9 +231,11 @@ export function valuesFrom(fields: ListFilterField[], filters: readonly PowerSea
 export function ListFilterBar({fields, values, onChange, label, placeholder, textKey, favourites}: ListFilterBarProps) {
   const config = useMemo(() => configFor(fields, textKey), [fields, textKey]);
   const filters = filtersFrom(fields, values);
+  const bar = useRef<HTMLElement>(null);
+  useNoAutofill(bar);
   return (
     // The search fills the row; favourites sit beside it (inside it, a press would open its field list too).
-    <HStack gap={2} vAlign="center" style={NO_FIELD_STATUS_LINE}>
+    <HStack ref={bar} gap={2} vAlign="center" style={NO_FIELD_STATUS_LINE}>
       <StackItem size="fill">
         <PowerSearch
           config={config}
@@ -259,6 +261,41 @@ export function ListFilterBar({fields, values, onChange, label, placeholder, tex
       ) : null}
     </HStack>
   );
+}
+
+/**
+ * What password managers and browsers look for to leave a text box alone: `autocomplete="off"` alone doesn't stop
+ * them filling what looks like a login (e.g. a search of usernames) with a saved one.
+ */
+const NO_AUTOFILL = {
+  autocomplete: 'off',
+  'data-1p-ignore': 'true',
+  'data-lpignore': 'true',
+  'data-bwignore': 'true',
+  'data-form-type': 'other',
+};
+
+/**
+ * Marks every text box in the bar as not for autofill, including those its popups add later (a filter's value
+ * box): PowerSearch has no props for its inputs' attributes.
+ */
+function useNoAutofill(bar: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const root = bar.current;
+    if (!root) return;
+    const mark = () => {
+      for (const input of root.querySelectorAll('input')) {
+        for (const [name, value] of Object.entries(NO_AUTOFILL)) {
+          if (input.getAttribute(name) !== value) input.setAttribute(name, value);
+        }
+      }
+    };
+    mark();
+    if (typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(mark);
+    observer.observe(root, {childList: true, subtree: true});
+    return () => observer.disconnect();
+  }, [bar]);
 }
 
 /** The search never shows an error under it, so the theme's reserved line for one is dropped. */

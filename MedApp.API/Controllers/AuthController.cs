@@ -39,6 +39,7 @@ public sealed class AuthController(
     [Tags("Login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var session = await mediator.Send(

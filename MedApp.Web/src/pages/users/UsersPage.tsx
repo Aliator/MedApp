@@ -176,6 +176,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               value={newUsername}
               onChange={setNewUsername}
               placeholder="Enter username"
+              // A new account's name: never a saved login.
+              autoComplete="off"
               description={`Default password will be: ${DEFAULT_NEW_USER_PASSWORD}`}
               isRequired
               hasAutoFocus
@@ -263,19 +265,27 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               <MetadataList>
                 <MetadataListItem label="User">{target?.username}</MetadataListItem>
               </MetadataList>
-              <TextInput
-                label="Your password"
-                type="password"
-                value={deletePassword}
-                onChange={(value) => {
-                  setDeletePassword(value);
-                  setDeleteProblem(null);
-                }}
-                autoComplete="current-password"
-                isRequired
-                hasAutoFocus
-                status={deleteProblem ? {type: 'error', message: deleteProblem} : undefined}
-              />
+              {/* Only while it's open: a password box in the page (closed dialogs stay in it) makes browsers take the
+                  page for a login and fill the list's search with a saved username. Beside it, the signed-in
+                  user's name, hidden, so a password manager pairs the password with that, not with another box. */}
+              {dialog?.kind === 'delete' && (
+                <>
+                  <input type="text" name="username" autoComplete="username" value={me.username} readOnly hidden />
+                  <TextInput
+                    label="Your password"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(value) => {
+                      setDeletePassword(value);
+                      setDeleteProblem(null);
+                    }}
+                    autoComplete="current-password"
+                    isRequired
+                    hasAutoFocus
+                    status={deleteProblem ? {type: 'error', message: deleteProblem} : undefined}
+                  />
+                </>
+              )}
             </VStack>
           </ConfirmDialog>
         </>
@@ -296,13 +306,14 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           search={
             <ListFilterBar
               fields={[
-                {kind: 'text', key: 'username', label: 'Username'},
+                // Not "Username": browsers take a box named that for a login, and fill in a saved one.
+                {kind: 'text', key: 'username', label: 'User'},
                 {kind: 'choice', key: 'role', label: 'Role', options: allRoles.map((r) => ({value: r, label: r})), isMultiple: true},
               ]}
               values={search}
               onChange={(values) => onSearchChange({...search, ...values, page: undefined})}
               label="Search users"
-              placeholder="Search users by username, or filter by role..."
+              placeholder="Search users by name, or filter by role..."
               textKey="username"
               favourites={[
                 {label: 'Admins', values: {role: 'Admin'}},

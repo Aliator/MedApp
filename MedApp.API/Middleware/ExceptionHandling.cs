@@ -35,6 +35,10 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status401Unauthorized, ex.Message);
         }
+        catch (AccountLockedOutException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status423Locked, ex.Message);
+        }
     }
 
     private static async Task WriteValidationProblem(

@@ -107,7 +107,7 @@ describe('UsersPage', () => {
   it('shows the search as tokens, and the Admins favourite filters by role, starting on page 1', async () => {
     const {user, onSearchChange} = renderUsers({page: 2, username: 'hart'});
 
-    await waitFor(() => expect(searchBar()).toHaveTextContent(/Username: contains\s*hart/));
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/User: contains\s*hart/));
     await pickFavourite(user, 'Admins');
 
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({role: 'Admin', username: undefined, page: undefined}));
