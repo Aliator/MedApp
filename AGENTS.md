@@ -116,10 +116,21 @@ Handlers map Domain entities to `Contracts` responses by hand, with inline `new 
 - Pages call the API with the injected `HttpClient` and the `Contracts` DTOs. They handle 400 responses by deserialising `ValidationErrorResponse` into `AlertMessage`. `Pages/Patients/EditPatient.razor.cs` is the reference example.
 - `AuthState` caches the result of `api/auth/whoami`. `CredentialHandler` makes every request send the session cookie.
 
+### UI parity screenshots (during the React migration)
+
+The Blazor UI is being replaced by a React app, `MedApp.Web`; see `docs/react-migration-plan.md`. `tools/ui-parity/` is a Playwright tool that screenshots the same 17 screens in both apps, and writes `tools/ui-parity/report.html` with each pair side by side. It's a development aid, not E2E tests: `MedApp.E2ETests` stays empty.
+
+- **When you port or change a page or shared component:** with the apps running, run `npm run parity` in `tools/ui-parity`. Then open the affected screens' `blazor.png` / `react.png` and compare them before calling the work done.
+- Mention any visible differences that aren't deliberate (see the plan's decided changes) to the user.
+- **New screens or states** go in `tools/ui-parity/screens.ts`. Never make a screen confirm a destructive action; only open the dialog.
+- **Credentials** live in the git-ignored `tools/ui-parity/.env`; never commit them. Setup and run steps are in `tools/ui-parity/README.md`.
+
 ## Local dev gotchas
 
 - The connection string points at `(localdb)\MSSQLLocalDB`, database `MedApp`, so local runs need Windows LocalDB.
-- The client's `HttpClient.BaseAddress` is hard-coded to `https://localhost:44305/` in `MedApp.Client/Program.cs`, which is the API's **IIS Express** SSL port. The API's Kestrel `https` profile listens on `7038`. When you run the API with `dotnet run`, the client won't reach it unless you change one side to match.
+- The client's `HttpClient.BaseAddress` is hard-coded to `https://localhost:44305/` in `MedApp.Client/Program.cs`, which is the API's **IIS Express** SSL port. The API's Kestrel `https` profile listens on `7038`. When you run the API with `dotnet run`, the client won't reach it unless you change one side to match. Without changing code, `dotnet run --project MedApp.API --launch-profile https --urls "https://localhost:44305"` makes them match.
+- Build before running both apps, then use `dotnet run --no-build`. Two `dotnet run`s building at once fail with a file lock on `MedApp.Contracts.dll`.
+- Kestrel's `https` profiles need the ASP.NET Core dev certificate. If startup fails with "the default developer certificate could not be found", run `dotnet dev-certs https`.
 - API CORS only allows `https://localhost:7292`, the client's `https` profile.
 - Session cookies are `Secure` with `SameSite=None` only in Production/Staging. In Development they are `SameSite=Lax`.
 
