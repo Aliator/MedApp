@@ -7,7 +7,6 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {HStack} from '@astryxdesign/core/Stack';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Token} from '@astryxdesign/core/Token';
-import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useMemo, useState, type ReactNode} from 'react';
@@ -17,7 +16,7 @@ import {stageDefinitionsQuery, templateQuery, useSaveTemplate, type StageDefinit
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
-import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
+import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -77,7 +76,7 @@ export function TemplateEditorPage({id}: {id?: string}) {
  */
 function TemplateEditor({template, definitions}: {template: ProcedureTemplate | null; definitions: StageDefinition[]}) {
   const navigate = useNavigate();
-  const isNarrow = useMediaQuery(NARROW_WINDOW_QUERY);
+  const isNarrow = useIsNarrow();
   const save = useSaveTemplate();
   const [name, setName] = useState(template?.name ?? '');
   const [stages, setStages] = useState<StageRow[]>(() => (template?.stageDefinitionIdsInOrder ?? []).map(row));

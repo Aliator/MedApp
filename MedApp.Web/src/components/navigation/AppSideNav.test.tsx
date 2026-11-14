@@ -1,4 +1,4 @@
-import {screen, waitFor} from '@testing-library/react';
+import {act, screen, waitFor} from '@testing-library/react';
 import {adminUser, isDisabled, json, mockApi, mockFetch, renderWithApp, staffUser} from '../../test/render';
 import {AppSideNav, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {pinsKey} from './pins';
@@ -137,9 +137,12 @@ describe('AppSideNav pinned patients', () => {
     return renderWithApp(<AppSideNav />, {user: staffUser, path});
   }
 
-  it('pins the open patient', async () => {
+  it('pins the open patient, from a button shown while the row is hovered', async () => {
     const {user} = renderAt(`/patients/${patientId}`);
 
+    const row = await screen.findByRole('link', {name: 'Freya Ahmed'});
+    expect(screen.queryByRole('button', {name: 'Pin Freya Ahmed'})).not.toBeInTheDocument();
+    await user.hover(row);
     await user.click(await screen.findByRole('button', {name: 'Pin Freya Ahmed'}));
 
     expect(screen.getByRole('button', {name: 'Unpin Freya Ahmed'})).toBeInTheDocument();
@@ -165,6 +168,7 @@ describe('AppSideNav pinned patients', () => {
   it('unpins a patient, who then goes when their pages are not open', async () => {
     const {user} = renderAt('/procedures', [patientId]);
 
+    await user.hover(await screen.findByRole('link', {name: 'Freya Ahmed'}));
     await user.click(await screen.findByRole('button', {name: 'Unpin Freya Ahmed'}));
 
     expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
@@ -172,9 +176,14 @@ describe('AppSideNav pinned patients', () => {
   });
 
   it('stops pinning at five, saying why', async () => {
-    const five = ['p1', 'p2', 'p3', 'p4', 'p5'].map((n) => `${n}000000-0000-4000-8000-000000000000`.slice(0, 36));
+    const five = ['1', '2', '3', '4', '5'].map((n) => `d000000${n}-0000-4000-8000-000000000000`);
+    // They exist, so they stay pinned.
+    five.forEach((id, i) => (patients[id] = ['Test', `Patient ${i + 1}`]));
     renderAt(`/patients/${patientId}`, five);
 
+    // Keyboard focus shows a row's buttons too, so they can be reached with Tab.
+    const row = await screen.findByRole('link', {name: 'Freya Ahmed'});
+    act(() => row.focus());
     const pin = await screen.findByRole('button', {name: /you can pin up to 5 patients/i});
     expect(isDisabled(pin)).toBe(true);
   });

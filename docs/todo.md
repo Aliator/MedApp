@@ -26,14 +26,6 @@ Smaller improvements to pick up later, outside the phased plans (`docs/procedure
   - **Cards** should still stand apart from the page background, as they do in dark mode: darker than the bright background.
   - **Where:** colours are tokens in `src/themes/medapp/medappTheme.ts` (each a [light, dark] pair). Rebuild with `npm run theme:build`. Check every page in light mode with the UI parity screenshots.
 
-## Navigation
-
-- **Add a half view, to see a patient and a procedure (or two of either) side by side.**
-  - **Today:** one page fills the content area. Comparing a patient with one of their procedures means going back and forth, though pins in the side nav make that quicker.
-  - **Instead:** a half-view button on the side nav's patient and procedure items (the opened and pinned ones) opens that page in a second pane beside the current one. Each pane is a page in its own right with its own Back, and either can be closed to return to one full page.
-  - **Layout:** each pane gets half the content width, and uses the pages' narrow layouts (`NARROW_WINDOW_QUERY` in `Page.tsx` today goes by the window, so the panes need to go by their own width instead). Keep both panes in the URL, so a reload or a shared link opens the same pair.
-  - **Tests and screenshots:** tests for opening, swapping and closing a pane, and a `tools/ui-parity/screens.ts` screen of a patient beside a procedure.
-
 ## Backend
 
 - **Decide how Domain entities are mapped to API responses, then apply it everywhere.**

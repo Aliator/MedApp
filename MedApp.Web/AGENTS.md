@@ -22,6 +22,7 @@ Guidance for AI coding agents working in `MedApp.Web`, the React app replacing t
     - `ProcedureCells`: status, priority, due and progress cells.
     - `TextCell`: plain text in a table cell, kept to its lines.
     - `SetupCells`: the Active/Archived token and name cells of the stage definitions and templates lists.
+  - **Half views** (`src/components/pages/halfView.tsx`, `AppLayout`): every side nav item has a button (shown on hover, like the pin) that opens its page beside the current one, each in its narrow layout, with the nav folded away. A page with a narrow layout asks `useIsNarrow()` (narrow window or half view), never the window query directly. The second page runs in a router of its own, so its links and Back stay in its half.
   - Keep state that should survive a layout change (what's open or folded) in the page and pass it in, as the procedure page does, rather than inside each collapsible.
 - **List pages** fill the window: `Page` with `fill`, and `DataTable` stretches to the bottom with its page controls pinned there. They keep page, sort and filters in the URL: the route parses them with `validateSearch` (`src/pages/listSearch.ts`), then passes `search` and `onSearchChange` to the page as props, so pages are testable without the real router. Lists come from the API's paged search endpoints (`src/api/search.ts`).
 - **Data:** TanStack Query. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Call the API through `api` + `unwrap` from `src/api/client.ts`.

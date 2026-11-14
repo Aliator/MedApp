@@ -6,7 +6,6 @@ import {MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Section} from '@astryxdesign/core/Section';
 import {ProgressBar} from '@astryxdesign/core/ProgressBar';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
-import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
@@ -24,7 +23,7 @@ import {userSearchQuery} from '../../api/search';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
-import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
+import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
 import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../components/procedures/ProcedureCells';
@@ -62,7 +61,7 @@ export const NOT_ASSIGNED_MESSAGE = 'This procedure is not assigned to you, are 
  * it isn't assigned to you, the first change of the visit asks you to confirm.
  */
 export function ProcedurePage({id}: {id: string}) {
-  const isNarrow = useMediaQuery(NARROW_WINDOW_QUERY, false);
+  const isNarrow = useIsNarrow();
   return <ProcedureView id={id} isNarrow={isNarrow} />;
 }
 

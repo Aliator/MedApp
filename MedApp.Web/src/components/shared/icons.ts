@@ -28,6 +28,7 @@ import {
   RiInboxUnarchiveLine,
   RiInformationLine,
   RiKeyLine,
+  RiLayoutColumnLine,
   RiListCheck3,
   RiLockLine,
   RiLogoutBoxRLine,
@@ -115,4 +116,6 @@ export const AppIcon = {
   AuditLog: remix(RiHistoryLine),
   Archive: remix(RiArchiveLine),
   Restore: remix(RiInboxUnarchiveLine),
+  // Half views: two pages side by side
+  HalfView: remix(RiLayoutColumnLine),
 } as const satisfies Record<string, IconType>;

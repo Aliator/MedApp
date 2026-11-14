@@ -8,7 +8,7 @@ import {patientQuery} from '../../api/patients';
 import type {ProcedureSummary} from '../../api/procedures';
 import {PAGE_SIZE, procedureSearchQuery} from '../../api/search';
 import {SearchDialog, type SearchField, type SearchValues} from '../../components/modals/SearchDialog';
-import {Page} from '../../components/pages/Page';
+import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
   AssigneesCell,
   DueDateCell,
@@ -130,7 +130,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
     setIsSearchOpen(false);
   };
 
-  const columns: DataTableColumn<ProcedureRow>[] = [
+  const allColumns: DataTableColumn<ProcedureRow>[] = [
     {
       key: 'Procedure',
       header: 'Procedure',
@@ -172,6 +172,9 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       renderCell: (p) => <ProcedureActions id={p.id ?? ''} patientId={patientId ? undefined : (p.patientId ?? '')} />,
     },
   ];
+  // Narrow (a narrow window or a half view), the table drops the current stage and the assignees to fit.
+  const isNarrow = useIsNarrow();
+  const columns = isNarrow ? allColumns.filter((c) => c.key !== 'stage' && c.key !== 'assigned') : allColumns;
 
   const noun = (n: number) => (n === 1 ? 'procedure' : 'procedures');
   const subtitle = isPending

@@ -1,8 +1,10 @@
 import {Center} from '@astryxdesign/core/Center';
+import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Layout, LayoutContent} from '@astryxdesign/core/Layout';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {StackItem, VStack} from '@astryxdesign/core/Stack';
 import type {ReactNode} from 'react';
+import {useHalfView} from './halfView';
 import {PageHeader, type PageHeaderProps} from './PageHeader';
 
 export interface PageProps extends PageHeaderProps {
@@ -36,6 +38,15 @@ export const PAGE_MAX_WIDTH = 1600;
  * time or stack them instead.
  */
 export const NARROW_WINDOW_QUERY = '(max-width: 1399px)';
+
+/**
+ * Whether a page should use its narrow layout: in a narrow window, or in a half view (two pages side by side).
+ * Pages with two columns ask this rather than the window.
+ */
+export function useIsNarrow(): boolean {
+  const isNarrowWindow = useMediaQuery(NARROW_WINDOW_QUERY, false);
+  return useHalfView().isHalf || isNarrowWindow;
+}
 
 export function Page({
   isLoading = false,
