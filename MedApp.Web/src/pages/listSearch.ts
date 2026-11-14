@@ -4,6 +4,8 @@
  * dropping anything invalid, so a bad link shows the default list rather than an error.
  */
 
+import {AUDIT_ACTIONS, type AuditAction} from '../api/audit';
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function text(value: unknown): string | undefined {
@@ -219,3 +221,50 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
 
 export const hasProcedureFilters = (s: ProceduresListSearch) =>
   Boolean(s.q || s.status || s.priority || s.overdue || s.mine || s.closed || s.dueFrom || s.dueTo);
+
+// Procedure setup (admin): stage definitions and templates --------------------------------------------
+
+/** The stage definitions and templates lists: the page, and whether archived ones show too. */
+export interface SetupListSearch {
+  page?: number;
+  /** Show archived ones as well (hidden by default). */
+  archived?: boolean;
+}
+
+export function parseSetupSearch(raw: Record<string, unknown>): SetupListSearch {
+  return compact({page: page(raw.page), archived: flag(raw.archived)});
+}
+
+// The audit log (admin) -------------------------------------------------------------------------------
+
+
+/** The audit log: page, order (newest first unless `asc`) and filters. */
+export interface AuditListSearch {
+  page?: number;
+  /** Oldest first. */
+  asc?: boolean;
+  /** Matches the procedure title, stage name or username. */
+  q?: string;
+  action?: AuditAction;
+  /** One procedure's entries, e.g. from its page's View Audit Log. */
+  procedureId?: string;
+  from?: string;
+  to?: string;
+}
+
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch {
+  const procedureId = text(raw.procedureId);
+  return compact({
+    page: page(raw.page),
+    asc: bool(raw.asc),
+    q: text(raw.q),
+    action: oneOf(raw.action, AUDIT_ACTIONS),
+    procedureId: procedureId && GUID.test(procedureId) ? procedureId : undefined,
+    from: date(raw.from),
+    to: date(raw.to),
+  });
+}
+
+export const hasAuditFilters = (s: AuditListSearch) => Boolean(s.q || s.action || s.procedureId || s.from || s.to);

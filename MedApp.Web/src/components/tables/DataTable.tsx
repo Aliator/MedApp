@@ -108,6 +108,8 @@ export function DataTable<T extends Record<string, unknown>>({
     onSortChange: (next) => {
       const first = next[0];
       if (first) onSortChange?.({column: first.sortKey, ascending: first.direction === 'ascending'});
+      // Astryx goes from descending to unsorted; a list always has an order, so that click goes back to ascending.
+      else if (sort) onSortChange?.({column: sort.column, ascending: true});
     },
   });
   const plugins = useMemo(() => (onSortChange ? {sortable} : undefined), [onSortChange, sortable]);

@@ -236,6 +236,14 @@ export function AppSideNav() {
       {user.isAdmin && (
         <SideNavSection title="Administration">
           <SideNavItem label="Users" icon={AppIcon.Users} href="/admin/users" isSelected={isAt('/admin/users')} />
+          <SideNavItem
+            label="Stage Definitions"
+            icon={AppIcon.StageDefinitions}
+            href="/admin/stages"
+            isSelected={isAt('/admin/stages')}
+          />
+          <SideNavItem label="Templates" icon={AppIcon.Templates} href="/admin/templates" isSelected={isAt('/admin/templates')} />
+          <SideNavItem label="Audit Log" icon={AppIcon.AuditLog} href="/admin/audit" isSelected={isAt('/admin/audit')} />
         </SideNavSection>
       )}
     </SideNav>

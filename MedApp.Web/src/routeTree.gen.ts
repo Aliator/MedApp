@@ -13,11 +13,16 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
 import { Route as AppProceduresIndexRouteImport } from './routes/_app/procedures/index'
 import { Route as AppProceduresNewRouteImport } from './routes/_app/procedures/new'
+import { Route as AppAdminTemplatesIndexRouteImport } from './routes/_app/admin/templates/index'
+import { Route as AppAdminTemplatesIdRouteImport } from './routes/_app/admin/templates/$id'
+import { Route as AppAdminTemplatesNewRouteImport } from './routes/_app/admin/templates/new'
 import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$id/index'
 import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
 import { Route as AppPatientsIdProceduresRouteImport } from './routes/_app/patients/$id/procedures'
@@ -43,6 +48,16 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
+  id: '/admin/stages',
+  path: '/admin/stages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -66,6 +81,21 @@ const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
 const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
   id: '/procedures/new',
   path: '/procedures/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminTemplatesIndexRoute = AppAdminTemplatesIndexRouteImport.update({
+  id: '/admin/templates/',
+  path: '/admin/templates/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminTemplatesIdRoute = AppAdminTemplatesIdRouteImport.update({
+  id: '/admin/templates/$id',
+  path: '/admin/templates/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminTemplatesNewRoute = AppAdminTemplatesNewRouteImport.update({
+  id: '/admin/templates/new',
+  path: '/admin/templates/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPatientsIdIndexRoute = AppPatientsIdIndexRouteImport.update({
@@ -98,14 +128,19 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
+  '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
   '/patients/': typeof AppPatientsIndexRoute
   '/procedures/': typeof AppProceduresIndexRoute
+  '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
+  '/admin/templates/new': typeof AppAdminTemplatesNewRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/procedures/$id/edit': typeof AppProceduresIdEditRoute
+  '/admin/templates/': typeof AppAdminTemplatesIndexRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
   '/procedures/$id/': typeof AppProceduresIdIndexRoute
 }
@@ -113,14 +148,19 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/account': typeof AppAccountRoute
   '/': typeof AppIndexRoute
+  '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
   '/patients': typeof AppPatientsIndexRoute
   '/procedures': typeof AppProceduresIndexRoute
+  '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
+  '/admin/templates/new': typeof AppAdminTemplatesNewRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/procedures/$id/edit': typeof AppProceduresIdEditRoute
+  '/admin/templates': typeof AppAdminTemplatesIndexRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
   '/procedures/$id': typeof AppProceduresIdIndexRoute
 }
@@ -130,14 +170,19 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/account': typeof AppAccountRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/audit': typeof AppAdminAuditRoute
+  '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
   '/_app/procedures/new': typeof AppProceduresNewRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
   '/_app/procedures/': typeof AppProceduresIndexRoute
+  '/_app/admin/templates/$id': typeof AppAdminTemplatesIdRoute
+  '/_app/admin/templates/new': typeof AppAdminTemplatesNewRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/_app/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/_app/procedures/$id/edit': typeof AppProceduresIdEditRoute
+  '/_app/admin/templates/': typeof AppAdminTemplatesIndexRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
   '/_app/procedures/$id/': typeof AppProceduresIdIndexRoute
 }
@@ -147,14 +192,19 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/account'
+    | '/admin/audit'
+    | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
     | '/procedures/new'
     | '/patients/'
     | '/procedures/'
+    | '/admin/templates/$id'
+    | '/admin/templates/new'
     | '/patients/$id/edit'
     | '/patients/$id/procedures'
     | '/procedures/$id/edit'
+    | '/admin/templates/'
     | '/patients/$id/'
     | '/procedures/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -162,14 +212,19 @@ export interface FileRouteTypes {
     | '/login'
     | '/account'
     | '/'
+    | '/admin/audit'
+    | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
     | '/procedures/new'
     | '/patients'
     | '/procedures'
+    | '/admin/templates/$id'
+    | '/admin/templates/new'
     | '/patients/$id/edit'
     | '/patients/$id/procedures'
     | '/procedures/$id/edit'
+    | '/admin/templates'
     | '/patients/$id'
     | '/procedures/$id'
   id:
@@ -178,14 +233,19 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/account'
     | '/_app/'
+    | '/_app/admin/audit'
+    | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/patients/add'
     | '/_app/procedures/new'
     | '/_app/patients/'
     | '/_app/procedures/'
+    | '/_app/admin/templates/$id'
+    | '/_app/admin/templates/new'
     | '/_app/patients/$id/edit'
     | '/_app/patients/$id/procedures'
     | '/_app/procedures/$id/edit'
+    | '/_app/admin/templates/'
     | '/_app/patients/$id/'
     | '/_app/procedures/$id/'
   fileRoutesById: FileRoutesById
@@ -225,6 +285,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/audit': {
+      id: '/_app/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AppAdminAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/stages': {
+      id: '/_app/admin/stages'
+      path: '/admin/stages'
+      fullPath: '/admin/stages'
+      preLoaderRoute: typeof AppAdminStagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/users': {
       id: '/_app/admin/users'
       path: '/admin/users'
@@ -258,6 +332,27 @@ declare module '@tanstack/react-router' {
       path: '/procedures/new'
       fullPath: '/procedures/new'
       preLoaderRoute: typeof AppProceduresNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/templates/': {
+      id: '/_app/admin/templates/'
+      path: '/admin/templates'
+      fullPath: '/admin/templates/'
+      preLoaderRoute: typeof AppAdminTemplatesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/templates/$id': {
+      id: '/_app/admin/templates/$id'
+      path: '/admin/templates/$id'
+      fullPath: '/admin/templates/$id'
+      preLoaderRoute: typeof AppAdminTemplatesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/templates/new': {
+      id: '/_app/admin/templates/new'
+      path: '/admin/templates/new'
+      fullPath: '/admin/templates/new'
+      preLoaderRoute: typeof AppAdminTemplatesNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/patients/$id/': {
@@ -301,14 +396,19 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
   AppProceduresNewRoute: typeof AppProceduresNewRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
   AppProceduresIndexRoute: typeof AppProceduresIndexRoute
+  AppAdminTemplatesIdRoute: typeof AppAdminTemplatesIdRoute
+  AppAdminTemplatesNewRoute: typeof AppAdminTemplatesNewRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
   AppPatientsIdProceduresRoute: typeof AppPatientsIdProceduresRoute
   AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
+  AppAdminTemplatesIndexRoute: typeof AppAdminTemplatesIndexRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
   AppProceduresIdIndexRoute: typeof AppProceduresIdIndexRoute
 }
@@ -316,14 +416,19 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
   AppProceduresNewRoute: AppProceduresNewRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
   AppProceduresIndexRoute: AppProceduresIndexRoute,
+  AppAdminTemplatesIdRoute: AppAdminTemplatesIdRoute,
+  AppAdminTemplatesNewRoute: AppAdminTemplatesNewRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
   AppPatientsIdProceduresRoute: AppPatientsIdProceduresRoute,
   AppProceduresIdEditRoute: AppProceduresIdEditRoute,
+  AppAdminTemplatesIndexRoute: AppAdminTemplatesIndexRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
   AppProceduresIdIndexRoute: AppProceduresIdIndexRoute,
 }

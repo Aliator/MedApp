@@ -386,6 +386,17 @@ describe('ProcedurePage details and deleting', () => {
     expect(await screen.findByRole('link', {name: 'Edit Details'})).toHaveAttribute('href', `/procedures/${id}/edit`);
   });
 
+  it("links admins, and only admins, to the procedure's audit log", async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working())});
+    const {unmount} = renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: adminUser});
+    expect(await screen.findByRole('link', {name: 'Audit Log'})).toHaveAttribute('href', `/admin/audit?procedureId=${id}`);
+    unmount();
+
+    renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+    await screen.findByRole('link', {name: 'Edit Details'});
+    expect(screen.queryByRole('link', {name: 'Audit Log'})).not.toBeInTheDocument();
+  });
+
   it('has no Edit Details once the details are closed to editing', async () => {
     mockApi({[`GET ${PATH}`]: () => json(working({status: 'Cancelled', canEditDetails: false}))});
     renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});

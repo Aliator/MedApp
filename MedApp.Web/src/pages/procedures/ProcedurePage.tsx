@@ -401,7 +401,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     return user.isAdmin && (procedure.canChangeAssignments ?? false);
   }
 
-  /** View Patient, and Assign Staff for admins. */
+  /** Edit Details, View Patient, and for admins Assign Staff and the procedure's Audit Log. */
   function footer(procedure: Procedure) {
     return (
       <>
@@ -424,6 +424,15 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
               setDialog({kind: 'assign'});
             }}
             isDisabled={isBusy}
+          />
+        )}
+        {user.isAdmin && (
+          <Button
+            label="Audit Log"
+            tooltip="View this procedure's audit log"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.AuditLog} />}
+            href={`/admin/audit?procedureId=${procedure.id}`}
           />
         )}
         <Button

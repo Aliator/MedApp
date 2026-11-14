@@ -1,11 +1,14 @@
 import {
+  hasAuditFilters,
   hasPatientFilters,
   hasProcedureFilters,
   hasTaskFilters,
   hasUserFilters,
+  parseAuditSearch,
   parseHomeSearch,
   parsePatientsSearch,
   parseProceduresSearch,
+  parseSetupSearch,
   parseUsersSearch,
   taskListSearch,
   withTaskListSearch,
@@ -149,5 +152,27 @@ describe('parseProceduresSearch', () => {
   it('knows when the list is filtered', () => {
     expect(hasProcedureFilters({page: 3, sort: 'Due'})).toBe(false);
     expect(hasProcedureFilters({closed: true})).toBe(true);
+  });
+});
+
+describe('parseSetupSearch', () => {
+  it('reads the page and whether archived ones show', () => {
+    expect(parseSetupSearch({page: '2', archived: 'true'})).toEqual({page: 2, archived: true});
+    expect(parseSetupSearch({page: '1', archived: 'false', other: 'x'})).toEqual({});
+  });
+});
+
+describe('parseAuditSearch', () => {
+  it('reads the page, order and filters, dropping anything invalid', () => {
+    const procedureId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
+    expect(
+      parseAuditSearch({page: '3', asc: 'true', q: ' knee ', action: 'stagefinished', procedureId, from: '2026-11-01', to: '2026-11-30'}),
+    ).toEqual({page: 3, asc: true, q: 'knee', action: 'StageFinished', procedureId, from: '2026-11-01', to: '2026-11-30'});
+    expect(parseAuditSearch({action: 'Exploded', procedureId: 'not-a-guid', from: 'yesterday'})).toEqual({});
+  });
+
+  it('knows when the log is filtered', () => {
+    expect(hasAuditFilters({page: 2, asc: true})).toBe(false);
+    expect(hasAuditFilters({procedureId: 'x'})).toBe(true);
   });
 });

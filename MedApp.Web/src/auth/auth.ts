@@ -1,5 +1,5 @@
-import {queryOptions, useMutation, useQueryClient, useSuspenseQuery} from '@tanstack/react-query';
-import {useNavigate} from '@tanstack/react-router';
+import {queryOptions, useMutation, useQueryClient, useSuspenseQuery, type QueryClient} from '@tanstack/react-query';
+import {redirect, useNavigate} from '@tanstack/react-router';
 import {api, unwrap} from '../api/client';
 
 export interface CurrentUser {
@@ -27,6 +27,15 @@ export const whoamiQuery = queryOptions({
   },
   staleTime: Infinity,
 });
+
+/**
+ * An admin page's `beforeLoad`: anyone who isn't an admin is sent home, as the Blazor Users page did. The API
+ * refuses them anyway; this keeps them off a page that would only show errors.
+ */
+export async function requireAdmin({context}: {context: {queryClient: QueryClient}}) {
+  const user = await context.queryClient.ensureQueryData(whoamiQuery);
+  if (!user.isAdmin) throw redirect({to: '/'});
+}
 
 /** The signed-in user. Only use it under the signed-in layout, whose guard has already loaded it. */
 export function useCurrentUser(): CurrentUser {
