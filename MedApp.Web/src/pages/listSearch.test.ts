@@ -1,4 +1,13 @@
-import {hasPatientFilters, hasUserFilters, parsePatientsSearch, parseUsersSearch} from './listSearch';
+import {
+  hasPatientFilters,
+  hasTaskFilters,
+  hasUserFilters,
+  parseHomeSearch,
+  parsePatientsSearch,
+  parseUsersSearch,
+  taskListSearch,
+  withTaskListSearch,
+} from './listSearch';
 
 describe('parsePatientsSearch', () => {
   it('reads every setting from the URL', () => {
@@ -59,5 +68,55 @@ describe('parseUsersSearch', () => {
     expect(search).toEqual({});
     expect(hasUserFilters(search)).toBe(false);
     expect(hasUserFilters({role: 'User'})).toBe(true);
+  });
+});
+
+describe('parseHomeSearch', () => {
+  it('reads each task list under its own prefix, dropping anything invalid', () => {
+    expect(
+      parseHomeSearch({
+        show: 'STARTED',
+        notStartedPage: '3',
+        notStartedSort: 'priority',
+        notStartedAsc: 'false',
+        notStartedQ: ' knee ',
+        startedPriority: 'urgent',
+        startedOverdue: 'true',
+        startedDueFrom: '2026-12-01',
+        startedDueTo: 'soon',
+        startedSort: 'colour',
+        other: 'x',
+      }),
+    ).toEqual({
+      show: 'started',
+      notStartedPage: 3,
+      notStartedSort: 'Priority',
+      notStartedAsc: false,
+      notStartedQ: 'knee',
+      startedPriority: 'Urgent',
+      startedOverdue: true,
+      startedDueFrom: '2026-12-01',
+    });
+  });
+
+  it('leaves out overdue when it is not true, and an unknown list to show', () => {
+    expect(parseHomeSearch({show: 'later', startedOverdue: 'false'})).toEqual({});
+  });
+
+  it('splits a list out of the URL state, and replaces it without touching the other', () => {
+    const home = parseHomeSearch({show: 'started', notStartedQ: 'colon', startedPage: '2', startedQ: 'knee'});
+
+    expect(taskListSearch(home, 'started')).toEqual({page: 2, q: 'knee'});
+    expect(withTaskListSearch(home, 'started', {sort: 'Due', asc: false})).toEqual({
+      show: 'started',
+      notStartedQ: 'colon',
+      startedSort: 'Due',
+      startedAsc: false,
+    });
+  });
+
+  it('knows when a task list is filtered', () => {
+    expect(hasTaskFilters({page: 2, sort: 'Due'})).toBe(false);
+    expect(hasTaskFilters({overdue: true})).toBe(true);
   });
 });

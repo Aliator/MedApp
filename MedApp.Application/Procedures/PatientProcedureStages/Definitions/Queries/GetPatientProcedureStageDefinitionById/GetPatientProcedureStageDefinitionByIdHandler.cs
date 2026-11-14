@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MediatR;
@@ -12,15 +12,9 @@ public sealed class GetPatientProcedureStageDefinitionByIdHandler(IPatientProced
         GetPatientProcedureStageDefinitionByIdQuery request,
         CancellationToken cancellationToken)
     {
-        var stageDefinition = await repository.GetStageDefinitionByIdAsync(request.StageDefinitionId, cancellationToken)
-                              ?? throw new NotFoundException($"Patient procedure stage definition '{request.StageDefinitionId}' was not found.");
+        var definition = await repository.GetStageDefinitionByIdAsync(request.StageDefinitionId, cancellationToken)
+                         ?? throw new NotFoundException($"Stage definition '{request.StageDefinitionId}' was not found.");
 
-        return new PatientProcedureStageDefinitionResponse
-        {
-            Id = stageDefinition.Id,
-            Name = stageDefinition.Name,
-            Description = stageDefinition.Description,
-            Instructions = stageDefinition.Instructions
-        };
+        return await StageDefinitionMapper.ToResponseAsync(definition, repository, cancellationToken);
     }
 }

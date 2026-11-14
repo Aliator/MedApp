@@ -7,6 +7,7 @@ export const PAGE_SIZE = 10;
 
 export type PatientSearch = NonNullable<paths['/api/patients/search']['get']['parameters']['query']>;
 export type UserSearch = NonNullable<paths['/api/auth/users/search']['get']['parameters']['query']>;
+export type ProcedureSearch = NonNullable<paths['/api/procedures/patient-procedures/search']['get']['parameters']['query']>;
 export type PatientPage = Schemas['PatientResponsePagedResponse'];
 export type UserPage = Schemas['UserResponsePagedResponse'];
 
@@ -37,6 +38,16 @@ export function userSearchQuery(search: UserSearch) {
   return queryOptions({
     queryKey: ['users', 'search', query],
     queryFn: () => unwrap(api.GET('/api/auth/users/search', {params: {query}})),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** One page of procedures from `GET api/procedures/patient-procedures/search`, as patientSearchQuery. Keyed under ['procedures']. */
+export function procedureSearchQuery(search: ProcedureSearch) {
+  const query = compact({PageSize: PAGE_SIZE, ...search});
+  return queryOptions({
+    queryKey: ['procedures', 'search', query],
+    queryFn: () => unwrap(api.GET('/api/procedures/patient-procedures/search', {params: {query}})),
     placeholderData: keepPreviousData,
   });
 }

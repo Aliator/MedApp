@@ -1,22 +1,30 @@
-﻿using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.CreatePatientProcedureStageDefinition;
+using MedApp.API.Common.Authentication;
+using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.CreatePatientProcedureStageDefinition;
 using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.DeletePatientProcedureStageDefinition;
+using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.SetPatientProcedureStageDefinitionArchived;
 using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.UpdatePatientProcedureStageDefinition;
 using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Queries.GetAllPatientProcedureStageDefinitions;
 using MedApp.Application.Procedures.PatientProcedureStages.Definitions.Queries.GetPatientProcedureStageDefinitionById;
 using MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.CreatePatientProcedureStageTemplate;
 using MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.DeletePatientProcedureStageTemplate;
+using MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.SetPatientProcedureStageTemplateArchived;
 using MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.UpdatePatientProcedureStageTemplate;
 using MedApp.Application.Procedures.PatientProcedureStages.Templates.Queries.GetAllPatientProcedureStageTemplates;
 using MedApp.Application.Procedures.PatientProcedureStages.Templates.Queries.GetPatientProcedureStageTemplateById;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Requests;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Requests;
+using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Controllers;
 
+/// <summary>
+/// Stage definitions and procedure templates. Admins manage them; staff read them to create procedures. One that has
+/// been used can't be deleted, only archived (hidden from new templates or procedures) and restored.
+/// </summary>
 [ApiController]
 [Route("api/procedures/patient-procedure-stage")]
 public sealed class PatientProcedureStagesController(IMediator mediator) : ControllerBase
@@ -24,96 +32,89 @@ public sealed class PatientProcedureStagesController(IMediator mediator) : Contr
     [HttpPost("definitions")]
     [ProducesResponseType(typeof(PatientProcedureStageDefinitionResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Definitions")]
-    public async Task<IActionResult> CreatePatientProcedureStageDefinition([FromBody] CreatePatientProcedureStageDefinitionRequest request)
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> CreatePatientProcedureStageDefinition([FromBody] CreatePatientProcedureStageDefinitionRequest request, CancellationToken ct)
     {
-        var command = new CreatePatientProcedureStageDefinitionCommand(
+        var definition = await mediator.Send(new CreatePatientProcedureStageDefinitionCommand(
             request.Name,
             request.Description,
-            request.Instructions);
+            request.Instructions), ct);
 
-        var stageDefinition = await mediator.Send(command);
-
-        return Created($"/api/procedures/patient-procedure-stage-definitions/{stageDefinition.Id}", stageDefinition);
+        return Created($"/api/procedures/patient-procedure-stage/definitions/{definition.Id}", definition);
     }
 
     [HttpPatch("definitions/{id:guid}")]
     [ProducesResponseType(typeof(PatientProcedureStageDefinitionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Definitions")]
-    public async Task<IActionResult> UpdatePatientProcedureStageDefinition(Guid id, [FromBody] UpdatePatientProcedureStageDefinitionRequest request)
-    {
-        var command = new UpdatePatientProcedureStageDefinitionCommand(
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> UpdatePatientProcedureStageDefinition(Guid id, [FromBody] UpdatePatientProcedureStageDefinitionRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new UpdatePatientProcedureStageDefinitionCommand(
             id,
             request.Name,
             request.Description,
-            request.Instructions);
+            request.Instructions), ct));
 
-        var updatedStageDefinition = await mediator.Send(command);
+    [HttpPost("definitions/{id:guid}/archive")]
+    [ProducesResponseType(typeof(PatientProcedureStageDefinitionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> ArchivePatientProcedureStageDefinition(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetPatientProcedureStageDefinitionArchivedCommand(id, true), ct));
 
-        return Ok(updatedStageDefinition);
-    }
+    [HttpPost("definitions/{id:guid}/restore")]
+    [ProducesResponseType(typeof(PatientProcedureStageDefinitionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> RestorePatientProcedureStageDefinition(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetPatientProcedureStageDefinitionArchivedCommand(id, false), ct));
 
+    /// <summary>Deletes a stage definition that has never been used; a used one is a 409 (archive it instead).</summary>
     [HttpDelete("definitions/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Definitions")]
-    public async Task<IActionResult> DeletePatientProcedureStageDefinition(Guid id)
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> DeletePatientProcedureStageDefinition(Guid id, CancellationToken ct)
     {
-        var command = new DeletePatientProcedureStageDefinitionCommand(id);
-        var deleted = await mediator.Send(command);
-
-        if (!deleted)
-        {
-            return NotFound();
-        }
-
+        await mediator.Send(new DeletePatientProcedureStageDefinitionCommand(id), ct);
         return NoContent();
     }
 
     [HttpGet("definitions")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientProcedureStageDefinitionResponse>), StatusCodes.Status200OK)]
-    [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Definitions")]
-    public async Task<IActionResult> GetAllPatientProcedureStageDefinitions()
-    {
-        var query = new GetAllPatientProcedureStageDefinitionsQuery();
-        var stageDefinitions = await mediator.Send(query);
-
-        return Ok(stageDefinitions);
-    }
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> GetAllPatientProcedureStageDefinitions([FromQuery] bool includeArchived, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetAllPatientProcedureStageDefinitionsQuery(includeArchived), ct));
 
     [HttpGet("definitions/{id:guid}")]
     [ProducesResponseType(typeof(PatientProcedureStageDefinitionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Definitions")]
-    public async Task<IActionResult> GetPatientProcedureStageDefinitionById(Guid id)
-    {
-        var query = new GetPatientProcedureStageDefinitionByIdQuery(id);
-        var stageDefinition = await mediator.Send(query);
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Procedure Stage Definitions")]
+    public async Task<IActionResult> GetPatientProcedureStageDefinitionById(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetPatientProcedureStageDefinitionByIdQuery(id), ct));
 
-        return Ok(stageDefinition);
-    }
-    
     [HttpPost("templates")]
     [ProducesResponseType(typeof(PatientProcedureStageTemplateResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Templates")]
-    public async Task<IActionResult> CreatePatientProcedureStageTemplate([FromBody] CreatePatientProcedureStageTemplateRequest request)
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> CreatePatientProcedureStageTemplate([FromBody] CreatePatientProcedureStageTemplateRequest request, CancellationToken ct)
     {
-        var command = new CreatePatientProcedureTemplateCommand(
+        var template = await mediator.Send(new CreatePatientProcedureTemplateCommand(
             request.Name,
-            request.StageDefinitionIdsInOrder);
-
-        var template = await mediator.Send(command);
+            request.StageDefinitionIdsInOrder), ct);
 
         return Created($"/api/procedures/patient-procedure-stage/templates/{template.Id}", template);
     }
@@ -124,60 +125,54 @@ public sealed class PatientProcedureStagesController(IMediator mediator) : Contr
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Templates")]
-    public async Task<IActionResult> UpdatePatientProcedureStageTemplate(Guid id, [FromBody] UpdatePatientProcedureStageTemplateRequest request)
-    {
-        var command = new UpdatePatientProcedureTemplateCommand(
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> UpdatePatientProcedureStageTemplate(Guid id, [FromBody] UpdatePatientProcedureStageTemplateRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new UpdatePatientProcedureTemplateCommand(
             id,
             request.Name,
-            request.StageDefinitionIdsInOrder);
+            request.StageDefinitionIdsInOrder), ct));
 
-        var updatedTemplate = await mediator.Send(command);
+    [HttpPost("templates/{id:guid}/archive")]
+    [ProducesResponseType(typeof(PatientProcedureStageTemplateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> ArchivePatientProcedureStageTemplate(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetPatientProcedureTemplateArchivedCommand(id, true), ct));
 
-        return Ok(updatedTemplate);
-    }
+    [HttpPost("templates/{id:guid}/restore")]
+    [ProducesResponseType(typeof(PatientProcedureStageTemplateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> RestorePatientProcedureStageTemplate(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetPatientProcedureTemplateArchivedCommand(id, false), ct));
 
+    /// <summary>Deletes a template no procedure was created from; a used one is a 409 (archive it instead).</summary>
     [HttpDelete("templates/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Templates")]
-    public async Task<IActionResult> DeletePatientProcedureStageTemplate(Guid id)
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> DeletePatientProcedureStageTemplate(Guid id, CancellationToken ct)
     {
-        var command = new DeletePatientProcedureTemplateCommand(id);
-        var deleted = await mediator.Send(command);
-
-        if (!deleted)
-        {
-            return NotFound();
-        }
-
+        await mediator.Send(new DeletePatientProcedureTemplateCommand(id), ct);
         return NoContent();
     }
 
     [HttpGet("templates")]
     [ProducesResponseType(typeof(IReadOnlyList<PatientProcedureStageTemplateResponse>), StatusCodes.Status200OK)]
-    [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Templates")]
-    public async Task<IActionResult> GetAllPatientProcedureStageTemplates()
-    {
-        var query = new GetAllPatientProcedureTemplatesQuery();
-        var templates = await mediator.Send(query);
-
-        return Ok(templates);
-    }
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> GetAllPatientProcedureStageTemplates([FromQuery] bool includeArchived, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetAllPatientProcedureTemplatesQuery(includeArchived), ct));
 
     [HttpGet("templates/{id:guid}")]
     [ProducesResponseType(typeof(PatientProcedureStageTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
-    [Tags("Patient Task Stage Templates")]
-    public async Task<IActionResult> GetPatientProcedureStageTemplateById(Guid id)
-    {
-        var query = new GetPatientProcedureTemplateByIdQuery(id);
-        var template = await mediator.Send(query);
-
-        return Ok(template);
-    }
-    
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Procedure Templates")]
+    public async Task<IActionResult> GetPatientProcedureStageTemplateById(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetPatientProcedureTemplateByIdQuery(id), ct));
 }

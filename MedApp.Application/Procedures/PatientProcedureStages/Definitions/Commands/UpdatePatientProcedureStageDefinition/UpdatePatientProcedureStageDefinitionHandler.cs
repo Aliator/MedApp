@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MediatR;
@@ -12,21 +12,22 @@ public sealed class UpdatePatientProcedureStageDefinitionHandler(IPatientProcedu
         UpdatePatientProcedureStageDefinitionCommand request,
         CancellationToken cancellationToken)
     {
-        var stageDefinition = await repository.GetStageDefinitionByIdAsync(request.StageDefinitionId, cancellationToken)
-                              ?? throw new NotFoundException($"Patient procedure stage definition '{request.StageDefinitionId}' was not found.");
+        var definition = await repository.GetStageDefinitionByIdAsync(request.StageDefinitionId, cancellationToken)
+                         ?? throw new NotFoundException($"Stage definition '{request.StageDefinitionId}' was not found.");
 
-        if (request.Name is not null) stageDefinition.Name = request.Name;
-        if (request.Description is not null) stageDefinition.Description = request.Description;
-        if (request.Instructions is not null) stageDefinition.Instructions = request.Instructions;
-
-        await repository.UpdateStageDefinitionAsync(stageDefinition, cancellationToken);
-
-        return new PatientProcedureStageDefinitionResponse
+        if (request.Name?.Trim() is { } name && name != definition.Name)
         {
-            Id = stageDefinition.Id,
-            Name = stageDefinition.Name,
-            Description = stageDefinition.Description,
-            Instructions = stageDefinition.Instructions
-        };
+            if (await repository.StageDefinitionNameExistsAsync(name, definition.Id, cancellationToken))
+                throw new ConflictException($"A stage called '{name}' already exists.");
+
+            definition.Name = name;
+        }
+
+        if (request.Description is not null) definition.Description = request.Description;
+        if (request.Instructions is not null) definition.Instructions = request.Instructions;
+
+        await repository.UpdateStageDefinitionAsync(definition, cancellationToken);
+
+        return await StageDefinitionMapper.ToResponseAsync(definition, repository, cancellationToken);
     }
 }

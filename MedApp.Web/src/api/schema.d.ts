@@ -388,28 +388,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["PatientProcedureResponse"][];
-                        "application/json": components["schemas"]["PatientProcedureResponse"][];
-                        "text/json": components["schemas"]["PatientProcedureResponse"][];
-                    };
-                };
-            };
-        };
+        get?: never;
         put?: never;
         post: {
             parameters: {
@@ -435,6 +414,39 @@ export interface paths {
                         "text/plain": components["schemas"]["PatientProcedureResponse"];
                         "application/json": components["schemas"]["PatientProcedureResponse"];
                         "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -518,6 +530,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         options?: never;
@@ -572,11 +595,87 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         trace?: never;
     };
-    "/api/procedures/patient-procedures/{patientProcedureId}/assign/{userId}": {
+    "/api/procedures/patient-procedures/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    Ascending?: boolean;
+                    Search?: string;
+                    PatientId?: string;
+                    TemplateId?: string;
+                    Statuses?: string[];
+                    Priority?: string;
+                    AssignedToUserId?: string;
+                    AssignedToMe?: boolean;
+                    OverdueOnly?: boolean;
+                    DueFrom?: string;
+                    DueTo?: string;
+                    IncludeClosed?: boolean;
+                    Started?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureSummaryResponsePagedResponse"];
+                        "application/json": components["schemas"]["PatientProcedureSummaryResponsePagedResponse"];
+                        "text/json": components["schemas"]["PatientProcedureSummaryResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/patient-procedures/{id}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -590,12 +689,17 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    patientProcedureId: string;
-                    userId: string;
+                    id: string;
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ChangePatientProcedureStatusRequest"];
+                    "text/json": components["schemas"]["ChangePatientProcedureStatusRequest"];
+                    "application/*+json": components["schemas"]["ChangePatientProcedureStatusRequest"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -603,9 +707,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientProcedureAssignmentResponse"][];
-                        "application/json": components["schemas"]["PatientProcedureAssignmentResponse"][];
-                        "text/json": components["schemas"]["PatientProcedureAssignmentResponse"][];
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -649,7 +753,402 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/procedures/patient-procedures/user/self": {
+    "/api/procedures/patient-procedures/{id}/assignments/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/patient-procedures/{id}/stages/{stageId}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/patient-procedures/{id}/stages/{stageId}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProcedureStageNotesRequest"];
+                    "text/json": components["schemas"]["UpdateProcedureStageNotesRequest"];
+                    "application/*+json": components["schemas"]["UpdateProcedureStageNotesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/patient-procedures/{id}/stages/{stageId}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/patient-procedures/{id}/stages/{stageId}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureResponse"];
+                        "application/json": components["schemas"]["PatientProcedureResponse"];
+                        "text/json": components["schemas"]["PatientProcedureResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/patients": {
         parameters: {
             query?: never;
             header?: never;
@@ -671,9 +1170,225 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientProcedureResponse"][];
-                        "application/json": components["schemas"]["PatientProcedureResponse"][];
-                        "text/json": components["schemas"]["PatientProcedureResponse"][];
+                        "text/plain": components["schemas"]["PatientResponse"][];
+                        "application/json": components["schemas"]["PatientResponse"][];
+                        "text/json": components["schemas"]["PatientResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreatePatientRequest"];
+                    "text/json": components["schemas"]["CreatePatientRequest"];
+                    "application/*+json": components["schemas"]["CreatePatientRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientResponse"];
+                        "application/json": components["schemas"]["PatientResponse"];
+                        "text/json": components["schemas"]["PatientResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/patients/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientResponse"];
+                        "application/json": components["schemas"]["PatientResponse"];
+                        "text/json": components["schemas"]["PatientResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdatePatientRequest"];
+                    "text/json": components["schemas"]["UpdatePatientRequest"];
+                    "application/*+json": components["schemas"]["UpdatePatientRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientResponse"];
+                        "application/json": components["schemas"]["PatientResponse"];
+                        "text/json": components["schemas"]["PatientResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/patients/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    Ascending?: boolean;
+                    FirstName?: string;
+                    LastName?: string;
+                    Email?: string;
+                    DateOfBirthFrom?: string;
+                    DateOfBirthTo?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientResponsePagedResponse"];
+                        "application/json": components["schemas"]["PatientResponsePagedResponse"];
+                        "text/json": components["schemas"]["PatientResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
             };
@@ -686,7 +1401,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/procedures/patient-procedures/user/{userId}": {
+    "/api/procedures/audit/search": {
         parameters: {
             query?: never;
             header?: never;
@@ -695,11 +1410,20 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    userId: string;
+                query?: {
+                    Page?: number;
+                    PageSize?: number;
+                    Ascending?: boolean;
+                    ProcedureId?: string;
+                    PatientId?: string;
+                    UserId?: string;
+                    Action?: string;
+                    Search?: string;
+                    From?: string;
+                    To?: string;
                 };
+                header?: never;
+                path?: never;
                 cookie?: never;
             };
             requestBody?: never;
@@ -710,48 +1434,20 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientProcedureResponse"][];
-                        "application/json": components["schemas"]["PatientProcedureResponse"][];
-                        "text/json": components["schemas"]["PatientProcedureResponse"][];
+                        "text/plain": components["schemas"]["PatientProcedureAuditEntryResponsePagedResponse"];
+                        "application/json": components["schemas"]["PatientProcedureAuditEntryResponsePagedResponse"];
+                        "text/json": components["schemas"]["PatientProcedureAuditEntryResponsePagedResponse"];
                     };
                 };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/procedures/patient-procedures/patient/{patientId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    patientId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
+                /** @description Bad Request */
+                400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientProcedureResponse"][];
-                        "application/json": components["schemas"]["PatientProcedureResponse"][];
-                        "text/json": components["schemas"]["PatientProcedureResponse"][];
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
             };
@@ -773,7 +1469,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    includeArchived?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -829,6 +1527,17 @@ export interface paths {
                         "text/plain": components["schemas"]["ValidationProblemDetails"];
                         "application/json": components["schemas"]["ValidationProblemDetails"];
                         "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -912,6 +1621,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         options?: never;
@@ -966,8 +1686,119 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
+        trace?: never;
+    };
+    "/api/procedures/patient-procedure-stage/definitions/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureStageDefinitionResponse"];
+                        "application/json": components["schemas"]["PatientProcedureStageDefinitionResponse"];
+                        "text/json": components["schemas"]["PatientProcedureStageDefinitionResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/patient-procedure-stage/definitions/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureStageDefinitionResponse"];
+                        "application/json": components["schemas"]["PatientProcedureStageDefinitionResponse"];
+                        "text/json": components["schemas"]["PatientProcedureStageDefinitionResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/procedures/patient-procedure-stage/templates": {
@@ -979,7 +1810,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    includeArchived?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1140,6 +1973,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         options?: never;
@@ -1209,18 +2053,22 @@ export interface paths {
         };
         trace?: never;
     };
-    "/api/patients": {
+    "/api/procedures/patient-procedure-stage/templates/{id}/archive": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: {
+        get?: never;
+        put?: never;
+        post: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    id: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -1231,38 +2079,20 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientResponse"][];
-                        "application/json": components["schemas"]["PatientResponse"][];
-                        "text/json": components["schemas"]["PatientResponse"][];
+                        "text/plain": components["schemas"]["PatientProcedureStageTemplateResponse"];
+                        "application/json": components["schemas"]["PatientProcedureStageTemplateResponse"];
+                        "text/json": components["schemas"]["PatientProcedureStageTemplateResponse"];
                     };
                 };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["CreatePatientRequest"];
-                    "text/json": components["schemas"]["CreatePatientRequest"];
-                    "application/*+json": components["schemas"]["CreatePatientRequest"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientResponse"];
-                        "application/json": components["schemas"]["PatientResponse"];
-                        "text/json": components["schemas"]["PatientResponse"];
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -1273,51 +2103,16 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/patients/{id}": {
+    "/api/procedures/patient-procedure-stage/templates/{id}/restore": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["PatientResponse"];
-                        "application/json": components["schemas"]["PatientResponse"];
-                        "text/json": components["schemas"]["PatientResponse"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
+        get?: never;
         put?: never;
-        post?: never;
-        delete: {
+        post: {
             parameters: {
                 query?: never;
                 header?: never;
@@ -1328,54 +2123,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["UpdatePatientRequest"];
-                    "text/json": components["schemas"]["UpdatePatientRequest"];
-                    "application/*+json": components["schemas"]["UpdatePatientRequest"];
-                };
-            };
-            responses: {
                 /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["PatientResponse"];
-                        "application/json": components["schemas"]["PatientResponse"];
-                        "text/json": components["schemas"]["PatientResponse"];
+                        "text/plain": components["schemas"]["PatientProcedureStageTemplateResponse"];
+                        "application/json": components["schemas"]["PatientProcedureStageTemplateResponse"];
+                        "text/json": components["schemas"]["PatientProcedureStageTemplateResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1391,60 +2147,6 @@ export interface paths {
                 };
             };
         };
-        trace?: never;
-    };
-    "/api/patients/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    Page?: number;
-                    PageSize?: number;
-                    Sort?: string;
-                    Ascending?: boolean;
-                    FirstName?: string;
-                    LastName?: string;
-                    Email?: string;
-                    DateOfBirthFrom?: string;
-                    DateOfBirthTo?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["PatientResponsePagedResponse"];
-                        "application/json": components["schemas"]["PatientResponsePagedResponse"];
-                        "text/json": components["schemas"]["PatientResponsePagedResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ValidationProblemDetails"];
-                        "application/json": components["schemas"]["ValidationProblemDetails"];
-                        "text/json": components["schemas"]["ValidationProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1671,15 +2373,20 @@ export interface components {
             username?: string | null;
             role?: string | null;
         };
+        ChangePatientProcedureStatusRequest: {
+            status?: string | null;
+            reason?: string | null;
+        };
         CreatePatientProcedureRequest: {
             /** Format: uuid */
             patientId?: string;
+            /** Format: uuid */
+            templateId?: string;
             title?: string | null;
             notes?: string | null;
-            /** Format: date-time */
-            dueDateUtc?: string;
+            /** Format: date */
+            dueDate?: string;
             priority?: string | null;
-            stageDefinitionIdsInOrder?: string[] | null;
         };
         CreatePatientProcedureStageDefinitionRequest: {
             name?: string | null;
@@ -1716,29 +2423,78 @@ export interface components {
         };
         PatientProcedureAssignmentResponse: {
             /** Format: uuid */
-            patientProcedureId?: string;
-            /** Format: uuid */
             userId?: string;
+            username?: string | null;
             /** Format: uuid */
             assignedByUserId?: string;
+            assignedByUsername?: string | null;
             /** Format: date-time */
             assignedAtUtc?: string;
+        };
+        PatientProcedureAuditEntryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientProcedureId?: string;
+            procedureTitle?: string | null;
+            /** Format: uuid */
+            patientId?: string;
+            /** Format: uuid */
+            stageId?: string | null;
+            stageName?: string | null;
+            action?: string | null;
+            /** Format: uuid */
+            userId?: string;
+            username?: string | null;
+            /** Format: date-time */
+            atUtc?: string;
+            details?: string | null;
+        };
+        PatientProcedureAuditEntryResponsePagedResponse: {
+            items?: components["schemas"]["PatientProcedureAuditEntryResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
         };
         PatientProcedureResponse: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             patientId?: string;
+            patientName?: string | null;
+            /** Format: uuid */
+            templateId?: string | null;
+            templateName?: string | null;
             title?: string | null;
             notes?: string | null;
+            /** Format: date */
+            dueDate?: string;
             /** Format: date-time */
             dueDateUtc?: string;
             priority?: string | null;
             status?: string | null;
+            blockedFromStatus?: string | null;
+            isOverdue?: boolean;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
             lastUpdated?: string;
+            /** Format: uuid */
+            currentStageId?: string | null;
+            /** Format: int32 */
+            completedStageCount?: number;
+            /** Format: int32 */
+            stageCount?: number;
+            allowedStatusChanges?: string[] | null;
+            canWorkOnStages?: boolean;
+            canEditDetails?: boolean;
+            canChangeAssignments?: boolean;
+            canBeDeleted?: boolean;
             stages?: components["schemas"]["PatientProcedureStageResponse"][] | null;
             assignments?: components["schemas"]["PatientProcedureAssignmentResponse"][] | null;
         };
@@ -1748,6 +2504,10 @@ export interface components {
             name?: string | null;
             description?: string | null;
             instructions?: string | null;
+            isArchived?: boolean;
+            /** Format: int32 */
+            templateCount?: number;
+            canBeDeleted?: boolean;
         };
         PatientProcedureStageResponse: {
             /** Format: uuid */
@@ -1756,16 +2516,80 @@ export interface components {
             stageDefinitionId?: string;
             /** Format: int32 */
             stageOrder?: number;
-            isCompleted?: boolean;
+            name?: string | null;
+            description?: string | null;
+            instructions?: string | null;
+            notes?: string | null;
+            state?: string | null;
+            isCurrent?: boolean;
+            isLocked?: boolean;
+            canEdit?: boolean;
+            canUnlock?: boolean;
+            /** Format: date-time */
+            startedAtUtc?: string | null;
+            /** Format: uuid */
+            startedByUserId?: string | null;
+            startedByUsername?: string | null;
             /** Format: date-time */
             completedAtUtc?: string | null;
             /** Format: uuid */
             completedByUserId?: string | null;
-            stageName?: string | null;
-            stageDescription?: string | null;
-            stageInstructions?: string | null;
+            completedByUsername?: string | null;
         };
-        PatientProcedureStageTemplateResponse: Record<string, never>;
+        PatientProcedureStageTemplateResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            isArchived?: boolean;
+            /** Format: int32 */
+            procedureCount?: number;
+            stages?: components["schemas"]["PatientProcedureTemplateStageResponse"][] | null;
+            stageDefinitionIdsInOrder?: string[] | null;
+        };
+        PatientProcedureSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            patientId?: string;
+            patientName?: string | null;
+            title?: string | null;
+            templateName?: string | null;
+            /** Format: date */
+            dueDate?: string;
+            /** Format: date-time */
+            dueDateUtc?: string;
+            priority?: string | null;
+            status?: string | null;
+            isOverdue?: boolean;
+            /** Format: int32 */
+            completedStageCount?: number;
+            /** Format: int32 */
+            stageCount?: number;
+            currentStageName?: string | null;
+            assignees?: string[] | null;
+            /** Format: date-time */
+            lastUpdated?: string;
+        };
+        PatientProcedureSummaryResponsePagedResponse: {
+            items?: components["schemas"]["PatientProcedureSummaryResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        PatientProcedureTemplateStageResponse: {
+            /** Format: int32 */
+            stageOrder?: number;
+            /** Format: uuid */
+            stageDefinitionId?: string;
+            name?: string | null;
+            description?: string | null;
+            isArchived?: boolean;
+        };
         PatientResponse: {
             /** Format: uuid */
             id?: string;
@@ -1801,19 +2625,13 @@ export interface components {
             role?: string | null;
         };
         UpdatePatientProcedureRequest: {
-            /** Format: uuid */
-            patientProcedureId?: string;
             title?: string | null;
             notes?: string | null;
-            /** Format: date-time */
-            dueDateUtc?: string | null;
+            /** Format: date */
+            dueDate?: string | null;
             priority?: string | null;
-            status?: string | null;
-            stageDefinitionIdsInOrder?: string[] | null;
         };
         UpdatePatientProcedureStageDefinitionRequest: {
-            /** Format: uuid */
-            stageDefinitionId?: string;
             name?: string | null;
             description?: string | null;
             instructions?: string | null;
@@ -1828,6 +2646,9 @@ export interface components {
             /** Format: date */
             dateOfBirth?: string;
             email?: string | null;
+        };
+        UpdateProcedureStageNotesRequest: {
+            notes?: string | null;
         };
         UpdateUserPasswordRequest: {
             oldPassword?: string | null;

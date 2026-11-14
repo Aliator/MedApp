@@ -12,7 +12,7 @@ import {DialogFrame} from './DialogFrame';
 export type SearchField =
   | {type: 'text'; key: string; label: string; placeholder?: string}
   | {type: 'select'; key: string; label: string; options: {value: string; label: string}[]; placeholder?: string}
-  | {type: 'dateRange'; key: string; label: string};
+  | {type: 'dateRange'; key: string; label: string; allowFuture?: boolean};
 
 /** The values of a search, by field key: text and select fields hold strings, date ranges a DateRange or null. */
 export type SearchValues = Record<string, string | DateRange | null | undefined>;
@@ -87,6 +87,7 @@ export function SearchDialog({isOpen, title = 'Search', fields, values, onValues
                   label={field.label}
                   value={value && typeof value === 'object' ? value : null}
                   onChange={(range) => set(field.key, range)}
+                  max={field.allowFuture ? null : undefined}
                 />
               );
             }

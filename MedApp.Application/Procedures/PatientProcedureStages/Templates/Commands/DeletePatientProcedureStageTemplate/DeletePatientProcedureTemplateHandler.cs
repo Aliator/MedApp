@@ -1,22 +1,24 @@
-﻿using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Procedures.Repositories;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Templates.Commands.DeletePatientProcedureStageTemplate;
 
 public sealed class DeletePatientProcedureTemplateHandler(IPatientProcedureStagesRepository repository)
-    : IRequestHandler<DeletePatientProcedureTemplateCommand, bool>
+    : IRequestHandler<DeletePatientProcedureTemplateCommand>
 {
-    public async Task<bool> Handle(DeletePatientProcedureTemplateCommand request, CancellationToken cancellationToken)
+    public async Task Handle(DeletePatientProcedureTemplateCommand request, CancellationToken cancellationToken)
     {
-        var template = await repository.GetStageTemplateByIdAsync(request.TemplateId, cancellationToken);
+        var template = await repository.GetStageTemplateByIdAsync(request.TemplateId, cancellationToken)
+                       ?? throw new NotFoundException($"Template '{request.TemplateId}' was not found.");
 
-        if (template is null)
-        {
-            return false;
-        }
+        var procedureCount = (await repository.GetTemplateProcedureCountsAsync([template.Id], cancellationToken))
+            .GetValueOrDefault(template.Id);
 
-        await repository.DeleteStageTemplateAsync(request.TemplateId, cancellationToken);
+        if (procedureCount > 0)
+            throw new ConflictException(
+                $"The '{template.Name}' template has been used for {procedureCount} procedure(s), so it can't be deleted. Archive it instead.");
 
-        return true;
+        await repository.DeleteStageTemplateAsync(template.Id, cancellationToken);
     }
 }

@@ -17,7 +17,7 @@ namespace MedApp.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.23")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -98,6 +98,9 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("BlockedFromStatus")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -121,6 +124,16 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -129,6 +142,8 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DueDateUtc");
+
+                    b.HasIndex("TemplateId");
 
                     b.HasIndex("PatientId", "Status");
 
@@ -156,6 +171,61 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("PatientProcedureAssignments", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProcedureTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("StageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StageName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtUtc");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("PatientProcedureId", "AtUtc");
+
+                    b.ToTable("PatientProcedureAuditEntries", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -171,11 +241,44 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Instructions")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasDefaultValue("");
+
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasDefaultValue("");
 
                     b.Property<Guid>("PatientProcedureId")
                         .HasColumnType("uniqueidentifier");
@@ -186,12 +289,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<int>("StageOrder")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("StartedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("StageDefinitionId");
-
-                    b.HasIndex("PatientProcedureId", "StageDefinitionId")
-                        .IsUnique();
 
                     b.HasIndex("PatientProcedureId", "StageOrder")
                         .IsUnique();
@@ -215,6 +321,11 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -233,6 +344,7 @@ namespace MedApp.Infrastructure.Migrations
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             Description = "This stage definition was deleted.",
                             Instructions = "No instructions available.",
+                            IsArchived = true,
                             Name = "Definition missing"
                         });
                 });
@@ -242,6 +354,11 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -261,18 +378,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("TemplateId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("StageDefinitionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("StageOrder")
                         .HasColumnType("int");
 
-                    b.HasKey("TemplateId", "StageDefinitionId");
+                    b.Property<Guid>("StageDefinitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TemplateId", "StageOrder");
 
                     b.HasIndex("StageDefinitionId");
-
-                    b.HasIndex("TemplateId", "StageOrder")
-                        .IsUnique();
 
                     b.ToTable("PatientProcedureStageTemplateMaps", (string)null);
                 });
@@ -484,6 +598,11 @@ namespace MedApp.Infrastructure.Migrations
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Patient");
                 });

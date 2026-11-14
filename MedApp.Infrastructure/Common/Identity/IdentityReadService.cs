@@ -88,6 +88,18 @@ public sealed class IdentityReadService(
         return new PagedResult<UserResponse>(items, totalCount);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUsernamesByIdAsync(IEnumerable<Guid> userIds, CancellationToken ct)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        return await userManager.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new { u.Id, u.UserName })
+            .ToDictionaryAsync(u => u.Id, u => u.UserName!, ct);
+    }
+
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)
     {
         var users = await userManager.Users

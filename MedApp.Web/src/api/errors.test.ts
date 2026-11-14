@@ -1,4 +1,4 @@
-import {allMessages, fieldStatus, parseValidationErrors} from './errors';
+import {allMessages, fieldStatus, parseValidationErrors, problemTitle} from './errors';
 
 describe('parseValidationErrors', () => {
   it('maps ValidationProblemDetails errors onto camelCase fields', () => {
@@ -82,5 +82,18 @@ describe('allMessages', () => {
     const errors = parseValidationErrors({errors: {'': ['General problem.'], Email: ['Email must not be empty.']}});
 
     expect(allMessages(errors)).toEqual(['Email must not be empty.', 'General problem.']);
+  });
+});
+
+describe('problemTitle', () => {
+  it('reads the title of a ProblemDetails body', () => {
+    expect(problemTitle({title: 'Conflict reason.', status: 409})).toBe('Conflict reason.');
+  });
+
+  it('is undefined for anything else', () => {
+    expect(problemTitle(undefined)).toBeUndefined();
+    expect(problemTitle('text')).toBeUndefined();
+    expect(problemTitle({title: ''})).toBeUndefined();
+    expect(problemTitle([{title: 'x'}])).toBeUndefined();
   });
 });

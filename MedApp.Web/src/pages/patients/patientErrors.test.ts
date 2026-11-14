@@ -31,4 +31,10 @@ describe('saveProblem', () => {
   ] as const)('falls back to a message about %s', (action, message) => {
     expect(saveProblem(new ApiError(409), action).message).toBe(message);
   });
+
+  it('shows the reason the API gives for a conflict', () => {
+    const conflict = new ApiError(409, undefined, "This patient has 2 procedures, so they can't be deleted.");
+
+    expect(saveProblem(conflict, 'delete').message).toBe("This patient has 2 procedures, so they can't be deleted.");
+  });
 });

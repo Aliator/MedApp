@@ -153,6 +153,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       title="User Management"
       subtitle={subtitle}
       maxWidth={1400}
+      fill
       actions={
         <>
           {isFiltered && <Button label="Clear Search" variant="ghost" icon={<Icon icon={AppIcon.Cancel} />} onClick={clearSearch} />}

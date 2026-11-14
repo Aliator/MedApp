@@ -29,12 +29,23 @@ export class ApiValidationError extends Error {
 /** Thrown by the API client for any other unsuccessful response. */
 export class ApiError extends Error {
   readonly status: number;
+  /**
+   * The ProblemDetails title the API sent, if any. For a 409 it says why, in words meant for the user
+   * (e.g. "This patient has 2 procedures, so they can't be deleted.").
+   */
+  readonly title?: string;
 
-  constructor(status: number, message?: string) {
+  constructor(status: number, message?: string, title?: string) {
     super(message ?? `The request failed (${status}).`);
     this.name = 'ApiError';
     this.status = status;
+    this.title = title;
   }
+}
+
+/** The `title` of a ProblemDetails body, if the body is one. */
+export function problemTitle(body: unknown): string | undefined {
+  return isRecord(body) && typeof body.title === 'string' && body.title ? body.title : undefined;
 }
 
 /** `Request.FirstName` or `FirstName` → `firstName`; an empty key is a general error. */

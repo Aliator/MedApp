@@ -21,6 +21,9 @@ public sealed class PatientProcedureStageTemplateConfiguration : IEntityTypeConf
             .HasForeignKey(x => x.TemplateId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Property(x => x.IsArchived)
+            .HasDefaultValue(false);
+
         builder.HasIndex(x => x.Name)
             .IsUnique();
     }

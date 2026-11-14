@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
 using MediatR;
 
@@ -11,19 +11,11 @@ public sealed class GetAllPatientProcedureTemplatesHandler(IPatientProcedureStag
         GetAllPatientProcedureTemplatesQuery request,
         CancellationToken cancellationToken)
     {
-        var templates = await repository.GetAllStageTemplatesAsync(cancellationToken);
+        var templates = await repository.GetStageTemplatesAsync(request.IncludeArchived, cancellationToken);
+        var counts = await repository.GetTemplateProcedureCountsAsync(templates.Select(t => t.Id), cancellationToken);
 
         return templates
-            .OrderBy(x => x.Name)
-            .Select(x => new PatientProcedureStageTemplateResponse
-            {
-                Id = x.Id,
-                Name = x.Name,
-                StageDefinitionIdsInOrder = x.Maps
-                    .OrderBy(map => map.StageOrder)
-                    .Select(map => map.StageDefinitionId)
-                    .ToList()
-            })
+            .Select(t => StageTemplateMapper.ToResponse(t, counts.GetValueOrDefault(t.Id)))
             .ToList();
     }
 }

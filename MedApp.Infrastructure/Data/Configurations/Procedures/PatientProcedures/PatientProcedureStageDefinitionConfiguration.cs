@@ -24,6 +24,9 @@ public sealed class PatientProcedureStageDefinitionConfiguration : IEntityTypeCo
             .IsRequired()
             .HasMaxLength(2000);
         
+        builder.Property(x => x.IsArchived)
+            .HasDefaultValue(false);
+
         builder.HasIndex(x => x.Name)
             .IsUnique();
         
@@ -32,7 +35,9 @@ public sealed class PatientProcedureStageDefinitionConfiguration : IEntityTypeCo
             Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
             Name = "Definition missing",
             Description = "This stage definition was deleted.",
-            Instructions = "No instructions available."
+            Instructions = "No instructions available.",
+            // Left over from before definitions were archived instead of deleted; kept for old data, never offered.
+            IsArchived = true
         });
     }
 }

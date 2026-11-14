@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MediatR;
 
@@ -11,16 +11,11 @@ public sealed class GetAllPatientProcedureStageDefinitionsHandler(IPatientProced
         GetAllPatientProcedureStageDefinitionsQuery request,
         CancellationToken cancellationToken)
     {
-        var stageDefinitions = await repository.GetAllStageDefinitionsAsync(cancellationToken);
+        var definitions = await repository.GetStageDefinitionsAsync(request.IncludeArchived, cancellationToken);
+        var usage = await repository.GetStageDefinitionUsageAsync(definitions.Select(d => d.Id), cancellationToken);
 
-        return stageDefinitions
-            .Select(x => new PatientProcedureStageDefinitionResponse
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Description = x.Description,
-                Instructions = x.Instructions
-            })
+        return definitions
+            .Select(d => StageDefinitionMapper.ToResponse(d, usage.GetValueOrDefault(d.Id, StageDefinitionUsage.None)))
             .ToList();
     }
 }

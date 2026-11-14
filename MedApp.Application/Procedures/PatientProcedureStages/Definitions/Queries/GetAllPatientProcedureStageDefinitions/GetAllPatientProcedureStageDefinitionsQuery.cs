@@ -1,6 +1,8 @@
-﻿using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
+using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Queries.GetAllPatientProcedureStageDefinitions;
 
-public sealed record GetAllPatientProcedureStageDefinitionsQuery : IRequest<IReadOnlyList<PatientProcedureStageDefinitionResponse>>;
+/// <summary>Every stage definition, sorted by name; archived ones only when asked for.</summary>
+public sealed record GetAllPatientProcedureStageDefinitionsQuery(bool IncludeArchived = false)
+    : IRequest<IReadOnlyList<PatientProcedureStageDefinitionResponse>>;

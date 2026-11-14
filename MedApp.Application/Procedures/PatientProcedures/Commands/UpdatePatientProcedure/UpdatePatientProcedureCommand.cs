@@ -1,14 +1,15 @@
-﻿using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Application.Procedures.Common;
+using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.UpdatePatientProcedure;
 
+/// <summary>Edits a procedure's details; null fields are left as they are. Stages and status change through their own commands.</summary>
 public sealed record UpdatePatientProcedureCommand(
-    Guid PatientProcedureId,
+    Guid Id,
     string? Title,
     string? Notes,
-    DateTime? DueDateUtc,
+    DateOnly? DueDate,
     string? Priority,
-    string? Status,
-    IReadOnlyList<Guid>? StageDefinitionIdsInOrder
-) : IRequest<PatientProcedureResponse>;
+    ProcedureActor Actor)
+    : IRequest<PatientProcedureResponse>;

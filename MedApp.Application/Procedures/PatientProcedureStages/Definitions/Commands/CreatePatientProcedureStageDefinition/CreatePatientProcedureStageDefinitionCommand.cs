@@ -1,4 +1,4 @@
-﻿using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
+using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.CreatePatientProcedureStageDefinition;
@@ -6,5 +6,5 @@ namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Comma
 public sealed record CreatePatientProcedureStageDefinitionCommand(
     string Name,
     string Description,
-    string Instructions
-) : IRequest<PatientProcedureStageDefinitionResponse>;
+    string Instructions)
+    : IRequest<PatientProcedureStageDefinitionResponse>;

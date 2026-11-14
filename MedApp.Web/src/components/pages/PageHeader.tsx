@@ -15,10 +15,12 @@ export interface PageHeaderProps {
   backLabel?: string;
   /** Buttons at the end of the header, e.g. Search and Add. */
   actions?: ReactNode;
+  /** 2 for a section's header within a page, such as each of Home's task lists. */
+  level?: 1 | 2;
 }
 
 /** A page's title row (replaces Blazor's PageHeader): optional back button, title and subtitle, then actions. */
-export function PageHeader({title, subtitle, backHref, onBack, backLabel = 'Back', actions}: PageHeaderProps) {
+export function PageHeader({title, subtitle, backHref, onBack, backLabel = 'Back', actions, level = 1}: PageHeaderProps) {
   const hasBack = backHref !== undefined || onBack !== undefined;
 
   return (
@@ -34,7 +36,7 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel = 'Back
         />
       )}
       <VStack gap={1}>
-        <Heading level={1}>{title}</Heading>
+        <Heading level={level}>{title}</Heading>
         {subtitle && (
           <Text type="body" color="secondary">
             {subtitle}

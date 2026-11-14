@@ -1,4 +1,4 @@
-﻿using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
+using MedApp.Contracts.Procedures.PatientProcedureStages.Templates.Responses;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Templates.Queries.GetPatientProcedureStageTemplateById;
