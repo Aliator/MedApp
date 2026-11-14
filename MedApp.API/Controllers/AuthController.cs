@@ -33,6 +33,7 @@ public sealed class AuthController(
     [HttpPost("login")]
     [Tags("Login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var session = await mediator.Send(
@@ -236,6 +237,7 @@ public sealed class AuthController(
     
     [HttpGet("whoami")]
     [Tags("Login")]
+    [ProducesResponseType(typeof(WhoAmIResponse), StatusCodes.Status200OK)]
     public IActionResult WhoAmI()
     {
         var roles = User.Claims

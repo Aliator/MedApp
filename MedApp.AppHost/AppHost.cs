@@ -22,4 +22,16 @@ var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "htt
 builder.AddProject<Projects.MedApp_Client>("blazor", launchProfileName: "https")
     .WaitFor(api);
 
+// The React app (MedApp.Web), built alongside Blazor until cutover (plan Q12). Vite proxies /api to the API's URL,
+// which WithReference passes in, so the session cookie stays first-party. Port 5173 is fixed so the UI parity
+// tool's WEB_URL doesn't change between runs.
+builder.AddViteApp("web", "../MedApp.Web")
+    .WithEndpoint("http", endpoint =>
+    {
+        endpoint.Port = 5173;
+        endpoint.IsProxied = false;
+    })
+    .WithReference(api)
+    .WaitFor(api);
+
 builder.Build().Run();

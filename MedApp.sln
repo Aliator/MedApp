@@ -26,6 +26,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.AppHost", "MedApp.Ap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.ServiceDefaults", "MedApp.ServiceDefaults\MedApp.ServiceDefaults.csproj", "{C7A10765-D143-4FF7-A399-D0688FD611AE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MedApp.Web", "MedApp.Web", "{CC381D54-EB13-405B-ABEE-358CE98B59A8}"
+	ProjectSection(SolutionItems) = preProject
+		MedApp.Web\README.md = MedApp.Web\README.md
+		MedApp.Web\AGENTS.md = MedApp.Web\AGENTS.md
+		MedApp.Web\package.json = MedApp.Web\package.json
+		MedApp.Web\vite.config.ts = MedApp.Web\vite.config.ts
+		MedApp.Web\index.html = MedApp.Web\index.html
+		MedApp.Web\eslint.config.js = MedApp.Web\eslint.config.js
+		MedApp.Web\tsconfig.json = MedApp.Web\tsconfig.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -81,6 +92,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{CC381D54-EB13-405B-ABEE-358CE98B59A8} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
 		{FDA9B3A7-D94F-4F9E-ABA2-85F81D1A9BEB} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
 		{E2472769-B74C-4E36-AB3A-5963C0862C3A} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
 		{AE721002-3409-4C49-8442-F8076F51C1F3} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}

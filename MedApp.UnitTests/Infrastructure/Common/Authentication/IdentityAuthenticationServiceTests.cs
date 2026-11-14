@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
@@ -24,7 +25,7 @@ public sealed class IdentityAuthenticationServiceTests
     }
 
     [Test]
-    public async Task ValidateCredentialsAsync_UserDoesNotExist_ThrowsUnauthorizedAccessException()
+    public async Task ValidateCredentialsAsync_UserDoesNotExist_ThrowsInvalidCredentialsException()
     {
         _userManager
             .Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0]))
@@ -35,11 +36,11 @@ public sealed class IdentityAuthenticationServiceTests
                 AuthTestConstants.Usernames[0],
                 AuthTestConstants.Passwords[0]);
 
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        await act.Should().ThrowAsync<InvalidCredentialsException>();
     }
 
     [Test]
-    public async Task ValidateCredentialsAsync_InvalidPassword_ThrowsUnauthorizedAccessException()
+    public async Task ValidateCredentialsAsync_InvalidPassword_ThrowsInvalidCredentialsException()
     {
         var user = AuthTestConstants.CreateValidUser();
         user.Id = Guid.NewGuid();
@@ -57,7 +58,7 @@ public sealed class IdentityAuthenticationServiceTests
                 user.UserName!,
                 AuthTestConstants.Passwords[0]);
 
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        await act.Should().ThrowAsync<InvalidCredentialsException>();
     }
 
     [Test]
