@@ -135,6 +135,7 @@ The Blazor UI is being replaced by a React app, `MedApp.Web`; see `docs/react-mi
 - seed synthetic patients
 - check migrations and row counts
 - snapshot and restore the whole local database
+- reset everything to the standard synthetic demo data set (`reset_demo_data`)
 
 It only runs against a local database. It protects `admin`, and destructive tools need `confirm: true`.
 - **Before a destructive experiment:** take a `save_snapshot`.

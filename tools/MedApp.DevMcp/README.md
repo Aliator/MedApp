@@ -25,6 +25,24 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 | Sessions | `list_sessions`, `revoke_sessions` (sign an account out everywhere) |
 | Patients | `list_patients`, `create_patient`, `seed_patients`, `delete_patient` |
 | Snapshots | `save_snapshot`, `list_snapshots`, `restore_snapshot` (whole-database backup/restore; LocalDB only, files in the git-ignored `.backups/`) |
+| Demo data | `reset_demo_data` (needs `confirm: true`) |
+
+`reset_demo_data` saves a `pre-reset-<timestamp>` snapshot first.
+
+**It removes:**
+- all patients, procedures, stage definitions and templates, and sessions
+- every account except the protected ones and `parity-admin`
+
+The built-in "Definition missing" stage is kept.
+
+**It then creates synthetic demo data:**
+- 6 staff accounts (`a.hartwell` and `k.ashford` are Admin + User; the rest are User). Their generated passwords are returned, and `set_password` gives any of them a new one.
+- 60 patients, with ages skewed older and `@example.com` emails
+- 8 stage definitions: referral, pre-assessment, consent, scheduling, procedure, recovery, results review and follow-up
+- 3 templates: surgical, diagnostic and minor procedure
+- about 90 procedures across every status, with priorities, due dates (some overdue), assignees, and stage progress that matches each status
+
+The default seed `2026` always gives the same people and procedures. Timestamps are relative to now, so the data always looks current.
 
 ## Running
 
