@@ -192,3 +192,16 @@ When the subagent reports back, do step 4 yourself, and don't interrupt the user
 - Branch from `main` as `feature/<name>`, and merge back through a PR to `main`.
 - Commit messages are short, capitalised and past tense, for example "Updated patient task routing", "Added get all methods for tasks".
 - Never commit `bin/`, `obj/`, `.idea/` or `*.DotSettings.user`.
+
+### "Merge it": the full merge flow
+
+**Only run this when the user explicitly asks you to merge.** Without that, stop at committing or at an open PR, as usual. Opening a PR or seeing CI pass is not permission to merge.
+
+When the user says to merge, do every step, in order, without stopping to ask again:
+1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push.
+2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
+3. **Wait for the workflow** run whose `head_sha` is the pushed commit to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
+   - **If it fails, stop.** Don't merge. Report it and propose a fix, as in step 4 of the CI section.
+4. **Merge** the PR with a merge commit (`gh pr merge <n> --merge`), matching the existing "Merge pull request #N" history.
+5. **Delete the branch**, both on GitHub and locally (`--delete-branch` handles both).
+6. **Pull `main` locally:** `git switch main` then `git pull`, so the working copy is up to date and ready for the next change. Then confirm the merge commit and that the working tree is clean.
