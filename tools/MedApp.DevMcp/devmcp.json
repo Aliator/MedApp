@@ -1,5 +1,9 @@
 {
   "DevMcp": {
-    "ProtectedUsers": [ "admin" ]
+    "ProtectedUsers": [ "admin" ],
+    "SqlContainer": {
+      "ConnectionString": "Server=127.0.0.1,14330;Database=MedApp;User ID=sa;TrustServerCertificate=True",
+      "BackupDirectory": "/var/opt/mssql/backups"
+    }
   }
 }

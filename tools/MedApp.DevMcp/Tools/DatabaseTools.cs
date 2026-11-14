@@ -8,7 +8,8 @@ namespace MedApp.DevMcp.Tools;
 
 /// <summary>
 /// Snapshots of the whole local database, for resetting state between runs while building the React UI.
-/// LocalDB only for now: the .bak path must be on this machine. (A SQL Server container would need a path inside it.)
+/// The .bak files always end up in the git-ignored .backups folder: LocalDB writes there directly, and the Aspire SQL
+/// container writes to its own backup path, which the AppHost bind-mounts onto that folder.
 /// </summary>
 [McpServerToolType]
 public sealed partial class DatabaseTools
@@ -34,10 +35,13 @@ public sealed partial class DatabaseTools
         [Description("Snapshot name, e.g. before-react-login.")] string name,
         CancellationToken ct = default)
     {
-        var path = SnapshotPath(guard, options, name);
+        var (path, serverPath) = SnapshotPaths(guard, options, name);
         Directory.CreateDirectory(options.BackupDirectory);
         await ExecuteOnMaster(guard,
-            $"BACKUP DATABASE {Quote(guard.Database)} TO DISK = @path WITH INIT, COPY_ONLY", path, ct);
+            $"BACKUP DATABASE {Quote(guard.Database)} TO DISK = @path WITH INIT, COPY_ONLY", serverPath, ct);
+        if (!File.Exists(path))
+            throw new McpException(
+                $"SQL Server wrote the backup to '{serverPath}', but it isn't in '{options.BackupDirectory}'. Is the AppHost's bind mount for the backups folder in place?");
         return new { name, path, sizeKb = new FileInfo(path).Length / 1024 };
     }
 
@@ -50,7 +54,7 @@ public sealed partial class DatabaseTools
         [Description("Must be true to restore.")] bool confirm = false,
         CancellationToken ct = default)
     {
-        var path = SnapshotPath(guard, options, name);
+        var (path, serverPath) = SnapshotPaths(guard, options, name);
         if (!File.Exists(path)) throw new McpException($"No snapshot named '{name}'. Use list_snapshots.");
         Guards.RequireConfirm(confirm, $"Restoring snapshot '{name}' over the current database");
 
@@ -69,18 +73,22 @@ public sealed partial class DatabaseTools
                  THROW;
              END CATCH;
              ALTER DATABASE {db} SET MULTI_USER;
-             """, path, ct);
+             """, serverPath, ct);
         SqlConnection.ClearAllPools();
         return new { restored = name, safetySnapshot = safety };
     }
 
-    private static string SnapshotPath(DevGuard guard, DevMcpOptions options, string name)
+    /// <summary>The snapshot file on this machine, and the same file as SQL Server sees it (they differ for the container).</summary>
+    private static (string Path, string ServerPath) SnapshotPaths(DevGuard guard, DevMcpOptions options, string name)
     {
-        if (!guard.IsLocalDb)
-            throw new McpException("Snapshots are only supported on LocalDB for now (the backup file must be on this machine).");
         if (!SnapshotName().IsMatch(name))
             throw new McpException("Snapshot names may use letters, digits, '-' and '_' only (max 64).");
-        return Path.Combine(options.BackupDirectory, name + ".bak");
+        var file = name + ".bak";
+        var path = Path.Combine(options.BackupDirectory, file);
+        if (guard.IsLocalDb) return (path, path);
+        if (string.IsNullOrWhiteSpace(options.ServerBackupDirectory))
+            throw new McpException("DevMcp:SqlContainer:BackupDirectory isn't set in devmcp.json, so snapshots can't be saved on this server.");
+        return (path, options.ServerBackupDirectory.TrimEnd('/') + "/" + file);
     }
 
     private static string Quote(string identifier) => "[" + identifier.Replace("]", "]]") + "]";

@@ -43,12 +43,8 @@ public sealed class DemoDataTools
         Guards.RequireConfirm(confirm, "Resetting the database to demo data");
         var keep = options.ProtectedUsers.Concat(keepUsers ?? ["parity-admin"]).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        string? snapshot = null;
-        if (guard.IsLocalDb)
-        {
-            snapshot = $"pre-reset-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
-            await DatabaseTools.SaveSnapshot(guard, options, snapshot, ct);
-        }
+        var snapshot = $"pre-reset-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        await DatabaseTools.SaveSnapshot(guard, options, snapshot, ct);
 
         foreach (var role in new[] { "Admin", "User" })
             if (!await roles.RoleExistsAsync(role))

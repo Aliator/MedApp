@@ -10,7 +10,7 @@ const apps: { name: AppName; url: string; apiUrl: string }[] = [
   {
     name: 'blazor',
     url: process.env.BLAZOR_URL || 'https://localhost:7292',
-    apiUrl: process.env.BLAZOR_API_URL || 'https://localhost:44305',
+    apiUrl: process.env.BLAZOR_API_URL || 'https://localhost:7038',
   },
   // MedApp.Web proxies /api to the API (same origin), so its API URL is its own URL.
   ...(process.env.WEB_URL ? [{ name: 'react' as const, url: process.env.WEB_URL, apiUrl: process.env.WEB_URL }] : []),

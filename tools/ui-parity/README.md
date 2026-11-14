@@ -6,23 +6,20 @@ Captures the same screens in the Blazor app (`MedApp.Client`) and the React app 
 
 1. Install Node.js, then run `npm install` and `npm run install-browser` (Chromium only) in this folder.
 2. Create a **dev-only admin account** for the screenshots:
-   - Sign in to the Blazor app as an admin, open **Users → Add User**, and create, for example, `parity-admin`. New users get the default password from the create-user dialog.
-   - Use **Assign** to give it the `Admin` role.
+   - The easiest way is `medapp-dev`'s `create_user` with roles `["Admin", "User"]` (`reset_demo_data` keeps `parity-admin`).
+   - Or sign in to the Blazor app as an admin, open **Users → Add User**, create, for example, `parity-admin`, and use **Assign** to give it the `Admin` role.
    - Use synthetic details only, never a real person's.
 3. Copy `.env.example` to `.env` (git-ignored) and fill in `PARITY_USERNAME` / `PARITY_PASSWORD`.
 
 ## Running it
 
-Start the apps first. Until the Aspire AppHost exists:
+Start the apps first, from the repo root (Docker must be running):
 
 ```bash
-# from the repo root: build once, then run without rebuilding (building both at once locks MedApp.Contracts)
-dotnet build MedApp.API/MedApp.API.csproj && dotnet build MedApp.Client/MedApp.Client.csproj
-dotnet run --no-build --project MedApp.API --launch-profile https --urls "https://localhost:44305"   # the port the Blazor client calls
-dotnet run --no-build --project MedApp.Client --launch-profile https                               # https://localhost:7292
+dotnet run --project MedApp.AppHost   # SQL container, API (https://localhost:7038), Blazor client (https://localhost:7292)
 ```
 
-If either app fails with "the default developer certificate could not be found", run `dotnet dev-certs https` once.
+Wait until the dashboard shows the API and the Blazor client as running. If either fails with "the default developer certificate could not be found", run `dotnet dev-certs https` once.
 
 Then, in this folder:
 

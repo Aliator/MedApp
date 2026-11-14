@@ -2,7 +2,7 @@
 
 Status: **decisions settled** · 2026-11-14
 
-Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete.
+Build `MedApp.Web`, a React app on Astryx run under .NET Aspire, to replace `MedApp.Client` (Blazor WebAssembly) as the UI, keeping the same routes, behaviour and API. `MedApp.Client` stays in the repo as a deprecated project. All [open questions](#7-open-questions) were settled on 2026-11-14, so phase 1 is complete. Phase 2 (Aspire foundation and Blazor baseline) was completed on 2026-11-14.
 
 ## 1. Goals and fixed decisions
 
@@ -176,7 +176,7 @@ Totals: 18 mapped 1:1, 11 composites and 1 removed. `DatePickerFormGroup` is lis
 
   The side navigation is visible in every signed-in screenshot, so it has no screen of its own.
 
-- **Status (2026-11-14): set up.** The tool is in `tools/ui-parity/`, with `README.md` covering setup and running. The Blazor login screens are captured; the signed-in screens wait for the dev admin account in `.env`.
+- **Status (2026-11-14): Blazor baseline captured.** The tool is in `tools/ui-parity/`, with `README.md` covering setup and running. All 17 Blazor screens were captured under the AppHost, against the SQL container loaded with `reset_demo_data` (phase 2).
 - **Stable captures:**
   - Fixed desktop viewport, 1440×900. **No mobile captures, and no mobile UI work in this migration (decided 2026-11-14)**: mobile layouts are out of scope for now.
   - Locale `en-GB`, timezone `Europe/London`.
@@ -205,7 +205,7 @@ Totals: 18 mapped 1:1, 11 composites and 1 removed. `DatePickerFormGroup` is lis
 
 It runs against LocalDB or localhost only, protects `admin`, and needs `confirm: true` for destructive tools. `.mcp.json` also registers the Astryx docs MCP.
 
-**When the SQL container lands (Q2):** connection strings come from Aspire, and the guard already accepts `localhost`. But snapshot files would need a path inside the container, so snapshots stay LocalDB-only until then.
+**With the SQL container (Q2, done in phase 2):** the MCP connects to the container on `127.0.0.1,14330`, with the `sa` password read from the AppHost's user secrets. Snapshots work there too: the AppHost bind-mounts `tools/MedApp.DevMcp/.backups` into the container at `/var/opt/mssql/backups`, so SQL Server writes the `.bak` files straight into the git-ignored folder.
 
 ## 6. Phased delivery
 
@@ -217,6 +217,13 @@ Each phase ends with a working app. Blazor stays the default UI until phase 5, a
    - Set up `tools/ui-parity` and capture the Blazor baseline for every screen.
 
    *Exit:* one command starts everything, login works in Blazor, and a full set of Blazor screenshots exists.
+
+   ✅ **Done (2026-11-14).** `dotnet run --project MedApp.AppHost` starts:
+   - `sql`: SQL Server 2022 with the `medapp-sql-data` volume, on fixed host port `14330` (bound to `127.0.0.1`), with a persistent lifetime so `dotnet ef` and `medapp-dev` can reach it while the AppHost is stopped.
+   - `api`: on its `https` launch profile (`7038`), with `ConnectionStrings:DefaultConnection` injected from the `MedApp` database, and a `/health` check. The LocalDB connection strings are gone from both `appsettings` files.
+   - `blazor`: on `7292`, which the API's CORS allows. WASM can't read Aspire's variables, so its API address moved from the IIS Express port (`44305`) to `7038`.
+
+   The container was migrated and loaded with `reset_demo_data` (Q2b), and the Blazor baseline was captured from it.
 3. **React shell:**
    - Scaffold `MedApp.Web` (Vite + React 19 + TypeScript + Astryx) and add it to the AppHost.
    - Add `AppShell` + `SideNav`, the auth provider and route guard, and the API client and types.
