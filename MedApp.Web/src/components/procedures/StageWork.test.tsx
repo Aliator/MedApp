@@ -26,15 +26,9 @@ function renderWork(overrides: Partial<ProcedureStage> = {}, isAdmin = false) {
 }
 
 describe('StageWork', () => {
-  it('has a five-line notes box, or one that fills the space around it (from two lines) when asked', async () => {
-    const {unmount} = renderWork();
+  it('has a fixed five-line notes box', async () => {
+    renderWork();
     expect(await screen.findByRole('textbox', {name: 'Notes'})).toHaveAttribute('rows', '5');
-    unmount();
-
-    const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
-    renderWithApp(<StageWork stage={stage()} isAdmin={false} isBusy={false} isNotesFilling {...handlers} />);
-    // Nothing is laid out in tests, so it stays at its two-line minimum (FillingTextArea's tests cover the fill).
-    expect(await screen.findByRole('textbox', {name: 'Notes'})).toHaveAttribute('rows', '2');
   });
 
   it('edits the notes, saving only once they change', async () => {

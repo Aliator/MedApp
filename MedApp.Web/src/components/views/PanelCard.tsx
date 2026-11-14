@@ -4,7 +4,7 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Heading} from '@astryxdesign/core/Text';
-import type {ReactNode, Ref} from 'react';
+import {useState, type ReactNode, type Ref} from 'react';
 import {AppIcon} from '../shared/icons';
 
 export interface PanelHeaderProps {
@@ -18,12 +18,17 @@ export interface PanelHeaderProps {
   onClick?: () => void;
 }
 
+const HOVERED = {
+  backgroundColor: 'color-mix(in srgb, var(--color-background-muted) 92%, light-dark(black, white))',
+};
+
 /**
  * A header bar: a section title with controls at the end, on a shade a little different from the card (the same
  * as the footer) so it stands out. A PanelCard's top bar, and the same bar for further sections inside the card
  * (e.g. Stages under Details on a narrow window), so they all look alike.
  */
 export function PanelHeader({title, actions, dividers = ['bottom'], ref, onClick}: PanelHeaderProps) {
+  const [isHovered, setIsHovered] = useState(false);
   return (
     <Section
       ref={ref}
@@ -32,8 +37,11 @@ export function PanelHeader({title, actions, dividers = ['bottom'], ref, onClick
       paddingBlock={3}
       dividers={dividers}
       onClick={onClick}
-      // A clickable bar shows it (no Section prop for the cursor).
-      style={onClick ? {cursor: 'pointer'} : undefined}>
+      onMouseEnter={onClick ? () => setIsHovered(true) : undefined}
+      onMouseLeave={onClick ? () => setIsHovered(false) : undefined}
+      // A clickable bar shows it: the pointer, and under it a slightly lighter shade (darker in light mode). Section
+      // has no props for either.
+      style={onClick ? {cursor: 'pointer', ...(isHovered ? HOVERED : undefined)} : undefined}>
       <HStack gap={3} vAlign="center">
         <Heading level={2}>{title}</Heading>
         <StackItem size="fill" />
@@ -78,6 +86,8 @@ export interface PanelCardProps {
   isBodyScrollable?: boolean;
   /** Buttons in a footer pinned to the bottom, aligned to the end. */
   footerActions?: ReactNode;
+  /** Makes the header bar clickable. Put a control for it in `headerActions` too, so the keyboard can reach it. */
+  onHeaderClick?: () => void;
 }
 
 /**
@@ -92,11 +102,12 @@ export function PanelCard({
   isBodyPadded = true,
   isBodyScrollable = true,
   footerActions,
+  onHeaderClick,
 }: PanelCardProps) {
   return (
     <Card padding={0} width="100%" height="100%">
       <VStack gap={0} height="100%">
-        <PanelHeader title={title} actions={headerActions} />
+        <PanelHeader title={title} actions={headerActions} onClick={onHeaderClick} />
         <StackItem size="fill" isScrollable={isBodyScrollable}>
           {isBodyPadded ? (
             <Section variant="transparent" padding={6}>

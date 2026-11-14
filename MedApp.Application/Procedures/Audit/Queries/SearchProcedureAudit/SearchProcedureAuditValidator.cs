@@ -21,6 +21,10 @@ public sealed class SearchProcedureAuditValidator : AbstractValidator<SearchProc
             .When(x => x.Action is not null)
             .WithMessage($"Action must be one of: {ProcedureEnums.AuditActionNames}.");
 
+        RuleForEach(x => x.Actions)
+            .Must(ProcedureEnums.IsAuditAction)
+            .WithMessage($"Each action must be one of: {ProcedureEnums.AuditActionNames}.");
+
         RuleFor(x => x.Search)
             .MaximumLength(200)
             .WithMessage("Search must not exceed 200 characters.");

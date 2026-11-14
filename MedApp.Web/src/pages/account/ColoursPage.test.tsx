@@ -1,0 +1,70 @@
+import {screen, within} from '@testing-library/react';
+import {renderWithApp, staffUser} from '../../test/render';
+import {ColoursPage} from './ColoursPage';
+
+const list = (mode: 'Light' | 'Dark') => within(screen.getByRole('list', {name: `${mode} mode colour themes`}));
+const stored = () => JSON.parse(localStorage.getItem('medapp.colours') ?? 'null');
+
+describe('ColoursPage', () => {
+  it('lists the same themes for each mode, Standard chosen', async () => {
+    renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    const names = (mode: 'Light' | 'Dark') =>
+      list(mode)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent);
+    expect(names('Light')).toEqual(names('Dark'));
+    expect(list('Light').getByText('Standard').closest('[aria-current]')).not.toBeNull();
+    expect(screen.queryByLabelText(/Page background/)).not.toBeInTheDocument();
+  });
+
+  it("switches the app's mode from a card's header", async () => {
+    const {user} = renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    // Dark is the default, so it's the active one.
+    expect(screen.getAllByText('Active')).toHaveLength(1);
+    await user.click(screen.getByRole('heading', {name: 'Light Mode'}));
+    expect(localStorage.getItem('medapp.colorMode')).toBe('light');
+    await user.click(screen.getByRole('heading', {name: 'Dark Mode'}));
+    expect(localStorage.getItem('medapp.colorMode')).toBe('dark');
+    expect(screen.queryByRole('button', {name: /^Use /})).not.toBeInTheDocument();
+  });
+
+  it('chooses a theme for one mode, recolouring it and leaving the other', async () => {
+    const {user} = renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    await user.click(list('Dark').getByText('Chocolate'));
+
+    // The app switches to that mode, so the change shows.
+    expect(localStorage.getItem('medapp.colorMode')).toBe('dark');
+    expect(stored().dark).toEqual({page: '#1c1610', card: '#2a2018', nav: '#141010'});
+    expect(stored().light.page).toBe('#d8e0ef');
+  });
+
+  it('can choose any theme in either mode, Stone included (no two are the same)', async () => {
+    const {user} = renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    await user.click(list('Dark').getByText('Stone'));
+
+    expect(list('Dark').getByText('Stone').closest('[aria-current]')).not.toBeNull();
+    expect(list('Dark').getByText('Standard').closest('[aria-current]')).toBeNull();
+  });
+
+  it('opens Custom with its colour pickers, folding the themes away, and closes it again', async () => {
+    const {user} = renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    await user.click(list('Light').getByText('Custom'));
+    expect(localStorage.getItem('medapp.colorMode')).toBe('light');
+    expect(list('Light').queryByText('Stone')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Page background/)).toHaveValue('#d8e0ef');
+
+    await user.click(list('Light').getByText('Custom'));
+    expect(list('Light').getByText('Stone')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Page background/)).not.toBeInTheDocument();
+  });
+});

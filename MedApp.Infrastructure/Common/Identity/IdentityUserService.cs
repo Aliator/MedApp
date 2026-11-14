@@ -69,6 +69,29 @@ public sealed class IdentityUserService(
             : new ResetUserPasswordResponse(null, result.Errors);
     }
 
+    public async Task<IdentityResult> VerifyPasswordAsync(
+        string username,
+        string password,
+        CancellationToken ct)
+    {
+        var user = await userManager.FindByNameAsync(username);
+        if (user is null)
+            return IdentityResult.Failed(IdentityErrors.UserNotFound);
+
+        if (await userManager.IsLockedOutAsync(user))
+            return IdentityResult.Failed(IdentityErrors.LockedOut);
+
+        if (await userManager.CheckPasswordAsync(user, password))
+        {
+            await userManager.ResetAccessFailedCountAsync(user);
+            return IdentityResult.Success;
+        }
+
+        await userManager.AccessFailedAsync(user);
+        return IdentityResult.Failed(
+            await userManager.IsLockedOutAsync(user) ? IdentityErrors.LockedOut : IdentityErrors.PasswordIncorrect);
+    }
+
     public async Task<IdentityResult> DeleteUserAsync(
         string username,
         CancellationToken ct)

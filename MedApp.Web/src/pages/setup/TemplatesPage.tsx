@@ -2,7 +2,6 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Switch} from '@astryxdesign/core/Switch';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
@@ -15,11 +14,12 @@ import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {saveProblem} from '../saveProblem';
-import {setupPage} from './setupList';
+import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
 
 type TemplateRow = ProcedureTemplate & Record<string, unknown>;
 type DialogState = {kind: 'archive' | 'delete'; template: ProcedureTemplate} | null;
@@ -49,7 +49,7 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const {rows, page, total, archivedCount} = setupPage(data, search);
+  const {rows, page, total} = setupPage(data, search);
   const close = () => setDialog(null);
   const open = (kind: 'archive' | 'delete', template: ProcedureTemplate) => {
     setError(null);
@@ -74,7 +74,7 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
       width: pixel(140),
       renderCell: (t) => <Text type="body">{t.procedureCount ? count(t.procedureCount, 'procedure', 'procedures') : 'Not used yet'}</Text>,
     },
-    {key: 'status', header: 'Status', width: pixel(110), renderCell: (t) => <SetupStatusToken isArchived={t.isArchived ?? false} />},
+    {key: 'status', header: 'Status', width: pixel(100), renderCell: (t) => <SetupStatusToken isArchived={t.isArchived ?? false} />},
     {
       key: 'actions',
       header: 'Actions',
@@ -100,7 +100,7 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
     },
   ];
 
-  const subtitle = isPending ? 'Loading templates...' : `${total} ${search.archived ? '' : 'active '}${total === 1 ? 'template' : 'templates'}`;
+  const subtitle = isPending ? 'Loading templates...' : setupSubtitle(total, search, 'template', 'templates');
   const summary = target && (
     <MetadataList>
       <MetadataListItem label="Template">{target.name}</MetadataListItem>
@@ -114,16 +114,7 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
       subtitle={subtitle}
       fill
       message={error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The templates could not be loaded. Please try again." />}
-      actions={
-        <>
-          <Switch
-            label={`Show archived (${archivedCount})`}
-            value={search.archived ?? false}
-            onChange={(archived) => onSearchChange({archived: archived || undefined})}
-          />
-          <Button label="New Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/templates/new" />
-        </>
-      }
+      actions={<Button label="New Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/templates/new" />}
       dialogs={
         <>
           <ConfirmDialog
@@ -164,6 +155,18 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
           columns={columns}
           idKey="id"
           isLoading={isPending}
+          // The search: its name, and Active (to begin with) or Archived.
+          search={
+            <ListFilterBar
+              fields={SETUP_FILTER_FIELDS}
+              values={setupBarValues(search)}
+              onChange={(values) => onSearchChange({...fromSetupBar(values), page: undefined})}
+              label="Search templates"
+              placeholder="Search templates by name, or filter by status..."
+              textKey="name"
+              favourites={SETUP_FAVOURITES}
+            />
+          }
           pagination={{
             page,
             pageSize: PAGE_SIZE,
@@ -172,10 +175,10 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
           }}
           emptyState={
             <EmptyState
-              title="Every template is archived"
-              description="Show archived ones to see and restore them."
+              title="No templates match your search"
+              description="Search for archived ones too, to see and restore them."
               isCompact
-              actions={<Button label="Show Archived" variant="secondary" onClick={() => onSearchChange({archived: true})} />}
+              actions={<Button label="Show Archived" variant="secondary" onClick={() => onSearchChange({...search, page: undefined, status: 'any'})} />}
             />
           }
         />

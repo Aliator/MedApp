@@ -1,29 +1,28 @@
 import {Button} from '@astryxdesign/core/Button';
-import type {DateRange} from '@astryxdesign/core/DateRangeInput';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Link} from '@astryxdesign/core/Link';
 import {HStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
-import {useState} from 'react';
 import type {Patient} from '../../api/patients';
 import {PAGE_SIZE, patientSearchQuery} from '../../api/search';
-import {SearchDialog, type SearchField, type SearchValues} from '../../components/modals/SearchDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {AvatarCell} from '../../components/tables/AvatarCell';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
+import {dayFromToday, ListFilterBar, type ListFilterField} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
 import {ageOn, formatShortDate} from '../../utils/dates';
 import {hasPatientFilters, PATIENT_SORTS, type PatientSortColumn, type PatientsListSearch} from '../listSearch';
 
-const SEARCH_FIELDS: SearchField[] = [
-  {type: 'text', key: 'first', label: 'First Name', placeholder: 'First name'},
-  {type: 'text', key: 'last', label: 'Last Name', placeholder: 'Last name'},
-  {type: 'text', key: 'email', label: 'Email', placeholder: 'Email address'},
-  {type: 'dateRange', key: 'dob', label: 'Date of birth'},
+/** The search's fields, as the API filters patients, kept in the URL under these keys. */
+const FILTER_FIELDS: ListFilterField[] = [
+  {kind: 'text', key: 'first', label: 'First name'},
+  {kind: 'text', key: 'last', label: 'Last name'},
+  {kind: 'text', key: 'email', label: 'Email'},
+  {kind: 'date', key: 'dob', label: 'Date of birth', fromKey: 'dobFrom', toKey: 'dobTo'},
 ];
 
 type PatientRow = Patient & Record<string, unknown>;
@@ -36,8 +35,8 @@ export interface PatientsListPageProps {
 }
 
 /**
- * Patients list (replaces Blazor's PatientsTable): one page of patients from the API, sortable, with a search
- * dialog and links to view, edit and add. The page, sort and filters live in the URL.
+ * Patients list (replaces Blazor's PatientsTable): one page of patients from the API, sortable, with a power
+ * search and links to view, edit and add. The page, sort and filters live in the URL.
  */
 export function PatientsListPage({search, onSearchChange}: PatientsListPageProps) {
   const page = search.page ?? 1;
@@ -60,42 +59,8 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as PatientRow[];
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [draft, setDraft] = useState<SearchValues>({});
-
-  const openSearch = () => {
-    setDraft({
-      first: search.first ?? '',
-      last: search.last ?? '',
-      email: search.email ?? '',
-      dob: search.dobFrom && search.dobTo ? ({start: search.dobFrom, end: search.dobTo} as DateRange) : null,
-    });
-    setIsSearchOpen(true);
-  };
-
   /** Keeps the sort; any change to the filters goes back to page 1. */
-  const applySearch = (values: SearchValues) => {
-    const text = (key: string) => {
-      const value = values[key];
-      return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-    };
-    const dob = values.dob && typeof values.dob === 'object' ? values.dob : null;
-    onSearchChange({
-      sort: search.sort,
-      asc: search.asc,
-      first: text('first'),
-      last: text('last'),
-      email: text('email'),
-      dobFrom: dob?.start,
-      dobTo: dob?.end,
-    });
-    setIsSearchOpen(false);
-  };
-
-  const clearSearch = () => {
-    onSearchChange({sort: search.sort, asc: search.asc});
-    setIsSearchOpen(false);
-  };
+  const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc});
 
   const columns: DataTableColumn<PatientRow>[] = [
     {
@@ -157,27 +122,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       subtitle={subtitle}
       fill
       message={isError && <AlertMessage message="The patients could not be loaded. Please try again." />}
-      actions={
-        <>
-          {isFiltered && (
-            <Button label="Clear Search" variant="ghost" icon={<Icon icon={AppIcon.Cancel} />} onClick={clearSearch} />
-          )}
-          <Button label="Search" variant="secondary" icon={<Icon icon={AppIcon.Search} />} onClick={openSearch} />
-          <Button label="Add Patient" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/patients/add" />
-        </>
-      }
-      dialogs={
-        <SearchDialog
-          isOpen={isSearchOpen}
-          title="Search Patients"
-          fields={SEARCH_FIELDS}
-          values={draft}
-          onValuesChange={setDraft}
-          onSearch={() => applySearch(draft)}
-          onClear={clearSearch}
-          onClose={() => setIsSearchOpen(false)}
-        />
-      }>
+      actions={<Button label="Add Patient" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/patients/add" />}>
       {noPatientsAtAll ? (
         <EmptyState
           title="No patients yet"
@@ -192,6 +137,21 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           idKey="id"
           isLoading={isPending}
           skeletonRows={PAGE_SIZE}
+          // The search, as a power search across the top of the card: a token per filter, in the URL like the
+          // page and sort.
+          search={
+            <ListFilterBar
+              fields={FILTER_FIELDS}
+              values={search}
+              onChange={(filters) => onSearchChange({...search, ...filters, page: undefined})}
+              label="Search patients"
+              placeholder="Search patients by first name, last name, email or date of birth..."
+              favourites={[
+                {label: 'Under 18', values: {dobFrom: dayFromToday({years: -18, days: 1})}},
+                {label: '65 and over', values: {dobTo: dayFromToday({years: -65})}},
+              ]}
+            />
+          }
           sort={{column: sortColumn, ascending}}
           onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: sort.column as PatientSortColumn, asc: sort.ascending})}
           pagination={{

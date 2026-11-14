@@ -193,6 +193,30 @@ describe('ProcedurePage: working on it', () => {
     expect(openDialog()).toBeNull();
   });
 
+  it("never asks an admin whether it's assigned to them", async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(working({assignments: []})),
+      [`PUT ${PATH}/stages/s2/notes`]: () => json(working({assignments: []})),
+    });
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: adminUser});
+
+    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
+    await user.click(screen.getByRole('button', {name: 'Save Notes'}));
+
+    await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('PUT'))).toHaveLength(1));
+    expect(openDialog()).toBeNull();
+  });
+
+  it("asks only for a status change's own confirmation, not whether it's assigned to you", async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Block'}));
+
+    expect(within(openDialog()!).queryByText(NOT_ASSIGNED_MESSAGE)).not.toBeInTheDocument();
+    expect(within(openDialog()!).getByRole('button', {name: 'Block'})).toBeInTheDocument();
+  });
+
   it('does not ask when you back out, and makes no change', async () => {
     const fetch = mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
     const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});

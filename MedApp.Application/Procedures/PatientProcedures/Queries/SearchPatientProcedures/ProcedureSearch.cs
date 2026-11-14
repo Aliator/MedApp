@@ -37,6 +37,15 @@ public static class ProcedureSearch
                 || p.TemplateName.ToLower().Contains(term)
                 || (p.Patient.FirstName + " " + p.Patient.LastName).ToLower().Contains(term));
 
+        if (Term(query.Title) is { } title)
+            procedures = procedures.Where(p => p.Title.ToLower().Contains(title));
+
+        if (Term(query.TemplateName) is { } templateName)
+            procedures = procedures.Where(p => p.TemplateName.ToLower().Contains(templateName));
+
+        if (Term(query.PatientName) is { } patientName)
+            procedures = procedures.Where(p => (p.Patient.FirstName + " " + p.Patient.LastName).ToLower().Contains(patientName));
+
         if (query.PatientId is { } patientId)
             procedures = procedures.Where(p => p.PatientId == patientId);
 
@@ -60,6 +69,14 @@ public static class ProcedureSearch
 
         if (ProcedureEnums.TryParse<PatientProcedurePriority>(query.Priority, out var priority))
             procedures = procedures.Where(p => p.Priority == priority);
+
+        var priorities = (query.Priorities ?? [])
+            .Select(s => ProcedureEnums.TryParse<PatientProcedurePriority>(s, out var p) ? p : (PatientProcedurePriority?)null)
+            .OfType<PatientProcedurePriority>()
+            .Distinct()
+            .ToList();
+        if (priorities.Count > 0)
+            procedures = procedures.Where(p => priorities.Contains(p.Priority));
 
         if (query.AssignedToUserId is { } userId)
             procedures = procedures.Where(p => p.Assignments.Any(a => a.UserId == userId));

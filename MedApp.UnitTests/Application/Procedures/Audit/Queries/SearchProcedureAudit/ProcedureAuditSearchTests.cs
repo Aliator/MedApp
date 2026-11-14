@@ -31,6 +31,12 @@ public sealed class ProcedureAuditSearchTests
         Entries().Filter(CreateAuditSearchQuery() with { Action = "stagefinished" }).Should().Equal(Finished);
     }
 
+    [Test]
+    public void Filter_Actions_ReturnsAnyOfThemIgnoringCase()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Actions = ["created", "StageUnlocked"] }).Should().BeEquivalentTo([Created, Unlocked]);
+    }
+
     [TestCase("ASHFORD")]
     [TestCase("knee")]
     public void Filter_Search_MatchesUsernameOrProcedureTitle(string search)

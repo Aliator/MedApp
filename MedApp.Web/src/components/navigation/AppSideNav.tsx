@@ -1,24 +1,42 @@
 import {Icon} from '@astryxdesign/core/Icon';
+import {DropdownMenu, type DropdownMenuItemData} from '@astryxdesign/core/DropdownMenu';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {NavIcon} from '@astryxdesign/core/NavIcon';
 import {SideNav, SideNavHeading, SideNavItem, SideNavSection, type SideNavProps} from '@astryxdesign/core/SideNav';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import {Theme} from '@astryxdesign/core/theme';
 import {useQuery} from '@tanstack/react-query';
-import {useRouterState} from '@tanstack/react-router';
-import {createContext, useContext, useEffect, useState, type FocusEvent, type ReactNode} from 'react';
+import {useRouter, useRouterState} from '@tanstack/react-router';
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import {ApiError} from '../../api/errors';
 import {patientQuery} from '../../api/patients';
 import {procedureQuery} from '../../api/procedures';
 import {useColorMode} from '../../app/colorMode';
+import {useNavSettings} from '../../app/navSettings';
+import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {useCurrentUser, useLogout} from '../../auth/auth';
+import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
 import {AppIcon} from '../shared/icons';
+import {NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
-  {label: 'Stage Definitions', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
+  {label: 'Stages', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
   {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
 ];
@@ -72,33 +90,179 @@ function isKeyboardFocus(target: EventTarget | null): boolean {
 const shownFor = (isActive: boolean) => (isActive ? undefined : ({visibility: 'hidden'} as const));
 
 /**
- * A nav item's button that opens its page in a half view, beside the current page. It's greyed out for a page
- * that's already open (the current page, or the one in the half view). None inside a half view.
+ * Rows brought out of the folded nav (NavRail) always show their buttons: the row is only out while the pointer
+ * is on its item, and buttons appearing and vanishing as it moves over the rows looked like a flicker.
  */
-function HalfViewButton({label, href}: {label: string; href: string}) {
+function AlwaysShownButtons({children}: {children: ReactNode}) {
+  return <ActiveRowsContext.Provider value={() => true}>{children}</ActiveRowsContext.Provider>;
+}
+
+/** The half-view part of a row's menu: open its page beside this one, or on either side while a half view is open. */
+function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
   const halfViews = useHalfViews();
-  const isActive = useContext(ActiveRowsContext)(href);
+  const router = useRouter();
   const pathname = useRouterState({select: (state) => state.location.pathname});
-  if (!halfViews) return null;
-  const isOpen = href === pathname || href === halfViews.openPath;
-  const name = isOpen ? `${label} is already open` : `Open ${label} in half view`;
+  if (!halfViews) return [];
+
+  // With a half view open, it opens on the left (the main view) or the right (the half view). Both are greyed out
+  // while either side shows it, since a page is only open once.
+  if (halfViews.openPath !== null) {
+    const openOn = href === pathname ? 'left' : href === halfViews.openPath ? 'right' : null;
+    const already = openOn ? `${label} is already open on the ${openOn}` : undefined;
+    return [
+      {
+        id: 'left',
+        label: 'Open on the left',
+        description: already,
+        icon: AppIcon.OpenLeft,
+        isDisabled: openOn !== null,
+        onClick: () => void router.navigate({href}),
+      },
+      {
+        id: 'right',
+        label: 'Open on the right',
+        description: already,
+        icon: AppIcon.OpenRight,
+        isDisabled: openOn !== null,
+        onClick: () => halfViews.open(href),
+      },
+    ];
+  }
+
+  const isOpen = href === pathname;
+  return [
+    {
+      id: 'half',
+      label: 'Open in half view',
+      description: isOpen ? `${label} is already open` : undefined,
+      icon: AppIcon.HalfView,
+      isDisabled: isOpen,
+      onClick: () => halfViews.open(href),
+    },
+  ];
+}
+
+/** How long the pointer rests on a row's menu button before the menu opens (so passing over it doesn't). */
+const MENU_OPEN_DELAY_MS = 150;
+/** How long the menu stays after the pointer leaves the button and the menu, so it can cross between them. */
+const MENU_CLOSE_DELAY_MS = 200;
+
+/**
+ * A row's menu, behind one button at its end: its half views, then anything of its own (a pin, or a section's
+ * show and hide). It opens when the pointer rests on the button (or from the keyboard), and closes once the pointer
+ * has left the button and the menu. Like the rest of a row's controls, the button shows while the row is hovered or
+ * focused (and while its menu is open), and always in the folded nav's flyouts. No tooltip: its icon says what it is.
+ */
+function RowMenu({label, href, items = []}: {label: string; href: string; items?: DropdownMenuItemData[]}) {
+  const isActive = useContext(ActiveRowsContext)(href);
+  const {mode} = useColorMode();
+  const [isOpen, setIsOpen] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const triggerId = useRef<string | null>(null);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  // Once it's open, the menu is set where it should be, found by the button that names it:
+  // - In the app's own mode, not the nav's (always dark). Astryx hosts it in the row (the nearest place it may),
+  //   outside any Theme put round it here, so its colours are switched there: the theme's follow `color-scheme`.
+  // - On the cards' colour (a popover's own is the theme's, and the nav's theme sets the card token to its own).
+  // - Beside the nav, as far out from its edge as the row's highlight is in from it, and level with the highlight
+  //   (Astryx anchors it to the button, which sits inside both).
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    let frame = 0;
+    let tries = 0;
+    const place = () => {
+      const menu = triggerId.current && document.querySelector(`[aria-labelledby="${CSS.escape(triggerId.current)}"]`);
+      const button = triggerId.current ? document.getElementById(triggerId.current) : null;
+      const panel = menu instanceof HTMLElement ? (menu.closest<HTMLElement>('[popover]') ?? menu) : null;
+      const row = button?.closest<HTMLElement>('.astryx-side-nav-item');
+      const nav = button?.closest<HTMLElement>('.astryx-side-nav');
+      if (panel && row && nav) {
+        (panel.closest<HTMLElement>('[data-astryx-layer-root]') ?? panel).style.colorScheme = mode;
+        // The menu's own surface: the popover element itself or inside it, never one round it (a flyout's).
+        const surface = panel.matches('.astryx-popover') ? panel : (panel.querySelector<HTMLElement>('.astryx-popover') ?? panel);
+        surface.style.backgroundColor = 'var(--medapp-card-background)';
+        panel.style.translate = '';
+        const box = panel.getBoundingClientRect();
+        if (box.width > 0) {
+          // The nav's edge; in a folded nav's flyout, the row's own (the flyout is just its rows). The gap is the
+          // nav's inset of its rows.
+          const navRight = nav.getBoundingClientRect().right;
+          const rowRight = row.getBoundingClientRect().right;
+          const edge = row.closest('[popover]') ? rowRight : navRight;
+          const dx = edge + (navRight - rowRight) - box.left;
+          const dy = row.getBoundingClientRect().top - box.top;
+          panel.style.translate = `${dx}px ${dy}px`;
+          return;
+        }
+      }
+      // Not there or not laid out yet: try again next frame (a few times).
+      if (++tries < 5) frame = requestAnimationFrame(place);
+    };
+    place();
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, mode]);
+
+  const all = [...useHalfViewItems(label, href), ...items];
+  if (all.length === 0) return null;
+
+  const setSoon = (open: boolean, delay: number) => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setIsOpen(open), delay);
+  };
   return (
-    <IconButton
-      label={name}
-      tooltip={isOpen ? 'Already open' : 'Open in half view'}
-      icon={<Icon icon={AppIcon.HalfView} />}
-      variant="ghost"
-      isDisabled={isOpen}
-      style={shownFor(isActive)}
-      onClick={() => halfViews.open(href)}
-    />
+    // The menu is part of this (in React's tree), so the pointer moving onto it doesn't count as leaving.
+    <HStack
+      gap={0}
+      onMouseEnter={() => setSoon(true, MENU_OPEN_DELAY_MS)}
+      onMouseLeave={() => setSoon(false, MENU_CLOSE_DELAY_MS)}
+      style={shownFor(isActive || isOpen)}>
+      <DropdownMenu
+        items={all}
+        // Beside the nav, level with the row, rather than under the row (over the rows below it).
+        placement="end"
+        alignment="start"
+        isMenuOpen={isOpen}
+        onOpenChange={(open) => {
+          window.clearTimeout(timer.current);
+          setIsOpen(open);
+        }}
+        renderTrigger={(trigger) => {
+          triggerId.current = trigger.id;
+          return (
+            <IconButton
+              {...trigger}
+              label={`${label} options`}
+              icon={<Icon icon={AppIcon.Menu} />}
+              variant="ghost"
+              // Already open from the pointer resting on it: a press leaves it open, rather than closing it.
+              onPointerDown={(event) => !isOpen && trigger.onPointerDown(event)}
+              onClick={(event) => !isOpen && trigger.onClick(event)}
+            />
+          );
+        }}
+      />
+    </HStack>
   );
 }
+
+/**
+ * The page in the half view is marked too, a shade darker than the main page's (the selected row's fill at about
+ * two-thirds strength). Astryx's selected fill can only mark one page, so this is set on the whole row (the
+ * element around the row's link and its buttons), found from the link the row hands its ref to.
+ */
+export const HALF_VIEW_SHADE = 'color-mix(in srgb, var(--color-neutral) 65%, transparent)';
+const halfViewRow = (isHalfView: boolean) => (link: HTMLElement | null) => {
+  const row = link?.closest<HTMLElement>('.astryx-side-nav-item');
+  if (row) row.style.backgroundColor = isHalfView ? HALF_VIEW_SHADE : '';
+};
 
 interface PinnableItemProps {
   id: string;
   /** This item's pages are the ones open. */
   isOpen: boolean;
+  /** Its pages are the ones in the half view. */
+  isHalfOpen: boolean;
   pins: Pins;
 }
 
@@ -113,20 +277,12 @@ interface PinnableNavItemProps extends PinnableItemProps {
 }
 
 /** A pinned or open patient or procedure in the side nav, indented under its section, with a pin button. */
-function PinnableNavItem({id, isOpen, pins, kind, label, fullName, href, isGone}: PinnableNavItemProps) {
+function PinnableNavItem({id, isOpen, isHalfOpen, pins, kind, label, fullName, href, isGone}: PinnableNavItemProps) {
   const isPinned = pins.isPinned(id);
   const {unpin} = pins;
-  const isActive = useContext(ActiveRowsContext)(href);
-
   useEffect(() => {
     if (isGone && isPinned) unpin(id);
   }, [isGone, isPinned, unpin, id]);
-
-  const pinLabel = isPinned
-    ? `Unpin ${fullName}`
-    : pins.isFull
-      ? `You can pin up to ${MAX_PINS} ${kind}. Unpin one to pin ${fullName}.`
-      : `Pin ${fullName}`;
 
   return (
     <SideNavItem
@@ -134,19 +290,22 @@ function PinnableNavItem({id, isOpen, pins, kind, label, fullName, href, isGone}
       icon={AppIcon.SubItem}
       href={href}
       isSelected={isOpen}
+      ref={halfViewRow(isHalfOpen && !isOpen)}
       actions={
-        <>
-          <HalfViewButton label={fullName} href={href} />
-          <IconButton
-            label={pinLabel}
-            tooltip={pinLabel}
-            icon={<Icon icon={isPinned ? AppIcon.Unpin : AppIcon.Pin} />}
-            variant="ghost"
-            style={shownFor(isActive)}
-            isDisabled={!isPinned && pins.isFull}
-            onClick={() => (isPinned ? unpin(id) : pins.pin(id))}
-          />
-        </>
+        <RowMenu
+          label={fullName}
+          href={href}
+          items={[
+            {
+              id: 'pin',
+              label: isPinned ? 'Unpin' : 'Pin',
+              description: !isPinned && pins.isFull ? `You can pin up to ${MAX_PINS} ${kind}. Unpin one first.` : undefined,
+              icon: isPinned ? AppIcon.Unpin : AppIcon.Pin,
+              isDisabled: !isPinned && pins.isFull,
+              onClick: () => (isPinned ? unpin(id) : pins.pin(id)),
+            },
+          ]}
+        />
       }
     />
   );
@@ -192,24 +351,73 @@ interface PinnableSectionProps {
   openId: string | null;
   /** Whether the current page is this section's (its list, or one of its items). */
   isAtSection: boolean;
+  /** The half view's open item's ID, and whether its page is this section's (as for the current page). */
+  halfOpenId: string | null;
+  isHalfAtSection: boolean;
   pins: Pins;
   Item: (props: PinnableItemProps) => ReactNode;
 }
 
 /**
  * A main section (Patients, Procedures) with its pinned items, then the open item if it isn't pinned, indented
- * under it. It shows its open arrow while it has any.
+ * under it. While it has any, an arrow at the end of its row folds them away.
  */
-function PinnableSection({label, icon, href, openId, isAtSection, pins, Item}: PinnableSectionProps) {
-  const ids = openId && !pins.isPinned(openId) ? [...pins.ids, openId] : pins.ids;
-  const actions = <HalfViewButton label={label} href={href} />;
-  if (ids.length === 0) return <SideNavItem label={label} icon={icon} href={href} isSelected={isAtSection} actions={actions} />;
+function PinnableSection({
+  label,
+  icon,
+  href,
+  openId,
+  isAtSection,
+  halfOpenId,
+  isHalfAtSection,
+  pins,
+  Item,
+}: PinnableSectionProps) {
+  // Pinned items, then the open one and the half view's (if they aren't pinned already).
+  const ids = [...pins.ids];
+  for (const id of [openId, halfOpenId]) if (id && !ids.includes(id)) ids.push(id);
+  const isMainSelected = isAtSection && openId === null;
+  const sectionShade = halfViewRow(isHalfAtSection && halfOpenId === null && !isMainSelected);
+  const [isOpen, setIsOpen] = useState(true);
+  if (ids.length === 0) {
+    return (
+      <SideNavItem
+        label={label}
+        icon={icon}
+        href={href}
+        isSelected={isAtSection}
+        ref={halfViewRow(isHalfAtSection && !isAtSection)}
+        actions={<RowMenu label={label} href={href} />}
+      />
+    );
+  }
 
+  // The items fold away from the row's menu (Astryx's own toggle would sit beside it).
+  const fold = `${isOpen ? 'Hide' : 'Show'} pinned and open ${label.toLowerCase()}`;
   return (
-    <SideNavItem label={label} icon={icon} href={href} isSelected={isAtSection && openId === null} actions={actions} collapsible>
-      {ids.map((id) => (
-        <Item key={id} id={id} isOpen={id === openId} pins={pins} />
-      ))}
+    <SideNavItem
+      label={label}
+      icon={icon}
+      href={href}
+      isSelected={isMainSelected}
+      ref={sectionShade}
+      collapsible={false}
+      actions={
+        <RowMenu
+          label={label}
+          href={href}
+          items={[
+            {
+              id: 'fold',
+              label: fold,
+              icon: isOpen ? AppIcon.ChevronUp : AppIcon.ChevronDown,
+              onClick: () => setIsOpen(!isOpen),
+            },
+          ]}
+        />
+      }>
+      {isOpen &&
+        ids.map((id) => <Item key={id} id={id} isOpen={id === openId} isHalfOpen={id === halfOpenId} pins={pins} />)}
     </SideNavItem>
   );
 }
@@ -228,10 +436,29 @@ export interface AppSideNavProps {
 export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const user = useCurrentUser();
   const logout = useLogout();
-  const {mode, toggle} = useColorMode();
-  const pathname = useRouterState({select: (state) => state.location.pathname});
+  const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
+  const {mode} = useColorMode();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
   const isAt = (path: string) => isCurrentSection(pathname, path);
-  const nextMode = mode === 'dark' ? 'light' : 'dark';
+  // The half view's page, marked a shade darker than the current page (where it isn't the current page too).
+  const halfViews = useHalfViews();
+  const halfPath = halfViews?.openPath ?? null;
+  const isHalfAt = (path: string) => halfPath !== null && isCurrentSection(halfPath, path) && !isAt(path);
+
+  // With a half view open, clicking a nav link (a row, or a row brought out of the folded nav) either opens its
+  // page on its own, closing the half view, or (Account Settings) just opens it on the left, as a link does. The
+  // row's buttons open it on either side. Modified clicks (new tab etc.) are left to the browser.
+  const {closesHalfView} = useNavSettings();
+  const openInFull = (event: MouseEvent<HTMLElement>) => {
+    if (!halfViews || halfPath === null || !closesHalfView) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const href = event.target instanceof Element ? event.target.closest('a[href]')?.getAttribute('href') : null;
+    if (!href?.startsWith('/')) return;
+    event.preventDefault();
+    halfViews.openFull(href);
+  };
 
   const patientPins = usePins('patients', user.username);
   const procedurePins = usePins('procedures', user.username);
@@ -243,88 +470,198 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     if (!event.currentTarget.contains(event.relatedTarget)) setFocusedRow(null);
   };
 
+  // Each item once: its row for the open nav, and its icon for the folded one (a half view), whose hover brings
+  // the same row out over the page.
+  const main: NavRailEntry[] = [
+    {
+      key: 'tasks',
+      label: 'My Tasks',
+      icon: AppIcon.Tasks,
+      href: '/tasks',
+      isSelected: isAt('/tasks'),
+      isHalfView: isHalfAt('/tasks'),
+      row: (
+        <SideNavItem
+          label="My Tasks"
+          icon={AppIcon.Tasks}
+          href="/tasks"
+          isSelected={isAt('/tasks')}
+          ref={halfViewRow(isHalfAt('/tasks'))}
+          actions={<RowMenu label="My Tasks" href="/tasks" />}
+        />
+      ),
+    },
+    {
+      key: 'patients',
+      label: 'Patients',
+      icon: AppIcon.Patients,
+      href: '/patients',
+      isSelected: isAt('/patients'),
+      isHalfView: isHalfAt('/patients'),
+      row: (
+        <PinnableSection
+          label="Patients"
+          icon={AppIcon.Patients}
+          href="/patients"
+          openId={openPatientId(pathname)}
+          isAtSection={isAt('/patients')}
+          halfOpenId={halfPath ? openPatientId(halfPath) : null}
+          isHalfAtSection={halfPath !== null && isCurrentSection(halfPath, '/patients')}
+          pins={patientPins}
+          Item={PatientNavItem}
+        />
+      ),
+    },
+    {
+      key: 'procedures',
+      label: 'Procedures',
+      icon: AppIcon.Procedures,
+      href: '/procedures',
+      isSelected: isAt('/procedures'),
+      isHalfView: isHalfAt('/procedures'),
+      row: (
+        <PinnableSection
+          label="Procedures"
+          icon={AppIcon.Procedures}
+          href="/procedures"
+          openId={openProcedureId(pathname)}
+          isAtSection={isAt('/procedures')}
+          halfOpenId={halfPath ? openProcedureId(halfPath) : null}
+          isHalfAtSection={halfPath !== null && isCurrentSection(halfPath, '/procedures')}
+          pins={procedurePins}
+          Item={ProcedureNavItem}
+        />
+      ),
+    },
+  ];
+  const admin: NavRailEntry[] = user.isAdmin
+    ? ADMIN_PAGES.map((page) => ({
+        key: page.href,
+        label: page.label,
+        icon: page.icon,
+        href: page.href,
+        isSelected: isAt(page.href),
+        isHalfView: isHalfAt(page.href),
+        row: (
+          <SideNavItem
+            label={page.label}
+            icon={page.icon}
+            href={page.href}
+            isSelected={isAt(page.href)}
+            ref={halfViewRow(isHalfAt(page.href))}
+            actions={<RowMenu label={page.label} href={page.href} />}
+          />
+        ),
+      }))
+    : [];
+  const account: NavRailEntry[] = [
+    {
+      key: 'account',
+      label: user.username,
+      icon: AppIcon.Account,
+      href: '/account',
+      isSelected: isAt('/account'),
+      isHalfView: isHalfAt('/account'),
+      row: (
+        <SideNavItem
+          label={user.username}
+          icon={AppIcon.Account}
+          href="/account"
+          isSelected={isAt('/account')}
+          ref={halfViewRow(isHalfAt('/account'))}
+          // No menu: Account Settings opens in the main view only.
+          endContent={
+            <Text type="supporting" color="secondary">
+              {user.isAdmin ? 'Administrator' : 'User'}
+            </Text>
+          }
+        />
+      ),
+    },
+    {
+      key: 'logout',
+      label: 'Logout',
+      icon: AppIcon.Logout,
+      isSelected: false,
+      row: (
+        <SideNavItem
+          label="Logout"
+          icon={AppIcon.Logout}
+          isDisabled={logout.isPending}
+          onClick={() => setIsConfirmingLogout(true)}
+        />
+      ),
+    },
+  ];
+  const trackRow = (row: ReactNode) => <AlwaysShownButtons>{row}</AlwaysShownButtons>;
+  const isFolded = typeof collapsible === 'object' && collapsible.isCollapsed === true;
+  const rows = (entries: NavRailEntry[]) => entries.map((entry) => <Fragment key={entry.key}>{entry.row}</Fragment>);
+
   return (
     <ActiveRowsContext.Provider value={isActiveRow}>
       <SideNav
         collapsible={collapsible}
+        onClickCapture={openInFull}
         onMouseOver={(event) => setHoveredRow(rowHref(event.target))}
         onMouseLeave={() => setHoveredRow(null)}
         onFocus={(event) => setFocusedRow(isKeyboardFocus(event.target) ? rowHref(event.target) : null)}
         onBlur={leaveFocus}
         header={
-          <SideNavHeading
-            heading="MedApp"
-            headingHref="/"
-            icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
-          />
+          isFolded ? (
+            // Folded, Astryx's heading adds a "MedApp" tooltip it can't leave out; the app's mark speaks for itself,
+            // so it's a plain link here, like the rail's icons.
+            <IconButton
+              label="MedApp"
+              icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+              variant="ghost"
+              href="/"
+              style={{borderRadius: 'var(--radius-element)'}}
+            />
+          ) : (
+            <SideNavHeading
+              heading="MedApp"
+              headingHref="/"
+              icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+            />
+          )
         }
         footer={
-          <SideNavSection title="Account" isHeaderHidden>
-            <SideNavItem
-              label={user.username}
-              icon={AppIcon.Account}
-              href="/account"
-              isSelected={isAt('/account')}
-              actions={<HalfViewButton label="Account" href="/account" />}
-              endContent={
-                <Text type="supporting" color="secondary">
-                  {user.isAdmin ? 'Administrator' : 'User'}
-                </Text>
-              }
-            />
-            <SideNavItem
-              label="Logout"
-              icon={AppIcon.Logout}
-              isDisabled={logout.isPending}
-              onClick={() => logout.mutate()}
-            />
-          </SideNavSection>
-        }
-        footerIcons={
-          <IconButton
-            label={`Switch to ${nextMode} mode`}
-            tooltip={`Switch to ${nextMode} mode`}
-            icon={<Icon icon={mode === 'dark' ? AppIcon.LightMode : AppIcon.DarkMode} />}
-            variant="ghost"
-            onClick={toggle}
-          />
+          // Lifted off the window's bottom edge, clear of the link preview the browser shows in the bottom-left
+          // corner while the pointer is on a link.
+          <VStack gap={0} style={{paddingBlockEnd: 'var(--spacing-6)'}}>
+            {isFolded ? (
+              <NavRail groups={[account]} wrapRow={trackRow} />
+            ) : (
+              <SideNavSection title="Account" isHeaderHidden>
+                {rows(account)}
+              </SideNavSection>
+            )}
+          </VStack>
         }>
-        <SideNavSection title="Main" isHeaderHidden>
-          <SideNavItem label="Home" icon={AppIcon.Home} href="/" isSelected={isAt('/')} actions={<HalfViewButton label="Home" href="/" />} />
-          <PinnableSection
-            label="Patients"
-            icon={AppIcon.Patients}
-            href="/patients"
-            openId={openPatientId(pathname)}
-            isAtSection={isAt('/patients')}
-            pins={patientPins}
-            Item={PatientNavItem}
-          />
-          <PinnableSection
-            label="Procedures"
-            icon={AppIcon.Procedures}
-            href="/procedures"
-            openId={openProcedureId(pathname)}
-            isAtSection={isAt('/procedures')}
-            pins={procedurePins}
-            Item={ProcedureNavItem}
-          />
-        </SideNavSection>
-        {user.isAdmin && (
-          <SideNavSection title="Administration">
-            {ADMIN_PAGES.map((page) => (
-              <SideNavItem
-                key={page.href}
-                label={page.label}
-                icon={page.icon}
-                href={page.href}
-                isSelected={isAt(page.href)}
-                actions={<HalfViewButton label={page.label} href={page.href} />}
-              />
-            ))}
-          </SideNavSection>
+        {isFolded ? (
+          <NavRail groups={admin.length > 0 ? [main, admin] : [main]} wrapRow={trackRow} />
+        ) : (
+          <>
+            <SideNavSection title="Main" isHeaderHidden>
+              {rows(main)}
+            </SideNavSection>
+            {admin.length > 0 && <SideNavSection title="Administration">{rows(admin)}</SideNavSection>}
+          </>
         )}
       </SideNav>
+      {/* The nav is always dark; the dialog takes the app's own mode. */}
+      <Theme theme={themes[defaultThemeSlug]} mode={mode}>
+        <ConfirmDialog
+          isOpen={isConfirmingLogout}
+          title="Log Out"
+          message="Are you sure you want to log out?"
+          icon={AppIcon.Logout}
+          confirmText="Log Out"
+          isProcessing={logout.isPending}
+          onConfirm={() => logout.mutate()}
+          onCancel={() => setIsConfirmingLogout(false)}
+        />
+      </Theme>
     </ActiveRowsContext.Provider>
   );
 }

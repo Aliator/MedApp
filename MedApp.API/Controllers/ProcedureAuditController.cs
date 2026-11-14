@@ -29,5 +29,6 @@ public sealed class ProcedureAuditController(IMediator mediator) : ControllerBas
             request.Action,
             request.Search,
             request.From,
-            request.To), ct));
+            request.To,
+            request.Actions), ct));
 }

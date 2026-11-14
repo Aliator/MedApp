@@ -28,6 +28,12 @@ public sealed class SearchProcedureAuditValidatorTests
     }
 
     [Test]
+    public void Validate_UnknownActionInActions_Fails()
+    {
+        _validator.Validate(CreateAuditSearchQuery() with { Actions = ["Created", "Exploded"] }).IsValid.Should().BeFalse();
+    }
+
+    [Test]
     public void Validate_PageZero_Fails()
     {
         _validator.Validate(CreateAuditSearchQuery() with { Page = 0 }).IsValid.Should().BeFalse();

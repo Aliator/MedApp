@@ -118,12 +118,12 @@ export const medappTheme = {
     "--color-accent": "light-dark(#3b82f6, #3b82f6)",
     "--color-accent-muted": "light-dark(#eff6ff, #172554)",
     "--color-neutral": "light-dark(#25252a0f, #f0f0f91a)",
-    "--color-background-surface": "light-dark(#ffffff, #1b1b21)",
-    "--color-background-body": "light-dark(#f0f0f7, #101018)",
+    "--color-background-surface": "light-dark(#d8e0ef, #171b25)",
+    "--color-background-body": "light-dark(#d8e0ef, #171b25)",
     "--color-overlay": "light-dark(#25252a80, #25252acc)",
     "--color-overlay-hover": "light-dark(#25252a0d, #f0f0f90d)",
     "--color-overlay-pressed": "light-dark(#25252a1a, #f0f0f91a)",
-    "--color-background-muted": "light-dark(#e2e2e8, #3a3a42)",
+    "--color-background-muted": "light-dark(color-mix(in srgb, var(--color-background-card) 94%, black), color-mix(in srgb, var(--color-background-card) 90%, white))",
     "--color-text-primary": "light-dark(#25252a, #f0f0f9)",
     "--color-text-secondary": "light-dark(#5f5f64, #ababb3)",
     "--color-text-disabled": "light-dark(#d4d3dd, #5e5e64)",
@@ -149,8 +149,8 @@ export const medappTheme = {
     "--color-icon-primary": "light-dark(#25252a, #f0f0f9)",
     "--color-icon-secondary": "light-dark(#848489, #9d9ea5)",
     "--color-icon-disabled": "light-dark(#d4d3dd, #5e5e64)",
-    "--color-background-card": "light-dark(#ffffff, #25252a)",
-    "--color-background-popover": "light-dark(#ffffff, #302f36)",
+    "--color-background-card": "light-dark(#e4ebf8, #212634)",
+    "--color-background-popover": "light-dark(#fbfbfd, #302f36)",
     "--color-background-inverted": "light-dark(#25252a, #f0f0f9)",
     "--color-success": "light-dark(#354f31, #b3d0af)",
     "--color-success-muted": "light-dark(#d2eccf, #b3d0af)",
@@ -424,7 +424,7 @@ export const medappTheme = {
         "color": "var(--color-text-red)"
       },
       "variant:attached": {
-        "marginBottom": "calc(-1 * calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading)))"
+        "marginBottom": "calc(-1 * var(--medapp-field-status-line, calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading))))"
       }
     },
     "text-input": {
@@ -596,9 +596,14 @@ export const medappTheme = {
         "padding": "var(--spacing-3)"
       }
     },
+    "app-shell-sidenav": {
+      "base": {
+        "backgroundColor": "var(--medapp-nav-background, #0e1322)"
+      }
+    },
     "field": {
       "base": {
-        "paddingBottom": "calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading))"
+        "paddingBottom": "var(--medapp-field-status-line, calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading)))"
       }
     },
     "table-cell": {

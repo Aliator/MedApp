@@ -54,6 +54,17 @@ public sealed class ProcedureSearchTests
     }
 
     [Test]
+    public void Filter_TitleTemplateAndPatientName_EachMatchOnlyTheirOwnFieldIgnoringCase()
+    {
+        Procedures().Filter(CreateSearchQuery() with { Title = " REPLACEMENT " }, Now).Should().BeEquivalentTo([Overdue, Unassigned]);
+        Procedures().Filter(CreateSearchQuery() with { Title = "freya" }, Now).Should().BeEmpty();
+        Procedures().Filter(CreateSearchQuery() with { PatientName = "freya ahm" }, Now).Should().Equal(Overdue);
+        Procedures().Filter(CreateSearchQuery() with { PatientName = "knee" }, Now).Should().BeEmpty();
+        Procedures().Filter(CreateSearchQuery() with { TemplateName = "test temp" }, Now).Should().HaveCount(3);
+        Procedures().Filter(CreateSearchQuery() with { TemplateName = "knee" }, Now).Should().BeEmpty();
+    }
+
+    [Test]
     public void Filter_OverdueOnly_LeavesOutBlockedAndClosedProcedures()
     {
         var query = CreateSearchQuery() with { OverdueOnly = true, IncludeClosed = true };
@@ -73,6 +84,14 @@ public sealed class ProcedureSearchTests
     public void Filter_Priority_ReturnsThatPriority()
     {
         Procedures().Filter(CreateSearchQuery() with { Priority = "high" }, Now).Should().BeEquivalentTo([Overdue, Unassigned]);
+    }
+
+    [Test]
+    public void Filter_Priorities_ReturnsAnyOfThem()
+    {
+        var query = CreateSearchQuery() with { Priorities = ["low", "Urgent"] };
+
+        Procedures().Filter(query, Now).Should().Equal(BlockedPastDue);
     }
 
     [Test]

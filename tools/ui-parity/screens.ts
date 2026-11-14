@@ -42,46 +42,36 @@ export const screens: Screen[] = [
       await waitVisible(page, ALERT);
     },
   },
-  { name: 'home', title: 'Home: my task lists', path: '/' },
+  { name: 'home', title: 'Home: a welcome (the MedApp heading leads here)', path: '/' },
+  { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
-    name: 'home-narrow',
-    title: 'Home on a narrow window: one list, with a strip to switch',
-    path: '/',
+    name: 'my-tasks-narrow',
+    title: 'My Tasks on a narrow window: the same list, with its search',
+    path: '/tasks',
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await settle(page);
     },
   },
   {
-    name: 'home-narrow-hover',
-    title: 'Home on a narrow window, hovering the switch to the started list',
-    path: '/',
+    name: 'my-tasks-favourites',
+    title: "My Tasks' favourites open (the star beside the search): Not started, Started, ...",
+    path: '/tasks',
     prepare: async (page) => {
-      await page.setViewportSize({ width: 900, height: 900 });
-      await settle(page);
-      await page.getByText('Started', { exact: true }).hover();
+      await page.getByRole('button', { name: 'Favourites' }).click();
+      await page.getByRole('menuitem', { name: 'Started', exact: true }).waitFor();
     },
   },
-  {
-    name: 'home-narrow-started',
-    title: 'Home on a narrow window, switched to the started list',
-    path: '/',
-    prepare: async (page) => {
-      await page.setViewportSize({ width: 900, height: 900 });
-      // The card's own button is a visually hidden overlay, so click its visible label.
-      await page.getByText('Started', { exact: true }).click();
-      await settle(page);
-    },
-  },
+  { name: 'my-tasks-started', title: 'My Tasks, the started ones (from the favourites)', path: '/tasks?progress=started' },
   { name: 'account', title: 'Account', path: '/account' },
   { name: 'patients-list', title: 'Patients list, page 1', path: '/patients' },
   {
     name: 'patients-search',
-    title: 'Patients search dialog',
-    path: '/patients',
+    title: 'Patients search: its filters as tokens, and the field list open to add another',
+    path: '/patients?last=bennett&dobFrom=1950-01-01',
     prepare: async (page) => {
-      await page.getByRole('button', { name: /^search$/i }).first().click();
-      await waitVisible(page, DIALOG);
+      await page.getByRole('combobox', { name: 'Search patients' }).click();
+      await settle(page);
     },
   },
   { name: 'patients-sorted', title: 'Patients sorted by date of birth, newest first', path: '/patients?sort=DateOfBirth&asc=false' },
@@ -90,17 +80,17 @@ export const screens: Screen[] = [
   { name: 'procedures-list', title: 'All procedures, page 1', path: '/procedures' },
   {
     name: 'procedures-search',
-    title: 'Search procedures dialog',
-    path: '/procedures',
+    title: 'Procedures search: "is any of" and "is not any of" tokens, and the field list open',
+    path: '/procedures?status=InProgress,Blocked&priority=!Low',
     prepare: async (page) => {
-      await page.getByRole('button', { name: /^search$/i }).first().click();
-      await waitVisible(page, DIALOG);
+      await page.getByRole('combobox', { name: 'Search procedures' }).click();
+      await settle(page);
     },
   },
   { name: 'procedure-view', title: 'Procedure page: details and current stage beside the stages', path: (d) => `/procedures/${d.procedureId}` },
   {
     name: 'procedure-narrow',
-    title: 'Procedure page on a narrow window: one card, Details and Current stage open (half each), Stages folded',
+    title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
     path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
@@ -109,7 +99,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'procedure-narrow-stages',
-    title: 'Procedure page on a narrow window, Stages opened too: three sections, a third each',
+    title: 'Procedure page on a narrow window, Stages opened too: the three sections scroll together',
     path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
@@ -221,20 +211,20 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'admin-stages', title: 'Stage definitions (admin)', path: '/admin/stages' },
+  { name: 'admin-stages', title: 'Stages (admin)', path: '/admin/stages' },
   {
     name: 'admin-stage-edit',
-    title: 'Edit stage definition dialog (not saved)',
+    title: 'Edit stage dialog (not saved)',
     path: '/admin/stages',
     prepare: async (page) => {
-      await rowAction(page, /edit stage definition/i).click();
+      await rowAction(page, /edit stage/i).click();
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'admin-templates', title: 'Templates (admin), archived ones shown', path: '/admin/templates?archived=true' },
+  { name: 'admin-templates', title: 'Templates (admin), archived ones shown too (no status filter)', path: '/admin/templates?status=any' },
   {
     name: 'admin-template-edit',
-    title: 'Edit a template: its stages in order beside the stage definitions to add',
+    title: 'Edit a template: its stages in order beside All Stages, to add from',
     path: '/admin/templates',
     prepare: async (page) => {
       // Edit is a link to the template's page.
@@ -263,10 +253,23 @@ export const screens: Screen[] = [
     title: "Half view: a procedure beside its patient's page, each in its narrow layout, the nav folded away",
     path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
+      // From the Patients row's menu (its button shows while the row is hovered, and opens it when rested on).
       await page.getByRole('navigation').getByRole('link', { name: 'Patients' }).hover();
-      await page.getByRole('button', { name: 'Open Patients in half view' }).click();
+      await page.getByRole('button', { name: 'Patients options' }).hover();
+      await page.getByRole('menuitem', { name: 'Open in half view' }).click();
       await page.getByRole('heading', { name: 'Patients', level: 1 }).waitFor();
       await settle(page);
+    },
+  },
+  { name: 'account-password', title: 'Change your password (from Account Settings)', path: '/account/password' },
+  { name: 'account-colours', title: 'Colours: a colour theme for each mode, or Custom', path: '/account/colours' },
+  {
+    name: 'account-colours-custom',
+    title: 'Colours with Custom open for light mode: the themes folded away, the colour pickers shown',
+    path: '/account/colours',
+    prepare: async (page) => {
+      await page.getByRole('list', { name: 'Light mode colour themes' }).getByText('Custom').click();
+      await page.getByLabel(/Page background/).waitFor();
     },
   },
 ];

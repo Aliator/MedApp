@@ -1,104 +1,112 @@
-import {TextInput} from '@astryxdesign/core/TextInput';
-import {useState, type FormEvent} from 'react';
-import {ApiError, ApiValidationError, fieldStatus, type ValidationErrors} from '../../api/errors';
-import {useChangePassword} from '../../api/users';
+import {Button} from '@astryxdesign/core/Button';
+import {Icon} from '@astryxdesign/core/Icon';
+import {MetadataListItem} from '@astryxdesign/core/MetadataList';
+import {VStack} from '@astryxdesign/core/Stack';
+import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
+import {Slider} from '@astryxdesign/core/Slider';
+import {Switch} from '@astryxdesign/core/Switch';
+import {Text} from '@astryxdesign/core/Text';
+import {useColorMode} from '../../app/colorMode';
+import {FLYOUT_DELAYS, useNavSettings} from '../../app/navSettings';
+import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
 import {useCurrentUser} from '../../auth/auth';
-import {FormCard} from '../../components/forms/FormCard';
-import {FormSection} from '../../components/forms/FormSection';
 import {Page} from '../../components/pages/Page';
-import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
+import {AppIcon} from '../../components/shared/icons';
+import {CardSection} from '../../components/views/CardSection';
+import {ViewCard} from '../../components/views/ViewCard';
+import {ViewSection} from '../../components/views/ViewSection';
 
-const EMPTY = {current: '', next: '', confirm: ''};
-
-/** Why a password change failed, in the Blazor page's words. */
-function changeError(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.status) {
-      case 401:
-        return 'Current password is incorrect.';
-      case 403:
-        return 'You do not have permission to update this password.';
-      case 404:
-        return 'User not found.';
-      default:
-        if (error.status >= 500) return 'A server error occurred. Please try again later.';
-    }
-  }
-  if (error instanceof TypeError) return 'Unable to connect to the server. Please check your connection and try again.';
-  return 'An unexpected error occurred while updating the password.';
-}
-
-/** The signed-in user's account (replaces Blazor's Account page): change your own password. */
+/**
+ * The signed-in user's Account Settings, as cards: the account (who they are, and Change Password, a page of its
+ * own); how the app looks (light or dark mode, and Change Colours, a page of its own); half views (what the side
+ * nav does while one is open); and accessibility (the text size, and how long the folded nav waits on hover). All but the account are kept in this browser.
+ */
 export function AccountPage() {
   const me = useCurrentUser();
-  const change = useChangePassword();
-  const [fields, setFields] = useState(EMPTY);
-  const [error, setError] = useState<string | null>(null);
-  const [validation, setValidation] = useState<ValidationErrors | null>(null);
-  const [isUpdated, setIsUpdated] = useState(false);
-
-  const set = (key: keyof typeof EMPTY) => (value: string) => setFields((f) => ({...f, [key]: value}));
-
-  const submit = (event?: FormEvent) => {
-    event?.preventDefault();
-    setError(null);
-    setValidation(null);
-    setIsUpdated(false);
-
-    if (fields.next !== fields.confirm) return setError('New passwords do not match.');
-    if (!fields.current.trim()) return setError('Please enter your current password.');
-    if (!fields.next.trim()) return setError('Please enter a new password.');
-
-    change.mutate(
-      {username: me.username, oldPassword: fields.current, newPassword: fields.next},
-      {
-        onSuccess: () => {
-          setIsUpdated(true);
-          setFields(EMPTY);
-        },
-        onError: (e) => (e instanceof ApiValidationError ? setValidation(e.errors) : setError(changeError(e))),
-      },
-    );
-  };
+  const {mode, setMode} = useColorMode();
+  const {textSize, setTextSize} = useTextSize();
+  const {closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay} = useNavSettings();
 
   return (
-    <Page title="Account Settings" subtitle="Manage your account password">
-      <FormCard onSave={submit} saveText="Update password" isProcessing={change.isPending}>
-        <FormSection title="Change Password" useGrid={false}>
-          <TextInput
-            label="Current password"
-            type="password"
-            value={fields.current}
-            onChange={set('current')}
-            placeholder="Enter your current password"
-            autoComplete="current-password"
-            isRequired
-            status={fieldStatus(validation, 'oldPassword')}
-          />
-          <TextInput
-            label="New password"
-            type="password"
-            value={fields.next}
-            onChange={set('next')}
-            placeholder="Enter a new password"
-            autoComplete="new-password"
-            isRequired
-            status={fieldStatus(validation, 'newPassword')}
-          />
-          <TextInput
-            label="Confirm new password"
-            type="password"
-            value={fields.confirm}
-            onChange={set('confirm')}
-            placeholder="Confirm your new password"
-            autoComplete="new-password"
-            isRequired
-          />
-          {error && <AlertMessage message={error} />}
-          {validation && <ValidationAlert errors={validation} />}
-          {isUpdated && <AlertMessage status="success" message="Password updated successfully!" />}
-        </FormSection>
-      </FormCard>
+    <Page title="Account Settings" subtitle="Your account and how the app looks">
+      <VStack gap={6}>
+        <ViewCard
+          footerActions={
+            <Button
+              label="Change Password"
+              variant="secondary"
+              icon={<Icon icon={AppIcon.Password} />}
+              href="/account/password"
+            />
+          }>
+          <ViewSection title="Account">
+            <MetadataListItem label="Username">{me.username}</MetadataListItem>
+            <MetadataListItem label="Role">{me.isAdmin ? 'Administrator' : 'User'}</MetadataListItem>
+          </ViewSection>
+        </ViewCard>
+        <ViewCard
+          footerActions={
+            <Button
+              label="Change Colours"
+              variant="secondary"
+              icon={<Icon icon={AppIcon.Colours} />}
+              href="/account/colours"
+            />
+          }>
+          <CardSection title="Appearance">
+            <VStack gap={1}>
+              <Switch
+                label="Dark mode"
+                value={mode === 'dark'}
+                onChange={(isDark) => setMode(isDark ? 'dark' : 'light')}
+              />
+              <Text type="supporting" color="secondary">
+                Remembered in this browser, as are your colours.
+              </Text>
+            </VStack>
+          </CardSection>
+        </ViewCard>
+        <ViewCard showFooter={false}>
+          <CardSection title="Half Views">
+            <Switch
+              label="Nav items close the half view"
+              description="On: clicking a side nav item while a half view is open shows its page on its own. Off: it opens on the left, beside the half view. Either way, the item's buttons open it on the left or the right."
+              value={closesHalfView}
+              onChange={setClosesHalfView}
+            />
+          </CardSection>
+        </ViewCard>
+        <ViewCard showFooter={false}>
+          <CardSection title="Accessibility">
+            <VStack gap={5}>
+              <RadioList
+                label="Text size"
+                description="Makes the app's text (and the space around it) bigger or smaller, in this browser."
+                orientation="horizontal"
+                value={textSize}
+                onChange={(value) => setTextSize(value as TextSize)}>
+                {TEXT_SIZES.map((size) => (
+                  <RadioListItem key={size.value} value={size.value} label={size.label} />
+                ))}
+              </RadioList>
+              {/* A slider through the fixed delays, by position (they aren't evenly spaced), each marked with its time. */}
+              <Slider
+                label="Side nav hover delay"
+                description="With a half view open, how long the pointer rests on a side nav icon before its item comes out."
+                min={0}
+                max={FLYOUT_DELAYS.length - 1}
+                step={1}
+                value={FLYOUT_DELAYS.findIndex((delay) => delay.value === flyoutDelay)}
+                onChange={(index: number) => setFlyoutDelay(FLYOUT_DELAYS[index].value)}
+                formatValue={(index) => `${FLYOUT_DELAYS[index].label} (${FLYOUT_DELAYS[index].time})`}
+                valueDisplay="none"
+                marks={FLYOUT_DELAYS.map((delay, index) => ({value: index, label: delay.time}))}
+                width="min(400px, 100%)"
+              />
+            </VStack>
+          </CardSection>
+        </ViewCard>
+      </VStack>
     </Page>
   );
 }

@@ -13,9 +13,15 @@ const accent = ['#3b82f6', '#3b82f6'] as const; // app.css --primary-500
 const accentText = ['#2563eb', '#60a5fa'] as const; // --primary-600, lightened for dark mode
 const accentMuted = ['#eff6ff', '#172554'] as const; // --primary-50, deepened for dark mode
 
-/** The height an attached field error adds under its input; see `components.field`. */
+/**
+ * The height an attached field error adds under its input; see `components.field`. A container whose fields never
+ * show an error (e.g. a list's search bar) can set `--medapp-field-status-line: 0px` to drop the line.
+ */
 const FIELD_STATUS_LINE =
-  'calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading))';
+  'var(--medapp-field-status-line, calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading)))';
+
+/** Dark mode's page background, which the side nav keeps in both modes (unless someone picks another). */
+const NAV_BACKGROUND = '#0e1322';
 
 const systemFallbacks = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
@@ -40,11 +46,27 @@ export const medappTheme = defineTheme({
     '--color-accent-muted': [...accentMuted],
     '--color-info-muted': [...accentMuted],
     '--color-on-accent': ['#ffffff', '#ffffff'],
+    // The page, cards and side nav lean towards the app's blue (Standard, on the Colours page). Light mode mirrors
+    // dark mode's layers, lightened, rather than white on white: a grey-blue page and cards a step lighter (not
+    // white). People can change these (Account Settings, Colours).
+    '--color-background-body': ['#d8e0ef', '#171b25'],
+    '--color-background-surface': ['#d8e0ef', '#171b25'],
+    '--color-background-card': ['#e4ebf8', '#212634'],
+    // Card header bars and footers follow the card's colour: slightly darker in light mode, a step lighter in dark.
+    '--color-background-muted': [
+      'color-mix(in srgb, var(--color-background-card) 94%, black)',
+      'color-mix(in srgb, var(--color-background-card) 90%, white)',
+    ],
+    '--color-background-popover': ['#fbfbfd', '#302f36'],
     '--radius-container': '12px',
     '--radius-element': '8px',
     '--radius-inner': '6px',
   },
   components: {
+    // The side nav is dark in both modes (AppLayout renders it in a dark Theme; this paints the area behind it).
+    'app-shell-sidenav': {
+      base: {backgroundColor: `var(--medapp-nav-background, ${NAV_BACKGROUND})`},
+    },
     // Every field keeps a line under its input for its error message: reserved space that stays empty until there's
     // an error, so an error showing or clearing never moves anything on the page. The field's padding holds the
     // line, and the attached error box takes that padding back, so a one-line error fills it exactly: the box's two

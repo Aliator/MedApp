@@ -59,7 +59,8 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const backToProcedure = () => void navigate({to: '/procedures/$id', params: {id}});
   // Decision 18: saving changes to a procedure that isn't yours asks first. The save confirmation asks it.
-  const isMine = procedure.assignments?.some((a) => a.username === user.username) ?? false;
+  // Admins aren't warned: looking after any procedure is their job.
+  const isMine = user.isAdmin || (procedure.assignments?.some((a) => a.username === user.username) ?? false);
 
   const save = () =>
     update.mutate(form, {

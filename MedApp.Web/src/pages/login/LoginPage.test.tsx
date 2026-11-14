@@ -3,7 +3,7 @@ import {json, mockFetch, renderWithApp} from '../../test/render';
 import {LoginPage} from './LoginPage';
 
 describe('LoginPage', () => {
-  it('signs in with the entered credentials and goes to the patients list', async () => {
+  it('signs in with the entered credentials and goes to the welcome page', async () => {
     const fetch = mockFetch(() =>
       json({sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'}),
     );
@@ -13,7 +13,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     const request = fetch.mock.calls[0][0] as Request;
     expect(new URL(request.url).pathname).toBe('/api/auth/login');
     expect(request.method).toBe('POST');

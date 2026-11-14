@@ -40,11 +40,11 @@ describe('saveProblem', () => {
     );
   });
 
-  it('names stage definitions and templates, and archiving and restoring', () => {
-    expect(saveProblem(new ApiError(404), 'archive', 'stage definition').message).toBe('Stage definition not found. It may have been deleted.');
+  it('names stages and templates, and archiving and restoring', () => {
+    expect(saveProblem(new ApiError(404), 'archive', 'stage').message).toBe('Stage not found. It may have been deleted.');
     expect(saveProblem(new ApiError(418), 'archive', 'template').message).toBe('An unexpected error occurred while archiving the template.');
-    expect(saveProblem(new ApiError(418), 'restore', 'stage definition').message).toBe(
-      'An unexpected error occurred while restoring the stage definition.',
+    expect(saveProblem(new ApiError(418), 'restore', 'stage').message).toBe(
+      'An unexpected error occurred while restoring the stage.',
     );
   });
 

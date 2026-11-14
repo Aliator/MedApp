@@ -18,7 +18,7 @@ public sealed class DeleteUserValidatorTests
     [Test]
     public void Validate_ValidCommand_Passes()
     {
-        var command = new DeleteUserCommand(AuthTestConstants.Usernames[0]);
+        var command = new DeleteUserCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword);
 
         var result = _validator.Validate(command);
 
@@ -28,7 +28,7 @@ public sealed class DeleteUserValidatorTests
     [Test]
     public void Validate_EmptyUsername_Fails()
     {
-        var command = new DeleteUserCommand(string.Empty);
+        var command = new DeleteUserCommand(string.Empty, AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword);
 
         var result = _validator.Validate(command);
 
@@ -40,7 +40,7 @@ public sealed class DeleteUserValidatorTests
     [Test]
     public void Validate_UsernameTooShort_Fails()
     {
-        var command = new DeleteUserCommand("aa");
+        var command = new DeleteUserCommand("aa", AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword);
 
         var result = _validator.Validate(command);
 
@@ -52,12 +52,22 @@ public sealed class DeleteUserValidatorTests
     [Test]
     public void Validate_UsernameTooLong_Fails()
     {
-        var command = new DeleteUserCommand(new string('a', 51));
+        var command = new DeleteUserCommand(new string('a', 51), AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword);
 
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e =>
             e.PropertyName == nameof(DeleteUserCommand.Username));
+    }
+
+    [Test]
+    public void Validate_NoPassword_Fails()
+    {
+        var command = new DeleteUserCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Usernames[1], string.Empty);
+
+        var result = _validator.Validate(command);
+
+        result.Errors.Should().ContainSingle(e => e.PropertyName == nameof(DeleteUserCommand.ActorPassword));
     }
 }

@@ -19,6 +19,9 @@ public sealed class SearchProcedureAuditRequest
     /// <summary>Created, DetailsUpdated, StatusChanged, Assigned, Unassigned, StageStarted, StageNotesUpdated, StageFinished, StageUnlocked or Deleted.</summary>
     public string? Action { get; set; }
 
+    /// <summary>Any of these actions (with <see cref="Action"/>, if both are set).</summary>
+    public List<string>? Actions { get; set; }
+
     /// <summary>Matches the procedure title, stage name or username, ignoring case.</summary>
     public string? Search { get; set; }
 

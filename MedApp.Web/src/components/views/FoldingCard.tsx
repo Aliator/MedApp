@@ -4,15 +4,12 @@ import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Fragment, type ReactNode} from 'react';
 import {CollapseButton, PanelHeader} from './PanelCard';
 
-// Open sections share the space equally: a zero flex basis, which StackItem has no prop for.
-const EQUAL_SHARE = {flexBasis: 0};
-
 export interface FoldingSection {
   key: string;
   title: string;
   isOpen: boolean;
   onToggle: () => void;
-  /** The section's body, which scrolls within the section's share of the card. Lay out its own padding. */
+  /** The section's body, at its own height (the card's sections scroll together). Lay out its own padding. */
   children: ReactNode;
 }
 
@@ -24,18 +21,18 @@ export interface FoldingCardProps {
 
 /**
  * A card of sections, each under a header bar that folds it when clicked (its chevron button does the same). It
- * fills the height it's given, and the open sections share it equally (two open: half each; three: a third
- * each); a folded section is just its bar. Each open section's body scrolls on its own, so the card and page
- * never do.
+ * fills the height it's given; its sections sit one under another at their own heights (a folded one is just its
+ * bar), and scroll together, as one, when they're taller than the card, so the page never does. The footer stays
+ * pinned below them.
  */
 export function FoldingCard({sections, footerActions}: FoldingCardProps) {
   return (
     <Card padding={0} width="100%" height="100%">
       <VStack gap={0} height="100%">
-        <StackItem size="fill">
-          <VStack gap={0} height="100%">
-            {sections.map((section, index) => {
-              const bar = (
+        <StackItem size="fill" isScrollable>
+          <VStack gap={0}>
+            {sections.map((section, index) => (
+              <Fragment key={section.key}>
                 <PanelHeader
                   title={section.title}
                   // A line above every bar but the first, and below an open one.
@@ -44,20 +41,9 @@ export function FoldingCard({sections, footerActions}: FoldingCardProps) {
                   onClick={section.onToggle}
                   actions={<CollapseButton name={section.title.toLowerCase()} isOpen={section.isOpen} />}
                 />
-              );
-              return section.isOpen ? (
-                <StackItem key={section.key} size="fill" style={EQUAL_SHARE}>
-                  <VStack gap={0} height="100%">
-                    {bar}
-                    <StackItem size="fill" isScrollable>
-                      {section.children}
-                    </StackItem>
-                  </VStack>
-                </StackItem>
-              ) : (
-                <Fragment key={section.key}>{bar}</Fragment>
-              );
-            })}
+                {section.isOpen && section.children}
+              </Fragment>
+            ))}
           </VStack>
         </StackItem>
         {footerActions && (

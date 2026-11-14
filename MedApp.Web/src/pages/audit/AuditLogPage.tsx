@@ -1,23 +1,19 @@
 import {Button} from '@astryxdesign/core/Button';
-import type {DateRange} from '@astryxdesign/core/DateRangeInput';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
-import {Icon} from '@astryxdesign/core/Icon';
 import {Link} from '@astryxdesign/core/Link';
 import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
-import {useState} from 'react';
-import {AUDIT_ACTIONS, auditActionLabel, auditSearchQuery, describeAuditDetails, type AuditAction, type AuditEntry} from '../../api/audit';
+import {AUDIT_ACTIONS, auditActionLabel, auditSearchQuery, describeAuditDetails, type AuditEntry} from '../../api/audit';
 import {PAGE_SIZE} from '../../api/search';
-import {SearchDialog, type SearchValues} from '../../components/modals/SearchDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
-import {AppIcon} from '../../components/shared/icons';
+import {dayFromToday, ListFilterBar, type ListFilterFavourite, type ListFilterField} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TextCell} from '../../components/tables/TextCell';
 import {formatDateTime} from '../../utils/dates';
-import {hasAuditFilters, type AuditListSearch} from '../listSearch';
+import {choiceValues, hasAuditFilters, type AuditListSearch} from '../listSearch';
 
 type EntryRow = AuditEntry & Record<string, unknown>;
 
@@ -26,21 +22,25 @@ export interface AuditLogPageProps {
   onSearchChange: (search: AuditListSearch) => void;
 }
 
-const SEARCH_FIELDS = [
-  {type: 'text' as const, key: 'q', label: 'Procedure, stage or user', placeholder: 'e.g. Bronchoscopy or k.ashford'},
-  {
-    type: 'select' as const,
-    key: 'action',
-    label: 'Action',
-    placeholder: 'Any action',
-    options: AUDIT_ACTIONS.map((a) => ({value: a, label: auditActionLabel(a)})),
-  },
-  {type: 'dateRange' as const, key: 'when', label: 'Between'},
+/** The search's fields, as the API filters the log, kept in the URL under these keys. */
+const FILTER_FIELDS: ListFilterField[] = [
+  {kind: 'text', key: 'q', label: 'Procedure, stage or user'},
+  {kind: 'choice', key: 'action', label: 'Action', options: AUDIT_ACTIONS.map((a) => ({value: a, label: auditActionLabel(a)})), isMultiple: true},
+  {kind: 'date', key: 'when', label: 'When', fromKey: 'from', toKey: 'to'},
+];
+
+/** Quick look-ups: recent entries, and the kinds of change most looked for. */
+const favourites = (): ListFilterFavourite[] => [
+  {label: 'Today', values: {from: dayFromToday()}},
+  {label: 'Last 7 days', values: {from: dayFromToday({days: -6})}},
+  {label: 'Status changes', values: {action: 'StatusChanged'}},
+  {label: 'Assignments', values: {action: 'Assigned,Unassigned'}},
+  {label: 'Deletions', values: {action: 'Deleted'}},
 ];
 
 /**
  * The procedure audit log (admin, decision 16): every change to every procedure, newest first, a page at a time.
- * It's searchable by procedure, stage or user, action and date range, and a procedure's View Audit Log opens it
+ * Its power search filters by procedure, stage or user, actions and dates, and a procedure's View Audit Log opens it
  * on just that procedure. Entries outlive their procedures, so a deleted procedure's history is still here.
  */
 export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
@@ -52,38 +52,18 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
       Page: page,
       Ascending: ascending,
       Search: search.q,
-      Action: search.action,
+      Actions: choiceValues(search.action, AUDIT_ACTIONS),
       ProcedureId: search.procedureId,
       From: search.from,
       To: search.to,
     }),
   );
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [draft, setDraft] = useState<SearchValues>({});
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as EntryRow[];
   const procedureTitle = search.procedureId ? rows[0]?.procedureTitle : null;
 
-  const openSearch = () => {
-    setDraft({
-      q: search.q ?? '',
-      action: search.action ?? '',
-      when: search.from && search.to ? ({start: search.from, end: search.to} as DateRange) : null,
-    });
-    setIsSearchOpen(true);
-  };
-  /** Keeps the order and the procedure; any change to the filters goes back to page 1. */
-  const applySearch = (values: SearchValues) => {
-    const q = typeof values.q === 'string' && values.q.trim() ? values.q.trim() : undefined;
-    const action = typeof values.action === 'string' && values.action ? (values.action as AuditAction) : undefined;
-    const when = values.when && typeof values.when === 'object' ? values.when : null;
-    onSearchChange({asc: search.asc, procedureId: search.procedureId, q, action, from: when?.start, to: when?.end});
-    setIsSearchOpen(false);
-  };
-  const clearSearch = () => {
-    onSearchChange({asc: search.asc});
-    setIsSearchOpen(false);
-  };
+  /** Keeps the order; clears the filters and the procedure. */
+  const clearSearch = () => onSearchChange({asc: search.asc});
 
   const columns: DataTableColumn<EntryRow>[] = [
     {
@@ -135,29 +115,24 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
       backLabel="Back to the procedure"
       fill
       message={isError && <AlertMessage message="The audit log could not be loaded. Please try again." />}
-      actions={
-        <>
-          {isFiltered && <Button label="Clear Search" variant="ghost" icon={<Icon icon={AppIcon.Cancel} />} onClick={clearSearch} />}
-          <Button label="Search" variant="secondary" icon={<Icon icon={AppIcon.Search} />} onClick={openSearch} />
-        </>
-      }
-      dialogs={
-        <SearchDialog
-          isOpen={isSearchOpen}
-          title="Search the Audit Log"
-          fields={SEARCH_FIELDS}
-          values={draft}
-          onValuesChange={setDraft}
-          onSearch={() => applySearch(draft)}
-          onClear={clearSearch}
-          onClose={() => setIsSearchOpen(false)}
-        />
-      }>
+>
       <DataTable
         data={rows}
         columns={columns}
         idKey="id"
         isLoading={isPending}
+        // The search, keeping the procedure the log is opened on (it's not one of the bar's filters).
+        search={
+          <ListFilterBar
+            fields={FILTER_FIELDS}
+            values={search}
+            onChange={(values) => onSearchChange({...search, ...values, page: undefined})}
+            label="Search the audit log"
+            placeholder="Search by procedure, stage or user, or filter by action and date..."
+            textKey="q"
+            favourites={favourites()}
+          />
+        }
         sort={{column: 'When', ascending}}
         onSortChange={(sort) => onSearchChange({...search, page: undefined, asc: sort.ascending || undefined})}
         pagination={{

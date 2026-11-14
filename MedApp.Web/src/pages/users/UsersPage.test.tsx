@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {DEFAULT_NEW_USER_PASSWORD, parsePasswordBody} from '../../api/users';
-import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, findAlert} from '../../test/render';
+import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
 import {UsersPage} from './UsersPage';
 
@@ -104,22 +104,22 @@ describe('UsersPage', () => {
     expect(await findAlert('The roles could not be saved.')).toBeInTheDocument();
   });
 
-  it('searches by username, starting on page 1', async () => {
-    const {user, onSearchChange} = renderUsers({page: 2});
+  it('shows the search as tokens, and the Admins favourite filters by role, starting on page 1', async () => {
+    const {user, onSearchChange} = renderUsers({page: 2, username: 'hart'});
 
-    await user.click(await screen.findByRole('button', {name: 'Search'}));
-    await user.type(within(openDialog()!).getByLabelText(/username/i), 'hart');
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Search'}));
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Username: contains\s*hart/));
+    await pickFavourite(user, 'Admins');
 
-    expect(onSearchChange).toHaveBeenLastCalledWith({asc: undefined, username: 'hart', role: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({role: 'Admin', username: undefined, page: undefined}));
   });
 
-  it('clears an active search', async () => {
+  it('clears the search from the bar, keeping the order', async () => {
     const {user, onSearchChange} = renderUsers({role: 'Admin', asc: false});
 
-    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Role: is/));
+    await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
 
-    expect(onSearchChange).toHaveBeenLastCalledWith({asc: false});
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({asc: false, role: undefined, page: undefined}));
   });
 
   it('resets a password and shows the new one', async () => {
@@ -133,19 +133,36 @@ describe('UsersPage', () => {
     expect(openDialog()).toBeNull();
   });
 
-  it('deletes a user after confirming', async () => {
+  it('deletes a user once the admin enters their own password', async () => {
     const {user, fetch} = renderUsers({}, {'DELETE /api/auth/users/*': () => new Response(null, {status: 204})});
 
     await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Delete user'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete User'}));
+    const dialog = within(openDialog()!);
+    expect(isDisabled(dialog.getByRole('button', {name: 'Delete User'}))).toBe(true);
+    await user.type(dialog.getByLabelText(/your password/i), 'admin-password');
+    await user.click(dialog.getByRole('button', {name: 'Delete User'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('DELETE /api/auth/users/a.hartwell'));
+    expect(await bodies(fetch, 'DELETE')).toEqual([{password: 'admin-password'}]);
+  });
+
+  it('keeps the dialog open and says so when the password is wrong', async () => {
+    const {user} = renderUsers({}, {
+      'DELETE /api/auth/users/*': () => json([{code: 'PasswordIncorrect', description: 'Your password is incorrect.'}], 400),
+    });
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Delete user'}));
+    await user.type(within(openDialog()!).getByLabelText(/your password/i), 'wrong');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete User'}));
+
+    expect((await within(openDialog()!).findAllByText('Your password is incorrect.')).length).toBeGreaterThan(0);
   });
 
   it('shows an error when an action fails', async () => {
     const {user} = renderUsers({}, {'DELETE /api/auth/users/*': () => json({}, 500)});
 
     await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Delete user'}));
+    await user.type(within(openDialog()!).getByLabelText(/your password/i), 'admin-password');
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete User'}));
 
     await findAlert('The user could not be deleted.');

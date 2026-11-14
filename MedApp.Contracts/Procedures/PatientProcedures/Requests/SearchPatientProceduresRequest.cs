@@ -15,6 +15,15 @@ public sealed class SearchPatientProceduresRequest
     /// <summary>Matches the title, template name or patient name, ignoring case.</summary>
     public string? Search { get; set; }
 
+    /// <summary>The title contains this, ignoring case.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>The template name contains this, ignoring case.</summary>
+    public string? TemplateName { get; set; }
+
+    /// <summary>The patient's full name contains this, ignoring case.</summary>
+    public string? PatientName { get; set; }
+
     public Guid? PatientId { get; set; }
 
     public Guid? TemplateId { get; set; }
@@ -23,6 +32,9 @@ public sealed class SearchPatientProceduresRequest
     public List<string>? Statuses { get; set; }
 
     public string? Priority { get; set; }
+
+    /// <summary>Any of these priorities (with <see cref="Priority"/>, if both are set).</summary>
+    public List<string>? Priorities { get; set; }
 
     public Guid? AssignedToUserId { get; set; }
 

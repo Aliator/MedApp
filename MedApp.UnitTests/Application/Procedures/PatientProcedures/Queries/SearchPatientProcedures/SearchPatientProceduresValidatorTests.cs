@@ -21,7 +21,8 @@ public sealed class SearchPatientProceduresValidatorTests
         var query = CreateSearchQuery() with
         {
             Sort = "Priority", Search = "knee", Statuses = ["InProgress", "blocked"], Priority = "Urgent",
-            OverdueOnly = true, DueFrom = Today, DueTo = Today
+            OverdueOnly = true, DueFrom = Today, DueTo = Today, Priorities = ["Low", "high"], Title = "knee",
+            TemplateName = "joint", PatientName = "freya"
         };
 
         _validator.Validate(query).IsValid.Should().BeTrue();
@@ -31,6 +32,18 @@ public sealed class SearchPatientProceduresValidatorTests
     public void Validate_UnknownSort_Fails()
     {
         _validator.Validate(CreateSearchQuery() with { Sort = "colour" }).IsValid.Should().BeFalse();
+    }
+
+    [Test]
+    public void Validate_UnknownPriorityInPriorities_Fails()
+    {
+        _validator.Validate(CreateSearchQuery() with { Priorities = ["High", "Whenever"] }).IsValid.Should().BeFalse();
+    }
+
+    [Test]
+    public void Validate_PatientNameOver200Characters_Fails()
+    {
+        _validator.Validate(CreateSearchQuery() with { PatientName = new string('a', 201) }).IsValid.Should().BeFalse();
     }
 
     [TestCase("Finished")]

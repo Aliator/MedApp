@@ -25,6 +25,8 @@ export interface HalfViews {
   open: (path: string) => void;
   /** The page the half view shows (its path, without a query), or null when there's none. */
   openPath: string | null;
+  /** Closes the half view and opens this page in full view (the main view, with the nav open again). */
+  openFull: (path: string) => void;
 }
 
 export const HalfViewsContext = createContext<HalfViews | null>(null);

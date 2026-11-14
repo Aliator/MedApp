@@ -5,7 +5,6 @@ import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {useState} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
-import {FillingTextArea} from '../forms/FillingTextArea';
 import {NO_STATUS_LINE} from '../forms/fieldSpace';
 import {AppIcon} from '../shared/icons';
 import {StageNotes} from './StageList';
@@ -21,11 +20,6 @@ export interface StageWorkProps {
   /** Finish the stage, with the notes as they are in the box (saved first if changed). */
   onFinish: (notes: string) => void;
   onUnlock: () => void;
-  /**
-   * The notes box grows to fill the free space of the area that scrolls around it (at least two lines), rather
-   * than a fixed five. For where this stage is the main thing on a card, not for stages in a list.
-   */
-  isNotesFilling?: boolean;
 }
 
 /**
@@ -35,7 +29,7 @@ export interface StageWorkProps {
  *
  * The notes box starts from the saved notes; give it a `key` that changes with them, so it resets after a save.
  */
-export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinish, onUnlock, isNotesFilling = false}: StageWorkProps) {
+export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinish, onUnlock}: StageWorkProps) {
   const saved = stage.notes ?? '';
   const [draft, setDraft] = useState(saved);
   const isChanged = draft !== saved;
@@ -71,7 +65,8 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
 
   return (
     <VStack gap={3}>
-      {isNotesFilling ? <FillingTextArea {...notesProps} /> : <TextArea {...notesProps} rows={5} />}
+      {/* A fixed size, wherever the stage is shown. */}
+      <TextArea {...notesProps} rows={5} />
       <HStack gap={2} vAlign="center">
         {isChanged && (
           <Text type="supporting" color="secondary">

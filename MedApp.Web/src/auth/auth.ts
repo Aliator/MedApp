@@ -47,7 +47,7 @@ export interface LoginInput {
   password: string;
 }
 
-/** Signs in, then goes to the patients list, as the Blazor app does. */
+/** Signs in, then goes Home (the welcome page). */
 export function useLogin() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -56,7 +56,7 @@ export function useLogin() {
     onSuccess: async () => {
       // Forget the signed-out whoami so the guard asks the API again.
       queryClient.removeQueries({queryKey: whoamiQuery.queryKey});
-      await navigate({to: '/patients'});
+      await navigate({to: '/'});
     },
   });
 }

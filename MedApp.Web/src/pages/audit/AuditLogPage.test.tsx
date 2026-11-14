@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, openDialog, pageOf, renderWithApp} from '../../test/render';
+import {adminUser, calls, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import type {AuditListSearch} from '../listSearch';
 import {AuditLogPage} from './AuditLogPage';
 
@@ -57,17 +57,19 @@ describe('AuditLogPage', () => {
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=2&Ascending=false&ProcedureId=${procedureId}`]);
   });
 
-  it('searches by text and action, keeping the procedure, and back to page 1', async () => {
-    const {user, onSearchChange} = renderLog({procedureId, page: 3});
+  it('searches by text and actions; a favourite sets its filter, keeping the procedure, and back to page 1', async () => {
+    const {user, fetch, onSearchChange} = renderLog({procedureId, page: 3, q: 'ashford', action: 'StageFinished,Created'});
 
-    await user.click(await screen.findByRole('button', {name: 'Search'}));
-    const dialog = within(openDialog()!);
-    await user.type(dialog.getByRole('textbox', {name: /Procedure, stage or user/}), 'ashford');
-    await user.click(dialog.getByRole('combobox', {name: /Action/}));
-    await user.click(screen.getByRole('option', {name: 'Stage finished'}));
-    await user.click(dialog.getByRole('button', {name: 'Search'}));
+    await screen.findByText('k.ashford');
+    expect(calls(fetch)[0]).toContain('Search=ashford');
+    expect(calls(fetch)[0]).toContain('Actions=StageFinished&Actions=Created');
+    expect(searchBar()).toHaveTextContent(/Procedure, stage or user: contains\s*ashford/);
+    expect(searchBar()).toHaveTextContent(/Action: is any of/);
 
-    expect(onSearchChange).toHaveBeenCalledWith({procedureId, q: 'ashford', action: 'StageFinished', asc: undefined, from: undefined, to: undefined});
+    await pickFavourite(user, 'Status changes');
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({procedureId, action: 'StatusChanged', q: undefined, page: undefined}),
+    );
   });
 
   it('sorts oldest first from the When header, and clears a search', async () => {
@@ -77,7 +79,7 @@ describe('AuditLogPage', () => {
     await user.click(screen.getByRole('button', {name: /^when/i}));
     expect(onSearchChange).toHaveBeenCalledWith({q: 'knee', asc: true, page: undefined});
 
-    await user.click(screen.getAllByRole('button', {name: 'Clear Search'})[0]);
-    await waitFor(() => expect(onSearchChange).toHaveBeenLastCalledWith({asc: false}));
+    await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
+    await waitFor(() => expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({asc: false, q: undefined, page: undefined})));
   });
 });

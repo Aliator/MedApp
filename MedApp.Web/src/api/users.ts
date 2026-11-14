@@ -30,9 +30,10 @@ export function useCreateUser() {
   );
 }
 
+/** Deletes a user, confirmed with the signed-in admin's own password (a wrong one is a 400 the API explains). */
 export function useDeleteUser() {
-  return useUserMutation((username: string) =>
-    unwrap(api.DELETE('/api/auth/users/{username}', {params: {path: {username}}})),
+  return useUserMutation(({username, password}: {username: string; password: string}) =>
+    unwrap(api.DELETE('/api/auth/users/{username}', {params: {path: {username}}, body: {password}})),
   );
 }
 
