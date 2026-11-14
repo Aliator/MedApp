@@ -7,7 +7,7 @@ import {VStack} from '@astryxdesign/core/Stack';
 import {Heading, Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useState, type CSSProperties, type FormEvent} from 'react';
-import {ApiValidationError, fieldStatus} from '../../api/errors';
+import {ApiError, ApiValidationError, fieldStatus} from '../../api/errors';
 import {useLogin} from '../../auth/auth';
 import {AppIcon} from '../../components/shared/icons';
 import {ForgotPasswordDialog} from './ForgotPasswordDialog';
@@ -18,8 +18,9 @@ const pageStyle: CSSProperties = {minHeight: '100dvh', backgroundColor: 'var(--c
 const columnStyle: CSSProperties = {width: '100%', maxWidth: 400};
 
 /**
- * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields; any other failure (a 401 for
- * a wrong username or password, or a server error) shows "Invalid credentials", as Blazor does.
+ * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields. An account locked after too
+ * many wrong passwords (a 423) says so, and for how long, in the API's words. Any other failure (a 401 for a wrong
+ * username or password, or a server error) shows "Invalid credentials", as Blazor does.
  */
 export function LoginPage() {
   const [username, setUsername] = useState('');
@@ -30,6 +31,8 @@ export function LoginPage() {
   const validation = login.error instanceof ApiValidationError ? login.error.errors : null;
   const hasFieldErrors = validation !== null && Object.keys(validation.fields).length > 0;
   const showBanner = login.isError && !hasFieldErrors;
+  const lockedOut = login.error instanceof ApiError && login.error.status === 423 ? login.error : null;
+  const bannerTitle = lockedOut ? (lockedOut.title ?? 'This account is locked. Try again later.') : 'Invalid credentials';
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,7 +54,7 @@ export function LoginPage() {
             <VStack gap={4} hAlign="stretch">
               <Heading level={1}>Sign in</Heading>
 
-              {showBanner && <Banner status="error" title="Invalid credentials" container="card" role="alert" />}
+              {showBanner && <Banner status="error" title={bannerTitle} container="card" role="alert" />}
 
               <TextInput
                 label="Username"

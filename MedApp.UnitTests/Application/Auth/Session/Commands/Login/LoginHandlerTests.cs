@@ -2,6 +2,7 @@
 using FluentAssertions;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
 using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Exceptions;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -63,6 +64,23 @@ public sealed class LoginHandlerTests
             CancellationToken.None);
 
         result.Should().Be(expectedSession);
+    }
+
+    [Test]
+    public async Task Handle_AccountLockedOut_ThrowsAndCreatesNoSession()
+    {
+        _authService
+            .Setup(s => s.ValidateCredentialsAsync(AuthTestConstants.Usernames[0], AuthTestConstants.Passwords[0]))
+            .ThrowsAsync(new AccountLockedOutException(5));
+
+        var act = () => _handler.Handle(
+            new LoginCommand(AuthTestConstants.Usernames[0], AuthTestConstants.Passwords[0], null, null),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<AccountLockedOutException>();
+        _sessionService.Verify(
+            s => s.CreateSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Test]

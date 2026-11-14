@@ -2,13 +2,6 @@
 
 Smaller improvements to pick up later, outside the phased plans (`docs/procedures-ui-plan.md`). Move an item into a plan or a branch when it's started, and delete it here when it's merged.
 
-## Users
-
-- **Make sign-in count failed passwords and honour lockout.**
-  - **Today:** `IdentityAuthenticationService.ValidateCredentialsAsync` checks the password with `CheckPasswordAsync`, which neither counts a wrong one nor checks whether the account is locked out. So the lockout settings (`Identity` in `appsettings.json`) have no effect on sign-in. Deleting a user (which asks for the admin's password) does count and honour them.
-  - **Instead:** check `IsLockedOutAsync` first, count a wrong password with `AccessFailedAsync`, and clear the count on success (or use `SignInManager.CheckPasswordSignInAsync` with `lockoutOnFailure: true`). Say on the login page when an account is locked, and for how long.
-  - **Tests:** handler and service tests for a locked account, a wrong password, and a right one.
-
 ## Account settings
 
 More settings for Account Settings (`MedApp.Web/src/pages/account/AccountPage.tsx`), alongside the Account, Appearance and Accessibility cards. Browser-only settings live in `src/app/` providers, like `colours.tsx` and `textSize.tsx`.
@@ -46,7 +39,6 @@ Account Settings has an Accessibility card with a text size setting so far (`src
 
 - **Expand the power search's favourites (the star beside a list's search).** Today it offers fixed quick look-ups (My Tasks: Not started, Started). Let people save the current search as a favourite of their own, name, rename and delete them, mark one as the list's starting search, and see which favourite (if any) the list is showing. Store them per user (with the account, so they follow you), and offer them on every list with a search (`ListFilterBar`'s `favourites`).
 - **Cards instead of table rows when a list is too narrow.** When a list's columns don't fit at their minimum widths (a half view, or a narrow window), show each row as a small card in a list (its name, then the other fields under it, its actions at the end) instead of a table that scrolls sideways. `DataTable` already measures the room it has (`useFittedColumns`), so it can switch there.
-- **Space between the Templates page's header controls.** Add a little padding between the "Show archived" switch and the New Template button (`TemplatesPage.tsx`), and check the Stages page's matching pair.
 
 ## Features
 

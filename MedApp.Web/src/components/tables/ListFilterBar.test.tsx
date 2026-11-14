@@ -46,6 +46,20 @@ describe('ListFilterBar', () => {
     expect(searchBar()).toHaveTextContent(/Overdue: only/);
   });
 
+  it('marks its text box as not for autofill, so a saved login is never filled in', async () => {
+    renderWithApp(<ListFilterBar fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
+
+    const input = await vi.waitFor(() => {
+      const box = searchBar().querySelector('input');
+      expect(box).not.toBeNull();
+      return box!;
+    });
+    await vi.waitFor(() => expect(input).toHaveAttribute('data-1p-ignore', 'true'));
+    expect(input).toHaveAttribute('autocomplete', 'off');
+    expect(input).toHaveAttribute('data-lpignore', 'true');
+    expect(input).toHaveAttribute('data-bwignore', 'true');
+  });
+
   it("sets a favourite's filters, clearing the others", async () => {
     const onChange = vi.fn();
     const {user} = renderWithApp(
