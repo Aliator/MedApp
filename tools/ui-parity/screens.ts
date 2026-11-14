@@ -221,4 +221,41 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
+  { name: 'admin-stages', title: 'Stage definitions (admin)', path: '/admin/stages' },
+  {
+    name: 'admin-stage-edit',
+    title: 'Edit stage definition dialog (not saved)',
+    path: '/admin/stages',
+    prepare: async (page) => {
+      await rowAction(page, /edit stage definition/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'admin-templates', title: 'Templates (admin), archived ones shown', path: '/admin/templates?archived=true' },
+  {
+    name: 'admin-template-edit',
+    title: 'Edit a template: its stages in order beside the stage definitions to add',
+    path: '/admin/templates',
+    prepare: async (page) => {
+      // Edit is a link to the template's page.
+      await page.getByRole('table').getByRole('link', { name: /edit template/i }).first().click();
+      await page.getByRole('heading', { name: 'Edit Template' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-template-new-narrow',
+    title: 'New template on a narrow window: one form card',
+    path: '/admin/templates/new',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+    },
+  },
+  { name: 'admin-audit', title: 'Audit log (admin)', path: '/admin/audit' },
+  {
+    name: 'admin-audit-procedure',
+    title: "One procedure's audit log, from its View Audit Log",
+    path: (d) => `/admin/audit?procedureId=${d.procedureId}`,
+  },
 ];

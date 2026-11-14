@@ -1,14 +1,11 @@
-import {createFileRoute, redirect} from '@tanstack/react-router';
-import {whoamiQuery} from '../../../auth/auth';
+import {createFileRoute} from '@tanstack/react-router';
+import {requireAdmin} from '../../../auth/auth';
 import {parseUsersSearch} from '../../../pages/listSearch';
 import {UsersPage} from '../../../pages/users/UsersPage';
 
 /** Admin only. Anyone else is sent home, as the Blazor Users page does. */
 export const Route = createFileRoute('/_app/admin/users')({
-  beforeLoad: async ({context}) => {
-    const user = await context.queryClient.ensureQueryData(whoamiQuery);
-    if (!user.isAdmin) throw redirect({to: '/'});
-  },
+  beforeLoad: requireAdmin,
   validateSearch: parseUsersSearch,
   component: UsersRoute,
 });

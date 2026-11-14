@@ -1,6 +1,6 @@
 # MedApp: procedures in the UI
 
-Status: **all decisions settled; phases 0, 1, 2, 3 and 5 merged (PRs #30, #31, #32), phase 4 done on `feature/procedure-create-edit` (section 7)** · 2026-11-14
+Status: **all decisions settled; phases 0 to 5 merged (PRs #30 to #33), phase 6 done on `feature/procedure-admin` (section 7)** · 2026-11-14
 
 Staff use standard **procedure templates** to start a **procedure** for a patient. A template is an ordered list of **stages**, and admins create and maintain templates and stages. Any staff member can work through a procedure's stages, in order. As they go they record notes, and they **finish** each stage, which locks it and moves the procedure on to the next stage. Admins **assign** staff to procedures; that puts the procedure on those staff members' task lists, on their Home page, but doesn't limit who may work on it. Admins can unlock a finished stage so it can be corrected. Every change to a procedure goes into an **audit log**, which admins can read.
 
@@ -187,7 +187,11 @@ Each phase is its own PR, with CI green and parity screenshots for new screens.
    - **Edit Details** (`/procedures/{id}/edit`) is a footer button on the procedure page while its details can be edited. Saving a procedure that isn't yours asks the decision 18 question in the save confirmation.
    - **Delete Procedure** is an admin button in the procedure page header, shown when the API allows it (`canBeDeleted`). It goes back to the patient's procedures afterwards.
 5. **Home task list:** the two side-by-side tables (Not started / Started). **Done** (decision 23).
-6. **Admin pages:** Stage definitions, Templates (with archiving) and the Audit log.
+6. **Admin pages:** Stage definitions, Templates (with archiving) and the Audit log. **Done:**
+   - **Stage definitions** (`/admin/stages`): a list (archived ones on request), added and edited in a dialog (name, description, instructions); archive and restore; delete only when no template uses one.
+   - **Templates** (`/admin/templates`): a list with each template's stages and how many procedures use it; archive and restore; delete only when never used. **New** and **edit** (`/admin/templates/new`, `/admin/templates/{id}`) take a name and the stages in order: added from the active definitions (more than once if need be), dragged into order or moved with the keyboard, and removed.
+   - **Audit log** (`/admin/audit`): every entry, newest first, with its details in words; searchable by procedure, stage or user, action and date range. Admins open one procedure's log from its page (**Audit Log**, `?procedureId=`).
+   - The three pages are under Administration in the side nav.
 7. **Later (not in this plan):** real-time updates for the task list and procedure pages.
 
 ## 8. Follow-up questions

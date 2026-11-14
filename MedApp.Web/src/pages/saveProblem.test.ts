@@ -40,6 +40,14 @@ describe('saveProblem', () => {
     );
   });
 
+  it('names stage definitions and templates, and archiving and restoring', () => {
+    expect(saveProblem(new ApiError(404), 'archive', 'stage definition').message).toBe('Stage definition not found. It may have been deleted.');
+    expect(saveProblem(new ApiError(418), 'archive', 'template').message).toBe('An unexpected error occurred while archiving the template.');
+    expect(saveProblem(new ApiError(418), 'restore', 'stage definition').message).toBe(
+      'An unexpected error occurred while restoring the stage definition.',
+    );
+  });
+
   it('shows the reason the API gives for a conflict', () => {
     const conflict = new ApiError(409, undefined, "This patient has 2 procedures, so they can't be deleted.");
 

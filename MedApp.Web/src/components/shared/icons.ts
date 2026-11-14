@@ -5,6 +5,7 @@
 import type {IconType} from '@astryxdesign/core/Icon';
 import {
   RiAddLine,
+  RiArchiveLine,
   RiAlertLine,
   RiArrowDownSLine,
   RiArrowLeftDoubleLine,
@@ -21,9 +22,13 @@ import {
   RiDeleteBinLine,
   RiErrorWarningLine,
   RiEyeLine,
+  RiFileList3Line,
+  RiHistoryLine,
   RiHomeLine,
+  RiInboxUnarchiveLine,
   RiInformationLine,
   RiKeyLine,
+  RiListCheck3,
   RiLockLine,
   RiLogoutBoxRLine,
   RiMailLine,
@@ -104,4 +109,10 @@ export const AppIcon = {
   DarkMode: remix(RiMoonLine),
   NotPorted: remix(RiToolsLine),
   NotFound: remix(RiCompassDiscoverLine),
+  // Procedure setup and the audit log (admin)
+  StageDefinitions: remix(RiListCheck3),
+  Templates: remix(RiFileList3Line),
+  AuditLog: remix(RiHistoryLine),
+  Archive: remix(RiArchiveLine),
+  Restore: remix(RiInboxUnarchiveLine),
 } as const satisfies Record<string, IconType>;

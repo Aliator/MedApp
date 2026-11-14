@@ -58,6 +58,18 @@ describe('DataTable', () => {
     expect(onSortChange).toHaveBeenCalledWith({column: 'name', ascending: false});
   });
 
+  it('goes from a descending sort back to ascending, never to unsorted', async () => {
+    const onSortChange = vi.fn();
+    const {user} = renderWithApp(
+      <DataTable data={rows} columns={columns} idKey="id" sort={{column: 'name', ascending: false}} onSortChange={onSortChange} />,
+    );
+
+    const header = await screen.findByRole('columnheader', {name: /patients/i});
+    await user.click(within(header).getByRole('button'));
+
+    expect(onSortChange).toHaveBeenCalledWith({column: 'name', ascending: true});
+  });
+
   it('shows page controls for server-side paging and reports page changes', async () => {
     const onPageChange = vi.fn();
     const {user} = renderWithApp(

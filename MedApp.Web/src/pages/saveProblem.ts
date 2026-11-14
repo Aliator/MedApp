@@ -9,11 +9,11 @@ export interface SaveProblem {
 export const NO_PROBLEM: SaveProblem = {validation: null, message: null};
 
 /** What's being saved, as the messages name it. */
-export type SaveSubject = 'patient' | 'procedure';
+export type SaveSubject = 'patient' | 'procedure' | 'stage definition' | 'template';
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */
-export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete', subject: SaveSubject = 'patient'): SaveProblem {
-  const Subject = subject === 'patient' ? 'Patient' : 'Procedure';
+export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 'archive' | 'restore', subject: SaveSubject = 'patient'): SaveProblem {
+  const Subject = subject.charAt(0).toUpperCase() + subject.slice(1);
   if (error instanceof ApiValidationError) return {validation: error.errors, message: null};
   if (error instanceof ApiError) {
     switch (error.status) {
@@ -34,6 +34,11 @@ export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete', s
   if (error instanceof TypeError) {
     return {validation: null, message: 'Unable to connect to the server. Please check your connection and try again.'};
   }
-  const what = action === 'add' ? `adding the ${subject}` : action === 'delete' ? `deleting the ${subject}` : 'saving changes';
+  const what =
+    action === 'add'
+      ? `adding the ${subject}`
+      : action === 'save'
+        ? 'saving changes'
+        : `${action === 'delete' ? 'deleting' : action === 'archive' ? 'archiving' : 'restoring'} the ${subject}`;
   return {validation: null, message: `An unexpected error occurred while ${what}.`};
 }
