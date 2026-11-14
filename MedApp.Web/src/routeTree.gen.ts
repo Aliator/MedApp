@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppTasksRouteImport } from './routes/_app/tasks'
+import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
+import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
+import { Route as AppAccountPasswordRouteImport } from './routes/_app/account/password'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
@@ -43,9 +46,24 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAccountRoute = AppAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountIndexRoute = AppAccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountColoursRoute = AppAccountColoursRouteImport.update({
+  id: '/account/colours',
+  path: '/account/colours',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountPasswordRoute = AppAccountPasswordRouteImport.update({
+  id: '/account/password',
+  path: '/account/password',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
@@ -127,12 +145,15 @@ const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/account': typeof AppAccountRoute
+  '/tasks': typeof AppTasksRoute
+  '/account/colours': typeof AppAccountColoursRoute
+  '/account/password': typeof AppAccountPasswordRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
+  '/account/': typeof AppAccountIndexRoute
   '/patients/': typeof AppPatientsIndexRoute
   '/procedures/': typeof AppProceduresIndexRoute
   '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
@@ -146,13 +167,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
-  '/account': typeof AppAccountRoute
+  '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
+  '/account/colours': typeof AppAccountColoursRoute
+  '/account/password': typeof AppAccountPasswordRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
+  '/account': typeof AppAccountIndexRoute
   '/patients': typeof AppPatientsIndexRoute
   '/procedures': typeof AppProceduresIndexRoute
   '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
@@ -168,13 +192,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/_app/account': typeof AppAccountRoute
+  '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/account/colours': typeof AppAccountColoursRoute
+  '/_app/account/password': typeof AppAccountPasswordRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
   '/_app/procedures/new': typeof AppProceduresNewRoute
+  '/_app/account/': typeof AppAccountIndexRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
   '/_app/procedures/': typeof AppProceduresIndexRoute
   '/_app/admin/templates/$id': typeof AppAdminTemplatesIdRoute
@@ -191,12 +218,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/account'
+    | '/tasks'
+    | '/account/colours'
+    | '/account/password'
     | '/admin/audit'
     | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
     | '/procedures/new'
+    | '/account/'
     | '/patients/'
     | '/procedures/'
     | '/admin/templates/$id'
@@ -210,13 +240,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
-    | '/account'
+    | '/tasks'
     | '/'
+    | '/account/colours'
+    | '/account/password'
     | '/admin/audit'
     | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
     | '/procedures/new'
+    | '/account'
     | '/patients'
     | '/procedures'
     | '/admin/templates/$id'
@@ -231,13 +264,16 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
-    | '/_app/account'
+    | '/_app/tasks'
     | '/_app/'
+    | '/_app/account/colours'
+    | '/_app/account/password'
     | '/_app/admin/audit'
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/patients/add'
     | '/_app/procedures/new'
+    | '/_app/account/'
     | '/_app/patients/'
     | '/_app/procedures/'
     | '/_app/admin/templates/$id'
@@ -278,11 +314,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/account': {
-      id: '/_app/account'
+    '/_app/tasks': {
+      id: '/_app/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/': {
+      id: '/_app/account/'
       path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AppAccountRouteImport
+      fullPath: '/account/'
+      preLoaderRoute: typeof AppAccountIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/colours': {
+      id: '/_app/account/colours'
+      path: '/account/colours'
+      fullPath: '/account/colours'
+      preLoaderRoute: typeof AppAccountColoursRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/password': {
+      id: '/_app/account/password'
+      path: '/account/password'
+      fullPath: '/account/password'
+      preLoaderRoute: typeof AppAccountPasswordRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/audit': {
@@ -394,13 +451,16 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppAccountRoute: typeof AppAccountRoute
+  AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAccountColoursRoute: typeof AppAccountColoursRoute
+  AppAccountPasswordRoute: typeof AppAccountPasswordRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
   AppProceduresNewRoute: typeof AppProceduresNewRoute
+  AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
   AppProceduresIndexRoute: typeof AppProceduresIndexRoute
   AppAdminTemplatesIdRoute: typeof AppAdminTemplatesIdRoute
@@ -414,13 +474,16 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAccountRoute: AppAccountRoute,
+  AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAccountColoursRoute: AppAccountColoursRoute,
+  AppAccountPasswordRoute: AppAccountPasswordRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
   AppProceduresNewRoute: AppProceduresNewRoute,
+  AppAccountIndexRoute: AppAccountIndexRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
   AppProceduresIndexRoute: AppProceduresIndexRoute,
   AppAdminTemplatesIdRoute: AppAdminTemplatesIdRoute,

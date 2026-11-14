@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp} from '../../test/render';
+import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
 
 /** Every list is empty: enough for the pages to render their headers. */
 const emptyApi = () => mockFetch(() => json(pageOf([])));
@@ -8,13 +8,24 @@ const emptyApi = () => mockFetch(() => json(pageOf([])));
 // The whole app renders, and its first route chunk can be slow to load.
 const heading = (name: string) => screen.findByRole('heading', {name, level: 1}, {timeout: 15000});
 
-/** A nav item's half-view button, shown while its row is hovered. */
-async function halfViewButton(user: ReturnType<typeof userEvent.setup>, item: string, name = `Open ${item} in half view`) {
-  await user.hover(within(screen.getByRole('navigation')).getByRole('link', {name: item}));
-  return screen.findByRole('button', {name});
+/** A nav item's "Open in half view", from its row's menu. */
+const halfViewItem = (user: ReturnType<typeof userEvent.setup>, item: string) =>
+  rowMenuItem(user, item, 'Open in half view');
+
+/**
+ * A nav item's row, brought out of the folded nav (a half view is open) by hovering its icon. It comes out after a
+ * short delay.
+ */
+async function railRow(user: ReturnType<typeof userEvent.setup>, item: string) {
+  const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
+  // The icon is a link too; the row is the second one.
+  await user.hover(nav.getByRole('link', {name: item}));
+  await waitFor(() => expect(nav.getAllByRole('link', {name: item})).toHaveLength(2), {timeout: 3000});
+  return nav.getAllByRole('link', {name: item})[1];
 }
 
-describe('AppLayout half views', () => {
+// The whole app renders, and the first test loads its routes: more than the default 5s on a slow machine.
+describe('AppLayout half views', {timeout: 15_000}, () => {
   beforeEach(() => sessionStorage.clear());
 
   it("opens a nav item's page beside the current one, folding the nav away", async () => {
@@ -23,8 +34,11 @@ describe('AppLayout half views', () => {
 
     await heading('Patients');
     // The page that's open can't be opened again.
-    expect(isDisabled(await halfViewButton(user, 'Patients', 'Patients is already open'))).toBe(true);
-    await user.click(await halfViewButton(user, 'Audit Log'));
+    const patients = await halfViewItem(user, 'Patients');
+    expect(isDisabled(patients)).toBe(true);
+    expect(patients).toHaveTextContent('Patients is already open');
+    await user.unhover(screen.getAllByRole('link', {name: 'Patients'})[0]);
+    await user.click(await halfViewItem(user, 'Audit Log'));
 
     expect(await heading('Audit Log')).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Patients', level: 1})).toBeInTheDocument();
@@ -37,7 +51,7 @@ describe('AppLayout half views', () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Patients');
-    await user.click(await halfViewButton(user, 'Audit Log'));
+    await user.click(await halfViewItem(user, 'Audit Log'));
     await heading('Audit Log');
     const closes = screen.getAllByRole('button', {name: 'Close half view'});
     await user.click(closes[closes.length - 1]);
@@ -45,7 +59,7 @@ describe('AppLayout half views', () => {
     await waitFor(() => expect(screen.queryByRole('heading', {name: 'Audit Log', level: 1})).not.toBeInTheDocument());
     expect(router.state.location.pathname).toBe('/patients');
     expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument();
-    expect(await halfViewButton(user, 'Home')).toBeInTheDocument();
+    expect(await halfViewItem(user, 'My Tasks')).toBeInTheDocument();
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
@@ -54,7 +68,7 @@ describe('AppLayout half views', () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Patients');
-    await user.click(await halfViewButton(user, 'Audit Log'));
+    await user.click(await halfViewItem(user, 'Audit Log'));
     await heading('Audit Log');
     const patientsHeader = screen.getByRole('heading', {name: 'Patients', level: 1}).parentElement!.parentElement!;
     await user.click(within(patientsHeader).getByRole('button', {name: 'Close half view'}));
@@ -62,6 +76,72 @@ describe('AppLayout half views', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/audit'));
     expect(await heading('Audit Log')).toBeInTheDocument();
     expect(screen.queryByRole('heading', {name: 'Patients', level: 1})).not.toBeInTheDocument();
+  });
+
+  it('closes the half view when the main view goes to the same page', async () => {
+    emptyApi();
+    sessionStorage.setItem('medapp.halfView', '/admin/audit');
+    const {router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Audit Log');
+    await router.navigate({to: '/admin/audit'});
+
+    await waitFor(() => expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument());
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+  });
+
+  it('with a half view open, clicking a nav item opens its page on its own', async () => {
+    emptyApi();
+    sessionStorage.setItem('medapp.halfView', '/admin/audit');
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Audit Log');
+    await user.click(await railRow(user, 'Templates'));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/templates'));
+    await waitFor(() => expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument());
+    expect(screen.queryByRole('heading', {name: 'Audit Log', level: 1})).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+  });
+
+  it('with the setting off, clicking a nav item opens it on the left, keeping the half view', async () => {
+    emptyApi();
+    localStorage.setItem('medapp.navClosesHalfView', 'false');
+    sessionStorage.setItem('medapp.halfView', '/admin/audit');
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Audit Log');
+    await user.click(await railRow(user, 'Users'));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
+    expect(await heading('User Management')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Audit Log', level: 1})).toBeInTheDocument();
+  });
+
+  it("with a half view open, a nav item's menu opens it on the left or the right", async () => {
+    emptyApi();
+    sessionStorage.setItem('medapp.halfView', '/admin/audit');
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Audit Log');
+    // A page open on either side can't be opened on either side.
+    const patientsLeft = await rowMenuItem(user, 'Patients', 'Open on the left');
+    expect(isDisabled(patientsLeft)).toBe(true);
+    expect(patientsLeft).toHaveTextContent('Patients is already open on the left');
+    const patientsMenu = within(patientsLeft.closest<HTMLElement>('[role="menu"]')!);
+    expect(isDisabled(patientsMenu.getByRole('menuitem', {name: (name) => name.startsWith('Open on the right'), hidden: true}))).toBe(true);
+    await user.unhover(screen.getAllByRole('link', {name: 'Patients'})[0]);
+    const auditRight = await rowMenuItem(user, 'Audit Log', 'Open on the right');
+    expect(isDisabled(auditRight)).toBe(true);
+    expect(auditRight).toHaveTextContent('Audit Log is already open on the right');
+
+    await user.unhover(screen.getAllByRole('link', {name: 'Audit Log'})[0]);
+    await user.click(await rowMenuItem(user, 'Users', 'Open on the right'));
+    await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users'));
+
+    await user.click(await rowMenuItem(user, 'Templates', 'Open on the left'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/templates'));
+    expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users');
   });
 
   it('keeps the half view open across a reload', async () => {

@@ -3,7 +3,6 @@ import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
-import {Switch} from '@astryxdesign/core/Switch';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
@@ -24,11 +23,12 @@ import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
-import {setupPage} from './setupList';
+import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
 
 type DefinitionRow = StageDefinition & Record<string, unknown>;
 
@@ -62,7 +62,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const [error, setError] = useState<string | null>(null);
 
-  const {rows, page, total, archivedCount} = setupPage(data, search);
+  const {rows, page, total} = setupPage(data, search);
   const close = () => setDialog(null);
   const set = (key: keyof StageDefinitionInput) => (value: string) => setForm((current) => ({...current, [key]: value}));
 
@@ -81,7 +81,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
     setDialog({kind, definition});
   };
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'stage definition').message);
+    setError(saveProblem(e, action, 'stage').message);
     close();
   };
 
@@ -91,7 +91,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const saveDefinition = () =>
     save.mutate(
       {id: editing?.id, ...form},
-      {onSuccess: close, onError: (e) => setProblem(saveProblem(e, editing ? 'save' : 'add', 'stage definition'))},
+      {onSuccess: close, onError: (e) => setProblem(saveProblem(e, editing ? 'save' : 'add', 'stage'))},
     );
 
   const columns: DataTableColumn<DefinitionRow>[] = [
@@ -102,7 +102,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       renderCell: (d) => <SetupNameCell name={d.name ?? ''} secondary={d.description} />,
     },
     {key: 'templates', header: 'Used in', width: pixel(140), renderCell: (d) => <Text type="body">{templatesUsing(d.templateCount ?? 0)}</Text>},
-    {key: 'status', header: 'Status', width: pixel(110), renderCell: (d) => <SetupStatusToken isArchived={d.isArchived ?? false} />},
+    {key: 'status', header: 'Status', width: pixel(100), renderCell: (d) => <SetupStatusToken isArchived={d.isArchived ?? false} />},
     {
       key: 'actions',
       header: 'Actions',
@@ -111,16 +111,16 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       renderCell: (d) => (
         <TableActions
           actions={[
-            {label: 'Edit stage definition', icon: AppIcon.Edit, onClick: () => openEditor(d)},
+            {label: 'Edit stage', icon: AppIcon.Edit, onClick: () => openEditor(d)},
             d.isArchived
               ? {
-                  label: 'Restore stage definition',
+                  label: 'Restore stage',
                   icon: AppIcon.Restore,
                   onClick: () => actions.restore.mutate(d.id ?? '', {onError: failed('restore')}),
                 }
-              : {label: 'Archive stage definition', icon: AppIcon.Archive, onClick: () => open('archive', d)},
+              : {label: 'Archive stage', icon: AppIcon.Archive, onClick: () => open('archive', d)},
             {
-              label: d.canBeDeleted ? 'Delete stage definition' : 'Used by a template, so it can be archived but not deleted',
+              label: d.canBeDeleted ? 'Delete stage' : 'Used by a template, so it can be archived but not deleted',
               icon: AppIcon.Delete,
               isDestructive: true,
               isDisabled: !d.canBeDeleted,
@@ -132,9 +132,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
     },
   ];
 
-  const subtitle = isPending
-    ? 'Loading stage definitions...'
-    : `${total} ${search.archived ? '' : 'active '}${total === 1 ? 'stage definition' : 'stage definitions'}`;
+  const subtitle = isPending ? 'Loading stages...' : setupSubtitle(total, search, 'stage', 'stages');
 
   const summary = target && (
     <MetadataList>
@@ -145,34 +143,25 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
 
   return (
     <Page
-      title="Stage Definitions"
+      title="Stages"
       subtitle={subtitle}
       fill
       message={
-        error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The stage definitions could not be loaded. Please try again." />
+        error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The stages could not be loaded. Please try again." />
       }
-      actions={
-        <>
-          <Switch
-            label={`Show archived (${archivedCount})`}
-            value={search.archived ?? false}
-            onChange={(archived) => onSearchChange({archived: archived || undefined})}
-          />
-          <Button label="Add Stage Definition" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openEditor(null)} />
-        </>
-      }
+      actions={<Button label="Add Stage" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openEditor(null)} />}
       dialogs={
         <>
           <ConfirmDialog
             isOpen={dialog?.kind === 'edit'}
-            title={editing ? 'Edit Stage Definition' : 'Add Stage Definition'}
+            title={editing ? 'Edit Stage' : 'Add Stage'}
             message={
               editing
                 ? 'Templates use the changes from now on. Procedures already started keep the stage as it was.'
                 : 'A step that templates can be built from.'
             }
             icon={editing ? AppIcon.Edit : AppIcon.Add}
-            confirmText={editing ? 'Save' : 'Add Stage Definition'}
+            confirmText={editing ? 'Save' : 'Add Stage'}
             isProcessing={save.isPending}
             confirmDisabled={!form.name.trim()}
             onConfirm={saveDefinition}
@@ -214,7 +203,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
 
           <ConfirmDialog
             isOpen={dialog?.kind === 'archive'}
-            title="Archive Stage Definition"
+            title="Archive Stage"
             message="It won't be offered for new templates. Templates and procedures that have it keep it, and it can be restored."
             icon={AppIcon.Archive}
             intent="warning"
@@ -228,9 +217,9 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
           <ConfirmDialog
             isOpen={dialog?.kind === 'delete'}
             title="Confirm Delete"
-            message="No template uses this stage definition. This action cannot be undone."
+            message="No template uses this stage. This action cannot be undone."
             isDanger
-            confirmText="Delete Stage Definition"
+            confirmText="Delete Stage"
             isProcessing={actions.remove.isPending}
             onConfirm={() => target && actions.remove.mutate(target.id ?? '', {onSuccess: close, onError: failed('delete')})}
             onCancel={close}>
@@ -240,10 +229,10 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       }>
       {!isPending && !isError && data.length === 0 ? (
         <EmptyState
-          title="No stage definitions yet"
-          description="Stage definitions are the steps templates are built from."
+          title="No stages yet"
+          description="Stages are the steps templates are built from."
           icon={<Icon icon={AppIcon.StageDefinitions} size="lg" />}
-          actions={<Button label="Add Your First Stage Definition" variant="primary" onClick={() => openEditor(null)} />}
+          actions={<Button label="Add Your First Stage" variant="primary" onClick={() => openEditor(null)} />}
         />
       ) : (
         <DataTable
@@ -251,6 +240,18 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
           columns={columns}
           idKey="id"
           isLoading={isPending}
+          // The search: its name, and Active (to begin with) or Archived.
+          search={
+            <ListFilterBar
+              fields={SETUP_FILTER_FIELDS}
+              values={setupBarValues(search)}
+              onChange={(values) => onSearchChange({...fromSetupBar(values), page: undefined})}
+              label="Search stages"
+              placeholder="Search stages by name, or filter by status..."
+              textKey="name"
+              favourites={SETUP_FAVOURITES}
+            />
+          }
           pagination={{
             page,
             pageSize: PAGE_SIZE,
@@ -259,10 +260,10 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
           }}
           emptyState={
             <EmptyState
-              title="Every stage definition is archived"
-              description="Show archived ones to see and restore them."
+              title="No stages match your search"
+              description="Search for archived ones too, to see and restore them."
               isCompact
-              actions={<Button label="Show Archived" variant="secondary" onClick={() => onSearchChange({archived: true})} />}
+              actions={<Button label="Show Archived" variant="secondary" onClick={() => onSearchChange({...search, page: undefined, status: 'any'})} />}
             />
           }
         />

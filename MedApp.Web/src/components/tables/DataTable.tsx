@@ -1,10 +1,10 @@
 import {Card} from '@astryxdesign/core/Card';
-import {Pagination} from '@astryxdesign/core/Pagination';
 import {Section} from '@astryxdesign/core/Section';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
-import {Table, useTableSortable, type TableColumn} from '@astryxdesign/core/Table';
+import {DEFAULT_MIN_COLUMN_WIDTH, pixel, Table, useTableSortable, type TableColumn} from '@astryxdesign/core/Table';
 import {useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode} from 'react';
+import {PageControls} from './PageControls';
 import type {TableSort} from './sorting';
 
 export type DataTableColumn<T extends Record<string, unknown>> = TableColumn<T>;
@@ -43,6 +43,10 @@ export interface DataTableProps<T extends Record<string, unknown>> {
    * same place whether there's a panel or not.
    */
   edge?: {side: 'start' | 'end'; content: ReactNode};
+  /** Content at the top of the card, above the table, e.g. Home's switch between its lists. */
+  top?: ReactNode;
+  /** A search above the card, as wide as it (e.g. a `ListFilterBar`); the card fills the height left under it. */
+  search?: ReactNode;
 }
 
 type SkeletonRow = {skeletonId: number} & Record<string, unknown>;
@@ -79,6 +83,56 @@ function useRowHeight(scroller: React.RefObject<HTMLElement | null>, rows: numbe
   return height;
 }
 
+/** Astryx's floor for a column with no width (not exported). */
+const FLEXIBLE_COLUMN_MIN_WIDTH = 60;
+
+/** The narrowest a column can be: a pixel column's width, or a proportional (or width-less) column's floor. */
+function minColumnWidth(column: TableColumn<Record<string, unknown>>): number {
+  const width = column.width;
+  if (!width) return FLEXIBLE_COLUMN_MIN_WIDTH;
+  if (width.type === 'pixel') return width.value;
+  return width.minWidth ?? DEFAULT_MIN_COLUMN_WIDTH;
+}
+
+/**
+ * The columns at exact widths for the space the table has: each at its narrowest, plus an equal share of whatever
+ * space is left, so the table only scrolls sideways when even its narrowest columns don't fit. (Astryx's own
+ * sizing shares the width out by proportion and keeps every share above its column's floor, so it scrolls sooner,
+ * and pixel columns never grow.) Measured from the area the table sits in, and again whenever it resizes; until
+ * then, the columns as given.
+ */
+function useFittedColumns<T extends Record<string, unknown>>(
+  columns: TableColumn<T>[],
+  scroller: React.RefObject<HTMLElement | null>,
+): TableColumn<T>[] {
+  const [space, setSpace] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (!element) return;
+    const measure = () => {
+      // The table sits inside a padded section: its room is that section's, less the padding.
+      const inner = element.firstElementChild;
+      const style = inner ? getComputedStyle(inner) : null;
+      const padding = style ? parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) : 0;
+      setSpace(Math.floor((inner ?? element).clientWidth - padding));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [scroller]);
+
+  return useMemo(() => {
+    if (!space || space <= 0) return columns;
+    const mins = columns.map((column) => minColumnWidth(column as TableColumn<Record<string, unknown>>));
+    const spare = Math.max(0, space - mins.reduce((sum, min) => sum + min, 0));
+    const share = Math.floor(spare / columns.length);
+    return columns.map((column, i) => ({...column, width: pixel(mins[i] + share)}));
+  }, [columns, space]);
+}
+
 /**
  * A data table (replaces Blazor's DataTable and SortableHeader): sortable headers, page controls, skeleton
  * rows while loading, and an empty state. Sorting and paging are controlled, and done by the API, so the page
@@ -102,6 +156,8 @@ export function DataTable<T extends Record<string, unknown>>({
   pagination,
   emptyState,
   edge,
+  top,
+  search,
 }: DataTableProps<T>) {
   const sortable = useTableSortable<T>({
     sort: sort ? [{sortKey: sort.column, direction: sort.ascending ? 'ascending' : 'descending'}] : [],
@@ -117,11 +173,12 @@ export function DataTable<T extends Record<string, unknown>>({
   const scroller = useRef<HTMLElement>(null);
   const rowHeight = useRowHeight(scroller, pagination?.pageSize, [isLoading, data.length === 0, showPaging]);
   const rowHeightStyle = rowHeight ? ({'--medapp-table-row-height': `${rowHeight}px`} as CSSProperties) : undefined;
+  const fitted = useFittedColumns(columns, scroller);
 
   let table: ReactNode;
   if (isLoading) {
     const rows: SkeletonRow[] = Array.from({length: pagination?.pageSize ?? skeletonRows}, (_, i) => ({skeletonId: i}));
-    const skeletonColumns: TableColumn<SkeletonRow>[] = columns.map((column, c) => ({
+    const skeletonColumns: TableColumn<SkeletonRow>[] = fitted.map((column, c) => ({
       key: column.key,
       header: column.header,
       width: column.width,
@@ -133,7 +190,7 @@ export function DataTable<T extends Record<string, unknown>>({
     table = (
       <Table
         data={data as T[]}
-        columns={columns}
+        columns={fitted}
         idKey={idKey}
         plugins={plugins}
         emptyState={emptyState}
@@ -151,9 +208,10 @@ export function DataTable<T extends Record<string, unknown>>({
     </StackItem>
   );
 
-  return (
+  const card = (
     <Card padding={0} width="100%" height="100%">
       <VStack gap={0} height="100%">
+        {top}
         <StackItem size="fill">
           <HStack gap={0} height="100%">
             {edge?.side === 'start' && edgePanel}
@@ -169,11 +227,10 @@ export function DataTable<T extends Record<string, unknown>>({
         {showPaging && (
           <Section variant="muted" padding={3} dividers={['top']}>
             <HStack hAlign="end">
-              <Pagination
+              <PageControls
                 page={pagination.page}
-                pageSize={pagination.pageSize}
-                totalItems={pagination.totalItems}
-                onChange={pagination.onPageChange}
+                totalPages={Math.max(1, Math.ceil(pagination.totalItems / pagination.pageSize))}
+                onPageChange={pagination.onPageChange}
                 label="Table pagination"
               />
             </HStack>
@@ -181,5 +238,13 @@ export function DataTable<T extends Record<string, unknown>>({
         )}
       </VStack>
     </Card>
+  );
+
+  if (!search) return card;
+  return (
+    <VStack gap={3} height="100%">
+      {search}
+      <StackItem size="fill">{card}</StackItem>
+    </VStack>
   );
 }

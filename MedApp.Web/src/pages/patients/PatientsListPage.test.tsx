@@ -1,5 +1,5 @@
 import {screen, within} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, openDialog, pageOf, renderWithApp, findAlert} from '../../test/render';
+import {adminUser, calls, json, mockApi, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {PatientsListSearch} from '../listSearch';
 import {PatientsListPage} from './PatientsListPage';
 
@@ -50,30 +50,26 @@ describe('PatientsListPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({last: 'Ahmed', page: undefined, sort: 'Email', asc: true});
   });
 
-  it('searches from the dialog, keeping the sort and starting on page 1', async () => {
-    const {user, onSearchChange} = renderList({page: 3, sort: 'Email'});
+  it('shows the search from the URL as tokens, and a favourite sets its filter, keeping the sort and starting on page 1', async () => {
+    const {user, onSearchChange} = renderList({page: 3, sort: 'Email', last: 'Bennett', dobFrom: '1960-01-01'});
 
-    await user.click(await screen.findByRole('button', {name: 'Search'}));
-    await user.type(within(openDialog()!).getByLabelText(/^last name/i), 'Bennett');
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Search'}));
+    await screen.findByText('Freya Ahmed');
+    expect(searchBar()).toHaveTextContent(/Last name: contains\s*Bennett/);
+    expect(searchBar()).toHaveTextContent(/Date of birth: is on or after\s*1 Jan 1960/);
 
-    expect(onSearchChange).toHaveBeenLastCalledWith({
-      sort: 'Email',
-      asc: undefined,
-      first: undefined,
-      last: 'Bennett',
-      email: undefined,
-      dobFrom: undefined,
-      dobTo: undefined,
-    });
+    await pickFavourite(user, '65 and over');
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({sort: 'Email', page: undefined, last: undefined, dobFrom: undefined, dobTo: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)}),
+    );
   });
 
-  it('clears an active search', async () => {
+  it('clears the search from the bar, keeping the sort', async () => {
     const {user, onSearchChange} = renderList({first: 'Freya', sort: 'Email'});
 
-    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+    await screen.findByText('Freya Ahmed');
+    await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
 
-    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Email', asc: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({sort: 'Email', first: undefined, page: undefined}));
   });
 
   it('invites adding the first patient when there are none', async () => {

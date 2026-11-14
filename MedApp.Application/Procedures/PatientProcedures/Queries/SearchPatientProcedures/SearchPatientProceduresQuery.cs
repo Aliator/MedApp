@@ -7,7 +7,9 @@ namespace MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientP
 /// <summary>
 /// One page of procedures matching the filters. See <see cref="ProcedureSearch"/> for how they apply;
 /// <paramref name="CurrentUserId"/> is the signed-in user, for <paramref name="AssignedToMe"/>. Home's task lists are
-/// this search with <paramref name="AssignedToMe"/> and <paramref name="Started"/> set.
+/// this search with <paramref name="AssignedToMe"/> and <paramref name="Started"/> set. <paramref name="Title"/>,
+/// <paramref name="TemplateName"/> and <paramref name="PatientName"/> each match one of what <paramref name="Search"/>
+/// matches; <paramref name="Priorities"/> is any of several, as <paramref name="Statuses"/> is.
 /// </summary>
 public sealed record SearchPatientProceduresQuery(
     int Page,
@@ -26,5 +28,9 @@ public sealed record SearchPatientProceduresQuery(
     DateOnly? DueTo,
     bool IncludeClosed,
     bool? Started,
-    Guid CurrentUserId)
+    Guid CurrentUserId,
+    IReadOnlyList<string>? Priorities = null,
+    string? Title = null,
+    string? TemplateName = null,
+    string? PatientName = null)
     : IRequest<PagedResponse<PatientProcedureSummaryResponse>>;

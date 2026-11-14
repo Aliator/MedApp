@@ -241,4 +241,67 @@ public sealed class IdentityUserServiceTests
         result.Errors.Should().ContainSingle(e =>
             e.Code == IdentityErrors.OldPasswordIncorrectCode);
     }
+
+    [Test]
+    public async Task VerifyPasswordAsync_UserNotFound_FailsWithUserNotFound()
+    {
+        _userManager.Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0])).ReturnsAsync((ApplicationUser?)null);
+
+        var result = await _service.VerifyPasswordAsync(AuthTestConstants.Usernames[0], AuthTestConstants.ValidPassword, CancellationToken.None);
+
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.UserNotFoundCode);
+    }
+
+    [Test]
+    public async Task VerifyPasswordAsync_LockedOut_FailsWithoutCheckingThePassword()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.IsLockedOutAsync(user)).ReturnsAsync(true);
+
+        var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.ValidPassword, CancellationToken.None);
+
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.LockedOutCode);
+        _userManager.Verify(u => u.CheckPasswordAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task VerifyPasswordAsync_RightPassword_SucceedsAndClearsTheFailedCount()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.ValidPassword)).ReturnsAsync(true);
+
+        var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.ValidPassword, CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        _userManager.Verify(u => u.ResetAccessFailedCountAsync(user), Times.Once);
+        _userManager.Verify(u => u.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
+    }
+
+    [Test]
+    public async Task VerifyPasswordAsync_WrongPassword_CountsTheFailureAndFailsWithPasswordIncorrect()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, It.IsAny<string>())).ReturnsAsync(false);
+
+        var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.Passwords[0], CancellationToken.None);
+
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.PasswordIncorrectCode);
+        _userManager.Verify(u => u.AccessFailedAsync(user), Times.Once);
+    }
+
+    [Test]
+    public async Task VerifyPasswordAsync_WrongPasswordThatLocksTheAccount_FailsWithLockedOut()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, It.IsAny<string>())).ReturnsAsync(false);
+        _userManager.SetupSequence(u => u.IsLockedOutAsync(user)).ReturnsAsync(false).ReturnsAsync(true);
+
+        var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.Passwords[0], CancellationToken.None);
+
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.LockedOutCode);
+    }
 }

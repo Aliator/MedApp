@@ -39,7 +39,7 @@ describe('TemplatesPage', () => {
 
   it('archives after a confirmation, and restores an archived one', async () => {
     const {user, fetch} = renderPage(
-      {archived: true},
+      {status: 'any'},
       {[`POST ${BASE}/t1/archive`]: () => json({}), [`POST ${BASE}/t3/restore`]: () => json({})},
     );
 

@@ -1,5 +1,5 @@
 import {screen, within} from '@testing-library/react';
-import {calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
+import {calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {ProceduresListSearch} from '../listSearch';
 import {ProceduresListPage} from './ProceduresListPage';
 
@@ -62,9 +62,11 @@ describe('ProceduresListPage', () => {
       page: 3,
       sort: 'Status',
       asc: false,
-      q: 'colon',
-      status: 'Completed',
-      priority: 'High',
+      title: 'colon',
+      template: 'scope',
+      patient: 'freya',
+      status: 'Completed,Blocked',
+      priority: '!Low',
       overdue: true,
       mine: true,
       closed: true,
@@ -74,21 +76,23 @@ describe('ProceduresListPage', () => {
 
     expect(await screen.findByText('23 matching procedures')).toBeInTheDocument();
     expect(calls(fetch)).toEqual([
-      `${SEARCH}?PageSize=10&Page=3&Sort=status&Ascending=false&Search=colon&Statuses=Completed&Priority=High&OverdueOnly=true&AssignedToMe=true&IncludeClosed=true&DueFrom=2026-12-01&DueTo=2026-12-31`,
+      `${SEARCH}?PageSize=10&Page=3&Sort=status&Ascending=false&Title=colon&TemplateName=scope&PatientName=freya` +
+        '&Statuses=Completed&Statuses=Blocked&Priorities=Medium&Priorities=High&Priorities=Urgent' +
+        '&OverdueOnly=true&AssignedToMe=true&IncludeClosed=true&DueFrom=2026-12-01&DueTo=2026-12-31',
     ]);
   });
 
-  it('searches from the dialog, keeping the sort', async () => {
-    const {user, onSearchChange} = renderList({sort: 'Priority'});
+  it('shows the search as tokens, and a favourite sets its filter, keeping the sort', async () => {
+    const {user, onSearchChange} = renderList({sort: 'Priority', status: '!Blocked', title: 'biopsy'});
 
     await screen.findByText('Colonoscopy');
-    await user.click(screen.getByRole('button', {name: 'Search'}));
-    const dialog = openDialog()!;
-    await user.type(within(dialog).getByRole('textbox', {name: /procedure/i}), 'biopsy');
-    await user.click(within(dialog).getByRole('checkbox', {name: /include closed/i}));
-    await user.click(within(dialog).getByRole('button', {name: 'Search'}));
+    expect(searchBar()).toHaveTextContent(/Procedure: contains\s*biopsy/);
+    expect(searchBar()).toHaveTextContent(/Status: is not any of\s*Blocked/);
 
-    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Priority', q: 'biopsy', closed: true});
+    await pickFavourite(user, 'Assigned to me');
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({sort: 'Priority', page: undefined, mine: true, status: undefined, title: undefined}),
+    );
   });
 
   it('sorts by a column from its header', async () => {

@@ -172,17 +172,28 @@ public sealed class AuthController(
         return Ok(response.GeneratedPassword);
     }
     
+    /// <summary>
+    /// Deletes a user. The signed-in admin confirms with their own password: a wrong one is a 400 (and counts
+    /// towards lockout), an unknown user a 404.
+    /// </summary>
     [HttpDelete("users/{username}")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [Tags("Authentication")]
-    public async Task<IActionResult> DeleteUser(string username)
+    public async Task<IActionResult> DeleteUser(string username, [FromBody] DeleteUserRequest request)
     {
-        var result = await mediator.Send(new DeleteUserCommand(username));
+        var result = await mediator.Send(
+            new DeleteUserCommand(username, User.Identity?.Name ?? string.Empty, request.Password ?? string.Empty));
 
-        if (!result.Succeeded)
+        if (result.Succeeded)
+            return NoContent();
+
+        if (result.Errors.Any(e => e.Code == IdentityErrors.UserNotFoundCode))
             return NotFound();
 
-        return NoContent();
+        return BadRequest(result.Errors);
     }
 
     [HttpGet("roles")]

@@ -1,5 +1,5 @@
-import {act, screen, waitFor} from '@testing-library/react';
-import {adminUser, isDisabled, json, mockApi, mockFetch, renderWithApp, staffUser} from '../../test/render';
+import {act, screen, waitFor, within} from '@testing-library/react';
+import {adminUser, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {pinsKey} from './pins';
 
@@ -21,7 +21,7 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
-    expect(screen.getByRole('link', {name: /stage definitions/i})).toHaveAttribute('href', '/admin/stages');
+    expect(screen.getByRole('link', {name: 'Stages'})).toHaveAttribute('href', '/admin/stages');
     expect(screen.getByRole('link', {name: /templates/i})).toHaveAttribute('href', '/admin/templates');
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByText('test-admin')).toBeInTheDocument();
@@ -41,7 +41,9 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser, path: '/patients/add'});
 
     expect(await screen.findByRole('link', {name: /patients/i})).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', {name: /home/i})).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', {name: 'My Tasks'})).not.toHaveAttribute('aria-current');
+    // Home is the MedApp heading's, not a nav item.
+    expect(screen.getByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
   });
 
   it('navigates on the client when a link is clicked', async () => {
@@ -58,19 +60,20 @@ describe('AppSideNav', () => {
     queryClient.setQueryData(['patients'], [{id: 'synthetic-patient'}]);
 
     await user.click(await screen.findByRole('button', {name: /logout/i}));
+    // It asks first.
+    expect(fetch).not.toHaveBeenCalled();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(new URL((fetch.mock.calls[0][0] as Request).url).pathname).toBe('/api/auth/logout');
     await waitFor(() => expect(queryClient.getQueryData(['patients'])).toBeUndefined());
   });
 
-  it('switches between dark and light mode and remembers the choice', async () => {
-    const {user} = renderWithApp(<AppSideNav />, {user: adminUser});
+  it('has no light/dark mode button (it moved to Account Settings)', async () => {
+    renderWithApp(<AppSideNav />, {user: adminUser});
 
-    await user.click(await screen.findByRole('button', {name: /switch to light mode/i}));
-
-    expect(screen.getByRole('button', {name: /switch to dark mode/i})).toBeInTheDocument();
-    expect(localStorage.getItem('medapp.colorMode')).toBe('light');
+    await screen.findByRole('link', {name: /users/i});
+    expect(screen.queryByRole('button', {name: /switch to (light|dark) mode/i})).not.toBeInTheDocument();
   });
 });
 
@@ -106,7 +109,8 @@ describe('AppSideNav with a patient open', () => {
     expect(patient).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', {name: /^patients$/i})).toHaveAttribute('href', '/patients');
     expect(screen.getByRole('link', {name: /^patients$/i})).not.toHaveAttribute('aria-current');
-    expect(screen.getByRole('button', {expanded: true})).toBeInTheDocument();
+    // Patients has a menu (with its show and hide), its button hidden until the row is hovered.
+    expect(document.querySelector('button[aria-label="Patients options"]')).not.toBeNull();
   });
 
   it('shows no patient on the patients list', async () => {
@@ -137,16 +141,28 @@ describe('AppSideNav pinned patients', () => {
     return renderWithApp(<AppSideNav />, {user: staffUser, path});
   }
 
-  it('pins the open patient, from a button shown while the row is hovered', async () => {
+  it("pins the open patient, from the row's menu (its button shown while the row is hovered)", async () => {
     const {user} = renderAt(`/patients/${patientId}`);
 
-    const row = await screen.findByRole('link', {name: 'Freya Ahmed'});
-    expect(screen.queryByRole('button', {name: 'Pin Freya Ahmed'})).not.toBeInTheDocument();
-    await user.hover(row);
-    await user.click(await screen.findByRole('button', {name: 'Pin Freya Ahmed'}));
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+    expect(screen.queryByRole('button', {name: 'Freya Ahmed options'})).not.toBeInTheDocument();
+    await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Pin'));
 
-    expect(screen.getByRole('button', {name: 'Unpin Freya Ahmed'})).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]);
+    await user.unhover(screen.getByRole('link', {name: 'Freya Ahmed'}));
+    expect(await rowMenuItem(user, 'Freya Ahmed', 'Unpin')).toBeInTheDocument();
+  });
+
+  it("folds the patients under Patients away from its row's menu", async () => {
+    const {user} = renderAt('/procedures', [patientId]);
+
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+    await user.click(await rowMenuItem(user, 'Patients', 'Hide pinned and open patients'));
+    expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
+
+    await user.unhover(screen.getByRole('link', {name: 'Patients'}));
+    await user.click(await rowMenuItem(user, 'Patients', 'Show pinned and open patients'));
+    expect(await screen.findByRole('link', {name: 'Freya Ahmed'})).toBeInTheDocument();
   });
 
   it('keeps pinned patients under Patients on other pages', async () => {
@@ -168,8 +184,7 @@ describe('AppSideNav pinned patients', () => {
   it('unpins a patient, who then goes when their pages are not open', async () => {
     const {user} = renderAt('/procedures', [patientId]);
 
-    await user.hover(await screen.findByRole('link', {name: 'Freya Ahmed'}));
-    await user.click(await screen.findByRole('button', {name: 'Unpin Freya Ahmed'}));
+    await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Unpin'));
 
     expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([]);
@@ -179,13 +194,16 @@ describe('AppSideNav pinned patients', () => {
     const five = ['1', '2', '3', '4', '5'].map((n) => `d000000${n}-0000-4000-8000-000000000000`);
     // They exist, so they stay pinned.
     five.forEach((id, i) => (patients[id] = ['Test', `Patient ${i + 1}`]));
-    renderAt(`/patients/${patientId}`, five);
+    const {user} = renderAt(`/patients/${patientId}`, five);
 
-    // Keyboard focus shows a row's buttons too, so they can be reached with Tab.
+    // Keyboard focus shows a row's menu button too, so it can be reached with Tab.
     const row = await screen.findByRole('link', {name: 'Freya Ahmed'});
     act(() => row.focus());
-    const pin = await screen.findByRole('button', {name: /you can pin up to 5 patients/i});
+    expect(await screen.findByRole('button', {name: 'Freya Ahmed options'})).toBeInTheDocument();
+
+    const pin = await rowMenuItem(user, 'Freya Ahmed', 'Pin');
     expect(isDisabled(pin)).toBe(true);
+    expect(pin).toHaveTextContent(/you can pin up to 5 patients/i);
   });
 
   it('drops a pinned patient who no longer exists', async () => {
@@ -233,10 +251,10 @@ describe('AppSideNav pinned procedures', () => {
     expect(item).toHaveAttribute('href', `/procedures/${knee}`);
     expect(item).toHaveAttribute('aria-current', 'page');
 
-    // No tooltip with the full name; the pin button (shown on hover) has it in its name.
+    // No tooltip with the full name; the row's menu (its button shown on hover) has it in its name.
     await user.hover(item);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('button', {name: 'Pin Total knee replacement for Freya Ahmed'}));
+    await user.click(await rowMenuItem(user, 'FA TKR', 'Pin', 'Total knee replacement for Freya Ahmed'));
 
     expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]);
   });

@@ -59,9 +59,9 @@ export const PROCEDURE_COLUMN_WIDTH = {
   template: proportional(1.5, {minWidth: 56}),
   stage: proportional(1.5, {minWidth: 64}),
   assigned: proportional(1.5, {minWidth: 56}),
-  status: pixel(120),
+  status: pixel(108),
   due: pixel(112),
-  priority: pixel(88),
+  priority: pixel(82),
   /** Two icon buttons. */
   actions: pixel(84),
 };

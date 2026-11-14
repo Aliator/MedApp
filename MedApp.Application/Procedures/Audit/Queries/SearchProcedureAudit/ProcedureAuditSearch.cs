@@ -23,6 +23,14 @@ public static class ProcedureAuditSearch
         if (ProcedureEnums.TryParse<PatientProcedureAuditAction>(query.Action, out var action))
             entries = entries.Where(e => e.Action == action);
 
+        var actions = (query.Actions ?? [])
+            .Select(s => ProcedureEnums.TryParse<PatientProcedureAuditAction>(s, out var a) ? a : (PatientProcedureAuditAction?)null)
+            .OfType<PatientProcedureAuditAction>()
+            .Distinct()
+            .ToList();
+        if (actions.Count > 0)
+            entries = entries.Where(e => actions.Contains(e.Action));
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToLower();

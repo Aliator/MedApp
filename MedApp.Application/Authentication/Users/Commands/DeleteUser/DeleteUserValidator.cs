@@ -14,5 +14,9 @@ public sealed class DeleteUserValidator
             .WithMessage("Username must be at least 3 characters long.")
             .MaximumLength(50)
             .WithMessage("Username must not exceed 50 characters.");
+
+        RuleFor(x => x.ActorPassword)
+            .NotEmpty()
+            .WithMessage("Enter your password to confirm.");
     }
 }

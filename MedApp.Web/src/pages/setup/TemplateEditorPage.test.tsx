@@ -34,7 +34,7 @@ describe('TemplateEditorPage', () => {
     const {user, fetch, router} = renderEditor(undefined, {[`POST ${BASE}/templates`]: () => json({id: 't9'}, 201)});
 
     await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Scan pathway');
-    const addable = within(screen.getByRole('list', {name: 'Stage definitions to add'}));
+    const addable = within(screen.getByRole('list', {name: 'Stages to add'}));
     expect(addable.queryByText('Old triage')).not.toBeInTheDocument();
     await user.click(addable.getByRole('button', {name: 'Add Consultation'}));
     await user.click(addable.getByRole('button', {name: 'Add Scan'}));

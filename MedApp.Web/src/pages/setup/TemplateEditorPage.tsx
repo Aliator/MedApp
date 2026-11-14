@@ -139,7 +139,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
     stages.length === 0 ? (
       <EmptyState
         title="No stages yet"
-        description={isNarrow ? 'Add stages from the list below.' : 'Add stages from the stage definitions beside this.'}
+        description={isNarrow ? 'Add stages from the list below.' : 'Add stages from All Stages, beside this.'}
         isCompact
       />
     ) : (
@@ -173,7 +173,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
     );
 
   const definitionList = (
-    <List hasDividers aria-label="Stage definitions to add">
+    <List hasDividers aria-label="Stages to add">
       {available.map((definition) => (
         <ListItem
           key={definition.id}
@@ -276,7 +276,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
               </FormSection>
             </>,
           )}
-          end={<PanelCard title="Stage Definitions">{definitionList}</PanelCard>}
+          end={<PanelCard title="All Stages">{definitionList}</PanelCard>}
         />
       )}
     </Page>

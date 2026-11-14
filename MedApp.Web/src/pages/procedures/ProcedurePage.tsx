@@ -115,10 +115,13 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const isMine = procedure?.assignments?.some((a) => a.username === user.username) ?? false;
   const isBusy = Object.values(actions).some((action) => action.isPending) || remove.isPending;
 
-  /** Runs a change to the procedure, first asking (once per visit) if it isn't assigned to you. */
+  /**
+   * Runs a change to the procedure, first asking (once per visit) if it isn't assigned to you. Admins aren't asked:
+   * looking after any procedure is their job.
+   */
   const checked = (action: () => void) => {
     setActionError(null);
-    if (isMine || isCheckAnswered) action();
+    if (isMine || user.isAdmin || isCheckAnswered) action();
     else setWaitingOnCheck(() => action);
   };
 
@@ -155,13 +158,9 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     }
   };
 
-  /**
-   * The working part of a stage: its notes box and actions, or its notes read-only. In the Current stage section
-   * (`isNotesFilling`), the notes box fills the section's free space.
-   */
-  const workFor = (stage: ProcedureStage, isNotesFilling = false) => (
+  /** The working part of a stage: its notes box and actions, or its notes read-only. */
+  const workFor = (stage: ProcedureStage) => (
     <StageWork
-      isNotesFilling={isNotesFilling}
       key={`${stage.id}:${stage.notes}`}
       stage={stage}
       isAdmin={user.isAdmin}
@@ -209,7 +208,11 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
                   label={action.label}
                   variant={action.variant}
                   icon={<Icon icon={action.icon} />}
-                  onClick={() => checked(() => setDialog({kind: 'status', to}))}
+                  // Its own confirmation is the only question asked (not whether it's assigned to you).
+                  onClick={() => {
+                    setActionError(null);
+                    setDialog({kind: 'status', to});
+                  }}
                   isDisabled={isBusy}
                 />
               );
@@ -451,7 +454,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         <CurrentStage
           procedure={procedure}
           stage={currentStage}
-          work={currentStage && workFor(currentStage, true)}
+          work={currentStage && workFor(currentStage)}
           instructions={instructions}
         />
       </Section>

@@ -29,12 +29,14 @@ import {
   RiInformationLine,
   RiKeyLine,
   RiLayoutColumnLine,
+  RiLayoutLeftLine,
+  RiLayoutRightLine,
   RiListCheck3,
   RiLockLine,
   RiLogoutBoxRLine,
   RiMailLine,
   RiMenuLine,
-  RiMoonLine,
+  RiPaletteLine,
   RiPencilLine,
   RiRefreshLine,
   RiSaveLine,
@@ -42,7 +44,8 @@ import {
   RiShieldLine,
   RiSortAsc,
   RiSortDesc,
-  RiSunLine,
+  RiStarLine,
+  RiTaskLine,
   RiTeamLine,
   RiToolsLine,
   RiUserAddLine,
@@ -102,12 +105,13 @@ export const AppIcon = {
   // Added in the React app
   Account: remix(RiUserLine),
   Procedures: remix(RiStethoscopeLine),
+  Tasks: remix(RiTaskLine),
+  /** Favourites: a list's saved quick look-ups. */
+  Favourite: remix(RiStarLine),
   /** A sub-item in the side nav, e.g. the open patient under Patients. */
   SubItem: remix(RiCornerDownRightLine),
   Pin: remix(RiPushpinLine),
   Unpin: remix(RiUnpinLine),
-  LightMode: remix(RiSunLine),
-  DarkMode: remix(RiMoonLine),
   NotPorted: remix(RiToolsLine),
   NotFound: remix(RiCompassDiscoverLine),
   // Procedure setup and the audit log (admin)
@@ -116,6 +120,10 @@ export const AppIcon = {
   AuditLog: remix(RiHistoryLine),
   Archive: remix(RiArchiveLine),
   Restore: remix(RiInboxUnarchiveLine),
+  // Account Settings: changing the app's colours
+  Colours: remix(RiPaletteLine),
   // Half views: two pages side by side
   HalfView: remix(RiLayoutColumnLine),
+  OpenLeft: remix(RiLayoutLeftLine),
+  OpenRight: remix(RiLayoutRightLine),
 } as const satisfies Record<string, IconType>;

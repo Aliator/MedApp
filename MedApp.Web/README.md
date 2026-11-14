@@ -37,7 +37,7 @@ src/
                   pages/ (Page, PageHeader), forms/ (FormCard, FormSection, date-of-birth inputs, PatientSummary),
                   tables/ (DataTable, TableActions, AvatarCell), modals/ (ConfirmDialog, SelectionDialog, SearchDialog),
                   views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage)
-  pages/        one folder per page: patients/ (list, view, add, edit), users/, account/, login/, home/;
+  pages/        one folder per page: patients/ (list, view, add, edit), users/, account/, login/, home/ (the welcome page), tasks/ (My Tasks);
                   listSearch.ts parses the list pages' URL state
   routes/       TanStack Router file routes (src/routeTree.gen.ts is generated from them)
   themes/       the medapp theme: source (medappTheme.ts, icons.ts) and its built output

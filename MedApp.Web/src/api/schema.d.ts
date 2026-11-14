@@ -161,14 +161,42 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["DeleteUserRequest"];
+                    "text/json": components["schemas"]["DeleteUserRequest"];
+                    "application/*+json": components["schemas"]["DeleteUserRequest"];
+                };
+            };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description No Content */
+                204: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IdentityError"][];
+                        "application/json": components["schemas"]["IdentityError"][];
+                        "text/json": components["schemas"]["IdentityError"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
                 };
             };
         };
@@ -625,10 +653,14 @@ export interface paths {
                     Sort?: string;
                     Ascending?: boolean;
                     Search?: string;
+                    Title?: string;
+                    TemplateName?: string;
+                    PatientName?: string;
                     PatientId?: string;
                     TemplateId?: string;
                     Statuses?: string[];
                     Priority?: string;
+                    Priorities?: string[];
                     AssignedToUserId?: string;
                     AssignedToMe?: boolean;
                     OverdueOnly?: boolean;
@@ -1418,6 +1450,7 @@ export interface paths {
                     PatientId?: string;
                     UserId?: string;
                     Action?: string;
+                    Actions?: string[];
                     Search?: string;
                     From?: string;
                     To?: string;
@@ -2456,6 +2489,9 @@ export interface components {
         };
         CreateUserRequest: {
             username?: string | null;
+            password?: string | null;
+        };
+        DeleteUserRequest: {
             password?: string | null;
         };
         IdentityError: {

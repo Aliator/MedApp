@@ -20,15 +20,15 @@ import {
 } from '../../api/users';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
-import {SearchDialog, type SearchValues} from '../../components/modals/SearchDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {AvatarCell} from '../../components/tables/AvatarCell';
+import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
-import {hasUserFilters, type UsersListSearch} from '../listSearch';
+import {hasUserFilters, type UsersListSearch, choiceValues} from '../listSearch';
 
 type User = NonNullable<UserPage['items']>[number];
 
@@ -41,6 +41,12 @@ type DialogState =
   | {kind: 'roles' | 'reset' | 'delete'; username: string; roles: string[]}
   | null;
 
+/** The role to ask the API for: the one chosen, or none when the choice covers every role (or none at all). */
+function oneRole(role: string | undefined, roles: readonly string[]) {
+  const chosen = choiceValues(role, roles);
+  return chosen?.length === 1 ? chosen[0] : undefined;
+}
+
 export interface UsersPageProps {
   search: UsersListSearch;
   onSearchChange: (search: UsersListSearch) => void;
@@ -48,7 +54,8 @@ export interface UsersPageProps {
 
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
- * dialogs to create users, edit their roles (every role listed, theirs ticked), reset passwords and delete users. Admins can't change
+ * dialogs to create users, edit their roles (every role listed, theirs ticked), reset passwords and delete users
+ * (confirmed with the admin's own password). Admins can't change
  * their own account here, as in Blazor.
  */
 export function UsersPage({search, onSearchChange}: UsersPageProps) {
@@ -56,11 +63,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const page = search.page ?? 1;
   const ascending = search.asc ?? true;
   const isFiltered = hasUserFilters(search);
+  const {data: allRoles = []} = useQuery(rolesQuery);
 
   const {data, isPending, isError} = useQuery(
-    userSearchQuery({Page: page, Sort: 'username', Ascending: ascending, Username: search.username, Role: search.role}),
+    // The API takes one role: any of them all is no filter at all.
+    userSearchQuery({Page: page, Sort: 'username', Ascending: ascending, Username: search.username, Role: oneRole(search.role, allRoles)}),
   );
-  const {data: allRoles = []} = useQuery(rolesQuery);
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as UserRow[];
 
@@ -73,15 +81,18 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState<string | null>(null);
+  // Deleting a user: the admin's own password, and why it was refused.
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteProblem, setDeleteProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [draft, setDraft] = useState<SearchValues>({});
 
   const open = (next: DialogState) => {
     // Edit roles starts from the user's current roles, ticked.
     setSelectedRoles(next && next.kind !== 'create' ? next.roles : []);
     setNewUsername('');
     setNewPassword(null);
+    setDeletePassword('');
+    setDeleteProblem(null);
     create.reset();
     setError(null);
     setDialog(next);
@@ -92,18 +103,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     close();
   };
 
-  const applySearch = () => {
-    const text = (key: string) => {
-      const value = draft[key];
-      return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-    };
-    onSearchChange({asc: search.asc, username: text('username'), role: text('role')});
-    setIsSearchOpen(false);
-  };
-  const clearSearch = () => {
-    onSearchChange({asc: search.asc});
-    setIsSearchOpen(false);
-  };
+  /** Keeps the order; clears the filters. */
+  const clearSearch = () => onSearchChange({asc: search.asc});
 
   const columns: DataTableColumn<UserRow>[] = [
     {key: 'User', header: 'User', sortable: true, renderCell: (u) => <AvatarCell primaryText={u.username ?? ''} />},
@@ -156,36 +157,10 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       fill
       message={(isError || error) && <AlertMessage message={error ?? 'The users could not be loaded. Please try again.'} />}
       actions={
-        <>
-          {isFiltered && <Button label="Clear Search" variant="ghost" icon={<Icon icon={AppIcon.Cancel} />} onClick={clearSearch} />}
-          <Button
-            label="Search"
-            variant="secondary"
-            icon={<Icon icon={AppIcon.Search} />}
-            onClick={() => {
-              setDraft({username: search.username ?? '', role: search.role ?? ''});
-              setIsSearchOpen(true);
-            }}
-          />
-          <Button label="Add User" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => open({kind: 'create'})} />
-        </>
+        <Button label="Add User" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => open({kind: 'create'})} />
       }
       dialogs={
         <>
-          <SearchDialog
-            isOpen={isSearchOpen}
-            title="Search Users"
-            fields={[
-              {type: 'text', key: 'username', label: 'Username', placeholder: 'Search by username'},
-              {type: 'select', key: 'role', label: 'Role', placeholder: 'Any role', options: allRoles.map((r) => ({value: r, label: r}))},
-            ]}
-            values={draft}
-            onValuesChange={setDraft}
-            onSearch={applySearch}
-            onClear={clearSearch}
-            onClose={() => setIsSearchOpen(false)}
-          />
-
           <ConfirmDialog
             isOpen={dialog?.kind === 'create'}
             title="Create New User"
@@ -266,15 +241,42 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'delete'}
             title="Confirm Delete"
-            message="This action cannot be undone."
+            message="This action cannot be undone. Enter your password to confirm."
             isDanger
             confirmText="Delete User"
+            confirmDisabled={!deletePassword}
             isProcessing={remove.isPending}
-            onConfirm={() => target && remove.mutate(target.username, {onSuccess: close, onError: failed('The user could not be deleted.')})}
+            onConfirm={() =>
+              target &&
+              remove.mutate(
+                {username: target.username, password: deletePassword},
+                {
+                  onSuccess: close,
+                  // A wrong password keeps the dialog open, saying so on the field; anything else closes it.
+                  onError: (e) =>
+                    e instanceof ApiValidationError ? setDeleteProblem(allMessages(e.errors).join(' ')) : failed('The user could not be deleted.')(),
+                },
+              )
+            }
             onCancel={close}>
-            <MetadataList>
-              <MetadataListItem label="User">{target?.username}</MetadataListItem>
-            </MetadataList>
+            <VStack gap={4}>
+              <MetadataList>
+                <MetadataListItem label="User">{target?.username}</MetadataListItem>
+              </MetadataList>
+              <TextInput
+                label="Your password"
+                type="password"
+                value={deletePassword}
+                onChange={(value) => {
+                  setDeletePassword(value);
+                  setDeleteProblem(null);
+                }}
+                autoComplete="current-password"
+                isRequired
+                hasAutoFocus
+                status={deleteProblem ? {type: 'error', message: deleteProblem} : undefined}
+              />
+            </VStack>
           </ConfirmDialog>
         </>
       }>
@@ -291,6 +293,23 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           columns={columns}
           idKey="userId"
           isLoading={isPending}
+          search={
+            <ListFilterBar
+              fields={[
+                {kind: 'text', key: 'username', label: 'Username'},
+                {kind: 'choice', key: 'role', label: 'Role', options: allRoles.map((r) => ({value: r, label: r})), isMultiple: true},
+              ]}
+              values={search}
+              onChange={(values) => onSearchChange({...search, ...values, page: undefined})}
+              label="Search users"
+              placeholder="Search users by username, or filter by role..."
+              textKey="username"
+              favourites={[
+                {label: 'Admins', values: {role: 'Admin'}},
+                {label: 'Users', values: {role: 'User'}},
+              ]}
+            />
+          }
           skeletonRows={PAGE_SIZE}
           sort={{column: 'User', ascending}}
           onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: 'User', asc: sort.ascending})}

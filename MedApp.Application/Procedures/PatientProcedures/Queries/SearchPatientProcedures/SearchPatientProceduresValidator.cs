@@ -24,6 +24,18 @@ public sealed class SearchPatientProceduresValidator : AbstractValidator<SearchP
             .MaximumLength(200)
             .WithMessage("Search must not exceed 200 characters.");
 
+        RuleFor(x => x.Title)
+            .MaximumLength(200)
+            .WithMessage("Title must not exceed 200 characters.");
+
+        RuleFor(x => x.TemplateName)
+            .MaximumLength(200)
+            .WithMessage("Template name must not exceed 200 characters.");
+
+        RuleFor(x => x.PatientName)
+            .MaximumLength(200)
+            .WithMessage("Patient name must not exceed 200 characters.");
+
         RuleForEach(x => x.Statuses)
             .Must(ProcedureEnums.IsStatus)
             .WithMessage($"Each status must be one of: {ProcedureEnums.StatusNames}.");
@@ -32,6 +44,10 @@ public sealed class SearchPatientProceduresValidator : AbstractValidator<SearchP
             .Must(ProcedureEnums.IsPriority)
             .When(x => x.Priority is not null)
             .WithMessage($"Priority must be one of: {ProcedureEnums.PriorityNames}.");
+
+        RuleForEach(x => x.Priorities)
+            .Must(ProcedureEnums.IsPriority)
+            .WithMessage($"Each priority must be one of: {ProcedureEnums.PriorityNames}.");
 
         RuleFor(x => x.DueTo)
             .GreaterThanOrEqualTo(x => x.DueFrom!.Value)

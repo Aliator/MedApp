@@ -15,6 +15,7 @@ function readStoredMode(): ColorMode {
 
 interface ColorModeContextValue {
   mode: ColorMode;
+  setMode: (mode: ColorMode) => void;
   toggle: () => void;
 }
 
@@ -23,19 +24,17 @@ const ColorModeContext = createContext<ColorModeContextValue | null>(null);
 export function ColorModeProvider({children}: {children: (mode: ColorMode) => ReactNode}) {
   const [mode, setMode] = useState<ColorMode>(readStoredMode);
 
-  const toggle = useCallback(() => {
-    setMode((current) => {
-      const next = current === 'dark' ? 'light' : 'dark';
-      try {
-        localStorage.setItem(STORAGE_KEY, next);
-      } catch {
-        // Storage blocked (e.g. private mode): the choice lasts until the page reloads.
-      }
-      return next;
-    });
+  const choose = useCallback((next: ColorMode) => {
+    setMode(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Storage blocked (e.g. private mode): the choice lasts until the page reloads.
+    }
   }, []);
+  const toggle = useCallback(() => choose(mode === 'dark' ? 'light' : 'dark'), [choose, mode]);
 
-  const value = useMemo(() => ({mode, toggle}), [mode, toggle]);
+  const value = useMemo(() => ({mode, setMode: choose, toggle}), [mode, choose, toggle]);
   return <ColorModeContext.Provider value={value}>{children(mode)}</ColorModeContext.Provider>;
 }
 

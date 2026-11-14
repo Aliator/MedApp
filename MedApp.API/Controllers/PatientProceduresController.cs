@@ -79,7 +79,11 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
             request.DueTo,
             request.IncludeClosed,
             request.Started,
-            User.GetUserId()), ct));
+            User.GetUserId(),
+            request.Priorities,
+            request.Title,
+            request.TemplateName,
+            request.PatientName), ct));
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientProcedureResponse), StatusCodes.Status200OK)]

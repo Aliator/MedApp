@@ -236,9 +236,9 @@ When the subagent reports back, do step 4 yourself, and don't interrupt the user
 - Commit messages are short, capitalised and past tense, for example "Updated patient task routing", "Added get all methods for tasks".
 - Never commit `bin/`, `obj/`, `.idea/` or `*.DotSettings.user`.
 
-### "Merge it": the full merge flow
+### "Merge it" or "ship it": the full merge flow
 
-**Only run this when the user explicitly asks you to merge.** Without that, stop at committing or at an open PR, as usual. Opening a PR or seeing CI pass is not permission to merge.
+**Only run this when the user explicitly asks you to merge**, for example "merge it" or "ship it" (they mean the same). Without that, stop at committing or at an open PR, as usual. Opening a PR or seeing CI pass is not permission to merge.
 
 When the user says to merge, do every step, in order, without stopping to ask again:
 1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. If the branch changed the UI, run the full set of UI parity screenshots first (see [UI parity screenshots](#ui-parity-screenshots)).

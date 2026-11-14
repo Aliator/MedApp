@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, isDisabled, json, mockApi, openDialog, renderWithApp} from '../../test/render';
+import {adminUser, calls, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
 import {StageDefinitionsPage} from './StageDefinitionsPage';
 
@@ -22,7 +22,7 @@ const sent = (fetch: ReturnType<typeof mockApi>, method: string) =>
   fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === method)!;
 
 describe('StageDefinitionsPage', () => {
-  it('lists the active definitions by name, with what uses them; archived ones on request', async () => {
+  it('lists the active definitions by name, with what uses them; archived ones from the search', async () => {
     const {user, onSearchChange} = renderPage();
 
     await screen.findByText('Consent');
@@ -31,21 +31,24 @@ describe('StageDefinitionsPage', () => {
     expect(within(await rowOf('Consent')).getByText('2 templates')).toBeInTheDocument();
     expect(within(await rowOf('Biopsy')).getByText('No templates')).toBeInTheDocument();
     expect(screen.queryByText('Old triage')).not.toBeInTheDocument();
-    expect(screen.getByText('2 active stage definitions')).toBeInTheDocument();
+    expect(screen.getByText('2 active stages')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('switch', {name: 'Show archived (1)'}));
-    expect(onSearchChange).toHaveBeenCalledWith({archived: true});
+    // The search starts on the active ones; the archived ones are a favourite away.
+    expect(searchBar()).toHaveTextContent(/Status: is\s*Active/);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    await pickFavourite(user, 'Archived');
+    expect(onSearchChange).toHaveBeenCalledWith({name: undefined, status: 'archived', page: undefined});
   });
 
   it('adds a definition', async () => {
     const {user, fetch} = renderPage({}, {[`POST ${BASE}`]: () => json({id: 'd9'}, 201)});
 
-    await user.click(await screen.findByRole('button', {name: 'Add Stage Definition'}));
+    await user.click(await screen.findByRole('button', {name: 'Add Stage'}));
     const dialog = within(openDialog()!);
     await user.type(dialog.getByRole('textbox', {name: /Name/}), 'Scan');
     await user.type(dialog.getByRole('textbox', {name: /Description/}), 'Imaging done.');
     await user.type(dialog.getByRole('textbox', {name: /Instructions/}), 'Book the scanner.');
-    await user.click(dialog.getByRole('button', {name: 'Add Stage Definition'}));
+    await user.click(dialog.getByRole('button', {name: 'Add Stage'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(await sent(fetch, 'POST').json()).toEqual({name: 'Scan', description: 'Imaging done.', instructions: 'Book the scanner.'});
@@ -57,7 +60,7 @@ describe('StageDefinitionsPage', () => {
       {[`PATCH ${BASE}/d1`]: () => json({title: 'Validation failed', status: 400, errors: {Name: ['Name is already used.']}}, 400)},
     );
 
-    await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage definition'}));
+    await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage'}));
     const dialog = within(openDialog()!);
     expect(dialog.getByRole('textbox', {name: /Instructions/})).toHaveValue('Give the patient a copy.');
     await user.type(dialog.getByRole('textbox', {name: /Name/}), '!');
@@ -69,13 +72,13 @@ describe('StageDefinitionsPage', () => {
 
   it('archives after a confirmation, and restores an archived one', async () => {
     const {user, fetch} = renderPage(
-      {archived: true},
+      {status: 'any'},
       {[`POST ${BASE}/d1/archive`]: () => json({}), [`POST ${BASE}/d3/restore`]: () => json({})},
     );
 
-    await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Archive stage definition'}));
+    await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Archive stage'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Archive'}));
-    await user.click(within(await rowOf('Old triage')).getByRole('button', {name: 'Restore stage definition'}));
+    await user.click(within(await rowOf('Old triage')).getByRole('button', {name: 'Restore stage'}));
 
     await waitFor(() => expect(calls(fetch)).toEqual(expect.arrayContaining([`POST ${BASE}/d1/archive`, `POST ${BASE}/d3/restore`])));
   });
@@ -86,8 +89,8 @@ describe('StageDefinitionsPage', () => {
     const used = within(await rowOf('Consent')).getByRole('button', {name: /can be archived but not deleted/});
     expect(isDisabled(used)).toBe(true);
 
-    await user.click(within(await rowOf('Biopsy')).getByRole('button', {name: 'Delete stage definition'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Stage Definition'}));
+    await user.click(within(await rowOf('Biopsy')).getByRole('button', {name: 'Delete stage'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Stage'}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`DELETE ${BASE}/d2`));
   });

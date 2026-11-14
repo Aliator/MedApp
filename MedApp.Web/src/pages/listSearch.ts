@@ -4,7 +4,7 @@
  * dropping anything invalid, so a bad link shows the default list rather than an error.
  */
 
-import {AUDIT_ACTIONS, type AuditAction} from '../api/audit';
+import {AUDIT_ACTIONS} from '../api/audit';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -79,6 +79,7 @@ export interface UsersListSearch {
   sort?: 'User';
   asc?: boolean;
   username?: string;
+  /** A choice (see `parseChoice`), of the roles there are. */
   role?: string;
 }
 
@@ -94,84 +95,90 @@ export function parseUsersSearch(raw: Record<string, unknown>): UsersListSearch 
 
 export const hasUserFilters = (s: UsersListSearch) => Boolean(s.username || s.role);
 
-// Home's task lists ------------------------------------------------------------------------------------
+export const PROCEDURE_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked', 'Completed', 'Cancelled', 'Archived'] as const;
+export type ProcedureStatus = (typeof PROCEDURE_STATUSES)[number];
+/** The statuses of a procedure still being worked on: the ones lists show unless asked for closed ones too. */
+export const OPEN_PROCEDURE_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked'] as const satisfies readonly ProcedureStatus[];
 
-/** URL sort names for a task list, and the API's names for them. Due date, soonest first, by default. */
+// Choices ---------------------------------------------------------------------------------------------------
+
+/**
+ * A choice filter's URL value (a list's power search, `ListFilterBar`): one value, a comma list ("is any of"), or a
+ * comma list after `!` ("is not any of"). Checked against the options; anything else is dropped.
+ */
+export function parseChoice(value: unknown, options: readonly string[]): string | undefined {
+  const t = text(value);
+  if (!t) return undefined;
+  const isNone = t.startsWith('!');
+  const listed = (isNone ? t.slice(1) : t)
+    .split(',')
+    .map((v) => options.find((o) => o.toLowerCase() === v.trim().toLowerCase()))
+    .filter((v): v is string => v !== undefined);
+  return listed.length ? `${isNone ? '!' : ''}${[...new Set(listed)].join(',')}` : undefined;
+}
+
+/**
+ * The values a choice filter means, for the API: those listed, or (after `!`) every one of `options` but those.
+ * Undefined when there's no filter, or it leaves none.
+ */
+export function choiceValues(value: string | undefined, options: readonly string[]): string[] | undefined {
+  if (!value) return undefined;
+  const isNone = value.startsWith('!');
+  const listed = (isNone ? value.slice(1) : value).split(',');
+  const values = isNone ? options.filter((o) => !listed.includes(o)) : listed.filter((v) => options.includes(v));
+  return values.length ? values : undefined;
+}
+
+// My Tasks ------------------------------------------------------------------------------------------------
+
+/** URL sort names for My Tasks, and the API's names for them. Due date, soonest first, by default. */
 export const TASK_SORTS = {Procedure: 'title', Due: 'dueDate', Priority: 'priority'} as const;
 export type TaskSortColumn = keyof typeof TASK_SORTS;
 
 export const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
-/** One task list's page, sort and filters. */
-export interface TaskListSearch {
+/**
+ * My Tasks' page, sort and filters. `progress` is Not started unless the URL says otherwise; `any` (its filter
+ * removed) shows both.
+ */
+export interface TasksSearch {
   page?: number;
   sort?: TaskSortColumn;
   asc?: boolean;
-  /** Matches the procedure title, template or patient name. */
-  q?: string;
-  priority?: TaskPriority;
+  /** The procedure's title contains this. */
+  title?: string;
+  template?: string;
+  patient?: string;
+  progress?: 'started' | 'any';
+  /** A choice: one, a comma list, or `!` and a comma list (see `parseChoice`). */
+  status?: string;
+  priority?: string;
   overdue?: boolean;
   dueFrom?: string;
   dueTo?: string;
 }
 
-/** Home's two lists: procedures nobody has started on yet, and those under way. */
-export type TaskListKind = 'notStarted' | 'started';
-
-type Prefixed<P extends string, T> = {[K in keyof T & string as `${P}${Capitalize<K>}`]?: T[K]};
-
-/**
- * Home's URL state. Both lists keep their own page, sort and filters, under a prefix (`notStartedPage`,
- * `startedSort`, ...). `show` is which list a narrow window shows; the not started one by default.
- */
-export type HomeSearch = {show?: 'started'} & Prefixed<'notStarted', TaskListSearch> & Prefixed<'started', TaskListSearch>;
-
-const TASK_KEYS = ['page', 'sort', 'asc', 'q', 'priority', 'overdue', 'dueFrom', 'dueTo'] as const satisfies readonly (keyof TaskListSearch)[];
-
-const prefixedKey = (kind: TaskListKind, key: string) => `${kind}${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-
-function parseTaskList(raw: Record<string, unknown>, kind: TaskListKind): TaskListSearch {
-  const get = (key: keyof TaskListSearch) => raw[prefixedKey(kind, key)];
+export function parseTasksSearch(raw: Record<string, unknown>): TasksSearch {
   return compact({
-    page: page(get('page')),
-    sort: oneOf(get('sort'), Object.keys(TASK_SORTS) as TaskSortColumn[]),
-    asc: bool(get('asc')),
-    q: text(get('q')),
-    priority: oneOf(get('priority'), TASK_PRIORITIES),
-    overdue: bool(get('overdue')) ? true : undefined,
-    dueFrom: date(get('dueFrom')),
-    dueTo: date(get('dueTo')),
+    page: page(raw.page),
+    sort: oneOf(raw.sort, Object.keys(TASK_SORTS) as TaskSortColumn[]),
+    asc: bool(raw.asc),
+    title: text(raw.title),
+    template: text(raw.template),
+    patient: text(raw.patient),
+    progress: oneOf(raw.progress, ['started', 'any'] as const),
+    status: parseChoice(raw.status, OPEN_PROCEDURE_STATUSES),
+    priority: parseChoice(raw.priority, TASK_PRIORITIES),
+    overdue: bool(raw.overdue) ? true : undefined,
+    dueFrom: date(raw.dueFrom),
+    dueTo: date(raw.dueTo),
   });
 }
 
-/** The URL keys for one list's search. */
-function toPrefixed(kind: TaskListKind, list: TaskListSearch): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(compact(list)).map(([key, value]) => [prefixedKey(kind, key), value]));
-}
-
-export function parseHomeSearch(raw: Record<string, unknown>): HomeSearch {
-  return compact({
-    show: oneOf(raw.show, ['started'] as const),
-    ...toPrefixed('notStarted', parseTaskList(raw, 'notStarted')),
-    ...toPrefixed('started', parseTaskList(raw, 'started')),
-  }) as HomeSearch;
-}
-
-/** One list's search, out of Home's URL state. */
-export function taskListSearch(home: HomeSearch, kind: TaskListKind): TaskListSearch {
-  return parseTaskList(home as Record<string, unknown>, kind);
-}
-
-/** Home's URL state with one list's search replaced, leaving the other list as it was. */
-export function withTaskListSearch(home: HomeSearch, kind: TaskListKind, list: TaskListSearch): HomeSearch {
-  const others = Object.fromEntries(
-    Object.entries(home).filter(([key]) => !TASK_KEYS.some((k) => key === prefixedKey(kind, k))),
-  );
-  return compact({...others, ...toPrefixed(kind, list)}) as HomeSearch;
-}
-
-export const hasTaskFilters = (s: TaskListSearch) => Boolean(s.q || s.priority || s.overdue || s.dueFrom || s.dueTo);
+/** Filters beyond the progress (which always applies, Not started by default). */
+export const hasTaskFilters = (s: TasksSearch) =>
+  Boolean(s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.dueFrom || s.dueTo);
 
 // Procedures --------------------------------------------------------------------------------------------
 
@@ -179,19 +186,19 @@ export const hasTaskFilters = (s: TaskListSearch) => Boolean(s.q || s.priority |
 export const PROCEDURE_SORTS = {Procedure: 'title', Status: 'status', Due: 'dueDate', Priority: 'priority', Updated: 'lastUpdated'} as const;
 export type ProcedureSortColumn = keyof typeof PROCEDURE_SORTS;
 
-export const PROCEDURE_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked', 'Completed', 'Cancelled', 'Archived'] as const;
-export type ProcedureStatus = (typeof PROCEDURE_STATUSES)[number];
-
 /** The all-procedures list and a patient's procedures: page, sort and filters. */
 export interface ProceduresListSearch {
   page?: number;
   sort?: ProcedureSortColumn;
   asc?: boolean;
-  /** Matches the title, template or patient name. */
-  q?: string;
-  /** Only this status. Choosing a closed one shows it even without `closed`. */
-  status?: ProcedureStatus;
-  priority?: TaskPriority;
+  /** The procedure's title contains this. */
+  title?: string;
+  template?: string;
+  patient?: string;
+  /** A choice (see `parseChoice`). Choosing closed statuses shows them even without `closed`. */
+  status?: string;
+  /** A choice (see `parseChoice`). */
+  priority?: string;
   overdue?: boolean;
   /** Only procedures assigned to the signed-in user. */
   mine?: boolean;
@@ -203,14 +210,25 @@ export interface ProceduresListSearch {
 
 const flag = (value: unknown) => (bool(value) ? true : undefined);
 
+/**
+ * The statuses a procedure list's search asks the API for: those chosen; for "not any of", the others (the open
+ * ones only, unless closed ones are included too). Undefined for none chosen (the API's default: open ones).
+ */
+export function procedureStatuses(search: {status?: string; closed?: boolean}): string[] | undefined {
+  const pool = search.status?.startsWith('!') && !search.closed ? OPEN_PROCEDURE_STATUSES : PROCEDURE_STATUSES;
+  return choiceValues(search.status, pool);
+}
+
 export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresListSearch {
   return compact({
     page: page(raw.page),
     sort: oneOf(raw.sort, Object.keys(PROCEDURE_SORTS) as ProcedureSortColumn[]),
     asc: bool(raw.asc),
-    q: text(raw.q),
-    status: oneOf(raw.status, PROCEDURE_STATUSES),
-    priority: oneOf(raw.priority, TASK_PRIORITIES),
+    title: text(raw.title),
+    template: text(raw.template),
+    patient: text(raw.patient),
+    status: parseChoice(raw.status, PROCEDURE_STATUSES),
+    priority: parseChoice(raw.priority, TASK_PRIORITIES),
     overdue: flag(raw.overdue),
     mine: flag(raw.mine),
     closed: flag(raw.closed),
@@ -220,19 +238,30 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
 }
 
 export const hasProcedureFilters = (s: ProceduresListSearch) =>
-  Boolean(s.q || s.status || s.priority || s.overdue || s.mine || s.closed || s.dueFrom || s.dueTo);
+  Boolean(
+    s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.dueFrom || s.dueTo,
+  );
 
 // Procedure setup (admin): stage definitions and templates --------------------------------------------
 
-/** The stage definitions and templates lists: the page, and whether archived ones show too. */
+/**
+ * The stages and templates lists: the page and filters. `status` is Active unless the URL says otherwise; `any` (its
+ * filter removed) shows archived ones too.
+ */
 export interface SetupListSearch {
   page?: number;
-  /** Show archived ones as well (hidden by default). */
-  archived?: boolean;
+  /** The name contains this. */
+  name?: string;
+  status?: 'archived' | 'any';
 }
 
 export function parseSetupSearch(raw: Record<string, unknown>): SetupListSearch {
-  return compact({page: page(raw.page), archived: flag(raw.archived)});
+  return compact({
+    page: page(raw.page),
+    name: text(raw.name),
+    // `archived=true` was the old "show archived" switch: archived ones as well.
+    status: oneOf(raw.status, ['archived', 'any'] as const) ?? (flag(raw.archived) ? 'any' : undefined),
+  });
 }
 
 // The audit log (admin) -------------------------------------------------------------------------------
@@ -245,7 +274,8 @@ export interface AuditListSearch {
   asc?: boolean;
   /** Matches the procedure title, stage name or username. */
   q?: string;
-  action?: AuditAction;
+  /** A choice (see `parseChoice`). */
+  action?: string;
   /** One procedure's entries, e.g. from its page's View Audit Log. */
   procedureId?: string;
   from?: string;
@@ -260,7 +290,7 @@ export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch 
     page: page(raw.page),
     asc: bool(raw.asc),
     q: text(raw.q),
-    action: oneOf(raw.action, AUDIT_ACTIONS),
+    action: parseChoice(raw.action, AUDIT_ACTIONS),
     procedureId: procedureId && GUID.test(procedureId) ? procedureId : undefined,
     from: date(raw.from),
     to: date(raw.to),

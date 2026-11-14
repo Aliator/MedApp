@@ -49,4 +49,23 @@ describe('PanelHeader and CollapseButton', () => {
 
     expect(await screen.findByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
   });
+
+  it('shades a clickable header while the pointer is over it, and runs its click', async () => {
+    const onHeaderClick = vi.fn();
+    const {user} = renderWithApp(
+      <PanelCard title="Light Mode" onHeaderClick={onHeaderClick}>
+        Body
+      </PanelCard>,
+    );
+
+    const header = (await screen.findByRole('heading', {name: 'Light Mode'})).closest('[style*="cursor"]') as HTMLElement;
+    expect(header.style.backgroundColor).toBe('');
+    await user.hover(header);
+    expect(header.style.backgroundColor).toContain('color-mix');
+    await user.unhover(header);
+    expect(header.style.backgroundColor).toBe('');
+
+    await user.click(header);
+    expect(onHeaderClick).toHaveBeenCalledOnce();
+  });
 });

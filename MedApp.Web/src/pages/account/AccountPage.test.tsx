@@ -1,77 +1,59 @@
 import {screen} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, renderWithApp, findAlert} from '../../test/render';
+import {adminUser, renderWithApp, staffUser} from '../../test/render';
 import {AccountPage} from './AccountPage';
 
-async function fill(user: ReturnType<typeof renderWithApp>['user'], current: string, next: string, confirm: string) {
-  const currentField = await screen.findByLabelText(/^current password/i);
-  if (current) await user.type(currentField, current);
-  if (next) await user.type(screen.getByLabelText(/^new password/i), next);
-  if (confirm) await user.type(screen.getByLabelText(/^confirm new password/i), confirm);
-  await user.click(screen.getByRole('button', {name: 'Update password'}));
-}
-
 describe('AccountPage', () => {
-  it("changes the signed-in user's password", async () => {
-    const fetch = mockApi({'PUT /api/auth/users/*': () => new Response(null, {status: 204})});
-    const {user} = renderWithApp(<AccountPage />, {user: adminUser});
+  it('shows who you are, and links to Change Password and Change Colours', async () => {
+    renderWithApp(<AccountPage />, {user: staffUser});
 
-    await fill(user, 'Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1');
-
-    expect(await screen.findByText('Password updated successfully!')).toBeInTheDocument();
-    expect(calls(fetch)).toEqual([`PUT /api/auth/users/${adminUser.username}/update-password`]);
-    expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({oldPassword: 'Old-Synthetic1', newPassword: 'New-Synthetic1'});
-    expect(screen.getByLabelText(/^current password/i)).toHaveValue('');
+    expect(await screen.findByRole('heading', {name: 'Account Settings', level: 1})).toBeInTheDocument();
+    expect(screen.getByText(staffUser.username)).toBeInTheDocument();
+    expect(screen.getByText('User')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Change Password'})).toHaveAttribute('href', '/account/password');
+    expect(screen.getByRole('link', {name: 'Change Colours'})).toHaveAttribute('href', '/account/colours');
   });
 
-  it('checks the new passwords match before asking the API', async () => {
-    const fetch = mockApi({});
+  it('switches between dark and light mode and remembers the choice', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: adminUser});
 
-    await fill(user, 'Old-Synthetic1', 'New-Synthetic1', 'Different1');
+    const dark = await screen.findByRole('switch', {name: 'Dark mode'});
+    expect(dark).toBeChecked();
+    await user.click(dark);
 
-    await findAlert('New passwords do not match.');
-    expect(fetch).not.toHaveBeenCalled();
+    expect(dark).not.toBeChecked();
+    expect(localStorage.getItem('medapp.colorMode')).toBe('light');
   });
 
-  it('asks for the current password', async () => {
-    mockApi({});
-    const {user} = renderWithApp(<AccountPage />, {user: adminUser});
+  it('chooses whether nav items close the half view, and remembers it', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
-    await fill(user, '', 'New-Synthetic1', 'New-Synthetic1');
+    const closes = await screen.findByRole('switch', {name: 'Nav items close the half view'});
+    expect(closes).toBeChecked();
+    await user.click(closes);
 
-    await findAlert('Please enter your current password.');
+    expect(closes).not.toBeChecked();
+    expect(localStorage.getItem('medapp.navClosesHalfView')).toBe('false');
   });
 
-  it('asks for a new password', async () => {
-    mockApi({});
-    const {user} = renderWithApp(<AccountPage />, {user: adminUser});
+  it('changes the side nav hover delay in the Accessibility card, and remembers it', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
-    await fill(user, 'Old-Synthetic1', '', '');
+    const delay = await screen.findByRole('slider', {name: 'Side nav hover delay'});
+    expect(delay).toHaveAttribute('aria-valuetext', 'Standard (0.5s)');
+    delay.focus();
+    await user.keyboard('{End}');
 
-    await findAlert('Please enter a new password.');
+    expect(delay).toHaveAttribute('aria-valuetext', 'Longer (2s)');
+
+    expect(localStorage.getItem('medapp.navFlyoutDelay')).toBe('longer');
   });
 
-  it.each([
-    [401, 'Current password is incorrect.'],
-    [403, 'You do not have permission to update this password.'],
-    [404, 'User not found.'],
-    [500, 'A server error occurred. Please try again later.'],
-    [409, 'An unexpected error occurred while updating the password.'],
-  ])('explains a %i', async (status, message) => {
-    mockApi({'PUT /api/auth/users/*': () => json({}, status)});
-    const {user} = renderWithApp(<AccountPage />, {user: adminUser});
+  it('changes the text size in the Accessibility card, and remembers it', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
-    await fill(user, 'Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1');
+    await user.click(await screen.findByRole('radio', {name: 'Large'}));
 
-    await findAlert(message);
-  });
-
-  it("shows the API's reasons when it refuses", async () => {
-    mockApi({'PUT /api/auth/users/*': () => json([{code: 'PasswordMismatch', description: 'Incorrect password.'}], 400)});
-    const {user} = renderWithApp(<AccountPage />, {user: adminUser});
-
-    await fill(user, 'Wrong-Synthetic1', 'New-Synthetic1', 'New-Synthetic1');
-
-    await findAlert('Incorrect password.');
+    expect(document.documentElement.style.fontSize).toBe('112.5%');
+    expect(localStorage.getItem('medapp.textSize')).toBe('large');
   });
 });
