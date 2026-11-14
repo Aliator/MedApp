@@ -13,6 +13,8 @@ export interface ProjectMeta {
 /** Data discovered at login time and shared by the screens, so both apps show the same records. */
 export interface ParityData {
   patientId: string;
+  /** An in-progress procedure, for the procedure page (React only: Blazor never had one). */
+  procedureId?: string;
 }
 
 const root = __dirname;

@@ -1,4 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
+import {CheckboxInput} from '@astryxdesign/core/CheckboxInput';
 import type {DateRange} from '@astryxdesign/core/DateRangeInput';
 import {FormLayout} from '@astryxdesign/core/FormLayout';
 import {Icon} from '@astryxdesign/core/Icon';
@@ -12,7 +13,9 @@ import {DialogFrame} from './DialogFrame';
 export type SearchField =
   | {type: 'text'; key: string; label: string; placeholder?: string}
   | {type: 'select'; key: string; label: string; options: {value: string; label: string}[]; placeholder?: string}
-  | {type: 'dateRange'; key: string; label: string; allowFuture?: boolean};
+  | {type: 'dateRange'; key: string; label: string; allowFuture?: boolean}
+  /** On or off; its value is 'true' when ticked and '' when not. */
+  | {type: 'checkbox'; key: string; label: string; description?: string};
 
 /** The values of a search, by field key: text and select fields hold strings, date ranges a DateRange or null. */
 export type SearchValues = Record<string, string | DateRange | null | undefined>;
@@ -77,6 +80,16 @@ export function SearchDialog({isOpen, title = 'Search', fields, values, onValues
                   value={text(field.key) || null}
                   onChange={(value: string | null) => set(field.key, value ?? '')}
                   hasClear
+                />
+              );
+            case 'checkbox':
+              return (
+                <CheckboxInput
+                  key={field.key}
+                  label={field.label}
+                  description={field.description}
+                  value={text(field.key) === 'true'}
+                  onChange={(checked) => set(field.key, checked ? 'true' : '')}
                 />
               );
             case 'dateRange': {

@@ -33,7 +33,7 @@ describe('PageHeader', () => {
     const onBack = vi.fn();
     const {user} = renderWithApp(<PageHeader title="Edit patient" onBack={onBack} backLabel="Back to patient" />);
 
-    await user.click(await screen.findByRole('button', {name: 'Back to patient'}));
+    await user.click(await screen.findByRole('button', {name: 'Back'}));
 
     expect(onBack).toHaveBeenCalledOnce();
   });

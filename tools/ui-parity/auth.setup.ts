@@ -24,5 +24,11 @@ setup('sign in and find shared records', async ({ page }, info) => {
   const patients = (await response.json()) as { id: string; firstName: string; lastName: string }[];
   if (patients.length === 0) throw new Error('No patients in the database: the patient screens need at least one.');
   patients.sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`) || a.id.localeCompare(b.id));
-  writeData(app, { patientId: patients[0].id });
+  // And the first in-progress procedure by title, for the procedure page.
+  const procedures = await page.request.get(
+    `${apiUrl}/api/procedures/patient-procedures/search?Statuses=InProgress&Sort=title&PageSize=1`,
+  );
+  const procedureId = procedures.ok() ? ((await procedures.json()) as { items: { id: string }[] }).items[0]?.id : undefined;
+
+  writeData(app, { patientId: patients[0].id, procedureId });
 });

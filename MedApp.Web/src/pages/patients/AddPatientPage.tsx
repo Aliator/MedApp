@@ -34,10 +34,8 @@ export function AddPatientPage() {
   return (
     <Page
       title="Add New Patient"
-      subtitle="Enter patient information to create a new record"
       backHref="/patients"
       backLabel="Back to patients"
-      maxWidth={900}
       dialogs={
         <ConfirmDialog
           isOpen={isConfirming}

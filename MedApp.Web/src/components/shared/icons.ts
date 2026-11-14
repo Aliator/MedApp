@@ -16,6 +16,7 @@ import {
   RiCheckLine,
   RiCloseLine,
   RiCompassDiscoverLine,
+  RiCornerDownRightLine,
   RiDeleteBinLine,
   RiErrorWarningLine,
   RiEyeLine,
@@ -40,6 +41,7 @@ import {
   RiUserAddLine,
   RiUserFollowLine,
   RiUserHeartLine,
+  RiStethoscopeLine,
   RiUserLine,
   RiUserMinusLine,
   RiUserUnfollowLine,
@@ -89,6 +91,9 @@ export const AppIcon = {
   SortDesc: remix(RiSortDesc),
   // Added in the React app
   Account: remix(RiUserLine),
+  Procedures: remix(RiStethoscopeLine),
+  /** A sub-item in the side nav, e.g. the open patient under Patients. */
+  SubItem: remix(RiCornerDownRightLine),
   LightMode: remix(RiSunLine),
   DarkMode: remix(RiMoonLine),
   NotPorted: remix(RiToolsLine),

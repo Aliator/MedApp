@@ -31,15 +31,51 @@ export function StatusToken({status}: {status: string}) {
   return <Token size="sm" label={statusLabel(status)} color={STATUS_COLORS[status] ?? 'default'} />;
 }
 
-/** The procedure's title, with its patient (linked to their page) underneath. */
-export function ProcedureCell({title, patientId, patientName}: {title: string; patientId: string; patientName: string}) {
+/**
+ * The procedure's title, linked to its page, with its patient (linked to theirs) underneath. On a list that is
+ * all one patient's, pass `secondary` (e.g. the template) instead of the patient.
+ */
+export function ProcedureCell({
+  id,
+  title,
+  patientId,
+  patientName,
+  secondary,
+}: {
+  id: string;
+  title: string;
+  patientId?: string;
+  patientName?: string;
+  secondary?: string;
+}) {
   return (
-    <VStack gap={0}>
-      <Text type="body" weight="semibold">
-        {title}
-      </Text>
-      <Link href={`/patients/${patientId}`}>{patientName}</Link>
+    <VStack gap={0} hAlign="start">
+      <Link href={`/procedures/${id}`}>
+        <Text type="body" weight="semibold">
+          {title}
+        </Text>
+      </Link>
+      {patientId && patientName ? (
+        <Link href={`/patients/${patientId}`}>{patientName}</Link>
+      ) : (
+        secondary && (
+          <Text type="supporting" color="secondary">
+            {secondary}
+          </Text>
+        )
+      )}
     </VStack>
+  );
+}
+
+/** Who is assigned, or that nobody is. */
+export function AssigneesCell({assignees}: {assignees: readonly string[]}) {
+  return assignees.length > 0 ? (
+    <Text type="body">{assignees.join(', ')}</Text>
+  ) : (
+    <Text type="body" color="secondary">
+      Nobody
+    </Text>
   );
 }
 

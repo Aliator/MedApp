@@ -16,8 +16,11 @@ import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
+import { Route as AppProceduresIndexRouteImport } from './routes/_app/procedures/index'
+import { Route as AppProceduresIdRouteImport } from './routes/_app/procedures/$id'
 import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$id/index'
 import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
+import { Route as AppPatientsIdProceduresRouteImport } from './routes/_app/patients/$id/procedures'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -53,6 +56,16 @@ const AppPatientsAddRoute = AppPatientsAddRouteImport.update({
   path: '/patients/add',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
+  id: '/procedures/',
+  path: '/procedures/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIdRoute = AppProceduresIdRouteImport.update({
+  id: '/procedures/$id',
+  path: '/procedures/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPatientsIdIndexRoute = AppPatientsIdIndexRouteImport.update({
   id: '/patients/$id/',
   path: '/patients/$id/',
@@ -63,6 +76,11 @@ const AppPatientsIdEditRoute = AppPatientsIdEditRouteImport.update({
   path: '/patients/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPatientsIdProceduresRoute = AppPatientsIdProceduresRouteImport.update({
+  id: '/patients/$id/procedures',
+  path: '/patients/$id/procedures',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -70,8 +88,11 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
+  '/procedures/$id': typeof AppProceduresIdRoute
   '/patients/': typeof AppPatientsIndexRoute
+  '/procedures/': typeof AppProceduresIndexRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -80,8 +101,11 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
+  '/procedures/$id': typeof AppProceduresIdRoute
   '/patients': typeof AppPatientsIndexRoute
+  '/procedures': typeof AppProceduresIndexRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
 }
 export interface FileRoutesById {
@@ -92,8 +116,11 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
+  '/_app/procedures/$id': typeof AppProceduresIdRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
+  '/_app/procedures/': typeof AppProceduresIndexRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/_app/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -104,8 +131,11 @@ export interface FileRouteTypes {
     | '/account'
     | '/admin/users'
     | '/patients/add'
+    | '/procedures/$id'
     | '/patients/'
+    | '/procedures/'
     | '/patients/$id/edit'
+    | '/patients/$id/procedures'
     | '/patients/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -114,8 +144,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/users'
     | '/patients/add'
+    | '/procedures/$id'
     | '/patients'
+    | '/procedures'
     | '/patients/$id/edit'
+    | '/patients/$id/procedures'
     | '/patients/$id'
   id:
     | '__root__'
@@ -125,8 +158,11 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/admin/users'
     | '/_app/patients/add'
+    | '/_app/procedures/$id'
     | '/_app/patients/'
+    | '/_app/procedures/'
     | '/_app/patients/$id/edit'
+    | '/_app/patients/$id/procedures'
     | '/_app/patients/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -186,6 +222,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsAddRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/procedures/': {
+      id: '/_app/procedures/'
+      path: '/procedures'
+      fullPath: '/procedures/'
+      preLoaderRoute: typeof AppProceduresIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/procedures/$id': {
+      id: '/_app/procedures/$id'
+      path: '/procedures/$id'
+      fullPath: '/procedures/$id'
+      preLoaderRoute: typeof AppProceduresIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/patients/$id/': {
       id: '/_app/patients/$id/'
       path: '/patients/$id'
@@ -200,6 +250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/patients/$id/procedures': {
+      id: '/_app/patients/$id/procedures'
+      path: '/patients/$id/procedures'
+      fullPath: '/patients/$id/procedures'
+      preLoaderRoute: typeof AppPatientsIdProceduresRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -208,8 +265,11 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
+  AppProceduresIdRoute: typeof AppProceduresIdRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
+  AppProceduresIndexRoute: typeof AppProceduresIndexRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
+  AppPatientsIdProceduresRoute: typeof AppPatientsIdProceduresRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
 }
 
@@ -218,8 +278,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
+  AppProceduresIdRoute: AppProceduresIdRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
+  AppProceduresIndexRoute: AppProceduresIndexRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
+  AppPatientsIdProceduresRoute: AppPatientsIdProceduresRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
 }
 

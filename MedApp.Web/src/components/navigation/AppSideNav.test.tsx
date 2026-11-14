@@ -1,6 +1,6 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, mockFetch, renderWithApp, staffUser} from '../../test/render';
-import {AppSideNav, isCurrentSection} from './AppSideNav';
+import {adminUser, json, mockApi, mockFetch, renderWithApp, staffUser} from '../../test/render';
+import {AppSideNav, isCurrentSection, openPatientId} from './AppSideNav';
 
 describe('isCurrentSection', () => {
   it.each([
@@ -66,5 +66,48 @@ describe('AppSideNav', () => {
 
     expect(screen.getByRole('button', {name: /switch to dark mode/i})).toBeInTheDocument();
     expect(localStorage.getItem('medapp.colorMode')).toBe('light');
+  });
+});
+
+const patientId = 'f184a7b8-2585-4437-bcd4-e1700be38287';
+
+describe('openPatientId', () => {
+  it.each([
+    [`/patients/${patientId}`, patientId],
+    [`/patients/${patientId}/edit`, patientId],
+    [`/patients/${patientId}/procedures`, patientId],
+    ['/patients', null],
+    ['/patients/add', null],
+    ['/procedures', null],
+  ])('pathname %s has open patient %s', (pathname, expected) => {
+    expect(openPatientId(pathname)).toBe(expected);
+  });
+});
+
+describe('AppSideNav with a patient open', () => {
+  function renderAt(path: string) {
+    mockApi({
+      [`GET /api/patients/${patientId}`]: () =>
+        json({id: patientId, firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', email: 'f@example.com'}),
+    });
+    return renderWithApp(<AppSideNav />, {user: staffUser, path});
+  }
+
+  it("shows the patient under Patients, marked as the current page, on any of their pages", async () => {
+    renderAt(`/patients/${patientId}/edit`);
+
+    const patient = await screen.findByRole('link', {name: 'Freya Ahmed'});
+    expect(patient).toHaveAttribute('href', `/patients/${patientId}`);
+    expect(patient).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', {name: /^patients$/i})).toHaveAttribute('href', '/patients');
+    expect(screen.getByRole('link', {name: /^patients$/i})).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('button', {expanded: true})).toBeInTheDocument();
+  });
+
+  it('shows no patient on the patients list', async () => {
+    renderAt('/patients');
+
+    expect(await screen.findByRole('link', {name: /^patients$/i})).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
   });
 });

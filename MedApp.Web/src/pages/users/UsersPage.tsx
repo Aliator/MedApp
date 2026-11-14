@@ -152,7 +152,6 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     <Page
       title="User Management"
       subtitle={subtitle}
-      maxWidth={1400}
       fill
       actions={
         <>

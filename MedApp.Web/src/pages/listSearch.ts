@@ -170,3 +170,52 @@ export function withTaskListSearch(home: HomeSearch, kind: TaskListKind, list: T
 }
 
 export const hasTaskFilters = (s: TaskListSearch) => Boolean(s.q || s.priority || s.overdue || s.dueFrom || s.dueTo);
+
+// Procedures --------------------------------------------------------------------------------------------
+
+/** URL sort names for the procedure lists, and the API's names for them. Due date, soonest first, by default. */
+export const PROCEDURE_SORTS = {Procedure: 'title', Status: 'status', Due: 'dueDate', Priority: 'priority', Updated: 'lastUpdated'} as const;
+export type ProcedureSortColumn = keyof typeof PROCEDURE_SORTS;
+
+export const PROCEDURE_STATUSES = ['Unassigned', 'Assigned', 'InProgress', 'InReview', 'Blocked', 'Completed', 'Cancelled', 'Archived'] as const;
+export type ProcedureStatus = (typeof PROCEDURE_STATUSES)[number];
+
+/** The all-procedures list and a patient's procedures: page, sort and filters. */
+export interface ProceduresListSearch {
+  page?: number;
+  sort?: ProcedureSortColumn;
+  asc?: boolean;
+  /** Matches the title, template or patient name. */
+  q?: string;
+  /** Only this status. Choosing a closed one shows it even without `closed`. */
+  status?: ProcedureStatus;
+  priority?: TaskPriority;
+  overdue?: boolean;
+  /** Only procedures assigned to the signed-in user. */
+  mine?: boolean;
+  /** Include Completed, Cancelled and Archived (hidden by default). */
+  closed?: boolean;
+  dueFrom?: string;
+  dueTo?: string;
+}
+
+const flag = (value: unknown) => (bool(value) ? true : undefined);
+
+export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresListSearch {
+  return compact({
+    page: page(raw.page),
+    sort: oneOf(raw.sort, Object.keys(PROCEDURE_SORTS) as ProcedureSortColumn[]),
+    asc: bool(raw.asc),
+    q: text(raw.q),
+    status: oneOf(raw.status, PROCEDURE_STATUSES),
+    priority: oneOf(raw.priority, TASK_PRIORITIES),
+    overdue: flag(raw.overdue),
+    mine: flag(raw.mine),
+    closed: flag(raw.closed),
+    dueFrom: date(raw.dueFrom),
+    dueTo: date(raw.dueTo),
+  });
+}
+
+export const hasProcedureFilters = (s: ProceduresListSearch) =>
+  Boolean(s.q || s.status || s.priority || s.overdue || s.mine || s.closed || s.dueFrom || s.dueTo);

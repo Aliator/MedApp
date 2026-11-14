@@ -22,9 +22,7 @@ const toInput = (p: Patient): PatientInput => ({
 
 const pageProps = {
   title: 'Edit Patient',
-  subtitle: 'Update patient information',
   backLabel: 'Back to patient',
-  maxWidth: 900,
 } as const;
 
 /**

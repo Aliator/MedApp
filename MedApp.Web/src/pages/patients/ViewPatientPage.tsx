@@ -29,10 +29,8 @@ export function ViewPatientPage({id}: {id: string}) {
   return (
     <Page
       title="View Patient"
-      subtitle="Patient details"
       backHref="/patients"
       backLabel="Back to patients"
-      maxWidth={900}
       isLoading={isPending}
       loadingMessage="Loading patient...">
       {error && !(error instanceof ApiError && error.status === 404) && (
@@ -41,12 +39,20 @@ export function ViewPatientPage({id}: {id: string}) {
       {patient && (
         <ViewCard
           footerActions={
-            <Button
-              label="Edit Patient"
-              variant="secondary"
-              icon={<Icon icon={AppIcon.Edit} />}
-              href={`/patients/${patient.id}/edit`}
-            />
+            <>
+              <Button
+                label="Procedures"
+                variant="secondary"
+                icon={<Icon icon={AppIcon.Procedures} />}
+                href={`/patients/${patient.id}/procedures`}
+              />
+              <Button
+                label="Edit Patient"
+                variant="secondary"
+                icon={<Icon icon={AppIcon.Edit} />}
+                href={`/patients/${patient.id}/edit`}
+              />
+            </>
           }>
           <ViewSection title="Personal Information">
             <MetadataListItem label="First Name">{patient.firstName}</MetadataListItem>

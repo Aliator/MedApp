@@ -1,4 +1,4 @@
-import {ageOn, formatDate, formatShortDate, todayIso} from './dates';
+import {formatDateTime, ageOn, formatDate, formatShortDate, todayIso} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -33,5 +33,16 @@ describe('formatDate', () => {
 
   it('has a short form for tables', () => {
     expect(formatShortDate('1976-12-01')).toBe('1 Dec 1976');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('shows a UTC moment in UK time, summer and winter', () => {
+    expect(formatDateTime('2026-07-01T13:05:00Z')).toBe('1 Jul 2026, 14:05');
+    expect(formatDateTime('2026-11-03T13:05:00Z')).toBe('3 Nov 2026, 13:05');
+  });
+
+  it('returns anything it cannot read unchanged', () => {
+    expect(formatDateTime('not a date')).toBe('not a date');
   });
 });

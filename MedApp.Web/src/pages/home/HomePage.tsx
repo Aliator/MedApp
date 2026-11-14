@@ -5,15 +5,16 @@ import type {DateRange} from '@astryxdesign/core/DateRangeInput';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Icon} from '@astryxdesign/core/Icon';
-import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
+import {StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useState, type ReactNode} from 'react';
 import type {ProcedureSummary} from '../../api/procedures';
 import {PAGE_SIZE, procedureSearchQuery, type ProcedureSearch} from '../../api/search';
 import {SearchDialog, type SearchField, type SearchValues} from '../../components/modals/SearchDialog';
-import {Page} from '../../components/pages/Page';
+import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
 import {PageHeader} from '../../components/pages/PageHeader';
+import {TwoColumns} from '../../components/pages/TwoColumns';
 import {DueDateCell, PriorityToken, ProcedureCell, StageProgressCell} from '../../components/procedures/ProcedureCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -31,16 +32,15 @@ import {
   type TaskSortColumn,
 } from '../listSearch';
 
-/** Below this width the two lists don't fit side by side, so Home shows one at a time with a switch. */
-export const NARROW_QUERY = '(max-width: 1399px)';
-
 type TaskRow = ProcedureSummary & Record<string, unknown>;
 
 const procedureColumn: DataTableColumn<TaskRow> = {
   key: 'Procedure',
   header: 'Procedure',
   sortable: true,
-  renderCell: (p) => <ProcedureCell title={p.title ?? ''} patientId={p.patientId ?? ''} patientName={p.patientName ?? ''} />,
+  renderCell: (p) => (
+    <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} patientId={p.patientId ?? ''} patientName={p.patientName ?? ''} />
+  ),
 };
 
 const dueColumn: DataTableColumn<TaskRow> = {
@@ -96,7 +96,7 @@ const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTab
 const SEARCH_FIELDS: SearchField[] = [
   {type: 'text', key: 'q', label: 'Procedure', placeholder: 'Title, template or patient'},
   {type: 'select', key: 'priority', label: 'Priority', options: TASK_PRIORITIES.map((p) => ({value: p, label: p}))},
-  {type: 'select', key: 'overdue', label: 'Overdue', options: [{value: 'true', label: 'Overdue only'}]},
+  {type: 'checkbox', key: 'overdue', label: 'Overdue only'},
   {type: 'dateRange', key: 'due', label: 'Due between', allowFuture: true},
 ];
 
@@ -253,14 +253,11 @@ function ListSwitch({kind, side, search, onClick}: {kind: TaskListKind; side: 's
       variant="transparent"
       height="100%"
       width="100%"
-      padding={2}
-      // It fills the edge of the table's card, so its hover highlight is square on the table side and rounded only
-      // where it meets the card's own corners. ClickableCard has no prop for per-corner radius.
+      padding={1}
+      // It sits in the corner of the table's card, above the page controls, so its hover highlight is rounded only
+      // at the card's top corner and square elsewhere. ClickableCard has no prop for per-corner radius.
       style={{
-        borderRadius:
-          side === 'end'
-            ? '0 var(--radius-container) var(--radius-container) 0'
-            : 'var(--radius-container) 0 0 var(--radius-container)',
+        borderRadius: side === 'end' ? '0 var(--radius-container) 0 0' : 'var(--radius-container) 0 0 0',
       }}>
       <VStack gap={3} height="100%" hAlign="center" vAlign="center">
         <Icon icon={side === 'end' ? AppIcon.ChevronRight : AppIcon.ChevronLeft} />
@@ -296,11 +293,7 @@ export function TaskBoard({search, onSearchChange, isNarrow}: TaskBoardProps) {
 
   if (!isNarrow) {
     return (
-      // Two equal columns, each held to the page's height, so a long list scrolls inside its card.
-      <HStack gap={6} height="100%">
-        <StackItem size="fill">{listFor('notStarted')}</StackItem>
-        <StackItem size="fill">{listFor('started')}</StackItem>
-      </HStack>
+      <TwoColumns start={listFor('notStarted')} end={listFor('started')} />
     );
   }
 
@@ -329,7 +322,7 @@ export type HomePageProps = Omit<TaskBoardProps, 'isNarrow'>;
  * page: those not started yet, and those under way (including blocked and in-review ones).
  */
 export function HomePage(props: HomePageProps) {
-  const isNarrow = useMediaQuery(NARROW_QUERY, false);
+  const isNarrow = useMediaQuery(NARROW_WINDOW_QUERY, false);
 
   return (
     <Page title="My tasks" subtitle="Unfinished procedures assigned to you, soonest due first." fill>
