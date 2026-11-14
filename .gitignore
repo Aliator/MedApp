@@ -5,3 +5,6 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 *.DotSettings.user
+
+# medapp-dev MCP database snapshots (local only)
+tools/MedApp.DevMcp/.backups/

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Development-only MCP server for managing local accounts and app state while MedApp.Web is built.
+       Never deployed; refuses to start against anything but a local database. See README.md. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MedApp.DevMcp</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\MedApp.Application\MedApp.Application.csproj" />
+    <ProjectReference Include="..\..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="devmcp.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

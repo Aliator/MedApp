@@ -54,8 +54,33 @@ export async function settle(page: Page) {
   await page.locator(BUSY).first().waitFor({ state: 'hidden', timeout: 20_000 });
   await page.getByText(LOADING_TEXT).first().waitFor({ state: 'hidden', timeout: 20_000 });
   await page.evaluate(() => document.fonts.ready);
-  // One more frame so anything rendered in response to the last change has been painted.
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await domQuiet(page);
+}
+
+/**
+ * Waits until the DOM has stopped changing for `quietMs` (max `timeoutMs`). Catches renders that happen after the
+ * network is idle and show no loading text, e.g. Blazor's DataTable drawing rows only after it measures the viewport.
+ */
+async function domQuiet(page: Page, quietMs = 400, timeoutMs = 10_000) {
+  await page.evaluate(
+    ({ quietMs, timeoutMs }) =>
+      new Promise<void>((resolve) => {
+        let timer = setTimeout(done, quietMs);
+        const hardStop = setTimeout(done, timeoutMs);
+        const observer = new MutationObserver(() => {
+          clearTimeout(timer);
+          timer = setTimeout(done, quietMs);
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+        function done() {
+          observer.disconnect();
+          clearTimeout(timer);
+          clearTimeout(hardStop);
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }
+      }),
+    { quietMs, timeoutMs },
+  );
 }
 
 export async function waitVisible(page: Page, selector: string) {

@@ -125,6 +125,23 @@ The Blazor UI is being replaced by a React app, `MedApp.Web`; see `docs/react-mi
 - **New screens or states** go in `tools/ui-parity/screens.ts`. Never make a screen confirm a destructive action; only open the dialog.
 - **Credentials** live in the git-ignored `tools/ui-parity/.env`; never commit them. Setup and run steps are in `tools/ui-parity/README.md`.
 
+### Dev MCP server (`medapp-dev`)
+
+`.mcp.json` registers `medapp-dev` (`tools/MedApp.DevMcp`) and the Astryx docs MCP (`astryx`).
+
+**Use `medapp-dev` for local account and app-state chores while building the React UI,** instead of hand-written SQL or one-off programs:
+- create, reset or unlock dev accounts, and set roles
+- sign accounts out
+- seed synthetic patients
+- check migrations and row counts
+- snapshot and restore the whole local database
+- reset everything to the standard synthetic demo data set (`reset_demo_data`)
+
+It only runs against a local database. It protects `admin`, and destructive tools need `confirm: true`.
+- **Before a destructive experiment:** take a `save_snapshot`.
+- **Build it first:** `dotnet build tools/MedApp.DevMcp`, because `.mcp.json` runs it with `--no-build`.
+- **Docs:** see `tools/MedApp.DevMcp/README.md`.
+
 ## Local dev gotchas
 
 - The connection string points at `(localdb)\MSSQLLocalDB`, database `MedApp`, so local runs need Windows LocalDB.
