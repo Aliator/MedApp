@@ -8,7 +8,15 @@ const roles: SelectionItem[] = [
   {value: 'User', label: 'User'},
 ];
 
-function AssignRoles({items = roles, onConfirm = () => {}}: {items?: SelectionItem[]; onConfirm?: (selected: string[]) => void}) {
+function AssignRoles({
+  items = roles,
+  onConfirm = () => {},
+  canConfirmNone = false,
+}: {
+  items?: SelectionItem[];
+  onConfirm?: (selected: string[]) => void;
+  canConfirmNone?: boolean;
+}) {
   const [selected, setSelected] = useState<string[]>([]);
   return (
     <SelectionDialog
@@ -23,6 +31,7 @@ function AssignRoles({items = roles, onConfirm = () => {}}: {items?: SelectionIt
       onConfirm={() => onConfirm(selected)}
       onCancel={() => {}}
       emptyTitle="This user already has all available roles."
+      canConfirmNone={canConfirmNone}
     />
   );
 }
@@ -40,6 +49,15 @@ describe('SelectionDialog', () => {
     await user.click(confirm);
 
     expect(onConfirm).toHaveBeenCalledWith(['User']);
+  });
+
+  it('can let nothing ticked be confirmed too', async () => {
+    const onConfirm = vi.fn();
+    const {user} = renderWithApp(<AssignRoles onConfirm={onConfirm} canConfirmNone />);
+
+    await user.click(await screen.findByRole('button', {name: 'Assign Roles'}));
+
+    expect(onConfirm).toHaveBeenCalledWith([]);
   });
 
   it('shows the empty state, and no way to confirm, when there is nothing to choose', async () => {

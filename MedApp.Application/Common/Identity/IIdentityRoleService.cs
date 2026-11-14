@@ -18,6 +18,16 @@ public interface IIdentityRoleService
         string roleName,
         CancellationToken ct);
 
+    /// <summary>
+    /// Sets the user's roles to exactly these (by name, ignoring case), adding and removing in one step: either
+    /// every change is made or none is. Fails with <see cref="IdentityErrors.UserNotFound"/> or
+    /// <see cref="IdentityErrors.RoleNotFound"/>.
+    /// </summary>
+    Task<IdentityResult> SetRolesAsync(
+        string username,
+        IReadOnlyCollection<string> roleNames,
+        CancellationToken ct);
+
     Task<IdentityResult> DeleteRoleAsync(
         string roleName,
         CancellationToken ct);

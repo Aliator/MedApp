@@ -233,11 +233,10 @@ describe('AppSideNav pinned procedures', () => {
     expect(item).toHaveAttribute('href', `/procedures/${knee}`);
     expect(item).toHaveAttribute('aria-current', 'page');
 
-    // The full name shows on hover.
+    // No tooltip with the full name; the pin button (shown on hover) has it in its name.
     await user.hover(item);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Total knee replacement for Freya Ahmed');
-
-    await user.click(screen.getByRole('button', {name: 'Pin Total knee replacement for Freya Ahmed'}));
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', {name: 'Pin Total knee replacement for Freya Ahmed'}));
 
     expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]);
   });

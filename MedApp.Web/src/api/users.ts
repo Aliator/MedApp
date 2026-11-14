@@ -70,18 +70,14 @@ export interface RoleChange {
   roles: string[];
 }
 
-/** Assigns each role in turn (the API takes one at a time). */
-export function useAssignRoles() {
-  return useUserMutation(async ({username, roles}: RoleChange) => {
-    for (const role of roles) await unwrap(api.POST('/api/auth/roles/assign', {body: {username, role}}));
-  });
-}
-
-/** Revokes each role in turn (the API takes one at a time). */
-export function useRevokeRoles() {
-  return useUserMutation(async ({username, roles}: RoleChange) => {
-    for (const role of roles) await unwrap(api.POST('/api/auth/roles/revoke', {body: {username, role}}));
-  });
+/**
+ * Sets a user's roles to exactly these, in one step: the API adds the new ones and removes the rest together, so a
+ * failure can't leave them half-changed. Admins can't change their own roles (the API refuses).
+ */
+export function useSetRoles() {
+  return useUserMutation(({username, roles}: RoleChange) =>
+    unwrap(api.PUT('/api/auth/users/{username}/roles', {params: {path: {username}}, body: {roles}})),
+  );
 }
 
 export interface PasswordChange {

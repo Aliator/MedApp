@@ -71,6 +71,7 @@ public static class ServiceExtensions
         services.AddScoped<IIdentityReadService, IdentityReadService>();
         services.AddScoped<IIdentityUserService, IdentityUserService>();
         services.AddScoped<IIdentityRoleService, IdentityRoleService>();
+        services.AddScoped<IIdentityTransactions, IdentityTransactions>();
 
         services.AddScoped<IdentityUserService>();
         services.AddScoped<IdentityRoleService>();

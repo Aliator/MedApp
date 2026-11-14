@@ -4,6 +4,7 @@ using MedApp.Application.Authentication.Roles.Commands.AssignRole;
 using MedApp.Application.Authentication.Roles.Commands.CreateRole;
 using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
 using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
+using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
@@ -16,11 +17,13 @@ using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Common;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Controllers;
@@ -232,6 +235,30 @@ public sealed class AuthController(
         return NoContent();
     }
     
+    /// <summary>
+    /// Sets a user's roles to exactly the ones given, in one step: any they have that aren't listed are removed.
+    /// Admins can't change their own roles (400), so they can't lock themselves out.
+    /// </summary>
+    [HttpPut("users/{username}/roles")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Tags("Roles")]
+    public async Task<IActionResult> SetUserRoles(string username, SetUserRolesRequest request)
+    {
+        var result = await mediator.Send(
+            new SetUserRolesCommand(username, request.Roles ?? [], User.Identity?.Name ?? string.Empty));
+
+        if (result.Succeeded)
+            return NoContent();
+
+        if (result.Errors.Any(e => e.Code == IdentityErrors.UserNotFoundCode))
+            return NotFound();
+
+        return BadRequest(result.Errors);
+    }
+
     [HttpPost("roles/revoke")]
     [Authorize(Roles = "Admin")]
     [Tags("Roles")]
