@@ -8,6 +8,18 @@ Guidance for AI coding agents working in `MedApp.Web`, the React app replacing t
 - **Icons:** `AppIcon` from `src/components/shared/icons.ts`, never `@remixicon/react` directly. Add new icons there.
 - **Routes** are thin files in `src/routes/` that point at a page component in `src/pages/`. Signed-in pages go under `src/routes/_app/`; admin-only routes check `isAdmin` in `beforeLoad`, as `_app/admin/users.tsx` does.
 - **Pages share one layout:** `Page` gives every page the same content width (`PAGE_MAX_WIDTH`), so titles and cards line up; don't pass `maxWidth` without a reason. A Back button (`backHref`/`onBack`) sits under the title, with `backLabel` as its tooltip.
+- **Fit the window; scroll the cards, not the page.** Pages that show more than a short form use `Page` with `fill`, and their cards fill the space. A card's open parts scroll inside it; the page never does.
+- **Build reusable patterns, not one-off page wiring.** When a page needs a layout or behaviour that another page could plausibly use, make it a composite in `src/components/` with its own test and a doc comment saying when to use it, then use it from the page. Look for an existing one first, and extend it rather than writing a near-copy. Signs a piece should be shared: you're reaching for flex or measuring code in a page, a second page wants the same thing, or the user describes it as a rule ("headers should look like…").
+  - The shared building blocks so far:
+    - `Page` and `PageHeader`: the frame, title and Back.
+    - `TwoColumns`: two equal cards side by side.
+    - `PanelCard` and `PanelHeader`: a header bar, a scrolling body and a pinned footer.
+    - `FoldingCard`: sections under header bars that fold, with the open ones sharing the card equally.
+    - `CardSection`: titled sections in `ViewCard` and `FormCard`, whose titles become header bars.
+    - `DataTable`: a filling, paged table.
+    - `FillingTextArea`: a text box that grows into the free space of the area scrolling around it (one per area).
+    - `ProcedureCells`: status, priority, due and progress cells.
+  - Keep state that should survive a layout change (what's open or folded) in the page and pass it in, as the procedure page does, rather than inside each collapsible.
 - **List pages** fill the window: `Page` with `fill`, and `DataTable` stretches to the bottom with its page controls pinned there. They keep page, sort and filters in the URL: the route parses them with `validateSearch` (`src/pages/listSearch.ts`), then passes `search` and `onSearchChange` to the page as props, so pages are testable without the real router. Lists come from the API's paged search endpoints (`src/api/search.ts`).
 - **Data:** TanStack Query. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Call the API through `api` + `unwrap` from `src/api/client.ts`.
 - **Forms:** fields in `useState`; on a 400, show `fieldStatus(errors, field)` on each field. The server's FluentValidation is the source of truth, so don't duplicate its rules here.

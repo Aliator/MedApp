@@ -99,3 +99,13 @@ export function fieldStatus(errors: ValidationErrors | null | undefined, field: 
 export function allMessages(errors: ValidationErrors): string[] {
   return [...Object.values(errors.fields).flat(), ...errors.general];
 }
+
+/**
+ * What to tell the user about a failed request: the validation messages for a 400, the API's own reason for a
+ * 404 or 409 (e.g. "Stages are worked in order: finish the 'Consent' stage first."), otherwise `fallback`.
+ */
+export function problemMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiValidationError) return allMessages(error.errors).join(' ') || error.errors.title;
+  if (error instanceof ApiError && error.title && (error.status === 404 || error.status === 409)) return error.title;
+  return fallback;
+}

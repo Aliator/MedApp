@@ -41,6 +41,10 @@ export const medappTheme = defineTheme({
     '--radius-inner': '6px',
   },
   components: {
+    // A table's column headers sit on the same muted shade as card header bars (PanelHeader), so they stand out.
+    'table-header-cell': {
+      base: {backgroundColor: 'var(--color-background-muted)'},
+    },
     // Dialog titles are centred in their header, between the dialog's icon (start) and its close button (end).
     'dialog-header-title-block': {
       base: {alignItems: 'center', textAlign: 'center'},

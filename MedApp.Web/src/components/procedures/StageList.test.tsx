@@ -21,6 +21,8 @@ const stage = (overrides: Partial<ProcedureStage>): ProcedureStage => ({
 
 /** A stage's header button, by the start of its text ("1. Consultation"). */
 const header = (text: string) => ({name: new RegExp(`^${text.replace('.', '\\.')}`)});
+/** Every stage's header button (not the Instructions buttons inside the stages). */
+const stageHeaders = () => screen.getAllByRole('button', {name: /^\d+\./});
 
 describe('StageList', () => {
   const stages = [
@@ -52,21 +54,33 @@ describe('StageList', () => {
     renderWithApp(<StageList stages={stages} />);
 
     await screen.findAllByRole('button');
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+    expect(stageHeaders().map((b) => b.textContent)).toEqual([
       expect.stringMatching(/^1\. Consultation.*Finished/),
       expect.stringMatching(/^2\. Procedure.*In progress.*Current stage/),
       expect.stringMatching(/^3\. Consultation.*Not started/),
     ]);
   });
 
-  it('opens only the current stage, with its instructions showing', async () => {
+  it('opens only the current stage', async () => {
     renderWithApp(<StageList stages={stages} />);
 
     expect(await screen.findByRole('button', header('2. Procedure'))).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', header('1. Consultation'))).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', header('3. Consultation'))).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByText('Complete the safety checklist.')).toBeVisible();
     expect(screen.getByText('Started by a.user, 4 Nov 2026, 09:00')).toBeVisible();
+  });
+
+  it('keeps the instructions folded under their heading until it is clicked', async () => {
+    const {user} = renderWithApp(<StageList stages={stages} />);
+
+    // The current stage's: the second stage, and the one open.
+    const toggle = (await screen.findAllByRole('button', {name: 'Instructions'}))[1];
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Complete the safety checklist.')).toBeVisible();
   });
 
   it('opens a closed stage to show who did what, and its notes', async () => {
@@ -86,7 +100,7 @@ describe('StageList', () => {
     renderWithApp(<StageList stages={stages} isCurrentOpen={false} />);
 
     await screen.findAllByRole('button');
-    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-expanded'))).toEqual(['false', 'false', 'false']);
+    expect(stageHeaders().map((b) => b.getAttribute('aria-expanded'))).toEqual(['false', 'false', 'false']);
   });
 
   it('closes the current stage when its header is clicked', async () => {

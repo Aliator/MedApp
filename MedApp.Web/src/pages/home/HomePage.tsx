@@ -19,6 +19,7 @@ import {DueDateCell, PriorityToken, ProcedureCell, StageProgressCell} from '../.
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
+import {TableActions} from '../../components/tables/TableActions';
 import {
   hasTaskFilters,
   TASK_PRIORITIES,
@@ -57,6 +58,13 @@ const priorityColumn: DataTableColumn<TaskRow> = {
   renderCell: (p) => <PriorityToken priority={p.priority ?? ''} />,
 };
 
+const viewColumn: DataTableColumn<TaskRow> = {
+  key: 'actions',
+  header: 'Actions',
+  align: 'end',
+  renderCell: (p) => <TableActions actions={[{label: 'View procedure', icon: AppIcon.View, href: `/procedures/${p.id}`}]} />,
+};
+
 const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTableColumn<TaskRow>[]; empty: string}> = {
   notStarted: {
     title: 'Not started',
@@ -67,6 +75,7 @@ const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTab
       {key: 'template', header: 'Template', renderCell: (p) => <Text type="body">{p.templateName}</Text>},
       dueColumn,
       priorityColumn,
+      viewColumn,
     ],
   },
   started: {
@@ -89,6 +98,7 @@ const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTab
       },
       dueColumn,
       priorityColumn,
+      viewColumn,
     ],
   },
 };

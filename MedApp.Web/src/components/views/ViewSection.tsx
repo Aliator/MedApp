@@ -1,7 +1,6 @@
 import {MetadataList} from '@astryxdesign/core/MetadataList';
-import {VStack} from '@astryxdesign/core/Stack';
-import {Heading} from '@astryxdesign/core/Text';
 import type {ReactNode} from 'react';
+import {CardSection} from './CardSection';
 
 export interface ViewSectionProps {
   title?: string;
@@ -11,14 +10,13 @@ export interface ViewSectionProps {
   children: ReactNode;
 }
 
-/** A titled group of read-only values in a ViewCard (replaces Blazor's ViewSection). */
+/** A titled group of read-only values in a ViewCard (replaces Blazor's ViewSection); in a card, its title is a header bar. */
 export function ViewSection({title, useGrid = true, children}: ViewSectionProps) {
   return (
-    <VStack gap={4}>
-      {title && <Heading level={2}>{title}</Heading>}
+    <CardSection title={title}>
       <MetadataList columns={useGrid ? 2 : 'single'} label={{position: 'top'}}>
         {children}
       </MetadataList>
-    </VStack>
+    </CardSection>
   );
 }

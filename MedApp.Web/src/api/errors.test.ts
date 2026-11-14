@@ -1,4 +1,4 @@
-import {allMessages, fieldStatus, parseValidationErrors, problemTitle} from './errors';
+import {ApiError, ApiValidationError, allMessages, fieldStatus, parseValidationErrors, problemMessage, problemTitle} from './errors';
 
 describe('parseValidationErrors', () => {
   it('maps ValidationProblemDetails errors onto camelCase fields', () => {
@@ -95,5 +95,23 @@ describe('problemTitle', () => {
     expect(problemTitle('text')).toBeUndefined();
     expect(problemTitle({title: ''})).toBeUndefined();
     expect(problemTitle([{title: 'x'}])).toBeUndefined();
+  });
+});
+
+describe('problemMessage', () => {
+  it("gives the API's reason for a conflict or a missing record", () => {
+    expect(problemMessage(new ApiError(409, undefined, 'Finish the Consent stage first.'), 'Failed.')).toBe('Finish the Consent stage first.');
+    expect(problemMessage(new ApiError(404, undefined, 'Procedure not found.'), 'Failed.')).toBe('Procedure not found.');
+  });
+
+  it('gives the validation messages for a 400', () => {
+    const error = new ApiValidationError(parseValidationErrors({errors: {Reason: ['A reason is required.']}}));
+
+    expect(problemMessage(error, 'Failed.')).toBe('A reason is required.');
+  });
+
+  it('falls back for anything else', () => {
+    expect(problemMessage(new ApiError(500, undefined, 'Server error'), 'Failed.')).toBe('Failed.');
+    expect(problemMessage(new TypeError('offline'), 'Failed.')).toBe('Failed.');
   });
 });

@@ -593,6 +593,11 @@ export const medappTheme = {
         "padding": "var(--spacing-3)"
       }
     },
+    "table-header-cell": {
+      "base": {
+        "backgroundColor": "var(--color-background-muted)"
+      }
+    },
     "dialog-header-title-block": {
       "base": {
         "alignItems": "center",

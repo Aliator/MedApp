@@ -126,7 +126,7 @@ export function DataTable<T extends Record<string, unknown>>({
           </HStack>
         </StackItem>
         {showPaging && (
-          <Section variant="transparent" padding={3} dividers={['top']}>
+          <Section variant="muted" padding={3} dividers={['top']}>
             <HStack hAlign="end">
               <Pagination
                 page={pagination.page}
