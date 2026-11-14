@@ -26,6 +26,9 @@ public sealed class CreatePatientProcedureValidator : AbstractValidator<CreatePa
             .WithMessage($"Priority must be one of: {ProcedureEnums.PriorityNames}.");
 
         RuleFor(x => x.DueDate)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty()
+            .WithMessage("Due date is required.")
             .Must(dueDate => dueDate >= DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime))
             .WithMessage("The due date must not be in the past.");
     }

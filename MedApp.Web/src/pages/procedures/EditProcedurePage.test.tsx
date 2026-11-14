@@ -1,0 +1,90 @@
+import {screen, waitFor, within} from '@testing-library/react';
+import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
+import {NOT_ASSIGNED_MESSAGE} from './ProcedurePage';
+import {EditProcedurePage} from './EditProcedurePage';
+
+const id = 'proc-1';
+const PATH = `/api/procedures/patient-procedures/${id}`;
+
+const procedure = (overrides: Record<string, unknown> = {}) => ({
+  id,
+  patientId: 'patient-1',
+  patientName: 'Test Patient',
+  title: 'Colonoscopy',
+  notes: 'Pack posted.',
+  dueDate: '2099-12-01',
+  priority: 'High',
+  status: 'InProgress',
+  canEditDetails: true,
+  assignments: [{userId: 'u1', username: staffUser.username}],
+  stages: [],
+  ...overrides,
+});
+
+function renderEdit(body = procedure(), handlers: Record<string, (request: Request) => Response | Promise<Response>> = {}) {
+  const fetch = mockApi({[`GET ${PATH}`]: () => json(body), ...handlers});
+  return {fetch, ...renderWithApp(<EditProcedurePage id={id} />, {path: `/procedures/${id}/edit`, user: staffUser})};
+}
+
+describe('EditProcedurePage', () => {
+  it("starts from the procedure's details", async () => {
+    renderEdit();
+
+    expect(await screen.findByRole('textbox', {name: /Title/})).toHaveValue('Colonoscopy');
+    expect(screen.getByRole('textbox', {name: 'Notes'})).toHaveValue('Pack posted.');
+    expect(screen.getByRole('combobox', {name: /Priority/})).toHaveTextContent('High');
+    expect(screen.getByText('For Test Patient')).toBeInTheDocument();
+  });
+
+  it('saves the changes after a confirmation, then goes back to the procedure', async () => {
+    const {fetch, user, router} = renderEdit(procedure(), {[`PATCH ${PATH}`]: () => json(procedure({title: 'Colonoscopy (repeat)'}))});
+
+    const title = await screen.findByRole('textbox', {name: /Title/});
+    await user.type(title, ' (repeat)');
+    await user.click(screen.getByRole('combobox', {name: /Priority/}));
+    await user.click(screen.getByRole('option', {name: 'Urgent'}));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText('Are you sure you want to save these changes?')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/procedures/${id}`));
+    const patch = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PATCH')!;
+    expect(await patch.json()).toEqual({title: 'Colonoscopy (repeat)', notes: 'Pack posted.', dueDate: '2099-12-01', priority: 'Urgent'});
+  });
+
+  it("asks the not-assigned question when saving a procedure that isn't yours", async () => {
+    const {user} = renderEdit(procedure({assignments: [{userId: 'u9', username: 'someone.else'}]}));
+
+    await user.click(await screen.findByRole('button', {name: 'Save'}));
+
+    expect(within(openDialog()!).getByText(NOT_ASSIGNED_MESSAGE)).toBeInTheDocument();
+  });
+
+  it("explains a failed save, keeping what's typed", async () => {
+    const {user} = renderEdit(procedure(), {[`PATCH ${PATH}`]: () => json({title: 'Server error'}, 500)});
+
+    const title = await screen.findByRole('textbox', {name: /Title/});
+    await user.type(title, '!');
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
+    expect(title).toHaveValue('Colonoscopy!');
+  });
+
+  it("says a cancelled procedure's details can't be edited", async () => {
+    renderEdit(procedure({status: 'Cancelled', canEditDetails: false}));
+
+    expect(await findAlert("This procedure is cancelled, so its details can't be edited.")).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Save'})).not.toBeInTheDocument();
+  });
+
+  it('goes back to the list for an unknown procedure', async () => {
+    mockApi({[`GET ${PATH}`]: () => json({title: 'Not found'}, 404)});
+    const {router} = renderWithApp(<EditProcedurePage id={id} />, {path: `/procedures/${id}/edit`, user: staffUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+  });
+});

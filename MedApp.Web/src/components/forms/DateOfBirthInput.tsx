@@ -2,6 +2,7 @@ import type {ISODateString} from '@astryxdesign/core/Calendar';
 import {DateInput} from '@astryxdesign/core/DateInput';
 import type {InputStatus} from '@astryxdesign/core/Field';
 import {ageOn, todayIso, WEEK_STARTS_ON} from '../../utils/dates';
+import {BLANK_DESCRIPTION} from './fieldSpace';
 
 export interface DateOfBirthInputProps {
   value: string | undefined;
@@ -9,7 +10,7 @@ export interface DateOfBirthInputProps {
   label?: string;
   isRequired?: boolean;
   isDisabled?: boolean;
-  /** Shows the age for the chosen date under the label. */
+  /** Shows the age for the chosen date under the label. Its line is kept while there's no date, so the input doesn't jump. */
   showAge?: boolean;
   status?: InputStatus;
 }
@@ -38,7 +39,7 @@ export function DateOfBirthInput({
       weekStartsOn={WEEK_STARTS_ON}
       isRequired={isRequired}
       isDisabled={isDisabled}
-      description={age !== null ? `Age: ${age} ${age === 1 ? 'year' : 'years'}` : undefined}
+      description={age !== null ? `Age: ${age} ${age === 1 ? 'year' : 'years'}` : showAge ? BLANK_DESCRIPTION : undefined}
       status={status}
     />
   );

@@ -13,6 +13,8 @@ import {
   AssigneesCell,
   DueDateCell,
   PriorityToken,
+  PROCEDURE_COLUMN_WIDTH,
+  ProcedureActions,
   ProcedureCell,
   StageProgressCell,
   StatusToken,
@@ -20,8 +22,8 @@ import {
 } from '../../components/procedures/ProcedureCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {TextCell} from '../../components/tables/TextCell';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
-import {TableActions} from '../../components/tables/TableActions';
 import {
   hasProcedureFilters,
   PROCEDURE_SORTS,
@@ -133,23 +135,23 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       key: 'Procedure',
       header: 'Procedure',
       sortable: true,
-      renderCell: (p) =>
-        patientId ? (
-          <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} secondary={p.templateName ?? ''} />
-        ) : (
-          <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} patientId={p.patientId ?? ''} patientName={p.patientName ?? ''} />
-        ),
+      width: PROCEDURE_COLUMN_WIDTH.procedure,
+      renderCell: (p) => <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} />,
     },
-    {key: 'Status', header: 'Status', sortable: true, renderCell: (p) => <StatusToken status={p.status ?? ''} />},
+    // One patient's list shows each procedure's template; the full list, its patient (View patient is in the actions).
+    patientId
+      ? {key: 'templateName', header: 'Template', width: PROCEDURE_COLUMN_WIDTH.template, renderCell: (p) => <TextCell text={p.templateName} />}
+      : {key: 'patientName', header: 'Patient', width: PROCEDURE_COLUMN_WIDTH.patient, renderCell: (p) => <TextCell text={p.patientName} />},
+    {key: 'Status', header: 'Status', sortable: true, width: PROCEDURE_COLUMN_WIDTH.status, renderCell: (p) => <StatusToken status={p.status ?? ''} />},
     {
       key: 'stage',
       header: 'Current stage',
+      width: PROCEDURE_COLUMN_WIDTH.stage,
       renderCell: (p) => (
         <StageProgressCell
           completed={p.completedStageCount ?? 0}
           total={p.stageCount ?? 0}
           currentStageName={p.currentStageName}
-          status={p.status ?? ''}
         />
       ),
     },
@@ -157,15 +159,17 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       key: 'Due',
       header: 'Due',
       sortable: true,
+      width: PROCEDURE_COLUMN_WIDTH.due,
       renderCell: (p) => <DueDateCell dueDate={p.dueDate ?? ''} isOverdue={p.isOverdue ?? false} />,
     },
-    {key: 'Priority', header: 'Priority', sortable: true, renderCell: (p) => <PriorityToken priority={p.priority ?? ''} />},
-    {key: 'assigned', header: 'Assigned to', renderCell: (p) => <AssigneesCell assignees={p.assignees ?? []} />},
+    {key: 'Priority', header: 'Priority', sortable: true, width: PROCEDURE_COLUMN_WIDTH.priority, renderCell: (p) => <PriorityToken priority={p.priority ?? ''} />},
+    {key: 'assigned', header: 'Assigned to', width: PROCEDURE_COLUMN_WIDTH.assigned, renderCell: (p) => <AssigneesCell assignees={p.assignees ?? []} />},
     {
       key: 'actions',
       header: 'Actions',
       align: 'end',
-      renderCell: (p) => <TableActions actions={[{label: 'View procedure', icon: AppIcon.View, href: `/procedures/${p.id}`}]} />,
+      width: PROCEDURE_COLUMN_WIDTH.actions,
+      renderCell: (p) => <ProcedureActions id={p.id ?? ''} patientId={patientId ? undefined : (p.patientId ?? '')} />,
     },
   ];
 
@@ -184,12 +188,21 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       backHref={patientId ? `/patients/${patientId}` : undefined}
       backLabel="Back to patient"
       fill
+      message={isError && <AlertMessage message="The procedures could not be loaded. Please try again." />}
       actions={
         <>
           {isFiltered && (
             <Button label="Clear Search" variant="ghost" icon={<Icon icon={AppIcon.Cancel} />} onClick={clearSearch} />
           )}
           <Button label="Search" variant="secondary" icon={<Icon icon={AppIcon.Search} />} onClick={openSearch} />
+          {patientId && (
+            <Button
+              label="New Procedure"
+              variant="primary"
+              icon={<Icon icon={AppIcon.Add} />}
+              href={`/procedures/new?patientId=${patientId}`}
+            />
+          )}
         </>
       }
       dialogs={
@@ -204,7 +217,6 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
           onClose={() => setIsSearchOpen(false)}
         />
       }>
-      {isError && <AlertMessage message="The procedures could not be loaded. Please try again." />}
       <DataTable
         data={rows}
         columns={columns}

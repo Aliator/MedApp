@@ -6,6 +6,7 @@ import {TextArea} from '@astryxdesign/core/TextArea';
 import {useState} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
 import {FillingTextArea} from '../forms/FillingTextArea';
+import {NO_STATUS_LINE} from '../forms/fieldSpace';
 import {AppIcon} from '../shared/icons';
 import {StageNotes} from './StageList';
 
@@ -64,6 +65,8 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
     onChange: setDraft,
     placeholder: 'What was done, found or agreed at this stage',
     isDisabled: isBusy,
+    // A failed save shows in the page's header, never on the box, so it needs no error line.
+    containerStyle: NO_STATUS_LINE,
   };
 
   return (

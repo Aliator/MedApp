@@ -17,10 +17,12 @@ import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
 import { Route as AppProceduresIndexRouteImport } from './routes/_app/procedures/index'
-import { Route as AppProceduresIdRouteImport } from './routes/_app/procedures/$id'
+import { Route as AppProceduresNewRouteImport } from './routes/_app/procedures/new'
 import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$id/index'
 import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
 import { Route as AppPatientsIdProceduresRouteImport } from './routes/_app/patients/$id/procedures'
+import { Route as AppProceduresIdIndexRouteImport } from './routes/_app/procedures/$id/index'
+import { Route as AppProceduresIdEditRouteImport } from './routes/_app/procedures/$id/edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -61,9 +63,9 @@ const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
   path: '/procedures/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProceduresIdRoute = AppProceduresIdRouteImport.update({
-  id: '/procedures/$id',
-  path: '/procedures/$id',
+const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
+  id: '/procedures/new',
+  path: '/procedures/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPatientsIdIndexRoute = AppPatientsIdIndexRouteImport.update({
@@ -81,6 +83,16 @@ const AppPatientsIdProceduresRoute = AppPatientsIdProceduresRouteImport.update({
   path: '/patients/$id/procedures',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProceduresIdIndexRoute = AppProceduresIdIndexRouteImport.update({
+  id: '/procedures/$id/',
+  path: '/procedures/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
+  id: '/procedures/$id/edit',
+  path: '/procedures/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -88,12 +100,14 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
-  '/procedures/$id': typeof AppProceduresIdRoute
+  '/procedures/new': typeof AppProceduresNewRoute
   '/patients/': typeof AppPatientsIndexRoute
   '/procedures/': typeof AppProceduresIndexRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
+  '/procedures/$id/edit': typeof AppProceduresIdEditRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
+  '/procedures/$id/': typeof AppProceduresIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -101,12 +115,14 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
-  '/procedures/$id': typeof AppProceduresIdRoute
+  '/procedures/new': typeof AppProceduresNewRoute
   '/patients': typeof AppPatientsIndexRoute
   '/procedures': typeof AppProceduresIndexRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
+  '/procedures/$id/edit': typeof AppProceduresIdEditRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
+  '/procedures/$id': typeof AppProceduresIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,12 +132,14 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
-  '/_app/procedures/$id': typeof AppProceduresIdRoute
+  '/_app/procedures/new': typeof AppProceduresNewRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
   '/_app/procedures/': typeof AppProceduresIndexRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/_app/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
+  '/_app/procedures/$id/edit': typeof AppProceduresIdEditRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
+  '/_app/procedures/$id/': typeof AppProceduresIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,12 +149,14 @@ export interface FileRouteTypes {
     | '/account'
     | '/admin/users'
     | '/patients/add'
-    | '/procedures/$id'
+    | '/procedures/new'
     | '/patients/'
     | '/procedures/'
     | '/patients/$id/edit'
     | '/patients/$id/procedures'
+    | '/procedures/$id/edit'
     | '/patients/$id/'
+    | '/procedures/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -144,12 +164,14 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/users'
     | '/patients/add'
-    | '/procedures/$id'
+    | '/procedures/new'
     | '/patients'
     | '/procedures'
     | '/patients/$id/edit'
     | '/patients/$id/procedures'
+    | '/procedures/$id/edit'
     | '/patients/$id'
+    | '/procedures/$id'
   id:
     | '__root__'
     | '/_app'
@@ -158,12 +180,14 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/admin/users'
     | '/_app/patients/add'
-    | '/_app/procedures/$id'
+    | '/_app/procedures/new'
     | '/_app/patients/'
     | '/_app/procedures/'
     | '/_app/patients/$id/edit'
     | '/_app/patients/$id/procedures'
+    | '/_app/procedures/$id/edit'
     | '/_app/patients/$id/'
+    | '/_app/procedures/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -229,11 +253,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProceduresIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/procedures/$id': {
-      id: '/_app/procedures/$id'
-      path: '/procedures/$id'
-      fullPath: '/procedures/$id'
-      preLoaderRoute: typeof AppProceduresIdRouteImport
+    '/_app/procedures/new': {
+      id: '/_app/procedures/new'
+      path: '/procedures/new'
+      fullPath: '/procedures/new'
+      preLoaderRoute: typeof AppProceduresNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/patients/$id/': {
@@ -257,6 +281,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsIdProceduresRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/procedures/$id/': {
+      id: '/_app/procedures/$id/'
+      path: '/procedures/$id'
+      fullPath: '/procedures/$id/'
+      preLoaderRoute: typeof AppProceduresIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/procedures/$id/edit': {
+      id: '/_app/procedures/$id/edit'
+      path: '/procedures/$id/edit'
+      fullPath: '/procedures/$id/edit'
+      preLoaderRoute: typeof AppProceduresIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -265,12 +303,14 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
-  AppProceduresIdRoute: typeof AppProceduresIdRoute
+  AppProceduresNewRoute: typeof AppProceduresNewRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
   AppProceduresIndexRoute: typeof AppProceduresIndexRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
   AppPatientsIdProceduresRoute: typeof AppPatientsIdProceduresRoute
+  AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
+  AppProceduresIdIndexRoute: typeof AppProceduresIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -278,12 +318,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
-  AppProceduresIdRoute: AppProceduresIdRoute,
+  AppProceduresNewRoute: AppProceduresNewRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
   AppProceduresIndexRoute: AppProceduresIndexRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
   AppPatientsIdProceduresRoute: AppPatientsIdProceduresRoute,
+  AppProceduresIdEditRoute: AppProceduresIdEditRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
+  AppProceduresIdIndexRoute: AppProceduresIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

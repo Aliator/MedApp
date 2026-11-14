@@ -87,3 +87,70 @@ export function useProcedureActions(id: string) {
     }),
   };
 }
+
+export type ProcedureTemplate = Schemas['PatientProcedureStageTemplateResponse'];
+
+/** What New procedure sends: the patient, the template it's built from, and its details. */
+export type NewProcedureInput = Schemas['CreatePatientProcedureRequest'];
+
+/** A procedure's editable details: title, notes, due date and priority. */
+export interface ProcedureDetailsInput {
+  title: string;
+  notes: string;
+  /** A date, `YYYY-MM-DD`; due by the end of that day, UK time. */
+  dueDate: string;
+  priority: string;
+}
+
+/** The templates staff can create a procedure from (archived ones are left out). */
+export function procedureTemplatesQuery() {
+  return queryOptions({
+    queryKey: ['procedureTemplates'],
+    queryFn: () => unwrap(api.GET('/api/procedures/patient-procedure-stage/templates')),
+  });
+}
+
+/** Creates a procedure from a template, returning it; lists and the patient's procedure count refresh. */
+export function useCreateProcedure() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: NewProcedureInput) => unwrap(api.POST('/api/procedures/patient-procedures', {body: input})),
+    onSuccess: async (procedure) => {
+      queryClient.setQueryData(procedureQuery(procedure.id ?? '').queryKey, procedure);
+      await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+      await queryClient.invalidateQueries({queryKey: procedureKeys.countForPatient(procedure.patientId ?? '')});
+    },
+  });
+}
+
+/** Saves a procedure's details, returning it updated; it replaces the cached one, and lists refresh. */
+export function useUpdateProcedure(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProcedureDetailsInput) =>
+      unwrap(api.PATCH(PROCEDURE, {params: {path: {id}}, body: input})),
+    onSuccess: async (procedure) => {
+      queryClient.setQueryData(procedureQuery(id).queryKey, procedure);
+      await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+    },
+  });
+}
+
+/** Deletes a procedure (admins, and only once it's cancelled or archived). */
+export function useDeleteProcedure(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unwrap(api.DELETE(PROCEDURE, {params: {path: {id}}})),
+    onSuccess: async () => {
+      // Its own query would only 404 if refetched, so drop it rather than refresh it.
+      queryClient.removeQueries({queryKey: ['procedures', id]});
+      await queryClient.invalidateQueries({queryKey: ['procedures']});
+      await queryClient.invalidateQueries({queryKey: ['patients']});
+    },
+  });
+}
+
+/** Decisions 13 and 20: only an admin can delete a procedure, and only one the API allows (cancelled or archived). */
+export const canDeleteProcedure = (procedure: Procedure, isAdmin: boolean) => isAdmin && (procedure.canBeDeleted ?? false);
+
+export const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;

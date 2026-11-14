@@ -539,6 +539,10 @@
     color: var(--color-text-red);
   }
 
+  .astryx-field-status[data-variant="attached"] {
+    margin-bottom: calc(-1 * calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading)));
+  }
+
   .astryx-text-input[data-status="success"] {
     --color-border-success: light-dark(#609757, #90ba8a);
     --color-icon-success: light-dark(#609757, #90ba8a);
@@ -713,6 +717,14 @@
 
   .astryx-section {
     --astryx-section-padding: var(--spacing-3);
+  }
+
+  .astryx-field {
+    padding-bottom: calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading));
+  }
+
+  .astryx-table-cell {
+    height: var(--medapp-table-row-height, auto);
   }
 
   .astryx-table-header-cell {

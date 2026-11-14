@@ -153,6 +153,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       title="User Management"
       subtitle={subtitle}
       fill
+      message={(isError || error) && <AlertMessage message={error ?? 'The users could not be loaded. Please try again.'} />}
       actions={
         <>
           {isFiltered && <Button label="Clear Search" variant="ghost" icon={<Icon icon={AppIcon.Cancel} />} onClick={clearSearch} />}
@@ -293,7 +294,6 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           </ConfirmDialog>
         </>
       }>
-      {(isError || error) && <AlertMessage message={error ?? 'The users could not be loaded. Please try again.'} />}
       {!isPending && !isError && !isFiltered && total === 0 ? (
         <EmptyState
           title="No users yet"

@@ -2,6 +2,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {screen, waitFor} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
 import {Page} from './Page';
+import {AlertMessage} from '../shared/AlertMessage';
 import {PageHeader} from './PageHeader';
 
 describe('PageHeader', () => {
@@ -11,6 +12,18 @@ describe('PageHeader', () => {
     expect(await screen.findByRole('heading', {level: 1, name: 'Patients'})).toBeInTheDocument();
     expect(screen.getByText('60 patients registered')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Search'})).toBeInTheDocument();
+  });
+
+  it('shows a page message in the header, between the title and the actions', async () => {
+    renderWithApp(
+      <PageHeader title="Patients" message={<AlertMessage message="The patients could not be loaded." />} actions={<Button label="Search" />} />,
+    );
+
+    const heading = await screen.findByRole('heading', {level: 1, name: 'Patients'});
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('The patients could not be loaded.');
+    expect(heading.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(alert.compareDocumentPosition(screen.getByRole('button', {name: 'Search'})) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('has no back button unless asked for one', async () => {

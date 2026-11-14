@@ -1,6 +1,6 @@
 # MedApp: procedures in the UI
 
-Status: **all decisions settled; phases 0, 1, 2 and 5 merged (PRs #30, #31), phase 3 done on `feature/procedure-work` (section 7)** · 2026-11-14
+Status: **all decisions settled; phases 0, 1, 2, 3 and 5 merged (PRs #30, #31, #32), phase 4 done on `feature/procedure-create-edit` (section 7)** · 2026-11-14
 
 Staff use standard **procedure templates** to start a **procedure** for a patient. A template is an ordered list of **stages**, and admins create and maintain templates and stages. Any staff member can work through a procedure's stages, in order. As they go they record notes, and they **finish** each stage, which locks it and moves the procedure on to the next stage. Admins **assign** staff to procedures; that puts the procedure on those staff members' task lists, on their Home page, but doesn't limit who may work on it. Admins can unlock a finished stage so it can be corrected. Every change to a procedure goes into an **audit log**, which admins can read.
 
@@ -182,7 +182,10 @@ Each phase is its own PR, with CI green and parity screenshots for new screens.
    - **Supporting work:** handler and validator tests for the whole Procedures area; `medapp-dev`'s `reset_demo_data` seeds notes, locks and audit history to match.
 2. **Read-only UI:** All procedures, a patient's procedures (with the buttons on the patients table and View Patient), and the procedure page (stages and notes, read-only). Patients pages open up to staff. **Done.**
 3. **Working a procedure:** add notes, finish stages, status actions, admin assign and unassign, admin unlock, and the "not assigned to you" confirmation. **Done:** the current stage is worked on in the left card (notes box, Start, Save Notes, Finish Stage); stages an admin unlocks are edited in the stage list; status changes are buttons in the page header.
-4. **Creating and editing:** New procedure from a template; edit details; admin delete when `Cancelled`/`Archived`.
+4. **Creating and editing:** New procedure from a template; edit details; admin delete when `Cancelled`/`Archived`. **Done:**
+   - **New Procedure** (`/procedures/new?patientId=`) starts from a patient's procedures list. Picking a template lists its stages and fills the title with its name until the title is changed.
+   - **Edit Details** (`/procedures/{id}/edit`) is a footer button on the procedure page while its details can be edited. Saving a procedure that isn't yours asks the decision 18 question in the save confirmation.
+   - **Delete Procedure** is an admin button in the procedure page header, shown when the API allows it (`canBeDeleted`). It goes back to the patient's procedures afterwards.
 5. **Home task list:** the two side-by-side tables (Not started / Started). **Done** (decision 23).
 6. **Admin pages:** Stage definitions, Templates (with archiving) and the Audit log.
 7. **Later (not in this plan):** real-time updates for the task list and procedure pages.

@@ -15,11 +15,18 @@ import {SearchDialog, type SearchField, type SearchValues} from '../../component
 import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
 import {PageHeader} from '../../components/pages/PageHeader';
 import {TwoColumns} from '../../components/pages/TwoColumns';
-import {DueDateCell, PriorityToken, ProcedureCell, StageProgressCell} from '../../components/procedures/ProcedureCells';
+import {
+  DueDateCell,
+  PROCEDURE_COLUMN_WIDTH,
+  PriorityToken,
+  ProcedureActions,
+  ProcedureCell,
+  StageProgressCell,
+} from '../../components/procedures/ProcedureCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {TextCell} from '../../components/tables/TextCell';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
-import {TableActions} from '../../components/tables/TableActions';
 import {
   hasTaskFilters,
   TASK_PRIORITIES,
@@ -39,15 +46,23 @@ const procedureColumn: DataTableColumn<TaskRow> = {
   key: 'Procedure',
   header: 'Procedure',
   sortable: true,
-  renderCell: (p) => (
-    <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} patientId={p.patientId ?? ''} patientName={p.patientName ?? ''} />
-  ),
+  width: PROCEDURE_COLUMN_WIDTH.procedure,
+  renderCell: (p) => <ProcedureCell id={p.id ?? ''} title={p.title ?? ''} />,
+};
+
+/** The patient's name, on one line (truncated); View patient is in the actions. */
+const patientColumn: DataTableColumn<TaskRow> = {
+  key: 'patientName',
+  header: 'Patient',
+  width: PROCEDURE_COLUMN_WIDTH.patient,
+  renderCell: (p) => <TextCell text={p.patientName} />,
 };
 
 const dueColumn: DataTableColumn<TaskRow> = {
   key: 'Due',
   header: 'Due',
   sortable: true,
+  width: PROCEDURE_COLUMN_WIDTH.due,
   renderCell: (p) => <DueDateCell dueDate={p.dueDate ?? ''} isOverdue={p.isOverdue ?? false} />,
 };
 
@@ -55,6 +70,7 @@ const priorityColumn: DataTableColumn<TaskRow> = {
   key: 'Priority',
   header: 'Priority',
   sortable: true,
+  width: PROCEDURE_COLUMN_WIDTH.priority,
   renderCell: (p) => <PriorityToken priority={p.priority ?? ''} />,
 };
 
@@ -62,7 +78,8 @@ const viewColumn: DataTableColumn<TaskRow> = {
   key: 'actions',
   header: 'Actions',
   align: 'end',
-  renderCell: (p) => <TableActions actions={[{label: 'View procedure', icon: AppIcon.View, href: `/procedures/${p.id}`}]} />,
+  width: PROCEDURE_COLUMN_WIDTH.actions,
+  renderCell: (p) => <ProcedureActions id={p.id ?? ''} patientId={p.patientId ?? ''} />,
 };
 
 const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTableColumn<TaskRow>[]; empty: string}> = {
@@ -72,7 +89,8 @@ const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTab
     empty: 'Nothing waiting to be started',
     columns: [
       procedureColumn,
-      {key: 'template', header: 'Template', renderCell: (p) => <Text type="body">{p.templateName}</Text>},
+      patientColumn,
+      {key: 'templateName', header: 'Template', width: PROCEDURE_COLUMN_WIDTH.template, renderCell: (p) => <TextCell text={p.templateName} />},
       dueColumn,
       priorityColumn,
       viewColumn,
@@ -84,14 +102,17 @@ const LISTS: Record<TaskListKind, {title: string; noun: string; columns: DataTab
     empty: 'Nothing in progress',
     columns: [
       procedureColumn,
+      patientColumn,
       {
         key: 'stage',
         header: 'Current stage',
+        width: PROCEDURE_COLUMN_WIDTH.stage,
         renderCell: (p) => (
           <StageProgressCell
             completed={p.completedStageCount ?? 0}
             total={p.stageCount ?? 0}
             currentStageName={p.currentStageName}
+            // There's no status column here, so the cell says when a procedure is blocked or in review.
             status={p.status ?? ''}
           />
         ),

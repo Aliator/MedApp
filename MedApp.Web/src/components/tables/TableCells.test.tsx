@@ -3,6 +3,7 @@ import {renderWithApp, isDisabled} from '../../test/render';
 import {AppIcon} from '../shared/icons';
 import {AvatarCell} from './AvatarCell';
 import {TableActions} from './TableActions';
+import {TextCell} from './TextCell';
 
 describe('AvatarCell', () => {
   it('shows the avatar, the name and the secondary text', async () => {
@@ -17,6 +18,19 @@ describe('AvatarCell', () => {
     renderWithApp(<AvatarCell primaryText="a.hartwell" />);
 
     expect(await screen.findByText('a.hartwell')).toBeInTheDocument();
+  });
+});
+
+describe('TextCell', () => {
+  it('shows the text, or nothing when there is none', async () => {
+    renderWithApp(
+      <>
+        <TextCell text="Standard surgical pathway" />
+        <TextCell text={null} maxLines={2} />
+      </>,
+    );
+
+    expect(await screen.findByText('Standard surgical pathway')).toBeInTheDocument();
   });
 });
 

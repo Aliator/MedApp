@@ -11,11 +11,12 @@ Guidance for AI coding agents working in `MedApp.Web`, the React app replacing t
 - **Fit the window; scroll the cards, not the page.** Pages that show more than a short form use `Page` with `fill`, and their cards fill the space. A card's open parts scroll inside it; the page never does.
 - **Build reusable patterns, not one-off page wiring.** When a page needs a layout or behaviour that another page could plausibly use, make it a composite in `src/components/` with its own test and a doc comment saying when to use it, then use it from the page. Look for an existing one first, and extend it rather than writing a near-copy. Signs a piece should be shared: you're reaching for flex or measuring code in a page, a second page wants the same thing, or the user describes it as a rule ("headers should look like…").
   - The shared building blocks so far:
-    - `Page` and `PageHeader`: the frame, title and Back.
+    - `Page` and `PageHeader`: the frame, title and Back. A page's own messages (load and save errors) go in its `message`, a rounded banner in the middle of the header, so they never push the content down. On a form, `ValidationAlert` takes the form's `fields` and lists only the messages that aren't already on a field.
     - `TwoColumns`: two equal cards side by side.
     - `PanelCard` and `PanelHeader`: a header bar, a scrolling body and a pinned footer.
     - `FoldingCard`: sections under header bars that fold, with the open ones sharing the card equally.
     - `CardSection`: titled sections in `ViewCard` and `FormCard`, whose titles become header bars.
+    - `FormCard` with `fill`: a long form whose sections scroll inside the card, its footer pinned.
     - `DataTable`: a filling, paged table.
     - `FillingTextArea`: a text box that grows into the free space of the area scrolling around it (one per area).
     - `ProcedureCells`: status, priority, due and progress cells.
@@ -23,6 +24,8 @@ Guidance for AI coding agents working in `MedApp.Web`, the React app replacing t
 - **List pages** fill the window: `Page` with `fill`, and `DataTable` stretches to the bottom with its page controls pinned there. They keep page, sort and filters in the URL: the route parses them with `validateSearch` (`src/pages/listSearch.ts`), then passes `search` and `onSearchChange` to the page as props, so pages are testable without the real router. Lists come from the API's paged search endpoints (`src/api/search.ts`).
 - **Data:** TanStack Query. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Call the API through `api` + `unwrap` from `src/api/client.ts`.
 - **Forms:** fields in `useState`; on a 400, show `fieldStatus(errors, field)` on each field. The server's FluentValidation is the source of truth, so don't duplicate its rules here.
+  - Fields side by side line up: Astryx puts a description between the label and the input, so when one field in a row has a description, give the others `BLANK_DESCRIPTION` (`src/components/forms/fieldSpace.ts`). Do the same for a description that comes and goes, so the input doesn't jump.
+  - Nothing moves when an error shows: the theme gives every field a reserved, empty line under its input that its error message fills. A field that never shows an error can drop it with `containerStyle={NO_STATUS_LINE}`.
 - **Tests:** every component and page gets a Vitest test next to it (`X.test.tsx`). Use `renderWithApp` / `renderApp` and `mockFetch` from `src/test/render.tsx`. Synthetic data only.
 - **Before calling a change done:** `npm run lint`, `npm run typecheck` and `npm test` pass, and for a visible change, capture the UI parity screenshots of just the screens you changed (`npm run parity:react -- -g "<screen>"` in `tools/ui-parity`). The full set runs once, when merging (root `AGENTS.md`).
 - **Versions:** `@astryxdesign/*` are pinned exactly (plan Q14). Upgrade them only in their own PR, after reading the changelog, then run `npx astryx upgrade` and `npm run theme:build`.

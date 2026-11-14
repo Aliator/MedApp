@@ -31,4 +31,18 @@ describe('ValidationAlert', () => {
     expect(screen.getByText('First name must not be empty.')).toBeVisible();
     expect(screen.getByText('Email must not be empty.')).toBeVisible();
   });
+
+  it('leaves out the messages a form shows on its own fields, keeping the others', async () => {
+    const errors = parseValidationErrors({
+      title: 'One or more validation errors occurred.',
+      errors: {FirstName: ['First name must not be empty.'], PatientId: ['Patient is required.'], '': ['Something general.']},
+    });
+    renderWithApp(<ValidationAlert errors={errors} fields={['firstName', 'email']} />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('One or more validation errors occurred.');
+    expect(alert).not.toHaveTextContent('First name must not be empty.');
+    expect(screen.getByText('Patient is required.')).toBeVisible();
+    expect(screen.getByText('Something general.')).toBeVisible();
+  });
 });

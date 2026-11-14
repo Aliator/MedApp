@@ -1,5 +1,5 @@
-import {ApiError, ApiValidationError, parseValidationErrors} from '../../api/errors';
-import {saveProblem} from './patientErrors';
+import {ApiError, ApiValidationError, parseValidationErrors} from '../api/errors';
+import {saveProblem} from './saveProblem';
 
 describe('saveProblem', () => {
   it('returns field errors for a 400', () => {
@@ -30,6 +30,14 @@ describe('saveProblem', () => {
     ['delete', 'An unexpected error occurred while deleting the patient.'],
   ] as const)('falls back to a message about %s', (action, message) => {
     expect(saveProblem(new ApiError(409), action).message).toBe(message);
+  });
+
+  it('names a procedure when that is what is being saved', () => {
+    expect(saveProblem(new ApiError(403), 'save', 'procedure').message).toBe('You do not have permission to change procedures.');
+    expect(saveProblem(new ApiError(404), 'save', 'procedure').message).toBe('Procedure not found. It may have been deleted.');
+    expect(saveProblem(new ApiError(418), 'add', 'procedure').message).toBe(
+      'An unexpected error occurred while adding the procedure.',
+    );
   });
 
   it('shows the reason the API gives for a conflict', () => {

@@ -65,7 +65,8 @@ describe('HomePage', () => {
     expect(within(notStarted).getByText('Diagnostic procedure')).toBeInTheDocument();
     expect(within(started).getByText('2 of 9 stages done')).toBeInTheDocument();
     expect(within(started).getByText('Blocked')).toBeInTheDocument();
-    expect(within(started).getAllByRole('link', {name: 'Test Patient'})[0]).toHaveAttribute('href', '/patients/patient-1');
+    expect(within(started).getAllByText('Test Patient').length).toBeGreaterThan(0);
+    expect(within(started).getAllByRole('link', {name: 'View patient'})[0]).toHaveAttribute('href', '/patients/patient-1');
     expect(within(notStarted).getByRole('link', {name: 'View procedure'})).toHaveAttribute('href', '/procedures/a');
     expect(within(started).getAllByRole('link', {name: 'View procedure'})[0]).toHaveAttribute('href', '/procedures/b');
     expect(calls(fetch).sort()).toEqual([query(false), query(true)]);

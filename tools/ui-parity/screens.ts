@@ -118,6 +118,28 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'procedure-new',
+    title: "New procedure for a patient, a template chosen: its stages listed and its name as the title",
+    path: (d) => `/procedures/new?patientId=${d.patientId}`,
+    prepare: async (page) => {
+      await page.getByRole('combobox', { name: /Template/ }).click();
+      await page.getByRole('option').first().click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-new-narrow',
+    title: 'New procedure on a narrow window: one form card that scrolls, its footer pinned',
+    path: (d) => `/procedures/new?patientId=${d.patientId}`,
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.getByRole('combobox', { name: /Template/ }).click();
+      await page.getByRole('option').first().click();
+      await settle(page);
+    },
+  },
+  { name: 'procedure-edit', title: "Edit a procedure's details", path: (d) => `/procedures/${d.procedureId}/edit` },
+  {
     name: 'procedure-block',
     title: 'Block procedure dialog, asking for a reason (not confirmed)',
     path: (d) => `/procedures/${d.procedureId}`,

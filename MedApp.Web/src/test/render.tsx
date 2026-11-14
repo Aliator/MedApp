@@ -115,6 +115,13 @@ export async function findAlert(text: string | RegExp) {
   });
 }
 
+/** The description line Astryx shows under a field's label (found through the input's aria-describedby), untrimmed. */
+export const descriptionOf = (input: HTMLElement) =>
+  (input.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .map((id) => document.getElementById(id))
+    .find((element) => element !== null)?.textContent;
+
 /** A synthetic page of results, shaped like the API's PagedResponse. */
 export const pageOf = <T,>(items: T[], totalCount = items.length, page = 1) => ({
   items,

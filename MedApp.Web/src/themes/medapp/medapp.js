@@ -422,6 +422,9 @@ export const medappTheme = {
       "type:error": {
         "backgroundColor": "var(--color-background-red)",
         "color": "var(--color-text-red)"
+      },
+      "variant:attached": {
+        "marginBottom": "calc(-1 * calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading)))"
       }
     },
     "text-input": {
@@ -591,6 +594,16 @@ export const medappTheme = {
     "section": {
       "base": {
         "padding": "var(--spacing-3)"
+      }
+    },
+    "field": {
+      "base": {
+        "paddingBottom": "calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading))"
+      }
+    },
+    "table-cell": {
+      "base": {
+        "height": "var(--medapp-table-row-height, auto)"
       }
     },
     "table-header-cell": {

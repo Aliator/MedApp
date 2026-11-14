@@ -7,8 +7,8 @@ import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
-import {EMPTY_PATIENT, PatientFormFields} from './PatientFormFields';
-import {NO_PROBLEM, saveProblem, type SaveProblem} from './patientErrors';
+import {EMPTY_PATIENT, PATIENT_FIELDS, PatientFormFields} from './PatientFormFields';
+import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 /**
  * Add a patient (replaces Blazor's AddPatient): the form, a confirmation showing what will be added, then
@@ -36,6 +36,13 @@ export function AddPatientPage() {
       title="Add New Patient"
       backHref="/patients"
       backLabel="Back to patients"
+      message={
+        problem.validation ? (
+          <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
+        ) : (
+          problem.message && <AlertMessage message={problem.message} />
+        )
+      }
       dialogs={
         <ConfirmDialog
           isOpen={isConfirming}
@@ -49,8 +56,6 @@ export function AddPatientPage() {
           <PatientSummary {...form} />
         </ConfirmDialog>
       }>
-      {problem.validation && <ValidationAlert errors={problem.validation} />}
-      {problem.message && <AlertMessage message={problem.message} />}
       <FormCard
         saveText="Add Patient"
         onSave={() => {
