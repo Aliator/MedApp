@@ -194,6 +194,19 @@ Totals: 18 mapped 1:1, 11 composites and 1 removed. `DatePickerFormGroup` is lis
   - `AGENTS.md` gets a line telling agents to run it and look at both screenshots when they change a page during the migration.
 - **Browsers:** only Chromium is installed (`npx playwright install chromium`, about 150–300 MB), which counts against the disk space already short on C: (Q2).
 
+### Dev MCP server for accounts and app state
+
+✅ **Built (2026-11-14):** `tools/MedApp.DevMcp`, registered in `.mcp.json` as `medapp-dev`. It lets an agent manage local state while `MedApp.Web` is built, reusing the app's own commands:
+- accounts, roles, passwords and lockout
+- sessions
+- synthetic patients
+- migration status and row counts
+- whole-database snapshot and restore
+
+It runs against LocalDB or localhost only, protects `admin`, and needs `confirm: true` for destructive tools. `.mcp.json` also registers the Astryx docs MCP.
+
+**When the SQL container lands (Q2):** connection strings come from Aspire, and the guard already accepts `localhost`. But snapshot files would need a path inside the container, so snapshots stay LocalDB-only until then.
+
 ## 6. Phased delivery
 
 Each phase ends with a working app. Blazor stays the default UI until phase 5, and is then deprecated, not deleted.
