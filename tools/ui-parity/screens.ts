@@ -258,4 +258,15 @@ export const screens: Screen[] = [
     title: "One procedure's audit log, from its View Audit Log",
     path: (d) => `/admin/audit?procedureId=${d.procedureId}`,
   },
+  {
+    name: 'half-view',
+    title: "Half view: a procedure beside its patient's page, each in its narrow layout, the nav folded away",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('navigation').getByRole('link', { name: 'Patients' }).hover();
+      await page.getByRole('button', { name: 'Open Patients in half view' }).click();
+      await page.getByRole('heading', { name: 'Patients', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
 ];

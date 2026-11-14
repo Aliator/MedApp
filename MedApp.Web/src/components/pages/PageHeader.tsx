@@ -1,9 +1,11 @@
 import {Icon} from '@astryxdesign/core/Icon';
+import {IconButton} from '@astryxdesign/core/IconButton';
 import {Link} from '@astryxdesign/core/Link';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Heading, Text} from '@astryxdesign/core/Text';
 import type {ReactNode} from 'react';
 import {AppIcon} from '../shared/icons';
+import {useHalfView} from './halfView';
 
 export interface PageHeaderProps {
   title: string;
@@ -27,12 +29,17 @@ export interface PageHeaderProps {
 
 /**
  * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end and
- * any page message in the middle.
+ * any page message in the middle. In a half view, it ends with the button that closes that half.
  * The line holds the Back link (on pages you drill into) and/or the subtitle, and is the same height either way,
  * so the title and the content below sit in exactly the same place on every page.
  */
 export function PageHeader({title, subtitle, backHref, onBack, backLabel, actions, message, level = 1}: PageHeaderProps) {
   const hasBack = backHref !== undefined || onBack !== undefined;
+  // In a half view, the page's own header closes its half.
+  const {onClose} = useHalfView();
+  const close = level === 1 && onClose && (
+    <IconButton label="Close half view" tooltip="Close half view" icon={<Icon icon={AppIcon.Cancel} />} variant="ghost" onClick={onClose} />
+  );
 
   return (
     <HStack gap={4} vAlign="center">
@@ -69,9 +76,10 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
           </HStack>
         )}
       </StackItem>
-      {actions && (
+      {(actions || close) && (
         <HStack gap={2} vAlign="center">
           {actions}
+          {close}
         </HStack>
       )}
     </HStack>

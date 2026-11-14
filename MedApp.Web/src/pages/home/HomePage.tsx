@@ -3,7 +3,6 @@ import {Button} from '@astryxdesign/core/Button';
 import {ClickableCard} from '@astryxdesign/core/ClickableCard';
 import type {DateRange} from '@astryxdesign/core/DateRangeInput';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
-import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Icon} from '@astryxdesign/core/Icon';
 import {StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
@@ -12,7 +11,7 @@ import {useState, type ReactNode} from 'react';
 import type {ProcedureSummary} from '../../api/procedures';
 import {PAGE_SIZE, procedureSearchQuery, type ProcedureSearch} from '../../api/search';
 import {SearchDialog, type SearchField, type SearchValues} from '../../components/modals/SearchDialog';
-import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
+import {Page, useIsNarrow} from '../../components/pages/Page';
 import {PageHeader} from '../../components/pages/PageHeader';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {
@@ -353,7 +352,7 @@ export type HomePageProps = Omit<TaskBoardProps, 'isNarrow'>;
  * page: those not started yet, and those under way (including blocked and in-review ones).
  */
 export function HomePage(props: HomePageProps) {
-  const isNarrow = useMediaQuery(NARROW_WINDOW_QUERY, false);
+  const isNarrow = useIsNarrow();
 
   return (
     <Page title="My tasks" subtitle="Unfinished procedures assigned to you, soonest due first." fill>

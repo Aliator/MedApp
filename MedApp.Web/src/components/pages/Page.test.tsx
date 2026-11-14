@@ -1,8 +1,9 @@
 import {Button} from '@astryxdesign/core/Button';
 import {screen, waitFor} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {Page} from './Page';
+import {Page, useIsNarrow} from './Page';
 import {AlertMessage} from '../shared/AlertMessage';
+import {HalfViewContext} from './halfView';
 import {PageHeader} from './PageHeader';
 
 describe('PageHeader', () => {
@@ -24,6 +25,21 @@ describe('PageHeader', () => {
     expect(alert).toHaveTextContent('The patients could not be loaded.');
     expect(heading.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(alert.compareDocumentPosition(screen.getByRole('button', {name: 'Search'})) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('ends with a button that closes its half, in a half view', async () => {
+    const onClose = vi.fn();
+    const {user} = renderWithApp(
+      <HalfViewContext.Provider value={{isHalf: true, onClose}}>
+        <PageHeader title="Patients" actions={<Button label="Search" />} />
+        <PageHeader title="Started" level={2} />
+      </HalfViewContext.Provider>,
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Close half view'}));
+    expect(onClose).toHaveBeenCalledOnce();
+    // Only the page's own header has it, not a section's.
+    expect(screen.getAllByRole('button', {name: 'Close half view'})).toHaveLength(1);
   });
 
   it('has no back button unless asked for one', async () => {
@@ -80,5 +96,25 @@ describe('Page', () => {
     renderWithApp(<Page title="Patients" isLoading dialogs={<p>A dialog</p>} />);
 
     expect(await screen.findByText('A dialog')).toBeInTheDocument();
+  });
+});
+
+describe('useIsNarrow', () => {
+  function Shows() {
+    return <output>{useIsNarrow() ? 'narrow' : 'wide'}</output>;
+  }
+
+  it('is narrow in a half view, whatever the window', async () => {
+    renderWithApp(
+      <>
+        <Shows />
+        <HalfViewContext.Provider value={{isHalf: true}}>
+          <Shows />
+        </HalfViewContext.Provider>
+      </>,
+    );
+
+    expect(await screen.findByText('wide')).toBeInTheDocument();
+    expect(screen.getByText('narrow')).toBeInTheDocument();
   });
 });

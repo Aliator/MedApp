@@ -1,7 +1,6 @@
 import {Selector} from '@astryxdesign/core/Selector';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
-import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
@@ -11,7 +10,7 @@ import {procedureTemplatesQuery, useCreateProcedure, type ProcedureDetailsInput,
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
-import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
+import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
@@ -38,7 +37,7 @@ export interface NewProcedurePageProps {
  */
 export function NewProcedurePage({patientId}: NewProcedurePageProps) {
   const navigate = useNavigate();
-  const isNarrow = useMediaQuery(NARROW_WINDOW_QUERY);
+  const isNarrow = useIsNarrow();
   const create = useCreateProcedure();
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const templates = useQuery(procedureTemplatesQuery());
