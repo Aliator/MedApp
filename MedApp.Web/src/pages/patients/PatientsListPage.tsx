@@ -121,7 +121,11 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       key: 'Email',
       header: 'Email',
       sortable: true,
-      renderCell: (p) => <Link href={`mailto:${p.email}`}>{p.email}</Link>,
+      renderCell: (p) => (
+        <Text type="body" maxLines={1}>
+          <Link href={`mailto:${p.email}`}>{p.email}</Link>
+        </Text>
+      ),
     },
     {
       key: 'actions',
@@ -152,6 +156,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       title="Patients"
       subtitle={subtitle}
       fill
+      message={isError && <AlertMessage message="The patients could not be loaded. Please try again." />}
       actions={
         <>
           {isFiltered && (
@@ -173,7 +178,6 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           onClose={() => setIsSearchOpen(false)}
         />
       }>
-      {isError && <AlertMessage message="The patients could not be loaded. Please try again." />}
       {noPatientsAtAll ? (
         <EmptyState
           title="No patients yet"

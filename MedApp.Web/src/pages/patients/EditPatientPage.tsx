@@ -10,8 +10,8 @@ import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
-import {PatientFormFields} from './PatientFormFields';
-import {NO_PROBLEM, saveProblem, type SaveProblem} from './patientErrors';
+import {PATIENT_FIELDS, PatientFormFields} from './PatientFormFields';
+import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 const toInput = (p: Patient): PatientInput => ({
   firstName: p.firstName ?? '',
@@ -45,9 +45,9 @@ export function EditPatientPage({id}: {id: string}) {
       {...pageProps}
       backHref={`/patients/${id}`}
       isLoading={isPending || isMissing}
-      loadingMessage="Loading patient...">
-      {error && !isMissing && <AlertMessage message="The patient could not be loaded. Please try again." />}
-    </Page>
+      loadingMessage="Loading patient..."
+      message={error && !isMissing && <AlertMessage message="The patient could not be loaded. Please try again." />}
+    />
   );
 }
 
@@ -86,6 +86,13 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
     <Page
       {...pageProps}
       onBack={backToPatient}
+      message={
+        problem.validation ? (
+          <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
+        ) : (
+          problem.message && <AlertMessage message={problem.message} />
+        )
+      }
       dialogs={
         <>
           <ConfirmDialog
@@ -119,8 +126,6 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
           </ConfirmDialog>
         </>
       }>
-      {problem.validation && <ValidationAlert errors={problem.validation} />}
-      {problem.message && <AlertMessage message={problem.message} />}
       <FormCard
         onSave={() => {
           setProblem(NO_PROBLEM);

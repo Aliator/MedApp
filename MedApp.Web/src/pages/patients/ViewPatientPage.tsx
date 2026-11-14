@@ -32,10 +32,11 @@ export function ViewPatientPage({id}: {id: string}) {
       backHref="/patients"
       backLabel="Back to patients"
       isLoading={isPending}
-      loadingMessage="Loading patient...">
-      {error && !(error instanceof ApiError && error.status === 404) && (
-        <AlertMessage message="The patient could not be loaded. Please try again." />
-      )}
+      loadingMessage="Loading patient..."
+      message={
+        error &&
+        !(error instanceof ApiError && error.status === 404) && <AlertMessage message="The patient could not be loaded. Please try again." />
+      }>
       {patient && (
         <ViewCard
           footerActions={

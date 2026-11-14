@@ -377,3 +377,56 @@ describe('ProcedurePage on a narrow window', () => {
     expect(screen.getAllByRole('button', {name: 'Instructions'})[0]).toHaveAttribute('aria-expanded', 'true');
   });
 });
+
+describe('ProcedurePage details and deleting', () => {
+  it('links to Edit Details while the details can be edited', async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working())});
+    renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+
+    expect(await screen.findByRole('link', {name: 'Edit Details'})).toHaveAttribute('href', `/procedures/${id}/edit`);
+  });
+
+  it('has no Edit Details once the details are closed to editing', async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working({status: 'Cancelled', canEditDetails: false}))});
+    renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Details', level: 2});
+    expect(screen.queryByRole('link', {name: 'Edit Details'})).not.toBeInTheDocument();
+  });
+
+  it("offers Delete only to admins, and only when the API allows it", async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true}))});
+    renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+    await screen.findByRole('heading', {name: 'Details', level: 2});
+    expect(screen.queryByRole('button', {name: 'Delete Procedure'})).not.toBeInTheDocument();
+  });
+
+  it("deletes a cancelled procedure after a confirmation, then shows the patient's procedures", async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true})),
+      [`DELETE ${PATH}`]: () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Delete Procedure'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText('Colonoscopy')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Delete Procedure'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/patients/patient-1/procedures'));
+    expect(calls(fetch)).toContain(`DELETE ${PATH}`);
+  });
+
+  it('explains a failed delete', async () => {
+    mockApi({
+      [`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true})),
+      [`DELETE ${PATH}`]: () => json({title: 'Only cancelled or archived procedures can be deleted.'}, 409),
+    });
+    const {user} = renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Delete Procedure'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Procedure'}));
+
+    expect(await findAlert('Only cancelled or archived procedures can be deleted.')).toBeInTheDocument();
+  });
+});

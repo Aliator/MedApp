@@ -7,6 +7,9 @@ import {AppIcon} from '../../components/shared/icons';
 
 export const EMPTY_PATIENT: PatientInput = {firstName: '', lastName: '', dateOfBirth: '', email: ''};
 
+/** The fields shown, whose errors show on them (so the page's banner leaves them out). */
+export const PATIENT_FIELDS = Object.keys(EMPTY_PATIENT);
+
 export interface PatientFormFieldsProps {
   value: PatientInput;
   onChange: (value: PatientInput) => void;

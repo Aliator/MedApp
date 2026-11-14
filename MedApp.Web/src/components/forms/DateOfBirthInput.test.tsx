@@ -1,8 +1,9 @@
 import {screen} from '@testing-library/react';
-import {renderWithApp} from '../../test/render';
+import {descriptionOf, renderWithApp} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {DateOfBirthInput} from './DateOfBirthInput';
 import {DateOfBirthRangeInput} from './DateOfBirthRangeInput';
+import {BLANK_DESCRIPTION} from './fieldSpace';
 
 describe('DateOfBirthInput', () => {
   it('is labelled and shows the age for the chosen date', async () => {
@@ -12,10 +13,11 @@ describe('DateOfBirthInput', () => {
     expect(screen.getAllByText(/date of birth/i).length).toBeGreaterThan(0);
   });
 
-  it('shows no age without a date, or when asked not to', async () => {
+  it("shows no age without a date, keeping the age's line so the input doesn't jump, or when asked not to", async () => {
     const {unmount} = renderWithApp(<DateOfBirthInput value={undefined} onChange={() => {}} />);
     await screen.findAllByText(/date of birth/i);
     expect(screen.queryByText(/^Age:/)).not.toBeInTheDocument();
+    expect(descriptionOf(screen.getByRole('combobox', {name: /date of birth/i}))).toBe(BLANK_DESCRIPTION);
     unmount();
 
     renderWithApp(<DateOfBirthInput value="1980-03-14" onChange={() => {}} showAge={false} />);

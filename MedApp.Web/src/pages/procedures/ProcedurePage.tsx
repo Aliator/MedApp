@@ -9,9 +9,17 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
+import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
 import {ApiError, problemMessage} from '../../api/errors';
-import {procedureQuery, useProcedureActions, type Procedure, type ProcedureStage} from '../../api/procedures';
+import {
+  canDeleteProcedure,
+  procedureQuery,
+  useDeleteProcedure,
+  useProcedureActions,
+  type Procedure,
+  type ProcedureStage,
+} from '../../api/procedures';
 import {userSearchQuery} from '../../api/search';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -20,6 +28,7 @@ import {NARROW_WINDOW_QUERY, Page} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
 import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../components/procedures/ProcedureCells';
+import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/procedures/StageList';
 import {StageWork} from '../../components/procedures/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/procedures/StatusChangeDialog';
@@ -37,6 +46,7 @@ type Dialog =
   | {kind: 'unlock'; stage: ProcedureStage}
   | {kind: 'assign'}
   | {kind: 'unassign'; userId: string; username: string}
+  | {kind: 'delete'}
   | null;
 
 /** The wording of decision 18 in docs/procedures-ui-plan.md. */
@@ -70,6 +80,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const user = useCurrentUser();
   const {data: procedure, error, isPending} = useQuery(procedureQuery(id));
   const actions = useProcedureActions(id);
+  const remove = useDeleteProcedure(id);
+  const navigate = useNavigate();
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -102,7 +114,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const isMissing = error instanceof ApiError && error.status === 404;
   const currentStage = procedure?.stages?.find((s) => s.id === procedure.currentStageId);
   const isMine = procedure?.assignments?.some((a) => a.username === user.username) ?? false;
-  const isBusy = Object.values(actions).some((action) => action.isPending);
+  const isBusy = Object.values(actions).some((action) => action.isPending) || remove.isPending;
 
   /** Runs a change to the procedure, first asking (once per visit) if it isn't assigned to you. */
   const checked = (action: () => void) => {
@@ -178,19 +190,46 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
       isLoading={isPending}
       loadingMessage="Loading procedure..."
       fill={procedure !== undefined}
-      actions={procedure?.allowedStatusChanges?.map((to) => {
-        const action = statusAction(to);
-        return (
-          <Button
-            key={to}
-            label={action.label}
-            variant={action.variant}
-            icon={<Icon icon={action.icon} />}
-            onClick={() => checked(() => setDialog({kind: 'status', to}))}
-            isDisabled={isBusy}
-          />
-        );
-      })}
+      message={
+        isMissing ? (
+          <AlertMessage message="Procedure not found. It may have been deleted." />
+        ) : error ? (
+          <AlertMessage message="The procedure could not be loaded. Please try again." />
+        ) : (
+          actionError && <AlertMessage message={actionError} />
+        )
+      }
+      actions={
+        procedure && (
+          <>
+            {procedure.allowedStatusChanges?.map((to) => {
+              const action = statusAction(to);
+              return (
+                <Button
+                  key={to}
+                  label={action.label}
+                  variant={action.variant}
+                  icon={<Icon icon={action.icon} />}
+                  onClick={() => checked(() => setDialog({kind: 'status', to}))}
+                  isDisabled={isBusy}
+                />
+              );
+            })}
+            {canDeleteProcedure(procedure, user.isAdmin) && (
+              <Button
+                label="Delete Procedure"
+                variant="destructive"
+                icon={<Icon icon={AppIcon.Delete} />}
+                onClick={() => {
+                  setActionError(null);
+                  setDialog({kind: 'delete'});
+                }}
+                isDisabled={isBusy}
+              />
+            )}
+          </>
+        )
+      }
       dialogs={
         <>
           <ConfirmDialog
@@ -275,10 +314,27 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             }
             onCancel={close}
           />
+          <ConfirmDialog
+            isOpen={dialog?.kind === 'delete'}
+            title="Confirm Delete"
+            message="The procedure and its stages will be deleted. This action cannot be undone; its audit log is kept."
+            isDanger
+            confirmText="Delete Procedure"
+            isProcessing={remove.isPending}
+            onConfirm={() =>
+              remove.mutate(undefined, {
+                onSuccess: () =>
+                  void navigate({to: '/patients/$id/procedures', params: {id: procedure?.patientId ?? ''}, replace: true}),
+                onError: failed('The procedure could not be deleted.'),
+              })
+            }
+            onCancel={close}>
+            {dialog?.kind === 'delete' && procedure && (
+              <ProcedureSummary title={procedure.title} patientName={procedure.patientName} templateName={procedure.templateName} />
+            )}
+          </ConfirmDialog>
         </>
       }>
-      {isMissing && <AlertMessage message="Procedure not found. It may have been deleted." />}
-      {error && !isMissing && <AlertMessage message="The procedure could not be loaded. Please try again." />}
       {procedure && (isNarrow ? narrowLayout(procedure) : wideLayout(procedure))}
     </Page>
   );
@@ -289,7 +345,6 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
       <>
         <Section variant="transparent" padding={6}>
           <VStack gap={4}>
-            {actionError && <AlertMessage message={actionError} />}
             <HStack gap={2} vAlign="center">
             <StatusToken status={procedure.status ?? ''} />
             <PriorityToken priority={procedure.priority ?? ''} />
@@ -350,6 +405,15 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   function footer(procedure: Procedure) {
     return (
       <>
+        {procedure.canEditDetails && (
+          <Button
+            label="Edit Details"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Edit} />}
+            href={`/procedures/${procedure.id}/edit`}
+            isDisabled={isBusy}
+          />
+        )}
         {canAssign(procedure) && (
           <Button
             label="Assign Staff"

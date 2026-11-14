@@ -19,6 +19,23 @@ describe('FormCard', () => {
     expect(onSave).toHaveBeenCalledOnce();
   });
 
+  it('fills its space with the same sections and footer, still saving', async () => {
+    const onSave = vi.fn();
+    const {user} = renderWithApp(
+      <FormCard fill onSave={onSave} onCancel={() => {}}>
+        <FormSection title="Details">
+          <p>Fields</p>
+        </FormSection>
+      </FormCard>,
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Details'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Cancel'})).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+
+    expect(onSave).toHaveBeenCalledOnce();
+  });
+
   it('saves when Enter is pressed in a field', async () => {
     const onSave = vi.fn();
     const {user} = renderWithApp(

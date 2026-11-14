@@ -12,7 +12,8 @@ export interface AlertMessageProps {
 }
 
 /**
- * A status banner (replaces Blazor's AlertMessage). Errors and warnings are announced to screen readers
+ * A status banner with rounded corners (replaces Blazor's AlertMessage). A page's own messages go in its header
+ * (`Page`'s `message`). Errors and warnings are announced to screen readers
  * as alerts; success and info messages are not.
  */
 export function AlertMessage({message, status = 'error', details = []}: AlertMessageProps) {
@@ -22,7 +23,7 @@ export function AlertMessage({message, status = 'error', details = []}: AlertMes
     <Banner
       status={status}
       title={message}
-      container="section"
+      container="card"
       role={isUrgent ? 'alert' : undefined}
       // As `description`, not children: Banner folds children behind an "Expand" toggle, and errors must stay visible.
       description={
@@ -40,7 +41,19 @@ export function AlertMessage({message, status = 'error', details = []}: AlertMes
   );
 }
 
-/** A 400's errors as a banner: the title, then every field and general message. */
-export function ValidationAlert({errors}: {errors: ValidationErrors}) {
-  return <AlertMessage message={errors.title} details={allMessages(errors)} />;
+export interface ValidationAlertProps {
+  errors: ValidationErrors;
+  /**
+   * The fields the form shows, whose messages show on the fields themselves (`fieldStatus`), so the banner leaves
+   * them out and stays small. Without it, the banner lists every message.
+   */
+  fields?: readonly string[];
+}
+
+/** A 400's errors as a banner: the title, then each message that isn't already shown on one of `fields`. */
+export function ValidationAlert({errors, fields}: ValidationAlertProps) {
+  const details = fields
+    ? [...Object.entries(errors.fields).flatMap(([field, messages]) => (fields.includes(field) ? [] : messages)), ...errors.general]
+    : allMessages(errors);
+  return <AlertMessage message={errors.title} details={details} />;
 }

@@ -1,6 +1,15 @@
 import {screen} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {AssigneesCell, DueDateCell, PriorityToken, ProcedureCell, StageProgressCell, StatusToken, statusLabel} from './ProcedureCells';
+import {
+  AssigneesCell,
+  DueDateCell,
+  PriorityToken,
+  ProcedureActions,
+  ProcedureCell,
+  StageProgressCell,
+  StatusToken,
+  statusLabel,
+} from './ProcedureCells';
 
 describe('ProcedureCells', () => {
   it('puts statuses into words', () => {
@@ -8,18 +17,22 @@ describe('ProcedureCells', () => {
     expect(statusLabel('Blocked')).toBe('Blocked');
   });
 
-  it('links the title to the procedure and the patient to theirs', async () => {
-    renderWithApp(<ProcedureCell id="proc-1" title="Colonoscopy" patientId="p-1" patientName="Test Patient" />);
+  it('links the title to the procedure', async () => {
+    renderWithApp(<ProcedureCell id="proc-1" title="Colonoscopy" />);
 
     expect(await screen.findByRole('link', {name: 'Colonoscopy'})).toHaveAttribute('href', '/procedures/proc-1');
-    expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/p-1');
   });
 
-  it('shows secondary text instead of the patient when given no patient', async () => {
-    renderWithApp(<ProcedureCell id="proc-1" title="Colonoscopy" secondary="Diagnostic procedure" />);
+  it('offers View procedure, and View patient when given the patient', async () => {
+    const {unmount} = renderWithApp(<ProcedureActions id="proc-1" patientId="p-1" />);
 
-    expect(await screen.findByText('Diagnostic procedure')).toBeInTheDocument();
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(await screen.findByRole('link', {name: 'View procedure'})).toHaveAttribute('href', '/procedures/proc-1');
+    expect(screen.getByRole('link', {name: 'View patient'})).toHaveAttribute('href', '/patients/p-1');
+    unmount();
+
+    renderWithApp(<ProcedureActions id="proc-1" />);
+    await screen.findByRole('link', {name: 'View procedure'});
+    expect(screen.queryByRole('link', {name: 'View patient'})).not.toBeInTheDocument();
   });
 
   it('lists the assignees, or says nobody is assigned', async () => {
@@ -48,19 +61,32 @@ describe('ProcedureCells', () => {
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
   });
 
-  it('shows the current stage and progress, and says when a procedure is blocked', async () => {
-    renderWithApp(<StageProgressCell completed={2} total={7} currentStageName="Consultation" status="Blocked" />);
+  it('shows the current stage and progress', async () => {
+    renderWithApp(<StageProgressCell completed={2} total={7} currentStageName="Consultation" />);
 
     expect(await screen.findByText('Consultation')).toBeInTheDocument();
     expect(screen.getByText('2 of 7 stages done')).toBeInTheDocument();
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
   });
 
-  it('says when every stage is finished', async () => {
-    renderWithApp(<StageProgressCell completed={4} total={4} currentStageName={null} status="InReview" />);
+  it('says Completed when every stage is finished, on one line', async () => {
+    renderWithApp(<StageProgressCell completed={4} total={4} currentStageName={null} />);
 
-    expect(await screen.findByText('All stages finished')).toBeInTheDocument();
+    expect(await screen.findByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText('In review')).not.toBeInTheDocument();
+  });
+
+  it('says when a procedure is blocked or in review, for a list without a status column', async () => {
+    renderWithApp(
+      <>
+        <StageProgressCell completed={2} total={7} currentStageName="Consultation" status="Blocked" />
+        <StageProgressCell completed={4} total={4} currentStageName={null} status="InReview" />
+        <StageProgressCell completed={1} total={7} currentStageName="Consent" status="InProgress" />
+      </>,
+    );
+
+    expect(await screen.findByText('Blocked')).toBeInTheDocument();
     expect(screen.getByText('In review')).toBeInTheDocument();
+    expect(screen.queryByText('In progress')).not.toBeInTheDocument();
   });
 
   it('labels priority and status tokens', async () => {

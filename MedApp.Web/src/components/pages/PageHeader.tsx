@@ -16,16 +16,22 @@ export interface PageHeaderProps {
   backLabel?: string;
   /** Buttons at the end of the header, e.g. Search and Add. */
   actions?: ReactNode;
+  /**
+   * A message for the whole page, such as an error from saving or loading (an `AlertMessage`). It sits in the middle
+   * of the header, between the title and the actions, so it never pushes the content down.
+   */
+  message?: ReactNode;
   /** 2 for a section's header within a page, such as each of Home's task lists. */
   level?: 1 | 2;
 }
 
 /**
- * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end.
+ * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end and
+ * any page message in the middle.
  * The line holds the Back link (on pages you drill into) and/or the subtitle, and is the same height either way,
  * so the title and the content below sit in exactly the same place on every page.
  */
-export function PageHeader({title, subtitle, backHref, onBack, backLabel, actions, level = 1}: PageHeaderProps) {
+export function PageHeader({title, subtitle, backHref, onBack, backLabel, actions, message, level = 1}: PageHeaderProps) {
   const hasBack = backHref !== undefined || onBack !== undefined;
 
   return (
@@ -56,7 +62,13 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
           </HStack>
         )}
       </VStack>
-      <StackItem size="fill" />
+      <StackItem size="fill">
+        {message && (
+          <HStack hAlign="center" vAlign="center">
+            {message}
+          </HStack>
+        )}
+      </StackItem>
       {actions && (
         <HStack gap={2} vAlign="center">
           {actions}

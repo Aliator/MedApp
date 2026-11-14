@@ -45,7 +45,10 @@ describe('ProceduresListPage', () => {
     expect(await screen.findByRole('link', {name: 'Colonoscopy'})).toHaveAttribute('href', '/procedures/proc-1');
     expect(screen.getByRole('heading', {name: 'Procedures', level: 1})).toBeInTheDocument();
     expect(screen.getByText('23 open procedures')).toBeInTheDocument();
-    expect(screen.getAllByRole('link', {name: 'Test Patient'})[0]).toHaveAttribute('href', `/patients/${patientId}`);
+    // A new procedure is for a patient, so it starts from a patient's list, not this one.
+    expect(screen.queryByRole('link', {name: 'New Procedure'})).not.toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getAllByText('Test Patient').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', {name: 'View patient'})[0]).toHaveAttribute('href', `/patients/${patientId}`);
     expect(within(screen.getByRole('table')).getByText('In progress')).toBeInTheDocument();
     expect(screen.getAllByText('2 of 7 stages done')).toHaveLength(2);
     expect(screen.getByText('a.user')).toBeInTheDocument();
@@ -102,8 +105,10 @@ describe('ProceduresListPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Procedures for Test Patient', level: 1})).toBeInTheDocument();
     expect(screen.getAllByText('Diagnostic procedure')).toHaveLength(2);
-    expect(screen.queryByRole('link', {name: 'Test Patient'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'View patient'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', {name: /Patient/})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Back'})).toHaveAttribute('href', `/patients/${patientId}`);
+    expect(screen.getByRole('link', {name: 'New Procedure'})).toHaveAttribute('href', `/procedures/new?patientId=${patientId}`);
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&PatientId=${patientId}`);
   });
 

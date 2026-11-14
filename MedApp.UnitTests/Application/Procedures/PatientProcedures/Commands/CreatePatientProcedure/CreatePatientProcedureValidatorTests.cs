@@ -25,6 +25,15 @@ public sealed class CreatePatientProcedureValidatorTests
         _validator.Validate(Valid() with { DueDate = Today.AddDays(-1) }).IsValid.Should().BeFalse();
     }
 
+    [Test]
+    public void Validate_NoDueDate_FailsWithRequiredMessage()
+    {
+        var result = _validator.Validate(Valid() with { DueDate = default });
+
+        result.Errors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be("Due date is required.");
+    }
+
     [TestCase("Critical")]
     [TestCase("")]
     [TestCase("1")]
