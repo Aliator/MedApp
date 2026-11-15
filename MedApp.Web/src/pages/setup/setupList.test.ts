@@ -21,6 +21,13 @@ describe('setupPage', () => {
   it('filters by name, ignoring case', () => {
     expect(setupPage(items, {name: 'stage k', status: 'any'}).rows.map((r) => r.name)).toEqual(['Stage K']);
   });
+
+  it('counts ones without an archived flag as active, and sorts ones without a name first', () => {
+    const partial = [{name: 'Stage B'}, {isArchived: false}, {}, {name: 'Stage A', isArchived: true}];
+
+    expect(setupPage(partial, {}).rows).toEqual([{isArchived: false}, {}, {name: 'Stage B'}]);
+    expect(setupPage(partial, {name: 'stage', status: 'any'}).rows.map((r) => r.name)).toEqual(['Stage A', 'Stage B']);
+  });
 });
 
 describe('the setup lists search', () => {

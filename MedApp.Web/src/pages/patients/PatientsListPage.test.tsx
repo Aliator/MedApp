@@ -79,10 +79,31 @@ describe('PatientsListPage', () => {
     expect(screen.getByRole('link', {name: 'Add Your First Patient'})).toHaveAttribute('href', '/patients/add');
   });
 
-  it('says when a search matches nothing', async () => {
-    renderList({last: 'Nobody'}, pageOf([], 0));
+  it('says when a search matches nothing, and clears it keeping the sort', async () => {
+    const {user, onSearchChange} = renderList({last: 'Nobody', sort: 'Email', asc: false, page: 2}, pageOf([], 0));
 
     expect((await screen.findAllByText('No patients match your search')).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Email', asc: false});
+  });
+
+  it('counts one registered patient', async () => {
+    renderList({}, pageOf([freya], 1));
+    expect(await screen.findByText('1 patient registered')).toBeInTheDocument();
+  });
+
+  it('counts one matching patient', async () => {
+    renderList({last: 'Ahmed'}, pageOf([freya], 1));
+    expect(await screen.findByText('1 matching patient')).toBeInTheDocument();
+  });
+
+  it('keeps the first page out of the URL', async () => {
+    const {user, onSearchChange} = renderList({page: 2});
+
+    await user.click(await screen.findByRole('button', {name: 'Go to page 1'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});
   });
 
   it('shows an error when the patients cannot be loaded', async () => {

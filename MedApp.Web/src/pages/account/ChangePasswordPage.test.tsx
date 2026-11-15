@@ -1,5 +1,5 @@
 import {screen} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, renderWithApp, findAlert} from '../../test/render';
+import {adminUser, calls, json, mockApi, mockFetch, renderWithApp, findAlert} from '../../test/render';
 import {ChangePasswordPage} from './ChangePasswordPage';
 
 async function fill(user: ReturnType<typeof renderWithApp>['user'], current: string, next: string, confirm: string) {
@@ -66,6 +66,17 @@ describe('ChangePasswordPage', () => {
     await fill(user, 'Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1');
 
     await findAlert(message);
+  });
+
+  it('says when the server cannot be reached', async () => {
+    mockFetch(() => {
+      throw new TypeError('Failed to fetch');
+    });
+    const {user} = renderWithApp(<ChangePasswordPage />, {user: adminUser});
+
+    await fill(user, 'Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1');
+
+    await findAlert('Unable to connect to the server. Please check your connection and try again.');
   });
 
   it("shows the API's reasons when it refuses", async () => {

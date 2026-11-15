@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
 import {StageDefinitionsPage} from './StageDefinitionsPage';
 import {richText, typeRichText} from '../../test/richText';
@@ -94,5 +94,59 @@ describe('StageDefinitionsPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Stage'}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`DELETE ${BASE}/d2`));
+  });
+
+  it('says why an archive failed, with the dialog closed', async () => {
+    const {user} = renderPage({}, {[`POST ${BASE}/d1/archive`]: () => json({title: 'The stage is being changed by someone else.'}, 409)});
+
+    await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Archive stage'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Archive'}));
+
+    expect(await findAlert('The stage is being changed by someone else.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
+  it('says when an add failed for a reason other than its fields', async () => {
+    const {user} = renderPage({}, {[`POST ${BASE}`]: () => json({title: 'Server error'}, 500)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Stage'}));
+    const dialog = within(openDialog()!);
+    await user.type(dialog.getByRole('textbox', {name: /Name/}), 'Scan');
+    await user.click(dialog.getByRole('button', {name: 'Add Stage'}));
+
+    expect(await dialog.findByText('A server error occurred. Please try again later.')).toBeInTheDocument();
+  });
+
+  it('says when the stages could not be loaded', async () => {
+    renderPage({}, {[`GET ${BASE}`]: () => json({title: 'Server error'}, 500)});
+
+    expect(await findAlert('The stages could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  it('offers to add the first stage when there are none', async () => {
+    const {user} = renderPage({}, {[`GET ${BASE}`]: () => json([])});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Your First Stage'}));
+
+    expect(within(openDialog()!).getByRole('button', {name: 'Add Stage'})).toBeInTheDocument();
+  });
+
+  it('offers the archived ones when the search matches no active stage', async () => {
+    const {user, onSearchChange} = renderPage({name: 'triage'});
+
+    await user.click(await screen.findByRole('button', {name: 'Show Archived'}));
+
+    expect(onSearchChange).toHaveBeenCalledWith({name: 'triage', page: undefined, status: 'any'});
+  });
+
+  it('pages through a long list, keeping the first page out of the URL', async () => {
+    const many = Array.from({length: 25}, (_, i) => ({...definitions[1], id: `m${i}`, name: `Synthetic stage ${String(i).padStart(2, '0')}`}));
+    const {user, onSearchChange} = renderPage({page: 2}, {[`GET ${BASE}`]: () => json(many)});
+
+    await screen.findByText('Synthetic stage 10');
+    await user.click(screen.getByRole('button', {name: 'Go to page 1'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});
+    await user.click(screen.getByRole('button', {name: 'Go to page 3'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: 3});
   });
 });

@@ -97,4 +97,19 @@ describe('server rendering', () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('Patients');
   });
+
+  it("sizes the page's text as the account chose, from the first paint, leaving Standard to the browser", async () => {
+    const at = async (textSize: string) => {
+      api({
+        '/api/auth/whoami': signedIn,
+        '/api/auth/me/settings': {settings: JSON.stringify({'medapp.textSize': textSize})},
+        '/api/notifications': {items: [], unreadCount: 0},
+        '/api/patients/search': {items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0},
+      });
+      return (await page('/patients', 'medapp_session=abc')).text();
+    };
+
+    expect(await at('large')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark" style="font-size:112.5%"/);
+    expect(await at('standard')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark">/);
+  });
 });

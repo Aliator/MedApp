@@ -1,4 +1,4 @@
-import {screen} from '@testing-library/react';
+import {renderHook, screen} from '@testing-library/react';
 import {renderWithApp} from '../test/render';
 import {accessibilityCss, ACCESSIBILITY_SETTINGS, useAccessibility, type AccessibilityFlags} from './accessibility';
 
@@ -55,5 +55,29 @@ describe('AccessibilityProvider', () => {
 
     await screen.findByRole('status', {hidden: true});
     expect(document.querySelector('output')).toHaveTextContent(/^$/);
+  });
+  it('starts with every setting off when what is stored cannot be read', async () => {
+    localStorage.setItem(KEY, '{not json');
+    renderWithApp(<Flags />);
+
+    await screen.findByRole('status', {hidden: true});
+    expect(document.querySelector('output')).toHaveTextContent(/^$/);
+  });
+
+  it('starts with every setting off when what is stored is not a set of switches', async () => {
+    localStorage.setItem(KEY, JSON.stringify([true]));
+    renderWithApp(<Flags />);
+
+    await screen.findByRole('status', {hidden: true});
+    expect(document.querySelector('output')).toHaveTextContent(/^$/);
+  });
+
+  it('has every setting off outside its provider (a part tested on its own), and changes nothing there', () => {
+    const {result} = renderHook(() => useAccessibility());
+
+    result.current.set('highContrast', true);
+
+    expect(Object.values(result.current.flags).every((isOn) => !isOn)).toBe(true);
+    expect(localStorage.getItem(KEY)).toBeNull();
   });
 });

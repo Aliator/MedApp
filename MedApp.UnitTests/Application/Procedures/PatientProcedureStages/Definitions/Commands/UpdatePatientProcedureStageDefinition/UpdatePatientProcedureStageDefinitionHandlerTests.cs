@@ -54,7 +54,39 @@ public sealed class UpdatePatientProcedureStageDefinitionHandlerTests
         var act = () => _fixture.Create<UpdatePatientProcedureStageDefinitionHandler>()
             .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, ProcedureStage, null, null), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>();
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"A stage called '{ProcedureStage}' already exists.");
+        _repository.Verify(r => r.UpdateStageDefinitionAsync(It.IsAny<PatientProcedureStageDefinition>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_NewNameFree_RenamesTrimmedAndUpdatesInstructions()
+    {
+        var definition = CreateDefinition(ConsultationStage);
+        _repository.Setup(r => r.GetStageDefinitionByIdAsync(definition.Id, It.IsAny<CancellationToken>())).ReturnsAsync(definition);
+        _repository.Setup(r => r.StageDefinitionNameExistsAsync(ProcedureStage, definition.Id, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var response = await _fixture.Create<UpdatePatientProcedureStageDefinitionHandler>()
+            .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, $" {ProcedureStage} ", null, "New instructions"), CancellationToken.None);
+
+        definition.Name.Should().Be(ProcedureStage);
+        definition.Instructions.Should().Be("New instructions");
+        definition.Description.Should().Be($"{ConsultationStage} description");
+        response.Name.Should().Be(ProcedureStage);
+        response.Instructions.Should().Be("New instructions");
+        _repository.Verify(r => r.UpdateStageDefinitionAsync(definition, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_InstructionsNull_LeavesThemUnchanged()
+    {
+        var definition = CreateDefinition(ConsultationStage);
+        _repository.Setup(r => r.GetStageDefinitionByIdAsync(definition.Id, It.IsAny<CancellationToken>())).ReturnsAsync(definition);
+
+        var response = await _fixture.Create<UpdatePatientProcedureStageDefinitionHandler>()
+            .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, ConsultationStage, "New description", null), CancellationToken.None);
+
+        response.Instructions.Should().Be($"{ConsultationStage} instructions");
+        _repository.Verify(r => r.StageDefinitionNameExistsAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

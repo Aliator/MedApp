@@ -31,4 +31,9 @@ describe('sortRows', () => {
     expect(result).toEqual(rows);
     expect(result).not.toBe(rows);
   });
+
+  it('keeps the original order of several empty values', () => {
+    const empties = [{name: null, id: 1}, {name: 'a', id: 2}, {name: '', id: 3}, {name: undefined, id: 4}];
+    expect(sortRows(empties, {column: 'name', ascending: true}, (r) => r.name).map((r) => r.id)).toEqual([2, 1, 3, 4]);
+  });
 });

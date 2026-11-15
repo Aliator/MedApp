@@ -28,6 +28,22 @@ describe('ViewPatientPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
   });
+
+  it('says when the patient could not be loaded', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({title: 'Server error'}, 500)});
+    renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
+
+    expect(await findAlert('The patient could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  it('gives a one-year-old\'s age as "1 year"', async () => {
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(new Date('2026-11-15T12:00:00Z'));
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, dateOfBirth: '2025-06-01'})});
+    renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
+
+    expect(await screen.findByText('1 year')).toBeInTheDocument();
+  });
 });
 
 describe('AddPatientPage', () => {
@@ -63,6 +79,45 @@ describe('AddPatientPage', () => {
     await findAlert('One or more validation errors occurred.');
     expect(screen.getAllByText('First name must not be empty.').length).toBeGreaterThan(1);
     expect(openDialog()).toBeNull();
+  });
+
+  it('shows the date of birth typed in the confirmation, and sends none once it is cleared', async () => {
+    const fetch = mockApi({'POST /api/patients': () => json(freya, 201)});
+    const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
+
+    const dateOfBirth = await screen.findByRole('combobox', {name: /Date of Birth/});
+    await user.type(dateOfBirth, '01/12/1976');
+    await user.tab();
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    expect(within(openDialog()!).getByText('1 December 1976')).toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    expect(openDialog()).toBeNull();
+
+    await user.clear(dateOfBirth);
+    await user.tab();
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect((await bodyOf(fetch, 0)).dateOfBirth).toBe(NO_DATE);
+  });
+
+  it('says why an add failed for a reason other than its fields', async () => {
+    mockApi({'POST /api/patients': () => json({title: 'Server error'}, 500)});
+    const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+
+    expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
+  });
+
+  it('goes back to the list when cancelled', async () => {
+    const {user, router} = renderWithApp(<AddPatientPage />, {path: '/patients/add', user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
   });
 });
 
@@ -147,5 +202,52 @@ describe('EditPatientPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 
     await findAlert('Patient not found. It may have been deleted.');
+  });
+
+  it("shows the API's validation errors on the fields", async () => {
+    mockApi({
+      [`GET /api/patients/${id}`]: () => json(freya),
+      [`PATCH /api/patients/${id}`]: () => json({title: 'One or more validation errors occurred.', errors: {Email: ['Email is not valid.']}}, 400),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await findAlert('One or more validation errors occurred.');
+    expect(screen.getByLabelText(/^email address/i)).toHaveAccessibleDescription(/Email is not valid\./);
+  });
+
+  it('makes no change when either confirmation is cancelled', async () => {
+    const fetch = mockApi({
+      [`GET /api/patients/${id}`]: () => json(freya),
+      'GET /api/procedures/patient-procedures/search': () => json(pageOf([{}], 1)),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    expect(openDialog()).toBeNull();
+
+    await user.click(screen.getByRole('button', {name: 'Delete Patient'}));
+    expect(await within(openDialog()!).findByText("This patient has 1 procedure, so they can't be deleted.")).toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    expect(openDialog()).toBeNull();
+
+    expect(calls(fetch).filter((c) => !c.startsWith('GET'))).toEqual([]);
+  });
+
+  it('goes back to the list for an unknown patient', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({title: 'Not found'}, 404)});
+    const {router} = renderWithApp(<EditPatientPage id={id} />, {path: `/patients/${id}/edit`, user: adminUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
+  });
+
+  it('says when the patient could not be loaded', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({title: 'Server error'}, 500)});
+    renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    expect(await findAlert('The patient could not be loaded. Please try again.')).toBeInTheDocument();
   });
 });

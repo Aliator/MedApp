@@ -1,4 +1,4 @@
-import {act, screen} from '@testing-library/react';
+import {act, render, screen} from '@testing-library/react';
 import {useEffect, useState} from 'react';
 import {renderWithApp} from '../test/render';
 import {useAnnounce, usePageTitle} from './announcements';
@@ -50,5 +50,36 @@ describe('announcements', () => {
     await act(() => vi.advanceTimersByTimeAsync(200));
     expect(document.title).toBe('Procedures - MedApp');
     expect(announcer()).toHaveTextContent('Procedures page');
+  });
+  it('names the page beside in a half view without retitling the tab, and says it opened beside', async () => {
+    function Beside() {
+      const [title, setTitle] = useState('Patients');
+      usePageTitle(title, false);
+      return <button type="button" onClick={() => setTitle('Procedures')}>Next page</button>;
+    }
+    document.title = 'Home - MedApp';
+    const {user} = renderWithApp(<Beside />);
+    await screen.findByRole('button', {name: 'Next page'});
+
+    await user.click(screen.getByRole('button', {name: 'Next page'}));
+    await act(() => vi.advanceTimersByTimeAsync(200));
+
+    expect(document.title).toBe('Home - MedApp');
+    expect(announcer()).toHaveTextContent('Procedures page, opened beside');
+  });
+
+  it('does nothing outside the announcer (a part tested on its own)', () => {
+    function Bare() {
+      const announce = useAnnounce();
+      usePageTitle('Patients', true);
+      useEffect(() => announce('12 results'), [announce]);
+      return <p>Bare</p>;
+    }
+
+    render(<Bare />);
+
+    expect(screen.getByText('Bare')).toBeInTheDocument();
+    expect(screen.queryByTestId('announcer')).not.toBeInTheDocument();
+    expect(document.title).toBe('Patients - MedApp');
   });
 });

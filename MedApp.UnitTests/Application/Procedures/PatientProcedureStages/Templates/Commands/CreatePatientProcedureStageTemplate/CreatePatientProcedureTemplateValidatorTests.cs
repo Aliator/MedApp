@@ -27,7 +27,18 @@ public sealed class CreatePatientProcedureTemplateValidatorTests
     {
         var stages = Enumerable.Repeat(ConsultationDefinitionId, CreatePatientProcedureTemplateValidator.MaxStages + 1).ToList();
 
-        _validator.Validate(new CreatePatientProcedureTemplateCommand(TemplateName, stages)).IsValid.Should().BeFalse();
+        _validator.Validate(new CreatePatientProcedureTemplateCommand(TemplateName, stages)).Errors
+            .Should().ContainSingle(e => e.ErrorMessage == $"A template can have at most {CreatePatientProcedureTemplateValidator.MaxStages} stages.");
+    }
+
+    [Test]
+    public void Validate_NullStageList_FailsAsRequiredOnly()
+    {
+        var result = _validator.Validate(new CreatePatientProcedureTemplateCommand(TemplateName, null!));
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Select(e => e.ErrorMessage).Should().Contain("Stage definition ids are required.")
+            .And.NotContain($"A template can have at most {CreatePatientProcedureTemplateValidator.MaxStages} stages.");
     }
 
     [Test]

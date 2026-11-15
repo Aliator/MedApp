@@ -53,6 +53,32 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     }
 
     [Test]
+    public async Task Handle_TemplateDoesNotExist_ThrowsNotFoundWithoutAdding()
+    {
+        var command = Command() with { TemplateId = Guid.NewGuid() };
+
+        var act = () => Fixture.Create<CreatePatientProcedureHandler>().Handle(command, CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Template '{command.TemplateId}' was not found.");
+        Repository.Verify(
+            r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_TemplateHasNoStages_ThrowsConflictWithoutAdding()
+    {
+        _template.Maps.Clear();
+
+        var act = () => Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"The '{TemplateName}' template has no stages.");
+        Repository.Verify(
+            r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task Handle_TemplateArchived_ThrowsConflict()
     {
         _template.IsArchived = true;

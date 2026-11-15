@@ -65,6 +65,30 @@ public sealed class ProcedureAuditSearchTests
     }
 
     [Test]
+    public void Filter_Patient_ReturnsTheirEntries()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { PatientId = Finished.PatientId }).Should().Equal(Finished);
+    }
+
+    [Test]
+    public void Filter_User_ReturnsTheirEntries()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { UserId = Created.UserId }).Should().Equal(Created);
+    }
+
+    [Test]
+    public void Filter_ActionsWithAnUnknownName_IgnoresTheUnknownOne()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Actions = ["Exploded", "StageUnlocked"] }).Should().Equal(Unlocked);
+    }
+
+    [Test]
+    public void Filter_ActionsAllUnknown_ReturnsEveryEntry()
+    {
+        Entries().Filter(CreateAuditSearchQuery() with { Actions = ["Exploded"] }).Should().HaveCount(3);
+    }
+
+    [Test]
     public void Sort_Default_IsNewestFirst()
     {
         Entries().Sort(false).Should().Equal(Unlocked, Finished, Created);

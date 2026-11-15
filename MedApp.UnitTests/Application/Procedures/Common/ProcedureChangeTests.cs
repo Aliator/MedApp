@@ -115,6 +115,35 @@ public sealed class ProcedureChangeTests
     }
 
     [Test]
+    public void UnlockStage_Completed_MovesBackToInProgressAutomatically()
+    {
+        var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
+        var change = ChangeOf(procedure, Admin);
+
+        change.UnlockStage(procedure.StageAt(3));
+
+        procedure.StageAt(3).IsLocked.Should().BeFalse();
+        procedure.Status.Should().Be(Status.InProgress);
+        change.AuditEntries.Select(e => e.Action).Should().Equal(
+            PatientProcedureAuditAction.StageUnlocked, PatientProcedureAuditAction.StatusChanged);
+        change.AuditEntries[1].Details.Should().Contain("\"from\":\"Completed\"").And.Contain("\"automatic\":true");
+    }
+
+    [Test]
+    public void UnlockStage_InProgress_UnlocksTheStageAndKeepsTheStatus()
+    {
+        var procedure = CreateProcedure(Status.InProgress, finishedStages: 2);
+        var change = ChangeOf(procedure, Admin);
+
+        change.UnlockStage(procedure.StageAt(1));
+
+        procedure.StageAt(1).IsLocked.Should().BeFalse();
+        procedure.StageAt(1).LastUpdated.Should().Be(Now);
+        procedure.Status.Should().Be(Status.InProgress);
+        change.AuditEntries.Should().ContainSingle().Which.Action.Should().Be(PatientProcedureAuditAction.StageUnlocked);
+    }
+
+    [Test]
     public void FinishStage_ReFinishingAnUnlockedStage_GoesBackToInReview()
     {
         var procedure = CreateProcedure(Status.InProgress, finishedStages: 3);
@@ -195,6 +224,32 @@ public sealed class ProcedureChangeTests
 
         procedure.Status.Should().Be(Status.InProgress);
         procedure.BlockedFromStatus.Should().BeNull();
+    }
+
+    [Test]
+    public void ChangeStatus_ToTheCurrentStatus_ChangesNothingAndAuditsNothing()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var change = ChangeOf(procedure);
+
+        change.ChangeStatus(Status.InProgress, Reason);
+
+        procedure.Status.Should().Be(Status.InProgress);
+        procedure.LastUpdated.Should().Be(Now.AddDays(-7));
+        change.HasChanges.Should().BeFalse();
+        change.AuditEntries.Should().BeEmpty();
+    }
+
+    [Test]
+    public void Properties_NewChange_ExposeTheProcedureAndTime()
+    {
+        var procedure = CreateProcedure();
+
+        var change = ChangeOf(procedure);
+
+        change.Procedure.Should().BeSameAs(procedure);
+        change.NowUtc.Should().Be(Now);
+        change.HasChanges.Should().BeFalse();
     }
 
     [Test]

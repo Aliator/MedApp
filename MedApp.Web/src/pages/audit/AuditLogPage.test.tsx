@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar} from '../../test/render';
+import {adminUser, calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import type {AuditListSearch} from '../listSearch';
 import {AuditLogPage} from './AuditLogPage';
 
@@ -29,8 +29,8 @@ const entries = [
   },
 ];
 
-function renderLog(search: AuditListSearch = {}) {
-  const fetch = mockApi({[`GET ${SEARCH}`]: () => json(pageOf(entries, 23))});
+function renderLog(search: AuditListSearch = {}, body: unknown = pageOf(entries, 23), status = 200) {
+  const fetch = mockApi({[`GET ${SEARCH}`]: () => json(body, status)});
   const onSearchChange = vi.fn();
   return {fetch, onSearchChange, ...renderWithApp(<AuditLogPage search={search} onSearchChange={onSearchChange} />, {user: adminUser})};
 }
@@ -81,5 +81,51 @@ describe('AuditLogPage', () => {
 
     await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
     await waitFor(() => expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({asc: false, q: undefined, page: undefined})));
+  });
+
+  it('keeps newest first (the default) out of the URL', async () => {
+    const {user, onSearchChange} = renderLog({asc: true});
+
+    await screen.findByText('k.ashford');
+    await user.click(screen.getByRole('button', {name: /^when/i}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({asc: undefined, page: undefined});
+  });
+
+  it('pages through the log, keeping the first page out of the URL', async () => {
+    const {user, onSearchChange} = renderLog({page: 2, q: 'knee'});
+
+    await screen.findByText('k.ashford');
+    await user.click(screen.getByRole('button', {name: 'Go to page 1'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({q: 'knee', page: undefined});
+    await user.click(screen.getByRole('button', {name: 'Go to page 3'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({q: 'knee', page: 3});
+  });
+
+  it('says how many entries a search found', async () => {
+    renderLog({q: 'knee'}, pageOf([entries[0]], 1));
+
+    expect(await screen.findByText('1 entry found')).toBeInTheDocument();
+  });
+
+  it('offers to clear a search that finds nothing, keeping the order', async () => {
+    const {user, onSearchChange} = renderLog({procedureId, q: 'nothing', asc: true}, pageOf([], 0));
+
+    expect((await screen.findAllByText('No entries match your search')).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({asc: true});
+  });
+
+  it('says when nothing has been recorded yet', async () => {
+    renderLog({}, pageOf([], 0));
+
+    expect((await screen.findAllByText('Nothing in the audit log yet')).length).toBeGreaterThan(0);
+  });
+
+  it('says when the audit log could not be loaded', async () => {
+    renderLog({}, {title: 'Server error'}, 500);
+
+    expect(await findAlert('The audit log could not be loaded. Please try again.')).toBeInTheDocument();
   });
 });

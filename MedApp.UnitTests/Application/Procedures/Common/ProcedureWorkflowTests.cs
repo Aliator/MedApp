@@ -30,6 +30,49 @@ public sealed class ProcedureWorkflowTests
         ProcedureWorkflow.AllowedStatusChanges(procedure).Should().Equal(Status.InProgress, Status.Cancelled);
     }
 
+    [Test]
+    public void AllowedStatusChanges_BlockedWithoutBlockedFromStatus_OffersAssignedWhenSomeoneIsAssigned()
+    {
+        var procedure = CreateProcedure(Status.Blocked);
+        procedure.BlockedFromStatus = null;
+
+        ProcedureWorkflow.AllowedStatusChanges(procedure).Should().Equal(Status.Assigned, Status.Cancelled);
+    }
+
+    [Test]
+    public void AllowedStatusChanges_BlockedWithoutBlockedFromStatusOrAssignees_OffersUnassigned()
+    {
+        var procedure = CreateProcedure(Status.Blocked);
+        procedure.BlockedFromStatus = null;
+        procedure.Assignments.Clear();
+
+        ProcedureWorkflow.AllowedStatusChanges(procedure).Should().Equal(Status.Unassigned, Status.Cancelled);
+    }
+
+    [Test]
+    public void HasStarted_NoStageStarted_IsFalse()
+    {
+        ProcedureWorkflow.HasStarted(CreateProcedure(Status.Assigned)).Should().BeFalse();
+    }
+
+    [Test]
+    public void HasStarted_FirstStageStartedButNotFinished_IsTrue()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.StageAt(1).StartedAtUtc = Now.AddHours(-1);
+
+        ProcedureWorkflow.HasStarted(procedure).Should().BeTrue();
+    }
+
+    [Test]
+    public void HasStarted_StageFinishedWithoutAStartTime_IsTrue()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.StageAt(1).IsCompleted = true;
+
+        ProcedureWorkflow.HasStarted(procedure).Should().BeTrue();
+    }
+
     [TestCase(Status.Assigned, -1, true)]
     [TestCase(Status.InReview, -1, true)]
     [TestCase(Status.Assigned, 1, false)]
@@ -80,6 +123,17 @@ public sealed class ProcedureWorkflowTests
         var procedure = CreateProcedure(Status.InProgress, finishedStages: 1);
 
         ProcedureWorkflow.WhyStageCantBeEdited(procedure, procedure.StageAt(1)).Should().Contain("An admin can unlock it");
+    }
+
+    [Test]
+    public void CanEditStage_UnfinishedStageOfAProcedureWithEveryStageFinished_IsFalse()
+    {
+        // No current stage, so no unfinished stage (here one not in this procedure) can be the one being worked on.
+        var procedure = CreateProcedure(Status.InReview, finishedStages: 3);
+        var strayStage = CreateStage(Guid.NewGuid(), 1, ConsultationDefinitionId, ConsultationStage);
+
+        ProcedureWorkflow.CanEditStage(procedure, strayStage).Should().BeFalse();
+        ProcedureWorkflow.WhyStageCantBeEdited(procedure, strayStage).Should().StartWith("Stages are worked in order");
     }
 
     [Test]

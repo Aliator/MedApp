@@ -54,6 +54,20 @@ public sealed class IdentityAuthenticationServiceTests
     }
 
     [Test]
+    public async Task ValidateCredentialsAsync_LockedOutWithNoLockoutEnd_SaysTryAgainInOneMinute()
+    {
+        var user = FoundUser(isPasswordRight: true);
+        _userManager.Setup(u => u.IsLockedOutAsync(user)).ReturnsAsync(true);
+        _userManager.Setup(u => u.GetLockoutEndDateAsync(user)).ReturnsAsync((DateTimeOffset?)null);
+
+        var act = async () => await _service.ValidateCredentialsAsync(user.UserName!, AuthTestConstants.Passwords[0]);
+
+        var thrown = (await act.Should().ThrowAsync<AccountLockedOutException>()).Which;
+        thrown.MinutesLeft.Should().Be(1);
+        thrown.Message.Should().Be("This account is locked after too many wrong passwords. Try again in 1 minute.");
+    }
+
+    [Test]
     public async Task ValidateCredentialsAsync_WrongPassword_CountsTheFailure()
     {
         var user = FoundUser(isPasswordRight: false);

@@ -80,4 +80,15 @@ describe('LoginPage', () => {
     expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
   });
+
+  it("says an account is locked when the API doesn't say for how long", async () => {
+    mockFetch(() => new Response(null, {status: 423}));
+    const {user} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'wrong');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    expect(await screen.findByText('This account is locked. Try again later.')).toBeInTheDocument();
+  });
 });

@@ -1,5 +1,6 @@
 import {screen, within} from '@testing-library/react';
 import {calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {HalfViewContext} from '../../components/pages/halfView';
 import type {ProceduresListSearch} from '../listSearch';
 import {ProceduresListPage} from './ProceduresListPage';
 
@@ -113,6 +114,52 @@ describe('ProceduresListPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({sort: 'Priority', page: undefined, mine: true, status: undefined, title: undefined}),
     );
+  });
+
+  it('keeps Assigned to me out of the URL for a favourite without it, when the list starts on everyone', async () => {
+    const {user, onSearchChange} = renderList({page: 2});
+
+    await screen.findByText('Colonoscopy');
+    await pickFavourite(user, 'Overdue');
+
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({overdue: true, mine: undefined, page: undefined}));
+  });
+
+  it('pages through the list, keeping the first page out of the URL', async () => {
+    const {user, onSearchChange} = renderList({page: 2, sort: 'Status'});
+
+    await screen.findByText('Colonoscopy');
+    await user.click(screen.getByRole('button', {name: 'Go to page 1'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Status', page: undefined});
+    await user.click(screen.getByRole('button', {name: 'Go to page 3'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Status', page: 3});
+  });
+
+  it('says how many procedures match a search', async () => {
+    renderList({title: 'colon'}, {body: pageOf([summary()], 1)});
+    expect(await screen.findByText('1 matching procedure')).toBeInTheDocument();
+  });
+
+  it('offers to clear a search that matches nothing, keeping the sort', async () => {
+    const {user, onSearchChange} = renderList({title: 'nothing', sort: 'Priority', asc: false, page: 2}, {body: pageOf([], 0)});
+
+    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Priority', asc: false});
+  });
+
+  it('drops the current stage and the assignees in a half view', async () => {
+    mockApi({[SEARCH]: () => json(pageOf([summary()], 1))});
+    renderWithApp(
+      <HalfViewContext.Provider value={{isHalf: true}}>
+        <ProceduresListPage search={{}} onSearchChange={vi.fn()} />
+      </HalfViewContext.Provider>,
+      {user: staffUser},
+    );
+
+    expect(await screen.findByRole('link', {name: 'Colonoscopy'})).toBeInTheDocument();
+    expect(screen.queryByText('2 of 7 stages done')).not.toBeInTheDocument();
+    expect(screen.queryByText('a.user')).not.toBeInTheDocument();
   });
 
   it('sorts by a column from its header', async () => {

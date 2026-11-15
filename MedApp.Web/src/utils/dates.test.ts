@@ -54,4 +54,9 @@ describe('formatDateTime', () => {
     expect(timeAgo('2026-07-01T09:00:00Z', now)).toBe('3 hours ago');
     expect(timeAgo('2026-06-29T09:00:00Z', now)).toBe('29 Jun 2026, 10:00');
   });
+
+  it('gives back what it cannot read, and counts from now by default', () => {
+    expect(timeAgo('not a date')).toBe('not a date');
+    expect(timeAgo(new Date().toISOString())).toBe('Just now');
+  });
 });

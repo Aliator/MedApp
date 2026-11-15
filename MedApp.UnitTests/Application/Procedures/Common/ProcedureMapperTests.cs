@@ -77,4 +77,33 @@ public sealed class ProcedureMapperTests
         summary.IsOverdue.Should().BeTrue();
         summary.Assignees.Should().Equal(Admin.Username, Staff.Username);
     }
+
+    [Test]
+    public void ToSummary_EveryStageFinished_HasNoCurrentStage()
+    {
+        var procedure = CreateProcedure(Status.InReview, finishedStages: 3);
+
+        var summary = ProcedureMapper.ToSummary(procedure, Usernames, Now);
+
+        summary.CurrentStageName.Should().BeNull();
+        summary.CompletedStageCount.Should().Be(3);
+    }
+
+    [Test]
+    public void ToSummary_PatientNotLoaded_HasAnEmptyPatientName()
+    {
+        var procedure = CreateProcedure(Status.Assigned);
+        procedure.Patient = null!;
+
+        var summary = ProcedureMapper.ToSummary(procedure, Usernames, Now);
+
+        summary.PatientName.Should().BeEmpty();
+        summary.PatientId.Should().Be(procedure.PatientId);
+    }
+
+    [Test]
+    public void PatientName_NoPatient_IsEmpty()
+    {
+        ProcedureMapper.PatientName(null).Should().BeEmpty();
+    }
 }

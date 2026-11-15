@@ -133,6 +133,16 @@ describe('UsersPage', () => {
     expect(openDialog()).toBeNull();
   });
 
+  it('says when a reset gives back no new password', async () => {
+    const {user} = renderUsers({}, {'PUT /api/auth/users/*': () => new Response('', {headers: {'content-type': 'text/plain'}})});
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Reset password'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Reset Password'}));
+
+    expect(await findAlert('The password could not be reset.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
   it('deletes a user once the admin enters their own password', async () => {
     const {user, fetch} = renderUsers({}, {'DELETE /api/auth/users/*': () => new Response(null, {status: 204})});
 
@@ -156,6 +166,74 @@ describe('UsersPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete User'}));
 
     expect((await within(openDialog()!).findAllByText('Your password is incorrect.')).length).toBeGreaterThan(0);
+  });
+
+  it('says when a user has no roles, and counts one user', async () => {
+    renderUsers({}, {'GET /api/auth/users/search': () => json(pageOf([{userId: 'u4', username: 'n.oroles', roles: []}]))});
+
+    expect(within(await rowOf('n.oroles')).getByText('No roles')).toBeInTheDocument();
+    expect(screen.getByText('1 user in the system')).toBeInTheDocument();
+  });
+
+  it("shows the API's reasons on the username when a new user is refused", async () => {
+    const {user} = renderUsers({}, {'POST /api/auth/users': () => json([{code: 'DuplicateUserName', description: "Username 'new.user' is already taken."}], 400)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add User'}));
+    await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
+
+    expect((await within(openDialog()!).findAllByText("Username 'new.user' is already taken.")).length).toBeGreaterThan(0);
+  });
+
+  it('says when a new user could not be created for another reason', async () => {
+    const {user} = renderUsers({}, {'POST /api/auth/users': () => json({title: 'Server error'}, 500)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add User'}));
+    await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
+
+    expect((await within(openDialog()!).findAllByText('The user could not be created. Please try again.')).length).toBeGreaterThan(0);
+  });
+
+  it('says when the users could not be loaded', async () => {
+    renderUsers({}, {'GET /api/auth/users/search': () => json({title: 'Server error'}, 500)});
+
+    expect(await findAlert('The users could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  it('invites adding the first user when there are none', async () => {
+    const {user} = renderUsers({}, {'GET /api/auth/users/search': () => json(pageOf([], 0))});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Your First User'}));
+
+    expect(within(openDialog()!).getByLabelText(/username/i)).toBeInTheDocument();
+  });
+
+  it('offers to clear a search that matches nobody, keeping the order', async () => {
+    const {user, onSearchChange} = renderUsers({username: 'nobody', asc: false}, {'GET /api/auth/users/search': () => json(pageOf([], 0))});
+
+    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({asc: false});
+  });
+
+  it('sorts by username from its header, back to page 1', async () => {
+    const {user, onSearchChange} = renderUsers({page: 2, role: 'Admin'});
+
+    await rowOf('a.hartwell');
+    await user.click(screen.getByRole('button', {name: /^user/i}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({role: 'Admin', page: undefined, sort: 'User', asc: false});
+  });
+
+  it('pages through the users, keeping the first page out of the URL', async () => {
+    const {user, onSearchChange} = renderUsers({page: 2}, {'GET /api/auth/users/search': () => json(pageOf(users, 25, 2))});
+
+    await rowOf('a.hartwell');
+    await user.click(screen.getByRole('button', {name: 'Go to page 1'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});
+    await user.click(screen.getByRole('button', {name: 'Go to page 3'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({page: 3});
   });
 
   it('shows an error when an action fails', async () => {

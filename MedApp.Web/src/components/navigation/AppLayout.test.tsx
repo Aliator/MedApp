@@ -158,4 +158,15 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(await heading('Templates')).toBeInTheDocument();
     expect(await heading('Patients')).toBeInTheDocument();
   });
+
+  it('opens on the page alone when this browser blocks storage', async () => {
+    emptyApi();
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage is blocked.');
+    });
+    renderApp({path: '/patients', user: adminUser});
+
+    expect(await heading('Patients')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument();
+  });
 });

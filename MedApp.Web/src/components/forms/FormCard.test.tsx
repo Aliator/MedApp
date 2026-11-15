@@ -49,6 +49,20 @@ describe('FormCard', () => {
     expect(onSave).toHaveBeenCalledOnce();
   });
 
+  it('does nothing when Enter is pressed in a form with no Save', async () => {
+    const onCancel = vi.fn();
+    const {user} = renderWithApp(
+      <FormCard onCancel={onCancel}>
+        <TextInput label="First name" value="" onChange={() => {}} />
+      </FormCard>,
+    );
+
+    await user.type(await screen.findByLabelText(/first name/i), '{Enter}');
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', {name: 'Save'})).not.toBeInTheDocument();
+  });
+
   it('cancels and deletes through their own buttons, without saving', async () => {
     const onSave = vi.fn();
     const onCancel = vi.fn();

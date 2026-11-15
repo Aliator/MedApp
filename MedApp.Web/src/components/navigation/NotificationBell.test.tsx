@@ -81,4 +81,46 @@ describe('NotificationBell', () => {
 
     expect((await panel()).getByText(/Nothing yet/)).toBeInTheDocument();
   });
+
+  it('counts up to 99, then says 99+', async () => {
+    mockApi({
+      'GET /api/notifications': () => json({items: [unread], unreadCount: 120}),
+    });
+    renderWithApp(<NotificationBell />, {user: staffUser});
+
+    expect(await screen.findByRole('button', {name: 'Notifications, 120 unread'})).toBeInTheDocument();
+    expect(screen.getByText('99+')).toBeInTheDocument();
+  });
+
+  it('shows a notification about no procedure without a link, and clicking it changes nothing', async () => {
+    const general = {...unread, id: '0000000c-0000-0000-0000-000000000004', title: 'General notice', procedureId: null, createdAtUtc: null};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [general], unreadCount: 1}),
+    });
+    const {user} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    expect(list.queryByRole('link')).not.toBeInTheDocument();
+    expect(list.queryByText('Just now')).not.toBeInTheDocument();
+
+    await user.click(list.getByText('General notice'));
+    expect(screen.getByRole('dialog', {name: 'Notifications'})).toBeInTheDocument();
+    expect(calls(fetch).filter((call) => call.startsWith('POST'))).toEqual([]);
+  });
+
+  it('marks read only the unread notifications about the procedure opened', async () => {
+    const otherProcedure = {...unread, id: '0000000c-0000-0000-0000-000000000005', title: 'Other procedure', procedureId: '0000000c-0000-0000-0000-000000000006'};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [unread, read, otherProcedure], unreadCount: 2}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    await user.click((await panel()).getByRole('link', {name: /Test procedure/}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${unread.id}/read`));
+    expect(calls(fetch).filter((call) => call.startsWith('POST'))).toEqual([`POST /api/notifications/${unread.id}/read`]);
+  });
 });

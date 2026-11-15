@@ -6,6 +6,8 @@ namespace MedApp.API.Middleware;
 
 public sealed class ExceptionHandling(RequestDelegate next)
 {
+    private const string ProblemJson = "application/problem+json";
+
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -53,9 +55,8 @@ public sealed class ExceptionHandling(RequestDelegate next)
         };
 
         context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        context.Response.ContentType = "application/problem+json";
-
-        await context.Response.WriteAsJsonAsync(problemDetails);
+        // Given to the write itself: it sets the content type, and would replace one set before it.
+        await context.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: ProblemJson);
     }
     private static async Task WriteProblem(
         HttpContext context,
@@ -69,8 +70,7 @@ public sealed class ExceptionHandling(RequestDelegate next)
         };
 
         context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/problem+json";
-
-        await context.Response.WriteAsJsonAsync(problemDetails);
+        // Given to the write itself: it sets the content type, and would replace one set before it.
+        await context.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: ProblemJson);
     }
 }

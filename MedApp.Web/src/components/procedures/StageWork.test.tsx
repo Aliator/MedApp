@@ -1,4 +1,4 @@
-import {screen} from '@testing-library/react';
+import {screen, waitFor} from '@testing-library/react';
 import type {ProcedureStage} from '../../api/procedures';
 import {isDisabled, renderWithApp} from '../../test/render';
 import {StageWork} from './StageWork';
@@ -88,5 +88,58 @@ describe('StageWork', () => {
     await user.click(await screen.findByRole('button', {name: 'Unlock Stage'}));
 
     expect(onUnlock).toHaveBeenCalled();
+  });
+});
+
+describe('StageWork fitting its notes box', () => {
+  const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
+
+  /**
+   * jsdom has no layout: the area that scrolls round the stage is `space` tall, the stage's work in it `used` tall,
+   * and the notes box's writing area 120 tall.
+   */
+  function stubLayout(space: number, used: number) {
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      if (this.hasAttribute('contenteditable')) return 120;
+      return this.parentElement?.dataset.testid === 'scroller' ? used : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'scroller' ? space : 0;
+    });
+  }
+
+  const renderInScroller = (onFitNotes: (height: number) => void) =>
+    renderWithApp(
+      <div data-testid="scroller" style={{overflowY: 'auto', padding: 0}}>
+        <StageWork stage={stage()} isAdmin={false} isBusy={false} onFitNotes={onFitNotes} {...handlers} />
+      </div>,
+    );
+
+  it('grows the box to fill the free space around it, exactly', async () => {
+    stubLayout(600, 200);
+    const onFitNotes = vi.fn();
+    renderInScroller(onFitNotes);
+
+    await waitFor(() => expect(onFitNotes).toHaveBeenCalledWith(120 + (600 - 200)));
+    expect(onFitNotes).toHaveBeenCalledOnce();
+  });
+
+  it('keeps its five lines when there is no room to grow', async () => {
+    stubLayout(150, 400);
+    const onFitNotes = vi.fn();
+    renderInScroller(onFitNotes);
+
+    await waitFor(() => expect(onFitNotes).toHaveBeenCalledWith(120));
+  });
+
+  it('keeps its size when nothing is laid out to measure, or nothing round it scrolls', async () => {
+    const onFitNotes = vi.fn();
+    renderInScroller(onFitNotes);
+    renderWithApp(<StageWork stage={stage()} isAdmin={false} isBusy={false} onFitNotes={onFitNotes} {...handlers} />);
+
+    await waitFor(() => expect(screen.getAllByRole('textbox', {name: 'Notes'})).toHaveLength(2));
+    // It tries for a few frames, then gives up.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(onFitNotes).not.toHaveBeenCalled();
   });
 });

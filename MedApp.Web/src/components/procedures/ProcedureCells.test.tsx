@@ -119,4 +119,18 @@ describe('ProcedureCells', () => {
     await screen.findByText('Overdue');
     expect(document.querySelectorAll('.astryx-token svg')).toHaveLength(3);
   });
+
+  it("shows a status or priority it doesn't know in words, without an icon", async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({statusIcons: true}));
+    renderWithApp(
+      <>
+        <StatusToken status="OnHold" />
+        <PriorityToken priority="Routine" />
+      </>,
+    );
+
+    expect(await screen.findByText('On hold')).toBeInTheDocument();
+    expect(screen.getByText('Routine')).toBeInTheDocument();
+    expect(document.querySelectorAll('.astryx-token svg')).toHaveLength(0);
+  });
 });
