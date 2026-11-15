@@ -1,0 +1,26 @@
+# Keeps the image builds (MedApp.API/Dockerfile, built from the repo root) small and Linux-clean: no build output,
+# no Windows node_modules, no local secrets or tool state.
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/coverage/
+**/.vite/
+**/*.user
+**/*.DotSettings.user
+**/.env
+.git/
+.idea/
+.vs/
+tools/
+docs/
+MedApp.Client.Deprecated/
+MedApp.UnitTests/
+MedApp.IntegrationTests/
+MedApp.E2ETests/
+Application/
+Domain/
+Infrastructure/
+UnitTests/
+IntegrationTests/
+E2ETests/

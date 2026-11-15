@@ -18,9 +18,8 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 ## Deployment
 
-- **Node in the API's container image.** Pages are rendered on the server by a Node server the API starts (`MedApp.API/ServerRendering`). The published container is .NET only, so it has no Node and falls back to rendering pages in the browser. Add Node (22.15 or later) to the image, or run the renderer as a sidecar and point the API at it.
 - **Kubernetes, with Helm, Argo CD and Azure.** Run MedApp on Kubernetes, step by step:
-  1. Try it locally first with **kind** (Kubernetes in Docker): the API (serving the built React app) and SQL Server in a local cluster.
+  1. Try it locally first with **kind** (Kubernetes in Docker): the API's image (`MedApp.API/Dockerfile`: the API, the built React app and Node to render its pages) and SQL Server in a local cluster.
   2. A **Helm chart** for the deployment: the API, its config and secrets, the database (or an external one), ingress, and the EF migrations as a job.
   3. **Proper security**: secrets in a secret store (not in values files), TLS, network policies, non-root containers with read-only filesystems, resource limits, and the session cookie and health endpoints set up for running behind an ingress.
   4. **Argo CD** for continuous delivery: the cluster follows the chart and its values in git.
