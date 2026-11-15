@@ -1,0 +1,76 @@
+# SQL Server 2022 (Developer edition), one pod, its data on a volume that survives the pod (not the cluster).
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql
+  labels:
+    app: sql
+spec:
+  # NodePort so dotnet ef can reach it from this machine, through cluster.yaml's port mapping (127.0.0.1,14331).
+  type: NodePort
+  selector:
+    app: sql
+  ports:
+    - name: tds
+      port: 1433
+      targetPort: 1433
+      nodePort: 31433
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sql
+  labels:
+    app: sql
+spec:
+  serviceName: sql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql
+  template:
+    metadata:
+      labels:
+        app: sql
+    spec:
+      securityContext:
+        # The image runs as mssql (10001); this lets it write to the volume.
+        fsGroup: 10001
+      containers:
+        - name: sql
+          image: mcr.microsoft.com/mssql/server:2022-latest
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: MSSQL_PID
+              value: Developer
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medapp-sql
+                  key: sa-password
+          ports:
+            - name: tds
+              containerPort: 1433
+          readinessProbe:
+            tcpSocket:
+              port: tds
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 3Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/opt/mssql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
