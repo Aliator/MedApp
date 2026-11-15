@@ -83,20 +83,23 @@ public sealed class DemoDataTools
 
     private static async Task<List<string>> Wipe(MedAppDbContext db, UserManager<ApplicationUser> users, HashSet<string> keep, CancellationToken ct)
     {
-        await using (var tx = await db.Database.BeginTransactionAsync(ct))
+        // The DbContext retries transient failures, so EF only allows a transaction of our own inside its execution
+        // strategy, which retries the whole transaction. The deletes track nothing, so a retry just runs them again.
+        await db.Database.CreateExecutionStrategy().ExecuteAsync(async cancellationToken =>
         {
+            await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
             // Children before parents: procedure → patient and stage/map → definition don't cascade.
-            await db.PatientProcedureAuditEntries.ExecuteDeleteAsync(ct);
-            await db.PatientProcedureAssignments.ExecuteDeleteAsync(ct);
-            await db.PatientProcedureStages.ExecuteDeleteAsync(ct);
-            await db.PatientProcedures.ExecuteDeleteAsync(ct);
-            await db.PatientProcedureStageTemplateItems.ExecuteDeleteAsync(ct);
-            await db.PatientProcedureStageTemplates.ExecuteDeleteAsync(ct);
-            await db.PatientProcedureStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(ct);
-            await db.Patients.ExecuteDeleteAsync(ct);
-            await db.UserSessions.ExecuteDeleteAsync(ct);
-            await tx.CommitAsync(ct);
-        }
+            await db.PatientProcedureAuditEntries.ExecuteDeleteAsync(cancellationToken);
+            await db.PatientProcedureAssignments.ExecuteDeleteAsync(cancellationToken);
+            await db.PatientProcedureStages.ExecuteDeleteAsync(cancellationToken);
+            await db.PatientProcedures.ExecuteDeleteAsync(cancellationToken);
+            await db.PatientProcedureStageTemplateItems.ExecuteDeleteAsync(cancellationToken);
+            await db.PatientProcedureStageTemplates.ExecuteDeleteAsync(cancellationToken);
+            await db.PatientProcedureStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
+            await db.Patients.ExecuteDeleteAsync(cancellationToken);
+            await db.UserSessions.ExecuteDeleteAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+        }, ct);
 
         var removed = new List<string>();
         foreach (var user in await users.Users.ToListAsync(ct))

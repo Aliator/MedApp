@@ -34,9 +34,16 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Retries what SQL Server reports as transient: Azure SQL serverless waking from a pause (about a minute),
+        // failovers and dropped connections. A transaction the app starts itself must run inside the execution
+        // strategy (CreateExecutionStrategy), as IdentityTransactions does, or EF refuses it.
         services.AddDbContext<MedAppDbContext>(options =>
             options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")));
+                configuration.GetConnectionString("DefaultConnection"),
+                sql => sql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorNumbersToAdd: null)));
 
         return services;
     }

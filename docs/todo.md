@@ -22,9 +22,16 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   1. A local **kind** cluster: `deploy/kind`.
   2. A **Helm chart**: `deploy/helm/medapp`, which kind deploys with.
   3. **Security**: secrets from a secret store (External Secrets), TLS (cert-manager), network policies, the restricted Pod Security Standard, read-only filesystems, health checks on their own port, and a deliberate first admin. See the chart's `README.md`.
-  4. **Argo CD**: `deploy/argocd`. Each merge publishes the image to GHCR and merges the commit, with its image tag, into `env/kind`, which Argo CD deploys to kind.
+  4. **Argo CD**: `deploy/argocd`. Each merge publishes the image to GHCR and records the commit, with its image tag, on `env/kind`, which Argo CD deploys to kind, within the limits of the `medapp` project. Roll back by reverting on `main`.
+  5. **Azure**, written but not deployed: `deploy/azure` (Bicep for AKS, Azure SQL, Key Vault and a container registry, then the cluster's setup). Its `README.md` says how to deploy it and what it costs. CI renders the cluster services' values and builds the image, as Publish does.
 
   Still to do:
 
-  5. **Azure** for hosting: AKS, Azure SQL, Key Vault for the secrets, and a container registry.
+  - **Deploy to Azure** for real, then fix what the first run turns up.
+  - **Passwordless Azure SQL**, a least-privilege database user, private endpoints for the registry and Key Vault, and monitoring. See `deploy/azure/README.md`, "Not yet".
+  - **A MediatR licence** before running in production: MediatR 14 logs a licence warning at startup.
+  - **Readiness that checks the database and Valkey,** and **restarting Node** when the page server exits (the chart's `README.md`, "Not yet").
+  - **Restarting the API and Valkey when a password changes,** for example with a reloader. Until then it's by hand (`deploy/azure/README.md`, Passwords).
+  - **Pinning actions and images by digest,** with Dependabot keeping them current.
+  - **Repository settings:** `web`, `helm` and `unit-tests` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: require the `image` job too, and let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
 - **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).

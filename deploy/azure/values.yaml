@@ -1,0 +1,42 @@
+# The Helm chart's values (deploy/helm/medapp) for AKS (deploy/azure). Argo CD deploys them from the env/azure
+# branch, with the image from deploy/argocd/azure-image.yaml (written by the Publish workflow).
+api:
+  # Two copies, spread across the nodes where the scheduler can (the chart prefers different nodes for them), sharing
+  # live notifications through the backplane (Valkey, in the cluster).
+  replicas: 2
+
+ingress:
+  enabled: true
+  className: traefik
+  # Your domain: point its DNS at the ingress's public IP (bootstrap.sh prints it).
+  host: medapp.example.com
+  tls:
+    enabled: true
+    # Let's Encrypt (bootstrap.sh), for a certificate browsers trust.
+    clusterIssuer: letsencrypt
+
+# Azure SQL, not SQL Server in the cluster.
+sql:
+  enabled: false
+
+# Every secret from Key Vault (main.bicep makes them), through External Secrets Operator signed in with workload
+# identity (bootstrap.sh). Azure SQL has no sa password to pass on.
+externalSecrets:
+  enabled: true
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: azure-key-vault
+  database:
+    sa-password: null
+
+networkPolicy:
+  ingressController:
+    namespace: traefik
+  # Azure SQL's private endpoint (main.bicep's private-endpoints subnet), for the API and the migrations Job.
+  extraEgress:
+    - to:
+        - ipBlock:
+            cidr: 10.40.4.0/24
+      ports:
+        - port: 1433
+          protocol: TCP

@@ -43,6 +43,17 @@ spec:
       {{- end }}
       # The image's own non-root user (APP_UID in the .NET images).
       {{- include "medapp.podSecurity" (list . 1654) | nindent 6 }}
+      {{- if gt (int .Values.api.replicas) 1 }}
+      # The copies on different nodes where there are enough, so losing one node doesn't take them all. A preference,
+      # not a rule (ScheduleAnyway): a one-node cluster, such as kind, still runs every copy.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "api") | nindent 14 }}
+      {{- end }}
       containers:
         - name: api
           image: {{ include "medapp.image" . }}
