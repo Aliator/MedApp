@@ -4,6 +4,10 @@ image:
   # Loaded into the cluster by up.sh (kind load), so never pulled.
   pullPolicy: Never
 
+# Two copies, as production would run, with live notifications shared through the backplane (Valkey).
+api:
+  replicas: 2
+
 ingress:
   enabled: true
   # Traefik, which up.sh installs: http://localhost:8080 and https://localhost:8443 (cluster.yaml).

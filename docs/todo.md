@@ -27,4 +27,3 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   Still to do:
 
   5. **Azure** for hosting: AKS, Azure SQL, Key Vault for the secrets, and a container registry.
-- **More than one copy of the API.** The chart runs one (`api.replicas`), because live notifications reach only the copy a browser's SignalR connection is on. Add a backplane (Azure SignalR Service, or Redis), then raise it.

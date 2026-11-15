@@ -3,16 +3,19 @@
  * `liveHub.push` delivers a message to every connection listening for it, as the API's hub would.
  */
 type Handler = (...args: unknown[]) => void;
+type ConnectionOptions = {skipNegotiation?: boolean; transport?: number};
 
 const connections = new Set<FakeHubConnection>();
 
 class FakeHubConnection {
   readonly handlers = new Map<string, Handler[]>();
   readonly url: string;
+  readonly options: ConnectionOptions;
   isStarted = false;
 
-  constructor(url: string) {
+  constructor(url: string, options: ConnectionOptions) {
     this.url = url;
+    this.options = options;
   }
 
   on(method: string, handler: Handler) {
@@ -36,9 +39,11 @@ class FakeHubConnection {
 
 export class HubConnectionBuilder {
   private url = '';
+  private options: ConnectionOptions = {};
 
-  withUrl(url: string) {
+  withUrl(url: string, options: ConnectionOptions = {}) {
     this.url = url;
+    this.options = options;
     return this;
   }
 
@@ -51,11 +56,12 @@ export class HubConnectionBuilder {
   }
 
   build() {
-    return new FakeHubConnection(this.url);
+    return new FakeHubConnection(this.url, this.options);
   }
 }
 
 export const LogLevel = {Warning: 3};
+export const HttpTransportType = {WebSockets: 1};
 
 export const liveHub = {
   /** The connections open now. */

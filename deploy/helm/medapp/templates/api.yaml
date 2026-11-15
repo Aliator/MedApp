@@ -55,6 +55,14 @@ spec:
                 secretKeyRef:
                   name: {{ include "medapp.dbSecretName" . }}
                   key: connection-string
+            {{- if .Values.backplane.enabled }}
+            # Live notifications through the backplane, so every copy of the API reaches every browser.
+            - name: ConnectionStrings__SignalRBackplane
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.backplaneSecretName" . }}
+                  key: connection-string
+            {{- end }}
             # The app on 8080, and /health and /alive on 8081 only (MedApp.ServiceDefaults).
             - name: ASPNETCORE_HTTP_PORTS
               value: "8080;8081"
@@ -103,3 +111,22 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi
+{{- if gt (int .Values.api.replicas) 1 }}
+{{- if not .Values.backplane.enabled }}
+{{- fail "api.replicas above 1 needs backplane.enabled: without it, live notifications reach only the browsers on the copy that sends them." }}
+{{- end }}
+---
+# Keeps at least one copy of the API running while nodes are drained (upgrades, scaling down).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "api") | nindent 6 }}
+{{- end }}

@@ -10,12 +10,14 @@ namespace MedApp.API.Common.Extensions;
 public static class ServiceExtensions
 {
     public static IServiceCollection AddApi(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddControllers();
 
-        // Live notifications: pushed to each signed-in user's open pages (NotificationsHub).
-        services.AddSignalR();
+        // Live notifications: pushed to each signed-in user's open pages (NotificationsHub), through a backplane
+        // when several copies of the API run.
+        services.AddSignalR().AddBackplane(configuration);
         services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
 
         // Server-side rendering: the Node server that renders the React app's pages (SsrServer), and the client
