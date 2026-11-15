@@ -37,10 +37,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-    # The namespace refuses any pod that doesn't meet the "restricted" Pod Security Standard.
-    managedNamespaceMetadata:
-      labels:
-        pod-security.kubernetes.io/enforce: restricted
-        pod-security.kubernetes.io/warn: restricted
+  # No CreateNamespace: up.sh --argocd makes the medapp namespace, with its Pod Security labels, before applying this,
+  # and the project doesn't let Argo CD make or change a Namespace (project.yaml).

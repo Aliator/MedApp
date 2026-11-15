@@ -1,6 +1,6 @@
 # Review: Azure
 
-**Status: uncommitted on `feature/azure`, and never deployed.** It's written and has been compiled and linted, but it has never run against a subscription. No Azure resource exists, the `env/azure` branch doesn't exist, and the Publish workflow's `azure` job has never run.
+**Status: merged to `main` via #52, and never deployed.** (These notes were written when it was still uncommitted on `feature/azure`; the findings from them, and from [the review of #52](pr-52-azure.md), were mostly fixed, or recorded as still to do, in #52. The SSR fixes went in via #51.) It's written and has been compiled and linted, but it has never run against a subscription. No Azure resource exists, the `env/azure` branch doesn't exist, and the Publish workflow's `azure` job has never run.
 
 Files: `deploy/azure/` (`README.md`, `main.bicep`, `main.bicepparam`, `deploy.sh`, `bootstrap.sh`, `cluster.yaml`, `values.yaml`, `traefik-values.yaml`, `argocd-values.yaml`), `deploy/argocd/medapp-azure.yaml`, `deploy/versions.sh`, `.github/scripts/deploy-to-env.sh`, the `azure` job in `.github/workflows/publish.yml`, two new steps in the `helm` job of `.github/workflows/main.yml`, and updates to `AGENTS.md` and `docs/todo.md`.
 

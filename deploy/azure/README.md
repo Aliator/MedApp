@@ -41,7 +41,9 @@ What you need:
 
 Steps:
 
-1. **Fill in `main.bicepparam`:** the admin group's object ID and name, and `environmentName`.
+1. **Fill in `main.bicepparam`:**
+   - **The admin group:** its object ID and name. `deploy.sh` refuses to run while the object ID is still the all-zero placeholder.
+   - **`environmentName`:** 1 to 8 lower-case letters and digits, such as `prod`. Anything else fails the deployment, with a message saying so.
 2. **Set the ingress host in `values.yaml`** to your domain (`ingress.host`), and merge that to `main`.
 3. **Choose the passwords** (below), then sign in and deploy:
 
@@ -58,6 +60,8 @@ Steps:
    ```
 
    Then point your domain's DNS at the IP it prints.
+   - **Right after `deploy.sh`,** the admin group's role on the cluster can take a few minutes to apply. `bootstrap.sh` waits for it (up to ten minutes) before it starts. It's safe to run again if it stops partway.
+   - **Your kube contexts:** `az aks get-credentials` makes the AKS cluster your current context, and it stays that way afterwards, so switch back (`kubectl config use-context kind-medapp`) before running kind's scripts. `kubelogin convert-kubeconfig` rewrites only this cluster's context (`--context`); without that, it would rewrite every Azure context in your kubeconfig. Every command in the scripts names its context, so none relies on the current one.
 5. **In GitHub, set the repository variables** `deploy.sh` printed: Settings, Secrets and variables, Actions, Variables:
    - `AZURE_CLIENT_ID`
    - `AZURE_TENANT_ID`
@@ -68,6 +72,8 @@ Steps:
    1. Copies the image to the registry.
    2. Records that commit on `env/azure`, with the image (`deploy/argocd/README.md`).
    3. Argo CD deploys it. The migrations Job creates the schema and the first admin.
+
+   So the first deploy to `env/azure` happens on the next merge after the variables are set. To deploy straight away instead, run Publish by hand on `main`: Actions, Publish, Run workflow.
 6. **Sign in** as `admin`, with the first admin password.
 
 ### Passwords
@@ -128,3 +134,7 @@ Key Vault then stays recoverable for 90 days (purge protection), so its name can
 - **Restarting Node.** If the page server exits, the API serves pages rendered in the browser until the pod restarts, and nothing reports it.
 - **Pinning by digest.** The workflows' actions are pinned by tag, and the images (the Dockerfile's bases, Valkey) by tags that move. Both should be pinned by digest, with Dependabot keeping them current.
 - **Restarting pods when a Secret changes** (above, Passwords), for example with a reloader.
+- **A private AKS API server.** It's public, guarded only by Entra ID. Authorised IP ranges (`apiServerAccessProfile`), or a private cluster, would restrict who can reach it.
+- **A reserved ingress IP.** Traefik's public IP comes with its service, so it changes if that service is recreated (a reinstall), and DNS must follow. A static public IP from Bicep, given to Traefik, would keep it.
+- **Ingress through node upgrades.** Traefik runs as one pod, with no disruption budget, and AKS has no maintenance window set. So each node image upgrade is a short outage, at a time Azure picks. Two replicas with a PodDisruptionBudget, and a `maintenanceConfigurations` window, would fix that.
+- **Retries inside `IdentityTransactions`.** If EF retries a transaction after a transient error (an Azure SQL failover), `SetRolesAsync` can fail with a false concurrency error, because the user it changes was loaded before the transaction. The admin has to try again. The fix is to load everything inside the retried work (`docs/reviews/pr-52-azure.md`, finding 5).

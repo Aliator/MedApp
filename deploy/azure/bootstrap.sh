@@ -30,10 +30,28 @@ external_secrets_client_id=$(outputs externalSecretsClientId)
 
 echo "== Cluster credentials ($aks)"
 # Entra ID sign-in (the cluster has no local accounts): kubelogin uses the Azure CLI's.
+# Note: get-credentials also makes this cluster your current kube context, and stays that way after the script. Every
+# kubectl and helm call below names the context, so it never relies on the current one.
 az aks get-credentials --resource-group "$group" --name "$aks" --overwrite-existing
-kubelogin convert-kubeconfig --login azurecli
+# Only this context: without --context, kubelogin rewrites every Azure context in your kubeconfig.
+kubelogin convert-kubeconfig --login azurecli --context "$aks"
 context=$aks
 h() { helm --kube-context "$context" "$@"; }
+
+echo "== Waiting for your cluster role"
+# The admin group's role on the cluster (main.bicep) can take a few minutes to apply after deploy.sh, and until then
+# every call is refused (403). So wait for it, up to ten minutes, rather than fail halfway through.
+for attempt in $(seq 1 30); do
+  if [[ $(kubectl --context "$context" auth can-i create namespaces 2>/dev/null | tr -d '\r') == yes ]]; then
+    break
+  fi
+  if (( attempt == 30 )); then
+    echo "You still can't administer $aks. Check that you're in the admin group (adminGroupObjectId), then run this again." >&2
+    exit 1
+  fi
+  echo "Not yet; trying again in 20 seconds."
+  sleep 20
+done
 
 echo "== Cluster services"
 helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
@@ -61,14 +79,20 @@ sed -e "s|\${LETSENCRYPT_EMAIL}|$(sed_escape "$email")|" -e "s|\${KEY_VAULT_URI}
   deploy/azure/cluster.yaml | kubectl --context "$context" apply -f -
 
 echo "== MedApp (Argo CD, from env/azure)"
-# The project first: it limits what the Application may deploy (deploy/argocd/README.md).
+# The namespace first, which refuses any pod that doesn't meet the "restricted" Pod Security Standard. Made here, not
+# by Argo CD, so that nothing on env/azure can change its labels (deploy/argocd/README.md).
+kubectl --context "$context" create namespace medapp --dry-run=client -o yaml | kubectl --context "$context" apply -f -
+kubectl --context "$context" label namespace medapp --overwrite \
+  pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/warn=restricted
+# Then the project: it limits what the Application may deploy (deploy/argocd/README.md).
 kubectl --context "$context" apply -f deploy/argocd/project.yaml
 kubectl --context "$context" apply -f deploy/argocd/medapp-azure.yaml
 
 ip=$(kubectl --context "$context" --namespace traefik get service traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 echo
 echo "Done. Point your domain's DNS (ingress.host in deploy/azure/values.yaml) at $ip; cert-manager then gets its"
-echo "certificate. Argo CD deploys MedApp once env/azure exists, after the first merge with the Azure repository"
-echo "variables set (deploy.sh printed them). Its UI:"
+echo "certificate. Argo CD deploys MedApp once env/azure exists: on the next merge after the Azure repository"
+echo "variables are set (deploy.sh printed them), or straight away by running Publish by hand on main (Actions,"
+echo "Publish, Run workflow). Its UI:"
 echo "  kubectl --context $context -n argocd port-forward service/argocd-server 8080:443   # https://localhost:8080"
 echo "  kubectl --context $context -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"

@@ -54,6 +54,13 @@ done
 k() { kubectl --context "$context" --namespace medapp "$@"; }
 vault() { kubectl --context "$context" --namespace medapp-vault "$@"; }
 h() { helm --kube-context "$context" "$@"; }
+# The medapp namespace, which refuses any pod that doesn't meet the "restricted" Pod Security Standard. Made here,
+# not by Argo CD, so that nothing on an environment branch can change its labels (deploy/argocd/README.md).
+medapp_namespace() {
+  kubectl --context "$context" create namespace medapp --dry-run=client -o yaml | kubectl --context "$context" apply -f -
+  kubectl --context "$context" label namespace medapp --overwrite \
+    pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/warn=restricted
+}
 # sqlcmd in the SQL Server pod, signed in as sa with the pod's own password (it never leaves the cluster).
 sql() { k exec -i $release-sql-0 -- sh -c '/opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa -P "$MSSQL_SA_PASSWORD" "$@"' sqlcmd "$@"; }
 
@@ -123,7 +130,9 @@ if $argocd; then
     --namespace argocd --create-namespace --values deploy/argocd/argocd-values.yaml --wait
 
   echo "== MedApp (Argo CD)"
-  # The project first: it limits what the Application may deploy (deploy/argocd/README.md).
+  # The namespace first: the project doesn't let Argo CD make or change it.
+  medapp_namespace
+  # Then the project: it limits what the Application may deploy (deploy/argocd/README.md).
   kubectl --context "$context" apply -f deploy/argocd/project.yaml
   kubectl --context "$context" apply -f deploy/argocd/medapp-kind.yaml
   if [[ -z $revision ]]; then
@@ -179,10 +188,7 @@ docker tag medapp-api:build "medapp-api:$tag"
 kind load docker-image "medapp-api:$tag" --name "$cluster"
 
 echo "== MedApp (Helm)"
-# The namespace refuses any pod that doesn't meet the "restricted" Pod Security Standard.
-kubectl --context "$context" create namespace medapp --dry-run=client -o yaml | kubectl --context "$context" apply -f -
-kubectl --context "$context" label namespace medapp --overwrite \
-  pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/warn=restricted
+medapp_namespace
 chart=(upgrade --install "$release" deploy/helm/medapp --namespace medapp
   --values deploy/kind/values.yaml --set "image.tag=$tag" --wait --timeout 10m)
 h "${chart[@]}"
@@ -195,7 +201,7 @@ if [[ -n $demo ]]; then
   k exec -i $release-sql-0 -- sh -c 'cat > /var/opt/mssql/restore.bak' < "$bak"
   sql -Q "RESTORE DATABASE [MedApp] FROM DISK = N'/var/opt/mssql/restore.bak' WITH REPLACE"
   k exec $release-sql-0 -- rm /var/opt/mssql/restore.bak
-  # Back to one copy; the upgrade's migrations Job brings the restored database up to date first.
+  # Back to the two copies values.yaml asks for; the upgrade's migrations Job brings the restored database up to date first.
   h "${chart[@]}"
 fi
 

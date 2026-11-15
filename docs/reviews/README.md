@@ -4,7 +4,9 @@
 
 These notes are for reviewing everything from server-side rendering onwards: from the base commit `d3df88b` (the merge of #41) to the working tree of `feature/azure` as it stood on 15 November 2026. That's:
 - **Pull requests #42 to #50,** all merged to `main` on 15 November 2026: 224 files, 9,054 lines added and 285 removed (`git diff --stat d3df88b main`).
-- **Uncommitted work on `feature/azure`:** 5 files changed and 12 new, for Azure. It's written, but has never been deployed.
+- **The Azure work on `feature/azure`,** uncommitted when these notes were written, and since merged via #52. It's written, but has never been deployed.
+
+**Since then:** many of the risks these notes raise were fixed in two pull requests, each with its own review: #51 for server-side rendering ([pr-51-ssr-security-fixes.md](pr-51-ssr-security-fixes.md)), and #52 for Azure, the deploys and the chart ([pr-52-azure.md](pr-52-azure.md)). So some risks below, and in "Read these first", are already fixed; those reviews say which.
 
 Each document says what changed and why, how it works, the decisions and their trade-offs, how it was checked and what wasn't, the risks, and where to look most closely. They don't replace reading the riskiest code; they point at it.
 
@@ -14,11 +16,13 @@ Each document says what changed and why, how it works, the decisions and their t
 |---|---|---|---|---|
 | [server-side-rendering.md](server-side-rendering.md) | The Node page server the API hosts, hydration, route loaders, the dev server | #42, #43 (dev fix) | Merged | High |
 | [container-image.md](container-image.md) | `MedApp.API/Dockerfile`, `.dockerignore`, the AppHost's publish | #45, #47 (the migrations bundle) | Merged | Medium |
-| [kubernetes.md](kubernetes.md) | The kind cluster, the Helm chart, and locking it down | #46, #47, #48, and the chart parts of #49 and #50 | Merged; `deploy/versions.sh` uncommitted | Medium |
-| [gitops.md](gitops.md) | Argo CD, the Publish workflow, environment branches | #49, plus the uncommitted `deploy-to-env.sh` | Merged, plus uncommitted | High (uncommitted), Medium (merged) |
+| [kubernetes.md](kubernetes.md) | The kind cluster, the Helm chart, and locking it down | #46, #47, #48, and the chart parts of #49 and #50 | Merged; `deploy/versions.sh` merged via #52 | Medium |
+| [gitops.md](gitops.md) | Argo CD, the Publish workflow, environment branches | #49, and `deploy-to-env.sh` in #52 | Merged (#49, #52) | High (then uncommitted, fixed in #52), Medium (merged) |
 | [signalr-backplane.md](signalr-backplane.md) | Valkey as the SignalR backplane, WebSocket-only connections | #50 | Merged | Low to medium |
-| [azure.md](azure.md) | Bicep, the cluster's set-up, Azure's values, the `azure` job | none | Uncommitted, never deployed | Medium, with many first-run unknowns |
+| [azure.md](azure.md) | Bicep, the cluster's set-up, Azure's values, the `azure` job | #52 | Merged via #52, never deployed | Medium, with many first-run unknowns |
 | [app-changes.md](app-changes.md) | `create-first-admin`, health checks, HSTS, mappers, test coverage | #43, #44, #48 | Merged | Medium |
+| [pr-51-ssr-security-fixes.md](pr-51-ssr-security-fixes.md) | The review of #51: the fixes to server-side rendering and password changes | #51 | Merged | Low (6 low findings) |
+| [pr-52-azure.md](pr-52-azure.md) | The review of #52: the Azure setup and the deploy, chart and Azure fixes, with how each finding was resolved | #52 | Merged | High (deploys refused after a workflow change; fixed in #52) |
 
 ## How the risks are graded
 

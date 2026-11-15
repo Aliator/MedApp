@@ -19,11 +19,10 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: medapp
-  # Cluster-wide: only the medapp namespace itself, which the Applications create (CreateNamespace=true) with its
-  # Pod Security labels.
-  clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  # Cluster-wide: nothing, not even a Namespace. The medapp namespace, with its "restricted" Pod Security labels, is
+  # made by deploy/kind/up.sh --argocd and deploy/azure/bootstrap.sh, which run as cluster admin. If Argo CD could
+  # apply a Namespace, a commit on an environment branch could relabel medapp to allow privileged pods.
+  clusterResourceWhitelist: []
   # In the namespace: what the chart renders, with kind's, Azure's and the default values.
   namespaceResourceWhitelist:
     - group: ""

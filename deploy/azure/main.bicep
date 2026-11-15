@@ -10,7 +10,8 @@
 
 targetScope = 'resourceGroup'
 
-@description('Short name for this environment, used in resource names, e.g. prod.')
+@description('Short name for this environment, used in resource names, e.g. prod: 1 to 8 lower-case letters and digits only (the registry\'s name allows only letters and digits, and the SQL server\'s only lower case). Anything else fails the deployment, with a message saying so.')
+@minLength(1)
 @maxLength(8)
 param environmentName string
 
@@ -55,18 +56,26 @@ param firstAdminPassword string
 @secure()
 param backplanePassword string
 
+// The environment's name, checked: Bicep has no pattern decorator, so any character that isn't a lower-case letter
+// or a digit fails the deployment here, with a clear message, rather than later on one resource's name.
+var environmentChars = map(range(0, length(environmentName)), i => substring(environmentName, i, 1))
+var badEnvironmentChars = filter(environmentChars, c => !contains('abcdefghijklmnopqrstuvwxyz0123456789', c))
+var environment = empty(badEnvironmentChars)
+  ? environmentName
+  : fail('environmentName must be lower-case letters and digits only, but "${environmentName}" has "${join(badEnvironmentChars, '')}"')
+
 // Names: <type>-medapp-<environment>, except where Azure needs them globally unique and alphanumeric.
 var suffix = uniqueString(resourceGroup().id)
 var names = {
-  vnet: 'vnet-medapp-${environmentName}'
-  aks: 'aks-medapp-${environmentName}'
-  acr: 'crmedapp${environmentName}${suffix}'
-  sql: 'sql-medapp-${environmentName}-${suffix}'
+  vnet: 'vnet-medapp-${environment}'
+  aks: 'aks-medapp-${environment}'
+  acr: 'crmedapp${environment}${suffix}'
+  sql: 'sql-medapp-${environment}-${suffix}'
   // Key Vault names are at most 24 characters: 'kv-medapp-' (10) + the environment (at most 8) + '-' (1) + 5 = 24.
-  keyVault: 'kv-medapp-${environmentName}-${take(suffix, 5)}'
-  aksIdentity: 'id-medapp-${environmentName}-aks'
-  externalSecretsIdentity: 'id-medapp-${environmentName}-external-secrets'
-  githubIdentity: 'id-medapp-${environmentName}-github'
+  keyVault: 'kv-medapp-${environment}-${take(suffix, 5)}'
+  aksIdentity: 'id-medapp-${environment}-aks'
+  externalSecretsIdentity: 'id-medapp-${environment}-external-secrets'
+  githubIdentity: 'id-medapp-${environment}-github'
 }
 
 // Built-in roles.

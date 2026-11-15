@@ -1,6 +1,6 @@
 # Review: Kubernetes (kind, the Helm chart, and locking it down)
 
-**Pull requests:** #46 (a local kind cluster), #47 (the Helm chart, with migrations as a Job), #48 (security, the chart's side), and the chart parts of #49 (Argo CD sync waves) and #50 (Valkey, several API copies). **Status:** merged to `main`. On `feature/azure`, uncommitted: `deploy/versions.sh` (the cluster services' chart versions, shared with Azure), which `deploy/kind/up.sh` now sources.
+**Pull requests:** #46 (a local kind cluster), #47 (the Helm chart, with migrations as a Job), #48 (security, the chart's side), and the chart parts of #49 (Argo CD sync waves) and #50 (Valkey, several API copies). **Status:** merged to `main`. `deploy/versions.sh` (the cluster services' chart versions, shared with Azure), which `deploy/kind/up.sh` now sources, was uncommitted on `feature/azure` when these notes were written, and was merged via #52. The SSR fixes went in via #51.
 
 The app-side half of #48 (health checks on their own port, HSTS, `create-first-admin`) is in [app-changes.md](app-changes.md). Argo CD and the Publish workflow are in [gitops.md](gitops.md), and the backplane in [signalr-backplane.md](signalr-backplane.md).
 

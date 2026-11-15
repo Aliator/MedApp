@@ -20,6 +20,12 @@ command -v az >/dev/null || { echo "The Azure CLI isn't installed (README.md)." 
 for name in MEDAPP_SQL_ADMIN_PASSWORD MEDAPP_FIRST_ADMIN_PASSWORD MEDAPP_BACKPLANE_PASSWORD; do
   [[ -n ${!name:-} ]] || { echo "$name isn't set (README.md, Passwords)." >&2; exit 1; }
 done
+# The placeholder admin group would only fail after AKS is made (about ten minutes in), on the group's role.
+if grep -q '00000000-0000-0000-0000-000000000000' main.bicepparam; then
+  echo "main.bicepparam still has the placeholder adminGroupObjectId (all zeros). Set it to your admin group's" >&2
+  echo "object ID first (README.md, step 1)." >&2
+  exit 1
+fi
 
 # The Azure CLI on Windows can end tsv output with a carriage return, which Git Bash's $(...) keeps: strip it.
 echo "Subscription: $(az account show --query '[name, id]' --output tsv | tr -d '\r' | paste -sd ' ')"

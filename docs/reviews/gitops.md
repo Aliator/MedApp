@@ -1,6 +1,6 @@
 # Review: GitOps (Argo CD, the Publish workflow and environment branches)
 
-**Pull requests:** #49 (Argo CD for kind, the Publish workflow, the `env/kind` branch), plus the chart's sync waves in the same PR. **Status:** merged to `main`. On `feature/azure`, uncommitted: `.github/scripts/deploy-to-env.sh` (the environment-branch step, moved out of the workflow so kind and Azure share it), the Publish workflow's `azure` job and `deploy/argocd/medapp-azure.yaml`. The Azure side is reviewed in [azure.md](azure.md).
+**Pull requests:** #49 (Argo CD for kind, the Publish workflow, the `env/kind` branch), plus the chart's sync waves in the same PR. **Status:** merged to `main`. Merged later via #52, and uncommitted on `feature/azure` when these notes were written: `.github/scripts/deploy-to-env.sh` (the environment-branch step, moved out of the workflow so kind and Azure share it), the Publish workflow's `azure` job and `deploy/argocd/medapp-azure.yaml`. The Azure side is reviewed in [azure.md](azure.md), and #52 itself in [pr-52-azure.md](pr-52-azure.md).
 
 ## Why
 

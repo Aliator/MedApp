@@ -80,7 +80,7 @@ Five pieces build on it:
   3. It records the deploy on an **environment branch** (`env/kind`, `env/azure`): `main` as of that commit, plus a small file naming the image to run.
   4. **Argo CD**, a tool running inside the cluster, watches that branch and applies whatever it says. It also undoes changes made by hand.
 - **Why a separate branch:** `main` only accepts pull requests, so the workflow can't commit to it, and Argo CD needs the chart and the image tag from one place.
-- **Rolling back:** revert the change on `main`, through a pull request; the next deploy carries it out.
+- **Rolling back:** revert the change on `main`, through a pull request; the next deploy carries it out. Re-running an old deploy doesn't roll back: an environment branch never moves to an older commit.
 
 ## Azure: where it will live
 
@@ -108,12 +108,13 @@ Five pieces build on it:
 - **Three stages:** each change is planned at high reasoning effort, written at a medium-high one, then reviewed at high effort by a separate reviewer that wasn't told the author's conclusions.
 - **A document per merge:** every merge gets a review document (`pr-<number>-….md` here).
 - **Blocking:** a serious finding stops the merge until it's fixed.
-- **Required checks:** CI (build, tests, test coverage, chart checks, the Bicep and the container image) must pass before anything merges.
+- **Required checks:** CI (build, tests, test coverage, chart checks and the Bicep) must pass before anything merges. CI builds the container image too, but that check isn't required yet (`docs/todo.md`).
 - **Protected branches:** `main` and the environment branches can't be deleted or rewritten.
 
 The reviews so far:
 - **The first pass:** a maximum-effort review of everything from SSR to Azure ([flaws-review.md](flaws-review.md)) found 31 issues: 4 high, 14 medium and 13 low.
-- **Fixed:** the high ones and most of the mediums, in [#51](pr-51-ssr-security-fixes.md) and the Azure pull request.
+- **Fixed:** the high ones and most of the mediums, in [#51](pr-51-ssr-security-fixes.md) (server-side rendering) and [#52](pr-52-azure.md) (Azure and the deploys).
+- **#52's own review** ([pr-52-azure.md](pr-52-azure.md)) found 9 more: 1 high (deploys refused after a workflow change), 3 medium and 5 low. Its "Resolution" section says how each was dealt with.
 - **Still open:** what's left is listed as "not yet" in `deploy/azure/README.md` and in `docs/todo.md`. The main items:
   - a passwordless database sign-in for the app, and a least-privilege database user
   - private network access to the registry and the vault

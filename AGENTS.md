@@ -225,7 +225,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and the full production build (`npm run build`: the client, the server rendering bundle and the page server).
 - `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. It isn't a required check; that's a repository setting.
 - `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, an external database, and Azure's values), renders it, and compiles and lints the Azure Bicep (`deploy/azure`). It also renders the cluster services (Traefik, cert-manager, External Secrets and Argo CD) at the versions in `deploy/versions.sh`, with every values file and `--set` value that `deploy/kind/up.sh` and `deploy/azure/bootstrap.sh` give them. After changing one of those values files, run the same `helm template` locally.
-- `unit-tests` runs `dotnet test MedApp.UnitTests` in Release with coverage.
+- `unit-tests` builds the dev MCP tool (`tools/MedApp.DevMcp`, which isn't in `MedApp.sln`), then runs `dotnet test MedApp.UnitTests` in Release with coverage.
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 
 What coverage counts (the aim is full coverage of everything with behaviour worth testing):
@@ -236,8 +236,8 @@ What coverage counts (the aim is full coverage of everything with behaviour wort
 `.github/workflows/e2e.yml` runs the (empty) E2E suite, only when started by hand.
 
 `.github/workflows/publish.yml` runs on every push to `main` except docs-only changes, so it runs after each merge:
-1. It builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`).
-2. It records that commit on the `env/kind` branch, with the tag in `deploy/argocd/kind-image.yaml`: a commit whose files are exactly `main`'s plus that file (`.github/scripts/deploy-to-env.sh`). Argo CD deploys that branch (`deploy/argocd/README.md`). Started by hand on another branch, it builds and pushes the image but deploys nothing.
+1. `image` builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`).
+2. `deploy-kind` records that commit on the `env/kind` branch, with the tag in `deploy/argocd/kind-image.yaml`: a commit whose files are exactly `main`'s plus that file, except `.github/workflows`, which keeps the branch's own (`.github/scripts/deploy-to-env.sh`). Argo CD deploys that branch (`deploy/argocd/README.md`). `azure` does the same for `env/azure`, once Azure is set up. The two deploy jobs need only `image`, so one failing doesn't stop the other. Started by hand on another branch, it builds and pushes the image but deploys nothing. A re-run of an older run doesn't move a branch back.
 
 When you've merged, its run is the deploy. Check it the same way as CI.
 

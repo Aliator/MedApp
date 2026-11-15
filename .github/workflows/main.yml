@@ -166,7 +166,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      
+
+      # The dev MCP tool (tools/MedApp.DevMcp) isn't in MedApp.sln, so nothing else builds it. It once stopped
+      # compiling, unnoticed, when an Application command it calls changed.
+      - name: Build the dev MCP tool
+        run: dotnet build tools/MedApp.DevMcp --configuration Release
+
       - name: Run unit tests with coverage
         run: |
           dotnet test MedApp.UnitTests \
