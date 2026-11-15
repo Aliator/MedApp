@@ -82,18 +82,25 @@ public sealed class AuthController(
     }
 
 
+    /// <summary>
+    /// Creates an account with a password the server generates. The password is returned only in this response,
+    /// for the admin to pass on securely.
+    /// </summary>
     [HttpPost("users")]
     [Authorize(Roles = "Admin")]
     [Tags("Authentication")]
+    [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
-        var result = await mediator.Send(
-            new CreateUserCommand(request.Username, request.Password));
+        var created = await mediator.Send(
+            new CreateUserCommand(request.Username));
 
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
+        if (!created.Succeeded)
+            return BadRequest(created.Result.Errors);
 
-        return NoContent();
+        NoStore();
+        return Ok(new CreateUserResponse(request.Username, created.GeneratedPassword));
     }
     
     /// <summary>
@@ -174,6 +181,7 @@ public sealed class AuthController(
         if (response.Errors.Any())
             return BadRequest(response.Errors);
 
+        NoStore();
         return Ok(response.GeneratedPassword);
     }
     
@@ -338,4 +346,9 @@ public sealed class AuthController(
             User.Identity?.Name,
             roles));
     }
+
+    /// <summary>
+    /// Tells browsers and proxies not to keep this response: it carries a generated password, shown to the admin once.
+    /// </summary>
+    private void NoStore() => Response.Headers.CacheControl = "no-store";
 }

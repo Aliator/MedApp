@@ -122,11 +122,12 @@ public sealed class DemoDataTools
         var created = new List<Staff>();
         foreach (var username in accounts)
         {
-            var password = Passwords.Generate();
-            Guards.Check(await Guards.Validated(() => mediator.Send(new CreateUserCommand(username, password), ct)), $"Create {username}");
+            // The app generates each account's first password, as it does for accounts created in the UI.
+            var result = await Guards.Validated(() => mediator.Send(new CreateUserCommand(username), ct));
+            Guards.Check(result.Result, $"Create {username}");
             await Guards.Validated(() => mediator.Send(new AssignRoleCommand(username, "User"), ct));
             var user = await users.FindByNameAsync(username) ?? throw new McpException($"{username} was not created.");
-            created.Add(new Staff(username, user.Id, password));
+            created.Add(new Staff(username, user.Id, result.GeneratedPassword!));
         }
         return created;
     }

@@ -2,7 +2,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon, type IconType} from '@astryxdesign/core/Icon';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
-import type {ReactNode} from 'react';
+import {useEffect, useRef, type ReactNode} from 'react';
 import {AppIcon} from '../shared/icons';
 import {DialogFrame} from './DialogFrame';
 
@@ -22,6 +22,11 @@ export interface ConfirmDialogProps {
   isProcessing?: boolean;
   confirmDisabled?: boolean;
   confirmText?: string;
+  /**
+   * Ignores the confirm button for this long (ms) after its text last changed, e.g. "Create User" becoming "Done",
+   * so the second click of a double-click can't press the new action before it has been seen.
+   */
+  confirmHoldMs?: number;
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -45,6 +50,7 @@ export function ConfirmDialog({
   isProcessing = false,
   confirmDisabled = false,
   confirmText = 'Confirm',
+  confirmHoldMs,
   cancelText = 'Cancel',
   onConfirm,
   onCancel,
@@ -52,6 +58,16 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const resolvedIntent = intent ?? (isDanger ? 'danger' : 'accent');
   const resolvedIcon = icon ?? (isDanger ? AppIcon.Warning : AppIcon.Check);
+
+  // When the confirm button's text last changed (not when it first showed), for confirmHoldMs.
+  const textChange = useRef<{text: string; at: number}>({text: confirmText, at: Number.NEGATIVE_INFINITY});
+  useEffect(() => {
+    if (textChange.current.text !== confirmText) textChange.current = {text: confirmText, at: Date.now()};
+  }, [confirmText]);
+  const confirm = () => {
+    if (confirmHoldMs && Date.now() - textChange.current.at < confirmHoldMs) return;
+    onConfirm();
+  };
 
   return (
     <DialogFrame
@@ -68,7 +84,7 @@ export function ConfirmDialog({
             variant={isDanger ? 'destructive' : 'primary'}
             isLoading={isProcessing}
             isDisabled={confirmDisabled}
-            onClick={onConfirm}
+            onClick={confirm}
           />
         </>
       }>

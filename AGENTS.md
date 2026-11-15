@@ -104,7 +104,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
   - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
-- **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a reset password, the signed-in user's claims) may be built where they're made.
+- **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a generated password, the signed-in user's claims) may be built where they're made.
 - **Tests:** every mapper has its own (`<Thing>MapperTests`), including what it computes (`CanBeDeleted`, an action or kind by name, read or not).
 
 ### Data access
@@ -151,6 +151,9 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
+- **The server generates every new account's first password;** there is no default password. `POST api/auth/users` takes only a username, creates the account with a generated first password that meets the `Identity` rules (`IIdentityUserService.CreateUserAsync`, the same generator as a reset), and returns it once in `CreateUserResponse`. The password is shown once, but it isn't single-use: it works until the user changes it. The Users page shows it to the admin once (`OneTimePassword`, with a copy button), to pass on securely, and forgets it when the dialog closes. Nothing forces a change at first sign-in yet (`docs/todo.md`).
+  - **`CreateUserResult`** carries a password exactly when the account was created: make it with `Created(password)` or `Failed(result)`. It and the password responses never print the password in `ToString()`, and the API sends them with `Cache-Control: no-store`.
+  - **Accounts created before #53** (from the Users page or the Blazor client) were given the published password `DefaultPassword1`, and may still have it. An admin should reset those accounts' passwords, or ask their users to change them. Finding them is a to-do (`docs/todo.md`).
 - Identity password and lockout rules live under the `Identity` section of `appsettings.json`.
 
 ## Frontend conventions (MedApp.Web)

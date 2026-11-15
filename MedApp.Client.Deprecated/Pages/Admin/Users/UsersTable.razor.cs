@@ -503,7 +503,7 @@ public partial class UsersTable
         _isCreatingUser = true;
         try
         {
-            var response = await Http.PostAsJsonAsync("api/auth/users", new CreateUserRequest(_newUsername, "DefaultPassword1"));
+            var response = await Http.PostAsJsonAsync("api/auth/users", new CreateUserRequest(_newUsername));
             if (response.IsSuccessStatusCode)
             {
                 HideAddUser();
