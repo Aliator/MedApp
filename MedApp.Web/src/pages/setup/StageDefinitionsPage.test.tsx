@@ -2,6 +2,7 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {adminUser, calls, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
 import {StageDefinitionsPage} from './StageDefinitionsPage';
+import {richText, typeRichText} from '../../test/richText';
 
 const BASE = '/api/procedures/patient-procedure-stage/definitions';
 
@@ -47,7 +48,7 @@ describe('StageDefinitionsPage', () => {
     const dialog = within(openDialog()!);
     await user.type(dialog.getByRole('textbox', {name: /Name/}), 'Scan');
     await user.type(dialog.getByRole('textbox', {name: /Description/}), 'Imaging done.');
-    await user.type(dialog.getByRole('textbox', {name: /Instructions/}), 'Book the scanner.');
+    await typeRichText(dialog.getByRole('textbox', {name: /Instructions/}), 'Book the scanner.');
     await user.click(dialog.getByRole('button', {name: 'Add Stage'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -62,7 +63,7 @@ describe('StageDefinitionsPage', () => {
 
     await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage'}));
     const dialog = within(openDialog()!);
-    expect(dialog.getByRole('textbox', {name: /Instructions/})).toHaveValue('Give the patient a copy.');
+    expect(richText(dialog.getByRole('textbox', {name: /Instructions/}))).toBe('Give the patient a copy.');
     await user.type(dialog.getByRole('textbox', {name: /Name/}), '!');
     await user.click(dialog.getByRole('button', {name: 'Save'}));
 

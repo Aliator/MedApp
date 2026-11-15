@@ -2,6 +2,7 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE} from './ProcedurePage';
 import {EditProcedurePage} from './EditProcedurePage';
+import {richText} from '../../test/richText';
 
 const id = 'proc-1';
 const PATH = `/api/procedures/patient-procedures/${id}`;
@@ -31,7 +32,7 @@ describe('EditProcedurePage', () => {
     renderEdit();
 
     expect(await screen.findByRole('textbox', {name: /Title/})).toHaveValue('Colonoscopy');
-    expect(screen.getByRole('textbox', {name: 'Notes'})).toHaveValue('Pack posted.');
+    expect(richText(screen.getByRole('textbox', {name: 'Notes'}))).toBe('Pack posted.');
     expect(screen.getByRole('combobox', {name: /Priority/})).toHaveTextContent('High');
     expect(screen.getByText('For Test Patient')).toBeInTheDocument();
   });

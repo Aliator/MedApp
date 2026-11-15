@@ -13,6 +13,12 @@ configure({asyncUtilTimeout: 5000});
 // jsdom doesn't implement scrolling; the router restores scroll position on navigation.
 window.scrollTo = () => {};
 
+// jsdom has no layout, so ranges have no boxes; the rich text editor (Lexical) measures the selection's.
+if (typeof Range !== 'undefined' && !Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+  Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
+}
+
 // jsdom has <dialog> but not its methods, which Astryx's Dialog calls. Opening sets `open`; closing clears it
 // and fires `close`, as browsers do.
 if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {

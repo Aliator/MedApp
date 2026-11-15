@@ -2,6 +2,7 @@ import {screen} from '@testing-library/react';
 import type {ProcedureStage} from '../../api/procedures';
 import {isDisabled, renderWithApp} from '../../test/render';
 import {StageWork} from './StageWork';
+import {richText, typeRichText} from '../../test/richText';
 
 const stage = (overrides: Partial<ProcedureStage> = {}): ProcedureStage => ({
   id: 's1',
@@ -27,14 +28,16 @@ function renderWork(overrides: Partial<ProcedureStage> = {}, isAdmin = false) {
 
 describe('StageWork', () => {
   it('has a five-line notes box, or the size the page fitted it to', async () => {
+    // The editor sets its writing area's least height through this inline variable.
+    const minHeight = (box: HTMLElement) => box.style.getPropertyValue('--x-minHeight');
     const {unmount} = renderWork();
-    expect(await screen.findByRole('textbox', {name: 'Notes'})).toHaveAttribute('rows', '5');
+    expect(minHeight(await screen.findByRole('textbox', {name: 'Notes'}))).toBe('7.5rem');
     unmount();
 
     const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
     const onFitNotes = vi.fn();
     renderWithApp(<StageWork stage={stage()} isAdmin={false} isBusy={false} notesHeight={240} onFitNotes={onFitNotes} {...handlers} />);
-    expect(await screen.findByRole('textbox', {name: 'Notes'})).toHaveStyle({height: '240px'});
+    expect(minHeight(await screen.findByRole('textbox', {name: 'Notes'}))).toBe('240px');
     // Already fitted: it doesn't measure again.
     await new Promise((resolve) => requestAnimationFrame(resolve));
     expect(onFitNotes).not.toHaveBeenCalled();
@@ -44,10 +47,10 @@ describe('StageWork', () => {
     const {user, onSaveNotes} = renderWork();
 
     const box = await screen.findByRole('textbox', {name: 'Notes'});
-    expect(box).toHaveValue('Seen in clinic.');
+    expect(richText(box)).toBe('Seen in clinic.');
     expect(isDisabled(screen.getByRole('button', {name: 'Save Notes'}))).toBe(true);
 
-    await user.type(box, ' Plan agreed.');
+    await typeRichText(box, ' Plan agreed.');
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
 
@@ -57,7 +60,7 @@ describe('StageWork', () => {
   it('finishes the stage with the notes as typed', async () => {
     const {user, onFinish} = renderWork();
 
-    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), ' Done.');
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' Done.');
     await user.click(screen.getByRole('button', {name: 'Finish Stage'}));
 
     expect(onFinish).toHaveBeenCalledWith('Seen in clinic. Done.');

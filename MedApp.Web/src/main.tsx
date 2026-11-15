@@ -1,5 +1,7 @@
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
+// The formatted-text editor (RichTextField).
+import '@astryxdesign/richtext/richtext.css';
 // The easy-to-read font (Account Settings, Accessibility): declared here, downloaded only once it's used.
 import '@fontsource/atkinson-hyperlegible/latin-400.css';
 import '@fontsource/atkinson-hyperlegible/latin-700.css';

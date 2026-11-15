@@ -6,6 +6,7 @@ import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
 import {formatDateTime} from '../../utils/dates';
+import {RichText} from '../shared/RichText';
 
 /** What a stage's state looks like: finished, under way or waiting. */
 export function StageStateTokens({stage}: {stage: ProcedureStage}) {
@@ -43,20 +44,15 @@ function StageActivity({stage}: {stage: ProcedureStage}) {
   );
 }
 
-/** The stage's notes, a paragraph per line, or a note that there are none. */
+/** The stage's notes, formatted (`RichText`), or a note that there are none. */
 export function StageNotes({notes}: {notes: string}) {
-  const lines = notes.split('\n');
   return (
     <VStack gap={1}>
       <Text type="body" weight="semibold">
         Notes
       </Text>
       {notes.trim() ? (
-        lines.map((line, i) => (
-          <Text key={i} type="body">
-            {line || '\u00a0'}
-          </Text>
-        ))
+        <RichText>{notes}</RichText>
       ) : (
         <Text type="body" color="secondary">
           No notes yet.
@@ -86,7 +82,7 @@ function StageInstructions({stage, folding}: {stage: ProcedureStage; folding?: I
         </Text>
       }>
       <VStack gap={0} paddingBlockStart={1}>
-        <Text type="body">{stage.instructions}</Text>
+        <RichText>{stage.instructions ?? ''}</RichText>
       </VStack>
     </Collapsible>
   );

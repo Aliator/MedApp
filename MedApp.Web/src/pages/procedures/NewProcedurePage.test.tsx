@@ -1,6 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {NewProcedurePage} from './NewProcedurePage';
+import {typeRichText} from '../../test/richText';
 
 const TEMPLATES = '/api/procedures/patient-procedure-stage/templates';
 const CREATE = '/api/procedures/patient-procedures';
@@ -72,7 +73,7 @@ describe('NewProcedurePage', () => {
     await user.click(screen.getByRole('option', {name: 'Knee review'}));
     await user.type(screen.getByRole('combobox', {name: /Due Date/}), '01/12/2099');
     await user.tab();
-    await user.type(screen.getByRole('textbox', {name: 'Notes'}), 'Bring previous scans.');
+    await typeRichText(screen.getByRole('textbox', {name: 'Notes'}), 'Bring previous scans.');
     await user.click(screen.getByRole('button', {name: 'Create Procedure'}));
 
     const dialog = within(openDialog()!);

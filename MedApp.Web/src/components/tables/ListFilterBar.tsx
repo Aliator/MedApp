@@ -1,7 +1,8 @@
 import {PowerSearch, type PowerSearchConfig, type PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
-import {useEffect, useMemo, useRef, type CSSProperties} from 'react';
+import {useEffect, useMemo, useRef} from 'react';
 import {ListFavourites} from './ListFavourites';
+import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
 
 /** A text field the list's API filters by "contains" (e.g. a patient's first name), kept in the URL under `key`. */
 export interface TextFilterField {
@@ -300,5 +301,3 @@ function useNoAutofill(bar: React.RefObject<HTMLElement | null>) {
   }, [bar]);
 }
 
-/** The search never shows an error under it, so the theme's reserved line for one is dropped. */
-const NO_FIELD_STATUS_LINE = {'--medapp-field-status-line': '0px'} as CSSProperties;
