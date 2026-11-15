@@ -22,11 +22,6 @@ public sealed class SearchPatientProceduresHandler(
         var result = await repository.SearchAsync(request, now, cancellationToken);
         var items = await ProcedureMapper.ToSummariesAsync(result.Items, identityReadService, now, cancellationToken);
 
-        return new PagedResponse<PatientProcedureSummaryResponse>(
-            items,
-            request.Page,
-            request.PageSize,
-            result.TotalCount,
-            Paging.TotalPages(result.TotalCount, request.PageSize));
+        return PagedMapper.ToResponse(new PagedResult<PatientProcedureSummaryResponse>(items, result.TotalCount), request.Page, request.PageSize);
     }
 }

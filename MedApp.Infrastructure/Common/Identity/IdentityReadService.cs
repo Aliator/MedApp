@@ -45,7 +45,7 @@ public sealed class IdentityReadService(
         if (user is null) return null;
 
         var roles = await userManager.GetRolesAsync(user);
-        return new UserResponse(user.Id, user.UserName!, roles.ToList());
+        return UserMapper.ToResponse(user, roles);
     }
 
     public async Task<PagedResult<UserResponse>> SearchUsersAsync(SearchUsersQuery query, CancellationToken ct)
@@ -82,7 +82,7 @@ public sealed class IdentityReadService(
         {
             ct.ThrowIfCancellationRequested();
             var roles = await userManager.GetRolesAsync(user);
-            items.Add(new UserResponse(user.Id, user.UserName!, roles.ToList()));
+            items.Add(UserMapper.ToResponse(user, roles));
         }
 
         return new PagedResult<UserResponse>(items, totalCount);
@@ -114,7 +114,7 @@ public sealed class IdentityReadService(
             if (user is null) continue;
 
             var roles = await userManager.GetRolesAsync(user);
-            results.Add(new UserResponse(user.Id, user.UserName!, roles.ToList()));
+            results.Add(UserMapper.ToResponse(user, roles));
         }
 
         return results;

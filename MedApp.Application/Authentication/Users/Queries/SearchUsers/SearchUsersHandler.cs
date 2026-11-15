@@ -13,11 +13,6 @@ public sealed class SearchUsersHandler(IIdentityReadService identityReadService)
     {
         var result = await identityReadService.SearchUsersAsync(request, ct);
 
-        return new PagedResponse<UserResponse>(
-            result.Items,
-            request.Page,
-            request.PageSize,
-            result.TotalCount,
-            Paging.TotalPages(result.TotalCount, request.PageSize));
+        return PagedMapper.ToResponse(result, request.Page, request.PageSize);
     }
 }

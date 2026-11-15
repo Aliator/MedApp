@@ -5,6 +5,10 @@ namespace MedApp.Application.Notifications.Common;
 
 public static class NotificationMapper
 {
+    /// <summary>A user's newest notifications and how many they haven't read.</summary>
+    public static NotificationsResponse ToResponse(IEnumerable<Notification> notifications, int unreadCount) =>
+        new(notifications.Select(ToResponse).ToList(), unreadCount);
+
     public static NotificationResponse ToResponse(Notification notification) => new(
         notification.Id,
         notification.Kind.ToString(),

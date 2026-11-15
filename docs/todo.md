@@ -25,18 +25,3 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   3. **Proper security**: secrets in a secret store (not in values files), TLS, network policies, non-root containers with read-only filesystems, resource limits, and the session cookie and health endpoints set up for running behind an ingress.
   4. **Argo CD** for continuous delivery: the cluster follows the chart and its values in git.
   5. **Azure** for hosting: AKS, Azure SQL, Key Vault for the secrets, and a container registry.
-
-## Backend
-
-- **Decide how Domain entities are mapped to API responses, then apply it everywhere.**
-  - **Today:** handlers map by hand, in three styles:
-    - inline `new XResponse(...)` in each handler (Patients, Auth);
-    - shared static mapper classes (`ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper` in the Procedures area);
-    - helper methods in a few handlers.
-  - **Options:**
-    - **A mapping library,** such as Mapster (free) or AutoMapper (commercial licence from v15).
-    - **Custom mappers everywhere:** one static mapper class per area, as Procedures does, and no library. Explicit and easy to test, so this is my recommendation. A library adds little where the responses compute things (Procedures' `CanEdit`, `IsOverdue`, `AllowedStatusChanges`), and those mappings would stay hand-written anyway.
-  - **Either way:**
-    - write it down in `AGENTS.md` (the "Mapping" section, which says there's no mapping library on `main`);
-    - move the Patients and Auth handlers onto it;
-    - add tests for each mapper.

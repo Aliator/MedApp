@@ -14,6 +14,6 @@ public sealed class GetMyNotificationsHandler(INotificationRepository repository
         var notifications = await repository.GetRecentAsync(request.UserId, take, cancellationToken);
         var unread = await repository.CountUnreadAsync(request.UserId, cancellationToken);
 
-        return new NotificationsResponse(notifications.Select(NotificationMapper.ToResponse).ToList(), unread);
+        return NotificationMapper.ToResponse(notifications, unread);
     }
 }

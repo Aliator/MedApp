@@ -6,6 +6,7 @@ using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
+using MedApp.Contracts.Patients.Responses;
 
 namespace MedApp.UnitTests.Application.Patients.Queries.GetAllPatients;
 
@@ -28,7 +29,7 @@ public sealed class GetAllPatientsHandlerTests
     }
 
     [Test]
-    public async Task Handle_ReturnsPatients_FromRepository()
+    public async Task Handle_ReturnsPatients_FromRepository_AsResponses()
     {
         var patients = new[]
         {
@@ -44,7 +45,8 @@ public sealed class GetAllPatientsHandlerTests
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        result.Should().BeEquivalentTo(patients);
+        // Only what the API shows: their audit timestamps stay inside the app.
+        result.Should().Equal(patients.Select(p => new PatientResponse(p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.Email)));
     }
 
     [Test]
