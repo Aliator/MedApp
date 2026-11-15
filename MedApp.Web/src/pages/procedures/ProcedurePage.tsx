@@ -100,6 +100,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   }));
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const [openStageIds, setOpenStageIds] = useState<string[]>([]);
+  // The current stage's notes box, in pixels: fitted to the free space once, as the page opens, then kept.
+  const [notesHeight, setNotesHeight] = useState<number | undefined>(undefined);
   // Each stage's instructions start folded and open on their own (the same stage's in the Current stage section
   // and the list together).
   const [instructionsOpen, setInstructionsOpen] = useState<Record<string, boolean>>({});
@@ -158,9 +160,14 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     }
   };
 
-  /** The working part of a stage: its notes box and actions, or its notes read-only. */
-  const workFor = (stage: ProcedureStage) => (
+  /**
+   * The working part of a stage: its notes box and actions, or its notes read-only. In the Current stage section
+   * (`isCurrentSection`), the notes box fills the section's free space as the page opens, then keeps that size.
+   */
+  const workFor = (stage: ProcedureStage, isCurrentSection = false) => (
     <StageWork
+      notesHeight={isCurrentSection ? notesHeight : undefined}
+      onFitNotes={isCurrentSection ? setNotesHeight : undefined}
       key={`${stage.id}:${stage.notes}`}
       stage={stage}
       isAdmin={user.isAdmin}
@@ -454,7 +461,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         <CurrentStage
           procedure={procedure}
           stage={currentStage}
-          work={currentStage && workFor(currentStage)}
+          work={currentStage && workFor(currentStage, true)}
           instructions={instructions}
         />
       </Section>

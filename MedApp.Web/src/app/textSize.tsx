@@ -1,4 +1,5 @@
-import {createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode} from 'react';
+import {createContext, useCallback, useContext, useLayoutEffect, useMemo, type ReactNode} from 'react';
+import {defineSetting, useAppSetting} from './settingsStore';
 
 /** How big the app's text is. Astryx sizes text and spacing in rem, so this scales the page's root font size. */
 export const TEXT_SIZES = [
@@ -10,15 +11,10 @@ export const TEXT_SIZES = [
 
 export type TextSize = (typeof TEXT_SIZES)[number]['value'];
 
-const STORAGE_KEY = 'medapp.textSize';
+const STORAGE_KEY = defineSetting('medapp.textSize');
 
-function readStored(): TextSize {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return TEXT_SIZES.find((size) => size.value === stored)?.value ?? 'standard';
-  } catch {
-    return 'standard';
-  }
+function parseTextSize(stored: string | null): TextSize {
+  return TEXT_SIZES.find((size) => size.value === stored)?.value ?? 'standard';
 }
 
 interface TextSizeContextValue {
@@ -33,7 +29,8 @@ const TextSizeContext = createContext<TextSizeContextValue | null>(null);
  * alone; the others scale it, so a reader's browser setting still counts.
  */
 export function TextSizeProvider({children}: {children: ReactNode}) {
-  const [textSize, setSize] = useState<TextSize>(readStored);
+  const [stored, store] = useAppSetting(STORAGE_KEY);
+  const textSize = parseTextSize(stored);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -44,14 +41,7 @@ export function TextSizeProvider({children}: {children: ReactNode}) {
     };
   }, [textSize]);
 
-  const setTextSize = useCallback((size: TextSize) => {
-    setSize(size);
-    try {
-      localStorage.setItem(STORAGE_KEY, size);
-    } catch {
-      // Storage blocked: the size lasts until the page reloads.
-    }
-  }, []);
+  const setTextSize = useCallback((size: TextSize) => store(size), [store]);
 
   const value = useMemo(() => ({textSize, setTextSize}), [textSize, setTextSize]);
   return <TextSizeContext.Provider value={value}>{children}</TextSizeContext.Provider>;

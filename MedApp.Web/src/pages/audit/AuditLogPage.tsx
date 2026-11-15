@@ -6,7 +6,6 @@ import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {AUDIT_ACTIONS, auditActionLabel, auditSearchQuery, describeAuditDetails, type AuditEntry} from '../../api/audit';
-import {PAGE_SIZE} from '../../api/search';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {dayFromToday, ListFilterBar, type ListFilterFavourite, type ListFilterField} from '../../components/tables/ListFilterBar';
@@ -14,6 +13,7 @@ import {DataTable, type DataTableColumn} from '../../components/tables/DataTable
 import {TextCell} from '../../components/tables/TextCell';
 import {formatDateTime} from '../../utils/dates';
 import {choiceValues, hasAuditFilters, type AuditListSearch} from '../listSearch';
+import {useListSettings} from '../../app/listSettings';
 
 type EntryRow = AuditEntry & Record<string, unknown>;
 
@@ -44,12 +44,14 @@ const favourites = (): ListFilterFavourite[] => [
  * on just that procedure. Entries outlive their procedures, so a deleted procedure's history is still here.
  */
 export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
+  const {pageSize} = useListSettings();
   const page = search.page ?? 1;
   const ascending = search.asc ?? false;
   const isFiltered = hasAuditFilters(search);
   const {data, isPending, isError} = useQuery(
     auditSearchQuery({
       Page: page,
+      PageSize: pageSize,
       Ascending: ascending,
       Search: search.q,
       Actions: choiceValues(search.action, AUDIT_ACTIONS),
@@ -127,6 +129,7 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
             fields={FILTER_FIELDS}
             values={search}
             onChange={(values) => onSearchChange({...search, ...values, page: undefined})}
+            list="audit"
             label="Search the audit log"
             placeholder="Search by procedure, stage or user, or filter by action and date..."
             textKey="q"
@@ -137,7 +140,7 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
         onSortChange={(sort) => onSearchChange({...search, page: undefined, asc: sort.ascending || undefined})}
         pagination={{
           page,
-          pageSize: PAGE_SIZE,
+          pageSize,
           totalItems: total,
           onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
         }}

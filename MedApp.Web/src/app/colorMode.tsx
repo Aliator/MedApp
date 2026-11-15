@@ -1,17 +1,9 @@
-import {createContext, useCallback, useContext, useMemo, useState, type ReactNode} from 'react';
+import {createContext, useCallback, useContext, useMemo, type ReactNode} from 'react';
+import {defineSetting, useAppSetting} from './settingsStore';
 
 export type ColorMode = 'light' | 'dark';
 
-const STORAGE_KEY = 'medapp.colorMode';
-
-/** The remembered choice, or dark when there is none (plan Q11: dark by default, not following the OS). */
-function readStoredMode(): ColorMode {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
-  } catch {
-    return 'dark';
-  }
-}
+const STORAGE_KEY = defineSetting('medapp.colorMode');
 
 interface ColorModeContextValue {
   mode: ColorMode;
@@ -21,17 +13,12 @@ interface ColorModeContextValue {
 
 const ColorModeContext = createContext<ColorModeContextValue | null>(null);
 
+/** Light or dark mode: the remembered choice, or dark when there is none (plan Q11: dark by default, not following the OS). */
 export function ColorModeProvider({children}: {children: (mode: ColorMode) => ReactNode}) {
-  const [mode, setMode] = useState<ColorMode>(readStoredMode);
+  const [stored, store] = useAppSetting(STORAGE_KEY);
+  const mode: ColorMode = stored === 'light' ? 'light' : 'dark';
 
-  const choose = useCallback((next: ColorMode) => {
-    setMode(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Storage blocked (e.g. private mode): the choice lasts until the page reloads.
-    }
-  }, []);
+  const choose = useCallback((next: ColorMode) => store(next), [store]);
   const toggle = useCallback(() => choose(mode === 'dark' ? 'light' : 'dark'), [choose, mode]);
 
   const value = useMemo(() => ({mode, setMode: choose, toggle}), [mode, choose, toggle]);

@@ -1,15 +1,19 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {VStack} from '@astryxdesign/core/Stack';
+import {NumberInput} from '@astryxdesign/core/NumberInput';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {Slider} from '@astryxdesign/core/Slider';
 import {Switch} from '@astryxdesign/core/Switch';
-import {Text} from '@astryxdesign/core/Text';
+import {ACCESSIBILITY_SETTINGS, useAccessibility} from '../../app/accessibility';
 import {useColorMode} from '../../app/colorMode';
-import {FLYOUT_DELAYS, useNavSettings} from '../../app/navSettings';
+import {useRef, useState} from 'react';
+import {MAX_PAGE_SIZE, MIN_PAGE_SIZE, useListSettings} from '../../app/listSettings';
+import {FLYOUT_DELAYS, START_PAGES, useNavSettings, type StartPage} from '../../app/navSettings';
 import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
 import {useCurrentUser} from '../../auth/auth';
+import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {Page} from '../../components/pages/Page';
 import {AppIcon} from '../../components/shared/icons';
 import {CardSection} from '../../components/views/CardSection';
@@ -18,14 +22,35 @@ import {ViewSection} from '../../components/views/ViewSection';
 
 /**
  * The signed-in user's Account Settings, as cards: the account (who they are, and Change Password, a page of its
- * own); how the app looks (light or dark mode, and Change Colours, a page of its own); half views (what the side
- * nav does while one is open); and accessibility (the text size, and how long the folded nav waits on hover). All but the account are kept in this browser.
+ * own); how the app looks (light or dark mode, and Change Colours, a page of its own); navigation (the page sign-in
+ * opens on, and what the side nav does while a half view is open); lists (rows per page, and where procedure lists
+ * start); and accessibility (the text size, how long the folded nav waits on hover, and the switches in
+ * `ACCESSIBILITY_SETTINGS`, with a link to the accessibility statement). All but the account are kept in this
+ * browser and with the account.
  */
 export function AccountPage() {
   const me = useCurrentUser();
   const {mode, setMode} = useColorMode();
   const {textSize, setTextSize} = useTextSize();
-  const {closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay} = useNavSettings();
+  const {closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay, startPage, setStartPage} = useNavSettings();
+  const {pageSize, setPageSize, startsOnMine, setStartsOnMine} = useListSettings();
+  const accessibility = useAccessibility();
+  // Rows per page, as typed: it takes effect on Apply, or Enter. (Enter commits the typed number and applies it in
+  // one go, before a re-render, so the latest is kept in a ref too.)
+  const [rowsDraft, setRowsDraft] = useState<number | null>(null);
+  const typedRows = useRef<number | null>(null);
+  // While the box has focus, Apply stays on: a typed number only commits when it loses focus (or on Enter).
+  const [isEditingRows, setIsEditingRows] = useState(false);
+  const rows = rowsDraft ?? pageSize;
+  const typeRows = (value: number) => {
+    typedRows.current = value;
+    setRowsDraft(value);
+  };
+  const applyRows = () => {
+    setPageSize(typedRows.current ?? rows);
+    typedRows.current = null;
+    setRowsDraft(null);
+  };
 
   return (
     <Page title="Account Settings" subtitle="Your account and how the app looks">
@@ -54,34 +79,80 @@ export function AccountPage() {
             />
           }>
           <CardSection title="Appearance">
-            <VStack gap={1}>
-              <Switch
-                label="Dark mode"
-                value={mode === 'dark'}
-                onChange={(isDark) => setMode(isDark ? 'dark' : 'light')}
-              />
-              <Text type="supporting" color="secondary">
-                Remembered in this browser, as are your colours.
-              </Text>
-            </VStack>
-          </CardSection>
-        </ViewCard>
-        <ViewCard showFooter={false}>
-          <CardSection title="Half Views">
             <Switch
-              label="Nav items close the half view"
-              description="On: clicking a side nav item while a half view is open shows its page on its own. Off: it opens on the left, beside the half view. Either way, the item's buttons open it on the left or the right."
-              value={closesHalfView}
-              onChange={setClosesHalfView}
+              label="Dark mode"
+              description="Kept with your account, as are your colours."
+              value={mode === 'dark'}
+              onChange={(isDark) => setMode(isDark ? 'dark' : 'light')}
             />
           </CardSection>
         </ViewCard>
         <ViewCard showFooter={false}>
+          <CardSection title="Navigation">
+            <VStack gap={5}>
+              <RadioList
+                label="Start page"
+                description="The page you see first after signing in."
+                orientation="horizontal"
+                value={startPage}
+                onChange={(value) => setStartPage(value as StartPage)}>
+                {START_PAGES.map((page) => (
+                  <RadioListItem key={page.value} value={page.value} label={page.label} />
+                ))}
+              </RadioList>
+              <Switch
+                label="Nav items close the half view"
+                description="On: clicking a side nav item while a half view is open shows its page on its own. Off: it opens on the left, beside the half view. Either way, the item's menu opens it on the left or the right."
+                value={closesHalfView}
+                onChange={setClosesHalfView}
+              />
+            </VStack>
+          </CardSection>
+        </ViewCard>
+        <ViewCard showFooter={false}>
+          <CardSection title="Lists">
+            <VStack gap={5}>
+              <HStack gap={2} vAlign="end">
+                <NumberInput
+                  label="Rows per page"
+                  description={`How many rows each list shows, from ${MIN_PAGE_SIZE} to ${MAX_PAGE_SIZE}.`}
+                  value={rows}
+                  onChange={typeRows}
+                  onEnter={applyRows}
+                  onFocus={() => setIsEditingRows(true)}
+                  onBlur={() => setIsEditingRows(false)}
+                  min={MIN_PAGE_SIZE}
+                  max={MAX_PAGE_SIZE}
+                  isIntegerOnly
+                  isWheelEnabled={false}
+                  width={280}
+                  containerStyle={NO_STATUS_LINE}
+                />
+                <Button label="Apply" variant="secondary" isDisabled={rows === pageSize && !isEditingRows} onClick={applyRows} />
+              </HStack>
+              <Switch
+                label="Procedure lists start on Assigned to me"
+                description="Procedures, and a patient's procedures, show only yours to begin with. Remove the filter to see everyone's."
+                value={startsOnMine}
+                onChange={setStartsOnMine}
+              />
+            </VStack>
+          </CardSection>
+        </ViewCard>
+        <ViewCard
+          footerActions={
+            <Button
+              label="Accessibility statement"
+              variant="secondary"
+              icon={<Icon icon={AppIcon.Accessibility} />}
+              href="/accessibility"
+            />
+          }>
           <CardSection title="Accessibility">
             <VStack gap={5}>
               <RadioList
                 label="Text size"
-                description="Makes the app's text (and the space around it) bigger or smaller, in this browser."
+                description="Makes the app's text (and the space around it) bigger or smaller."
                 orientation="horizontal"
                 value={textSize}
                 onChange={(value) => setTextSize(value as TextSize)}>
@@ -103,6 +174,15 @@ export function AccountPage() {
                 marks={FLYOUT_DELAYS.map((delay, index) => ({value: index, label: delay.time}))}
                 width="min(400px, 100%)"
               />
+              {ACCESSIBILITY_SETTINGS.map((setting) => (
+                <Switch
+                  key={setting.key}
+                  label={setting.label}
+                  description={setting.description}
+                  value={accessibility.flags[setting.key]}
+                  onChange={(isOn) => accessibility.set(setting.key, isOn)}
+                />
+              ))}
             </VStack>
           </CardSection>
         </ViewCard>

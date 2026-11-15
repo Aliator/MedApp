@@ -2456,6 +2456,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/me/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["UserSettingsResponse"];
+                        "application/json": components["schemas"]["UserSettingsResponse"];
+                        "text/json": components["schemas"]["UserSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SaveSettingsRequest"];
+                    "text/json": components["schemas"]["SaveSettingsRequest"];
+                    "application/*+json": components["schemas"]["SaveSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2722,6 +2793,9 @@ export interface components {
             username?: string | null;
             role?: string | null;
         };
+        SaveSettingsRequest: {
+            settings?: string | null;
+        };
         SetUserRolesRequest: {
             roles?: string[] | null;
         };
@@ -2771,6 +2845,11 @@ export interface components {
             totalCount?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        UserSettingsResponse: {
+            settings?: string | null;
+            /** Format: date-time */
+            updatedAtUtc?: string | null;
         };
         ValidationProblemDetails: {
             type?: string | null;

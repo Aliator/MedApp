@@ -33,6 +33,10 @@ Then, in this folder:
 
 Screenshots are desktop only (1440×900); mobile layouts are out of scope for now. They land in `screenshots/<screen>/{blazor,react}.png`, and `report.html` is regenerated after every run. Screens not yet captured for an app show as "missing".
 
+## Accessibility audit
+
+`npm run a11y` runs axe over every React screen in `screens.ts`, three times: dark mode, light mode, and light mode with the Butter colour theme, checking WCAG 2.2 A and AA. It takes about ten minutes. Each screen's results land in `a11y-results/`, and the run ends with a summary of each rule that failed, its screens and a few of its elements (also in `a11y-report.json`). Both are git-ignored. Add `-- -g "<screen>"` to check only some screens. It exits non-zero if anything failed. The run keeps the signed-in account's saved settings out of it, as the screenshots do.
+
 ## Adding or changing a screen
 
 Screens are listed in `screens.ts`. Each has a name (the folder), a route, and optional `prepare` steps, such as opening a dialog.

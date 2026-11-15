@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
 import { screens } from './screens';
-import { readData, settle, shotPath, type ProjectMeta } from './shared';
+import { isolateSettings, readData, settle, shotPath, type ProjectMeta } from './shared';
 
 for (const screen of screens) {
   test.describe(screen.name, () => {
@@ -8,6 +8,7 @@ for (const screen of screens) {
 
     test(screen.title, async ({ page }, info) => {
       const { app } = info.project.metadata as ProjectMeta;
+      if (app === 'react') await isolateSettings(page);
       const data = readData(app);
       await page.goto(typeof screen.path === 'function' ? screen.path(data) : screen.path);
       await settle(page);

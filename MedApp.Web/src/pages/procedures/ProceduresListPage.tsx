@@ -4,7 +4,7 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
 import {patientQuery} from '../../api/patients';
 import type {ProcedureSummary} from '../../api/procedures';
-import {PAGE_SIZE, procedureSearchQuery} from '../../api/search';
+import {procedureSearchQuery} from '../../api/search';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
   AssigneesCell,
@@ -32,6 +32,7 @@ import {
   type ProcedureSortColumn,
   type ProceduresListSearch,
 } from '../listSearch';
+import {useListSettings} from '../../app/listSettings';
 
 /** The search's fields, as the API filters procedures, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -82,12 +83,16 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
   const page = search.page ?? 1;
   const sortColumn: ProcedureSortColumn = search.sort ?? 'Due';
   const ascending = search.asc ?? true;
-  const isFiltered = hasProcedureFilters(search);
+  // The list starts on "Assigned to me" if Account Settings says so, unless the URL says otherwise (`mine=false`).
+  const {pageSize, startsOnMine} = useListSettings();
+  const mine = search.mine ?? startsOnMine;
+  const isFiltered = hasProcedureFilters({...search, mine: mine || undefined});
 
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const {data, isPending, isError} = useQuery(
     procedureSearchQuery({
       Page: page,
+      PageSize: pageSize,
       Sort: PROCEDURE_SORTS[sortColumn],
       Ascending: ascending,
       Title: search.title,
@@ -97,7 +102,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       Statuses: procedureStatuses(search),
       Priorities: choiceValues(search.priority, TASK_PRIORITIES),
       OverdueOnly: search.overdue,
-      AssignedToMe: search.mine,
+      AssignedToMe: mine || undefined,
       IncludeClosed: search.closed,
       DueFrom: search.dueFrom,
       DueTo: search.dueTo,
@@ -181,15 +186,25 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
         columns={columns}
         idKey="id"
         isLoading={isPending}
-        skeletonRows={PAGE_SIZE}
+        skeletonRows={pageSize}
         // The search, as a power search across the top of the card: a token per filter, in the URL like the page
         // and sort. Typing searches titles, templates and patients straight away.
         search={
           <ListFilterBar
             // One patient's procedures have no need of a patient filter.
             fields={patientId ? FIELDS_FOR_ONE_PATIENT : FILTER_FIELDS}
-            values={search}
-            onChange={(filters) => onSearchChange({...search, ...filters, page: undefined})}
+            values={{...search, mine: mine || undefined}}
+            // Mine kept out of the URL when it's where the list starts anyway, and false there when it starts on it.
+            onChange={(filters) =>
+              onSearchChange({
+                ...search,
+                ...filters,
+                mine: (filters.mine === true) === startsOnMine ? undefined : filters.mine === true,
+                page: undefined,
+              })
+            }
+            list={patientId ? 'patientProcedures' : 'procedures'}
+            isUnfiltered={!hasProcedureFilters(search) && search.mine === undefined}
             label="Search procedures"
             placeholder="Search procedures by title, or filter by template, patient, status, priority, due date..."
             textKey="title"
@@ -200,7 +215,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
         onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: sort.column as ProcedureSortColumn, asc: sort.ascending})}
         pagination={{
           page,
-          pageSize: PAGE_SIZE,
+          pageSize,
           totalItems: total,
           onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
         }}

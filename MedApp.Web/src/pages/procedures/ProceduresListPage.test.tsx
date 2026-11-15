@@ -82,6 +82,26 @@ describe('ProceduresListPage', () => {
     ]);
   });
 
+  it('starts on Assigned to me when Account Settings says so, until its filter is removed (mine=false)', async () => {
+    localStorage.setItem('medapp.proceduresStartOnMine', 'true');
+    const {user, fetch, onSearchChange} = renderList({});
+
+    await screen.findByText('Colonoscopy');
+    expect(calls(fetch)[0]).toContain('AssignedToMe=true');
+    expect(searchBar()).toHaveTextContent(/Assigned to me: only/);
+
+    await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({mine: false}));
+  });
+
+  it('asks the API for the rows per page chosen in Account Settings', async () => {
+    localStorage.setItem('medapp.pageSize', '30');
+    const {fetch} = renderList({});
+
+    await screen.findByText('Colonoscopy');
+    expect(calls(fetch)[0]).toContain('PageSize=30');
+  });
+
   it('shows the search as tokens, and a favourite sets its filter, keeping the sort', async () => {
     const {user, onSearchChange} = renderList({sort: 'Priority', status: '!Blocked', title: 'biopsy'});
 

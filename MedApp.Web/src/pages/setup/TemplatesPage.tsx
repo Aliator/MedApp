@@ -8,7 +8,6 @@ import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import type {ProcedureTemplate} from '../../api/procedures';
 import {allTemplatesQuery, useTemplateActions} from '../../api/procedureSetup';
-import {PAGE_SIZE} from '../../api/search';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
@@ -20,6 +19,7 @@ import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {saveProblem} from '../saveProblem';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {useListSettings} from '../../app/listSettings';
 
 type TemplateRow = ProcedureTemplate & Record<string, unknown>;
 type DialogState = {kind: 'archive' | 'delete'; template: ProcedureTemplate} | null;
@@ -49,7 +49,8 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const {rows, page, total} = setupPage(data, search);
+  const {pageSize} = useListSettings();
+  const {rows, page, total} = setupPage(data, search, pageSize);
   const close = () => setDialog(null);
   const open = (kind: 'archive' | 'delete', template: ProcedureTemplate) => {
     setError(null);
@@ -161,6 +162,8 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
               fields={SETUP_FILTER_FIELDS}
               values={setupBarValues(search)}
               onChange={(values) => onSearchChange({...fromSetupBar(values), page: undefined})}
+              list="templates"
+              isUnfiltered={!search.name && search.status === undefined}
               label="Search templates"
               placeholder="Search templates by name, or filter by status..."
               textKey="name"
@@ -169,7 +172,7 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
           }
           pagination={{
             page,
-            pageSize: PAGE_SIZE,
+            pageSize,
             totalItems: total,
             onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
           }}

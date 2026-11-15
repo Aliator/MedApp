@@ -17,7 +17,6 @@ import {
   type StageDefinition,
   type StageDefinitionInput,
 } from '../../api/procedureSetup';
-import {PAGE_SIZE} from '../../api/search';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
@@ -29,6 +28,7 @@ import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {useListSettings} from '../../app/listSettings';
 
 type DefinitionRow = StageDefinition & Record<string, unknown>;
 
@@ -62,7 +62,8 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const [error, setError] = useState<string | null>(null);
 
-  const {rows, page, total} = setupPage(data, search);
+  const {pageSize} = useListSettings();
+  const {rows, page, total} = setupPage(data, search, pageSize);
   const close = () => setDialog(null);
   const set = (key: keyof StageDefinitionInput) => (value: string) => setForm((current) => ({...current, [key]: value}));
 
@@ -246,6 +247,8 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
               fields={SETUP_FILTER_FIELDS}
               values={setupBarValues(search)}
               onChange={(values) => onSearchChange({...fromSetupBar(values), page: undefined})}
+              list="stages"
+              isUnfiltered={!search.name && search.status === undefined}
               label="Search stages"
               placeholder="Search stages by name, or filter by status..."
               textKey="name"
@@ -254,7 +257,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
           }
           pagination={{
             page,
-            pageSize: PAGE_SIZE,
+            pageSize,
             totalItems: total,
             onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
           }}

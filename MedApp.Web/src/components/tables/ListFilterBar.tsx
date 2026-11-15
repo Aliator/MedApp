@@ -1,10 +1,7 @@
-import {DropdownMenu} from '@astryxdesign/core/DropdownMenu';
-import {Icon} from '@astryxdesign/core/Icon';
-import {IconButton} from '@astryxdesign/core/IconButton';
 import {PowerSearch, type PowerSearchConfig, type PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import {useEffect, useMemo, useRef, type CSSProperties} from 'react';
-import {AppIcon} from '../shared/icons';
+import {ListFavourites} from './ListFavourites';
 
 /** A text field the list's API filters by "contains" (e.g. a patient's first name), kept in the URL under `key`. */
 export interface TextFilterField {
@@ -85,8 +82,18 @@ export interface ListFilterBarProps {
    * of title, template and patient). Without one, typing looks for a field to filter by.
    */
   textKey?: string;
-  /** Quick look-ups, in a menu behind a star at the bar's end. */
+  /**
+   * Which list this is (e.g. `patients`), for the searches people save from its star (`ListFavourites`), kept with
+   * their account.
+   */
+  list: string;
+  /** The list's own quick look-ups, in the star's menu with the saved ones. */
   favourites?: ListFilterFavourite[];
+  /**
+   * Whether the list's URL has no filters (so it takes its starting search, if one is set). By default, when the bar
+   * shows none; a list that starts filtered (My Tasks on Not started) says, as its bar shows that filter.
+   */
+  isUnfiltered?: boolean;
 }
 
 // Dates are whole days, kept in the URL as yyyy-mm-dd; PowerSearch holds a day as its midnight UTC in seconds
@@ -228,7 +235,7 @@ export function valuesFrom(fields: ListFilterField[], filters: readonly PowerSea
  *
  * Use it above a list's table, as wide as it (`DataTable`'s `search`), for the filters the list's API supports.
  */
-export function ListFilterBar({fields, values, onChange, label, placeholder, textKey, favourites}: ListFilterBarProps) {
+export function ListFilterBar({fields, values, onChange, label, placeholder, textKey, list, favourites, isUnfiltered}: ListFilterBarProps) {
   const config = useMemo(() => configFor(fields, textKey), [fields, textKey]);
   const filters = filtersFrom(fields, values);
   const bar = useRef<HTMLElement>(null);
@@ -246,19 +253,14 @@ export function ListFilterBar({fields, values, onChange, label, placeholder, tex
           presentation="popover"
         />
       </StackItem>
-      {favourites?.length ? (
-        <DropdownMenu
-          items={favourites.map((favourite) => ({
-            id: favourite.label,
-            label: favourite.label,
-            onClick: () => onChange({...cleared(fields), ...favourite.values}),
-          }))}
-          alignment="end"
-          renderTrigger={(trigger) => (
-            <IconButton {...trigger} label="Favourites" icon={<Icon icon={AppIcon.Favourite} />} variant="secondary" />
-          )}
-        />
-      ) : null}
+      <ListFavourites
+        list={list}
+        quick={favourites}
+        current={valuesFrom(fields, filters)}
+        normalize={(saved) => valuesFrom(fields, filtersFrom(fields, saved))}
+        onApply={(saved) => onChange({...cleared(fields), ...saved})}
+        isUnfiltered={isUnfiltered ?? filters.length === 0}
+      />
     </HStack>
   );
 }

@@ -96,3 +96,16 @@ export const field = (page: Page, name: RegExp): Locator =>
 /** The first enabled button in the main table whose accessible name matches (row actions for the signed-in user are disabled). */
 export const rowAction = (page: Page, name: RegExp): Locator =>
   page.getByRole('table').getByRole('button', { name, disabled: false }).first();
+
+/**
+ * Keeps the signed-in account's saved settings out of a run, and the run's out of the account: the app keeps its
+ * settings with the account (`GET`/`PUT api/auth/me/settings`), so this answers those calls here, in this browser
+ * only, as an account with none saved. Each screen then shows the app's defaults (or what the test sets).
+ */
+export async function isolateSettings(page: Page) {
+  await page.route('**/api/auth/me/settings', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ json: { settings: null, updatedAtUtc: null } })
+      : route.fulfill({ status: 204 }),
+  );
+}

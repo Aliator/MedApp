@@ -1,4 +1,4 @@
-import {PAGE_SIZE} from '../../api/search';
+import {DEFAULT_PAGE_SIZE} from '../../app/listSettings';
 import type {ListFilterFavourite, ListFilterField, ListFilterValues} from '../../components/tables/ListFilterBar';
 import type {SetupListSearch} from '../listSearch';
 
@@ -10,17 +10,21 @@ export const setupStatusOf = (search: SetupListSearch): SetupStatus => search.st
  * One page of a setup list (stages or templates). These lists are short and come whole from the API, so they're
  * filtered, sorted (by name) and paged here: active ones unless asked for archived ones.
  */
-export function setupPage<T extends {name?: string | null; isArchived?: boolean}>(items: readonly T[], search: SetupListSearch) {
+export function setupPage<T extends {name?: string | null; isArchived?: boolean}>(
+  items: readonly T[],
+  search: SetupListSearch,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+) {
   const status = setupStatusOf(search);
   const name = search.name?.toLowerCase();
   const shown = items
     .filter((item) => status === 'any' || (status === 'archived') === (item.isArchived ?? false))
     .filter((item) => !name || (item.name ?? '').toLowerCase().includes(name))
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, {sensitivity: 'base'}));
-  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(shown.length / pageSize));
   const page = Math.min(search.page ?? 1, pages);
   return {
-    rows: shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    rows: shown.slice((page - 1) * pageSize, page * pageSize),
     page,
     total: shown.length,
   };

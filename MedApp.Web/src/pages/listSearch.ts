@@ -201,6 +201,7 @@ export interface ProceduresListSearch {
   priority?: string;
   overdue?: boolean;
   /** Only procedures assigned to the signed-in user. */
+  /** Only procedures assigned to the signed-in user. `false` (in the URL) overrides starting on them (Account Settings). */
   mine?: boolean;
   /** Include Completed, Cancelled and Archived (hidden by default). */
   closed?: boolean;
@@ -230,7 +231,7 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
     status: parseChoice(raw.status, PROCEDURE_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
     overdue: flag(raw.overdue),
-    mine: flag(raw.mine),
+    mine: bool(raw.mine),
     closed: flag(raw.closed),
     dueFrom: date(raw.dueFrom),
     dueTo: date(raw.dueTo),

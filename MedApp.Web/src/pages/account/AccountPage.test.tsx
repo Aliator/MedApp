@@ -1,5 +1,6 @@
 import {screen} from '@testing-library/react';
-import {adminUser, renderWithApp, staffUser} from '../../test/render';
+import {ACCESSIBILITY_SETTINGS} from '../../app/accessibility';
+import {adminUser, isDisabled, renderWithApp, staffUser} from '../../test/render';
 import {AccountPage} from './AccountPage';
 
 describe('AccountPage', () => {
@@ -48,6 +49,46 @@ describe('AccountPage', () => {
     expect(localStorage.getItem('medapp.navFlyoutDelay')).toBe('longer');
   });
 
+  it('chooses the start page in the Navigation card, and remembers it', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
+
+    expect(await screen.findByRole('radio', {name: 'Home'})).toBeChecked();
+    await user.click(screen.getByRole('radio', {name: 'My Tasks'}));
+
+    expect(screen.getByRole('radio', {name: 'My Tasks'})).toBeChecked();
+    expect(localStorage.getItem('medapp.startPage')).toBe('tasks');
+  });
+
+  it('chooses rows per page and where procedure lists start, in the Lists card', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
+
+    const rows = await screen.findByRole('spinbutton', {name: /^Rows per page/});
+    expect(rows).toHaveValue('10');
+    const apply = screen.getByRole('button', {name: 'Apply'});
+    expect(isDisabled(apply)).toBe(true);
+    await user.clear(rows);
+    await user.type(rows, '30');
+    await user.tab();
+    // Nothing changes until Apply.
+    expect(localStorage.getItem('medapp.pageSize')).toBeNull();
+    await user.click(apply);
+    await user.click(screen.getByRole('switch', {name: 'Procedure lists start on Assigned to me'}));
+
+    expect(localStorage.getItem('medapp.pageSize')).toBe('30');
+    expect(isDisabled(screen.getByRole('button', {name: 'Apply'}))).toBe(true);
+    expect(localStorage.getItem('medapp.proceduresStartOnMine')).toBe('true');
+  });
+
+  it('keeps rows per page between 1 and 100', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
+
+    const rows = await screen.findByRole('spinbutton', {name: /^Rows per page/});
+    await user.clear(rows);
+    await user.type(rows, '250{Enter}');
+
+    expect(localStorage.getItem('medapp.pageSize')).toBe('100');
+  });
+
   it('changes the text size in the Accessibility card, and remembers it', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
@@ -56,4 +97,21 @@ describe('AccountPage', () => {
     expect(document.documentElement.style.fontSize).toBe('112.5%');
     expect(localStorage.getItem('medapp.textSize')).toBe('large');
   });
+
+  it('switches the accessibility settings, and links to the statement', async () => {
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
+
+    const shortcuts = await screen.findByRole('switch', {name: /^Keyboard shortcuts/});
+    // Every accessibility switch starts off.
+    for (const setting of ACCESSIBILITY_SETTINGS) {
+      expect(screen.getByRole('switch', {name: new RegExp(`^${setting.label}`)})).not.toBeChecked();
+    }
+    await user.click(shortcuts);
+    await user.click(screen.getByRole('switch', {name: /^Underline links/}));
+
+    expect(JSON.parse(localStorage.getItem('medapp.accessibility')!)).toEqual({shortcuts: true, underlineLinks: true});
+    expect(document.querySelector('style[data-medapp-accessibility]')?.textContent).toContain('.astryx-link');
+    expect(screen.getByRole('link', {name: 'Accessibility statement'})).toHaveAttribute('href', '/accessibility');
+  });
 });
+

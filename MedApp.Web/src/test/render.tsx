@@ -97,7 +97,8 @@ export const searchBar = () => document.querySelector<HTMLElement>('.astryx-powe
 
 /** Picks one of a list's favourites: the star beside its search, then the favourite in its menu. */
 export async function pickFavourite(user: ReturnType<typeof userEvent.setup>, name: string) {
-  const star = await screen.findByRole('button', {name: 'Favourites'});
+  // Its name says which favourite the list is showing, if any: "Favourites (showing Not started)".
+  const star = await screen.findByRole('button', {name: /^Favourites/});
   await user.click(star);
   const menu = await waitFor(() => {
     const element = document.querySelector<HTMLElement>(`[aria-labelledby="${CSS.escape(star.id)}"]`);

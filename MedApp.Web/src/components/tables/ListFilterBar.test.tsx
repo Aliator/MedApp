@@ -40,14 +40,14 @@ describe('ListFilterBar', () => {
   });
 
   it('shows the filters as tokens', async () => {
-    renderWithApp(<ListFilterBar fields={fields} values={{title: 'knee', overdue: true}} onChange={() => {}} label="Search" placeholder="Search..." />);
+    renderWithApp(<ListFilterBar list="test" fields={fields} values={{title: 'knee', overdue: true}} onChange={() => {}} label="Search" placeholder="Search..." />);
 
     await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Procedure: contains\s*knee/));
     expect(searchBar()).toHaveTextContent(/Overdue: only/);
   });
 
   it('marks its text box as not for autofill, so a saved login is never filled in', async () => {
-    renderWithApp(<ListFilterBar fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
+    renderWithApp(<ListFilterBar list="test" fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
 
     const input = await vi.waitFor(() => {
       const box = searchBar().querySelector('input');
@@ -64,6 +64,7 @@ describe('ListFilterBar', () => {
     const onChange = vi.fn();
     const {user} = renderWithApp(
       <ListFilterBar
+        list="test"
         fields={fields}
         values={{title: 'knee'}}
         onChange={onChange}

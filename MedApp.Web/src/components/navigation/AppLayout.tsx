@@ -4,9 +4,11 @@ import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import {Theme} from '@astryxdesign/core/theme';
 import {Outlet, useRouter} from '@tanstack/react-router';
 import {useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
+import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
 import {AppSideNav} from './AppSideNav';
+import {KeyboardShortcuts} from './KeyboardShortcuts';
 
 const STORAGE_KEY = 'medapp.halfView';
 
@@ -115,6 +117,10 @@ function MainLayout() {
 
   return (
     <HalfViewsContext.Provider value={halfViews}>
+      {/* The settings, kept with the account while signed in. */}
+      <SettingsSync />
+      {/* The keyboard shortcuts (Account Settings, Accessibility), and their list (?). */}
+      <KeyboardShortcuts />
       <AppShell
         sideNav={
           // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.

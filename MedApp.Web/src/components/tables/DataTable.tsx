@@ -3,8 +3,10 @@ import {Section} from '@astryxdesign/core/Section';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {DEFAULT_MIN_COLUMN_WIDTH, pixel, Table, useTableSortable, type TableColumn} from '@astryxdesign/core/Table';
-import {useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode} from 'react';
+import {useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {PageControls} from './PageControls';
+import {RowCards} from './RowCards';
 import type {TableSort} from './sorting';
 
 export type DataTableColumn<T extends Record<string, unknown>> = TableColumn<T>;
@@ -101,10 +103,16 @@ function minColumnWidth(column: TableColumn<Record<string, unknown>>): number {
  * and pixel columns never grow.) Measured from the area the table sits in, and again whenever it resizes; until
  * then, the columns as given.
  */
+/**
+ * Narrower than this, a table shows cards whatever its columns' floors: squeezed that far (a phone, or 400% zoom),
+ * every column is too narrow to read, even where they'd all technically fit.
+ */
+const MIN_TABLE_WIDTH = 480;
+
 function useFittedColumns<T extends Record<string, unknown>>(
   columns: TableColumn<T>[],
   scroller: React.RefObject<HTMLElement | null>,
-): TableColumn<T>[] {
+): {fitted: TableColumn<T>[]; isTooNarrow: boolean} {
   const [space, setSpace] = useState<number | undefined>(undefined);
 
   useLayoutEffect(() => {
@@ -125,12 +133,28 @@ function useFittedColumns<T extends Record<string, unknown>>(
   }, [scroller]);
 
   return useMemo(() => {
-    if (!space || space <= 0) return columns;
+    if (!space || space <= 0) return {fitted: columns, isTooNarrow: false};
     const mins = columns.map((column) => minColumnWidth(column as TableColumn<Record<string, unknown>>));
-    const spare = Math.max(0, space - mins.reduce((sum, min) => sum + min, 0));
-    const share = Math.floor(spare / columns.length);
-    return columns.map((column, i) => ({...column, width: pixel(mins[i] + share)}));
+    const total = mins.reduce((sum, min) => sum + min, 0);
+    const share = Math.floor(Math.max(0, space - total) / columns.length);
+    return {
+      fitted: columns.map((column, i) => ({...column, width: pixel(mins[i] + share)})),
+      isTooNarrow: total > space || space < MIN_TABLE_WIDTH,
+    };
   }, [columns, space]);
+}
+
+/** Tells screen readers what a paged list found, each time its results arrive (`useAnnounce`). */
+function useResultsAnnouncement(pagination: DataTablePagination | undefined) {
+  const announce = useAnnounce();
+  const total = pagination?.totalItems;
+  const page = pagination?.page;
+  const pages = pagination ? Math.max(1, Math.ceil(pagination.totalItems / pagination.pageSize)) : 0;
+  useEffect(() => {
+    if (total === undefined) return;
+    const found = total === 0 ? 'No results' : `${total} ${total === 1 ? 'result' : 'results'}`;
+    announce(pages > 1 ? `${found}, page ${page} of ${pages}` : found);
+  }, [announce, total, page, pages]);
 }
 
 /**
@@ -144,6 +168,10 @@ function useFittedColumns<T extends Record<string, unknown>>(
  * height. Cells keep to the row's two lines (TextCell, and maxLines on Text), truncating what doesn't fit.
  * Rows never get shorter than `MIN_ROW_HEIGHT`; in a window too short for a page of those, they scroll inside
  * the card.
+ *
+ * When its columns don't fit even at their narrowest (a half view, or a narrow window), or it's narrower than
+ * `MIN_TABLE_WIDTH` (a phone, or 400% zoom), it shows each row as a small card instead (`RowCards`), so it never
+ * scrolls sideways.
  */
 export function DataTable<T extends Record<string, unknown>>({
   data,
@@ -170,13 +198,28 @@ export function DataTable<T extends Record<string, unknown>>({
   });
   const plugins = useMemo(() => (onSortChange ? {sortable} : undefined), [onSortChange, sortable]);
   const showPaging = !isLoading && pagination !== undefined && pagination.totalItems > 0;
+  useResultsAnnouncement(isLoading ? undefined : pagination);
   const scroller = useRef<HTMLElement>(null);
   const rowHeight = useRowHeight(scroller, pagination?.pageSize, [isLoading, data.length === 0, showPaging]);
   const rowHeightStyle = rowHeight ? ({'--medapp-table-row-height': `${rowHeight}px`} as CSSProperties) : undefined;
-  const fitted = useFittedColumns(columns, scroller);
+  const {fitted, isTooNarrow} = useFittedColumns(columns, scroller);
 
   let table: ReactNode;
-  if (isLoading) {
+  if (isTooNarrow) {
+    // Too narrow for its columns, even at their narrowest: each row as a small card instead (no sideways scrolling).
+    table = (
+      <RowCards
+        data={data}
+        columns={columns}
+        idKey={idKey}
+        isLoading={isLoading}
+        skeletonRows={pagination?.pageSize ?? skeletonRows}
+        sort={sort}
+        onSortChange={onSortChange}
+        emptyState={emptyState}
+      />
+    );
+  } else if (isLoading) {
     const rows: SkeletonRow[] = Array.from({length: pagination?.pageSize ?? skeletonRows}, (_, i) => ({skeletonId: i}));
     const skeletonColumns: TableColumn<SkeletonRow>[] = fitted.map((column, c) => ({
       key: column.key,
@@ -215,7 +258,7 @@ export function DataTable<T extends Record<string, unknown>>({
         <StackItem size="fill">
           <HStack gap={0} height="100%">
             {edge?.side === 'start' && edgePanel}
-            <StackItem size="fill" isScrollable ref={scroller} style={data.length > 0 || isLoading ? rowHeightStyle : undefined}>
+            <StackItem size="fill" isScrollable ref={scroller} style={!isTooNarrow && (data.length > 0 || isLoading) ? rowHeightStyle : undefined}>
               {/* A little room between the card's edges and the first and last columns (Table has no prop for it). */}
               <Section variant="transparent" paddingBlock={0} paddingInline={4}>
                 {table}

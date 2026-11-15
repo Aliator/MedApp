@@ -3,7 +3,7 @@ import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
 import type {ProcedureSummary} from '../../api/procedures';
-import {PAGE_SIZE, procedureSearchQuery, type ProcedureSearch} from '../../api/search';
+import {procedureSearchQuery, type ProcedureSearch} from '../../api/search';
 import {Page} from '../../components/pages/Page';
 import {
   DueDateCell,
@@ -33,6 +33,7 @@ import {
   type TaskSortColumn,
   type TasksSearch,
 } from '../listSearch';
+import {useListSettings} from '../../app/listSettings';
 
 type TaskRow = ProcedureSummary & Record<string, unknown>;
 
@@ -154,12 +155,13 @@ const FAVOURITES: ListFilterFavourite[] = [
 ];
 
 /** The API search behind the list: unfinished procedures assigned to me, with its filters. */
-export function taskQuery(search: TasksSearch): ProcedureSearch {
+export function taskQuery(search: TasksSearch, pageSize?: number): ProcedureSearch {
   const progress = progressOf(search);
   return {
     AssignedToMe: true,
     Started: progress === 'any' ? undefined : progress === 'started',
     Page: search.page ?? 1,
+    PageSize: pageSize,
     Sort: TASK_SORTS[search.sort ?? 'Due'],
     Ascending: search.asc ?? true,
     Title: search.title,
@@ -205,7 +207,8 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
   const ascending = search.asc ?? true;
   const isFiltered = hasTaskFilters(search);
 
-  const {data, isPending, isError} = useQuery(procedureSearchQuery(taskQuery(search)));
+  const {pageSize} = useListSettings();
+  const {data, isPending, isError} = useQuery(procedureSearchQuery(taskQuery(search, pageSize)));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as TaskRow[];
 
@@ -230,12 +233,14 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
         columns={columnsFor(progress)}
         idKey="id"
         isLoading={isPending}
-        skeletonRows={PAGE_SIZE}
+        skeletonRows={pageSize}
         search={
           <ListFilterBar
             fields={FILTER_FIELDS}
             values={barValues(search)}
             onChange={(values) => onSearchChange({...search, ...fromBar(values), page: undefined})}
+            list="tasks"
+            isUnfiltered={!hasTaskFilters(search) && search.progress === undefined}
             label="Search my tasks"
             placeholder="Search my tasks by procedure, or filter by progress, patient, priority, due date..."
             textKey="title"
@@ -246,7 +251,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
         onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: sort.column as TaskSortColumn, asc: sort.ascending})}
         pagination={{
           page,
-          pageSize: PAGE_SIZE,
+          pageSize,
           totalItems: total,
           onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
         }}

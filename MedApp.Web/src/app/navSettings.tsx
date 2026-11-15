@@ -1,4 +1,5 @@
-import {createContext, useCallback, useContext, useMemo, useState, type ReactNode} from 'react';
+import {createContext, useCallback, useContext, useMemo, type ReactNode} from 'react';
+import {defineSetting, useAppSetting} from './settingsStore';
 
 /**
  * How long the pointer rests on a folded side nav icon (a half view) before its row comes out (Account Settings,
@@ -14,24 +15,20 @@ export const FLYOUT_DELAYS = [
 
 export type FlyoutDelay = (typeof FLYOUT_DELAYS)[number]['value'];
 
-const CLOSES_HALF_VIEW_KEY = 'medapp.navClosesHalfView';
-const FLYOUT_DELAY_KEY = 'medapp.navFlyoutDelay';
+/** The pages sign-in can open on (Account Settings, Navigation): Home unless chosen otherwise. */
+export const START_PAGES = [
+  {value: 'home', label: 'Home', path: '/'},
+  {value: 'tasks', label: 'My Tasks', path: '/tasks'},
+  {value: 'patients', label: 'Patients', path: '/patients'},
+  {value: 'procedures', label: 'Procedures', path: '/procedures'},
+] as const;
 
-function read<T>(key: string, parse: (stored: string | null) => T, fallback: T): T {
-  try {
-    return parse(localStorage.getItem(key));
-  } catch {
-    return fallback;
-  }
-}
+export type StartPage = (typeof START_PAGES)[number]['value'];
+type StartPath = (typeof START_PAGES)[number]['path'];
 
-function write(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Storage blocked: the choice lasts until the page reloads.
-  }
-}
+const CLOSES_HALF_VIEW_KEY = defineSetting('medapp.navClosesHalfView');
+const FLYOUT_DELAY_KEY = defineSetting('medapp.navFlyoutDelay');
+const START_PAGE_KEY = defineSetting('medapp.startPage');
 
 interface NavSettingsContextValue {
   /**
@@ -44,34 +41,46 @@ interface NavSettingsContextValue {
   /** The flyout delay in milliseconds. */
   flyoutDelayMs: number;
   setFlyoutDelay: (delay: FlyoutDelay) => void;
+  /** Where sign-in opens. */
+  startPage: StartPage;
+  startPagePath: StartPath;
+  setStartPage: (page: StartPage) => void;
 }
 
 const NavSettingsContext = createContext<NavSettingsContextValue | null>(null);
 
 const delayMs = (delay: FlyoutDelay) => FLYOUT_DELAYS.find((option) => option.value === delay)!.ms;
+const startPath = (page: StartPage) => START_PAGES.find((option) => option.value === page)!.path;
 
 /**
  * How the side nav behaves (Account Settings), kept in this browser: whether its clicks close an open half view
- * (by default they do), and how long its folded icons wait before bringing their rows out (half a second).
+ * (by default they do), how long its folded icons wait before bringing their rows out (half a second), and the page
+ * sign-in opens on (Home).
  */
 export function NavSettingsProvider({children}: {children: ReactNode}) {
-  const [closesHalfView, setCloses] = useState(() => read(CLOSES_HALF_VIEW_KEY, (s) => s !== 'false', true));
-  const [flyoutDelay, setDelay] = useState<FlyoutDelay>(() =>
-    read(FLYOUT_DELAY_KEY, (s) => FLYOUT_DELAYS.find((option) => option.value === s)?.value ?? 'standard', 'standard'),
-  );
+  const [storedCloses, storeCloses] = useAppSetting(CLOSES_HALF_VIEW_KEY);
+  const [storedDelay, storeDelay] = useAppSetting(FLYOUT_DELAY_KEY);
+  const [storedStart, storeStart] = useAppSetting(START_PAGE_KEY);
+  const closesHalfView = storedCloses !== 'false';
+  const flyoutDelay: FlyoutDelay = FLYOUT_DELAYS.find((option) => option.value === storedDelay)?.value ?? 'standard';
+  const startPage: StartPage = START_PAGES.find((option) => option.value === storedStart)?.value ?? 'home';
 
-  const setClosesHalfView = useCallback((closes: boolean) => {
-    setCloses(closes);
-    write(CLOSES_HALF_VIEW_KEY, String(closes));
-  }, []);
-  const setFlyoutDelay = useCallback((delay: FlyoutDelay) => {
-    setDelay(delay);
-    write(FLYOUT_DELAY_KEY, delay);
-  }, []);
+  const setClosesHalfView = useCallback((closes: boolean) => storeCloses(String(closes)), [storeCloses]);
+  const setFlyoutDelay = useCallback((delay: FlyoutDelay) => storeDelay(delay), [storeDelay]);
+  const setStartPage = useCallback((page: StartPage) => storeStart(page), [storeStart]);
 
   const value = useMemo(
-    () => ({closesHalfView, setClosesHalfView, flyoutDelay, flyoutDelayMs: delayMs(flyoutDelay), setFlyoutDelay}),
-    [closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay],
+    () => ({
+      closesHalfView,
+      setClosesHalfView,
+      flyoutDelay,
+      flyoutDelayMs: delayMs(flyoutDelay),
+      setFlyoutDelay,
+      startPage,
+      startPagePath: startPath(startPage),
+      setStartPage,
+    }),
+    [closesHalfView, setClosesHalfView, flyoutDelay, setFlyoutDelay, startPage, setStartPage],
   );
   return <NavSettingsContext.Provider value={value}>{children}</NavSettingsContext.Provider>;
 }
@@ -82,6 +91,9 @@ const DEFAULTS: NavSettingsContextValue = {
   flyoutDelay: 'standard',
   flyoutDelayMs: delayMs('standard'),
   setFlyoutDelay: () => {},
+  startPage: 'home',
+  startPagePath: '/',
+  setStartPage: () => {},
 };
 
 /** The side nav settings; outside the provider (tests of one part), the defaults. */

@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import {cleanup, configure} from '@testing-library/react';
 import {afterEach, vi} from 'vitest';
+import {appSettings} from '../app/settingsStore';
 
 // Routes are code-split, and loading a route chunk can take over a second while the whole suite runs.
 configure({asyncUtilTimeout: 5000});
@@ -28,4 +29,5 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   localStorage.clear();
+  appSettings.reset();
 });

@@ -30,6 +30,18 @@ const projects: Project[] = apps.flatMap((app) => {
       use: { baseURL: app.url, storageState: authFile(app.name), viewport },
       metadata,
     },
+    // The accessibility audit (React only): axe on every screen, in each mode (`npm run a11y`).
+    ...(app.name === 'react'
+      ? [
+          {
+            name: 'a11y',
+            testMatch: /a11y\.spec\.ts/,
+            dependencies: [`setup-${app.name}`],
+            use: { baseURL: app.url, storageState: authFile(app.name), viewport },
+            metadata,
+          },
+        ]
+      : []),
   ];
 });
 

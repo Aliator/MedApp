@@ -2,43 +2,15 @@
 
 Smaller improvements to pick up later, outside the phased plans (`docs/procedures-ui-plan.md`). Move an item into a plan or a branch when it's started, and delete it here when it's merged.
 
-## Account settings
-
-More settings for Account Settings (`MedApp.Web/src/pages/account/AccountPage.tsx`), alongside the Account, Appearance and Accessibility cards. Browser-only settings live in `src/app/` providers, like `colours.tsx` and `textSize.tsx`.
-
-- **Start page.** Which page opens after sign-in: Home (the default), My Tasks, Patients or Procedures.
-- **List defaults.** Rows per page for every list (today a fixed 10, `PAGE_SIZE`), and whether the procedure lists start on "Assigned to me".
-- **Date and time format.** e.g. 7 Nov 2026 or 07/11/2026, and a 12- or 24-hour clock (`src/utils/dates.ts` formats them all).
-- **Density.** A compact option for tables and forms, to fit more on screen (Astryx tables and lists have a `density` prop).
-- **Notifications.** An email when you're assigned a procedure, or when one of yours becomes overdue. Needs the API to send mail and store the choice per user.
-- **Sessions.** See where you're signed in (device, browser, last used) and sign out other sessions. The API keeps a `UserSession` row per sign-in already.
-- **Two-factor sign-in.** An authenticator app code at sign-in, set up from Account Settings (ASP.NET Core Identity supports TOTP).
-- **Half view default.** Which page opens in a half view when none is chosen, or whether the half view opens on the left or the right.
-- **Settings that follow you.** Keep colours, text size and the rest with the account (an API endpoint and a table), rather than in each browser, so they're the same on every computer.
-
 ## Accessibility
 
-Account Settings has an Accessibility card with a text size setting so far (`src/app/textSize.tsx`). The aim is WCAG 2.2 AA throughout, and settings for people who need more. Each setting goes in that card, kept in this browser like the others.
+The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light and a colour theme, WCAG 2.2 A and AA) passes, and the Accessibility card has the text size, the hover delay and the switches in `src/app/accessibility.tsx`. The statement is at `/accessibility`. Still to do:
 
-- **Audit the app against WCAG 2.2 AA, and fix what it finds.**
-  - **How:** run axe (`@axe-core/playwright`) over every UI parity screen, in light and dark mode and with each colour theme, then check by hand what tools can't: keyboard-only use of every page and dialog, a screen reader (NVDA and VoiceOver) through the main tasks, and 400% zoom (reflow, nothing cut off).
-  - **Watch for:** colour contrast with the colour themes and custom colours (warn on the Colours page when a choice fails 4.5:1 for text), focus order and visible focus everywhere, dialogs that trap and return focus, and every icon button named.
-- **High contrast mode.** A setting that swaps to a high-contrast palette: stronger borders, text at 7:1, no pale-on-pale tokens, and outlines on cards and inputs. Follow `prefers-contrast: more` by default.
-- **Reduce motion.** A setting for no animation (folding cards, dialogs, list moves), following `prefers-reduced-motion` by default. Astryx themes support a reduced-motion mark (`Theme`'s `reducedMotion`).
-- **Stronger focus indicators.** A setting for a thicker, high-contrast focus ring on every control, for people who navigate by keyboard.
-- **Text spacing and font.** Line height, letter and word spacing (WCAG 1.4.12's values as the "more" option), and an optional dyslexia-friendly font (e.g. Atkinson Hyperlegible or OpenDyslexic).
-- **Don't rely on colour alone.** Status, priority and overdue tokens, and validation errors, also differ by icon or text, so they read in greyscale and for colour-blind users. Optionally a colour-blind-safe palette for the tokens.
-- **Underline links.** A setting that underlines every link, not only on hover.
-- **Bigger targets.** A setting that raises every clickable control (table action buttons, nav buttons) to at least 44 by 44 pixels.
-- **Keyboard shortcuts.** Documented shortcuts (go to Home, My Tasks, Patients, Procedures; open search; save a form), listed in a dialog on `?`, which can be turned off in the Accessibility card.
-- **Screen reader announcements.** Announce what changes without a page load: a saved form, a finished stage, a list refreshed or filtered (the result count), a session about to end.
+- **Screen reader pass by hand.** NVDA and VoiceOver through the main tasks (find a patient, work a stage, finish a procedure), and keyboard-only use of every dialog: focus trapped, and returned on close.
+- **Warn on unreadable custom colours.** On the Colours page, warn when a custom page or card colour leaves text under 4.5:1 (the colour themes all pass).
+- **More announcements.** Announce a saved form and a finished stage, as lists already announce their results.
+- **A save shortcut.** Ctrl+S (or Cmd+S) to save the form that's open, listed in the shortcuts dialog.
 - **Session timeout warning.** Warn before a session ends, with time to extend it (WCAG 2.2.1), instead of failing the next action.
-- **Accessibility statement.** A page saying what the app supports and how to report a barrier.
-
-## UI polish
-
-- **Expand the power search's favourites (the star beside a list's search).** Today it offers fixed quick look-ups (My Tasks: Not started, Started). Let people save the current search as a favourite of their own, name, rename and delete them, mark one as the list's starting search, and see which favourite (if any) the list is showing. Store them per user (with the account, so they follow you), and offer them on every list with a search (`ListFilterBar`'s `favourites`).
-- **Cards instead of table rows when a list is too narrow.** When a list's columns don't fit at their minimum widths (a half view, or a narrow window), show each row as a small card in a list (its name, then the other fields under it, its actions at the end) instead of a table that scrolls sideways. `DataTable` already measures the room it has (`useFittedColumns`), so it can switch there.
 
 ## Features
 

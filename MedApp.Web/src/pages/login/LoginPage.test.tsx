@@ -40,6 +40,18 @@ describe('LoginPage', () => {
     expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
   });
 
+  it('goes to the start page chosen in Account Settings', async () => {
+    localStorage.setItem('medapp.startPage', 'procedures');
+    mockFetch(() => json({sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'}));
+    const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+  });
+
   it.each([
     ['a wrong username or password', 401],
     ['a server error', 500],
