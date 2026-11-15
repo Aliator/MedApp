@@ -127,7 +127,7 @@ export const medappTheme = {
     "--color-text-primary": "light-dark(#25252a, #f0f0f9)",
     "--color-text-secondary": "light-dark(#5f5f64, #ababb3)",
     "--color-text-disabled": "light-dark(#d4d3dd, #5e5e64)",
-    "--color-text-accent": "light-dark(#2563eb, #60a5fa)",
+    "--color-text-accent": "light-dark(#1d4ed8, #60a5fa)",
     "--color-on-dark": "#ffffff",
     "--color-on-light": "light-dark(#25252a, #25252a)",
     "--color-on-accent": "light-dark(#ffffff, #ffffff)",
@@ -137,7 +137,7 @@ export const medappTheme = {
     "--color-info": "light-dark(#3b82f6, #3b82f6)",
     "--color-info-muted": "light-dark(#eff6ff, #172554)",
     "--color-on-info": "light-dark(#ffffff, #25252a)",
-    "--color-text-info": "light-dark(#2563eb, #60a5fa)",
+    "--color-text-info": "light-dark(#1d4ed8, #60a5fa)",
     "--color-text-success": "light-dark(#354f31, #d5e9d2)",
     "--color-text-warning": "light-dark(#524818, #f1e1b9)",
     "--color-text-error": "light-dark(#603c37, #f7dbd7)",
@@ -330,6 +330,9 @@ export const medappTheme = {
       "variant:destructive": {
         "backgroundColor": "var(--color-background-red)",
         "color": "var(--color-text-red)"
+      },
+      "variant:primary": {
+        "backgroundColor": "#2563eb"
       }
     },
     "badge": {

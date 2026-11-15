@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
@@ -44,6 +45,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccessibilityRoute = AppAccessibilityRouteImport.update({
+  id: '/accessibility',
+  path: '/accessibility',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -145,6 +151,7 @@ const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/accessibility': typeof AppAccessibilityRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/password': typeof AppAccountPasswordRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/accessibility': typeof AppAccessibilityRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/accessibility': typeof AppAccessibilityRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/accessibility'
     | '/tasks'
     | '/account/colours'
     | '/account/password'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/accessibility'
     | '/tasks'
     | '/'
     | '/account/colours'
@@ -264,6 +275,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/accessibility'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
@@ -312,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/accessibility': {
+      id: '/_app/accessibility'
+      path: '/accessibility'
+      fullPath: '/accessibility'
+      preLoaderRoute: typeof AppAccessibilityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -451,6 +470,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAccessibilityRoute: typeof AppAccessibilityRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
@@ -474,6 +494,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccessibilityRoute: AppAccessibilityRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,

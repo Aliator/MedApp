@@ -100,4 +100,23 @@ describe('ProcedureCells', () => {
     expect(await screen.findByText('Urgent')).toBeInTheDocument();
     expect(screen.getByText('In progress')).toBeInTheDocument();
   });
+
+  it('shows statuses by colour and name alone by default', async () => {
+    renderWithApp(<StatusToken status="Blocked" />);
+    await screen.findByText('Blocked');
+    expect(document.querySelector('.astryx-token svg')).toBeNull();
+  });
+
+  it('adds icons to statuses, priorities and Overdue when "Icons on statuses" is on', async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({statusIcons: true}));
+    renderWithApp(
+      <>
+        <StatusToken status="Blocked" />
+        <PriorityToken priority="Urgent" />
+        <DueDateCell dueDate="2026-01-01" isOverdue />
+      </>,
+    );
+    await screen.findByText('Overdue');
+    expect(document.querySelectorAll('.astryx-token svg')).toHaveLength(3);
+  });
 });

@@ -2,7 +2,9 @@ import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Link} from '@astryxdesign/core/Link';
 import {Text} from '@astryxdesign/core/Text';
 import {pixel, proportional} from '@astryxdesign/core/Table';
+import {Icon, type IconType} from '@astryxdesign/core/Icon';
 import {Token, type TokenColor} from '@astryxdesign/core/Token';
+import {useAccessibility} from '../../app/accessibility';
 import {formatShortDate} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import {TableActions} from '../tables/TableActions';
@@ -20,6 +22,31 @@ const STATUS_COLORS: Record<string, TokenColor> = {
   Archived: 'gray',
 };
 
+/** Icons for the statuses and priorities, shown beside their colour when "Icons on statuses" is on. */
+const PRIORITY_ICONS: Record<string, IconType> = {
+  Low: AppIcon.PriorityLow,
+  Medium: AppIcon.PriorityMedium,
+  High: AppIcon.PriorityHigh,
+  Urgent: AppIcon.PriorityUrgent,
+};
+
+const STATUS_ICONS: Record<string, IconType> = {
+  Unassigned: AppIcon.StatusUnassigned,
+  Assigned: AppIcon.StatusAssigned,
+  InProgress: AppIcon.StatusInProgress,
+  InReview: AppIcon.View,
+  Completed: AppIcon.Success,
+  Blocked: AppIcon.StatusBlocked,
+  Cancelled: AppIcon.StatusCancelled,
+  Archived: AppIcon.Archive,
+};
+
+/** A token's icon, if the person wants icons on statuses (Account Settings, Accessibility). */
+function useStatusIcon(icon: IconType | undefined) {
+  const {flags} = useAccessibility();
+  return flags.statusIcons && icon ? <Icon icon={icon} /> : undefined;
+}
+
 /** A status in words: "InReview" → "In review". */
 export function statusLabel(status: string): string {
   const words = status.replace(/(?<=[a-z])(?=[A-Z])/g, ' ').toLowerCase();
@@ -27,11 +54,19 @@ export function statusLabel(status: string): string {
 }
 
 export function PriorityToken({priority}: {priority: string}) {
-  return <Token size="sm" label={priority} color={PRIORITY_COLORS[priority] ?? 'default'} />;
+  const icon = useStatusIcon(PRIORITY_ICONS[priority]);
+  return <Token size="sm" label={priority} color={PRIORITY_COLORS[priority] ?? 'default'} icon={icon} />;
 }
 
 export function StatusToken({status}: {status: string}) {
-  return <Token size="sm" label={statusLabel(status)} color={STATUS_COLORS[status] ?? 'default'} />;
+  const icon = useStatusIcon(STATUS_ICONS[status]);
+  return <Token size="sm" label={statusLabel(status)} color={STATUS_COLORS[status] ?? 'default'} icon={icon} />;
+}
+
+/** The Overdue flag. */
+export function OverdueToken() {
+  const icon = useStatusIcon(AppIcon.Overdue);
+  return <Token size="sm" label="Overdue" color="red" icon={icon} />;
 }
 
 /**
@@ -96,7 +131,7 @@ export function DueDateCell({dueDate, isOverdue}: {dueDate: string; isOverdue: b
   return (
     <VStack gap={1} hAlign="start">
       <Text type="body">{formatShortDate(dueDate)}</Text>
-      {isOverdue && <Token size="sm" label="Overdue" color="red" />}
+      {isOverdue && <OverdueToken />}
     </VStack>
   );
 }

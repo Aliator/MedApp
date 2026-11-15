@@ -8,6 +8,8 @@ using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
+using MedApp.Application.Authentication.Settings.Commands.SaveMySettings;
+using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Sessions.Commands.Logout;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
@@ -299,6 +301,26 @@ public sealed class AuthController(
         return NoContent();
     }
     
+    /// <summary>The signed-in user's app settings (a JSON object), or null for none saved yet.</summary>
+    [HttpGet("me/settings")]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Settings")]
+    [ProducesResponseType(typeof(UserSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMySettings(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetMySettingsQuery(User.GetUserId()), ct));
+
+    /// <summary>Saves the signed-in user's app settings, replacing any they had.</summary>
+    [HttpPut("me/settings")]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Settings")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SaveMySettings(SaveSettingsRequest request, CancellationToken ct)
+    {
+        await mediator.Send(new SaveMySettingsCommand(User.GetUserId(), request.Settings ?? string.Empty), ct);
+        return NoContent();
+    }
+
     [HttpGet("whoami")]
     [Tags("Login")]
     [ProducesResponseType(typeof(WhoAmIResponse), StatusCodes.Status200OK)]

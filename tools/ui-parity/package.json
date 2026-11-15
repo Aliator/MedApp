@@ -6,9 +6,11 @@
     "parity": "playwright test",
     "parity:blazor": "playwright test --project=blazor",
     "parity:react": "playwright test --project=react",
+    "a11y": "node --experimental-strip-types --no-warnings a11y-report.ts --run",
     "install-browser": "playwright install chromium"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2"
   }

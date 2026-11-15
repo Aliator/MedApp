@@ -64,6 +64,20 @@ export const screens: Screen[] = [
   },
   { name: 'my-tasks-started', title: 'My Tasks, the started ones (from the favourites)', path: '/tasks?progress=started' },
   { name: 'account', title: 'Account', path: '/account' },
+  { name: 'accessibility-statement', title: 'Accessibility statement (from Account Settings, Accessibility)', path: '/accessibility' },
+  {
+    name: 'keyboard-shortcuts',
+    title: 'Keyboard shortcuts, listed on ? (once turned on, in Account Settings, Accessibility)',
+    path: '/',
+    prepare: async (page) => {
+      // They start off: turn them on in this browser, then reload to pick that up.
+      await page.evaluate(() => localStorage.setItem('medapp.accessibility', JSON.stringify({ shortcuts: true })));
+      await page.reload();
+      await page.getByRole('heading', { level: 1 }).waitFor();
+      await page.keyboard.press('?');
+      await page.getByRole('dialog', { name: 'Keyboard shortcuts' }).waitFor();
+    },
+  },
   { name: 'patients-list', title: 'Patients list, page 1', path: '/patients' },
   {
     name: 'patients-search',

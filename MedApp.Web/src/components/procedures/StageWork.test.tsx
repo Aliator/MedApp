@@ -26,9 +26,18 @@ function renderWork(overrides: Partial<ProcedureStage> = {}, isAdmin = false) {
 }
 
 describe('StageWork', () => {
-  it('has a fixed five-line notes box', async () => {
-    renderWork();
+  it('has a five-line notes box, or the size the page fitted it to', async () => {
+    const {unmount} = renderWork();
     expect(await screen.findByRole('textbox', {name: 'Notes'})).toHaveAttribute('rows', '5');
+    unmount();
+
+    const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
+    const onFitNotes = vi.fn();
+    renderWithApp(<StageWork stage={stage()} isAdmin={false} isBusy={false} notesHeight={240} onFitNotes={onFitNotes} {...handlers} />);
+    expect(await screen.findByRole('textbox', {name: 'Notes'})).toHaveStyle({height: '240px'});
+    // Already fitted: it doesn't measure again.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(onFitNotes).not.toHaveBeenCalled();
   });
 
   it('edits the notes, saving only once they change', async () => {

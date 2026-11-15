@@ -5,12 +5,15 @@ import {QueryClientProvider, type QueryClient} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
 import {defaultThemeSlug, themes} from '../astryx-themes';
 import {RouterLink} from '../components/navigation/RouterLink';
+import {AccessibilityProvider} from './accessibility';
+import {AnnouncerProvider} from './announcements';
 import {ColorModeProvider} from './colorMode';
 import {ColoursProvider} from './colours';
+import {ListSettingsProvider} from './listSettings';
 import {NavSettingsProvider} from './navSettings';
 import {TextSizeProvider} from './textSize';
 
-/** Everything around the router: theme, light/dark mode, the chosen colours, text size and side nav settings, en-GB locale, router-aware links, and the query cache. */
+/** Everything around the router: theme, light/dark mode, the chosen colours, the accessibility settings, text size and side nav settings, en-GB locale, router-aware links, and the query cache. */
 export function AppProviders({queryClient, children}: {queryClient: QueryClient; children: ReactNode}) {
   return (
     <ColorModeProvider>
@@ -20,9 +23,15 @@ export function AppProviders({queryClient, children}: {queryClient: QueryClient;
             <LinkProvider component={RouterLink}>
               <QueryClientProvider client={queryClient}>
                 <ColoursProvider mode={mode}>
-                  <TextSizeProvider>
-                    <NavSettingsProvider>{children}</NavSettingsProvider>
-                  </TextSizeProvider>
+                  <AccessibilityProvider>
+                    <AnnouncerProvider>
+                      <TextSizeProvider>
+                        <NavSettingsProvider>
+                          <ListSettingsProvider>{children}</ListSettingsProvider>
+                        </NavSettingsProvider>
+                      </TextSizeProvider>
+                    </AnnouncerProvider>
+                  </AccessibilityProvider>
                 </ColoursProvider>
               </QueryClientProvider>
             </LinkProvider>

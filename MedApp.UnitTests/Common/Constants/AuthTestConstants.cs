@@ -26,6 +26,15 @@ public static class AuthTestConstants
 
     public const string ValidPassword = "ValidPassword1";
 
+    /// <summary>A user's saved app settings: synthetic, as the app writes them.</summary>
+    public const string SettingsJson = "{\"medapp.colorMode\":\"light\",\"medapp.textSize\":\"large\"}";
+
+    public static readonly Guid SettingsUserId =
+        Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+    public static readonly DateTime SettingsSavedAtUtc =
+        new(2026, 11, 14, 12, 0, 0, DateTimeKind.Utc);
+
     public static readonly Guid SessionId =
         Guid.Parse("11111111-1111-1111-1111-111111111111");
 

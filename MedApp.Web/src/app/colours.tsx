@@ -1,5 +1,6 @@
-import {createContext, useCallback, useContext, useMemo, useState, type CSSProperties, type ReactNode} from 'react';
+import {createContext, useCallback, useContext, useMemo, type CSSProperties, type ReactNode} from 'react';
 import type {ColorMode} from './colorMode';
+import {defineSetting, useAppSetting} from './settingsStore';
 
 /** The colours people can change (Account Settings, Colours), each for light and for dark mode. */
 export type ColourPart = 'page' | 'card' | 'nav';
@@ -73,15 +74,15 @@ export function themeOf(mode: ColorMode, colours: ModeColours): ColourTheme | nu
   return COLOUR_THEMES.find((theme) => same(theme[mode], colours)) ?? null;
 }
 
-const STORAGE_KEY = 'medapp.colours';
+const STORAGE_KEY = defineSetting('medapp.colours');
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** The remembered colours, with the defaults for anything not set or not a colour (storage may be unavailable). */
-function readStored(): Colours {
+/** The remembered colours (JSON), with the defaults for anything not set or not a colour. */
+function parseColours(stored: string | null): Colours {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    const parsed: unknown = JSON.parse(stored ?? '{}');
     const pick = (mode: ColorMode, part: ColourPart) => {
-      const value = (stored as Record<string, Record<string, unknown>> | null)?.[mode]?.[part];
+      const value = (parsed as Record<string, Record<string, unknown>> | null)?.[mode]?.[part];
       return typeof value === 'string' && HEX.test(value) ? value : DEFAULT_COLOURS[mode][part];
     };
     const forMode = (mode: ColorMode): ModeColours => ({
@@ -92,14 +93,6 @@ function readStored(): Colours {
     return {light: forMode('light'), dark: forMode('dark')};
   } catch {
     return DEFAULT_COLOURS;
-  }
-}
-
-function store(colours: Colours) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(colours));
-  } catch {
-    // Storage blocked: the colours last until the page reloads.
   }
 }
 
@@ -114,30 +107,26 @@ interface ColoursContextValue {
 const ColoursContext = createContext<ColoursContextValue | null>(null);
 
 /**
- * The colours people chose, kept in this browser. Its children are recoloured through the theme's own tokens, so
+ * The colours people chose, kept in this browser and with the account (`settingsStore`). Its children are recoloured through the theme's own tokens, so
  * every card, page and the side nav follow (card header bars and footers too: the theme mixes them from the card
  * colour).
  *
  * `mode` is the app's mode, for the side nav's colour (see below).
  */
 export function ColoursProvider({mode, children}: {mode: ColorMode; children: ReactNode}) {
-  const [colours, setColours] = useState<Colours>(readStored);
+  const [stored, store] = useAppSetting(STORAGE_KEY);
+  const colours = useMemo(() => parseColours(stored), [stored]);
 
-  const set = useCallback((mode: ColorMode, part: ColourPart, colour: string) => {
-    setColours((current) => {
-      const next = {...current, [mode]: {...current[mode], [part]: colour}};
-      store(next);
-      return next;
-    });
-  }, []);
+  const set = useCallback(
+    (mode: ColorMode, part: ColourPart, colour: string) =>
+      store(JSON.stringify({...colours, [mode]: {...colours[mode], [part]: colour}})),
+    [colours, store],
+  );
 
-  const setAll = useCallback((mode: ColorMode, modeColours: ModeColours) => {
-    setColours((current) => {
-      const next = {...current, [mode]: modeColours};
-      store(next);
-      return next;
-    });
-  }, []);
+  const setAll = useCallback(
+    (mode: ColorMode, modeColours: ModeColours) => store(JSON.stringify({...colours, [mode]: modeColours})),
+    [colours, store],
+  );
 
   const value = useMemo(() => ({colours, set, setAll}), [colours, set, setAll]);
 

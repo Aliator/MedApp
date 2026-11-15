@@ -5,3 +5,5 @@ screenshots/
 report.html
 test-results/
 playwright-report/
+a11y-results/
+a11y-report.json

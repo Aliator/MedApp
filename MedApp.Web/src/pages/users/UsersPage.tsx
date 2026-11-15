@@ -9,7 +9,7 @@ import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {ApiValidationError, allMessages} from '../../api/errors';
-import {PAGE_SIZE, userSearchQuery, type UserPage} from '../../api/search';
+import {userSearchQuery, type UserPage} from '../../api/search';
 import {
   DEFAULT_NEW_USER_PASSWORD,
   rolesQuery,
@@ -29,6 +29,7 @@ import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
 import {hasUserFilters, type UsersListSearch, choiceValues} from '../listSearch';
+import {useListSettings} from '../../app/listSettings';
 
 type User = NonNullable<UserPage['items']>[number];
 
@@ -63,11 +64,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const page = search.page ?? 1;
   const ascending = search.asc ?? true;
   const isFiltered = hasUserFilters(search);
+  const {pageSize} = useListSettings();
   const {data: allRoles = []} = useQuery(rolesQuery);
 
   const {data, isPending, isError} = useQuery(
     // The API takes one role: any of them all is no filter at all.
-    userSearchQuery({Page: page, Sort: 'username', Ascending: ascending, Username: search.username, Role: oneRole(search.role, allRoles)}),
+    userSearchQuery({Page: page, PageSize: pageSize, Sort: 'username', Ascending: ascending, Username: search.username, Role: oneRole(search.role, allRoles)}),
   );
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as UserRow[];
@@ -312,6 +314,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               ]}
               values={search}
               onChange={(values) => onSearchChange({...search, ...values, page: undefined})}
+              list="users"
               label="Search users"
               placeholder="Search users by name, or filter by role..."
               textKey="username"
@@ -321,12 +324,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               ]}
             />
           }
-          skeletonRows={PAGE_SIZE}
+          skeletonRows={pageSize}
           sort={{column: 'User', ascending}}
           onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: 'User', asc: sort.ascending})}
           pagination={{
             page,
-            pageSize: PAGE_SIZE,
+            pageSize,
             totalItems: total,
             onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
           }}

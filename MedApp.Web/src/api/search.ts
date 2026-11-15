@@ -2,7 +2,7 @@ import {keepPreviousData, queryOptions} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 
-/** Rows per page in every list (plan Q10). */
+/** Rows per page when a list doesn't say (each passes its own, from Account Settings: `useListSettings`). */
 export const PAGE_SIZE = 10;
 
 export type PatientSearch = NonNullable<paths['/api/patients/search']['get']['parameters']['query']>;

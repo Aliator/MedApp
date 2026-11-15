@@ -57,6 +57,24 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("UserSessions", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Authentication.UserSettings", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserSettings", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Patients.Patient", b =>
                 {
                     b.Property<Guid>("Id")

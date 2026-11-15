@@ -10,7 +10,12 @@ import {stoneTheme} from '@astryxdesign/theme-stone';
 import {medappIconRegistry} from './icons';
 
 const accent = ['#3b82f6', '#3b82f6'] as const; // app.css --primary-500
-const accentText = ['#2563eb', '#60a5fa'] as const; // --primary-600, lightened for dark mode
+// Links and accent text: --primary-700 in light mode (5.6:1 on the light cards; --primary-600 was 4.3:1, under
+// WCAG AA's 4.5:1), lightened for dark mode.
+const accentText = ['#1d4ed8', '#60a5fa'] as const;
+
+/** Primary buttons' fill: --primary-600, which their white text is 5.2:1 on (the accent, #3b82f6, is 3.7:1). */
+const ACCENT_FILL = '#2563eb';
 const accentMuted = ['#eff6ff', '#172554'] as const; // --primary-50, deepened for dark mode
 
 /**
@@ -85,6 +90,10 @@ export const medappTheme = defineTheme({
     // A table's column headers sit on the same muted shade as card header bars (PanelHeader), so they stand out.
     'table-header-cell': {
       base: {backgroundColor: 'var(--color-background-muted)'},
+    },
+    // Primary buttons are a shade darker than the accent, so their white text meets WCAG AA (4.5:1).
+    button: {
+      'variant:primary': {backgroundColor: ACCENT_FILL},
     },
     // Dialog titles are centred in their header, between the dialog's icon (start) and its close button (end).
     'dialog-header-title-block': {

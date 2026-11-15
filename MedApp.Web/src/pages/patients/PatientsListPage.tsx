@@ -6,7 +6,7 @@ import {HStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import type {Patient} from '../../api/patients';
-import {PAGE_SIZE, patientSearchQuery} from '../../api/search';
+import {patientSearchQuery} from '../../api/search';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -16,6 +16,7 @@ import {dayFromToday, ListFilterBar, type ListFilterField} from '../../component
 import {TableActions} from '../../components/tables/TableActions';
 import {ageOn, formatShortDate} from '../../utils/dates';
 import {hasPatientFilters, PATIENT_SORTS, type PatientSortColumn, type PatientsListSearch} from '../listSearch';
+import {useListSettings} from '../../app/listSettings';
 
 /** The search's fields, as the API filters patients, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -39,6 +40,7 @@ export interface PatientsListPageProps {
  * search and links to view, edit and add. The page, sort and filters live in the URL.
  */
 export function PatientsListPage({search, onSearchChange}: PatientsListPageProps) {
+  const {pageSize} = useListSettings();
   const page = search.page ?? 1;
   const sortColumn: PatientSortColumn = search.sort ?? 'Patients';
   const ascending = search.asc ?? true;
@@ -47,6 +49,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
   const {data, isPending, isError} = useQuery(
     patientSearchQuery({
       Page: page,
+      PageSize: pageSize,
       Sort: PATIENT_SORTS[sortColumn],
       Ascending: ascending,
       FirstName: search.first,
@@ -136,7 +139,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           columns={columns}
           idKey="id"
           isLoading={isPending}
-          skeletonRows={PAGE_SIZE}
+          skeletonRows={pageSize}
           // The search, as a power search across the top of the card: a token per filter, in the URL like the
           // page and sort.
           search={
@@ -144,6 +147,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
               fields={FILTER_FIELDS}
               values={search}
               onChange={(filters) => onSearchChange({...search, ...filters, page: undefined})}
+              list="patients"
               label="Search patients"
               placeholder="Search patients by first name, last name, email or date of birth..."
               favourites={[
@@ -156,7 +160,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           onSortChange={(sort) => onSearchChange({...search, page: undefined, sort: sort.column as PatientSortColumn, asc: sort.ascending})}
           pagination={{
             page,
-            pageSize: PAGE_SIZE,
+            pageSize,
             totalItems: total,
             onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
           }}

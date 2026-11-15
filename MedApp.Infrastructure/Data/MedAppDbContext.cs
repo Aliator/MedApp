@@ -13,6 +13,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
 {
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<UserSettings> UserSettings => Set<UserSettings>();
     public DbSet<PatientProcedure> PatientProcedures => Set<PatientProcedure>();
     public DbSet<PatientProcedureStage> PatientProcedureStages => Set<PatientProcedureStage>();
     public DbSet<PatientProcedureAssignment> PatientProcedureAssignments => Set<PatientProcedureAssignment>();

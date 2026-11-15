@@ -1,6 +1,7 @@
 import {queryOptions, useMutation, useQueryClient, useSuspenseQuery, type QueryClient} from '@tanstack/react-query';
 import {redirect, useNavigate} from '@tanstack/react-router';
 import {api, unwrap} from '../api/client';
+import {useNavSettings} from '../app/navSettings';
 
 export interface CurrentUser {
   isAuthenticated: boolean;
@@ -47,16 +48,17 @@ export interface LoginInput {
   password: string;
 }
 
-/** Signs in, then goes Home (the welcome page). */
+/** Signs in, then goes to the start page chosen in Account Settings (Home, the welcome page, unless changed). */
 export function useLogin() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const {startPagePath} = useNavSettings();
   return useMutation({
     mutationFn: (body: LoginInput) => unwrap(api.POST('/api/auth/login', {body})),
     onSuccess: async () => {
       // Forget the signed-out whoami so the guard asks the API again.
       queryClient.removeQueries({queryKey: whoamiQuery.queryKey});
-      await navigate({to: '/'});
+      await navigate({to: startPagePath});
     },
   });
 }

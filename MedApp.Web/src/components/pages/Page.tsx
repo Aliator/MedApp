@@ -3,8 +3,9 @@ import {useMediaQuery} from '@astryxdesign/core/hooks';
 import {Layout, LayoutContent} from '@astryxdesign/core/Layout';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {StackItem, VStack} from '@astryxdesign/core/Stack';
-import type {ReactNode} from 'react';
-import {useHalfView} from './halfView';
+import {useContext, type ReactNode} from 'react';
+import {usePageTitle} from '../../app/announcements';
+import {InHalfPaneContext, useHalfView} from './halfView';
 import {PageHeader, type PageHeaderProps} from './PageHeader';
 
 export interface PageProps extends PageHeaderProps {
@@ -57,6 +58,7 @@ export function Page({
   children,
   ...header
 }: PageProps) {
+  usePageTitle(header.title, !useContext(InHalfPaneContext));
   return (
     // A Layout sits flush in AppShell's content area and insets only its regions, so the page goes in a
     // LayoutContent region with the same 24px inset as pages without a Layout.

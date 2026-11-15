@@ -176,6 +176,8 @@ describe('parseProceduresSearch', () => {
       status: 'InReview',
       priority: 'High,Low',
       overdue: true,
+      // Kept: false says not to start on "Assigned to me".
+      mine: false,
       closed: true,
       dueFrom: '2026-12-01',
     });
