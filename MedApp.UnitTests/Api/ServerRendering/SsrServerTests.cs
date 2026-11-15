@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using FluentAssertions;
 using MedApp.API.ServerRendering;
 using Microsoft.AspNetCore.Hosting;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
+using static MedApp.UnitTests.Common.Constants.SsrTestConstants;
 
 namespace MedApp.UnitTests.Api.ServerRendering;
 
@@ -78,6 +80,66 @@ public sealed class SsrServerTests
         server.IsFromRenderer(Request(IPAddress.Loopback, null)).Should().BeFalse();
         server.IsFromRenderer(Request(IPAddress.Parse("192.0.2.10"), server.Key)).Should().BeFalse();
         server.IsFromRenderer(new DefaultHttpContext()).Should().BeFalse();
+    }
+
+    /// <summary>The API's environment: what Node needs, and the API's secrets, which it mustn't get.</summary>
+    private static Dictionary<string, string?> ApiEnvironment(string pathName = "PATH") => new()
+    {
+        [pathName] = SearchPath,
+        ["TZ"] = NodeTimeZone,
+        ["SystemRoot"] = WindowsRoot,
+        [ConnectionStringVariable] = ConnectionString,
+        [BackplaneVariable] = BackplaneConnectionString,
+        [FirstAdminPasswordVariable] = FirstAdminPassword,
+        // Node's own settings come from the API, never the API's environment.
+        ["NODE_OPTIONS"] = ApiNodeOptions,
+        ["PORT"] = "1",
+    };
+
+    private static ProcessStartInfo StartInfo(Dictionary<string, string?> environment, bool isWindows) =>
+        SsrServer.StartInfo(NodePath, NodeScript, NodePort, ApiUrl, RendererKey, environment, isWindows);
+
+    [Test]
+    public void StartInfo_ApiEnvironmentHasSecrets_GivesNodeOnlyWhatItNeeds()
+    {
+        var start = StartInfo(ApiEnvironment(), isWindows: false);
+
+        start.Environment.Should().BeEquivalentTo(new Dictionary<string, string?>
+        {
+            ["PATH"] = SearchPath,
+            ["TZ"] = NodeTimeZone,
+            ["PORT"] = NodePort.ToString(),
+            ["HOST"] = "127.0.0.1",
+            ["MEDAPP_API_URL"] = ApiUrl,
+            ["MEDAPP_SSR_KEY"] = RendererKey,
+            ["NODE_ENV"] = "production",
+            ["NODE_OPTIONS"] = "--use-system-ca",
+        });
+    }
+
+    [Test]
+    public void StartInfo_OnWindows_AlsoGivesNodeWhatWindowsNeeds()
+    {
+        // Windows calls PATH "Path".
+        var start = StartInfo(ApiEnvironment(pathName: "Path"), isWindows: true);
+
+        start.Environment.Should().ContainKey("Path").WhoseValue.Should().Be(SearchPath);
+        start.Environment.Should().ContainKey("SystemRoot").WhoseValue.Should().Be(WindowsRoot);
+        start.Environment.Keys.Should().NotContain([ConnectionStringVariable, BackplaneVariable, FirstAdminPasswordVariable]);
+        start.Environment["NODE_OPTIONS"].Should().Be("--use-system-ca");
+    }
+
+    [Test]
+    public void StartInfo_StartsTheScriptBesideItself()
+    {
+        var start = StartInfo([], isWindows: false);
+
+        start.FileName.Should().Be(NodePath);
+        start.ArgumentList.Should().Equal(NodeScript);
+        Path.GetFullPath(start.WorkingDirectory).Should().Be(Path.GetFullPath(NodeScriptDirectory));
+        start.UseShellExecute.Should().BeFalse();
+        start.RedirectStandardOutput.Should().BeTrue();
+        start.RedirectStandardError.Should().BeTrue();
     }
 
     [Test]

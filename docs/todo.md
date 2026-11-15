@@ -27,3 +27,4 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   Still to do:
 
   5. **Azure** for hosting: AKS, Azure SQL, Key Vault for the secrets, and a container registry.
+- **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).

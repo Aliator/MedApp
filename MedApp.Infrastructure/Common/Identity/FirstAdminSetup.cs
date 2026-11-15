@@ -10,8 +10,9 @@ namespace MedApp.Infrastructure.Common.Identity;
 /// <summary>
 /// Makes the first admin on a new database, deliberately: a deploy runs the API's <c>create-first-admin</c> command
 /// (the Helm chart's migrations Job does, after migrating), with the username and password from a secret, in the
-/// <c>FirstAdmin</c> settings. It adds the Admin and User roles if they're missing, then the admin, but only while
-/// there are no accounts at all. So it's safe to run on every deploy: once anyone exists, it changes nothing.
+/// <c>FirstAdmin</c> settings. It adds the Admin and User roles if they're missing, then the admin, with both roles
+/// (User too, so they can change their own password), but only while there are no accounts at all. So it's safe to
+/// run on every deploy: once anyone exists, it changes nothing.
 /// </summary>
 public sealed class FirstAdminSetup(
     UserManager<ApplicationUser> userManager,
@@ -72,7 +73,7 @@ public sealed class FirstAdminSetup(
                 CreatedAt = timeProvider.GetUtcNow().UtcDateTime
             };
             var made = await userManager.CreateAsync(admin, password);
-            return made.Succeeded ? await userManager.AddToRoleAsync(admin, AdminRole) : made;
+            return made.Succeeded ? await userManager.AddToRolesAsync(admin, Roles) : made;
         }, ct);
 
         if (!result.Succeeded)
