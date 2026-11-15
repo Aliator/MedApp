@@ -1,4 +1,4 @@
-import {HubConnectionBuilder} from '@microsoft/signalr';
+import {HttpTransportType, HubConnectionBuilder} from '@microsoft/signalr';
 import {act, screen, waitFor} from '@testing-library/react';
 import {NotificationBell} from '../components/navigation/NotificationBell';
 import {json, mockApi, renderWithApp, staffUser} from '../test/render';
@@ -26,6 +26,8 @@ describe('LiveNotifications', () => {
 
     await waitFor(() => expect(liveHub.connections).toHaveLength(1));
     expect(liveHub.connections[0].url).toBe(NOTIFICATIONS_HUB);
+    // A WebSocket straight away, with no negotiate request that another copy of the API might answer.
+    expect(liveHub.connections[0].options).toEqual({skipNegotiation: true, transport: HttpTransportType.WebSockets});
     unmount();
     await waitFor(() => expect(liveHub.connections).toHaveLength(0));
   });

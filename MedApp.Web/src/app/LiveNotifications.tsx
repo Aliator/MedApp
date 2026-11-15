@@ -1,4 +1,4 @@
-import {HubConnectionBuilder, LogLevel} from '@microsoft/signalr';
+import {HttpTransportType, HubConnectionBuilder, LogLevel} from '@microsoft/signalr';
 import {useQueryClient} from '@tanstack/react-query';
 import {useEffect, useRef} from 'react';
 import {notificationsKey, type AppNotification} from '../api/notifications';
@@ -7,6 +7,8 @@ import {useAnnounce} from './announcements';
 /** Where the API's notifications hub is (`NotificationsHub`), and the message a new notification comes as. */
 export const NOTIFICATIONS_HUB = '/api/notifications/hub';
 export const NOTIFICATION_MESSAGE = 'notification';
+/** How the connection is made: a WebSocket only, without negotiating first (see below). */
+export const NOTIFICATIONS_CONNECTION = {skipNegotiation: true, transport: HttpTransportType.WebSockets};
 
 /**
  * Keeps a live connection to the API while signed in, so new notifications (being assigned a procedure) show at
@@ -25,7 +27,9 @@ export function LiveNotifications() {
 
   useEffect(() => {
     const connection = new HubConnectionBuilder()
-      .withUrl(NOTIFICATIONS_HUB)
+      // Straight to a WebSocket, with no negotiate request first: with several copies of the API, the negotiate and
+      // the WebSocket could reach different copies, and the second wouldn't know the connection.
+      .withUrl(NOTIFICATIONS_HUB, NOTIFICATIONS_CONNECTION)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build();

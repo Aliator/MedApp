@@ -40,6 +40,15 @@ app.kubernetes.io/component: {{ index . 1 }}
 {{- .Values.firstAdmin.existingSecret | default (printf "%s-first-admin" (include "medapp.fullname" .)) -}}
 {{- end -}}
 
+{{/* The Secret with the backplane's connection string (and Valkey's password): the given one, or the chart's own. */}}
+{{- define "medapp.backplaneSecretName" -}}
+{{- .Values.backplane.existingSecret | default (printf "%s-backplane" (include "medapp.fullname" .)) -}}
+{{- end -}}
+
+{{- define "medapp.valkeyName" -}}
+{{- printf "%s-valkey" (include "medapp.fullname" .) -}}
+{{- end -}}
+
 {{- define "medapp.sqlName" -}}
 {{- printf "%s-sql" (include "medapp.fullname" .) -}}
 {{- end -}}
