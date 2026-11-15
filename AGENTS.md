@@ -47,7 +47,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.API` | Thin controllers, the session auth handler and exception middleware. In production it also serves the built React app from `wwwroot`. |
 | `MedApp.Web` | The UI: React 19, TypeScript, Vite and Astryx, rendered on the server by a small Node server (`server/server.mjs`) and hydrated. Not a .NET project: a solution folder in `MedApp.sln`, built with npm. |
 | `MedApp.Client.Deprecated` | **Deprecated.** The original Blazor WASM UI, replaced by `MedApp.Web`. Not run, and no new work; kept building, for reference only. See its `README.md`. |
-| `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the React app into the API's `wwwroot`. |
+| `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the API's image from `MedApp.API/Dockerfile`, which holds the API, the built React app in `wwwroot` and Node to render its pages. |
 | `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive` in Development), used by the API. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators, Infrastructure services, and the API's own services (`Api/`). |
 | `MedApp.IntegrationTests` | Empty project shell, with no tests yet. |
@@ -198,6 +198,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - **An empty database** (a new volume) isn't migrated at startup. Apply the migrations with the command under [Commands](#commands), then load the demo data with `medapp-dev`'s `reset_demo_data`.
 - The React dev server (`npm run dev`: Node with Vite, rendering pages on the server) proxies `/api` and `/swagger` to the API, and its own server-side API calls go through that proxy too. If `/api` calls start returning the app's HTML instead of JSON, the proxy has dropped out; restart the AppHost.
 - **Server-side rendering in production** (`MedApp.API/ServerRendering`): the API starts the page server from `wwwroot/ssr/server.mjs` with `node`, on a free local port. It forwards page requests there and falls back to `index.html` if Node is missing or stops. The page server's own API calls carry a key the API gave it, so they skip the https redirect on this machine. `wwwroot/ssr` and `wwwroot/.vite` are never served. Settings are in the `Ssr` section (`SsrOptions`).
+- **The production image** is `MedApp.API/Dockerfile`, built from the repo root: `docker build -f MedApp.API/Dockerfile -t medapp-api .`. It builds the React app with Node and the API with the .NET SDK, then puts both on the `aspnet` runtime with Node's binary, running as a non-root user on port 8080 (TLS ends in front of it). The root `.dockerignore` keeps Windows `node_modules`, build output and local secrets out of the build. If you change which projects the API references, update the Dockerfile's `COPY` lines too.
 - Kestrel's `https` profiles need the ASP.NET Core dev certificate. If startup fails with "the default developer certificate could not be found", run `dotnet dev-certs https`.
 - Session cookies are `SameSite=Lax` everywhere, and `Secure` outside Development (the Vite dev server is plain `http://localhost`).
 
