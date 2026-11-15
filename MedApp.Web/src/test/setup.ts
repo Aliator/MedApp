@@ -11,7 +11,8 @@ vi.mock('@microsoft/signalr', () => import('./signalr'));
 configure({asyncUtilTimeout: 5000});
 
 // jsdom doesn't implement scrolling; the router restores scroll position on navigation.
-window.scrollTo = () => {};
+// (Tests of server rendering run in Node, with no window: `@vitest-environment node`.)
+if (typeof window !== 'undefined') window.scrollTo = () => {};
 
 // jsdom has no layout, so ranges have no boxes; the rich text editor (Lexical) measures the selection's.
 if (typeof Range !== 'undefined' && !Range.prototype.getBoundingClientRect) {
@@ -38,7 +39,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  localStorage.clear();
+  if (typeof window !== 'undefined') localStorage.clear();
   appSettings.reset();
   liveHub.reset();
 });

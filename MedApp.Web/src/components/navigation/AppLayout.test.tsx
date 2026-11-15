@@ -3,7 +3,13 @@ import userEvent from '@testing-library/user-event';
 import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
 
 /** Every list is empty: enough for the pages to render their headers. */
-const emptyApi = () => mockFetch(() => json(pageOf([])));
+/** No data anywhere: empty lists (an empty page from the search endpoints, which the rest are). */
+const emptyApi = () =>
+  mockFetch((request) => {
+    const {pathname} = new URL(request.url);
+    const isPlainList = /\/(templates|definitions|roles)$/.test(pathname);
+    return json(isPlainList ? [] : pageOf([]));
+  });
 
 // The whole app renders, and its first route chunk can be slow to load.
 const heading = (name: string) => screen.findByRole('heading', {name, level: 1}, {timeout: 15000});

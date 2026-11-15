@@ -79,6 +79,35 @@ export interface ProceduresListPageProps {
  * Procedures: every procedure, or one patient's, a page at a time from the API. Sortable, with a power search
  * across the top; the page, sort and filters live in the URL. Completed, cancelled and archived ones are hidden unless asked for.
  */
+/**
+ * The list's page of procedures, for its search and list settings, and the patient on a patient's procedures (the
+ * route's loader fetches it too).
+ */
+export function proceduresListQuery(
+  search: ProceduresListSearch,
+  {pageSize, startsOnMine}: {pageSize: number; startsOnMine: boolean},
+  patientId?: string,
+) {
+  const mine = search.mine ?? startsOnMine;
+  return procedureSearchQuery({
+    Page: search.page ?? 1,
+    PageSize: pageSize,
+    Sort: PROCEDURE_SORTS[search.sort ?? 'Due'],
+    Ascending: search.asc ?? true,
+    Title: search.title,
+    TemplateName: search.template,
+    PatientName: patientId ? undefined : search.patient,
+    PatientId: patientId,
+    Statuses: procedureStatuses(search),
+    Priorities: choiceValues(search.priority, TASK_PRIORITIES),
+    OverdueOnly: search.overdue,
+    AssignedToMe: mine || undefined,
+    IncludeClosed: search.closed,
+    DueFrom: search.dueFrom,
+    DueTo: search.dueTo,
+  });
+}
+
 export function ProceduresListPage({search, onSearchChange, patientId}: ProceduresListPageProps) {
   const page = search.page ?? 1;
   const sortColumn: ProcedureSortColumn = search.sort ?? 'Due';
@@ -89,25 +118,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
   const isFiltered = hasProcedureFilters({...search, mine: mine || undefined});
 
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
-  const {data, isPending, isError} = useQuery(
-    procedureSearchQuery({
-      Page: page,
-      PageSize: pageSize,
-      Sort: PROCEDURE_SORTS[sortColumn],
-      Ascending: ascending,
-      Title: search.title,
-      TemplateName: search.template,
-      PatientName: patientId ? undefined : search.patient,
-      PatientId: patientId,
-      Statuses: procedureStatuses(search),
-      Priorities: choiceValues(search.priority, TASK_PRIORITIES),
-      OverdueOnly: search.overdue,
-      AssignedToMe: mine || undefined,
-      IncludeClosed: search.closed,
-      DueFrom: search.dueFrom,
-      DueTo: search.dueTo,
-    }),
-  );
+  const {data, isPending, isError} = useQuery(proceduresListQuery(search, {pageSize, startsOnMine}, patientId));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as ProcedureRow[];
 

@@ -43,23 +43,26 @@ const favourites = (): ListFilterFavourite[] => [
  * Its power search filters by procedure, stage or user, actions and dates, and a procedure's View Audit Log opens it
  * on just that procedure. Entries outlive their procedures, so a deleted procedure's history is still here.
  */
+/** The log's page of entries, for its search and page size (the route's loader fetches it too). */
+export function auditListQuery(search: AuditListSearch, pageSize: number) {
+  return auditSearchQuery({
+    Page: search.page ?? 1,
+    PageSize: pageSize,
+    Ascending: search.asc ?? false,
+    Search: search.q,
+    Actions: choiceValues(search.action, AUDIT_ACTIONS),
+    ProcedureId: search.procedureId,
+    From: search.from,
+    To: search.to,
+  });
+}
+
 export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
   const {pageSize} = useListSettings();
   const page = search.page ?? 1;
   const ascending = search.asc ?? false;
   const isFiltered = hasAuditFilters(search);
-  const {data, isPending, isError} = useQuery(
-    auditSearchQuery({
-      Page: page,
-      PageSize: pageSize,
-      Ascending: ascending,
-      Search: search.q,
-      Actions: choiceValues(search.action, AUDIT_ACTIONS),
-      ProcedureId: search.procedureId,
-      From: search.from,
-      To: search.to,
-    }),
-  );
+  const {data, isPending, isError} = useQuery(auditListQuery(search, pageSize));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as EntryRow[];
   const procedureTitle = search.procedureId ? rows[0]?.procedureTitle : null;

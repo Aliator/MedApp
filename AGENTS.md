@@ -45,11 +45,11 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.Application` | Commands, queries, handlers and validators (MediatR + FluentValidation). Also repository and service **interfaces** and app exceptions. |
 | `MedApp.Infrastructure` | `MedAppDbContext`, EF configurations, repository implementations, Identity and session services, and migrations. |
 | `MedApp.API` | Thin controllers, the session auth handler and exception middleware. In production it also serves the built React app from `wwwroot`. |
-| `MedApp.Web` | The UI: React 19, TypeScript, Vite and Astryx. Not a .NET project: a solution folder in `MedApp.sln`, built with npm. |
+| `MedApp.Web` | The UI: React 19, TypeScript, Vite and Astryx, rendered on the server by a small Node server (`server/server.mjs`) and hydrated. Not a .NET project: a solution folder in `MedApp.sln`, built with npm. |
 | `MedApp.Client.Deprecated` | **Deprecated.** The original Blazor WASM UI, replaced by `MedApp.Web`. Not run, and no new work; kept building, for reference only. See its `README.md`. |
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the React app into the API's `wwwroot`. |
 | `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive` in Development), used by the API. |
-| `MedApp.UnitTests` | NUnit tests for Application handlers/validators and Infrastructure services. |
+| `MedApp.UnitTests` | NUnit tests for Application handlers/validators, Infrastructure services, and the API's own services (`Api/`). |
 | `MedApp.IntegrationTests` | Empty project shell, with no tests yet. |
 | `MedApp.E2ETests` | Playwright for .NET setup (base fixture, sign-in) for end-to-end tests of `MedApp.Web`. No tests yet; see its `README.md`. |
 
@@ -188,7 +188,8 @@ It only runs against a local database: by default the AppHost's SQL container, u
   - Aspire generated the `sa` password on the first run and keeps it in the AppHost's user secrets (`Parameters:sql-password`). The volume only opens with that password, so don't delete or change it.
 - The API's `appsettings*.json` have **no connection string**: the AppHost injects `ConnectionStrings__DefaultConnection`. Running the API on its own needs that variable set.
 - **An empty database** (a new volume) isn't migrated at startup. Apply the migrations with the command under [Commands](#commands), then load the demo data with `medapp-dev`'s `reset_demo_data`.
-- The React dev server proxies `/api` and `/swagger` to the API. If `/api` calls start returning the app's HTML instead of JSON, the proxy has dropped out; restart the AppHost.
+- The React dev server (`npm run dev`: Node with Vite, rendering pages on the server) proxies `/api` and `/swagger` to the API, and its own server-side API calls go through that proxy too. If `/api` calls start returning the app's HTML instead of JSON, the proxy has dropped out; restart the AppHost.
+- **Server-side rendering in production** (`MedApp.API/ServerRendering`): the API starts the page server from `wwwroot/ssr/server.mjs` with `node`, on a free local port. It forwards page requests there and falls back to `index.html` if Node is missing or stops. The page server's own API calls carry a key the API gave it, so they skip the https redirect on this machine. `wwwroot/ssr` and `wwwroot/.vite` are never served. Settings are in the `Ssr` section (`SsrOptions`).
 - Kestrel's `https` profiles need the ASP.NET Core dev certificate. If startup fails with "the default developer certificate could not be found", run `dotnet dev-certs https`.
 - Session cookies are `SameSite=Lax` everywhere, and `Secure` outside Development (the Vite dev server is plain `http://localhost`).
 

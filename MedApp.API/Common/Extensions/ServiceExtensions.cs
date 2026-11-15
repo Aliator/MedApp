@@ -1,6 +1,7 @@
 ﻿using FluentValidation.AspNetCore;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Notifications;
+using MedApp.API.ServerRendering;
 using MedApp.Application.Notifications.Common;
 using Microsoft.AspNetCore.Authentication;
 
@@ -16,6 +17,15 @@ public static class ServiceExtensions
         // Live notifications: pushed to each signed-in user's open pages (NotificationsHub).
         services.AddSignalR();
         services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
+
+        // Server-side rendering: the Node server that renders the React app's pages (SsrServer), and the client
+        // that forwards page requests to it. Redirects (e.g. to sign in) go back to the browser as they are.
+        services.AddOptions<SsrOptions>().BindConfiguration(SsrOptions.Section);
+        services.AddSingleton<SsrServer>();
+        services.AddSingleton<ISsrServer>(provider => provider.GetRequiredService<SsrServer>());
+        services.AddHostedService(provider => provider.GetRequiredService<SsrServer>());
+        services.AddHttpClient(SsrPages.ClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
         services.AddFluentValidationAutoValidation();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

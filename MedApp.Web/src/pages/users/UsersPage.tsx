@@ -59,6 +59,19 @@ export interface UsersPageProps {
  * (confirmed with the admin's own password). Admins can't change
  * their own account here, as in Blazor.
  */
+/** The list's page of users, for its search and page size, given every role (the route's loader fetches it too). */
+export function usersListQuery(search: UsersListSearch, pageSize: number, allRoles: readonly string[]) {
+  return userSearchQuery({
+    Page: search.page ?? 1,
+    PageSize: pageSize,
+    Sort: 'username',
+    Ascending: search.asc ?? true,
+    Username: search.username,
+    // The API takes one role: any of them all is no filter at all.
+    Role: oneRole(search.role, allRoles),
+  });
+}
+
 export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const me = useCurrentUser();
   const page = search.page ?? 1;
@@ -67,10 +80,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const {pageSize} = useListSettings();
   const {data: allRoles = []} = useQuery(rolesQuery);
 
-  const {data, isPending, isError} = useQuery(
-    // The API takes one role: any of them all is no filter at all.
-    userSearchQuery({Page: page, PageSize: pageSize, Sort: 'username', Ascending: ascending, Username: search.username, Role: oneRole(search.role, allRoles)}),
-  );
+  const {data, isPending, isError} = useQuery(usersListQuery(search, pageSize, allRoles));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as UserRow[];
 

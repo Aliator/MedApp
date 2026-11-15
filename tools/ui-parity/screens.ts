@@ -15,6 +15,8 @@ export interface Screen {
    * These screens never confirm a destructive action: dialogs are only opened.
    */
   prepare?: (page: Page, ctx: { app: AppName; data: ParityData }) => Promise<void>;
+  /** The app settings the screen needs (React), e.g. a switch in Account Settings turned on (see `useSettings`). */
+  settings?: Record<string, string>;
 }
 
 /**
@@ -78,11 +80,9 @@ export const screens: Screen[] = [
     name: 'keyboard-shortcuts',
     title: 'Keyboard shortcuts, listed on ? (once turned on, in Account Settings, Accessibility)',
     path: '/',
+    // They start off.
+    settings: { 'medapp.accessibility': JSON.stringify({ shortcuts: true }) },
     prepare: async (page) => {
-      // They start off: turn them on in this browser, then reload to pick that up.
-      await page.evaluate(() => localStorage.setItem('medapp.accessibility', JSON.stringify({ shortcuts: true })));
-      await page.reload();
-      await page.getByRole('heading', { level: 1 }).waitFor();
       await page.keyboard.press('?');
       await page.getByRole('dialog', { name: 'Keyboard shortcuts' }).waitFor();
     },

@@ -18,5 +18,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // The server entry runs in Node: tsconfig.ssr.json checks it, with Node's types.
+  "exclude": ["src/entry-server.tsx", "src/entry-server.test.tsx"]
 }
