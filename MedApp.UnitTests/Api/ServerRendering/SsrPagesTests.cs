@@ -4,6 +4,7 @@ using FluentAssertions;
 using MedApp.API.ServerRendering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -161,6 +162,158 @@ public sealed class SsrPagesTests
     }
 
     [Test]
+    public async Task Handle_RendererFailsAnyOtherWay_SendsTheClientRenderedApp()
+    {
+        // E.g. a handler's own exception, such as a circuit breaker's.
+        _renderer = new RecordingHandler(_ => throw new InvalidOperationException("Something else went wrong"));
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        Body(context).Should().Be(IndexHtml);
+    }
+
+    [TestCase(HttpStatusCode.InternalServerError)]
+    [TestCase(HttpStatusCode.BadGateway)]
+    [TestCase(HttpStatusCode.ServiceUnavailable)]
+    public async Task Handle_RendererServerError_SendsTheClientRenderedApp(HttpStatusCode status)
+    {
+        _renderer = new RecordingHandler(_ =>
+        {
+            var response = new HttpResponseMessage(status) { Content = new StringContent(RenderedHtml) };
+            response.Headers.TryAddWithoutValidation("Vary", "Origin");
+            return response;
+        });
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        context.Response.Headers.ContainsKey("Vary").Should().BeFalse();
+        Body(context).Should().Be(IndexHtml);
+    }
+
+    [Test]
+    public async Task Handle_RendererNotFound_PassesTheNotFoundPageOn()
+    {
+        _renderer = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        {
+            Content = new StringContent(RenderedHtml, Encoding.UTF8, "text/html"),
+        });
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        Body(context).Should().Be(RenderedHtml);
+    }
+
+    [Test]
+    public async Task Handle_RendererFailsBeforeSendingAnything_SendsTheClientRenderedAppWithoutItsHeaders()
+    {
+        _renderer = new RecordingHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new FailingContent(writeFirst: false) };
+            response.Headers.TryAddWithoutValidation("Vary", "Origin");
+            return response;
+        });
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        context.Response.Headers.ContainsKey("Vary").Should().BeFalse();
+        context.Response.Headers.CacheControl.ToString().Should().BeEmpty();
+        Body(context).Should().Be(IndexHtml);
+    }
+
+    [Test]
+    public async Task Handle_RendererFailsPartWay_EndsTheResponseRatherThanThrowing()
+    {
+        _renderer = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new FailingContent(writeFirst: true) });
+        var context = Page();
+        var lifetime = new Mock<IHttpRequestLifetimeFeature>();
+        lifetime.SetupGet(l => l.RequestAborted).Returns(CancellationToken.None);
+        context.Features.Set(lifetime.Object);
+        context.Features.Set<IHttpResponseFeature>(new StartedOnceWritten(context.Response.Body));
+
+        await Handle(context);
+
+        lifetime.Verify(l => l.Abort(), Times.Once);
+        Body(context).Should().Be(PartialHtml);
+    }
+
+    [Test]
+    public async Task Handle_BrowserWentAway_DoesNotSendAnything()
+    {
+        using var aborted = new CancellationTokenSource();
+        await aborted.CancelAsync();
+        _renderer = new RecordingHandler(_ => throw new TaskCanceledException("The browser went away"));
+        var context = Page();
+        context.RequestAborted = aborted.Token;
+
+        var handling = () => Handle(context);
+
+        await handling.Should().ThrowAsync<TaskCanceledException>();
+        Body(context).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_PathNamesAnotherHost_StillAsksTheRenderer()
+    {
+        var context = Page();
+        context.Request.Path = OtherHostPath;
+        context.Request.QueryString = QueryString.Empty;
+
+        await Handle(context);
+
+        var forwarded = _renderer.Requests.Should().ContainSingle().Subject.RequestUri!;
+        forwarded.Scheme.Should().Be(RendererAddress.Scheme);
+        forwarded.Host.Should().Be(RendererAddress.Host);
+        forwarded.Port.Should().Be(RendererAddress.Port);
+        forwarded.AbsolutePath.Should().Be(OtherHostPath);
+    }
+
+    [Test]
+    public async Task Handle_RendererRunning_TellsBrowsersAndCachesNotToKeepThePage()
+    {
+        _renderer = new RecordingHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(RenderedHtml) };
+            response.Headers.TryAddWithoutValidation("Cache-Control", RendererCacheControl);
+            return response;
+        });
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [Test]
+    public async Task Handle_RendererRedirects_TellsBrowsersAndCachesNotToKeepIt()
+    {
+        _renderer = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.TemporaryRedirect));
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [Test]
+    public async Task Handle_RendererNotRunning_LeavesTheClientRenderedAppsCachingAsItIs()
+    {
+        _ssr.SetupGet(s => s.Address).Returns((Uri?)null);
+        var context = Page();
+
+        await Handle(context);
+
+        context.Response.Headers.CacheControl.ToString().Should().BeEmpty();
+    }
+
+    [Test]
     public async Task Handle_NotAPageRead_SendsTheClientRenderedApp()
     {
         var context = Page(HttpMethods.Post);
@@ -193,5 +346,27 @@ public sealed class SsrPagesTests
             Requests.Add(request);
             return Task.FromResult(respond(request));
         }
+    }
+
+    /// <summary>A page that fails as it streams: after its first part, or before anything.</summary>
+    private sealed class FailingContent(bool writeFirst) : HttpContent
+    {
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            if (writeFirst) await stream.WriteAsync(Encoding.UTF8.GetBytes(PartialHtml));
+            throw new IOException("The renderer stopped.");
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    /// <summary>A response that has started, as Kestrel's does, once anything has been written to it.</summary>
+    private sealed class StartedOnceWritten(Stream body) : HttpResponseFeature
+    {
+        public override bool HasStarted => body.Length > 0;
     }
 }
