@@ -67,7 +67,7 @@ Save a snapshot from the dev database by asking for medapp-dev's `save_snapshot`
 | `cluster.yaml` | The one-node cluster, with Traefik's ports mapped to this machine only: 8080 (http) and 8443 (https). |
 | `traefik-values.yaml` | Traefik's chart values: its entry points on the node ports mapped to 8080 and 8443. |
 | `local-cluster.yaml` | The local stand-ins: a self-signed cert-manager issuer, and a secret store. The store is Secrets in the `medapp-vault` namespace, read by External Secrets, where Azure will use Key Vault. |
-| `values.yaml` | MedApp's chart values for this cluster: the local image (never pulled), the ingress with TLS, and secrets from the local store. |
+| `values.yaml` | MedApp's chart values for this cluster: the local image (never pulled), two copies of the API sharing live notifications through Valkey, the ingress with TLS, and secrets from the local store. |
 | `up.sh`, `down.sh` | Start or redeploy, and delete. |
 
 - **The `medapp` namespace enforces the `restricted` Pod Security Standard,** so a pod that runs as root, or asks for more than the chart's do, is refused.

@@ -9,8 +9,9 @@ image:
 imagePullSecrets: []
 
 api:
-  # Keep this at 1 for now. More copies need a SignalR backplane: live notifications reach only the copy a browser
-  # is connected to (docs/todo.md).
+  # How many copies of the API run. More than one needs the backplane (below), so live notifications reach every
+  # browser whichever copy it's connected to. With more than one, a PodDisruptionBudget keeps one running through
+  # node drains.
   replicas: 1
   resources:
     requests:
@@ -46,6 +47,25 @@ database:
   # deleted on uninstall, so it still opens the data volume after a reinstall.
   existingSecret: ""
 
+# The SignalR backplane: a Redis-compatible server every copy of the API passes live notifications through, so a
+# notification reaches a browser whichever copy it's connected to (MedApp.API/Notifications/SignalRBackplane.cs).
+backplane:
+  enabled: true
+  # An existing Secret with the API's connection string to it (key connection-string, StackExchange.Redis format:
+  # host:port,password=...,ssl=true) and, with valkey.enabled, Valkey's password (key password).
+  existingSecret: ""
+  # Valkey (the open-source Redis) in the cluster. It keeps nothing: the backplane only passes messages on. Turn it
+  # off to use another server, such as Azure Cache for Redis, through existingSecret or externalSecrets.
+  valkey:
+    enabled: true
+    image: valkey/valkey:8.1-alpine
+    resources:
+      requests:
+        cpu: 50m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
 # The first admin account, made by the migrations Job after migrating (the API's create-first-admin command), but
 # only while the database has no accounts at all: once anyone exists, it changes nothing.
 firstAdmin:
@@ -80,6 +100,13 @@ externalSecrets:
     password:
       key: medapp-first-admin
       property: password
+  backplane:
+    password:
+      key: medapp-backplane
+      property: password
+    connection-string:
+      key: medapp-backplane
+      property: connection-string
 
 # NetworkPolicies: each part of MedApp accepts and makes only the connections it needs. Needs a network plugin that
 # enforces them (kind's does; on AKS, Azure CNI with Cilium or Calico).

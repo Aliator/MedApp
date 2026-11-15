@@ -101,6 +101,12 @@ if ! vault get secret medapp-first-admin >/dev/null 2>&1; then
   vault create secret generic medapp-first-admin \
     --from-literal=username=admin --from-literal=password="Aa1$(openssl rand -hex 12)"
 fi
+if ! vault get secret medapp-backplane >/dev/null 2>&1; then
+  password="$(openssl rand -hex 24)"
+  vault create secret generic medapp-backplane \
+    --from-literal=password="$password" \
+    --from-literal=connection-string="$release-valkey:6379,password=$password"
+fi
 
 # Who deploys MedApp: Helm from this script, or Argo CD from git. Not both at once.
 helm_release=$(h list --namespace medapp --filter "^$release\$" --short 2>/dev/null || true)

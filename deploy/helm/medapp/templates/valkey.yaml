@@ -1,0 +1,73 @@
+{{- if and .Values.backplane.enabled .Values.backplane.valkey.enabled }}
+{{- $name := include "medapp.valkeyName" . }}
+# Valkey, the SignalR backplane: the copies of the API pass live notifications to each other through it. It keeps
+# nothing (no saving to disk), so it's a Deployment with no volume; after a restart the API reconnects by itself.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  selector:
+    {{- include "medapp.selectorLabels" (list . "valkey") | nindent 4 }}
+  ports:
+    - name: valkey
+      port: 6379
+      targetPort: valkey
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "valkey") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "medapp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: valkey
+    spec:
+      # The image's own non-root user (valkey).
+      {{- include "medapp.podSecurity" (list . 999) | nindent 6 }}
+      containers:
+        - name: valkey
+          image: {{ .Values.backplane.valkey.image }}
+          securityContext:
+            {{- include "medapp.containerSecurityContext" . | nindent 12 }}
+          # A password on top of the network policy (only the API may connect); nothing saved to disk.
+          args: ["--requirepass", "$(VALKEY_PASSWORD)", "--save", "", "--appendonly", "no"]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.backplaneSecretName" . }}
+                  key: password
+          ports:
+            - name: valkey
+              containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: valkey
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: valkey
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.backplane.valkey.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 64Mi
+{{- end }}

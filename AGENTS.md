@@ -127,6 +127,8 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 
 - A handler tells someone about something with `INotificationSender.SendAsync(new Notification { … })` (`MedApp.Application/Notifications/Common`), after its own change is saved. It stores the notification, then pushes it live to every page that user has open.
 - **Live delivery is SignalR:** `NotificationsHub` at `/api/notifications/hub`, addressed by user ID (the session's `NameIdentifier`), through `SignalRNotificationPublisher` in the API. Pushing is best effort: a failure is logged, and the stored notification shows on the next load.
+- **Several copies of the API share a backplane:** with `ConnectionStrings:SignalRBackplane` set, SignalR passes messages through that Redis-compatible server (`SignalRBackplane`), so a notification reaches a browser on any copy. In Kubernetes it's Valkey; in development it's unset, and there's one copy.
+  - Browsers connect by WebSocket only, without negotiating first (`LiveNotifications`), because with several copies the negotiate request and the WebSocket could reach different ones.
 - `GET api/notifications` returns the newest and the unread count. `POST api/notifications/read` marks them all read, and `POST api/notifications/{id}/read` marks one.
 - Being assigned a procedure is the only kind so far (not when you assign yourself). Kind numbers are stored, so never renumber `NotificationKind`. Notifications have no foreign keys, like the audit log.
 
