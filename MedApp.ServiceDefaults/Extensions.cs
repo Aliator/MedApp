@@ -108,18 +108,25 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
-        {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+        // In development, on the app's own port. Elsewhere only when HealthChecks:Port is set, and then only on that
+        // port, which the Kubernetes Service and ingress don't expose, so only the probes reach them
+        // (deploy/helm/medapp). See https://aka.ms/aspire/healthchecks.
+        // All health checks must pass for app to be considered ready to accept traffic after starting
+        var health = new HealthCheckOptions();
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
+        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        var alive = new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") };
+
+        if (int.TryParse(app.Configuration["HealthChecks:Port"], out var port))
+        {
+            // Matched on the port the connection arrived on (not the Host header, which any caller sets).
+            app.UseHealthChecks(HealthEndpointPath, port, health);
+            app.UseHealthChecks(AlivenessEndpointPath, port, alive);
+        }
+        else if (app.Environment.IsDevelopment())
+        {
+            app.MapHealthChecks(HealthEndpointPath, health);
+            app.MapHealthChecks(AlivenessEndpointPath, alive);
         }
 
         return app;

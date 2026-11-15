@@ -26,6 +26,12 @@ public static class AuthTestConstants
 
     public const string ValidPassword = "ValidPassword1";
 
+    /// <summary>The first admin a deploy makes (FirstAdminSetup): synthetic.</summary>
+    public const string FirstAdminUsername = "first-admin";
+
+    public static readonly DateTime FirstAdminCreatedAtUtc =
+        new(2026, 11, 15, 9, 30, 0, DateTimeKind.Utc);
+
     /// <summary>A user's saved app settings: synthetic, as the app writes them.</summary>
     public const string SettingsJson = "{\"medapp.colorMode\":\"light\",\"medapp.textSize\":\"large\"}";
 

@@ -13,6 +13,11 @@ public static class ApplicationBuilderExtensions
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+        else
+        {
+            // Browsers stay on https for this host once they've seen it there (sent only on https, never localhost).
+            app.UseHsts();
+        }
 
         // The page-rendering server's own calls to the API (SsrServer) may come over http on this machine.
         var ssr = app.Services.GetRequiredService<ISsrServer>();

@@ -35,13 +35,32 @@ app.kubernetes.io/component: {{ index . 1 }}
 {{- .Values.database.existingSecret | default (printf "%s-db" (include "medapp.fullname" .)) -}}
 {{- end -}}
 
+{{/* The Secret with the first admin's username and password: the given one, or the chart's own. */}}
+{{- define "medapp.firstAdminSecretName" -}}
+{{- .Values.firstAdmin.existingSecret | default (printf "%s-first-admin" (include "medapp.fullname" .)) -}}
+{{- end -}}
+
 {{- define "medapp.sqlName" -}}
 {{- printf "%s-sql" (include "medapp.fullname" .) -}}
 {{- end -}}
 
-{{/* Settings every MedApp container shares: no root, no privilege escalation, no Linux capabilities. */}}
+{{/*
+Settings every MedApp pod shares, which meet the "restricted" Pod Security Standard: a non-root user (pass it:
+(list . 1654)), the runtime's default seccomp profile, and no Kubernetes API token (nothing here calls the API).
+*/}}
+{{- define "medapp.podSecurity" -}}
+automountServiceAccountToken: false
+securityContext:
+  runAsNonRoot: true
+  runAsUser: {{ index . 1 }}
+  seccompProfile:
+    type: RuntimeDefault
+{{- end -}}
+
+{{/* Settings the API's and migrations' containers share: no privilege escalation or capabilities, a read-only root. */}}
 {{- define "medapp.containerSecurityContext" -}}
 allowPrivilegeEscalation: false
+readOnlyRootFilesystem: true
 capabilities:
   drop: ["ALL"]
 {{- end -}}

@@ -20,10 +20,11 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 - **Kubernetes, with Helm, Argo CD and Azure.** Run MedApp on Kubernetes, step by step. Done so far:
   1. A local **kind** cluster: `deploy/kind`.
-  2. A **Helm chart**: `deploy/helm/medapp`, which kind deploys with. Its `README.md` lists what it leaves for the steps below, including more than one copy of the API (a SignalR backplane and shared data-protection keys) and real health checks.
+  2. A **Helm chart**: `deploy/helm/medapp`, which kind deploys with.
+  3. **Security**: secrets from a secret store (External Secrets), TLS (cert-manager), network policies, the restricted Pod Security Standard, read-only filesystems, health checks on their own port, and a deliberate first admin. See the chart's `README.md`.
 
   Still to do:
 
-  3. **Proper security**: secrets in a secret store (not in values files), TLS, network policies, read-only filesystems, real health checks, and a deliberate way to make the first admin. The containers already run as non-root users, with resource limits.
   4. **Argo CD** for continuous delivery: the cluster follows the chart and its values in git.
   5. **Azure** for hosting: AKS, Azure SQL, Key Vault for the secrets, and a container registry.
+- **More than one copy of the API.** The chart runs one (`api.replicas`), because live notifications reach only the copy a browser's SignalR connection is on. Add a backplane (Azure SignalR Service, or Redis), then raise it.

@@ -10,6 +10,7 @@ spec:
   type: {{ .Values.api.service.type }}
   selector:
     {{- include "medapp.selectorLabels" (list . "api") | nindent 4 }}
+  # Only the app's port: the health port (8081) is for the kubelet's probes, never the Service or the ingress.
   ports:
     - name: http
       port: {{ .Values.api.service.port }}
@@ -37,10 +38,8 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      securityContext:
-        # The image's own non-root user (APP_UID in the .NET images).
-        runAsNonRoot: true
-        runAsUser: 1654
+      # The image's own non-root user (APP_UID in the .NET images).
+      {{- include "medapp.podSecurity" (list . 1654) | nindent 6 }}
       containers:
         - name: api
           image: {{ include "medapp.image" . }}
@@ -53,6 +52,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "medapp.dbSecretName" . }}
                   key: connection-string
+            # The app on 8080, and /health and /alive on 8081 only (MedApp.ServiceDefaults).
+            - name: ASPNETCORE_HTTP_PORTS
+              value: "8080;8081"
+            - name: HealthChecks__Port
+              value: "8081"
             # Behind the ingress: take the client's scheme and address from its X-Forwarded-* headers.
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"
@@ -62,25 +66,37 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: health
+              containerPort: 8081
           lifecycle:
             # Keep serving for a moment after being told to stop, while the ingress stops sending requests here.
             # Without it, a rollout fails the odd request sent to the old pod as it shuts down.
             preStop:
               sleep:
                 seconds: 5
-          # TCP for now: the API maps /health and /alive only in Development (docs/todo.md, the security step).
           startupProbe:
-            tcpSocket:
-              port: http
+            httpGet:
+              path: /alive
+              port: health
             periodSeconds: 2
             failureThreshold: 30
           readinessProbe:
-            tcpSocket:
-              port: http
+            httpGet:
+              path: /health
+              port: health
             periodSeconds: 10
           livenessProbe:
-            tcpSocket:
-              port: http
+            httpGet:
+              path: /alive
+              port: health
             periodSeconds: 20
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+          volumeMounts:
+            # The root filesystem is read-only; .NET and Node get a scratch folder.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
