@@ -23,6 +23,8 @@ Each document says what changed and why, how it works, the decisions and their t
 | [app-changes.md](app-changes.md) | `create-first-admin`, health checks, HSTS, mappers, test coverage | #43, #44, #48 | Merged | Medium |
 | [pr-51-ssr-security-fixes.md](pr-51-ssr-security-fixes.md) | The review of #51: the fixes to server-side rendering and password changes | #51 | Merged | Low (6 low findings) |
 | [pr-52-azure.md](pr-52-azure.md) | The review of #52: the Azure setup and the deploy, chart and Azure fixes, with how each finding was resolved | #52 | Merged | High (deploys refused after a workflow change; fixed in #52) |
+| [pr-53-generated-first-password.md](pr-53-generated-first-password.md) | The review of #53: the generated first password that replaced `DefaultPassword1` | #53 | Merged | Medium (accessibility, and accounts that still have the old password) |
+| [pr-54-project-handbook.md](pr-54-project-handbook.md) | The review of #54: the architecture handbook, its roadmap, and the record of choices | #54 | Merged | High (fixed in the review pass) |
 
 ## How the risks are graded
 

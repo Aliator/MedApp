@@ -15,18 +15,19 @@ You asked me to take the recommended option at every decision while you were out
 3. **#52's medium findings, fixed in the same PR:**
    - **Separate deploy jobs:** the kind and Azure deploys are separate jobs, so one failing doesn't stop the other.
    - **No accidental rollbacks:** re-running an old Publish run can't roll an environment back. It skips with a message instead of failing, because a deliberate rollback is a revert on `main`.
-   - **The namespace:** `medapp` is created by the setup scripts rather than by Argo CD, so Argo CD's project has no permission over anything cluster-wide. *To undo:* restore `CreateNamespace` in the Applications and `Namespace` in `deploy/argocd/project.yaml`.
+   - **The namespace:** `medapp` is created by the setup scripts rather than by Argo CD, so Argo CD's project has no permission over anything cluster-wide. *To undo:* restore `CreateNamespace` and `managedNamespaceMetadata` (which set the Pod Security labels) in the Applications, and `Namespace` in `deploy/argocd/project.yaml`.
 4. **#52's low findings, also fixed:**
    - **`environmentName`:** the Bicep checks it is lower-case letters and digits, and fails with a clear message.
    - **The placeholder group:** `deploy.sh` refuses to run with the all-zero admin group still in place.
    - **Role delay:** `bootstrap.sh` waits for Azure's role assignment to take effect.
-   - **The dev tool:** CI now builds it, which is how its break went unnoticed.
+   - **The dev tool:** CI now builds it. Nothing built it before, which is how its break went unnoticed.
    - **Docs:** the doc corrections.
+   - **Documented, not fixed:** a retry in `IdentityTransactions` that can fail a role change, and three open Azure risks (the public API server, the unreserved ingress IP, one Traefik pod). Both are in the Azure README's "Not yet".
 5. **A new pull request for the default password (#53), which you didn't ask for.** The handbook found that every new account was created with `DefaultPassword1`, a password hard-coded in public source and shown in the UI. For a medical app, that blocks calling the build ready to deploy.
    - **What #53 does:** the server now generates each new account's first password, at least 16 characters, and shows it to the admin once.
    - **Forcing a change at first sign-in:** that needs a database migration, so it's on the to-do list rather than in this PR.
-6. **#53's review: fixed both medium findings and most lows.**
-   - **Mediums:** screen readers are told about the password, with a copy button. Accounts made before #53 may still have the old password, which is documented, with a to-do item to find them.
+6. **#53's review: fixed one medium finding, documented the other, and fixed most lows.**
+   - **Mediums:** fixed: screen readers are told about the password, with a copy button. Documented: accounts made before #53 may still have the old password, with a to-do item to find them.
    - **Lows:**
      - the password is cleared when the dialog closes
      - a double-click can't lose it
@@ -43,15 +44,27 @@ You asked me to take the recommended option at every decision while you were out
 ## Documents
 
 9. **The handbook** ([architecture.md](architecture.md)) follows **arc42**, a widely used template for software architecture documents. It describes `main` as it is now, with every merged change. The roadmap is part of it, between the risks and the glossary, as you asked.
-10. **The roadmap** was researched at max effort, as you asked, with its sources cited. I kept its order: licences and intellectual property first, because a buyer's due diligence checks those before anything else, and two of them (MediatR, FluentAssertions) need paid licences for commercial use.
-11. **Review documents:** each pull request merged today has its own (`docs/reviews/pr-51…`, `pr-52…`, `pr-53…`), and the handbook pull request gets one too.
+10. **The roadmap** was researched at max effort, as you asked, with its sources cited. I kept its order: licences and intellectual property first, because a buyer's due diligence checks those before anything else, and two of them need commercial licences: FluentAssertions 8 for any commercial use, and MediatR in production for any organisation above its free Community licence's limits.
+11. **Review documents:** #51, #52 and #53 each have their own (`docs/reviews/pr-51…`, `pr-52…`, `pr-53…`), and the handbook pull request gets one too (`pr-54…`). #42 to #50, merged earlier the same day, are covered by the review notes in `docs/reviews/` instead.
 
 ## Things I deliberately didn't do
 
 12. **Azure isn't deployed.** You chose earlier not to, because of the cost. Everything is ready: [deploy/azure/README.md](../deploy/azure/README.md) has the steps.
-13. **The repository and its container image are still public.** The roadmap points out that a public `docs/reviews/flaws-review.md` lists the app's weaknesses, which a buyer would notice. I'd recommend making the repository private before showing it to anyone. I haven't done it, because it's outside what you asked, and the kind cluster pulls the image without signing in. Making it private would need a pull secret there.
-14. **MediatR wasn't replaced or licensed.** It needs a paid licence for commercial use. That's roadmap step 1, and it's your purchasing decision.
+13. **The repository and its container image are still public.** The roadmap points out that a public `docs/reviews/flaws-review.md` lists the app's weaknesses, which a buyer would notice. I'd recommend making the repository private before showing it to anyone. I haven't done it, because it's outside what you asked, and two things read the image without signing in: the kind cluster, and the Publish workflow's copy to Azure. Making it private would need a pull secret on kind, and `packages: read` for the `azure` job.
+14. **MediatR wasn't replaced or licensed.** It needs a licence in production: the free Community licence while the business is under its limits, a paid one above them. That's roadmap step 1, and it's your purchasing decision.
 
 ## How I checked the finished build
 
-15. **What I checked:** after the last merge, I checked the build works both locally and in the kind cluster, which runs the production setup. The results are in the summary I gave you in the conversation.
+15. **Development:** I restarted the AppHost on `main` at `eef92dd`, after #53, with every change merged. At http://localhost:5173:
+    - `admin` / `admin` signs in.
+    - `/patients` comes back rendered on the server, with its rows.
+    - A `//evil.example` path is refused with a 404.
+    - The live notifications WebSocket connects without negotiating.
+16. **The kind cluster, deployed by Argo CD from git.** I moved it from a local Helm install to Argo CD (`deploy/kind/up.sh --argocd`), so it runs exactly what `env/kind` says: the image Publish built from `eef92dd`, pulled from GHCR.
+    - **The application:** Synced and Healthy, under the restricted `medapp` project, in a namespace with the `restricted` Pod Security label. Two API copies, SQL Server and Valkey are running.
+    - **Pages:** at https://localhost:8443, `admin` signs in, and `/patients` is rendered on the server with `Cache-Control: no-store`. The `//evil.example` path gets a 404.
+    - **New accounts:** creating one returns 200 with `no-store` and a 16-character generated password.
+    - **Live notifications:** with that account, 8 of 8 arrived live across the two API copies.
+    - *To switch back* to building locally: `kubectl --context kind-medapp -n argocd delete application medapp`, then `deploy/kind/up.sh`.
+17. **The deploy pipeline:** the Publish runs after #51, #52 and #53 all succeeded. The one after #52 proved its high-finding fix: its deploy commit changed no workflow file.
+18. **Azure:** checked as far as it can be without deploying. CI compiles and lints the Bicep and renders every chart with Azure's values, on every pull request.

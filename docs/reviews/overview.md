@@ -105,10 +105,10 @@ Five pieces build on it:
 
 ## How changes are made and checked
 
-- **Three stages:** each change is planned at high reasoning effort, written at a medium-high one, then reviewed at high effort by a separate reviewer that wasn't told the author's conclusions.
+- **Three stages:** each change is planned at xhigh reasoning effort, written at high, then reviewed at xhigh by a separate reviewer that wasn't told the author's conclusions.
 - **A document per merge:** every merge gets a review document (`pr-<number>-….md` here).
 - **Blocking:** a serious finding stops the merge until it's fixed.
-- **Required checks:** CI (build, tests, test coverage, chart checks and the Bicep) must pass before anything merges. CI builds the container image too, but that check isn't required yet (`docs/todo.md`).
+- **Required checks:** CI (build, tests, test coverage, chart checks, the Bicep and the container image) must pass before anything merges.
 - **Protected branches:** `main` and the environment branches can't be deleted or rewritten.
 
 The reviews so far:
