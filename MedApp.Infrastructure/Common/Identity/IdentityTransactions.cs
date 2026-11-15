@@ -1,6 +1,7 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Common.Identity;
 
@@ -12,15 +13,31 @@ public sealed class IdentityTransactions(MedAppDbContext context) : IIdentityTra
 {
     public async Task<IdentityResult> RunAsync(Func<Task<IdentityResult>> work, CancellationToken ct)
     {
-        await using var transaction = await context.Database.BeginTransactionAsync(ct);
+        // The DbContext retries on transient failures (ServiceExtensions), and EF only allows a transaction of our own
+        // inside its execution strategy, which then retries the transaction as a whole: begin, the work, and the
+        // commit or rollback. A failed attempt's transaction is rolled back, so each attempt starts from the database
+        // as it was.
+        var strategy = context.Database.CreateExecutionStrategy();
+        var attempt = 0;
 
-        var result = await work();
+        return await strategy.ExecuteAsync(async cancellationToken =>
+        {
+            // A retry runs the work again from the start. The failed attempt's entities are still tracked (as added,
+            // or changed), and the work adds its own again, so forget them first: otherwise Identity would save the
+            // same roles and users twice.
+            if (attempt++ > 0)
+                context.ChangeTracker.Clear();
 
-        if (result.Succeeded)
-            await transaction.CommitAsync(ct);
-        else
-            await transaction.RollbackAsync(ct);
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-        return result;
+            var result = await work();
+
+            if (result.Succeeded)
+                await transaction.CommitAsync(cancellationToken);
+            else
+                await transaction.RollbackAsync(cancellationToken);
+
+            return result;
+        }, ct);
     }
 }

@@ -52,6 +52,9 @@ kind: ClusterSecretStore
 metadata:
   name: medapp-local-vault
 spec:
+  # Only ExternalSecrets in the medapp namespace may use it, as on Azure (deploy/azure/cluster.yaml).
+  conditions:
+    - namespaces: [medapp]
   provider:
     kubernetes:
       remoteNamespace: medapp-vault

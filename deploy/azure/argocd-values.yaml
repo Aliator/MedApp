@@ -1,0 +1,12 @@
+# Argo CD's chart values (argo/argo-cd) for AKS (bootstrap.sh). Its UI isn't exposed: reach it with
+#   kubectl -n argocd port-forward service/argocd-server 8080:443
+configs:
+  params:
+    server.insecure: false
+server:
+  ingress:
+    enabled: false
+dex:
+  enabled: false
+notifications:
+  enabled: false

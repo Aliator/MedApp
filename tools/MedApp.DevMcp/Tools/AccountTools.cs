@@ -3,7 +3,7 @@ using MediatR;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
 using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
-using MedApp.Application.Authentication.Users.Commands.DeleteUser;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
@@ -131,7 +131,7 @@ public sealed class AccountTools
     [McpServerTool(Name = "delete_user", Destructive = true)]
     [Description("Deletes an account. Refuses protected accounts. Needs confirm: true.")]
     public static async Task<object> DeleteUser(
-        IMediator mediator,
+        IIdentityUserService userService,
         DevMcpOptions options,
         [Description("Account to delete.")] string username,
         [Description("Must be true to delete.")] bool confirm = false,
@@ -139,7 +139,9 @@ public sealed class AccountTools
     {
         Guards.RequireNotProtected(options, username, "delete");
         Guards.RequireConfirm(confirm, $"Deleting '{username}'");
-        Guards.Check(await Guards.Validated(() => mediator.Send(new DeleteUserCommand(username), ct)), "Delete user");
+        // Straight to the user service, not DeleteUserCommand: in the app an admin confirms a delete with their own
+        // password, but this local tool has no signed-in admin; confirm: true is its confirmation.
+        Guards.Check(await userService.DeleteUserAsync(username, ct), "Delete user");
         return new { username, deleted = true };
     }
 }

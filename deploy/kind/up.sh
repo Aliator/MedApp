@@ -18,10 +18,6 @@ export MSYS_NO_PATHCONV=1
 cluster=medapp
 context=kind-$cluster
 release=medapp
-traefik_version=42.3.2
-cert_manager_version=v1.21.2
-external_secrets_version=2.14.0
-argocd_version=10.17.2
 demo=""
 argocd=false
 revision=""
@@ -45,6 +41,7 @@ if [[ -n $revision ]] && ! $argocd; then
 fi
 
 cd "$(dirname "$0")/../.."  # the repo root
+source deploy/versions.sh  # the cluster services' chart versions, shared with deploy/azure
 
 # winget puts kind and helm in a folder that's only on the PATH of shells started after they were installed.
 if [[ -n ${LOCALAPPDATA:-} ]]; then
@@ -126,8 +123,20 @@ if $argocd; then
     --namespace argocd --create-namespace --values deploy/argocd/argocd-values.yaml --wait
 
   echo "== MedApp (Argo CD)"
+  # The project first: it limits what the Application may deploy (deploy/argocd/README.md).
+  kubectl --context "$context" apply -f deploy/argocd/project.yaml
   kubectl --context "$context" apply -f deploy/argocd/medapp-kind.yaml
-  if [[ -n $revision ]]; then
+  if [[ -z $revision ]]; then
+    # Undo an earlier --revision. It patched the image onto the Application as Helm parameters, and apply keeps
+    # fields it didn't set itself, so they would stay and override env/kind's image. (apply has just put
+    # targetRevision back to env/kind, since the file sets it.)
+    parameters=$(kubectl --context "$context" --namespace argocd get application medapp \
+      -o jsonpath='{.spec.source.helm.parameters}')
+    if [[ -n $parameters ]]; then
+      kubectl --context "$context" --namespace argocd patch application medapp --type json \
+        -p '[{"op": "remove", "path": "/spec/source/helm/parameters"}]'
+    fi
+  else
     # The chart and the cluster's values from that revision, with the image env/kind deploys now (only env/kind
     # has deploy/argocd/kind-image.yaml).
     git fetch --quiet origin env/kind

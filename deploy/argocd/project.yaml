@@ -1,0 +1,46 @@
+# The Argo CD project MedApp's Applications belong to (medapp-kind.yaml, medapp-azure.yaml), applied before them by
+# deploy/kind/up.sh --argocd and deploy/azure/bootstrap.sh. Argo CD applies whatever lands on an environment branch
+# with its own cluster-wide rights; this project limits that to what MedApp's chart is meant to deploy: from this
+# repository only, into the medapp namespace only, and only the kinds the chart renders. Anything else on the
+# branch (another namespace, a ClusterRole, a webhook) fails the sync instead of being applied.
+#
+# A new kind in the chart needs adding here first, or its sync fails with "resource ... is not permitted in project
+# medapp". List what the chart renders with, for example:
+#   helm template medapp deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci | grep -E '^(apiVersion|kind):'
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: medapp
+  namespace: argocd
+spec:
+  description: MedApp, deployed from its environment branches.
+  sourceRepos:
+    - https://github.com/Aliator/MedApp.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: medapp
+  # Cluster-wide: only the medapp namespace itself, which the Applications create (CreateNamespace=true) with its
+  # Pod Security labels.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  # In the namespace: what the chart renders, with kind's, Azure's and the default values.
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: batch
+      kind: Job
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: external-secrets.io
+      kind: ExternalSecret

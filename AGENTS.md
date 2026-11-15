@@ -32,7 +32,9 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one.
 
-To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080 (and https://localhost:8443), beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image, then makes the first admin. The chart is locked down (network policies, the `restricted` Pod Security Standard, read-only filesystems, secrets from External Secrets), so a new container, port or connection in it needs a matching change there. `up.sh --argocd` has Argo CD deploy from git instead. Each merge to `main` runs the Publish workflow, which pushes the image to GHCR and merges the commit, with the image's tag, into the `env/kind` branch that Argo CD follows (`deploy/argocd/README.md`). Never commit to `env/kind` by hand except to roll back. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
+To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080 (and https://localhost:8443), beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image, then makes the first admin. The chart is locked down (network policies, the `restricted` Pod Security Standard, read-only filesystems, secrets from External Secrets), so a new container, port or connection in it needs a matching change there. `up.sh --argocd` has Argo CD deploy from git instead. Each merge to `main` runs the Publish workflow, which pushes the image to GHCR and records the commit, with the image's tag, on the `env/kind` branch that Argo CD follows (`deploy/argocd/README.md`). Roll back by reverting the change on `main`. Never commit to an `env/*` branch by hand except in an emergency, and know that the next deploy replaces it.
+
+Azure (AKS, Azure SQL, Key Vault, Azure Container Registry) is in `deploy/azure`. It's written and checked, but **not deployed**. Its Bicep (`main.bicep`) is compiled and linted in CI. Deploying it costs money, so never run `deploy.sh` or `bootstrap.sh` without the user asking. Once it's set up, the Publish workflow's `azure` job deploys each merge through the `env/azure` branch; until then the job is skipped. Chart versions for both clusters are in `deploy/versions.sh`. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
 Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
 
@@ -219,9 +221,10 @@ It only runs against a local database: by default the AppHost's SQL container, u
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`, with four jobs:
-- `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and `vite build`.
-- `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, and an external database), and renders it.
+`.github/workflows/main.yml` runs on PRs to `main`, with five jobs:
+- `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and the full production build (`npm run build`: the client, the server rendering bundle and the page server).
+- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. It isn't a required check; that's a repository setting.
+- `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, an external database, and Azure's values), renders it, and compiles and lints the Azure Bicep (`deploy/azure`). It also renders the cluster services (Traefik, cert-manager, External Secrets and Argo CD) at the versions in `deploy/versions.sh`, with every values file and `--set` value that `deploy/kind/up.sh` and `deploy/azure/bootstrap.sh` give them. After changing one of those values files, run the same `helm template` locally.
 - `unit-tests` runs `dotnet test MedApp.UnitTests` in Release with coverage.
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 
@@ -234,7 +237,7 @@ What coverage counts (the aim is full coverage of everything with behaviour wort
 
 `.github/workflows/publish.yml` runs on every push to `main` except docs-only changes, so it runs after each merge:
 1. It builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`).
-2. It merges that commit into the `env/kind` branch, with the tag in `deploy/argocd/kind-image.yaml`. Argo CD deploys that branch (`deploy/argocd/README.md`).
+2. It records that commit on the `env/kind` branch, with the tag in `deploy/argocd/kind-image.yaml`: a commit whose files are exactly `main`'s plus that file (`.github/scripts/deploy-to-env.sh`). Argo CD deploys that branch (`deploy/argocd/README.md`). Started by hand on another branch, it builds and pushes the image but deploys nothing.
 
 When you've merged, its run is the deploy. Check it the same way as CI.
 
@@ -266,15 +269,33 @@ When the subagent reports back, do step 4 yourself, and don't interrupt the user
 - Commit messages are short, capitalised and past tense, for example "Updated patient task routing", "Added get all methods for tasks".
 - Never commit `bin/`, `obj/`, `.idea/` or `*.DotSettings.user`.
 
+### Effort for each stage of a change
+
+The user wants each change made in three stages, each at its own reasoning effort (in Claude Code, the Agent tool's `effort`):
+
+| Stage | Effort | Who does it |
+|---|---|---|
+| **Thinking:** understanding the task, reading the code, the design and the plan | **xhigh** | The main session (its effort setting is `xhigh`). |
+| **Implementation:** writing the code, tests and docs to the plan | **high** | A subagent with `effort: "high"`, given the plan, the files and the conventions. The main session checks its work (build, tests, a read of the diff) before calling it done. |
+| **Review:** a fresh, adversarial look at the whole PR | **xhigh** | A subagent with `effort: "xhigh"` that wasn't told the author's conclusions, as part of every merge (below). |
+
+Small, mechanical edits (a typo, a one-line config change) can be done directly in the main session; the stages are for real changes.
+
 ### "Merge it" or "ship it": the full merge flow
 
 **Only run this when the user explicitly asks you to merge**, for example "merge it" or "ship it" (they mean the same). Without that, stop at committing or at an open PR, as usual. Opening a PR or seeing CI pass is not permission to merge.
 
 When the user says to merge, do every step, in order, without stopping to ask again:
-1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. If the branch changed the UI, run the full set of UI parity screenshots first (see [UI parity screenshots](#ui-parity-screenshots)).
+1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. If the branch changed the UI, run the full set of UI parity screenshots first (see [UI parity screenshots](#ui-parity-screenshots)). New scripts need their executable bit set in git (`git update-index --chmod=+x`), since this checkout doesn't track file modes.
 2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
-3. **Wait for the workflow** run whose `head_sha` is the pushed commit to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
+3. **Review the PR at xhigh**, with a subagent (`effort: "xhigh"`), and write it up as a review document:
+   - **What to review:** the PR's whole diff against `main` (`git diff main...HEAD`), its description, and the code around the changes. Give the reviewer the PR and the files, not your own conclusions, so its view isn't anchored on yours.
+   - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), consistency between docs and code, and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence, and a suggested fix.
+   - **The document:** `docs/reviews/pr-<number>-<short-name>.md`. It covers what the PR changes and why, how it was checked, then the findings, most severe first, and what's worth keeping. Commit it to the branch and push, so it's merged with the PR.
+   - **If it finds anything high or critical, stop.** Don't merge. Check those findings yourself against the code, then report them to the user with the fixes you propose, and wait. Medium and low findings are recorded in the document and don't block. Mention them when you report the merge.
+4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (the one with the review document) to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
    - **If it fails, stop.** Don't merge. Report it and propose a fix, as in step 4 of the CI section.
-4. **Merge** the PR with a merge commit (`gh pr merge <n> --merge`), matching the existing "Merge pull request #N" history.
-5. **Delete the branch**, both on GitHub and locally (`--delete-branch` handles both).
-6. **Pull `main` locally:** `git switch main` then `git pull`, so the working copy is up to date and ready for the next change. Then confirm the merge commit and that the working tree is clean.
+5. **Merge** the PR with a merge commit (`gh pr merge <n> --merge`), matching the existing "Merge pull request #N" history. If the local checkout has uncommitted changes, stash them first, or the merge's local step fails after the merge on GitHub has already happened.
+6. **Delete the branch**, both on GitHub and locally (`--delete-branch` handles both).
+7. **Pull `main` locally:** `git switch main` then `git pull`, so the working copy is up to date and ready for the next change. Then confirm the merge commit and that the working tree is clean.
+8. **Check the deploy:** each merge runs the Publish workflow, which deploys through the environment branches (`deploy/argocd/README.md`). Check that its run for the merge commit succeeded, as with CI.
