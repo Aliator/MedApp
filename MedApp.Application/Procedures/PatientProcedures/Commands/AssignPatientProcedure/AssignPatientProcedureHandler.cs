@@ -1,8 +1,10 @@
-using MedApp.Application.Common.Exceptions;
+﻿using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Notifications.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
+using MedApp.Domain.Notifications;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
@@ -10,6 +12,7 @@ namespace MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatient
 public sealed class AssignPatientProcedureHandler(
     IPatientProcedureRepository repository,
     IIdentityReadService identityReadService,
+    INotificationSender notificationSender,
     TimeProvider timeProvider)
     : IRequestHandler<AssignPatientProcedureCommand, PatientProcedureResponse>
 {
@@ -32,6 +35,21 @@ public sealed class AssignPatientProcedureHandler(
         change.Assign(request.UserId, username);
 
         await repository.SaveAsync(change.AuditEntries, cancellationToken);
+
+        // Tell them, unless they assigned themselves (they know already).
+        if (request.UserId != request.Actor.UserId)
+        {
+            await notificationSender.SendAsync(new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = request.UserId,
+                Kind = NotificationKind.ProcedureAssigned,
+                Title = procedure.Title,
+                Message = $"{request.Actor.Username} assigned you to this procedure.",
+                ProcedureId = procedure.Id,
+                CreatedAtUtc = now
+            }, cancellationToken);
+        }
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }

@@ -59,13 +59,16 @@ describe('AppSideNav', () => {
     const {user, router, queryClient} = renderWithApp(<AppSideNav />, {user: adminUser});
     queryClient.setQueryData(['patients'], [{id: 'synthetic-patient'}]);
 
+    // The requests to sign out (the bell asks for the notifications as well).
+    const logouts = () => fetch.mock.calls.filter(([request]) => new URL((request as Request).url).pathname === '/api/auth/logout');
+
     await user.click(await screen.findByRole('button', {name: /logout/i}));
     // It asks first.
-    expect(fetch).not.toHaveBeenCalled();
+    expect(logouts()).toHaveLength(0);
     await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
-    expect(new URL((fetch.mock.calls[0][0] as Request).url).pathname).toBe('/api/auth/logout');
+    expect(logouts()).toHaveLength(1);
     await waitFor(() => expect(queryClient.getQueryData(['patients'])).toBeUndefined());
   });
 

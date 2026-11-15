@@ -64,6 +64,15 @@ export const screens: Screen[] = [
   },
   { name: 'my-tasks-started', title: 'My Tasks, the started ones (from the favourites)', path: '/tasks?progress=started' },
   { name: 'account', title: 'Account', path: '/account' },
+  {
+    name: 'notifications',
+    title: "Notifications, open from the bell beside MedApp (the parity sign-in has none: the empty list)",
+    path: '/',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: /^Notifications/ }).click();
+      await page.getByRole('dialog', { name: 'Notifications' }).waitFor();
+    },
+  },
   { name: 'accessibility-statement', title: 'Accessibility statement (from Account Settings, Accessibility)', path: '/accessibility' },
   {
     name: 'keyboard-shortcuts',

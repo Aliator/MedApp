@@ -44,6 +44,7 @@ import {
   RiLogoutBoxRLine,
   RiMailLine,
   RiMenuLine,
+  RiNotification3Line,
   RiPaletteLine,
   RiPlayCircleLine,
   RiQuestionLine,
@@ -82,6 +83,7 @@ export const AppIcon = {
   Back: remix(RiArrowLeftLine),
   Accessibility: remix(RiAccessibilityLine),
   Keyboard: remix(RiKeyboardLine),
+  Notifications: remix(RiNotification3Line),
   Question: remix(RiQuestionLine),
   // Statuses, priorities and Overdue, when "Icons on statuses" is on (Account Settings, Accessibility).
   PriorityLow: remix(RiArrowDownLine),

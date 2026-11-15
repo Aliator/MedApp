@@ -1,4 +1,4 @@
-import {formatDateTime, ageOn, formatDate, formatShortDate, todayIso} from './dates';
+import {formatDateTime, ageOn, formatDate, formatShortDate, timeAgo, todayIso} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -44,5 +44,14 @@ describe('formatDateTime', () => {
 
   it('returns anything it cannot read unchanged', () => {
     expect(formatDateTime('not a date')).toBe('not a date');
+  });
+
+  it('says how long ago a moment was, then its date and time from a day on', () => {
+    const now = new Date('2026-07-01T12:00:00Z');
+    expect(timeAgo('2026-07-01T11:59:40Z', now)).toBe('Just now');
+    expect(timeAgo('2026-07-01T11:55:00', now)).toBe('5 min ago');
+    expect(timeAgo('2026-07-01T11:00:00Z', now)).toBe('1 hour ago');
+    expect(timeAgo('2026-07-01T09:00:00Z', now)).toBe('3 hours ago');
+    expect(timeAgo('2026-06-29T09:00:00Z', now)).toBe('29 Jun 2026, 10:00');
   });
 });

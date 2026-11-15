@@ -19,7 +19,8 @@ export default defineConfig({
     // Same-origin /api, so the HttpOnly session cookie is first-party and CORS isn't involved (plan Q3).
     // /swagger too, so `npm run gen:api` can read the API's OpenAPI document without trusting its dev certificate.
     proxy: {
-      '/api': {target: apiUrl, changeOrigin: true, secure: false},
+      // ws: the live notifications connection (/api/notifications/hub) is a WebSocket.
+      '/api': {target: apiUrl, changeOrigin: true, secure: false, ws: true},
       '/swagger': {target: apiUrl, changeOrigin: true, secure: false},
     },
   },

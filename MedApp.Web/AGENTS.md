@@ -24,6 +24,7 @@ Guidance for AI coding agents working in `MedApp.Web`, the React app replacing t
     - `ListFilterBar`: a list's search as an Astryx PowerSearch, above its table (`DataTable`'s `search`): a token per filter, kept in the URL; choices take "is any of" and "is not any of". Every list with a search uses it, with a `list` key for its favourites.
     - `ListFavourites`: the star beside a list's search: the list's quick filters, and the person's saved searches (save, rename, delete, and one to start the list on), with the one showing named beside the star.
     - `RowCards`: a table's rows as cards, which `DataTable` switches to by itself when its columns don't fit even at their narrowest.
+    - `NotificationBell`: the bell beside the MedApp heading, with the unread count and a list of the newest. `LiveNotifications` (in `AppLayout`) keeps a SignalR connection to the API's notifications hub, so new ones show at once on any page. Tests get a stand-in connection (`src/test/signalr.ts`): `liveHub.push('notification', …)` delivers one.
     - `ColourField` and `ColourSwatches`: picking a colour (the browser's colour input in an Astryx Field), and small squares showing a few.
   - Clickable things shade under the pointer: list rows do already, and `PanelHeader` (with `onClick`) and `ColourField` do the same. Keep it up for new clickable surfaces.
     - `SetupCells`: the Active/Archived token and name cells of the stage definitions and templates lists.

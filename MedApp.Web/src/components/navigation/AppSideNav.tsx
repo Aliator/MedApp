@@ -33,6 +33,7 @@ import {AppIcon} from '../shared/icons';
 import {NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
+import {NotificationBell} from './NotificationBell';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -610,18 +611,23 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           isFolded ? (
             // Folded, Astryx's heading adds a "MedApp" tooltip it can't leave out; the app's mark speaks for itself,
             // so it's a plain link here, like the rail's icons.
-            <IconButton
-              label="MedApp"
-              icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
-              variant="ghost"
-              href="/"
-              style={{borderRadius: 'var(--radius-element)'}}
-            />
+            // With the bell under it, as the rail has no room beside it.
+            <VStack gap={1} hAlign="center">
+              <IconButton
+                label="MedApp"
+                icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+                variant="ghost"
+                href="/"
+                style={{borderRadius: 'var(--radius-element)'}}
+              />
+              <NotificationBell />
+            </VStack>
           ) : (
             <SideNavHeading
               heading="MedApp"
               headingHref="/"
               icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+              headerEndContent={<NotificationBell />}
             />
           )
         }

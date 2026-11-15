@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using FluentValidation;
 using MedApp.Application.Common.Behaviors;
+using MedApp.Application.Notifications.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -20,6 +21,9 @@ public static class ServiceExtensions
 
         // The clock, so handlers and validators that use "now" can be tested at a fixed time.
         services.TryAddSingleton(TimeProvider.System);
+
+        // Stores a notification and pushes it to its user (the host provides the INotificationPublisher).
+        services.AddScoped<INotificationSender, NotificationSender>();
 
         return services;
     }

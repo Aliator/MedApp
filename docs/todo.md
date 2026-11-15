@@ -15,7 +15,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 ## Features
 
 - **Rich text notes.** Let stage notes (and other long text, like stage instructions) have formatting: bold, italics, lists and links, with a small toolbar. Store them safely (sanitised HTML or Markdown), show them formatted on the procedure page and read-only stages, and keep plain text readable for notes written before.
-- **Real-time notifications, with a bell beside MedApp.** A notification icon to the right of the MedApp heading in the side nav, with an unread count, opening a list of recent notifications (assigned a procedure, one of yours overdue or blocked, a stage unlocked). They arrive as they happen, without a reload: SignalR from the API (or server-sent events), with notifications stored per user so they're there after signing in. Ties in with the email option under Account settings.
+- **More notifications.** The bell (beside MedApp) and live delivery are in place, for being assigned a procedure. Add more kinds through `INotificationSender`: one of yours overdue or blocked, a stage unlocked, and optionally an email for each.
 - **Server-side rendering.** Consider rendering pages on the server (e.g. TanStack Start, which the app's TanStack Router builds on) for a faster first paint. Weigh it first: the app sits behind sign-in, its data comes from the API per user, and it's served as static files from the API's `wwwroot` today, so SSR would need a Node server (or the API to host one) and the cookie session passed through.
 
 ## Deployment
