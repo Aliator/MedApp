@@ -210,9 +210,10 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - `unit-tests` runs `dotnet test MedApp.UnitTests` in Release with coverage.
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 
-What coverage counts:
-- **.NET:** commands, queries, DTOs, repositories, DbContext, migrations and `ServiceExtensions` are excluded, so handlers and validators are what count.
-- **React:** generated code, the theme build, test helpers and the thin route files are excluded.
+What coverage counts (the aim is full coverage of everything with behaviour worth testing):
+- **.NET:** handlers, validators, domain logic, Infrastructure services, and the API (controllers, middleware, authentication, server rendering). Excluded: commands, queries, DTOs, repositories, DbContext, migrations, generated code (`obj/`), the Aspire service defaults, and wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), plus `SessionService` and `IdentityTransactions`, which need a real database.
+- **React:** everything in `src/` except generated code, the theme build, test helpers, the thin route files and the browser entry. `npm run coverage` (CI's web job) fails below the thresholds in `vite.config.ts`, set just under the current figures (99% lines, statements and functions, 92% branches).
+- New code comes with tests that cover it. Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
 
 `.github/workflows/e2e.yml` runs the (empty) E2E suite, only when started by hand.
 

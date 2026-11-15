@@ -14,6 +14,18 @@ describe('ColourField', () => {
     fireEvent.input(input, {target: {value: '#2a3550'}});
     expect(onChange).toHaveBeenCalledWith('#2a3550');
   });
+
+  it('shades under the pointer, as list rows do', async () => {
+    const {user} = renderWithApp(<ColourField label="Cards" value="#25252a" onChange={() => {}} />);
+    const field = (await screen.findByLabelText(/Cards/)).closest<HTMLElement>('[style*="border-radius"]')!;
+    const shade = () => field.style.backgroundColor;
+
+    expect(shade()).toBe('');
+    await user.hover(field);
+    expect(shade()).toContain('color-mix');
+    await user.unhover(field);
+    expect(shade()).toBe('');
+  });
 });
 
 describe('ColourSwatches', () => {

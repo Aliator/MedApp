@@ -1,3 +1,4 @@
+import {within} from '@testing-library/react';
 import {renderWithApp, pickFavourite, searchBar} from '../../test/render';
 import {dayFromToday, filtersFrom, ListFilterBar, valuesFrom, type ListFilterField} from './ListFilterBar';
 
@@ -82,5 +83,50 @@ describe('ListFilterBar', () => {
   it('gives a day as the URL keeps it, from today', () => {
     expect(dayFromToday()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(Number(dayFromToday({years: -18}).slice(0, 4))).toBe(new Date().getFullYear() - 18);
+  });
+});
+
+describe('ListFilterBar, more', () => {
+  const withSingle: ListFilterField[] = [...fields, {kind: 'choice', key: 'priority', label: 'Priority', options: [{value: 'High', label: 'High'}]}];
+
+  it('leaves out tokens that set nothing, or that it has no field for', () => {
+    expect(
+      valuesFrom(withSingle, [
+        {field: 'title', operator: 'contains', value: {type: 'string', value: '   '}},
+        {field: 'status', operator: 'any_of', value: {type: 'enum_list', value: []}},
+        {field: 'priority', operator: 'is', value: {type: 'enum', value: ''}},
+        {field: 'retired', operator: 'is', value: {type: 'string', value: 'test'}},
+      ]),
+    ).toEqual({title: undefined, status: undefined, priority: undefined, dueFrom: undefined, dueTo: undefined, overdue: undefined});
+  });
+
+  it('reads a list of choices as "is any of", and a date on or after', () => {
+    expect(
+      valuesFrom(withSingle, [
+        {field: 'status', operator: 'any_of', value: {type: 'enum_list', value: ['Open', 'Done']}},
+        {field: 'priority', operator: 'is', value: {type: 'enum', value: 'High'}},
+        {field: 'due', operator: 'on_or_after', value: {type: 'date_absolute', unixSeconds: Date.UTC(2026, 11, 1) / 1000}},
+      ]),
+    ).toMatchObject({status: 'Open,Done', priority: 'High', dueFrom: '2026-12-01'});
+  });
+
+  it('reports a filter removed from the bar', async () => {
+    const onChange = vi.fn();
+    const {user} = renderWithApp(
+      <ListFilterBar list="test" fields={withSingle} values={{title: 'knee', priority: 'High'}} onChange={onChange} label="Search" placeholder="Search..." />,
+    );
+
+    await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Priority: is\s*High/));
+    const remove = within(searchBar()).getAllByRole('button', {name: /remove/i});
+    await user.click(remove[0]);
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({title: undefined, priority: 'High'}));
+  });
+
+  it('still marks its text box as not for autofill in a browser without MutationObserver', async () => {
+    vi.stubGlobal('MutationObserver', undefined);
+    renderWithApp(<ListFilterBar list="test" fields={fields} values={{}} onChange={() => {}} label="Search users" placeholder="Search..." />);
+
+    await vi.waitFor(() => expect(searchBar().querySelector('input')).toHaveAttribute('data-1p-ignore', 'true'));
   });
 });

@@ -1,6 +1,6 @@
 import {act, waitFor} from '@testing-library/react';
 import {json, mockApi, renderWithApp, staffUser} from '../test/render';
-import {SettingsSync} from './SettingsSync';
+import {SAVE_DELAY_MS, SettingsSync} from './SettingsSync';
 import {appSettings, defineSetting} from './settingsStore';
 
 const SETTINGS = 'GET /api/auth/me/settings';
@@ -62,5 +62,52 @@ describe('SettingsSync', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(appSettings.get(MODE)).toBe('light');
+  });
+  it("keeps a change in this browser when saving it with the account fails", async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    const fetch = mockApi({
+      [SETTINGS]: () => json({settings: JSON.stringify({[MODE]: 'dark'}), updatedAtUtc: null}),
+      [SAVE]: () => {
+        throw new TypeError('Failed to fetch');
+      },
+    });
+    renderWithApp(<SettingsSync />, {user: staffUser});
+    await waitFor(() => expect(appSettings.get(MODE)).toBe('dark'));
+
+    act(() => appSettings.set(MODE, 'light'));
+    await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS + 50));
+
+    expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(true);
+    expect(appSettings.get(MODE)).toBe('light');
+    expect(localStorage.getItem(MODE)).toBe('light');
+  });
+
+  it('saves nothing for a change made before the account has answered', async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    const fetch = mockApi({
+      [SETTINGS]: () => new Promise<Response>(() => {}),
+      [SAVE]: () => new Response(null, {status: 204}),
+    });
+    renderWithApp(<SettingsSync />, {user: staffUser});
+    // It's asked the account for its settings, which haven't come.
+    await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'GET')).toBe(true));
+
+    act(() => appSettings.set(MODE, 'light'));
+    await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS + 50));
+
+    expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(false);
+  });
+
+  it("keeps this browser's settings when giving them to an account with none fails", async () => {
+    localStorage.setItem(SIZE, 'large');
+    const fetch = mockApi({
+      [SETTINGS]: () => json({settings: null, updatedAtUtc: null}),
+      [SAVE]: () => json({title: 'Server error'}, 500),
+    });
+
+    renderWithApp(<SettingsSync />, {user: staffUser});
+
+    await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(true));
+    expect(appSettings.get(SIZE)).toBe('large');
   });
 });

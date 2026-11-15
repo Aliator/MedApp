@@ -13,8 +13,11 @@
 //   its /api proxy (vite.config.ts) passes the calls on to the API, as it does the browser's, and accepts the API's
 //   development certificate, which Node wouldn't.
 // - MEDAPP_SSR_KEY: the key the API gave it, sent with its API calls (see SsrHost).
+// - In development, the API itself (for /api WebSockets, see `proxyWebSocket`): API_HTTPS or the AppHost's
+//   services__api__https__0, as vite.config.ts uses.
 import {existsSync, readFileSync} from 'node:fs';
-import {createServer} from 'node:http';
+import {createServer, request as httpRequest} from 'node:http';
+import {request as httpsRequest} from 'node:https';
 import path from 'node:path';
 import {Readable} from 'node:stream';
 import {fileURLToPath, pathToFileURL} from 'node:url';
@@ -27,6 +30,7 @@ const port = Number(process.env.PORT) || 5173;
 const host = process.env.HOST || 'localhost';
 const apiUrl = process.env.MEDAPP_API_URL || (isDev ? `http://localhost:${port}` : 'https://localhost:7038');
 const ssrKey = process.env.MEDAPP_SSR_KEY || undefined;
+const devApiTarget = process.env.API_HTTPS || process.env.services__api__https__0 || 'https://localhost:7038';
 
 const server = createServer();
 
@@ -180,6 +184,42 @@ server.on('request', (req, res) => {
   if (renderer.middlewares) renderer.middlewares(req, res, renderPage);
   else void renderPage();
 });
+
+/**
+ * In development, passes an /api WebSocket (the live notifications hub) on to the API. Vite's proxy does this only
+ * when Vite owns the server; hosted as middleware here, it doesn't, so the hub's socket would open and never connect.
+ * Like Vite's proxy, it accepts the API's development certificate. Vite's own (hot reload) socket isn't touched.
+ */
+const CRLF = '\r\n';
+
+function proxyWebSocket(req, socket, head) {
+  const target = new URL(req.url, devApiTarget);
+  const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
+  const upstream = send(target, {method: req.method, headers: {...req.headers, host: target.host}, rejectUnauthorized: false});
+  upstream.on('upgrade', (response, upstreamSocket, upstreamHead) => {
+    const headers = [];
+    for (let i = 0; i < response.rawHeaders.length; i += 2) headers.push(`${response.rawHeaders[i]}: ${response.rawHeaders[i + 1]}`);
+    socket.write(['HTTP/1.1 101 Switching Protocols', ...headers, '', ''].join(CRLF));
+    if (upstreamHead.length > 0) socket.write(upstreamHead);
+    if (head.length > 0) upstreamSocket.write(head);
+    upstreamSocket.on('error', () => socket.destroy());
+    socket.on('error', () => upstreamSocket.destroy());
+    upstreamSocket.pipe(socket).pipe(upstreamSocket);
+  });
+  // The API refused the upgrade (e.g. signed out): say so, and close.
+  upstream.on('response', (response) => {
+    socket.end([`HTTP/1.1 ${response.statusCode} ${response.statusMessage}`, 'Connection: close', '', ''].join(CRLF));
+    response.resume();
+  });
+  upstream.on('error', () => socket.destroy());
+  upstream.end();
+}
+
+if (isDev) {
+  server.on('upgrade', (req, socket, head) => {
+    if (req.url?.startsWith('/api/')) proxyWebSocket(req, socket, head);
+  });
+}
 
 server.listen(port, host, () => {
   console.log(`MedApp pages: http://${host}:${port}/ (${isDev ? 'development' : 'production'}, API at ${apiUrl})`);

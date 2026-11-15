@@ -1,4 +1,4 @@
-import {screen, within} from '@testing-library/react';
+import {fireEvent, screen, within} from '@testing-library/react';
 import {renderWithApp, staffUser} from '../../test/render';
 import {ColoursPage} from './ColoursPage';
 
@@ -64,6 +64,22 @@ describe('ColoursPage', () => {
     expect(screen.getByLabelText(/Page background/)).toHaveValue('#d8e0ef');
 
     await user.click(list('Light').getByText('Custom'));
+    expect(list('Light').getByText('Stone')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Page background/)).not.toBeInTheDocument();
+  });
+
+  it('picks a custom colour for one part, in that mode, and goes back to the themes from the arrow', async () => {
+    const {user} = renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    await user.click(list('Light').getByText('Custom'));
+    await user.click(screen.getByRole('heading', {name: 'Dark Mode'}));
+    fireEvent.input(screen.getByLabelText(/Page background/), {target: {value: '#2a3550'}});
+
+    expect(localStorage.getItem('medapp.colorMode')).toBe('light');
+    expect(stored().light.page).toBe('#2a3550');
+
+    await user.click(screen.getByRole('button', {name: 'Back to the themes'}));
     expect(list('Light').getByText('Stone')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Page background/)).not.toBeInTheDocument();
   });

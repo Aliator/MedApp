@@ -79,6 +79,17 @@ describe('AccountPage', () => {
     expect(localStorage.getItem('medapp.proceduresStartOnMine')).toBe('true');
   });
 
+  it('switches from light to dark mode', async () => {
+    localStorage.setItem('medapp.colorMode', 'light');
+    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
+
+    const dark = await screen.findByRole('switch', {name: 'Dark mode'});
+    expect(dark).not.toBeChecked();
+    await user.click(dark);
+
+    expect(localStorage.getItem('medapp.colorMode')).toBe('dark');
+  });
+
   it('keeps rows per page between 1 and 100', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 

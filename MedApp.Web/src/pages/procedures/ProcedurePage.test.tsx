@@ -80,6 +80,13 @@ describe('ProcedurePage', () => {
     expect(await screen.findByText('Every stage is finished.')).toBeInTheDocument();
   });
 
+  it('shows a dash for the template when it has no name', async () => {
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, templateName: ''})});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    expect(await screen.findByText('—')).toBeInTheDocument();
+  });
+
   it('says when nobody is assigned', async () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, assignments: []})});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
@@ -283,6 +290,78 @@ describe('ProcedurePage: working on it', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Unlock Stage'}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s1/unlock`));
+  });
+
+  it('starts a stage not started yet', async () => {
+    const notStarted = working({stages: [working().stages[0], {...working().stages[1], state: 'NotStarted'}]});
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(notStarted),
+      [`POST ${PATH}/stages/s2/start`]: () => json(working()),
+    });
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Start Stage'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/start`));
+  });
+
+  it("makes no change when the not-assigned question is answered with Cancel", async () => {
+    const fetch = mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
+    await user.click(screen.getByRole('button', {name: 'Save Notes'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    expect(openDialog()).toBeNull();
+    expect(calls(fetch).filter((c) => !c.startsWith('GET'))).toEqual([]);
+  });
+
+  it('says why staff could not be assigned', async () => {
+    mockApi({
+      [`GET ${PATH}`]: () => json(working()),
+      'GET /api/auth/users/search': () => json(pageOf([{userId: 'u3', username: 'k.other', roles: ['User']}])),
+      [`POST ${PATH}/assignments/u3`]: () => json({title: 'k.other can no longer be assigned.'}, 409),
+    });
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Assign Staff'}));
+    await user.click(await within(openDialog()!).findByRole('checkbox', {name: 'k.other'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Assign'}));
+
+    expect(await findAlert('k.other can no longer be assigned.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
+  it('assigns nobody when Assign Staff is cancelled, and starts afresh next time', async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(working()),
+      'GET /api/auth/users/search': () => json(pageOf([{userId: 'u3', username: 'k.other', roles: ['User']}])),
+    });
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Assign Staff'}));
+    await user.click(await within(openDialog()!).findByRole('checkbox', {name: 'k.other'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    expect(openDialog()).toBeNull();
+
+    await user.click(screen.getByRole('button', {name: 'Assign Staff'}));
+    expect(await within(openDialog()!).findByRole('checkbox', {name: 'k.other'})).not.toBeChecked();
+    expect(calls(fetch).filter((c) => !c.startsWith('GET'))).toEqual([]);
+  });
+
+  it('folds the details, and opens and closes a stage in the list', async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working())});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Hide details'}));
+    expect(screen.getByRole('button', {name: 'Show details'})).toHaveAttribute('aria-expanded', 'false');
+
+    const stage = screen.getByRole('button', {name: /^1\. Consultation/});
+    await user.click(stage);
+    expect(stage).toHaveAttribute('aria-expanded', 'true');
+    await user.click(stage);
+    expect(stage).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('lets an admin unassign staff', async () => {

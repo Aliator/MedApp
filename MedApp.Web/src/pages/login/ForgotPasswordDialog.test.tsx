@@ -19,6 +19,15 @@ describe('Forgot password', () => {
     expect((await screen.findAllByText('Please enter a valid email address.')).length).toBeGreaterThan(0);
   });
 
+  it('asks for an email when Enter is pressed with none', async () => {
+    const {user} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.click(await screen.findByRole('button', {name: 'Forgot password?'}));
+    await user.type(await screen.findByLabelText(/email address/i), '   {Enter}');
+
+    expect((await screen.findAllByText('Please enter your email address.')).length).toBeGreaterThan(0);
+  });
+
   it('says a link was sent (a stand-in: the API has no reset endpoint yet)', async () => {
     const {user} = renderWithApp(<LoginPage />, {path: '/login'});
 

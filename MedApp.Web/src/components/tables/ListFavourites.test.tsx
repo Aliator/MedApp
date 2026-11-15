@@ -92,3 +92,54 @@ describe('ListFavourites', () => {
     expect(savedFor('patients')).toEqual({saved: [{id: 'f2', name: 'Second', values: {first: 'b'}}], startId: 'f2'});
   });
 });
+
+describe('ListFavourites, more', () => {
+  const one = {patients: {saved: [{id: 'f1', name: 'One', values: {first: 'a'}}], startId: 'f1'}};
+
+  it('applies a saved favourite', async () => {
+    localStorage.setItem(KEY, JSON.stringify({patients: {saved: one.patients.saved}}));
+    const {user, onApply} = renderFavourites();
+
+    await pickFavourite(user, 'One');
+
+    expect(onApply).toHaveBeenCalledWith({first: 'a'});
+  });
+
+  it('saves nothing when saving is cancelled', async () => {
+    const {user} = renderFavourites({current: {last: 'test'}});
+
+    await pickFavourite(user, 'Save this search…');
+    await user.type(within(openDialog()!).getByRole('textbox', {name: /^Name/}), 'Test search');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('can start the list on no saved search, says when none are left, and closes', async () => {
+    localStorage.setItem(KEY, JSON.stringify(one));
+    const {user} = renderFavourites();
+
+    await pickFavourite(user, 'Manage favourites…');
+    const dialog = within(openDialog()!);
+    await user.click(dialog.getByRole('switch', {name: 'Starting search'}));
+    expect(savedFor('patients').startId).toBeUndefined();
+    await user.click(dialog.getByRole('button', {name: 'Delete One'}));
+    expect(dialog.getByText('No favourites saved.')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Done'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('closes the manage dialog with Close too', async () => {
+    localStorage.setItem(KEY, JSON.stringify(one));
+    const {user} = renderFavourites();
+
+    await pickFavourite(user, 'Manage favourites…');
+    // The footer's Close (the header has a close button too).
+    const close = within(openDialog()!).getAllByRole('button', {name: 'Close'});
+    await user.click(close[close.length - 1]);
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(savedFor('patients').saved).toHaveLength(1);
+  });
+});

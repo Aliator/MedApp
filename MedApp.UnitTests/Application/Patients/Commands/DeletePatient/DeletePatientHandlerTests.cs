@@ -103,6 +103,30 @@ public sealed class DeletePatientHandlerTests
     }
 
     [Test]
+    public async Task Handle_PatientHasOneProcedure_ThrowsConflictWithASingularMessage()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+
+        _repository
+            .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+        _repository
+            .Setup(r => r.CountProceduresAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This patient has 1 procedure, so they can't be deleted.");
+
+        _repository.Verify(
+            r => r.DeleteAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task Handle_PassesCancellationToken_ToRepository()
     {
         var patient = PatientsTestConstants.CreateValidPatient();

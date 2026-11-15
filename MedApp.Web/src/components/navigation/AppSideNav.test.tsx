@@ -1,6 +1,7 @@
-import {act, screen, waitFor, within} from '@testing-library/react';
+import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {HalfViewsContext} from '../pages/halfView';
 import {adminUser, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
-import {AppSideNav, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
+import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {pinsKey} from './pins';
 
 describe('isCurrentSection', () => {
@@ -276,5 +277,136 @@ describe('AppSideNav pinned procedures', () => {
 
     await screen.findByRole('link', {name: 'FA TKR'});
     await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]));
+  });
+});
+
+describe('AppSideNav folded, and its menus', () => {
+  it('folds to icons for staff, with no admin pages', async () => {
+    renderWithApp(<AppSideNav collapsible={{isCollapsed: true}} />, {user: staffUser});
+
+    expect(await screen.findByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', {name: 'Patients'})).toHaveAttribute('href', '/patients');
+    expect(screen.getByRole('button', {name: 'Logout'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: /^Notifications/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Users'})).not.toBeInTheDocument();
+  });
+
+  it('stays signed in when logging out is cancelled', async () => {
+    const fetch = mockFetch(() => new Response(null, {status: 204}));
+    const {user, router} = renderWithApp(<AppSideNav />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /logout/i}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(router.state.location.pathname).toBe('/');
+    expect(fetch.mock.calls.some(([request]) => new URL((request as Request).url).pathname === '/api/auth/logout')).toBe(false);
+  });
+
+  it("opens a row's menu with a press of its button, and a second press leaves it open", async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    await user.hover(await screen.findByRole('link', {name: 'My Tasks'}));
+    const button = await screen.findByRole('button', {name: 'My Tasks options'});
+    // Pressed at once, before resting on it would open it.
+    fireEvent.pointerDown(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    const menu = document.querySelector<HTMLElement>(`[aria-labelledby="${CSS.escape(button.id)}"]`)!;
+    await user.click(within(menu).getByRole('menuitem', {name: /^Open in half view/, hidden: true}));
+    expect(halfViews.open).toHaveBeenCalledWith('/tasks');
+  });
+
+  it("places a row's menu beside the nav, level with the row's highlight", async () => {
+    // jsdom has no layout: a nav 240 wide, a row inset 8 from its edges at 100 down, and the menu where it opens.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('[popover], [role="menu"]')) return new DOMRect(300, 90, 200, 120);
+      return new DOMRect();
+    });
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    const item = await rowMenuItem(user, 'My Tasks', 'Open in half view');
+    const panel = item.closest<HTMLElement>('[popover]') ?? item.closest<HTMLElement>('[role="menu"]')!;
+
+    // Out from the nav's edge by the row's inset (8), and level with the row.
+    await waitFor(() => expect(panel.style.translate).toBe(`${240 + 8 - 300}px ${100 - 90}px`));
+    expect(panel.closest<HTMLElement>('[data-astryx-layer-root]')?.style.colorScheme ?? panel.style.colorScheme).toBe('dark');
+  });
+});
+
+describe('AppSideNav with a half view open', () => {
+  const procedureId = 'c0000000-0000-4000-8000-000000000001';
+
+  function renderWithHalf(path: string, openPath: string) {
+    mockApi({
+      [`GET /api/patients/${patientId}`]: () =>
+        json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1980-01-01', email: 't@example.org'}),
+      [`GET /api/procedures/patient-procedures/${procedureId}`]: () =>
+        json({id: procedureId, title: 'Test procedure', patientName: 'Test Patient'}),
+    });
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn()};
+    const result = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: adminUser, path},
+    );
+    return {...result, halfViews};
+  }
+
+  const rowOf = (link: HTMLElement) => link.closest<HTMLElement>('.astryx-side-nav-item')!;
+
+  it("marks the half view's page a shade darker than the current page", async () => {
+    renderWithHalf('/procedures', '/admin/audit');
+
+    const audit = await screen.findByRole('link', {name: /audit log/i});
+    expect(rowOf(audit).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+    expect(audit).not.toHaveAttribute('aria-current');
+    expect(rowOf(screen.getByRole('link', {name: /^procedures$/i})).style.backgroundColor).toBe('');
+  });
+
+  it("marks a patient whose page is in the half view under Patients, and a section whose list is", async () => {
+    const {unmount} = renderWithHalf(`/procedures/${procedureId}`, `/patients/${patientId}`);
+
+    const patient = await screen.findByRole('link', {name: 'Test Patient'});
+    expect(rowOf(patient).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+    expect(rowOf(screen.getByRole('link', {name: /^patients$/i})).style.backgroundColor).toBe('');
+    // The procedure open in the main view is the current page, unshaded.
+    expect(await screen.findByRole('link', {name: 'TP TP'})).toHaveAttribute('aria-current', 'page');
+    unmount();
+
+    renderWithHalf(`/procedures/${procedureId}`, '/procedures');
+    const procedures = await screen.findByRole('link', {name: /^procedures$/i});
+    expect(rowOf(procedures).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+  });
+
+  it('opens a clicked page on its own, but leaves a modified click to the browser', async () => {
+    const {user, halfViews} = renderWithHalf('/procedures', '/admin/audit');
+    const users = await screen.findByRole('link', {name: /^users$/i});
+
+    await user.keyboard('{Control>}');
+    await user.click(users);
+    await user.keyboard('{/Control}');
+    expect(halfViews.openFull).not.toHaveBeenCalled();
+
+    await user.click(users);
+    expect(halfViews.openFull).toHaveBeenCalledWith('/admin/users');
   });
 });

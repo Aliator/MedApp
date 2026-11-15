@@ -27,4 +27,14 @@ describe('ProcedureDetailsFields', () => {
 
     expect(onChange).toHaveBeenLastCalledWith({...EMPTY_PROCEDURE_DETAILS, notes: 'x'});
   });
+
+  it('passes on a cleared due date as blank', async () => {
+    const onChange = vi.fn();
+    const {user} = renderWithApp(<ProcedureDetailsFields value={{...EMPTY_PROCEDURE_DETAILS, dueDate: '2099-12-01'}} onChange={onChange} />);
+
+    await user.clear(await screen.findByRole('combobox', {name: /Due Date/}));
+    await user.tab();
+
+    expect(onChange).toHaveBeenLastCalledWith({...EMPTY_PROCEDURE_DETAILS, dueDate: ''});
+  });
 });

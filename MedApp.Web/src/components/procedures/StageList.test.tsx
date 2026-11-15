@@ -127,3 +127,64 @@ describe('StageList', () => {
     expect(await screen.findByText('No notes yet.')).toBeVisible();
   });
 });
+
+describe('StageList, held by the page', () => {
+  const held = [
+    stage({id: 's1', stageOrder: 1, name: 'Consultation', isCurrent: true}),
+    stage({id: 's2', stageOrder: 2, name: 'Procedure', instructions: 'Complete the safety checklist.'}),
+  ];
+
+  it('opens the stages the page says, and tells it when one is opened or closed', async () => {
+    const onStageOpenChange = vi.fn();
+    const {user} = renderWithApp(<StageList stages={held} openStageIds={['s2']} onStageOpenChange={onStageOpenChange} />);
+
+    // The page's choice, not the current stage.
+    const procedure = await screen.findByRole('button', header('2. Procedure'));
+    expect(procedure).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', header('1. Consultation'))).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(screen.getByRole('button', header('1. Consultation')));
+    expect(onStageOpenChange).toHaveBeenLastCalledWith('s1', true);
+    await user.click(procedure);
+    expect(onStageOpenChange).toHaveBeenLastCalledWith('s2', false);
+  });
+
+  it("holds each stage's instructions open or folded as the page says", async () => {
+    const instructions = {isOpen: vi.fn(() => true), onOpenChange: vi.fn()};
+    const {user} = renderWithApp(<StageList stages={held} openStageIds={['s2']} instructions={instructions} />);
+
+    // The second stage's (the open one).
+    const toggle = (await screen.findAllByRole('button', {name: 'Instructions'}))[1];
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Complete the safety checklist.')).toBeVisible();
+
+    await user.click(toggle);
+    expect(instructions.onOpenChange).toHaveBeenCalledWith(held[1], false);
+  });
+
+  it("shows the stage's own work in place of its notes", async () => {
+    renderWithApp(<StageList stages={held} renderWork={(s) => <p>Work for {s.name}</p>} />);
+
+    expect(await screen.findByText('Work for Consultation')).toBeVisible();
+    expect(screen.queryByText('No notes yet.')).not.toBeInTheDocument();
+  });
+
+  it('says who started or finished a stage, when the API no longer knows them', async () => {
+    renderWithApp(
+      <StageList
+        stages={[
+          stage({
+            isCurrent: true,
+            state: 'Completed',
+            isLocked: true,
+            startedAtUtc: '2026-11-03T13:05:00Z',
+            completedAtUtc: '2026-11-03T14:30:00Z',
+          }),
+        ]}
+      />,
+    );
+
+    expect(await screen.findByText('Started by unknown, 3 Nov 2026, 13:05')).toBeVisible();
+    expect(screen.getByText('Finished by unknown, 3 Nov 2026, 14:30')).toBeVisible();
+  });
+});

@@ -59,6 +59,10 @@ describe('parseValidationErrors', () => {
 
     expect(errors.fields).toEqual({firstName: ['First name must not be empty.']});
   });
+
+  it('reads a single message that is not in a list', () => {
+    expect(parseValidationErrors({errors: {Email: 'Email is not valid.'}}).fields).toEqual({email: ['Email is not valid.']});
+  });
 });
 
 describe('fieldStatus', () => {
@@ -108,6 +112,12 @@ describe('problemMessage', () => {
     const error = new ApiValidationError(parseValidationErrors({errors: {Reason: ['A reason is required.']}}));
 
     expect(problemMessage(error, 'Failed.')).toBe('A reason is required.');
+  });
+
+  it("gives a 400's title when it has no messages", () => {
+    const error = new ApiValidationError(parseValidationErrors({title: 'The request was not valid.'}));
+
+    expect(problemMessage(error, 'Failed.')).toBe('The request was not valid.');
   });
 
   it('falls back for anything else', () => {

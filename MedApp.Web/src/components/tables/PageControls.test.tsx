@@ -33,6 +33,16 @@ describe('PageControls', () => {
     expect(onPageChange.mock.calls).toEqual([[3], [2]]);
   });
 
+  it('goes back a page, and does nothing for the page already showing', async () => {
+    const {user, onPageChange} = renderControls(3);
+
+    const nav = await screen.findByRole('navigation', {name: 'Table pagination'});
+    await user.click(within(nav).getByRole('button', {name: 'Go to page 3'}));
+    await user.click(within(nav).getByRole('button', {name: 'Go to previous page'}));
+
+    expect(onPageChange.mock.calls).toEqual([[2]]);
+  });
+
   it('opens a box from "…" to type any page number into', async () => {
     const {user, onPageChange} = renderControls(10);
 

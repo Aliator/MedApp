@@ -139,4 +139,54 @@ public sealed class ProcedureSearchTests
     {
         Procedures().Filter(CreateSearchQuery(), Now).Sort("PATIENT", true).First().Should().Be(Overdue);
     }
+
+    [Test]
+    public void Filter_PatientTemplateAndAssignee_ReturnOnlyTheirProcedures()
+    {
+        var assignee = Overdue.Assignments.Single().UserId;
+
+        Procedures().Filter(CreateSearchQuery() with { PatientId = Overdue.PatientId }, Now).Should().Equal(Overdue);
+        Procedures().Filter(CreateSearchQuery() with { TemplateId = Unassigned.TemplateId }, Now).Should().Equal(Unassigned);
+        Procedures().Filter(CreateSearchQuery() with { AssignedToUserId = assignee }, Now).Should().Contain(Overdue).And.NotContain(Unassigned);
+    }
+
+    [Test]
+    public void Filter_UnknownStatusesAndPriorities_AreIgnored()
+    {
+        var everyOpen = Procedures().Filter(CreateSearchQuery(), Now).ToList();
+
+        Procedures().Filter(CreateSearchQuery() with { Statuses = ["NotAStatus"] }, Now).Should().BeEquivalentTo(everyOpen);
+        Procedures().Filter(CreateSearchQuery() with { Priorities = ["NotAPriority"] }, Now).Should().BeEquivalentTo(everyOpen);
+    }
+
+    [TestCase(ProcedureSearch.SortByPriority, true)]
+    [TestCase(ProcedureSearch.SortByPriority, false)]
+    [TestCase(ProcedureSearch.SortByStatus, true)]
+    [TestCase(ProcedureSearch.SortByStatus, false)]
+    [TestCase(ProcedureSearch.SortByTitle, true)]
+    [TestCase(ProcedureSearch.SortByTitle, false)]
+    [TestCase(ProcedureSearch.SortByPatient, true)]
+    [TestCase(ProcedureSearch.SortByPatient, false)]
+    [TestCase(ProcedureSearch.SortByLastUpdated, true)]
+    [TestCase(ProcedureSearch.SortByLastUpdated, false)]
+    [TestCase(ProcedureSearch.SortByDueDate, true)]
+    [TestCase(ProcedureSearch.SortByDueDate, false)]
+    [TestCase("not a column", false)]
+    public void Sort_EachColumnEitherWay_OrdersByIt(string column, bool ascending)
+    {
+        Func<PatientProcedure, IComparable> key = column switch
+        {
+            ProcedureSearch.SortByPriority => p => p.Priority,
+            ProcedureSearch.SortByStatus => p => p.Status,
+            ProcedureSearch.SortByTitle => p => p.Title.ToLower(),
+            ProcedureSearch.SortByPatient => p => p.Patient.LastName.ToLower() + " " + p.Patient.FirstName.ToLower(),
+            ProcedureSearch.SortByLastUpdated => p => p.LastUpdated,
+            _ => p => p.DueDateUtc,
+        };
+
+        var keys = Procedures().Sort(column, ascending).Select(key).ToList();
+
+        if (ascending) keys.Should().BeInAscendingOrder();
+        else keys.Should().BeInDescendingOrder();
+    }
 }

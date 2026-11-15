@@ -53,6 +53,39 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     }
 
     [Test]
+    public async Task Handle_NotesChangedOnly_UpdatesThemAndAuditsJustTheNotes()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+        var command = new UpdatePatientProcedureCommand(procedure.Id, null, "Bring previous scans.", null, null, Staff);
+
+        var response = await Handler.Handle(command, CancellationToken.None);
+
+        procedure.Notes.Should().Be("Bring previous scans.");
+        procedure.Title.Should().Be(ProcedureTitle);
+        procedure.LastUpdated.Should().Be(Now);
+        response.Notes.Should().Be("Bring previous scans.");
+        var entry = SavedAudit.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(PatientProcedureAuditAction.DetailsUpdated);
+        entry.Details.Should().Contain("\"notes\":{\"from\":\"\",\"to\":\"Bring previous scans.\"}")
+            .And.NotContain("\"title\"");
+        VerifySavedOnce();
+    }
+
+    [Test]
+    public async Task Handle_SameTitleWithSpaces_ChangesNothingAndDoesNotSave()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.Assigned));
+        var command = new UpdatePatientProcedureCommand(procedure.Id, $"  {ProcedureTitle}  ", null, null, null, Staff);
+
+        await Handler.Handle(command, CancellationToken.None);
+
+        procedure.Title.Should().Be(ProcedureTitle);
+        procedure.LastUpdated.Should().Be(Now.AddDays(-7));
+        SavedAudit.Should().BeEmpty();
+        VerifyNotSaved();
+    }
+
+    [Test]
     public async Task Handle_NothingChanged_DoesNotSave()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.Assigned));

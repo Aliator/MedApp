@@ -88,6 +88,15 @@ public sealed class PatientSearchTests
     }
 
     [Test]
+    public void Sort_EmailDescending_ReversesTheEmailOrderIgnoringCase()
+    {
+        var shouting = PatientsTestConstants.CreatePatient("Cara", "Doyle", new DateOnly(1990, 3, 3), "CARA.DOYLE@example.com");
+        var patients = Patients().Append(shouting).AsQueryable();
+
+        patients.Sort("email", false).Should().Equal(Ali, BennettGeorge, Ahmed, shouting, BennettArjun);
+    }
+
+    [Test]
     public void Sort_UnknownColumn_FallsBackToName()
     {
         Patients().Sort("unknown", true).Should().ContainInOrder(Ahmed, Ali, BennettArjun, BennettGeorge);

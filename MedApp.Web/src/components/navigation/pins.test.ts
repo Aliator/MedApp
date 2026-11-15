@@ -66,4 +66,51 @@ describe('usePins', () => {
 
     expect(result.current.ids).toEqual([]);
   });
+
+  it('ignores stored pins that are not a list, or not IDs, and repeats', () => {
+    localStorage.setItem(pinsKey('patients', 'test-user'), JSON.stringify({p1: true}));
+    localStorage.setItem(pinsKey('procedures', 'test-user'), JSON.stringify(['x1', '', 7, 'x1', 'x2']));
+
+    expect(renderHook(() => usePins('patients', 'test-user')).result.current.ids).toEqual([]);
+    expect(renderHook(() => usePins('procedures', 'test-user')).result.current.ids).toEqual(['x1', 'x2']);
+  });
+
+  it('shows pins made in another tab', () => {
+    const key = pinsKey('patients', 'test-user');
+    const {result} = renderHook(() => usePins('patients', 'test-user'));
+
+    localStorage.setItem(key, JSON.stringify(['p1']));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {key: 'medapp.somethingElse'}));
+    });
+    expect(result.current.ids).toEqual([]);
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {key}));
+    });
+
+    expect(result.current.ids).toEqual(['p1']);
+  });
+
+  it('reads the pins of whoever signs in next on this browser', () => {
+    localStorage.setItem(pinsKey('patients', 'other-user'), JSON.stringify(['p9']));
+    const {result, rerender} = renderHook(({username}) => usePins('patients', username), {initialProps: {username: 'test-user'}});
+
+    rerender({username: 'other-user'});
+    expect(result.current.ids).toEqual(['p9']);
+
+    act(() => result.current.pin('p8'));
+    expect(stored(pinsKey('patients', 'other-user'))).toEqual(['p9', 'p8']);
+    expect(localStorage.getItem(pinsKey('patients', 'test-user'))).toBeNull();
+  });
+
+  it('keeps pins for this visit when storage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage is blocked.');
+    });
+    const {result} = renderHook(() => usePins('patients', 'test-user'));
+
+    act(() => result.current.pin('p1'));
+
+    expect(result.current.ids).toEqual(['p1']);
+  });
 });

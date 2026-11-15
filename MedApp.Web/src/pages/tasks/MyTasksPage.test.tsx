@@ -114,6 +114,47 @@ describe('MyTasksPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({progress: 'any'}));
   });
 
+  it('shows no progress filter when the URL asks for both, and says when nothing is assigned', async () => {
+    renderTasks({progress: 'any'});
+
+    expect((await screen.findAllByText('Nothing assigned to you')).length).toBeGreaterThan(0);
+    expect(screen.getByText('0 procedures to do')).toBeInTheDocument();
+    expect(searchBar()).not.toHaveTextContent(/Progress:/);
+  });
+
+  it('sorts by a column from its header, back to page 1', async () => {
+    const {user, onSearchChange} = renderTasks({page: 2, progress: 'started'});
+
+    await screen.findByText('Knee replacement');
+    await user.click(screen.getByRole('button', {name: /^priority/i}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({progress: 'started', page: undefined, sort: 'Priority', asc: true});
+  });
+
+  it('pages through the tasks, keeping the first page out of the URL', async () => {
+    mockApi({[SEARCH]: () => json({...startedPage, totalCount: 25, totalPages: 3, page: 2})});
+    const onSearchChange = vi.fn();
+    const {user} = renderWithApp(<MyTasksPage search={{progress: 'started', page: 2}} onSearchChange={onSearchChange} />, {user: staffUser});
+
+    await screen.findByText('Knee replacement');
+    await user.click(screen.getByRole('button', {name: 'Go to page 1'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({progress: 'started', page: undefined});
+    await user.click(screen.getByRole('button', {name: 'Go to page 3'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({progress: 'started', page: 3});
+  });
+
+  it('offers to clear a search that matches nothing, keeping the sort', async () => {
+    mockApi({[SEARCH]: () => json(pageOf([], 0))});
+    const onSearchChange = vi.fn();
+    const {user} = renderWithApp(<MyTasksPage search={{title: 'nothing', sort: 'Priority', asc: false}} onSearchChange={onSearchChange} />, {
+      user: staffUser,
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Clear Search'}));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith({sort: 'Priority', asc: false});
+  });
+
   it('says when nothing is waiting to be started', async () => {
     mockApi({[SEARCH]: () => json(pageOf([], 0))});
     renderWithApp(<MyTasksPage search={{}} onSearchChange={() => {}} />, {user: staffUser});

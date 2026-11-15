@@ -25,6 +25,21 @@ public sealed class UnassignPatientProcedureHandlerTests : ProcedureHandlerTestB
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
+    [TestCase(Status.Completed, "completed")]
+    [TestCase(Status.Cancelled, "cancelled")]
+    [TestCase(Status.Archived, "archived")]
+    public async Task Handle_ProcedureClosed_ThrowsConflictAndKeepsTheAssignment(Status status, string described)
+    {
+        var procedure = GivenProcedure(CreateProcedure(status));
+
+        var act = () => Handler.Handle(new UnassignPatientProcedureCommand(procedure.Id, Staff.UserId, Admin), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage($"Staff can't be unassigned from a procedure that's {described}.");
+        procedure.Assignments.Should().ContainSingle(a => a.UserId == Staff.UserId);
+        VerifyNotSaved();
+    }
+
     [Test]
     public async Task Handle_LastAssignee_UnassignsThemAndMovesToUnassigned()
     {

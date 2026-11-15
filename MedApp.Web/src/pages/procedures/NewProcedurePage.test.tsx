@@ -1,4 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
+import {HalfViewContext} from '../../components/pages/halfView';
 import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {NewProcedurePage} from './NewProcedurePage';
 import {typeRichText} from '../../test/richText';
@@ -107,9 +108,66 @@ describe('NewProcedurePage', () => {
     expect(screen.getAllByText('Due date is required.').length).toBeGreaterThan(0);
   });
 
-  it('says to start from a patient when there is none', async () => {
-    renderWithApp(<NewProcedurePage />, {user: staffUser});
+  it('says why a create failed for a reason other than its fields', async () => {
+    const {user} = renderNew({[`POST ${CREATE}`]: () => json({title: 'Server error'}, 500)});
+
+    await screen.findByText('For Test Patient');
+    await user.click(screen.getByRole('button', {name: 'Create Procedure'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Create Procedure'}));
+
+    expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
+  it('creates nothing when the confirmation is cancelled', async () => {
+    const {fetch, user} = renderNew();
+
+    await screen.findByText('For Test Patient');
+    await user.click(screen.getByRole('button', {name: 'Create Procedure'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    expect(openDialog()).toBeNull();
+    expect(fetch.mock.calls.map(([r]) => (r as Request).method)).not.toContain('POST');
+  });
+
+  it("goes back to the patient's procedures", async () => {
+    const {user, router} = renderNew();
+
+    await user.click(await screen.findByRole('button', {name: 'Back'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/patients/patient-1/procedures'));
+  });
+
+  it('says when the templates could not be loaded', async () => {
+    renderNew({[`GET ${TEMPLATES}`]: () => json({title: 'Server error'}, 500)});
+
+    expect(await findAlert('The templates could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  it('puts the template and the details in one card in a half view', async () => {
+    mockApi({
+      'GET /api/patients/patient-1': () => json({id: 'patient-1', firstName: 'Test', lastName: 'Patient'}),
+      [`GET ${TEMPLATES}`]: () => json(templates),
+    });
+    renderWithApp(
+      <HalfViewContext.Provider value={{isHalf: true}}>
+        <NewProcedurePage patientId="patient-1" />
+      </HalfViewContext.Provider>,
+      {user: staffUser},
+    );
+
+    expect(await screen.findByRole('combobox', {name: /Template/})).toBeInTheDocument();
+    expect(screen.getByRole('textbox', {name: /Title/})).toBeInTheDocument();
+    // One form: its Template section has a header bar of its own.
+    expect(screen.getByRole('heading', {name: 'Template'})).toBeInTheDocument();
+  });
+
+  it('says to start from a patient when there is none, and goes back to the procedures', async () => {
+    const {user, router} = renderWithApp(<NewProcedurePage />, {user: staffUser});
 
     expect(await findAlert(/open the patient's procedures and choose New Procedure/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Back'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
   });
 });

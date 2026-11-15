@@ -75,6 +75,34 @@ describe('EditProcedurePage', () => {
     expect(title).toHaveValue('Colonoscopy!');
   });
 
+  it("shows the API's errors on the fields", async () => {
+    const {user} = renderEdit(procedure(), {
+      [`PATCH ${PATH}`]: () => json({title: 'Validation failed', status: 400, errors: {Title: ['Title is required.']}}, 400),
+    });
+
+    await user.clear(await screen.findByRole('textbox', {name: /Title/}));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(screen.getByRole('textbox', {name: /Title/})).toHaveAccessibleDescription(/Title is required\./));
+  });
+
+  it('stays on the form when the confirmation is cancelled', async () => {
+    const {user, fetch} = renderEdit();
+
+    await user.click(await screen.findByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    expect(openDialog()).toBeNull();
+    expect(fetch.mock.calls.map(([r]) => (r as Request).method)).not.toContain('PATCH');
+  });
+
+  it('says when the procedure could not be loaded', async () => {
+    renderEdit(procedure(), {[`GET ${PATH}`]: () => json({title: 'Server error'}, 500)});
+
+    expect(await findAlert('The procedure could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
   it("says a cancelled procedure's details can't be edited", async () => {
     renderEdit(procedure({status: 'Cancelled', canEditDetails: false}));
 

@@ -1,5 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, json, mockApi, openDialog, renderWithApp} from '../../test/render';
+import {HalfViewContext} from '../../components/pages/halfView';
+import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp} from '../../test/render';
 import {TemplateEditorPage} from './TemplateEditorPage';
 
 const BASE = '/api/procedures/patient-procedure-stage';
@@ -81,6 +82,70 @@ describe('TemplateEditorPage', () => {
     const banner = (await screen.findByText('Add at least one stage.')).closest('[role="alert"], section')!;
     expect(banner).not.toHaveTextContent('Name is required.');
     expect(screen.getByRole('textbox', {name: /Name/})).toHaveAccessibleDescription(/Name is required\./);
+  });
+
+  it('moves a stage with the keyboard from its handle', async () => {
+    const {user} = renderEditor('t1');
+
+    await screen.findByRole('list', {name: 'Stages in order'});
+    const handle = screen.getByRole('button', {name: /Reorder.*1\. Consultation/});
+    await user.click(handle);
+    await user.keyboard('{ArrowDown}');
+
+    await waitFor(() => expect(stageNames()).toEqual(['1. Old triage', '2. Consultation', '3. Consultation']));
+  });
+
+  it('asks plainly before saving a template no procedure uses, and stays put if cancelled', async () => {
+    const {user, fetch} = renderEditor('t1', {[`GET ${BASE}/templates/t1`]: () => json({...template, procedureCount: 0})});
+
+    await user.click(await screen.findByRole('button', {name: 'Save'}));
+    expect(within(openDialog()!).getByText('Are you sure you want to save these changes?')).toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    expect(openDialog()).toBeNull();
+    expect(sent(fetch, 'PATCH')).toBeUndefined();
+  });
+
+  it('names the one procedure made from a template, and says why a save failed', async () => {
+    const {user} = renderEditor('t1', {
+      [`GET ${BASE}/templates/t1`]: () => json({...template, procedureCount: 1}),
+      [`PATCH ${BASE}/templates/t1`]: () => json({title: 'Server error'}, 500),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Save'}));
+    expect(within(openDialog()!).getByText(/The 1 procedure already made from it keeps? theirs/)).toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
+  it('shows a stage whose definition is gone as an unknown stage', async () => {
+    renderEditor('t1', {[`GET ${BASE}/templates/t1`]: () => json({...template, stageDefinitionIdsInOrder: ['d404']})});
+
+    await screen.findByRole('list', {name: 'Stages in order'});
+    expect(stageNames()).toEqual(['1. Unknown stage']);
+    expect(screen.getByRole('button', {name: 'Remove stage (stage 1)'})).toBeInTheDocument();
+  });
+
+  it('puts everything in one card in a half view, with the stages to add below', async () => {
+    mockApi({[`GET ${BASE}/definitions`]: () => json(definitions)});
+    renderWithApp(
+      <HalfViewContext.Provider value={{isHalf: true}}>
+        <TemplateEditorPage />
+      </HalfViewContext.Provider>,
+      {user: adminUser, path: '/admin/templates/new'},
+    );
+
+    expect(await screen.findByText('Add stages from the list below.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Add Stages'})).toBeInTheDocument();
+    expect(screen.queryByText('All Stages')).not.toBeInTheDocument();
+  });
+
+  it('says when the stages could not be loaded', async () => {
+    renderEditor(undefined, {[`GET ${BASE}/definitions`]: () => json({title: 'Server error'}, 500)});
+
+    expect(await findAlert('The template could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('goes back to the list for an unknown template', async () => {

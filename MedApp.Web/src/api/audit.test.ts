@@ -7,6 +7,7 @@ describe('auditActionLabel', () => {
     expect(auditActionLabel('StageNotesUpdated')).toBe('Stage notes saved');
     expect(auditActionLabel('DetailsUpdated')).toBe('Details edited');
     expect(auditActionLabel('SomethingNew')).toBe('SomethingNew');
+    expect(auditActionLabel(null)).toBe('');
   });
 });
 
@@ -46,5 +47,27 @@ describe('describeAuditDetails', () => {
   it('has nothing to add for stage steps, or unreadable details', () => {
     expect(describe_('StageFinished', {})).toBe('');
     expect(describeAuditDetails({action: 'Created', details: 'not json'})).toBe('');
+  });
+
+  it('copes with details that are missing, or not an object', () => {
+    expect(describeAuditDetails({action: 'Deleted', details: null})).toBe('');
+    expect(describeAuditDetails({action: 'Assigned', details: '"k.ashford"'})).toBe('');
+    expect(describeAuditDetails({action: 'Deleted', details: 'null'})).toBe('');
+  });
+
+  it('copes with parts of the details left out', () => {
+    expect(describe_('Created', {stageCount: 1})).toBe('1 stage');
+    expect(describe_('DetailsUpdated', {})).toBe('');
+    expect(describe_('DetailsUpdated', {changes: {dueDate: {from: null, to: '2026-12-01'}}})).toBe('Due none → 1 Dec 2026');
+    expect(describe_('Unassigned', {userId: 'u1'})).toBe('');
+    expect(describe_('Deleted', {})).toBe('');
+  });
+
+  it('says a detail it has no words for changed, by its name', () => {
+    expect(describe_('DetailsUpdated', {changes: {location: {from: 'Ward 1', to: 'Ward 2'}}})).toBe('location changed');
+  });
+
+  it('puts values that are not words into words as they are', () => {
+    expect(describe_('DetailsUpdated', {changes: {priority: {from: null, to: 3}}})).toBe('Priority  → 3');
   });
 });

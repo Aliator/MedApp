@@ -68,10 +68,12 @@ jobs:
           reports: 'coverage/**/coverage.cobertura.xml'
           targetdir: 'coverage-report'
           reporttypes: 'Html;MarkdownSummaryGithub;Cobertura'
-          assemblyfilters: '+MedApp.*;-MedApp.Contracts;-MedApp.API'
-          filefilters: '-**/Migrations/*.cs;-**/Program.cs;-**/Startup.cs'
+          # The API counts (controllers, middleware, auth, server rendering); the Aspire service defaults are wiring.
+          assemblyfilters: '+MedApp.*;-MedApp.Contracts;-MedApp.ServiceDefaults'
+          # Generated code (obj/: OpenAPI XML comments, regex source generators) isn't ours to test.
+          filefilters: '-**/Migrations/*.cs;-**/Program.cs;-**/Startup.cs;-**/obj/**'
           classfilters: >-
-            -*Command;-*Query;-*Result;-*ServiceExtensions;-*Configuration;-*Settings;-*DbContext;-*Repository;-*Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService
+            -*Command;-*Query;-*Result;-*ServiceExtensions;-*ApplicationBuilderExtensions;-*Configuration;-*Settings;-*DbContext;-*Repository;-*Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService;-MedApp.Infrastructure.Common.Identity.IdentityTransactions
 
       
       - name: Upload coverage report

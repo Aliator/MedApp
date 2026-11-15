@@ -52,6 +52,21 @@ public sealed class UpdatePatientProcedureTemplateHandlerTests
     }
 
     [Test]
+    public async Task Handle_NewNameTaken_ThrowsConflictWithoutSaving()
+    {
+        const string takenName = "Taken template";
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage));
+        _repository.Setup(r => r.GetStageTemplateByIdAsync(template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        _repository.Setup(r => r.StageTemplateNameExistsAsync(takenName, template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var act = () => Handler.Handle(new UpdatePatientProcedureTemplateCommand(template.Id, $" {takenName} ", null), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"A template called '{takenName}' already exists.");
+        template.Name.Should().Be(TemplateName);
+        _repository.Verify(r => r.UpdateStageTemplateAsync(It.IsAny<PatientProcedureStageTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Handle_StageArchivedAfterItWasAdded_CanStayInTheTemplate()
     {
         var consultation = CreateDefinition(ConsultationStage, isArchived: true);

@@ -36,6 +36,21 @@ public sealed class SetPatientProcedureTemplateArchivedHandlerTests
             .ReturnsAsync(new Dictionary<Guid, StageDefinitionUsage> { [id] = new(templates, procedures) });
 
     [Test]
+    public async Task Handle_TemplateDoesNotExist_ThrowsNotFound()
+    {
+        var templateId = Guid.NewGuid();
+        _repository
+            .Setup(r => r.GetStageTemplateByIdAsync(templateId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PatientProcedureStageTemplate?)null);
+
+        var act = () => _fixture.Create<SetPatientProcedureTemplateArchivedHandler>()
+            .Handle(new SetPatientProcedureTemplateArchivedCommand(templateId, true), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Template '{templateId}' was not found.");
+        _repository.Verify(r => r.UpdateStageTemplateAsync(It.IsAny<PatientProcedureStageTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Handle_Restore_RestoresAndSavesWithoutTouchingTheStages()
     {
         var template = CreateTemplate(TemplateName, isArchived: true, CreateDefinition(ConsultationStage));

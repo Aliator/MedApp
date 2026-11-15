@@ -1,4 +1,4 @@
-import {act, render, screen} from '@testing-library/react';
+import {act, render, renderHook, screen} from '@testing-library/react';
 import {useEffect} from 'react';
 import {COLOUR_THEMES, ColoursProvider, DEFAULT_COLOURS, themeOf, useColours} from './colours';
 
@@ -89,5 +89,21 @@ describe('colours', () => {
     );
 
     expect(api.colours.light.page).toBe(DEFAULT_COLOURS.light.page);
+  });
+  it('starts from the Standard theme when what is stored cannot be read', () => {
+    localStorage.setItem('medapp.colours', '{not json');
+    render(
+      <ColoursProvider mode="dark">
+        <Probe />
+      </ColoursProvider>,
+    );
+
+    expect(api.colours).toEqual(DEFAULT_COLOURS);
+  });
+
+  it('must be used inside its provider', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => renderHook(() => useColours())).toThrow(/inside ColoursProvider/);
   });
 });

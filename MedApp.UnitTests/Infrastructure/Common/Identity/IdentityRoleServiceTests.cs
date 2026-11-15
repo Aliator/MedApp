@@ -428,6 +428,22 @@ public sealed class IdentityRoleServiceTests
     }
 
     [Test]
+    public async Task SetRolesAsync_RolesOnlyRemoved_RemovesThemWithoutAdding()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GetRolesAsync(user)).ReturnsAsync([AuthTestConstants.Roles[0], AuthTestConstants.Roles[1]]);
+        _userManager.Setup(u => u.RemoveFromRolesAsync(user, It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
+        SetUpRoles(AuthTestConstants.Roles[0]);
+
+        var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[0]], CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        _userManager.Verify(u => u.RemoveFromRolesAsync(user, new[] {AuthTestConstants.Roles[1]}), Times.Once);
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+    }
+
+    [Test]
     public async Task SetRolesAsync_RemoveFails_ReturnsTheFailureWithoutAdding()
     {
         var user = AuthTestConstants.CreateValidUser();

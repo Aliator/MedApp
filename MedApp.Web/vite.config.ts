@@ -40,6 +40,9 @@ export default defineConfig(({command}) => ({
       provider: 'v8',
       // json-summary feeds the PR coverage comment (see .github/workflows/main.yml).
       reporter: ['text-summary', 'json-summary'],
+      // CI fails if coverage drops below these (just under where it is). What's left uncovered is defensive code:
+      // fallbacks for fields the API always sends, and guards for browser states jsdom can't produce.
+      thresholds: {lines: 99, statements: 99, functions: 99, branches: 92},
       include: ['src/**/*.{ts,tsx}'],
       // Generated code, the theme build, test helpers, and the thin route files and app entry, which wire
       // pages together and are covered through the route-guard and page tests.
@@ -53,7 +56,6 @@ export default defineConfig(({command}) => ({
         'src/entry-client.tsx',
         'src/entry-server.tsx',
         'src/routes/**',
-        'src/router.tsx',
         'src/app/App.tsx',
       ],
     },
