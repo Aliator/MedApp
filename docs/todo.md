@@ -33,4 +33,5 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **Readiness that checks the database and Valkey,** and **restarting Node** when the page server exits (the chart's `README.md`, "Not yet").
   - **Restarting the API and Valkey when a password changes,** for example with a reloader. Until then it's by hand (`deploy/azure/README.md`, Passwords).
   - **Pinning actions and images by digest,** with Dependabot keeping them current.
-  - **Repository settings:** make CI's checks (`web`, `image`, `helm`, `unit-tests`) required on `main`, and protect the `env/*` branches so only the Publish workflow can push to them.
+  - **Repository settings:** `web`, `helm` and `unit-tests` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: require the `image` job too, and let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
+- **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).

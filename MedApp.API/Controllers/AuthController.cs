@@ -141,8 +141,10 @@ public sealed class AuthController(
         return Ok(user);
     }
     
+    // Any staff member (either role), and only for themselves: both policies must pass.
     [HttpPut("users/{username}/update-password")]
-    [Authorize(Roles = "User", Policy = "SelfUserOnly")]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Authorize(Policy = "SelfUserOnly")]
     [Tags("Authentication")]
     public async Task<IActionResult> UpdateUserPassword(
         string username,

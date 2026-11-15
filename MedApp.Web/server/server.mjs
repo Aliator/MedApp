@@ -19,7 +19,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {createServer, request as httpRequest} from 'node:http';
 import {request as httpsRequest} from 'node:https';
 import path from 'node:path';
-import {Readable} from 'node:stream';
+import {pipeline, Readable} from 'node:stream';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const isDev = process.argv.includes('--dev');
@@ -161,7 +161,13 @@ async function send(response, res) {
     res.end();
     return;
   }
-  Readable.fromWeb(response.body).pipe(res);
+  // If the page fails part-way, end only this response, cut short (so the API sees it fail), not the whole server.
+  pipeline(Readable.fromWeb(response.body), res, (error) => {
+    if (!error) return;
+    // The browser going away isn't the page's fault.
+    if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') console.error('Sending the page failed part-way:', error);
+    res.destroy();
+  });
 }
 
 const renderer = isDev ? await createDevRenderer() : await createProdRenderer();

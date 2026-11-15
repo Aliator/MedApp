@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
+using static MedApp.UnitTests.Common.Constants.SsrTestConstants;
 
 namespace MedApp.UnitTests.Api.ServerRendering;
 
@@ -117,6 +118,36 @@ public sealed class SsrServerProcessTests
         await ssr.StopAsync(CancellationToken.None);
 
         ssr.Address.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_ApiHasSecretsInItsEnvironment_NodeStartsWithoutThem()
+    {
+        Script("""
+            import {writeFileSync} from 'node:fs';
+            writeFileSync(new URL('./environment.json', import.meta.url), JSON.stringify(Object.keys(process.env)));
+            console.log(`MedApp pages: http://${process.env.HOST}:${process.env.PORT}/`);
+            setInterval(() => {}, 1000);
+            """);
+        var previous = Environment.GetEnvironmentVariable(ConnectionStringVariable);
+        Environment.SetEnvironmentVariable(ConnectionStringVariable, ConnectionString);
+        try
+        {
+            var ssr = Server([ApiAddress]);
+
+            await ssr.StartAsync(CancellationToken.None);
+            await WaitFor(() => ssr.Address is not null);
+            await ssr.StopAsync(CancellationToken.None);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ConnectionStringVariable, previous);
+        }
+
+        var names = JsonSerializer.Deserialize<string[]>(await File.ReadAllTextAsync(Path.Combine(_webRoot, "ssr", "environment.json")))!;
+        names.Should().NotContain(name => name.StartsWith("ConnectionStrings", StringComparison.OrdinalIgnoreCase));
+        names.Should().Contain(name => name.Equals("PATH", StringComparison.OrdinalIgnoreCase));
+        names.Should().Contain(["PORT", "HOST", "MEDAPP_API_URL", "MEDAPP_SSR_KEY", "NODE_ENV", "NODE_OPTIONS"]);
     }
 
     [Test]

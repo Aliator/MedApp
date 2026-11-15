@@ -23,10 +23,11 @@ public static class ApplicationBuilderExtensions
         var ssr = app.Services.GetRequiredService<ISsrServer>();
         app.UseWhen(context => !ssr.IsFromRenderer(context), branch => branch.UseHttpsRedirection());
 
-        // The page-rendering server and the build's manifest sit in wwwroot beside the app, but aren't for browsers.
+        // The page-rendering server and the build's manifest sit in wwwroot beside the app, but aren't for browsers;
+        // nor is any path with an empty segment (//), which could get past those checks.
         app.Use(async (context, next) =>
         {
-            if (context.Request.Path.StartsWithSegments("/ssr") || context.Request.Path.StartsWithSegments("/.vite"))
+            if (PageServerFiles.IsBlocked(context.Request.Path))
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
                 return;

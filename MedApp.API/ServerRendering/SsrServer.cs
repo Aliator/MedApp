@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -33,6 +34,23 @@ public sealed class SsrServer(
 {
     /// <summary>The header the Node server sends its key in.</summary>
     public const string KeyHeader = "X-MedApp-Ssr-Key";
+
+    /// <summary>
+    /// The API's environment variables the Node server gets, if they're set: only what Node and the OS need to run,
+    /// find certificates and format dates. Not the rest, which holds the API's secrets (its connection strings), so they
+    /// can't leak from Node by accident (e.g. into its logs). It isn't isolation: Node runs as the same user, so code in
+    /// it could still read the API's environment from /proc; that would take a separate (sidecar) container.
+    /// </summary>
+    private static readonly string[] InheritedVariables =
+    [
+        "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "TZ", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS",
+    ];
+
+    /// <summary>The same, on Windows, where Node also needs these.</summary>
+    private static readonly string[] InheritedWindowsVariables =
+    [
+        "SystemRoot", "windir", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "ProgramData", "ComSpec", "PATHEXT",
+    ];
 
     private readonly string _key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
@@ -71,23 +89,7 @@ public sealed class SsrServer(
         }
 
         var port = FreePort();
-        var start = new ProcessStartInfo(settings.NodePath, [script])
-        {
-            WorkingDirectory = Path.GetDirectoryName(script)!,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            Environment =
-            {
-                ["PORT"] = port.ToString(),
-                ["HOST"] = "127.0.0.1",
-                ["MEDAPP_API_URL"] = apiUrl,
-                ["MEDAPP_SSR_KEY"] = _key,
-                ["NODE_ENV"] = "production",
-                // The API's address may be https with a certificate only this machine trusts (development's).
-                ["NODE_OPTIONS"] = "--use-system-ca",
-            },
-        };
+        var start = StartInfo(settings.NodePath, script, port, apiUrl, _key, System.Environment.GetEnvironmentVariables(), OperatingSystem.IsWindows());
 
         try
         {
@@ -127,6 +129,49 @@ public sealed class SsrServer(
             _address = null;
             if (!_process.HasExited) _process.Kill(entireProcessTree: true);
         }
+    }
+
+    /// <summary>
+    /// How to start the Node server: with only the variables it needs from the API's environment
+    /// (<paramref name="parentEnvironment"/>), never the API's secrets, and the ones that tell it where it listens,
+    /// where the API is and its key.
+    /// </summary>
+    public static ProcessStartInfo StartInfo(
+        string nodePath,
+        string script,
+        int port,
+        string apiUrl,
+        string key,
+        IDictionary parentEnvironment,
+        bool isWindows)
+    {
+        var start = new ProcessStartInfo(nodePath, [script])
+        {
+            WorkingDirectory = Path.GetDirectoryName(script)!,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        // Variable names are case-insensitive on Windows (where PATH is usually "Path").
+        var inherited = new HashSet<string>(
+            isWindows ? InheritedVariables.Concat(InheritedWindowsVariables) : InheritedVariables,
+            isWindows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        start.Environment.Clear();
+        foreach (DictionaryEntry variable in parentEnvironment)
+        {
+            if (variable.Key is string name && inherited.Contains(name) && variable.Value is string value)
+                start.Environment[name] = value;
+        }
+
+        start.Environment["PORT"] = port.ToString();
+        start.Environment["HOST"] = "127.0.0.1";
+        start.Environment["MEDAPP_API_URL"] = apiUrl;
+        start.Environment["MEDAPP_SSR_KEY"] = key;
+        start.Environment["NODE_ENV"] = "production";
+        // The API's address may be https with a certificate only this machine trusts (development's).
+        start.Environment["NODE_OPTIONS"] = "--use-system-ca";
+        return start;
     }
 
     /// <summary>
