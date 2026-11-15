@@ -12,3 +12,11 @@ ports:
 ingressClass:
   enabled: true
   isDefaultClass: true
+providers:
+  kubernetesIngress:
+    # Ingresses report localhost as their address. Behind a NodePort service Traefik would report none, and Argo CD
+    # counts an Ingress without an address as not yet healthy, so it would never finish syncing.
+    publishedService:
+      enabled: false
+    ingressEndpoint:
+      hostname: localhost
