@@ -1,0 +1,71 @@
+# The API (MedApp.API/Dockerfile): serves the React app, renders its pages with Node, and answers /api.
+apiVersion: v1
+kind: Service
+metadata:
+  name: medapp-api
+  labels:
+    app: medapp-api
+spec:
+  # NodePort, mapped to http://localhost:8080 by cluster.yaml. The Helm chart will put an ingress in front instead.
+  type: NodePort
+  selector:
+    app: medapp-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medapp-api
+  labels:
+    app: medapp-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medapp-api
+  template:
+    metadata:
+      labels:
+        app: medapp-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: api
+          # Built locally and loaded into the cluster by up.sh (kind load), so it's never pulled.
+          image: medapp-api:local
+          imagePullPolicy: Never
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: medapp-sql
+                  key: connection-string
+          ports:
+            - name: http
+              containerPort: 8080
+          # TCP for now: the API's /health and /alive are only mapped in Development. Proper health checks are part
+          # of the security step (docs/todo.md).
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi

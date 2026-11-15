@@ -1,0 +1,16 @@
+# A one-node local cluster for MedApp (kind: Kubernetes in Docker). Created by up.sh.
+# The node's NodePorts are mapped to this machine only (127.0.0.1):
+#   http://localhost:8080  -> the API, serving the app (NodePort 30080)
+#   127.0.0.1,14331        -> SQL Server, for dotnet ef (NodePort 31433; the AppHost's dev database is on 14330)
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: medapp
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+        listenAddress: 127.0.0.1
+      - containerPort: 31433
+        hostPort: 14331
+        listenAddress: 127.0.0.1
