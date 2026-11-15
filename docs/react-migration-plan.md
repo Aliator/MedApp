@@ -316,7 +316,7 @@ Each phase ends with a working app. Blazor stays the default UI until phase 5, a
    - **Reset password:** the dialog's button becomes "Done" once the new password is shown.
    - **Request fixes:** an empty date of birth is sent as `0001-01-01`, as Blazor did, so the API answers "Date of birth must be provided." rather than a JSON-conversion error. The reset-password response is read as text or JSON, because ASP.NET sends a bare string as text/plain unless the client asks for JSON.
    - **Kept for now:** `GET api/patients` and `GET api/auth/users`, which only the deprecated client uses. The parity tool's sign-in step also uses `GET api/patients` to pick a patient.
-   - **Still stand-ins, as in Blazor:** "Forgot password?" sends nothing (there is no reset API), and new users get the fixed password `DefaultPassword1`. Both are worth replacing in their own PRs.
+   - **Still stand-ins, as in Blazor:** "Forgot password?" sends nothing (there is no reset API), and new users get the fixed password `DefaultPassword1`. Both are worth replacing in their own PRs. (#53 replaced the fixed password: the server now generates each new account's first password, shown to the admin once. Accounts made before it may still have `DefaultPassword1`; see `docs/todo.md`.)
 
 Parity is checked by hand against the checklist below, with the Playwright screenshot pairs as the visual reference. End-to-end tests come later; the setup for them is ready (Q13).
 

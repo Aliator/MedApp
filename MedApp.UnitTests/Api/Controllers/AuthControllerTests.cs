@@ -109,7 +109,7 @@ public sealed class AuthControllerTests
     [Test]
     public async Task CreateUser_Succeeds_ReturnsTheUsernameAndGeneratedPassword()
     {
-        var mediator = new RecordingMediator(_ => new CreateUserResult(IdentityResult.Success, Password));
+        var mediator = new RecordingMediator(_ => CreateUserResult.Created(Password));
 
         var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername));
 
@@ -118,14 +118,48 @@ public sealed class AuthControllerTests
     }
 
     [Test]
+    public async Task CreateUser_Succeeds_TellsCachesNotToStoreTheResponse()
+    {
+        var controller = Controller(new RecordingMediator(_ => CreateUserResult.Created(Password)));
+
+        await controller.CreateUser(new CreateUserRequest(OtherUsername));
+
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [Test]
     public async Task CreateUser_Fails_ReturnsBadRequestWithTheErrors()
     {
         var failed = Failed();
-        var mediator = new RecordingMediator(_ => new CreateUserResult(failed, null));
+        var mediator = new RecordingMediator(_ => CreateUserResult.Failed(failed));
 
         var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername));
 
         result.Should().BeOfType<BadRequestObjectResult>().Which.Value.Should().BeEquivalentTo(failed.Errors);
+    }
+
+    [Test]
+    public async Task CreateUser_Admin_IsAllowed()
+    {
+        (await MayCall(nameof(AuthController.CreateUser), OtherUsername, "Admin", "User")).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CreateUser_User_IsRefused()
+    {
+        (await MayCall(nameof(AuthController.CreateUser), OtherUsername, "User")).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CreateUser_SignedInWithoutARole_IsRefused()
+    {
+        (await MayCall(nameof(AuthController.CreateUser), OtherUsername)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CreateUser_SignedOut_IsRefused()
+    {
+        (await MayCall(nameof(AuthController.CreateUser), OtherUsername, new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()))).Should().BeFalse();
     }
 
     [Test]
@@ -205,6 +239,16 @@ public sealed class AuthControllerTests
 
         mediator.Request.Should().Be(new ResetUserPasswordCommand(OtherUsername));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(Password);
+    }
+
+    [Test]
+    public async Task ResetUserPassword_Succeeds_TellsCachesNotToStoreTheResponse()
+    {
+        var controller = Controller(new RecordingMediator(_ => new ResetUserPasswordResponse(Password, [])));
+
+        await controller.ResetUserPassword(OtherUsername);
+
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
     }
 
     [Test]
@@ -446,17 +490,23 @@ public sealed class AuthControllerTests
         (await MayUpdatePassword(Username)).Should().BeFalse();
     }
 
+    private static Task<bool> MayUpdatePassword(string routeUsername, params string[] roles) =>
+        MayCall(nameof(AuthController.UpdateUserPassword), routeUsername, roles);
+
+    private static Task<bool> MayCall(string action, string routeUsername, params string[] roles) =>
+        MayCall(action, routeUsername, SignedIn(roles));
+
     /// <summary>Whether the action's own [Authorize] attributes, with the API's policies, let this user in.</summary>
-    private static async Task<bool> MayUpdatePassword(string routeUsername, params string[] roles)
+    private static async Task<bool> MayCall(string action, string routeUsername, System.Security.Claims.ClaimsPrincipal user)
     {
         await using var services = new ServiceCollection().AddLogging().AddApi(new ConfigurationBuilder().Build()).BuildServiceProvider();
         var attributes = typeof(AuthController).GetCustomAttributes<AuthorizeAttribute>()
-            .Concat(typeof(AuthController).GetMethod(nameof(AuthController.UpdateUserPassword))!.GetCustomAttributes<AuthorizeAttribute>());
+            .Concat(typeof(AuthController).GetMethod(action)!.GetCustomAttributes<AuthorizeAttribute>());
         var policy = await AuthorizationPolicy.CombineAsync(services.GetRequiredService<IAuthorizationPolicyProvider>(), attributes);
         var request = new DefaultHttpContext();
         request.Request.RouteValues["username"] = routeUsername;
 
-        var result = await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(SignedIn(roles), request, policy!);
+        var result = await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(user, request, policy!);
         return result.Succeeded;
     }
 

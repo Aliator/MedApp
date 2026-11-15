@@ -25,7 +25,9 @@ public sealed class IdentityUserService(
         var password = GeneratePassword();
         var result = await userManager.CreateAsync(user, password);
 
-        return new CreateUserResult(result, result.Succeeded ? password : null);
+        return result.Succeeded
+            ? CreateUserResult.Created(password)
+            : CreateUserResult.Failed(result);
     }
 
     public async Task<IdentityResult> UpdateUserPasswordAsync(

@@ -31,6 +31,12 @@ type User = NonNullable<UserPage['items']>[number];
 const sameRoles = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((r) => b.includes(r));
 type UserRow = User & Record<string, unknown>;
 
+/**
+ * How long "Done" ignores clicks once a generated password appears in its place: the second click of a double-click
+ * on "Create User" or "Reset Password" would otherwise close the dialog before the password was seen.
+ */
+const PASSWORD_DONE_HOLD_MS = 1000;
+
 type DialogState =
   | {kind: 'create'}
   | {kind: 'roles' | 'reset' | 'delete'; username: string; roles: string[]}
@@ -87,7 +93,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState<string | null>(null);
-  // The account just created, with its generated first password: shown once, then gone when the dialog closes.
+  // The account just created, with its generated first password: shown once, then cleared when the dialog closes.
   const [created, setCreated] = useState<CreatedUser | null>(null);
   // Deleting a user: the admin's own password, and why it was refused.
   const [deletePassword, setDeletePassword] = useState('');
@@ -106,7 +112,15 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     setError(null);
     setDialog(next);
   };
-  const close = () => setDialog(null);
+  const close = () => {
+    setDialog(null);
+    // However the dialog closed (Done, Cancel, Escape or its close button), the generated passwords go from the
+    // page's state and from the mutations, so they don't stay in memory.
+    setCreated(null);
+    setNewPassword(null);
+    create.reset();
+    reset.reset();
+  };
   const failed = (message: string) => () => {
     setError(message);
     close();
@@ -176,31 +190,40 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             message={created ? `Account created for ${created.username}.` : 'Enter a username for the new user.'}
             icon={AppIcon.Add}
             confirmText={created ? 'Done' : 'Create User'}
+            confirmHoldMs={created ? PASSWORD_DONE_HOLD_MS : undefined}
             isProcessing={create.isPending}
             confirmDisabled={!created && !newUsername.trim()}
             onConfirm={() => (created ? close() : create.mutate(newUsername.trim(), {onSuccess: setCreated}))}
             onCancel={close}>
             {created ? (
-              <OneTimePassword label="First password" password={created.password} username={created.username} />
-            ) : (
-              <TextInput
-                label="Username"
-                value={newUsername}
-                onChange={setNewUsername}
-                placeholder="Enter username"
-                // A new account's name: never a saved login.
-                autoComplete="off"
-                description="A password is generated for the account and shown to you once."
-                isRequired
-                hasAutoFocus
-                status={
-                  createErrors
-                    ? {type: 'error', message: allMessages(createErrors).join(' ')}
-                    : create.isError
-                      ? {type: 'error', message: 'The user could not be created. Please try again.'}
-                      : undefined
-                }
+              <OneTimePassword
+                label="First password"
+                password={created.password}
+                username={created.username}
+                announcement={`Account created for ${created.username}.`}
               />
+            ) : (
+              // Only while it's open, so its autofocus can't act in a closing dialog.
+              dialog?.kind === 'create' && (
+                <TextInput
+                  label="Username"
+                  value={newUsername}
+                  onChange={setNewUsername}
+                  placeholder="Enter username"
+                  // A new account's name: never a saved login.
+                  autoComplete="off"
+                  description="A password is generated for the account and shown to you once."
+                  isRequired
+                  hasAutoFocus
+                  status={
+                    createErrors
+                      ? {type: 'error', message: allMessages(createErrors).join(' ')}
+                      : create.isError
+                        ? {type: 'error', message: 'The user could not be created. Please try again.'}
+                        : undefined
+                  }
+                />
+              )
             )}
           </ConfirmDialog>
 
@@ -231,6 +254,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             icon={AppIcon.Lock}
             intent="warning"
             confirmText={newPassword ? 'Done' : 'Reset Password'}
+            confirmHoldMs={newPassword ? PASSWORD_DONE_HOLD_MS : undefined}
             isProcessing={reset.isPending}
             onConfirm={() =>
               newPassword
@@ -238,7 +262,14 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
                 : target && reset.mutate(target.username, {onSuccess: setNewPassword, onError: failed('The password could not be reset.')})
             }
             onCancel={close}>
-            {newPassword && target && <OneTimePassword label="New password" password={newPassword} username={target.username} />}
+            {newPassword && target && (
+              <OneTimePassword
+                label="New password"
+                password={newPassword}
+                username={target.username}
+                announcement={`Password reset for ${target.username}.`}
+              />
+            )}
           </ConfirmDialog>
 
           <ConfirmDialog

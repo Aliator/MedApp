@@ -96,10 +96,11 @@ public sealed class AuthController(
         var created = await mediator.Send(
             new CreateUserCommand(request.Username));
 
-        if (!created.Result.Succeeded)
+        if (!created.Succeeded)
             return BadRequest(created.Result.Errors);
 
-        return Ok(new CreateUserResponse(request.Username, created.GeneratedPassword!));
+        NoStore();
+        return Ok(new CreateUserResponse(request.Username, created.GeneratedPassword));
     }
     
     /// <summary>
@@ -180,6 +181,7 @@ public sealed class AuthController(
         if (response.Errors.Any())
             return BadRequest(response.Errors);
 
+        NoStore();
         return Ok(response.GeneratedPassword);
     }
     
@@ -344,4 +346,9 @@ public sealed class AuthController(
             User.Identity?.Name,
             roles));
     }
+
+    /// <summary>
+    /// Tells browsers and proxies not to keep this response: it carries a generated password, shown to the admin once.
+    /// </summary>
+    private void NoStore() => Response.Headers.CacheControl = "no-store";
 }
