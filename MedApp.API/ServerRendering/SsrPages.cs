@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 
 namespace MedApp.API.ServerRendering;
 
@@ -33,10 +34,13 @@ public static class SsrPages
         var address = ssr.Address;
         if (address is not null && (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)))
         {
+            // What the pipeline has set so far (HSTS, for one), so a fallback drops only what the Node server added.
+            var headers = context.Response.Headers.ToArray();
             try
             {
                 if (await Forward(context, address, clients.CreateClient(ClientName), options.Value.RenderTimeout, logger))
                     return;
+                Restore(context.Response, headers);
             }
             // Anything but the browser going away (then there's no one to send a page to).
             catch (Exception exception) when (!context.RequestAborted.IsCancellationRequested)
@@ -51,7 +55,7 @@ public static class SsrPages
 
                 logger.LogWarning(exception, "Couldn't render {Path} on the server: sending the client-rendered app.", context.Request.Path);
                 // Drop the Node server's status and headers, if they were copied before it failed.
-                context.Response.Clear();
+                Restore(context.Response, headers);
             }
         }
 
@@ -113,6 +117,14 @@ public static class SsrPages
         // The page streams as it renders; the timeout only covered getting it started.
         await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
         return true;
+    }
+
+    /// <summary>Puts the response back as it was before forwarding: status 200 and the pipeline's own headers.</summary>
+    private static void Restore(HttpResponse response, KeyValuePair<string, StringValues>[] headers)
+    {
+        response.StatusCode = StatusCodes.Status200OK;
+        response.Headers.Clear();
+        foreach (var (name, values) in headers) response.Headers[name] = values;
     }
 
     private static async Task SendIndex(HttpContext context)

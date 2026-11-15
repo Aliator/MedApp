@@ -90,9 +90,9 @@ public sealed class SsrServerTests
         ["SystemRoot"] = WindowsRoot,
         [ConnectionStringVariable] = ConnectionString,
         [BackplaneVariable] = BackplaneConnectionString,
-        [FirstAdminPasswordVariable] = "synthetic-password",
+        [FirstAdminPasswordVariable] = FirstAdminPassword,
         // Node's own settings come from the API, never the API's environment.
-        ["NODE_OPTIONS"] = "--require=/tmp/synthetic.js",
+        ["NODE_OPTIONS"] = ApiNodeOptions,
         ["PORT"] = "1",
     };
 

@@ -37,7 +37,9 @@ public sealed class SsrServer(
 
     /// <summary>
     /// The API's environment variables the Node server gets, if they're set: only what Node and the OS need to run,
-    /// find certificates and format dates. Not the rest, which holds the API's secrets (its connection strings).
+    /// find certificates and format dates. Not the rest, which holds the API's secrets (its connection strings), so they
+    /// can't leak from Node by accident (e.g. into its logs). It isn't isolation: Node runs as the same user, so code in
+    /// it could still read the API's environment from /proc; that would take a separate (sidecar) container.
     /// </summary>
     private static readonly string[] InheritedVariables =
     [

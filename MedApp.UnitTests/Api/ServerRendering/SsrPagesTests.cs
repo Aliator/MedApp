@@ -195,6 +195,60 @@ public sealed class SsrPagesTests
     }
 
     [Test]
+    public async Task Handle_RendererTooSlow_KeepsThePipelinesHeaders()
+    {
+        _renderer = new RecordingHandler(_ => throw new TaskCanceledException("Timed out"));
+        var context = Page();
+        context.Response.Headers[PipelineHeader] = PipelineHeaderValue;
+
+        await Handle(context, new SsrOptions { RenderTimeout = TimeSpan.FromMilliseconds(1) });
+
+        context.Response.Headers[PipelineHeader].ToString().Should().Be(PipelineHeaderValue);
+        Body(context).Should().Be(IndexHtml);
+    }
+
+    [Test]
+    public async Task Handle_RendererFailsAfterSendingHeaders_KeepsThePipelinesHeadersButNotTheRenderers()
+    {
+        _renderer = new RecordingHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new FailingContent(writeFirst: false) };
+            response.Headers.TryAddWithoutValidation("Vary", "Origin");
+            return response;
+        });
+        var context = Page();
+        context.Response.Headers[PipelineHeader] = PipelineHeaderValue;
+
+        await Handle(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        context.Response.Headers[PipelineHeader].ToString().Should().Be(PipelineHeaderValue);
+        context.Response.Headers.ContainsKey("Vary").Should().BeFalse();
+        context.Response.Headers.CacheControl.ToString().Should().BeEmpty();
+        Body(context).Should().Be(IndexHtml);
+    }
+
+    [Test]
+    public async Task Handle_RendererServerError_KeepsThePipelinesHeadersButNotTheRenderers()
+    {
+        _renderer = new RecordingHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent(RenderedHtml) };
+            response.Headers.TryAddWithoutValidation("Vary", "Origin");
+            return response;
+        });
+        var context = Page();
+        context.Response.Headers[PipelineHeader] = PipelineHeaderValue;
+
+        await Handle(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        context.Response.Headers[PipelineHeader].ToString().Should().Be(PipelineHeaderValue);
+        context.Response.Headers.ContainsKey("Vary").Should().BeFalse();
+        Body(context).Should().Be(IndexHtml);
+    }
+
+    [Test]
     public async Task Handle_RendererNotFound_PassesTheNotFoundPageOn()
     {
         _renderer = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)

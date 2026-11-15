@@ -14,6 +14,10 @@ public static class SsrTestConstants
     public const string RendererCacheControl = "public, max-age=600";
     public const string PartialHtml = "<!DOCTYPE html><html><body>";
 
+    /// <summary>A header set earlier in the pipeline, as UseHsts sets it, which a fallback must keep.</summary>
+    public const string PipelineHeader = "Strict-Transport-Security";
+    public const string PipelineHeaderValue = "max-age=2592000";
+
     // Starting Node: what it's given, and the API's own settings it mustn't be.
     public const string NodePath = "node";
     public const string NodeScript = "/srv/medapp/wwwroot/ssr/server.mjs";
@@ -29,4 +33,7 @@ public static class SsrTestConstants
     public const string BackplaneVariable = "ConnectionStrings__SignalRBackplane";
     public const string BackplaneConnectionString = "redis.test:6379,password=synthetic-secret";
     public const string FirstAdminPasswordVariable = "FirstAdmin__Password";
+    public const string FirstAdminPassword = "synthetic-password";
+    /// <summary>Node options in the API's own environment, which Node mustn't inherit.</summary>
+    public const string ApiNodeOptions = "--require=/tmp/synthetic.js";
 }

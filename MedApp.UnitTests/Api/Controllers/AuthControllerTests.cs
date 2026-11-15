@@ -1,7 +1,9 @@
 ﻿using System.Net;
+using System.Reflection;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Common.Authentication;
+using MedApp.API.Common.Extensions;
 using MedApp.API.Controllers;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
 using MedApp.Application.Authentication.Roles.Commands.CreateRole;
@@ -27,9 +29,12 @@ using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Common;
 using MedApp.UnitTests.Common.Fixtures;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
 
@@ -419,6 +424,40 @@ public sealed class AuthControllerTests
 
         deleting.Request.Should().Be(new DeleteUserCommand(OtherUsername, string.Empty, Password));
         setting.Request.Should().BeOfType<SetUserRolesCommand>().Which.ActorUsername.Should().BeEmpty();
+    }
+
+    [TestCase("Admin")]
+    [TestCase("User")]
+    [TestCase("Admin", "User")]
+    public async Task UpdateUserPassword_StaffChangingTheirOwn_IsAllowed(params string[] roles)
+    {
+        (await MayUpdatePassword(Username, roles)).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task UpdateUserPassword_ChangingSomeoneElses_IsRefused()
+    {
+        (await MayUpdatePassword(OtherUsername, "Admin", "User")).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task UpdateUserPassword_NotStaff_IsRefused()
+    {
+        (await MayUpdatePassword(Username)).Should().BeFalse();
+    }
+
+    /// <summary>Whether the action's own [Authorize] attributes, with the API's policies, let this user in.</summary>
+    private static async Task<bool> MayUpdatePassword(string routeUsername, params string[] roles)
+    {
+        await using var services = new ServiceCollection().AddLogging().AddApi(new ConfigurationBuilder().Build()).BuildServiceProvider();
+        var attributes = typeof(AuthController).GetCustomAttributes<AuthorizeAttribute>()
+            .Concat(typeof(AuthController).GetMethod(nameof(AuthController.UpdateUserPassword))!.GetCustomAttributes<AuthorizeAttribute>());
+        var policy = await AuthorizationPolicy.CombineAsync(services.GetRequiredService<IAuthorizationPolicyProvider>(), attributes);
+        var request = new DefaultHttpContext();
+        request.Request.RouteValues["username"] = routeUsername;
+
+        var result = await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(SignedIn(roles), request, policy!);
+        return result.Succeeded;
     }
 
     [Test]
