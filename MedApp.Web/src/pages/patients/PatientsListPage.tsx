@@ -39,6 +39,21 @@ export interface PatientsListPageProps {
  * Patients list (replaces Blazor's PatientsTable): one page of patients from the API, sortable, with a power
  * search and links to view, edit and add. The page, sort and filters live in the URL.
  */
+/** The list's page of patients, for its search and page size (the route's loader fetches it too). */
+export function patientsListQuery(search: PatientsListSearch, pageSize: number) {
+  return patientSearchQuery({
+    Page: search.page ?? 1,
+    PageSize: pageSize,
+    Sort: PATIENT_SORTS[search.sort ?? 'Patients'],
+    Ascending: search.asc ?? true,
+    FirstName: search.first,
+    LastName: search.last,
+    Email: search.email,
+    DateOfBirthFrom: search.dobFrom,
+    DateOfBirthTo: search.dobTo,
+  });
+}
+
 export function PatientsListPage({search, onSearchChange}: PatientsListPageProps) {
   const {pageSize} = useListSettings();
   const page = search.page ?? 1;
@@ -46,19 +61,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
   const ascending = search.asc ?? true;
   const isFiltered = hasPatientFilters(search);
 
-  const {data, isPending, isError} = useQuery(
-    patientSearchQuery({
-      Page: page,
-      PageSize: pageSize,
-      Sort: PATIENT_SORTS[sortColumn],
-      Ascending: ascending,
-      FirstName: search.first,
-      LastName: search.last,
-      Email: search.email,
-      DateOfBirthFrom: search.dobFrom,
-      DateOfBirthTo: search.dobTo,
-    }),
-  );
+  const {data, isPending, isError} = useQuery(patientsListQuery(search, pageSize));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as PatientRow[];
 

@@ -1,4 +1,4 @@
-import {useCallback, useSyncExternalStore} from 'react';
+import {createContext, useCallback, useContext, useSyncExternalStore} from 'react';
 
 /**
  * The app's settings (colours, text size, list defaults, favourites, accessibility and the rest), one place for all
@@ -96,12 +96,20 @@ export const appSettings = {
   },
 };
 
+/**
+ * The settings a page rendered on the server uses: the signed-in account's (this browser's aren't there to read),
+ * by key. The browser's first render, which takes over the server's page (hydration), uses the same ones, so the
+ * two match; after it, this browser's take over. Nothing outside server rendering provides it.
+ */
+export const ServerSettingsContext = createContext<Record<string, unknown> | null>(null);
+
 /** A setting's value (null when it has none) and a way to change it; re-renders when it changes. */
 export function useAppSetting(key: string): [string | null, (value: string | null) => void] {
+  const server = useContext(ServerSettingsContext);
   const value = useSyncExternalStore(
     appSettings.subscribe,
     () => appSettings.get(key),
-    () => null,
+    () => (typeof server?.[key] === 'string' ? (server[key] as string) : null),
   );
   const set = useCallback((next: string | null) => appSettings.set(key, next), [key]);
   return [value, set];

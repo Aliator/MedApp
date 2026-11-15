@@ -9,7 +9,7 @@ Captures the same screens in the React app (`MedApp.Web`) and, optionally, the d
 ## One-time setup
 
 1. Install Node.js, then run `npm install` and `npm run install-browser` (Chromium only) in this folder.
-2. Copy `.env.example` to `.env` (git-ignored). It signs in as the local test login `admin` / `admin`, the app's only Admin account. `medapp-dev` creates it (`ensure_test_admin`, and on every `reset_demo_data`). It needs to be an admin to reach `/admin/users`.
+2. Create the tools' own login with `medapp-dev`: `create_user`, username `dev-parity`, roles Admin and User, and a password of your choosing. Then copy `.env.example` to `.env` (git-ignored) and put the password in it. It's a separate account because each screen sets its saved settings (the app keeps settings with the account, and the server renders pages with them), so your own account's are never touched. It needs to be an admin to reach `/admin/users`. `reset_demo_data` removes it unless you pass `keepUsers: ["dev-parity"]`.
 
 ## Running it
 
@@ -35,7 +35,7 @@ Screenshots are desktop only (1440×900); mobile layouts are out of scope for no
 
 ## Accessibility audit
 
-`npm run a11y` runs axe over every React screen in `screens.ts`, three times: dark mode, light mode, and light mode with the Butter colour theme, checking WCAG 2.2 A and AA. It takes about ten minutes. Each screen's results land in `a11y-results/`, and the run ends with a summary of each rule that failed, its screens and a few of its elements (also in `a11y-report.json`). Both are git-ignored. Add `-- -g "<screen>"` to check only some screens. It exits non-zero if anything failed. The run keeps the signed-in account's saved settings out of it, as the screenshots do.
+`npm run a11y` runs axe over every React screen in `screens.ts`, three times: dark mode, light mode, and light mode with the Butter colour theme, checking WCAG 2.2 A and AA. It takes about ten minutes. Each screen's results land in `a11y-results/`, and the run ends with a summary of each rule that failed, its screens and a few of its elements (also in `a11y-report.json`). Both are git-ignored. Add `-- -g "<screen>"` to check only some screens. It exits non-zero if anything failed. Like the screenshots, each screen gets exactly the settings it's checked with (`useSettings`), saved to the tools' account.
 
 ## Adding or changing a screen
 

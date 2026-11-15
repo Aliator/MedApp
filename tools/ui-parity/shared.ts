@@ -98,14 +98,20 @@ export const rowAction = (page: Page, name: RegExp): Locator =>
   page.getByRole('table').getByRole('button', { name, disabled: false }).first();
 
 /**
- * Keeps the signed-in account's saved settings out of a run, and the run's out of the account: the app keeps its
- * settings with the account (`GET`/`PUT api/auth/me/settings`), so this answers those calls here, in this browser
- * only, as an account with none saved. Each screen then shows the app's defaults (or what the test sets).
+ * Gives a screen the app settings it's checked with (none: the app's defaults). The app keeps its settings with the
+ * account, and the server renders pages with the account's, so this saves them to the signed-in account (the
+ * tools' own, see .env.example) through the API, and puts them in this browser too, for signed-out screens.
+ * The page's own saves during the run are dropped, so the screen keeps the settings it was given.
  */
-export async function isolateSettings(page: Page) {
+export async function useSettings(page: Page, settings: Record<string, string> = {}, { signedIn = true } = {}) {
   await page.route('**/api/auth/me/settings', (route) =>
-    route.request().method() === 'GET'
-      ? route.fulfill({ json: { settings: null, updatedAtUtc: null } })
-      : route.fulfill({ status: 204 }),
+    route.request().method() === 'GET' ? route.fallback() : route.fulfill({ status: 204 }),
   );
+  if (signedIn) {
+    const response = await page.request.put('/api/auth/me/settings', { data: { settings: JSON.stringify(settings) } });
+    if (!response.ok()) throw new Error(`Couldn't set the account's settings: PUT api/auth/me/settings returned ${response.status()}.`);
+  }
+  await page.addInitScript((values) => {
+    for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value);
+  }, settings);
 }

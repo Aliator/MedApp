@@ -1,0 +1,10 @@
+{
+  // The server entry (src/entry-server.tsx) and its test, which run in Node: the app's settings, plus Node's types.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.ssr.tsbuildinfo",
+    "types": ["vite/client", "vitest/globals", "node"]
+  },
+  "include": ["src/entry-server.tsx", "src/entry-server.test.tsx"],
+  "exclude": []
+}

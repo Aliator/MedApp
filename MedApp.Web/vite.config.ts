@@ -7,12 +7,19 @@ import {defineConfig} from 'vite';
 // launch-profile port, for running `npm run dev` on its own.
 const apiUrl = process.env.API_HTTPS || process.env.services__api__https__0 || 'https://localhost:7038';
 
-export default defineConfig({
+export default defineConfig(({command}) => ({
   plugins: [
     // Must come before react(): it generates src/routeTree.gen.ts from src/routes.
     tanstackRouter({target: 'react', autoCodeSplitting: true}),
     react(),
   ],
+  build: {
+    // The server rendering reads the client build's manifest for the page's scripts and stylesheets.
+    manifest: true,
+  },
+  // The built server entry (dist/ssr/entry-server.js) carries its packages in it: published in the API's wwwroot,
+  // it has no node_modules beside it.
+  ssr: command === 'build' ? {noExternal: true} : undefined,
   server: {
     port: Number(process.env.PORT) || 5173,
     strictPort: true,
@@ -43,11 +50,12 @@ export default defineConfig({
         'src/api/schema.d.ts',
         'src/themes/**',
         'src/astryx-themes.ts',
-        'src/main.tsx',
+        'src/entry-client.tsx',
+        'src/entry-server.tsx',
         'src/routes/**',
         'src/router.tsx',
         'src/app/App.tsx',
       ],
     },
   },
-});
+}));

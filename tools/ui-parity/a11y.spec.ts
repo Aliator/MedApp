@@ -3,7 +3,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test } from '@playwright/test';
 import { screens } from './screens';
-import { isolateSettings, readData, settle, type ProjectMeta } from './shared';
+import { readData, settle, useSettings, type ProjectMeta } from './shared';
 
 /**
  * The accessibility audit: axe (WCAG 2.2 AA and below) on every screen of the React app, in each mode and with a
@@ -11,7 +11,7 @@ import { isolateSettings, readData, settle, type ProjectMeta } from './shared';
  * `npm run a11y` (the AppHost running).
  */
 
-/** The ways a screen is checked: the app's settings for it (kept in this browser only, see `isolateSettings`). */
+/** The ways a screen is checked: the app's settings for it (with the screen's own, see `useSettings`). */
 const VARIANTS: { name: string; settings: Record<string, string> }[] = [
   { name: 'dark', settings: {} },
   { name: 'light', settings: { 'medapp.colorMode': 'light' } },
@@ -37,10 +37,7 @@ for (const variant of VARIANTS) {
 
       test(screen.title, async ({ page }, info) => {
         const { app } = info.project.metadata as ProjectMeta;
-        await isolateSettings(page);
-        await page.addInitScript((settings) => {
-          for (const [key, value] of Object.entries(settings)) localStorage.setItem(key, value);
-        }, variant.settings);
+        await useSettings(page, { ...variant.settings, ...screen.settings }, { signedIn: !screen.signedOut });
         await page.goto(typeof screen.path === 'function' ? screen.path(readData(app)) : screen.path);
         await settle(page);
         if (screen.prepare) {

@@ -1,5 +1,7 @@
 import {createContext, useCallback, useContext, useMemo, type ReactNode} from 'react';
-import {defineSetting, useAppSetting} from './settingsStore';
+import type {QueryClient} from '@tanstack/react-query';
+import {settingsQuery} from '../api/settings';
+import {appSettings, defineSetting, useAppSetting} from './settingsStore';
 
 /** The rows a list shows a page (Account Settings, Lists): ten unless chosen otherwise, up to the API's 100. */
 export const DEFAULT_PAGE_SIZE = 10;
@@ -52,4 +54,17 @@ const DEFAULTS: ListSettingsContextValue = {
 /** The list settings; outside the provider (tests of one part), the defaults. */
 export function useListSettings(): ListSettingsContextValue {
   return useContext(ListSettingsContext) ?? DEFAULTS;
+}
+
+/**
+ * The list settings outside React, for route loaders: on the server, the signed-in account's (the page is rendered
+ * with them, see `ServerSettingsContext`), in the browser, this browser's.
+ */
+export function listSettingsFor(queryClient: QueryClient): {pageSize: number; startsOnMine: boolean} {
+  const read = (key: string) => {
+    if (typeof window !== 'undefined') return appSettings.get(key);
+    const value = queryClient.getQueryData(settingsQuery.queryKey)?.[key];
+    return typeof value === 'string' ? value : null;
+  };
+  return {pageSize: parsePageSize(read(PAGE_SIZE_KEY)) ?? DEFAULT_PAGE_SIZE, startsOnMine: read(START_ON_MINE_KEY) === 'true'};
 }

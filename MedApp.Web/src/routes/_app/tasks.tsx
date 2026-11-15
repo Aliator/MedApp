@@ -1,9 +1,15 @@
 import {createFileRoute} from '@tanstack/react-router';
 import {MyTasksPage} from '../../pages/tasks/MyTasksPage';
 import {parseTasksSearch} from '../../pages/listSearch';
+import {preload} from '../../api/preload';
+import {listSettingsFor} from '../../app/listSettings';
+import {taskQuery} from '../../pages/tasks/MyTasksPage';
+import {procedureSearchQuery} from '../../api/search';
 
 export const Route = createFileRoute('/_app/tasks')({
   validateSearch: parseTasksSearch,
+  loaderDeps: ({search}) => search,
+  loader: ({context, deps}) => preload(context.queryClient, procedureSearchQuery(taskQuery(deps, listSettingsFor(context.queryClient).pageSize))),
   component: MyTasksRoute,
 });
 
