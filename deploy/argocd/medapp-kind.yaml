@@ -2,7 +2,7 @@
 #
 # It follows the env/kind branch: main as of the last deploy, plus deploy/argocd/kind-image.yaml, the image to run.
 # On each merge to main, the Publish workflow pushes a new image to GHCR, then records that commit of main on
-# env/kind with the new tag, in one "Deployed ..." commit whose files are exactly main's plus the tag. (main only
+# env/kind with the new tag, in one "Deployed ..." commit whose files are main's plus the tag, keeping env/kind's own workflow files. (main only
 # changes through pull requests, and Argo CD can't mix two revisions of one repository, so the deployed state lives
 # on its own branch.) env/kind's history is the deploy history. To roll back, revert the change on main: the next
 # deploy replaces whatever is on env/kind (deploy/argocd/README.md).
