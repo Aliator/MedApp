@@ -41,7 +41,7 @@ public sealed class FirstAdminSetupTests
             .Setup(u => u.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
         _userManager
-            .Setup(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
+            .Setup(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()))
             .ReturnsAsync(IdentityResult.Success);
 
         _setup = CreateSetup();
@@ -71,7 +71,7 @@ public sealed class FirstAdminSetupTests
     }
 
     [Test]
-    public async Task RunAsync_NewDatabase_MakesTheRolesAndTheAdmin()
+    public async Task RunAsync_NewDatabase_MakesTheRolesAndTheAdminWithBoth()
     {
         var result = await _setup.RunAsync(
             AuthTestConstants.FirstAdminUsername,
@@ -88,9 +88,10 @@ public sealed class FirstAdminSetupTests
                 x.UserName == AuthTestConstants.FirstAdminUsername
                 && x.CreatedAt == AuthTestConstants.FirstAdminCreatedAtUtc),
             AuthTestConstants.ValidPassword), Times.Once);
-        _userManager.Verify(u => u.AddToRoleAsync(
+        // User too, or the admin couldn't change their own password.
+        _userManager.Verify(u => u.AddToRolesAsync(
             It.Is<ApplicationUser>(x => x.UserName == AuthTestConstants.FirstAdminUsername),
-            "Admin"), Times.Once);
+            It.Is<IEnumerable<string>>(roles => roles.SequenceEqual(new[] { "Admin", "User" }))), Times.Once);
     }
 
     [Test]
@@ -131,7 +132,7 @@ public sealed class FirstAdminSetupTests
 
         result.Outcome.Should().Be(FirstAdminOutcome.AccountsExist);
         _userManager.Verify(u => u.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
-        _userManager.Verify(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
     }
 
     [Test]
@@ -167,15 +168,16 @@ public sealed class FirstAdminSetupTests
 
         result.Outcome.Should().Be(FirstAdminOutcome.Failed);
         result.Errors.Should().ContainSingle().Which.Code.Should().Be("PasswordTooShort");
-        _userManager.Verify(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
     }
 
     [Test]
-    public async Task RunAsync_AdminRoleCannotBeAdded_ReturnsFailed()
+    public async Task RunAsync_RolesCannotBeAdded_ReturnsFailedWithTheErrors()
     {
+        var error = new IdentityError { Code = "RoleNotAdded", Description = "No." };
         _userManager
-            .Setup(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
-            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "RoleNotAdded", Description = "No." }));
+            .Setup(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(IdentityResult.Failed(error));
 
         var result = await _setup.RunAsync(
             AuthTestConstants.FirstAdminUsername,
@@ -183,6 +185,7 @@ public sealed class FirstAdminSetupTests
             CancellationToken.None);
 
         result.Outcome.Should().Be(FirstAdminOutcome.Failed);
+        result.Errors.Should().ContainSingle().Which.Should().BeSameAs(error);
     }
 
     [Test]

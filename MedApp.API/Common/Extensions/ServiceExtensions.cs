@@ -21,13 +21,19 @@ public static class ServiceExtensions
         services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
 
         // Server-side rendering: the Node server that renders the React app's pages (SsrServer), and the client
-        // that forwards page requests to it. Redirects (e.g. to sign in) go back to the browser as they are.
+        // that forwards page requests to it. Redirects (e.g. to sign in) go back to the browser as they are. No
+        // resilience handler (the service defaults add one to every client): a failed render isn't retried, but falls
+        // back to the client-rendered app at once, and SsrOptions.RenderTimeout is the only timeout.
         services.AddOptions<SsrOptions>().BindConfiguration(SsrOptions.Section);
         services.AddSingleton<SsrServer>();
         services.AddSingleton<ISsrServer>(provider => provider.GetRequiredService<SsrServer>());
         services.AddHostedService(provider => provider.GetRequiredService<SsrServer>());
+        // RemoveAllResilienceHandlers is still marked experimental (EXTEXP0001); a test checks it does its job.
+#pragma warning disable EXTEXP0001
         services.AddHttpClient(SsrPages.ClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+            .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
         services.AddFluentValidationAutoValidation();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
