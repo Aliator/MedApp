@@ -1,0 +1,32 @@
+# MedApp on AKS, kept in step with git by Argo CD (deploy/azure/bootstrap.sh applies it). As with kind
+# (medapp-kind.yaml), it follows an environment branch: env/azure, which is main as of the last deploy to Azure plus
+# deploy/argocd/azure-image.yaml, the image in Azure Container Registry. The Publish workflow moves it on each merge,
+# once the Azure repository variables are set (deploy/azure/README.md). It belongs to the medapp project
+# (project.yaml), which bootstrap.sh applies first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: medapp
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: medapp
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: medapp
+  source:
+    repoURL: https://github.com/Aliator/MedApp.git
+    targetRevision: env/azure
+    path: deploy/helm/medapp
+    helm:
+      releaseName: medapp
+      valueFiles:
+        - ../../azure/values.yaml
+        - ../../argocd/azure-image.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+  # No CreateNamespace: bootstrap.sh makes the medapp namespace, with its Pod Security labels, before applying this,
+  # and the project doesn't let Argo CD make or change a Namespace (project.yaml).

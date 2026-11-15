@@ -1,0 +1,22 @@
+# Traefik as AKS's ingress controller (bootstrap.sh): an Azure load balancer with a public IP, which ingresses report
+# as their address. Plain http redirects to https. That includes Let's Encrypt's http challenges, which cert-manager
+# serves: Let's Encrypt follows the redirect, and the challenge is answered over https.
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+service:
+  spec:
+    # Keeps the client's own IP address. With the default (Cluster), a node that gets a connection for a Traefik
+    # pod on another node forwards it there, replacing the source address with its own, so Traefik, and the app
+    # after it (X-Forwarded-For), would see a node's address instead of the user's. With Local, the load balancer
+    # only sends traffic to nodes running a Traefik pod (its health probe takes the others out), so nothing is
+    # forwarded between nodes.
+    externalTrafficPolicy: Local
+ports:
+  web:
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true

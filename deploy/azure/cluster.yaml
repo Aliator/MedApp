@@ -1,0 +1,37 @@
+# What AKS needs besides MedApp, applied by bootstrap.sh once cert-manager and External Secrets Operator are installed.
+# bootstrap.sh fills in the ${...} values from the Bicep deployment's outputs.
+
+# TLS: certificates browsers trust, from Let's Encrypt, proved over http through Traefik.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ${LETSENCRYPT_EMAIL}
+    privateKeySecretRef:
+      name: letsencrypt-account
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik
+---
+# The secret store: Key Vault, read by External Secrets Operator as its managed identity (workload identity: the
+# operator's service account is federated with the identity main.bicep made, which may only read secrets).
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: azure-key-vault
+spec:
+  # Only ExternalSecrets in the medapp namespace may use it. A ClusterSecretStore otherwise serves every namespace, so
+  # anyone who could create an ExternalSecret anywhere could read every secret in the vault.
+  conditions:
+    - namespaces: [medapp]
+  provider:
+    azurekv:
+      authType: WorkloadIdentity
+      vaultUrl: ${KEY_VAULT_URI}
+      serviceAccountRef:
+        name: external-secrets
+        namespace: external-secrets
