@@ -10,7 +10,6 @@ using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
-using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
@@ -47,7 +46,7 @@ public sealed class PatientsControllerTests
     [Test]
     public async Task GetPatientById_Found_ReturnsThem_AndNotFoundWhenNot()
     {
-        var patient = new Patient { Id = RecordId, FirstName = "Test", LastName = "Patient", Email = "test.patient@example.org" };
+        var patient = _fixture.Create<PatientResponse>();
         var mediator = new RecordingMediator(_ => patient);
 
         var found = await Controller(mediator).GetPatientById(RecordId);
@@ -78,7 +77,7 @@ public sealed class PatientsControllerTests
     [Test]
     public async Task GetAllPatients_ReturnsThem()
     {
-        IEnumerable<Patient> patients = [];
+        IReadOnlyList<PatientResponse> patients = [_fixture.Create<PatientResponse>()];
         var mediator = new RecordingMediator(_ => patients);
 
         var result = await Controller(mediator).GetAllPatients();

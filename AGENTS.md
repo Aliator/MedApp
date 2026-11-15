@@ -93,7 +93,15 @@ To add a feature end to end:
 
 ### Mapping
 
-Handlers map Domain entities to `Contracts` responses by hand, with inline `new XResponse(...)` / object initialisers. There is no mapping library on `main`.
+Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
+- **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
+- **Mappers so far:**
+  - `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`
+  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`
+  - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
+- **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
+- **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a reset password, the signed-in user's claims) may be built where they're made.
+- **Tests:** every mapper has its own (`<Thing>MapperTests`), including what it computes (`CanBeDeleted`, an action or kind by name, read or not).
 
 ### Data access
 

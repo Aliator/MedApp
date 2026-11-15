@@ -138,7 +138,7 @@ public sealed class AuthController(
         if (user is null)
             return NotFound();
 
-        return Ok(new UserResponse(user.UserId, user.Username, user.Roles));
+        return Ok(user);
     }
     
     [HttpPut("users/{username}/update-password")]

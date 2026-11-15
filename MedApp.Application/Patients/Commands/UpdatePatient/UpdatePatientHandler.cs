@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Contracts.Patients.Responses;
+using MedApp.Application.Patients.Common;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 
@@ -32,12 +33,6 @@ public sealed class UpdatePatientHandler(IPatientRepository repository)
 
         await repository.UpdateAsync(patient, cancellationToken);
 
-        return new PatientResponse(
-            patient.Id,
-            patient.FirstName,
-            patient.LastName,
-            patient.DateOfBirth,
-            patient.Email
-        );
+        return PatientMapper.ToResponse(patient);
     }
 }

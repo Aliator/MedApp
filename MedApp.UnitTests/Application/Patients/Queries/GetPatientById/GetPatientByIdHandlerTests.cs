@@ -6,6 +6,7 @@ using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
+using MedApp.Contracts.Patients.Responses;
 
 namespace MedApp.UnitTests.Application.Patients.Queries.GetPatientById;
 
@@ -28,7 +29,7 @@ public sealed class GetPatientByIdHandlerTests
     }
 
     [Test]
-    public async Task Handle_PatientExists_ReturnsPatient()
+    public async Task Handle_PatientExists_ReturnsItAsAResponse()
     {
         var patient = PatientsTestConstants.CreateValidPatient();
         
@@ -42,7 +43,7 @@ public sealed class GetPatientByIdHandlerTests
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        result.Should().BeSameAs(patient);
+        result.Should().Be(new PatientResponse(patient.Id, patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email));
     }
 
     [Test]

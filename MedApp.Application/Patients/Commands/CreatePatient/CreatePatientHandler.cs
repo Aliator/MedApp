@@ -2,6 +2,7 @@
 using MedApp.Application.Patients.Repositories;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Patients;
+using MedApp.Application.Patients.Common;
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 
@@ -25,12 +26,6 @@ public sealed class CreatePatientHandler(IPatientRepository repository)
 
         await repository.AddAsync(patient, cancellationToken);
 
-        return new PatientResponse(
-            patient.Id,
-            patient.FirstName,
-            patient.LastName,
-            patient.DateOfBirth,
-            patient.Email
-        );
+        return PatientMapper.ToResponse(patient);
     }
 }
