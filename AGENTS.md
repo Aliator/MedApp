@@ -32,7 +32,7 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one.
 
-To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080, beside the AppHost and with a database of its own. See `deploy/kind/README.md`.
+To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080, beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
 Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
 
@@ -216,8 +216,9 @@ It only runs against a local database: by default the AppHost's SQL container, u
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`, with three jobs:
+`.github/workflows/main.yml` runs on PRs to `main`, with four jobs:
 - `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and `vite build`.
+- `helm` lints the Helm chart (`deploy/helm/medapp`) in its three configurations (its own SQL Server, kind's values, and an external database with ingress and TLS), and renders it.
 - `unit-tests` runs `dotnet test MedApp.UnitTests` in Release with coverage.
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 

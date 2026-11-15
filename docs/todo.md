@@ -18,8 +18,12 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 ## Deployment
 
-- **Kubernetes, with Helm, Argo CD and Azure.** Run MedApp on Kubernetes, step by step. Step 1, a local **kind** cluster, is done: `deploy/kind` (see its `README.md`, including what it leaves for these steps). Still to do:
-  2. A **Helm chart** for the deployment: the API, its config and secrets, the database (or an external one), ingress, and the EF migrations as a job.
-  3. **Proper security**: secrets in a secret store (not in values files), TLS, network policies, non-root containers with read-only filesystems, resource limits, and the session cookie and health endpoints set up for running behind an ingress.
+- **Kubernetes, with Helm, Argo CD and Azure.** Run MedApp on Kubernetes, step by step. Done so far:
+  1. A local **kind** cluster: `deploy/kind`.
+  2. A **Helm chart**: `deploy/helm/medapp`, which kind deploys with. Its `README.md` lists what it leaves for the steps below, including more than one copy of the API (a SignalR backplane and shared data-protection keys) and real health checks.
+
+  Still to do:
+
+  3. **Proper security**: secrets in a secret store (not in values files), TLS, network policies, read-only filesystems, real health checks, and a deliberate way to make the first admin. The containers already run as non-root users, with resource limits.
   4. **Argo CD** for continuous delivery: the cluster follows the chart and its values in git.
   5. **Azure** for hosting: AKS, Azure SQL, Key Vault for the secrets, and a container registry.

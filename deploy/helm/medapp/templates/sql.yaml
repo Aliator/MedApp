@@ -1,0 +1,89 @@
+{{- if .Values.sql.enabled }}
+{{- $name := include "medapp.sqlName" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sql
+spec:
+  type: {{ .Values.sql.service.type }}
+  selector:
+    {{- include "medapp.selectorLabels" (list . "sql") | nindent 4 }}
+  ports:
+    - name: tds
+      port: 1433
+      targetPort: tds
+      {{- if and (eq .Values.sql.service.type "NodePort") .Values.sql.service.nodePort }}
+      nodePort: {{ .Values.sql.service.nodePort }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sql
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "sql") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "medapp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: sql
+    spec:
+      securityContext:
+        # The image runs as mssql (10001); fsGroup lets it write to the volume.
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: sql
+          image: {{ .Values.sql.image }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              # sqlservr carries this as a file capability, and won't start without it.
+              add: ["NET_BIND_SERVICE"]
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: MSSQL_PID
+              value: {{ .Values.sql.edition | quote }}
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.dbSecretName" . }}
+                  key: sa-password
+          ports:
+            - name: tds
+              containerPort: 1433
+          readinessProbe:
+            tcpSocket:
+              port: tds
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.sql.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/opt/mssql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.sql.storage.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.sql.storage.size }}
+{{- end }}

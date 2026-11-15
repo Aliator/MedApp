@@ -1,0 +1,46 @@
+{{- if .Values.migrations.enabled }}
+# Applies the EF migrations with the bundle in the API's image. A Helm hook: before each upgrade, so the schema is
+# ready before the new API rolls out (and a failure stops the upgrade), and after the first install, once the
+# in-chart SQL Server exists. Deleted when it succeeds; a failed one stays for its logs until the next run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "medapp.fullname" . }}-migrations
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "medapp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+      containers:
+        - name: migrations
+          image: {{ include "medapp.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "medapp.containerSecurityContext" . | nindent 12 }}
+          command: ["sh", "-c", 'exec /app/efbundle --connection "$CONNECTION_STRING"']
+          env:
+            - name: CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.dbSecretName" . }}
+                  key: connection-string
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,14 @@
+# Traefik as the kind cluster's ingress controller (installed by up.sh). Its http entry point is on node port
+# 30080, which cluster.yaml maps to http://localhost:8080. There's no TLS locally: browsers treat localhost as
+# secure, so the session cookie (Secure) still works.
+service:
+  spec:
+    type: NodePort
+ports:
+  web:
+    nodePort: 30080
+  websecure:
+    nodePort: 30443
+ingressClass:
+  enabled: true
+  isDefaultClass: true

@@ -46,6 +46,29 @@ jobs:
       - name: Build
         run: npx vite build
 
+  # The Helm chart (deploy/helm/medapp): lint it and render it in the configurations it's used in, so a broken
+  # template fails here rather than on a deploy. Helm comes with the runner image.
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint with the chart's own SQL Server
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci
+
+      - name: Lint with the kind cluster's values
+        run: helm lint --strict deploy/helm/medapp --values deploy/kind/values.yaml --set image.tag=ci
+
+      - name: Lint with an external database, ingress and TLS
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set sql.enabled=false --set database.existingSecret=medapp-db
+          --set ingress.enabled=true --set ingress.host=medapp.example.com
+          --set ingress.tls.enabled=true --set ingress.tls.secretName=medapp-tls
+
+      - name: Render
+        run: helm template medapp deploy/helm/medapp --values deploy/kind/values.yaml --set image.tag=ci > /dev/null
+
   unit-tests:
     runs-on: ubuntu-latest
     steps:
