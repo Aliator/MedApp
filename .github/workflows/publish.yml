@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # all history, to merge main into env/kind
 
       - uses: docker/setup-buildx-action@v3
 
@@ -44,24 +46,27 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # env/kind is main as of the last deploy plus the image to run (deploy/argocd/kind-image.yaml). Merge this
+      # commit of main into it with the new tag, as one commit, so the chart and the image move together.
       - name: Deploy to kind (env/kind)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git fetch --depth=1 origin env/kind; then
+          if git fetch --quiet origin env/kind; then
             git switch --create env/kind FETCH_HEAD
+            git merge --no-commit --no-ff "$GITHUB_SHA"
           else
-            git switch --orphan env/kind
+            git switch --create env/kind "$GITHUB_SHA"
           fi
-          cat > image.yaml <<EOF
-          # The image the kind environment runs: set by the Publish workflow on each merge to main, read by Argo CD.
+          cat > deploy/argocd/kind-image.yaml <<EOF
+          # The image the kind environment runs: written by the Publish workflow, only on the env/kind branch.
           image:
             repository: ${IMAGE}
             tag: ${GITHUB_SHA}
             pullPolicy: IfNotPresent
           EOF
-          git add image.yaml
+          git add --all
           # A re-run for the same commit has nothing to change.
-          if git diff --cached --quiet; then exit 0; fi
+          if git diff --cached --quiet && [ ! -f .git/MERGE_HEAD ]; then exit 0; fi
           git commit --message "Deployed medapp-api ${GITHUB_SHA::7} to kind"
           git push origin env/kind

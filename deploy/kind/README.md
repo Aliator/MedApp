@@ -44,6 +44,8 @@ Then open **http://localhost:8080**, or **https://localhost:8443**, where the br
 
 Run it again after a code change: a changed image gets a new tag, and Helm rolls it out. The database is kept unless you pass `--demo-data`, which replaces it.
 
+To have the cluster follow git instead, use `up.sh --argocd`: Argo CD deploys the image the Publish workflow built from `main`. See `deploy/argocd/README.md`.
+
 `deploy/kind/down.sh` deletes the cluster, its database and its secret store. The AppHost's dev database isn't affected.
 
 If your cluster was made before https://localhost:8443 was added, the script says so. Run `down.sh` first, once.

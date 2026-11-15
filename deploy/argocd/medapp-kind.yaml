@@ -1,8 +1,12 @@
-# MedApp on the kind cluster, kept in step with git by Argo CD (deploy/kind/up.sh --argocd applies it):
-#   - the chart (deploy/helm/medapp) and the cluster's values (deploy/kind/values.yaml) from main
-#   - the image to run from the env/kind branch (image.yaml), which the Publish workflow updates after it pushes a
-#     new image to GHCR on each merge to main. main only changes through pull requests, so the tag lives there.
-# Argo CD syncs whatever lands in either, and puts back anything changed in the cluster by hand.
+# MedApp on the kind cluster, kept in step with git by Argo CD (deploy/kind/up.sh --argocd applies it).
+#
+# It follows the env/kind branch: main as of the last deploy, plus deploy/argocd/kind-image.yaml, the image to run.
+# On each merge to main, the Publish workflow pushes a new image to GHCR, then merges that commit of main into
+# env/kind with the new tag, in one "Deployed ..." commit. (main only changes through pull requests, and Argo CD
+# can't mix two revisions of one repository, so the deployed state lives on its own branch.) env/kind's history is
+# the deploy history: revert a deploy commit there to roll back, chart and image together.
+#
+# Argo CD syncs whatever lands on env/kind, and puts back anything changed in the cluster by hand.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,21 +20,17 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: medapp
-  sources:
-    - repoURL: https://github.com/Aliator/MedApp.git
-      targetRevision: main
-      path: deploy/helm/medapp
-      helm:
-        releaseName: medapp
-        valueFiles:
-          - $repo/deploy/kind/values.yaml
-          - $env/image.yaml
-    - repoURL: https://github.com/Aliator/MedApp.git
-      targetRevision: main
-      ref: repo
-    - repoURL: https://github.com/Aliator/MedApp.git
-      targetRevision: env/kind
-      ref: env
+  source:
+    repoURL: https://github.com/Aliator/MedApp.git
+    targetRevision: env/kind
+    path: deploy/helm/medapp
+    helm:
+      releaseName: medapp
+      valueFiles:
+        - ../../kind/values.yaml
+        # Only on env/kind. up.sh --revision, which follows another branch, sets the image itself.
+        - ../../argocd/kind-image.yaml
+      ignoreMissingValueFiles: true
   syncPolicy:
     automated:
       prune: true

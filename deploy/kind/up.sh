@@ -122,10 +122,18 @@ if $argocd; then
   echo "== MedApp (Argo CD)"
   kubectl --context "$context" apply -f deploy/argocd/medapp-kind.yaml
   if [[ -n $revision ]]; then
-    # The chart and the cluster's values from that revision; the image still from env/kind.
-    kubectl --context "$context" --namespace argocd patch application medapp --type json -p "[
-      {\"op\": \"replace\", \"path\": \"/spec/sources/0/targetRevision\", \"value\": \"$revision\"},
-      {\"op\": \"replace\", \"path\": \"/spec/sources/1/targetRevision\", \"value\": \"$revision\"}]"
+    # The chart and the cluster's values from that revision, with the image env/kind deploys now (only env/kind
+    # has deploy/argocd/kind-image.yaml).
+    git fetch --quiet origin env/kind
+    image_values=$(git show FETCH_HEAD:deploy/argocd/kind-image.yaml)
+    repository=$(sed -n 's/^ *repository: *//p' <<<"$image_values")
+    tag=$(sed -n 's/^ *tag: *//p' <<<"$image_values")
+    kubectl --context "$context" --namespace argocd patch application medapp --type merge -p "{\"spec\": {\"source\": {
+      \"targetRevision\": \"$revision\",
+      \"helm\": {\"parameters\": [
+        {\"name\": \"image.repository\", \"value\": \"$repository\"},
+        {\"name\": \"image.tag\", \"value\": \"$tag\"},
+        {\"name\": \"image.pullPolicy\", \"value\": \"IfNotPresent\"}]}}}}"
   fi
   echo "Waiting for Argo CD to sync it from git..."
   kubectl --context "$context" --namespace argocd wait application/medapp --timeout=15m \
