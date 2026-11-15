@@ -32,7 +32,7 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one.
 
-To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080 (and https://localhost:8443), beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image, then makes the first admin. The chart is locked down (network policies, the `restricted` Pod Security Standard, read-only filesystems, secrets from External Secrets), so a new container, port or connection in it needs a matching change there. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
+To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080 (and https://localhost:8443), beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image, then makes the first admin. The chart is locked down (network policies, the `restricted` Pod Security Standard, read-only filesystems, secrets from External Secrets), so a new container, port or connection in it needs a matching change there. `up.sh --argocd` has Argo CD deploy from git instead. Each merge to `main` runs the Publish workflow, which pushes the image to GHCR and merges the commit, with the image's tag, into the `env/kind` branch that Argo CD follows (`deploy/argocd/README.md`). Never commit to `env/kind` by hand except to roll back. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
 Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
 
@@ -229,6 +229,12 @@ What coverage counts (the aim is full coverage of everything with behaviour wort
 - New code comes with tests that cover it. Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
 
 `.github/workflows/e2e.yml` runs the (empty) E2E suite, only when started by hand.
+
+`.github/workflows/publish.yml` runs on every push to `main` except docs-only changes, so it runs after each merge:
+1. It builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`).
+2. It merges that commit into the `env/kind` branch, with the tag in `deploy/argocd/kind-image.yaml`. Argo CD deploys that branch (`deploy/argocd/README.md`).
+
+When you've merged, its run is the deploy. Check it the same way as CI.
 
 ### Checking CI on PRs you opened or pushed to
 

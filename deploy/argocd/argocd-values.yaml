@@ -1,0 +1,16 @@
+# Argo CD's chart values (argo/argo-cd) for the local kind cluster, installed by deploy/kind/up.sh --argocd.
+# Its UI is at http://argocd.localhost:8080, through Traefik.
+configs:
+  params:
+    # Plain http inside the cluster; Traefik is in front.
+    server.insecure: true
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hostname: argocd.localhost
+# Not needed here: single sign-on and notifications.
+dex:
+  enabled: false
+notifications:
+  enabled: false

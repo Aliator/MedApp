@@ -13,6 +13,11 @@ metadata:
   annotations:
     helm.sh/hook: post-install,pre-upgrade
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    # Under Argo CD, which ignores the Helm hook when its own is set: a sync hook in wave 1, so on every sync it runs
+    # after the Secrets (wave -1) and SQL Server (wave 0) are ready, and the API (wave 2) waits for it.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   backoffLimit: {{ .Values.migrations.backoffLimit }}
   template:
