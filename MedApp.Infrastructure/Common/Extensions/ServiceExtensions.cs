@@ -79,6 +79,7 @@ public static class ServiceExtensions
 
         services.AddScoped<IdentityUserService>();
         services.AddScoped<IdentityRoleService>();
+        services.AddScoped<FirstAdminSetup>();
 
         return services;
     }

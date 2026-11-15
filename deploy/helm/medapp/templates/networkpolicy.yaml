@@ -1,0 +1,93 @@
+{{- /*
+Each part of MedApp accepts and makes only the connections it needs; everything else to and from its pods is
+refused. The API's own Node renderer calls it on 127.0.0.1, inside the pod, which no policy affects.
+*/}}
+{{- if .Values.networkPolicy.enabled }}
+{{- $dns := dict "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" "kube-system")) "podSelector" (dict "matchLabels" (dict "k8s-app" "kube-dns")))) "ports" (list (dict "port" 53 "protocol" "UDP") (dict "port" 53 "protocol" "TCP")) }}
+# The API: requests only from the ingress controller (and the kubelet's probes, which policies don't block); out to
+# DNS and the database only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "medapp.fullname" . }}-api
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "api") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressController.namespace }}
+      ports:
+        - port: http
+  egress:
+    - {{- toYaml $dns | nindent 6 }}
+    {{- if .Values.sql.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "sql") | nindent 14 }}
+      ports:
+        - port: 1433
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+# The migrations Job: nothing in; out to DNS and the database only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "medapp.fullname" . }}-migrations
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "migrations") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  egress:
+    - {{- toYaml $dns | nindent 6 }}
+    {{- if .Values.sql.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "sql") | nindent 14 }}
+      ports:
+        - port: 1433
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if .Values.sql.enabled }}
+---
+# SQL Server: connections only from the API and the migrations Job; nothing out.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "medapp.sqlName" . }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "sql") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "api") | nindent 14 }}
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "migrations") | nindent 14 }}
+      ports:
+        - port: tds
+{{- end }}
+{{- end }}

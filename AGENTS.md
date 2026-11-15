@@ -32,7 +32,7 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 
 See [Migrations](#migrations) before adding or applying one.
 
-To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080, beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
+To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-demo` runs MedApp on a local kind cluster at http://localhost:8080 (and https://localhost:8443), beside the AppHost and with a database of its own. It deploys with the Helm chart in `deploy/helm/medapp`, whose migrations Job runs the EF migrations bundle built into the image, then makes the first admin. The chart is locked down (network policies, the `restricted` Pod Security Standard, read-only filesystems, secrets from External Secrets), so a new container, port or connection in it needs a matching change there. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
 Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
 
@@ -50,7 +50,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.Web` | The UI: React 19, TypeScript, Vite and Astryx, rendered on the server by a small Node server (`server/server.mjs`) and hydrated. Not a .NET project: a solution folder in `MedApp.sln`, built with npm. |
 | `MedApp.Client.Deprecated` | **Deprecated.** The original Blazor WASM UI, replaced by `MedApp.Web`. Not run, and no new work; kept building, for reference only. See its `README.md`. |
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the API's image from `MedApp.API/Dockerfile`, which holds the API, the built React app in `wwwroot` and Node to render its pages. |
-| `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive` in Development), used by the API. |
+| `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive`), used by the API. The health checks are on the app's port in Development; elsewhere only on the port in `HealthChecks:Port` (8081 in Kubernetes, which nothing outside the pod reaches), and not at all without it. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators, Infrastructure services, and the API's own services (`Api/`). |
 | `MedApp.IntegrationTests` | Empty project shell, with no tests yet. |
 | `MedApp.E2ETests` | Playwright for .NET setup (base fixture, sign-in) for end-to-end tests of `MedApp.Web`. No tests yet; see its `README.md`. |
@@ -146,6 +146,7 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
+- **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
 - Identity password and lockout rules live under the `Identity` section of `appsettings.json`.
 
 ## Frontend conventions (MedApp.Web)
@@ -218,7 +219,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 
 `.github/workflows/main.yml` runs on PRs to `main`, with four jobs:
 - `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and `vite build`.
-- `helm` lints the Helm chart (`deploy/helm/medapp`) in its three configurations (its own SQL Server, kind's values, and an external database with ingress and TLS), and renders it.
+- `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, and an external database), and renders it.
 - `unit-tests` runs `dotnet test MedApp.UnitTests` in Release with coverage.
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 

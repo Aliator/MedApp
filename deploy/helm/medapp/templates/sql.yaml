@@ -38,16 +38,15 @@ spec:
         {{- include "medapp.labels" . | nindent 8 }}
         app.kubernetes.io/component: sql
     spec:
-      securityContext:
-        # The image runs as mssql (10001); fsGroup lets it write to the volume.
-        runAsNonRoot: true
-        runAsUser: 10001
+      # The image runs as mssql (10001); fsGroup lets it write to the volume.
+      {{- include "medapp.podSecurity" (list . 10001) | nindent 6 }}
         fsGroup: 10001
       containers:
         - name: sql
           image: {{ .Values.sql.image }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
               # sqlservr carries this as a file capability, and won't start without it.
@@ -75,6 +74,13 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/opt/mssql
+            # The root filesystem is read-only; SQL Server writes everything else to its volume.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
   volumeClaimTemplates:
     - metadata:
         name: data

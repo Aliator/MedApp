@@ -63,8 +63,15 @@ jobs:
         run: >-
           helm lint --strict deploy/helm/medapp --set image.tag=ci
           --set sql.enabled=false --set database.existingSecret=medapp-db
+          --set firstAdmin.existingSecret=medapp-first-admin
           --set ingress.enabled=true --set ingress.host=medapp.example.com
-          --set ingress.tls.enabled=true --set ingress.tls.secretName=medapp-tls
+          --set ingress.tls.enabled=true --set ingress.tls.clusterIssuer=letsencrypt
+
+      - name: Lint with an external database from a secret store
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set sql.enabled=false --set externalSecrets.enabled=true
+          --set externalSecrets.secretStoreRef.name=key-vault --set externalSecrets.database.sa-password=null
 
       - name: Render
         run: helm template medapp deploy/helm/medapp --values deploy/kind/values.yaml --set image.tag=ci > /dev/null

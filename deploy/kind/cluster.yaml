@@ -1,7 +1,8 @@
 # A one-node local cluster for MedApp (kind: Kubernetes in Docker). Created by up.sh.
-# The node's NodePorts are mapped to this machine only (127.0.0.1):
-#   http://localhost:8080  -> the app, through the ingress (Traefik, the ingress controller, on node port 30080)
-#   127.0.0.1,14331        -> SQL Server, for dotnet ef (NodePort 31433; the AppHost's dev database is on 14330)
+# Traefik's node ports are mapped to this machine only (127.0.0.1):
+#   http://localhost:8080   -> the app, through the ingress (Traefik's http entry point, node port 30080)
+#   https://localhost:8443  -> the same, with a self-signed certificate from cert-manager (node port 30443)
+# kind can't change a cluster's ports after it's made: after editing these, run down.sh, then up.sh.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: medapp
@@ -11,6 +12,6 @@ nodes:
       - containerPort: 30080
         hostPort: 8080
         listenAddress: 127.0.0.1
-      - containerPort: 31433
-        hostPort: 14331
+      - containerPort: 30443
+        hostPort: 8443
         listenAddress: 127.0.0.1
