@@ -2,12 +2,6 @@ import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap} from './client';
 import {ApiError} from './errors';
 
-/**
- * The password new accounts get, as in the Blazor app, which shows it in the create-user dialog.
- * Users should change it from their Account page.
- */
-export const DEFAULT_NEW_USER_PASSWORD = 'DefaultPassword1';
-
 /** Every role (`GET api/auth/roles`), e.g. Admin and User. */
 export const rolesQuery = queryOptions({
   queryKey: ['roles'],
@@ -15,19 +9,36 @@ export const rolesQuery = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-/** Every users query is keyed under ['users'], so writes refresh them all. */
-function useUserMutation<TInput, TResult>(mutationFn: (input: TInput) => Promise<TResult>) {
+/**
+ * Every users query is keyed under ['users'], so writes refresh them all. `carriesPassword` is for a mutation whose
+ * result is a generated password: it's dropped from the mutation cache as soon as nothing shows it (gcTime 0), rather
+ * than kept for the default five minutes.
+ */
+function useUserMutation<TInput, TResult>(mutationFn: (input: TInput) => Promise<TResult>, {carriesPassword = false} = {}) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
     onSuccess: () => queryClient.invalidateQueries({queryKey: ['users']}),
+    ...(carriesPassword && {gcTime: 0}),
   });
 }
 
+/**
+ * A new account and the first password the server generated for it, which is shown to the admin only once and works
+ * until the user changes it.
+ */
+export interface CreatedUser {
+  username: string;
+  password: string;
+}
+
+/** Creates an account. The server generates its first password and returns it, this once, to be passed on. */
 export function useCreateUser() {
-  return useUserMutation((username: string) =>
-    unwrap(api.POST('/api/auth/users', {body: {username, password: DEFAULT_NEW_USER_PASSWORD}})),
-  );
+  return useUserMutation(async (username: string): Promise<CreatedUser> => {
+    const body = await unwrap(api.POST('/api/auth/users', {body: {username}}));
+    if (!body?.password) throw new ApiError(500, 'The API did not return a password for the new user.');
+    return {username, password: body.password};
+  }, {carriesPassword: true});
 }
 
 /** Deletes a user, confirmed with the signed-in admin's own password (a wrong one is a 400 the API explains). */
@@ -48,7 +59,7 @@ export function useResetPassword() {
     const password = parsePasswordBody(body);
     if (!password) throw new ApiError(500, 'The API did not return a new password.');
     return password;
-  });
+  }, {carriesPassword: true});
 }
 
 /** The reset-password body: a JSON string ("abc") or the bare text (abc). */

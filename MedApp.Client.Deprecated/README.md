@@ -5,6 +5,7 @@
 It stays in `MedApp.sln` for reference only:
 - **Not run.** The Aspire AppHost doesn't start it, and the API no longer allows its origin (`https://localhost:7292`) through CORS.
 - **No new work.** The only changes it gets are ones that keep it compiling, such as SDK or package moves. New UI work goes in `MedApp.Web`.
+- **Creating a user doesn't show its password.** Since #53 the server generates each new account's first password, and this client doesn't display it. Reset the account's password from MedApp.Web's Users page to pass one on.
 - **Kept building.** It's still in the solution build. Its `RootNamespace` and `AssemblyName` are still `MedApp.Client`, so the code was not changed by the rename.
 
 ## Running it anyway

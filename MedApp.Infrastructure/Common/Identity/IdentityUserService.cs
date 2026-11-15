@@ -12,9 +12,8 @@ public sealed class IdentityUserService(
 {
     private readonly IdentityOptions _identityOptions = identityOptions.Value;
     
-    public async Task<IdentityResult> CreateUserAsync(
+    public async Task<CreateUserResult> CreateUserAsync(
         string username,
-        string password,
         CancellationToken ct)
     {
         var user = new ApplicationUser
@@ -23,7 +22,12 @@ public sealed class IdentityUserService(
             CreatedAt = DateTime.UtcNow
         };
 
-        return await userManager.CreateAsync(user, password);
+        var password = GeneratePassword();
+        var result = await userManager.CreateAsync(user, password);
+
+        return result.Succeeded
+            ? CreateUserResult.Created(password)
+            : CreateUserResult.Failed(result);
     }
 
     public async Task<IdentityResult> UpdateUserPasswordAsync(
@@ -142,9 +146,10 @@ public sealed class IdentityUserService(
         if (allowed.Length == 0)
             allowed = upper + lower + digits;
 
-        var length = rules.RequiredLength < 1 ? 8 : rules.RequiredLength;
-        if (length < required.Count)
-            length = required.Count;
+        // At least 16 characters: these passwords are passed on by hand and used until changed, so they're stronger
+        // than the minimum a person must choose.
+        const int minimumGeneratedLength = 16;
+        var length = Math.Max(minimumGeneratedLength, rules.RequiredLength);
 
         var uniqueRequired = rules.RequiredUniqueChars < 1 ? 1 : rules.RequiredUniqueChars;
         if (length < uniqueRequired)

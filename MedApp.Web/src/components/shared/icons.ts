@@ -25,6 +25,7 @@ import {
   RiCloseLine,
   RiCompassDiscoverLine,
   RiCornerDownRightLine,
+  RiFileCopyLine,
   RiDeleteBinLine,
   RiErrorWarningLine,
   RiEyeLine,
@@ -138,6 +139,8 @@ export const AppIcon = {
   Favourite: remix(RiStarLine),
   /** A sub-item in the side nav, e.g. the open patient under Patients. */
   SubItem: remix(RiCornerDownRightLine),
+  /** Copying a value, e.g. a generated password. */
+  Copy: remix(RiFileCopyLine),
   Pin: remix(RiPushpinLine),
   Unpin: remix(RiUnpinLine),
   NotPorted: remix(RiToolsLine),

@@ -1,8 +1,23 @@
-import {screen} from '@testing-library/react';
+import {act, screen} from '@testing-library/react';
+import {useState} from 'react';
 import {renderWithApp, isDisabled, openDialog} from '../../test/render';
 import {ConfirmDialog} from './ConfirmDialog';
 
 const base = {title: 'Delete user', message: 'This cannot be undone.', onConfirm: () => {}, onCancel: () => {}};
+
+/** A dialog whose confirm button becomes "Done" after the first step, held for a second after it changes. */
+function TwoSteps({onDone}: {onDone: () => void}) {
+  const [step, setStep] = useState(1);
+  return (
+    <ConfirmDialog
+      {...base}
+      isOpen
+      confirmText={step === 1 ? 'Create' : 'Done'}
+      confirmHoldMs={1000}
+      onConfirm={() => (step === 1 ? setStep(2) : onDone())}
+    />
+  );
+}
 
 describe('ConfirmDialog', () => {
   it('shows the title, message and extra content when open', async () => {
@@ -57,5 +72,21 @@ describe('ConfirmDialog', () => {
 
     expect(isDisabled(await screen.findByRole('button', {name: 'Cancel'}))).toBe(true);
     expect(screen.queryByRole('button', {name: /close/i})).not.toBeInTheDocument();
+  });
+
+  it('ignores the confirm button for a moment after its text changes, but not when it first shows', async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    const onDone = vi.fn();
+    const {user} = renderWithApp(<TwoSteps onDone={onDone} />);
+
+    // The first step isn't held: its text hasn't changed.
+    await user.click(await screen.findByRole('button', {name: 'Create'}));
+    // The second click of a double-click lands on Done, and does nothing.
+    await user.click(screen.getByRole('button', {name: 'Done'}));
+    expect(onDone).not.toHaveBeenCalled();
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await user.click(screen.getByRole('button', {name: 'Done'}));
+    expect(onDone).toHaveBeenCalledOnce();
   });
 });

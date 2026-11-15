@@ -12,8 +12,9 @@ namespace MedApp.UnitTests.Infrastructure.Common.Identity;
 public sealed class IdentityUserServiceTests
 {
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
+    private IdentityOptions _options = null!;
     private IdentityUserService _service = null!;
-    
+
     [SetUp]
     public void SetUp()
     {
@@ -21,14 +22,17 @@ public sealed class IdentityUserServiceTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-        var options = new IdentityOptions();
-        options.Password.RequiredLength = 8;
-        options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = true;
-        options.Password.RequireUppercase = true;
-        options.Password.RequireNonAlphanumeric = false;
+        _options = new IdentityOptions();
+        _options.Password.RequiredLength = 8;
+        _options.Password.RequireDigit = true;
+        _options.Password.RequireLowercase = true;
+        _options.Password.RequireUppercase = true;
+        _options.Password.RequireNonAlphanumeric = false;
 
-        _service = new IdentityUserService(_userManager.Object, Options.Create(options));
+        // The password rules a PasswordValidator checks come from the manager's options.
+        _userManager.Object.Options = _options;
+
+        _service = new IdentityUserService(_userManager.Object, Options.Create(_options));
     }
 
     
@@ -176,28 +180,98 @@ public sealed class IdentityUserServiceTests
     }
 
     [Test]
-    public async Task CreateUserAsync_CallsUserManagerWithCorrectUser()
+    public async Task CreateUserAsync_Succeeds_CreatesTheUserWithTheReturnedPassword()
     {
         _userManager
             .Setup(u => u.CreateAsync(
                 It.IsAny<ApplicationUser>(),
-                AuthTestConstants.Passwords[0]))
+                It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
 
         var result = await _service.CreateUserAsync(
             AuthTestConstants.Usernames[0],
-            AuthTestConstants.Passwords[0],
             CancellationToken.None);
 
-        result.Succeeded.Should().BeTrue();
+        result.Result.Succeeded.Should().BeTrue();
+        result.GeneratedPassword.Should().NotBeNullOrEmpty();
 
         _userManager.Verify(
             u => u.CreateAsync(
                 It.Is<ApplicationUser>(u =>
                     u.UserName == AuthTestConstants.Usernames[0] &&
                     u.CreatedAt <= DateTime.UtcNow),
-                AuthTestConstants.Passwords[0]),
+                result.GeneratedPassword!),
             Times.Once);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task CreateUserAsync_Succeeds_GeneratesAPasswordThatMeetsThePasswordRules(bool requireNonAlphanumeric)
+    {
+        _options.Password.RequiredLength = 12;
+        _options.Password.RequiredUniqueChars = 6;
+        _options.Password.RequireNonAlphanumeric = requireNonAlphanumeric;
+
+        _userManager
+            .Setup(u => u.CreateAsync(
+                It.IsAny<ApplicationUser>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Success);
+
+        var result = await _service.CreateUserAsync(
+            AuthTestConstants.Usernames[0],
+            CancellationToken.None);
+
+        var rules = await new PasswordValidator<ApplicationUser>().ValidateAsync(
+            _userManager.Object,
+            AuthTestConstants.CreateValidUser(),
+            result.GeneratedPassword);
+
+        rules.Succeeded.Should().BeTrue();
+        // At least 16 characters, however short the rules allow.
+        result.GeneratedPassword.Should().HaveLength(16);
+    }
+
+    [Test]
+    public async Task CreateUserAsync_CalledTwice_GeneratesDifferentPasswords()
+    {
+        _userManager
+            .Setup(u => u.CreateAsync(
+                It.IsAny<ApplicationUser>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Success);
+
+        var first = await _service.CreateUserAsync(
+            AuthTestConstants.Usernames[0],
+            CancellationToken.None);
+        var second = await _service.CreateUserAsync(
+            AuthTestConstants.Usernames[1],
+            CancellationToken.None);
+
+        first.GeneratedPassword.Should().NotBe(second.GeneratedPassword);
+    }
+
+    [Test]
+    public async Task CreateUserAsync_Fails_ReturnsTheErrorsWithoutAPassword()
+    {
+        var failed = IdentityResult.Failed(new IdentityError
+        {
+            Code = "DuplicateUserName",
+            Description = "Synthetic problem."
+        });
+
+        _userManager
+            .Setup(u => u.CreateAsync(
+                It.IsAny<ApplicationUser>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(failed);
+
+        var result = await _service.CreateUserAsync(
+            AuthTestConstants.Usernames[0],
+            CancellationToken.None);
+
+        result.Result.Should().Be(failed);
+        result.GeneratedPassword.Should().BeNull();
     }
     
     [Test]
