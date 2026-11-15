@@ -1,0 +1,83 @@
+﻿@page "/patients/add"
+
+<PageTitle>Add Patients - MedApp</PageTitle>
+
+<Page Title="Add New Patients"
+      Subtitle="Enter patient information to create a new record"
+      ShowBackButton="true"
+      BackButtonTitle="Back to patients"
+      OnBack="Cancel"
+      MaxWidth="900">
+    <Content>
+        <AlertMessage Message="@_errorMessage" ValidationErrors="@_validationErrors" />
+
+        <FormCard OnSave="ShowSave"
+                  OnCancel="Cancel"
+                  IsProcessing="@_isSaving"
+                  SaveText="Add Patients"
+                  ProcessingText="Saving...">
+            <Sections>
+                <FormSection Title="Personal Information">
+                    <FormGroup Label="First Name" Required="true">
+                        <input
+                            type="text"
+                            class="form-input"
+                            @bind="_model.FirstName"
+                            placeholder="Enter first name"
+                            disabled="@_isSaving" />
+                    </FormGroup>
+
+                    <FormGroup Label="Last Name" Required="true">
+                        <input
+                            type="text"
+                            class="form-input"
+                            @bind="_model.LastName"
+                            placeholder="Enter last name"
+                            disabled="@_isSaving" />
+                    </FormGroup>
+
+                    <DatePickerFormGroup @bind-Value="_model.DateOfBirth"
+                                         Label="Date of Birth"
+                                         Required="true"
+                                         Disabled="@_isSaving"
+                                         ShowAge="true" />
+                </FormSection>
+
+                <FormSection Title="Contact Information">
+                    <FormGroup Label="Email Address" Required="true" CssClass="form-group-wide">
+                        <div class="input-with-icon">
+                            <Icon Type="IconType.Email" Size="18" />
+                            <input
+                                type="email"
+                                class="form-input input-with-padding"
+                                @bind="_model.Email"
+                                placeholder="patient@example.com"
+                                disabled="@_isSaving" />
+                        </div>
+                    </FormGroup>
+                </FormSection>
+            </Sections>
+        </FormCard>
+    </Content>
+
+    <Dialogs>
+        <ConfirmModal IsVisible="@_confirmSave"
+                       Title="Confirm Add Patients"
+                       Message="Are you sure you want to add this patient to the system?"
+                       ConfirmText="Confirm Add"
+                       ProcessingText="Adding..."
+                       IsProcessing="@_isSaving"
+                       OnConfirm="Save"
+                       OnCancel="HideSave">
+            <CustomIcon>
+                <Icon Type="IconType.UserPlus" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <PatientSummary FirstName="@_model.FirstName"
+                                LastName="@_model.LastName"
+                                DateOfBirth="@_model.DateOfBirth"
+                                Email="@_model.Email" />
+            </ChildContent>
+        </ConfirmModal>
+    </Dialogs>
+</Page>

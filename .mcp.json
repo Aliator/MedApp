@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "medapp-dev": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["run", "--no-build", "--project", "tools/MedApp.DevMcp"]
+    },
+    "astryx": {
+      "type": "http",
+      "url": "https://astryx.atmeta.com/mcp"
+    }
+  }
+}

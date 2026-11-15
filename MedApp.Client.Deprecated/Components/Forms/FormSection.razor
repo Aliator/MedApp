@@ -1,0 +1,16 @@
+﻿<div class="form-section">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <h2 class="section-title">@Title</h2>
+    }
+    @if (UseGrid)
+    {
+        <div class="form-grid">
+            @ChildContent
+        </div>
+    }
+    else
+    {
+        @ChildContent
+    }
+</div>

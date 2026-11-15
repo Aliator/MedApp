@@ -1,0 +1,27 @@
+# The Helm chart's values (deploy/helm/medapp) for the local kind cluster. up.sh sets image.tag.
+image:
+  repository: medapp-api
+  # Loaded into the cluster by up.sh (kind load), so never pulled.
+  pullPolicy: Never
+
+ingress:
+  enabled: true
+  # Traefik, which up.sh installs: http://localhost:8080 and https://localhost:8443 (cluster.yaml).
+  className: traefik
+  host: localhost
+  tls:
+    enabled: true
+    # A self-signed certificate from cert-manager (local-cluster.yaml), so browsers warn about it.
+    clusterIssuer: medapp-local
+
+# The database and first admin Secrets come from the local stand-in for a secret store: Secrets in the medapp-vault
+# namespace, read by External Secrets Operator (local-cluster.yaml). up.sh fills it.
+externalSecrets:
+  enabled: true
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: medapp-local-vault
+
+networkPolicy:
+  ingressController:
+    namespace: traefik

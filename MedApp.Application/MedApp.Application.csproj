@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
+      <ProjectReference Include="..\MedApp.Domain\MedApp.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FluentValidation" Version="12.1.1" />
+      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+      <PackageReference Include="MediatR" Version="14.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.15" />
+      <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.15" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Authentication\Roles\" />
+      <Folder Include="Authentication\Sessions\Commands\" />
+      <Folder Include="Authentication\Users\Commands\" />
+      <Folder Include="Authentication\Users\Queries\" />
+      <Folder Include="Procedures\PatientProcedureStages\Definitions\" />
+      <Folder Include="Procedures\PatientProcedureStages\Templates\" />
+    </ItemGroup>
+
+</Project>

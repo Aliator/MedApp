@@ -1,0 +1,9 @@
+﻿<th class="sortable-header @(IsActive ? "sort-active" : "")" @onclick="HandleClick">
+    <span class="sortable-header-content">
+        @ChildContent
+        @if (IsActive)
+        {
+            <Icon Type="@(CurrentSortAscending ? IconType.SortAsc : IconType.SortDesc)" Size="12" CssClass="sort-icon sort-icon-on" />
+        }
+    </span>
+</th>

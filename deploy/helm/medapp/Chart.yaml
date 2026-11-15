@@ -1,0 +1,8 @@
+apiVersion: v2
+name: medapp
+description: >-
+  MedApp, the patient and procedure management app: the API (serving the React app, with Node to render its pages
+  on the server), SQL Server or an external database, an ingress, and the EF migrations as a Job.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

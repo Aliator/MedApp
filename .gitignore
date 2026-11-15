@@ -1,0 +1,13 @@
+.idea/
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+*.DotSettings.user
+
+# medapp-dev MCP database snapshots (local only)
+tools/MedApp.DevMcp/.backups/
+
+# The built React app, copied into the API on publish (plan Q4); never committed
+MedApp.API/wwwroot/

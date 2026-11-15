@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <RootNamespace>MedApp.UnitTests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AutoFixture" Version="4.18.1" />
+        <PackageReference Include="AutoFixture.AutoMoq" Version="4.18.1" />
+        <PackageReference Include="AutoFixture.NUnit3" Version="4.18.1" />
+        <PackageReference Include="coverlet.collector" Version="6.0.0" />
+        <PackageReference Include="FluentAssertions" Version="8.8.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+        <PackageReference Include="Moq" Version="4.20.72" />
+        <PackageReference Include="NUnit" Version="3.14.0" />
+        <PackageReference Include="NUnit.Analyzers" Version="3.9.0" />
+        <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="NUnit.Framework" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\MedApp.API\MedApp.API.csproj" />
+        <ProjectReference Include="..\MedApp.Application\MedApp.Application.csproj" />
+        <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
+        <ProjectReference Include="..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Application\Auth\Roles\" />
+      <Folder Include="Application\Auth\Session\Commands\" />
+      <Folder Include="Application\Auth\Users\Commands\" />
+      <Folder Include="Application\Auth\Users\Queries\" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,40 @@
+﻿<Modal IsVisible="@IsVisible"
+       Title="@Title"
+       OnClose="@OnClose"
+       CloseOnBackdropClick="false">
+
+    <Body>
+    <div class="search-fields">
+        @foreach (var field in Fields)
+        {
+            @if (field.Type == SearchFieldType.PartialDate)
+            {
+                <DatePickerFormGroup Label="@field.Label"
+                                     Partial="true"
+                                     Required="false"
+                                     ShowAge="false"
+                                     PartialValue="@field.PartialDateValue"
+                                     PartialValueChanged="@(v => field.PartialDateValue = v)" />
+            }
+            else
+            {
+                <FormGroup Label="@field.Label">
+                    <input class="form-input"
+                           type="text"
+                           placeholder="@field.Placeholder"
+                           value="@field.Value"
+                           @oninput="e => field.Value = e.Value?.ToString() ?? string.Empty" />
+                </FormGroup>
+            }
+        }
+    </div>
+    </Body>
+
+    <Footer>
+        <button class="btn-primary" @onclick="HandleSearch">
+            <Icon Type="IconType.Search" Size="16" />
+            Search
+        </button>
+    </Footer>
+
+</Modal>

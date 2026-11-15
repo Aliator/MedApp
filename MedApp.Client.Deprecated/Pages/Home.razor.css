@@ -1,0 +1,8 @@
+﻿.home-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+    width: 400px;
+    height: 200px;
+}

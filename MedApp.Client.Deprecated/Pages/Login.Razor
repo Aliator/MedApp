@@ -1,0 +1,87 @@
+﻿@page "/login"
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div>
+            <h2>Sign in</h2>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="auth-error">
+                <Icon Type="IconType.Alert" Size="20" />
+                @_error
+            </div>
+        }
+
+        <form @onsubmit="HandleLogin" @onsubmit:preventDefault>
+            <FormGroup Label="Username" Id="username">
+                <input
+                    id="username"
+                    class="form-input"
+                    placeholder="Enter your username"
+                    @bind="_username"
+                    autocomplete="username"
+                    required />
+            </FormGroup>
+
+            <FormGroup Label="Password" Id="password">
+                <input
+                    id="password"
+                    class="form-input"
+                    type="password"
+                    placeholder="Enter your password"
+                    @bind="_password"
+                    autocomplete="current-password"
+                    required />
+            </FormGroup>
+
+            <div class="form-footer">
+                <button type="submit" class="btn-primary">
+                    Sign in
+                </button>
+
+                <button type="button" class="btn-tertiary" @onclick="ShowForgotPassword">
+                    Forgot password?
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<ConfirmModal IsVisible="@_showForgotPassword"
+              Title="Reset your password"
+              Message="@(_resetEmailSent ? "" : "Enter your email address and we'll send you a link to reset your password.")"
+              ConfirmText="@(_resetEmailSent ? "Close" : "Send reset link")"
+              CancelText="Cancel"
+              IsDanger="false"
+              IsProcessing="@_isSendingReset"
+              ProcessingText="Sending..."
+              ConfirmDisabled="@(!_resetEmailSent && string.IsNullOrWhiteSpace(_resetEmail))"
+              OnConfirm="HandleForgotPasswordConfirm"
+              OnCancel="HideForgotPassword">
+    <CustomIcon>
+        <Icon Type="@(_resetEmailSent ? IconType.Success : IconType.Email)" Size="48" />
+    </CustomIcon>
+    <ChildContent>
+        @if (!_resetEmailSent)
+        {
+            <FormGroup Label="Email address" Id="reset-email" Error="@_resetError">
+                <input
+                    id="reset-email"
+                    type="email"
+                    class="form-input"
+                    placeholder="Enter your email"
+                    @bind="_resetEmail"
+                    autocomplete="email"
+                    required />
+            </FormGroup>
+        }
+        else
+        {
+            <p class="modal-text"><strong>Check your email</strong></p>
+            <p class="modal-text">We've sent a password reset link to <strong>@_resetEmail</strong></p>
+            <p class="modal-text">If you don't see the email, check your spam folder or try again.</p>
+        }
+    </ChildContent>
+</ConfirmModal>

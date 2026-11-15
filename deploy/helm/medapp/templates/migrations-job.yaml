@@ -1,0 +1,76 @@
+{{- if .Values.migrations.enabled }}
+# Applies the EF migrations with the bundle in the API's image, then (with firstAdmin.enabled) makes the first
+# admin if there are no accounts yet. A Helm hook: before each upgrade, so the schema is ready before the new API
+# rolls out (and a failure stops the upgrade), and after the first install, once the in-chart SQL Server exists.
+# Deleted when it succeeds; a failed one stays for its logs until the next run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "medapp.fullname" . }}-migrations
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    # Under Argo CD, which ignores the Helm hook when its own is set: a sync hook in wave 1, so on every sync it runs
+    # after the Secrets (wave -1) and SQL Server (wave 0) are ready, and the API (wave 2) waits for it.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "medapp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "medapp.podSecurity" (list . 1654) | nindent 6 }}
+      containers:
+        - name: migrations
+          image: {{ include "medapp.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "medapp.containerSecurityContext" . | nindent 12 }}
+          {{- if .Values.firstAdmin.enabled }}
+          command: ["sh", "-c", '/app/efbundle --connection "$ConnectionStrings__DefaultConnection" && exec dotnet /app/MedApp.API.dll create-first-admin']
+          {{- else }}
+          command: ["sh", "-c", 'exec /app/efbundle --connection "$ConnectionStrings__DefaultConnection"']
+          {{- end }}
+          env:
+            # The bundle unpacks itself on start; the root filesystem is read-only, so into /tmp.
+            - name: DOTNET_BUNDLE_EXTRACT_BASE_DIR
+              value: /tmp
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.dbSecretName" . }}
+                  key: connection-string
+            {{- if .Values.firstAdmin.enabled }}
+            - name: FirstAdmin__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.firstAdminSecretName" . }}
+                  key: username
+            - name: FirstAdmin__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.firstAdminSecretName" . }}
+                  key: password
+            {{- end }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+{{- end }}

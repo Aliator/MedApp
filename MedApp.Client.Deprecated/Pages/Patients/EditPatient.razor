@@ -1,0 +1,111 @@
+﻿@page "/patients/{Id:guid}/edit"
+
+<PageTitle>Edit Patients - MedApp</PageTitle>
+
+<Page Title="Edit Patients"
+      Subtitle="Update patient information"
+      ShowBackButton="true"
+      BackButtonTitle="Back to patient"
+      OnBack="Cancel"
+      MaxWidth="900">
+
+    <Content>
+        <AlertMessage Message="@_errorMessage" ValidationErrors="@_validationErrors" />
+
+        @if (_model is null)
+        {
+            <LoadingState Message="Redirecting to login..." />
+        }
+        else
+        {
+            <FormCard OnSave="ShowSave"
+                      OnCancel="Cancel"
+                      IsProcessing="@_isSaving"
+                      ProcessingText="Saving...">
+
+                <Sections>
+                    <FormSection Title="Personal Information">
+                        <FormGroup Label="First Name" Required="true">
+                            <input
+                                type="text"
+                                class="form-input"
+                                @bind="_model.FirstName"
+                                disabled="@_isSaving" />
+                        </FormGroup>
+
+                        <FormGroup Label="Last Name" Required="true">
+                            <input
+                                type="text"
+                                class="form-input"
+                                @bind="_model.LastName"
+                                disabled="@_isSaving" />
+                        </FormGroup>
+
+                        <DatePickerFormGroup @bind-Value="_model.DateOfBirth"
+                                             Label="Date of Birth"
+                                             Required="true"
+                                             Disabled="@_isSaving"
+                                             ShowAge="true" />
+                    </FormSection>
+
+                    <FormSection Title="Contact Information">
+                        <FormGroup Label="Email Address" Required="true" CssClass="form-group-wide">
+                            <div class="input-with-icon">
+                                <Icon Type="IconType.Email" Size="18" />
+                                <input
+                                    type="email"
+                                    class="form-input input-with-padding"
+                                    @bind="_model.Email"
+                                    disabled="@_isSaving" />
+                            </div>
+                        </FormGroup>
+                    </FormSection>
+                </Sections>
+
+                <FooterActions>
+                    <button class="btn-danger" @onclick="ShowDelete" disabled="@_isSaving">
+                        Delete Patients
+                    </button>
+                </FooterActions>
+            </FormCard>
+        }
+    </Content>
+
+    <Dialogs>
+        <ConfirmModal IsVisible="@_confirmSave"
+                         Title="Confirm Changes"
+                         Message="Are you sure you want to save these changes?"
+                         ConfirmText="Confirm Save"
+                         IsProcessing="@_isSaving"
+                         OnConfirm="Save"
+                         OnCancel="HideSave">
+            <CustomIcon>
+                <Icon Type="IconType.Save" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <PatientSummary FirstName="@_model?.FirstName"
+                                LastName="@_model?.LastName"
+                                DateOfBirth="@_model?.DateOfBirth"
+                                Email="@_model?.Email" />
+            </ChildContent>
+        </ConfirmModal>
+
+        <ConfirmModal IsVisible="@_confirmDelete"
+                         Title="Confirm Delete"
+                         Message="This action cannot be undone."
+                         ConfirmText="Delete Patients"
+                         IsDanger="true"
+                         IsProcessing="@_isDeleting"
+                         OnConfirm="Delete"
+                         OnCancel="HideDelete">
+            <CustomIcon>
+                <Icon Type="IconType.Warning" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <PatientSummary FirstName="@_model?.FirstName"
+                                LastName="@_model?.LastName" />
+            </ChildContent>
+        </ConfirmModal>
+    </Dialogs>
+
+</Page>

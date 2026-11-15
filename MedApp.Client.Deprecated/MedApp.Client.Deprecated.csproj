@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <!-- DEPRECATED: the original Blazor WebAssembly UI, replaced by the React app in MedApp.Web.
+         It is no longer run (the AppHost doesn't start it) and gets no new features; it is kept, and kept
+         building, only for reference. See README.md. -->
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>MedApp.Client</RootNamespace>
+        <AssemblyName>MedApp.Client</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.15" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.15" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Shared\Components\Forms\FormGroups\DatePickerFormGroup.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Components\FormGroups\DatePickerFormGroup.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Components\Summaries\PatientSummary.razor" />
+      <_ContentIncludedByDefault Remove="Components\Shared\Summaries\PatientSummary.razor" />
+      <_ContentIncludedByDefault Remove="Components\Summaries\PatientSummary.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="Components\Forms\FormCard.razor" />
+      <AdditionalFiles Include="Components\Forms\FormGroup.razor" />
+      <AdditionalFiles Include="Components\Forms\FormGroups\DatePickerFormGroup.razor" />
+      <AdditionalFiles Include="Components\Forms\FormSection.razor" />
+      <AdditionalFiles Include="Components\Pages\Page.razor" />
+      <AdditionalFiles Include="Components\Pages\PageHeader.razor" />
+      <AdditionalFiles Include="Components\Shared\AlertMessage.razor" />
+      <AdditionalFiles Include="Components\Shared\Icon.razor" />
+      <AdditionalFiles Include="Components\Shared\SummaryItem.razor" />
+      <AdditionalFiles Include="Components\Views\ViewCard.razor" />
+      <AdditionalFiles Include="Components\Views\ViewGroup.razor" />
+      <AdditionalFiles Include="Components\Views\ViewSection.razor" />
+    </ItemGroup>
+</Project>

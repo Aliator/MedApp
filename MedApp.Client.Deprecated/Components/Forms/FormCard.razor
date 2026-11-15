@@ -1,0 +1,47 @@
+﻿<div class="form-card">
+    @Sections
+
+    @if (ShowFooter)
+    {
+        <div class="form-footer">
+            @if (OnDelete.HasDelegate)
+            {
+                <button class="btn-danger" @onclick="OnDelete" disabled="@IsProcessing">
+                    <Icon Type="IconType.Delete" Size="18" />
+                    @DeleteText
+                </button>
+            }
+
+            @if (FooterActions != null)
+            {
+                @FooterActions
+            }
+
+            <div class="form-actions-right">
+                @if (OnCancel.HasDelegate)
+                {
+                    <button class="btn-secondary" @onclick="OnCancel" disabled="@IsProcessing">
+                        <Icon Type="IconType.Cancel" Size="18" />
+                        @CancelText
+                    </button>
+                }
+
+                @if (OnSave.HasDelegate)
+                {
+                    <button class="btn-primary" @onclick="OnSave" disabled="@IsProcessing">
+                        @if (IsProcessing)
+                        {
+                            <span class="spinner-small"></span>
+                            <span>@ProcessingText</span>
+                        }
+                        else
+                        {
+                            <Icon Type="IconType.Save" Size="18" />
+                            <span>@SaveText</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,254 @@
+﻿@page "/admin/users"
+
+<PageTitle>Authenticationenticationentication - MedApp</PageTitle>
+
+<Page Title="User Management"
+      Subtitle="@GetSubtitle()"
+      ShowBackButton="false"
+      MaxWidth="1400">
+
+    <HeaderActions>
+        @if (IsSearchActive)
+        {
+            <button class="btn-tertiary" @onclick="ClearSearch">
+                Clear Search
+            </button>
+        }
+        <button class="btn-tertiary" @onclick="() => _showSearch = true">
+            <Icon Type="IconType.Search" Size="18" />
+            Search
+        </button>
+        <button class="btn-primary" @onclick="ShowAddUser">
+            <Icon Type="IconType.Add" Size="18" />
+            Add User
+        </button>
+    </HeaderActions>
+
+    <Content>
+        @if (!Auth.IsAuthenticated && !_isLoading)
+        {
+            <LoadingState Message="Redirecting to login..." />
+        }
+        else if (!_isLoading && (_users is null || _users.Count == 0))
+        {
+            <EmptyState Title="No users yet"
+                        Description="Get started by adding your first user to the system."
+                        ButtonText="Add Your First User">
+                <CustomIcon>
+                    <Icon Type="IconType.Users" Size="64" />
+                </CustomIcon>
+            </EmptyState>
+        }
+        else
+        {
+            <DataTable IsLoading="@_isLoading"
+                       SkeletonColumns="3"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "25%", "30%", "45%" }'
+                       SortColumn="@_sortColumn"
+                       SortAscending="@_sortAscending"
+                       OnSort="HandleSort"
+                       TotalRows="@TotalRows"
+                       TotalPages="@TotalPages"
+                       CurrentPage="@_currentPage"
+                       OnPageChange="HandlePageChange"
+                       OnPageSizeChanged="HandlePageSizeChanged"
+                       SkeletonActionButtonCount="4"
+                       SkeletonLastColumnAsActions="true">
+                <Columns>
+                    <SortableHeader Column="User">User</SortableHeader>
+                    <th>Roles</th>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+                <Rows>
+                    @foreach (var user in PagedUsers)
+                    {
+                        <tr>
+                            <td>
+                                <AvatarCell AvatarText="@GetInitial(user)"
+                                            PrimaryText="@user"
+                                            EnableNameTruncation="false" />
+                            </td>
+                            <td>
+                                <div class="roles-display">
+                                    @if (_userRolesCache.TryGetValue(user, out var userRoles) && userRoles.Any())
+                                    {
+                                        @foreach (var role in userRoles)
+                                        {
+                                            <span class="badge">@role</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="no-roles">No roles assigned</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="actions-cell">
+                                <TableActions>
+                                    <button class="btn-table-action btn-assign"
+                                            @onclick="() => ShowAssignRole(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Assign role">
+                                        <Icon Type="IconType.Add" Size="16" />
+                                        <span class="mobile-hidden">Assign</span>
+                                    </button>
+                                    <button class="btn-table-action btn-revoke"
+                                            @onclick="() => ShowRevokeRole(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Revoke role">
+                                        <Icon Type="IconType.Cancel" Size="16" />
+                                        <span class="mobile-hidden">Revoke</span>
+                                    </button>
+                                    <button class="btn-table-action btn-password"
+                                            @onclick="() => ShowResetPassword(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Reset password">
+                                        <Icon Type="IconType.Lock" Size="16" />
+                                        <span class="mobile-hidden">Reset</span>
+                                    </button>
+                                    <button class="btn-table-action btn-delete"
+                                            @onclick="() => ShowDelete(user)"
+                                            disabled="@string.Equals(user, Auth.Username, StringComparison.OrdinalIgnoreCase)"
+                                            title="Delete user">
+                                        <Icon Type="IconType.Delete" Size="16" />
+                                        <span class="mobile-hidden">Delete</span>
+                                    </button>
+                                </TableActions>
+                            </td>
+                        </tr>
+                    }
+                </Rows>
+            </DataTable>
+        }
+    </Content>
+
+    <Dialogs>
+        <SearchModal IsVisible="@_showSearch"
+                     Title="Search Authenticationenticationentication"
+                     Fields="@_searchFields"
+                     OnSearch="ApplySearch"
+                     OnClear="ClearSearch"
+                     OnClose="() => _showSearch = false" />
+
+        <SelectionModal TItem="string"
+                        IsVisible="@_showAssignRole"
+                        Title="Assign Roles"
+                        Message="@GetSelectionMessage("assign")"
+                        Items="@AssignableRoles.ToList()"
+                        SelectedPredicate="r => _selectedRoles.Contains(r)"
+                        LabelSelector="r => r"
+                        ConfirmText="Assign Roles"
+                        ConfirmDisabled="@(!_selectedRoles.Any())"
+                        IsProcessing="@_isProcessingRoles"
+                        ProcessingText="Assigning..."
+                        Toggle="OnRoleToggled"
+                        OnConfirm="AssignRoles"
+                        OnCancel="HideAssignRole">
+            <CustomIcon>
+                <Icon Type="IconType.Check" Size="48" />
+            </CustomIcon>
+            <EmptyContent>
+                <div class="info-message">
+                    <Icon Type="IconType.Info" Size="20" />
+                    <span>This user already has all available roles.</span>
+                </div>
+            </EmptyContent>
+        </SelectionModal>
+
+        <SelectionModal TItem="string"
+                        IsVisible="@_showRevokeRole"
+                        Title="Revoke Roles"
+                        Message="@GetSelectionMessage("revoke")"
+                        Items="@RevokableRoles.ToList()"
+                        SelectedPredicate="r => _selectedRoles.Contains(r)"
+                        LabelSelector="r => r"
+                        ConfirmText="Revoke Roles"
+                        ConfirmDisabled="@(!_selectedRoles.Any())"
+                        IsProcessing="@_isProcessingRoles"
+                        ProcessingText="Revoking..."
+                        Toggle="OnRoleToggled"
+                        OnConfirm="RevokeRoles"
+                        OnCancel="HideRevokeRole">
+            <CustomIcon>
+                <Icon Type="IconType.Cancel" Size="48" />
+            </CustomIcon>
+            <EmptyContent>
+                <div class="info-message">
+                    <Icon Type="IconType.Info" Size="20" />
+                    <span>This user has no roles to revoke.</span>
+                </div>
+            </EmptyContent>
+        </SelectionModal>
+
+        <ConfirmModal IsVisible="@_showResetPassword"
+                      Title="Reset Password"
+                      Message="@GetResetPasswordMessage()"
+                      ConfirmText="Reset Password"
+                      CancelText="Cancel"
+                      IsDanger="false"
+                      IsProcessing="@_isResettingPassword"
+                      ProcessingText="Resetting..."
+                      OnConfirm="ResetPassword"
+                      OnCancel="HideResetPassword">
+            <CustomIcon>
+                <Icon Type="IconType.Lock" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                @if (!string.IsNullOrEmpty(_newPassword))
+                {
+                    <div class="password-display">
+                        <div class="password-label">New Password:</div>
+                        <div class="password-value">@_newPassword</div>
+                        <div class="password-hint">Please save this password and share it securely with the user.</div>
+                    </div>
+                }
+            </ChildContent>
+        </ConfirmModal>
+
+        <ConfirmModal IsVisible="@_confirmDelete"
+                      Title="Confirm Delete"
+                      Message="This action cannot be undone."
+                      ConfirmText="Delete User"
+                      CancelText="Cancel"
+                      IsDanger="true"
+                      IsProcessing="@_isDeletingUser"
+                      ProcessingText="Deleting..."
+                      OnConfirm="DeleteUser"
+                      OnCancel="HideDelete">
+            <CustomIcon>
+                <Icon Type="IconType.Warning" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <Summary IsDanger="true">
+                    <SummaryItem Label="User" Value="@_selectedUser" />
+                </Summary>
+            </ChildContent>
+        </ConfirmModal>
+
+        <ConfirmModal IsVisible="@_showAddUser"
+                      Title="Create New User"
+                      Message="Enter a username for the new user."
+                      ConfirmText="Create User"
+                      CancelText="Cancel"
+                      IsDanger="false"
+                      IsProcessing="@_isCreatingUser"
+                      ProcessingText="Creating..."
+                      OnConfirm="CreateUser"
+                      OnCancel="HideAddUser">
+            <CustomIcon>
+                <Icon Type="IconType.Add" Size="48" />
+            </CustomIcon>
+            <ChildContent>
+                <FormGroup Label="Username" Required="true" Hint="Default password will be: DefaultPassword1">
+                    <input type="text"
+                           class="form-input"
+                           @bind="_newUsername"
+                           disabled="@_isCreatingUser"
+                           placeholder="Enter username" />
+                </FormGroup>
+            </ChildContent>
+        </ConfirmModal>
+    </Dialogs>
+</Page>

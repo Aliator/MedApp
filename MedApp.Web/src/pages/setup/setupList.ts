@@ -1,0 +1,76 @@
+import {DEFAULT_PAGE_SIZE} from '../../app/listSettings';
+import type {ListFilterFavourite, ListFilterField, ListFilterValues} from '../../components/tables/ListFilterBar';
+import type {SetupListSearch} from '../listSearch';
+
+/** Whether a setup list shows the ones in use, the archived ones, or both. */
+export type SetupStatus = 'active' | 'archived' | 'any';
+export const setupStatusOf = (search: SetupListSearch): SetupStatus => search.status ?? 'active';
+
+/**
+ * One page of a setup list (stages or templates). These lists are short and come whole from the API, so they're
+ * filtered, sorted (by name) and paged here: active ones unless asked for archived ones.
+ */
+export function setupPage<T extends {name?: string | null; isArchived?: boolean}>(
+  items: readonly T[],
+  search: SetupListSearch,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+) {
+  const status = setupStatusOf(search);
+  const name = search.name?.toLowerCase();
+  const shown = items
+    .filter((item) => status === 'any' || (status === 'archived') === (item.isArchived ?? false))
+    .filter((item) => !name || (item.name ?? '').toLowerCase().includes(name))
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, {sensitivity: 'base'}));
+  const pages = Math.max(1, Math.ceil(shown.length / pageSize));
+  const page = Math.min(search.page ?? 1, pages);
+  return {
+    rows: shown.slice((page - 1) * pageSize, page * pageSize),
+    page,
+    total: shown.length,
+  };
+}
+
+/** A setup list's search fields: its name, and Active or Archived. */
+export const SETUP_FILTER_FIELDS: ListFilterField[] = [
+  {kind: 'text', key: 'name', label: 'Name'},
+  {
+    kind: 'choice',
+    key: 'status',
+    label: 'Status',
+    options: [
+      {value: 'active', label: 'Active'},
+      {value: 'archived', label: 'Archived'},
+    ],
+  },
+];
+
+/** A setup list's quick look-ups: the ones in use, the archived ones, or both. */
+export const SETUP_FAVOURITES: ListFilterFavourite[] = [
+  {label: 'Active', values: {status: 'active'}},
+  {label: 'Archived', values: {status: 'archived'}},
+  {label: 'All', values: {}},
+];
+
+/**
+ * The search bar's values from the URL, and back: the status filter shows as Active when the URL has none (the
+ * default), and removing it is `any` (archived ones as well).
+ */
+export function setupBarValues(search: SetupListSearch): ListFilterValues {
+  const status = setupStatusOf(search);
+  return {name: search.name, status: status === 'any' ? undefined : status};
+}
+
+export function fromSetupBar(values: ListFilterValues): SetupListSearch {
+  return {
+    name: typeof values.name === 'string' ? values.name : undefined,
+    status: values.status === undefined ? 'any' : values.status === 'archived' ? 'archived' : undefined,
+  };
+}
+
+/** What a setup list's subtitle says it shows, e.g. "3 active stages", "1 matching template". */
+export function setupSubtitle(total: number, search: SetupListSearch, one: string, many: string) {
+  const noun = total === 1 ? one : many;
+  if (search.name) return `${total} matching ${noun}`;
+  const status = setupStatusOf(search);
+  return `${total} ${status === 'any' ? '' : `${status} `}${noun}`;
+}

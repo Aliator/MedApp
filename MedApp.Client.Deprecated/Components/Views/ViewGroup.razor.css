@@ -1,0 +1,16 @@
+﻿.view-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.view-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.view-value {
+    font-size: 0.95rem;
+    color: #111827;
+}

@@ -1,0 +1,10 @@
+﻿<button class="btn-table-action @CssClass"
+        title="@Title"
+        disabled="@Disabled"
+        @onclick="OnClick">
+    <Icon Type="@Icon" Size="16" />
+    @if (!string.IsNullOrWhiteSpace(Text))
+    {
+        <span class="mobile-hidden">@Text</span>
+    }
+</button>

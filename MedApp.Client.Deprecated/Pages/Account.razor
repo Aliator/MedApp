@@ -1,0 +1,55 @@
+﻿@page "/account"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Account Settings - MedApp</PageTitle>
+
+<Page Title="Account Settings"
+      Subtitle="Manage your account password"
+      ShowBackButton="false">
+    <Content>
+        <FormCard OnSave="ChangePassword"
+                  SaveText="Update password"
+                  ProcessingText="Updating..."
+                  IsProcessing="@_isChanging">
+            <Sections>
+                <FormSection Title="Change Password">
+                    <FormGroup Label="Current password" Id="current-password">
+                        <input
+                            id="current-password"
+                            class="form-input"
+                            type="password"
+                            placeholder="Enter your current password"
+                            @bind="_currentPassword"
+                            autocomplete="current-password"
+                            required />
+                    </FormGroup>
+
+                    <FormGroup Label="New password" Id="new-password">
+                        <input
+                            id="new-password"
+                            class="form-input"
+                            type="password"
+                            placeholder="Enter your new password"
+                            @bind="_newPassword"
+                            autocomplete="new-password"
+                            required />
+                    </FormGroup>
+
+                    <FormGroup Label="Confirm new password" Id="confirm-password">
+                        <input
+                            id="confirm-password"
+                            class="form-input"
+                            type="password"
+                            placeholder="Confirm your new password"
+                            @bind="_confirmNewPassword"
+                            autocomplete="new-password"
+                            required />
+                    </FormGroup>
+
+                    <AlertMessage Message="@_error" ValidationErrors="@_validationErrors" />
+                    <AlertMessage Message="@_successMessage" Type="AlertMessage.AlertType.Success" />
+                </FormSection>
+            </Sections>
+        </FormCard>
+    </Content>
+</Page>

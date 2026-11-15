@@ -1,0 +1,32 @@
+name: E2E tests
+# Runs only by hand, against an app that is already running somewhere (plan Q13). There are no tests yet.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: URL of the running MedApp to test
+        required: true
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build MedApp.E2ETests --configuration Release
+
+      - name: Install Chromium
+        run: pwsh MedApp.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: dotnet test MedApp.E2ETests --configuration Release --no-build
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}

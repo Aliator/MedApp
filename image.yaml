@@ -1,5 +1,0 @@
-# The image the kind environment runs: set by the Publish workflow on each merge to main, read by Argo CD.
-image:
-  repository: ghcr.io/aliator/medapp-api
-  tag: test-dfb4f52b418d
-  pullPolicy: IfNotPresent

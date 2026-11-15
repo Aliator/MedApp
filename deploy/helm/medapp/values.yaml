@@ -1,0 +1,129 @@
+# MedApp's Helm chart. See README.md for installing it, and deploy/kind/values.yaml for the local cluster's values.
+
+# The API's image, built from MedApp.API/Dockerfile. It also holds the migrations bundle the migrations Job runs.
+image:
+  repository: medapp-api
+  # Required: the image's tag. Never "latest", so each release names exactly what it runs.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+api:
+  # Keep this at 1 for now. More copies need a SignalR backplane: live notifications reach only the copy a browser
+  # is connected to (docs/todo.md).
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  # Extra environment variables for the API, as a list of {name, value} (or valueFrom).
+  env: []
+  service:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: false
+  # The cluster's ingress class, e.g. traefik. Empty uses the cluster's default class.
+  className: ""
+  annotations: {}
+  # The host name to answer on. Empty answers on any host (not with TLS, which needs one).
+  host: ""
+  tls:
+    enabled: false
+    # The kubernetes.io/tls Secret with the certificate for host. Empty: <release>-tls.
+    secretName: ""
+    # A cert-manager ClusterIssuer to issue and renew that certificate (e.g. a Let's Encrypt one). Empty: the
+    # Secret is made some other way.
+    clusterIssuer: ""
+
+database:
+  # An existing Secret with the API's connection string (key connection-string) and, with sql.enabled, the sa
+  # password (key sa-password). An external database (sql.enabled false) needs this or externalSecrets. With
+  # neither, the chart makes one for its own SQL Server, with a random password that's kept across upgrades and not
+  # deleted on uninstall, so it still opens the data volume after a reinstall.
+  existingSecret: ""
+
+# The first admin account, made by the migrations Job after migrating (the API's create-first-admin command), but
+# only while the database has no accounts at all: once anyone exists, it changes nothing.
+firstAdmin:
+  enabled: true
+  # An existing Secret with the admin's username and password (keys username and password). With neither this nor
+  # externalSecrets, the chart makes one: username admin and a random password, kept across upgrades. Read it with:
+  #   kubectl get secret <release>-first-admin -o jsonpath='{.data.password}' | base64 -d
+  existingSecret: ""
+
+# Secrets from a secret store (Azure Key Vault, and others) through External Secrets Operator, which must be
+# installed in the cluster with a SecretStore or ClusterSecretStore. The chart then makes ExternalSecrets instead of
+# its own Secrets, and the operator fills the database and first admin Secrets from the store.
+externalSecrets:
+  enabled: false
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: ""
+  refreshInterval: 1h
+  # Each key of the Secret, and where it comes from in the store: {key, property}. Set one to null to leave it out
+  # (an external database needs no sa-password).
+  database:
+    sa-password:
+      key: medapp-db
+      property: sa-password
+    connection-string:
+      key: medapp-db
+      property: connection-string
+  firstAdmin:
+    username:
+      key: medapp-first-admin
+      property: username
+    password:
+      key: medapp-first-admin
+      property: password
+
+# NetworkPolicies: each part of MedApp accepts and makes only the connections it needs. Needs a network plugin that
+# enforces them (kind's does; on AKS, Azure CNI with Cilium or Calico).
+networkPolicy:
+  enabled: true
+  # Where the ingress controller runs: only it may reach the API.
+  ingressController:
+    namespace: traefik
+  # More places the API and the migrations Job may connect to, as NetworkPolicy egress rules, e.g. an external
+  # database: [{to: [{ipBlock: {cidr: 10.1.0.0/16}}], ports: [{port: 1433, protocol: TCP}]}].
+  extraEgress: []
+
+# SQL Server in the cluster, one pod with its data on a volume. Turn it off to use an external database, such as
+# Azure SQL, through database.existingSecret.
+sql:
+  enabled: true
+  image: mcr.microsoft.com/mssql/server:2022-latest
+  # Developer is free, for anything but production. Production needs a licensed edition (Express, Standard...).
+  edition: Developer
+  storage:
+    size: 5Gi
+    # Empty uses the cluster's default storage class.
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 3Gi
+  service:
+    type: ClusterIP
+    # With type NodePort: the node port to expose it on.
+    nodePort: null
+
+# The EF migrations, run by a Job from the API's image (/app/efbundle) before each upgrade, and after the first
+# install (once the in-chart SQL Server exists). A failed migration fails the upgrade, so the old API keeps running.
+# With firstAdmin.enabled, the same Job then makes the first admin.
+migrations:
+  enabled: true
+  # Retries, with back-off: on a first install, the Job may start before SQL Server is ready.
+  backoffLimit: 6
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi

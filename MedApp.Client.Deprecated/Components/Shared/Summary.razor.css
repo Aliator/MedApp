@@ -1,0 +1,12 @@
+﻿.patient-summary {
+    background-color: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.patient-summary-danger {
+    background-color: var(--danger-50);
+    border: 1px solid var(--danger-200);
+    border-bottom-color: var(--danger-200);
+}

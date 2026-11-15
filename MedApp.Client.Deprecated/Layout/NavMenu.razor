@@ -1,0 +1,54 @@
+﻿<nav class="sidebar">
+    <div class="sidebar-header">
+        <div class="brand">
+            <div class="brand-icon">
+                <Icon Type="IconType.Shield" Size="24" />
+            </div>
+            <span class="brand-text">MedApp</span>
+        </div>
+    </div>
+
+    <div class="sidebar-content">
+        <ul class="nav-list">
+            <NavItem Href="/"
+                     Text="Home"
+                     Icon="IconType.Home"
+                     Match="NavLinkMatch.All" />
+
+            <NavItem Href="/patients"
+                     Text="Patients"
+                     Icon="IconType.Patients" />
+
+            @if (Auth.IsAdmin)
+            {
+                <li class="nav-divider">
+                    <span class="divider-text">Administration</span>
+                </li>
+
+                <NavItem Href="/admin/users"
+                         Text="Users"
+                         Icon="IconType.Users" />
+            }
+        </ul>
+    </div>
+
+    <div class="sidebar-footer">
+        <button class="sidebar-user-profile" @onclick="ViewAccount" type="button">
+            <div class="sidebar-user-avatar">
+                <Icon Type="IconType.Users" Size="20" />
+            </div>
+
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name">@Auth.Username</div>
+                <div class="sidebar-user-role">
+                    @(Auth.IsAdmin ? "Administrator" : "User")
+                </div>
+            </div>
+        </button>
+
+        <button class="logout-btn" @onclick="Logout">
+            <Icon Type="IconType.Logout" Size="20" />
+            <span>Logout</span>
+        </button>
+    </div>
+</nav>

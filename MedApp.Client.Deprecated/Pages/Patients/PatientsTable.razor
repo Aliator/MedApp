@@ -1,0 +1,117 @@
+﻿@page "/patients"
+
+<PageTitle>Patients - MedApp</PageTitle>
+
+<Page Title="Patients"
+      Subtitle="@GetSubtitle()"
+      ShowBackButton="false"
+      MaxWidth="1400">
+
+    <HeaderActions>
+        @if (IsSearchActive)
+        {
+            <button class="btn-tertiary" @onclick="ClearSearch">
+                <Icon Type="IconType.Cancel" Size="18" />
+                Clear Search
+            </button>
+        }
+        <button class="btn-tertiary" @onclick="() => _showSearch = true">
+            <Icon Type="IconType.Search" Size="18" />
+            Search
+        </button>
+        <button class="btn-primary" @onclick="AddPatient">
+            <Icon Type="IconType.Add" Size="18" />
+            Add Patients
+        </button>
+    </HeaderActions>
+
+    <Content>
+        @if (!Auth.IsAuthenticated && !_isLoading)
+        {
+            <LoadingState Message="Redirecting to login..." />
+        }
+        else if (!_isLoading && (_patients is null || _patients.Count == 0))
+        {
+            <EmptyState Title="No patients yet"
+                        Description="Get started by adding your first patient to the system."
+                        ButtonText="Add Your First Patients">
+                <CustomIcon>
+                    <Icon Type="IconType.Patients" Size="64"/>
+                </CustomIcon>
+            </EmptyState>
+        }
+        else
+        {
+            <DataTable IsLoading="@_isLoading"
+                       SkeletonColumns="4"
+                       AvatarFirstColumn="true"
+                       TableWidth="900"
+                       Widths='new[] { "25%", "22%", "27%", "26%" }'
+                       SortColumn="@_sortColumn"
+                       SortAscending="@_sortAscending"
+                       OnSort="HandleSort"
+                       TotalRows="@TotalRows"
+                       TotalPages="@TotalPages"
+                       CurrentPage="@_currentPage"
+                       OnPageChange="HandlePageChange"
+                       OnPageSizeChanged="HandlePageSizeChanged"
+                       SkeletonActionButtonCount="2"
+                       SkeletonLastColumnAsActions="true">
+                <Columns>
+                    <SortableHeader Column="Patients">Patients</SortableHeader>
+                    <SortableHeader Column="DateOfBirth">Date of Birth</SortableHeader>
+                    <SortableHeader Column="Email">Email</SortableHeader>
+                    <th class="actions-column">Actions</th>
+                </Columns>
+                <Rows>
+                    @foreach (var patient in PagedPatients)
+                    {
+                        <tr>
+                            <td>
+                                <AvatarCell AvatarText="@GetInitials(patient.FirstName, patient.LastName)"
+                                            PrimaryText="@($"{patient.FirstName} {patient.LastName}")"
+                                            SecondaryText="@($"ID: {patient.Id.ToString().Substring(0, 8)}")"/>
+                            </td>
+                            <td>
+                                <div class="dob-cell">
+                                    <span>@patient.DateOfBirth.ToString("MMM dd, yyyy")</span>
+                                    <span class="badge">@CalculateAge(patient.DateOfBirth) yrs</span>
+                                </div>
+                            </td>
+                            <td class="email-cell">
+                                <a href="mailto:@patient.Email" class="link" @onclick:stopPropagation="true">
+                                    @patient.Email
+                                </a>
+                            </td>
+                            <td class="actions-cell" @onclick:stopPropagation="true">
+                                <TableActions>
+                                    <button class="btn-table-action btn-view"
+                                            @onclick="() => ViewPatient(patient.Id)"
+                                            title="View patient">
+                                        <Icon Type="IconType.View" Size="16" />
+                                        <span class="mobile-hidden">View</span>
+                                    </button>
+                                    <button class="btn-table-action btn-edit"
+                                            @onclick="() => EditPatient(patient.Id)"
+                                            title="Edit patient">
+                                        <Icon Type="IconType.Edit" Size="16" />
+                                        <span class="mobile-hidden">Edit</span>
+                                    </button>
+                                </TableActions>
+                            </td>
+                        </tr>
+                    }
+                </Rows>
+            </DataTable>
+        }
+    </Content>
+
+    <Dialogs>
+        <SearchModal IsVisible="@_showSearch"
+                     Title="Search Patientss"
+                     Fields="@_searchFields"
+                     OnSearch="ApplySearch"
+                     OnClear="ClearSearch"
+                     OnClose="() => _showSearch = false" />
+    </Dialogs>
+</Page>

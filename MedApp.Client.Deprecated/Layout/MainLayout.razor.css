@@ -1,0 +1,19 @@
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.layout-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.layout-main {
+    flex: 1;
+    padding: 2rem;
+    background: #1f8eb917;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+}

@@ -1,0 +1,226 @@
+name: PR Unit Tests & Coverage
+on:
+  pull_request:
+    branches: [ main ]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  # MedApp.Web (React): lint, type check, theme drift, unit tests with coverage, and a production build.
+  # Its coverage summary goes into the sticky PR comment, after the .NET coverage (coverage-comment job).
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MedApp.Web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: MedApp.Web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Check the built theme is up to date
+        run: npm run theme:check
+
+      - name: Unit tests with coverage
+        run: npm run coverage
+
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-coverage
+          path: MedApp.Web/coverage/coverage-summary.json
+
+      - name: Build
+        run: npx vite build
+
+  # The Helm chart (deploy/helm/medapp): lint it and render it in the configurations it's used in, so a broken
+  # template fails here rather than on a deploy. Helm comes with the runner image.
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint with the chart's own SQL Server
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci
+
+      - name: Lint with the kind cluster's values
+        run: helm lint --strict deploy/helm/medapp --values deploy/kind/values.yaml --set image.tag=ci
+
+      - name: Lint with an external database, ingress and TLS
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set sql.enabled=false --set database.existingSecret=medapp-db
+          --set firstAdmin.existingSecret=medapp-first-admin
+          --set ingress.enabled=true --set ingress.host=medapp.example.com
+          --set ingress.tls.enabled=true --set ingress.tls.clusterIssuer=letsencrypt
+
+      - name: Lint with an external database from a secret store
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set sql.enabled=false --set externalSecrets.enabled=true
+          --set externalSecrets.secretStoreRef.name=key-vault --set externalSecrets.database.sa-password=null
+
+      - name: Render
+        run: helm template medapp deploy/helm/medapp --values deploy/kind/values.yaml --set image.tag=ci > /dev/null
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      
+      - name: Run unit tests with coverage
+        run: |
+          dotnet test MedApp.UnitTests \
+            --configuration Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./coverage
+      
+      - name: Generate coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@5f3701a41d14548c9b8e575a5c235230e515cbc0 # 5.6.0
+        with:
+          reports: 'coverage/**/coverage.cobertura.xml'
+          targetdir: 'coverage-report'
+          reporttypes: 'Html;MarkdownSummaryGithub;Cobertura'
+          # The API counts (controllers, middleware, auth, server rendering); the Aspire service defaults are wiring.
+          assemblyfilters: '+MedApp.*;-MedApp.Contracts;-MedApp.ServiceDefaults'
+          # Generated code (obj/: OpenAPI XML comments, regex source generators) isn't ours to test.
+          filefilters: '-**/Migrations/*.cs;-**/Program.cs;-**/Startup.cs;-**/obj/**'
+          classfilters: >-
+            -*Command;-*Query;-*Result;-*ServiceExtensions;-*ApplicationBuilderExtensions;-*Configuration;-*Settings;-*DbContext;-*Repository;-*Repositories.*;-MedApp.Infrastructure.Common.Authentication.SessionService;-MedApp.Infrastructure.Common.Identity.IdentityTransactions
+
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
+      
+      - name: Create detailed coverage comment
+        run: |
+          echo "## 📊 Coverage Report" > coverage-details.md
+          echo "" >> coverage-details.md
+          cat coverage-report/SummaryGithub.md >> coverage-details.md
+          echo "" >> coverage-details.md
+          echo "## 📉 Classes Below 80% Coverage" >> coverage-details.md
+
+          python3 << 'EOF'
+          import xml.etree.ElementTree as ET
+
+          EXCLUDED_PATTERNS = [
+              ".Domain.",
+              ".Repositories.",
+              "Repository",
+          ]
+
+          def is_excluded(name):
+              return any(p in name for p in EXCLUDED_PATTERNS)
+
+          tree = ET.parse('coverage-report/Cobertura.xml')
+          root = tree.getroot()
+
+          rows = []
+
+          for package in root.findall('.//package'):
+              for cls in package.findall('.//class'):
+                  class_name = cls.get('name')
+                  if not class_name or is_excluded(class_name):
+                      continue
+
+                  line_rate = float(cls.get('line-rate', 0)) * 100
+                  branch_rate = float(cls.get('branch-rate', 0)) * 100 if cls.get('branch-rate') else 100
+
+                  if line_rate < 80:
+                      rows.append((class_name, line_rate, branch_rate))
+
+          rows.sort(key=lambda x: x[1])
+
+          # Collapsible like ReportGenerator's sections. The blank line after
+          # <summary> is required for GitHub to render the table inside it.
+          with open('coverage-details.md', 'a') as f:
+              f.write(f"<details><summary>{len(rows)} classes below 80%</summary>\n\n")
+              f.write("|**Class**|**Line**|**Branch**|\n")
+              f.write("|:---|---:|---:|\n")
+              if rows:
+                  for name, line, branch in rows:
+                      f.write(f"|`{name}`|{line:.1f}%|{branch:.1f}%|\n")
+              else:
+                  f.write("|*All classes above 80% coverage!* 🎉|-|-|\n")
+              f.write("\n</details>\n")
+          EOF
+
+
+      - name: Upload coverage comment
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-coverage-comment
+          path: coverage-details.md
+
+  # One sticky PR comment for both: the .NET section from unit-tests, then MedApp.Web's from its summary.
+  coverage-comment:
+    needs: [web, unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dotnet-coverage-comment
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-coverage
+          path: web-coverage
+
+      - name: Add MedApp.Web coverage
+        run: |
+          python3 << 'EOF'
+          import json
+
+          summary = json.load(open('web-coverage/coverage-summary.json'))
+          total = summary.pop('total')
+
+          def pct(metric):
+              return f"{metric['pct']:.1f}% ({metric['covered']} of {metric['total']})"
+
+          rows = sorted(
+              ((path.split('MedApp.Web/', 1)[-1], m['lines']['pct'], m['branches']['pct'])
+               for path, m in summary.items() if m['lines']['pct'] < 80),
+              key=lambda r: r[1])
+
+          with open('coverage-details.md', 'a', encoding='utf-8') as f:
+              f.write("\n## 🌐 MedApp.Web Coverage\n\n")
+              f.write("|||\n|:---|:---|\n")
+              f.write(f"| **Line coverage:** | {pct(total['lines'])} |\n")
+              f.write(f"| **Branch coverage:** | {pct(total['branches'])} |\n")
+              f.write(f"| **Function coverage:** | {pct(total['functions'])} |\n")
+              f.write(f"| **Statement coverage:** | {pct(total['statements'])} |\n\n")
+              f.write(f"<details><summary>{len(rows)} files below 80%</summary>\n\n")
+              f.write("|**File**|**Line**|**Branch**|\n|:---|---:|---:|\n")
+              if rows:
+                  for path, line, branch in rows:
+                      f.write(f"|`{path}`|{line:.1f}%|{branch:.1f}%|\n")
+              else:
+                  f.write("|*All files above 80% coverage!* 🎉|-|-|\n")
+              f.write("\n</details>\n")
+          EOF
+
+      - name: Comment PR with coverage summary
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          recreate: true
+          path: coverage-details.md

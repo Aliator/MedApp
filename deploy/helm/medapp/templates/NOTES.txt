@@ -1,0 +1,12 @@
+MedApp {{ .Values.image.tag }} is deployed as {{ include "medapp.fullname" . }} in {{ .Release.Namespace }}.
+{{- if .Values.ingress.enabled }}
+
+Open: {{ if .Values.ingress.tls.enabled }}https{{ else }}http{{ end }}://{{ .Values.ingress.host | default "<the ingress controller's address>" }}/
+{{- else }}
+
+No ingress is enabled. To try it from this machine:
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "medapp.fullname" . }}-api 8080:{{ .Values.api.service.port }}
+and open http://localhost:8080/
+{{- end }}
+
+The app seeds no accounts. See deploy/helm/medapp/README.md for the first sign-in.
