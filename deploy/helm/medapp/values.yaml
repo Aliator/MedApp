@@ -1,0 +1,79 @@
+# MedApp's Helm chart. See README.md for installing it, and deploy/kind/values.yaml for the local cluster's values.
+
+# The API's image, built from MedApp.API/Dockerfile. It also holds the migrations bundle the migrations Job runs.
+image:
+  repository: medapp-api
+  # Required: the image's tag. Never "latest", so each release names exactly what it runs.
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+api:
+  # Keep this at 1 for now. More copies need a SignalR backplane (live notifications reach only the copy a browser
+  # is connected to) and shared ASP.NET data-protection keys (docs/todo.md).
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  # Extra environment variables for the API, as a list of {name, value} (or valueFrom).
+  env: []
+  service:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: false
+  # The cluster's ingress class, e.g. traefik. Empty uses the cluster's default class.
+  className: ""
+  annotations: {}
+  # The host name to answer on. Empty answers on any host.
+  host: ""
+  tls:
+    enabled: false
+    # A kubernetes.io/tls Secret with the certificate for host.
+    secretName: ""
+
+database:
+  # An existing Secret with the API's connection string (key connection-string) and, with sql.enabled, the sa
+  # password (key sa-password). Required for an external database (sql.enabled false). When empty, the chart makes
+  # one for its own SQL Server, with a random password that's kept across upgrades and not deleted on uninstall,
+  # so it still opens the data volume after a reinstall.
+  existingSecret: ""
+
+# SQL Server in the cluster, one pod with its data on a volume. Turn it off to use an external database, such as
+# Azure SQL, through database.existingSecret.
+sql:
+  enabled: true
+  image: mcr.microsoft.com/mssql/server:2022-latest
+  # Developer is free, for anything but production. Production needs a licensed edition (Express, Standard...).
+  edition: Developer
+  storage:
+    size: 5Gi
+    # Empty uses the cluster's default storage class.
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 3Gi
+  service:
+    type: ClusterIP
+    # With type NodePort: the node port to expose it on (the kind cluster uses 31433, for dotnet ef and debugging).
+    nodePort: null
+
+# The EF migrations, run by a Job from the API's image (/app/efbundle) before each upgrade, and after the first
+# install (once the in-chart SQL Server exists). A failed migration fails the upgrade, so the old API keeps running.
+migrations:
+  enabled: true
+  # Retries, with back-off: on a first install, the Job may start before SQL Server is ready.
+  backoffLimit: 6
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi

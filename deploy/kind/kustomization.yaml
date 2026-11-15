@@ -1,9 +1,0 @@
-# MedApp on the local kind cluster: SQL Server and the API, in the medapp namespace. Applied by up.sh
-# (kubectl apply -k deploy/kind). The medapp-sql secret isn't here: up.sh generates it, so no password is in git.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: medapp
-resources:
-  - namespace.yaml
-  - sql.yaml
-  - api.yaml

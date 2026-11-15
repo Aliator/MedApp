@@ -25,3 +25,5 @@ Infrastructure/
 UnitTests/
 IntegrationTests/
 E2ETests/
+# The Dockerfile is read on its own; copied in with its folder, editing a comment in it would change the image.
+**/Dockerfile

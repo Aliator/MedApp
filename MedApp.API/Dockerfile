@@ -6,7 +6,8 @@
 #
 # Built from the repo root (it needs the API's projects and MedApp.Web):
 #   docker build -f MedApp.API/Dockerfile -t medapp-api .
-# The AppHost builds it this way when publishing (MedApp.AppHost/AppHost.cs).
+# The AppHost builds it this way when publishing (MedApp.AppHost/AppHost.cs), and so does deploy/kind/up.sh. It also
+# holds the EF migrations bundle (/app/efbundle) that the Helm chart's migrations Job runs.
 
 ARG NODE_VERSION=22
 ARG DOTNET_VERSION=10.0
@@ -37,6 +38,12 @@ COPY MedApp.Domain/ MedApp.Domain/
 COPY MedApp.Infrastructure/ MedApp.Infrastructure/
 COPY MedApp.ServiceDefaults/ MedApp.ServiceDefaults/
 RUN dotnet publish MedApp.API/MedApp.API.csproj --configuration Release --no-restore --output /app
+# The EF migrations as a bundle (/app/efbundle), which the Helm chart's migrations Job runs from this same image, so
+# the schema always matches the API. dotnet-ef's version follows the EF Core packages (MedApp.Infrastructure).
+ARG DOTNET_EF_VERSION=10.0.15
+RUN dotnet tool install --global dotnet-ef --version ${DOTNET_EF_VERSION}
+RUN /root/.dotnet/tools/dotnet-ef migrations bundle --project MedApp.Infrastructure --startup-project MedApp.API \
+    --configuration Release --output /app/efbundle
 
 # 3. The runtime: ASP.NET Core, Node (just its binary, from the official image), the API and the app.
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS final

@@ -1,0 +1,16 @@
+# The Helm chart's values (deploy/helm/medapp) for the local kind cluster. up.sh sets image.tag.
+image:
+  repository: medapp-api
+  # Loaded into the cluster by up.sh (kind load), so never pulled.
+  pullPolicy: Never
+
+ingress:
+  enabled: true
+  # Traefik, which up.sh installs, answers on http://localhost:8080 (cluster.yaml maps its node port there).
+  className: traefik
+
+sql:
+  service:
+    # Reachable from this machine on 127.0.0.1,14331 (cluster.yaml), for dotnet ef and debugging.
+    type: NodePort
+    nodePort: 31433
