@@ -14,9 +14,5 @@ public sealed class CreateUserValidator
             .WithMessage("Username must be at least 3 characters long.")
             .MaximumLength(50)
             .WithMessage("Username must not exceed 50 characters.");
-
-        RuleFor(x => x.Password)
-            .NotEmpty()
-            .WithMessage("Password must not be empty.");
     }
 }

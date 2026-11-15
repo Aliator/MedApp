@@ -35,19 +35,31 @@ public sealed class IdentityUserServicePasswordTests
             RequiredLength = 12, RequireUppercase = true, RequireLowercase = true, RequireDigit = true, RequireNonAlphanumeric = true,
         });
 
-        password.Should().HaveLength(12);
+        // Generated passwords are at least 16 characters, more than the 12 the rules ask for.
+        password.Should().HaveLength(16);
         password.Should().MatchRegex("[A-Z]").And.MatchRegex("[a-z]").And.MatchRegex("[0-9]").And.MatchRegex("[^A-Za-z0-9]");
     }
 
     [Test]
-    public async Task ResetUserPasswordAsync_NoRulesAndNoLength_MakesEightLettersAndDigits()
+    public async Task ResetUserPasswordAsync_NoRulesAndNoLength_MakesSixteenLettersAndDigits()
     {
         var password = await ResetPassword(new PasswordOptions
         {
             RequiredLength = 0, RequiredUniqueChars = 0, RequireUppercase = false, RequireLowercase = false, RequireDigit = false, RequireNonAlphanumeric = false,
         });
 
-        password.Should().HaveLength(8).And.MatchRegex("^[A-Za-z0-9]+$");
+        password.Should().HaveLength(16).And.MatchRegex("^[A-Za-z0-9]+$");
+    }
+
+    [Test]
+    public async Task ResetUserPasswordAsync_LongerRequiredLength_UsesIt()
+    {
+        var password = await ResetPassword(new PasswordOptions
+        {
+            RequiredLength = 24, RequiredUniqueChars = 1, RequireUppercase = true, RequireLowercase = true, RequireDigit = true, RequireNonAlphanumeric = true,
+        });
+
+        password.Should().HaveLength(24);
     }
 
     [Test]
@@ -55,21 +67,10 @@ public sealed class IdentityUserServicePasswordTests
     {
         var password = await ResetPassword(new PasswordOptions
         {
-            RequiredLength = 6, RequiredUniqueChars = 10, RequireUppercase = true, RequireLowercase = false, RequireDigit = true, RequireNonAlphanumeric = false,
+            RequiredLength = 6, RequiredUniqueChars = 20, RequireUppercase = true, RequireLowercase = false, RequireDigit = true, RequireNonAlphanumeric = false,
         });
 
-        password.Should().HaveLength(10);
-        password.Distinct().Should().HaveCount(10);
-    }
-
-    [Test]
-    public async Task ResetUserPasswordAsync_MoreRequiredKindsThanLength_GrowsToFitThem()
-    {
-        var password = await ResetPassword(new PasswordOptions
-        {
-            RequiredLength = 2, RequiredUniqueChars = 1, RequireUppercase = true, RequireLowercase = true, RequireDigit = true, RequireNonAlphanumeric = true,
-        });
-
-        password.Should().HaveLength(4);
+        password.Should().HaveLength(20);
+        password.Distinct().Should().HaveCount(20);
     }
 }

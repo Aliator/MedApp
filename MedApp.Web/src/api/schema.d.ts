@@ -54,7 +54,22 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "text/plain": components["schemas"]["CreateUserResponse"];
+                        "application/json": components["schemas"]["CreateUserResponse"];
+                        "text/json": components["schemas"]["CreateUserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IdentityError"][];
+                        "application/json": components["schemas"]["IdentityError"][];
+                        "text/json": components["schemas"]["IdentityError"][];
+                    };
                 };
             };
         };
@@ -2677,6 +2692,9 @@ export interface components {
             name?: string | null;
         };
         CreateUserRequest: {
+            username?: string | null;
+        };
+        CreateUserResponse: {
             username?: string | null;
             password?: string | null;
         };

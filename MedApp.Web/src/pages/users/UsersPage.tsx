@@ -10,20 +10,14 @@ import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {ApiValidationError, allMessages} from '../../api/errors';
 import {userSearchQuery, type UserPage} from '../../api/search';
-import {
-  DEFAULT_NEW_USER_PASSWORD,
-  rolesQuery,
-  useCreateUser,
-  useDeleteUser,
-  useResetPassword,
-  useSetRoles,
-} from '../../api/users';
+import {rolesQuery, useCreateUser, useDeleteUser, useResetPassword, useSetRoles, type CreatedUser} from '../../api/users';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {OneTimePassword} from '../../components/shared/OneTimePassword';
 import {AvatarCell} from '../../components/tables/AvatarCell';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
@@ -36,6 +30,12 @@ type User = NonNullable<UserPage['items']>[number];
 /** The same roles, in any order. */
 const sameRoles = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((r) => b.includes(r));
 type UserRow = User & Record<string, unknown>;
+
+/**
+ * How long "Done" ignores clicks once a generated password appears in its place: the second click of a double-click
+ * on "Create User" or "Reset Password" would otherwise close the dialog before the password was seen.
+ */
+const PASSWORD_DONE_HOLD_MS = 1000;
 
 type DialogState =
   | {kind: 'create'}
@@ -55,8 +55,8 @@ export interface UsersPageProps {
 
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
- * dialogs to create users, edit their roles (every role listed, theirs ticked), reset passwords and delete users
- * (confirmed with the admin's own password). Admins can't change
+ * dialogs to create users (the server generates the first password, shown once), edit their roles (every role
+ * listed, theirs ticked), reset passwords and delete users (confirmed with the admin's own password). Admins can't change
  * their own account here, as in Blazor.
  */
 /** The list's page of users, for its search and page size, given every role (the route's loader fetches it too). */
@@ -93,6 +93,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState<string | null>(null);
+  // The account just created, with its generated first password: shown once, then cleared when the dialog closes.
+  const [created, setCreated] = useState<CreatedUser | null>(null);
   // Deleting a user: the admin's own password, and why it was refused.
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteProblem, setDeleteProblem] = useState<string | null>(null);
@@ -103,13 +105,22 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     setSelectedRoles(next && next.kind !== 'create' ? next.roles : []);
     setNewUsername('');
     setNewPassword(null);
+    setCreated(null);
     setDeletePassword('');
     setDeleteProblem(null);
     create.reset();
     setError(null);
     setDialog(next);
   };
-  const close = () => setDialog(null);
+  const close = () => {
+    setDialog(null);
+    // However the dialog closed (Done, Cancel, Escape or its close button), the generated passwords go from the
+    // page's state and from the mutations, so they don't stay in memory.
+    setCreated(null);
+    setNewPassword(null);
+    create.reset();
+    reset.reset();
+  };
   const failed = (message: string) => () => {
     setError(message);
     close();
@@ -176,31 +187,44 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'create'}
             title="Create New User"
-            message="Enter a username for the new user."
+            message={created ? `Account created for ${created.username}.` : 'Enter a username for the new user.'}
             icon={AppIcon.Add}
-            confirmText="Create User"
+            confirmText={created ? 'Done' : 'Create User'}
+            confirmHoldMs={created ? PASSWORD_DONE_HOLD_MS : undefined}
             isProcessing={create.isPending}
-            confirmDisabled={!newUsername.trim()}
-            onConfirm={() => create.mutate(newUsername.trim(), {onSuccess: close})}
+            confirmDisabled={!created && !newUsername.trim()}
+            onConfirm={() => (created ? close() : create.mutate(newUsername.trim(), {onSuccess: setCreated}))}
             onCancel={close}>
-            <TextInput
-              label="Username"
-              value={newUsername}
-              onChange={setNewUsername}
-              placeholder="Enter username"
-              // A new account's name: never a saved login.
-              autoComplete="off"
-              description={`Default password will be: ${DEFAULT_NEW_USER_PASSWORD}`}
-              isRequired
-              hasAutoFocus
-              status={
-                createErrors
-                  ? {type: 'error', message: allMessages(createErrors).join(' ')}
-                  : create.isError
-                    ? {type: 'error', message: 'The user could not be created. Please try again.'}
-                    : undefined
-              }
-            />
+            {created ? (
+              <OneTimePassword
+                label="First password"
+                password={created.password}
+                username={created.username}
+                announcement={`Account created for ${created.username}.`}
+              />
+            ) : (
+              // Only while it's open, so its autofocus can't act in a closing dialog.
+              dialog?.kind === 'create' && (
+                <TextInput
+                  label="Username"
+                  value={newUsername}
+                  onChange={setNewUsername}
+                  placeholder="Enter username"
+                  // A new account's name: never a saved login.
+                  autoComplete="off"
+                  description="A password is generated for the account and shown to you once."
+                  isRequired
+                  hasAutoFocus
+                  status={
+                    createErrors
+                      ? {type: 'error', message: allMessages(createErrors).join(' ')}
+                      : create.isError
+                        ? {type: 'error', message: 'The user could not be created. Please try again.'}
+                        : undefined
+                  }
+                />
+              )
+            )}
           </ConfirmDialog>
 
           <SelectionDialog
@@ -230,6 +254,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             icon={AppIcon.Lock}
             intent="warning"
             confirmText={newPassword ? 'Done' : 'Reset Password'}
+            confirmHoldMs={newPassword ? PASSWORD_DONE_HOLD_MS : undefined}
             isProcessing={reset.isPending}
             onConfirm={() =>
               newPassword
@@ -237,18 +262,13 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
                 : target && reset.mutate(target.username, {onSuccess: setNewPassword, onError: failed('The password could not be reset.')})
             }
             onCancel={close}>
-            {newPassword && (
-              <VStack gap={2} hAlign="center">
-                <Text type="supporting" color="secondary">
-                  New password
-                </Text>
-                <Text type="code" size="lg">
-                  {newPassword}
-                </Text>
-                <Text type="supporting" color="secondary" justify="center">
-                  Please save this password and share it securely with the user.
-                </Text>
-              </VStack>
+            {newPassword && target && (
+              <OneTimePassword
+                label="New password"
+                password={newPassword}
+                username={target.username}
+                announcement={`Password reset for ${target.username}.`}
+              />
             )}
           </ConfirmDialog>
 

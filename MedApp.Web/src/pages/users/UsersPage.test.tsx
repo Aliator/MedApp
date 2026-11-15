@@ -1,5 +1,6 @@
-import {screen, waitFor, within} from '@testing-library/react';
-import {DEFAULT_NEW_USER_PASSWORD, parsePasswordBody} from '../../api/users';
+import type {QueryClient} from '@tanstack/react-query';
+import {act, screen, waitFor, within} from '@testing-library/react';
+import {parsePasswordBody} from '../../api/users';
 import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
 import {UsersPage} from './UsersPage';
@@ -24,6 +25,27 @@ function renderUsers(search: UsersListSearch = {}, extra: Parameters<typeof mock
 const rowOf = async (username: string) => (await screen.findByText(username)).closest('tr')!;
 const bodies = (fetch: ReturnType<typeof mockApi>, method: string) =>
   Promise.all(fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === method).map((r) => r.clone().json()));
+
+type User = ReturnType<typeof renderUsers>['user'];
+
+const FIRST_PASSWORD = 'Synth3ticFirst';
+const createdUser = {'POST /api/auth/users': () => json({username: 'new.user', password: FIRST_PASSWORD})};
+
+/** Opens Add User, types the name and creates it, then waits for the generated password. */
+async function createNewUser(user: User) {
+  await user.click(await screen.findByRole('button', {name: 'Add User'}));
+  await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
+  await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
+  await within(openDialog()!).findByText(FIRST_PASSWORD);
+}
+
+/** Waits out the moment "Done" ignores clicks after a password appears (PASSWORD_DONE_HOLD_MS). */
+const afterTheHold = () => act(() => vi.advanceTimersByTimeAsync(1000));
+
+/** Whether a password is still anywhere: in the page (closed dialogs stay in it) or in the mutation cache. */
+const passwordKept = (queryClient: QueryClient, password: string) =>
+  document.body.textContent!.includes(password) ||
+  queryClient.getMutationCache().getAll().some((m) => JSON.stringify(m.state.data ?? null).includes(password));
 
 describe('UsersPage', () => {
   it('lists users with their roles', async () => {
@@ -52,16 +74,81 @@ describe('UsersPage', () => {
     expect(screen.getByText('3 users found')).toBeInTheDocument();
   });
 
-  it('creates a user with the default password', async () => {
-    const {user, fetch} = renderUsers({}, {'POST /api/auth/users': () => new Response(null, {status: 204})});
+  it('creates a user with only a username, then shows the generated password once, focused and announced', async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
+    const {user, fetch, queryClient} = renderUsers({}, createdUser);
 
     await user.click(await screen.findByRole('button', {name: 'Add User'}));
-    expect(within(openDialog()!).getByText(`Default password will be: ${DEFAULT_NEW_USER_PASSWORD}`)).toBeInTheDocument();
+    expect(within(openDialog()!).getByText('A password is generated for the account and shown to you once.')).toBeInTheDocument();
     await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
     await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
 
-    await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await bodies(fetch, 'POST')).toEqual([{username: 'new.user', password: DEFAULT_NEW_USER_PASSWORD}]);
+    const dialog = within(openDialog()!);
+    expect(await dialog.findByText(FIRST_PASSWORD)).toBeInTheDocument();
+    expect(dialog.getByText('Account created for new.user.')).toBeInTheDocument();
+    expect(dialog.getByText(/shown only this once, and works until new\.user changes it/)).toBeInTheDocument();
+    await waitFor(() => expect(dialog.getByRole('button', {name: 'Copy password'})).toHaveFocus());
+    expect(await bodies(fetch, 'POST')).toEqual([{username: 'new.user'}]);
+    await afterTheHold();
+    expect(screen.getByTestId('announcer')).toHaveTextContent(/Account created for new\.user\. Its password is shown once/);
+    expect(screen.getByTestId('announcer')).not.toHaveTextContent(FIRST_PASSWORD);
+
+    await user.click(dialog.getByRole('button', {name: 'Done'}));
+    expect(openDialog()).toBeNull();
+    await waitFor(() => expect(passwordKept(queryClient, FIRST_PASSWORD)).toBe(false));
+
+    // Opening it again starts afresh.
+    await user.click(screen.getByRole('button', {name: 'Add User'}));
+    expect(within(openDialog()!).getByLabelText(/username/i)).toHaveValue('');
+  });
+
+  it('copies the new password', async () => {
+    const {user} = renderUsers({}, createdUser);
+
+    await createNewUser(user);
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Copy password'}));
+
+    expect(await within(openDialog()!).findByRole('button', {name: 'Copied'})).toBeInTheDocument();
+    expect(await navigator.clipboard.readText()).toBe(FIRST_PASSWORD);
+  });
+
+  it("doesn't let the second click of a double-click on Create User close the dialog", async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    const {user} = renderUsers({}, createdUser);
+
+    await createNewUser(user);
+    // Done now sits where Create User was: a click on it straight away does nothing.
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Done'}));
+    expect(within(openDialog()!).getByText(FIRST_PASSWORD)).toBeInTheDocument();
+
+    await afterTheHold();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Done'}));
+    expect(openDialog()).toBeNull();
+  });
+
+  it.each([
+    ['Escape', (user: User) => user.keyboard('{Escape}')],
+    ['the close button', (user: User) => user.click(within(openDialog()!).getByRole('button', {name: /close/i}))],
+    ['Cancel', (user: User) => user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}))],
+  ])('forgets the new password when the dialog is closed by %s', async (_, dismiss) => {
+    const {user, queryClient} = renderUsers({}, createdUser);
+
+    await createNewUser(user);
+    await dismiss(user);
+
+    expect(openDialog()).toBeNull();
+    await waitFor(() => expect(passwordKept(queryClient, FIRST_PASSWORD)).toBe(false));
+  });
+
+  it('says a new user could not be created when the API sends back no password', async () => {
+    const {user} = renderUsers({}, {'POST /api/auth/users': () => json({username: 'new.user'})});
+
+    await user.click(await screen.findByRole('button', {name: 'Add User'}));
+    await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
+
+    expect((await within(openDialog()!).findAllByText('The user could not be created. Please try again.')).length).toBeGreaterThan(0);
   });
 
   it("edits a user's roles in one dialog, starting from theirs, saved in one request", async () => {
@@ -122,15 +209,23 @@ describe('UsersPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({asc: false, role: undefined, page: undefined}));
   });
 
-  it('resets a password and shows the new one', async () => {
-    const {user} = renderUsers({}, {'PUT /api/auth/users/*': () => new Response('Synth3tic', {headers: {'content-type': 'text/plain'}})});
+  it('resets a password and shows the new one, then forgets it', async () => {
+    vi.useFakeTimers({shouldAdvanceTime: true});
+    const {user, queryClient} = renderUsers({}, {'PUT /api/auth/users/*': () => new Response('Synth3tic', {headers: {'content-type': 'text/plain'}})});
 
     await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Reset password'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Reset Password'}));
 
     expect(await within(openDialog()!).findByText('Synth3tic')).toBeInTheDocument();
+    expect(within(openDialog()!).getByText(/works until a\.hartwell changes it/)).toBeInTheDocument();
+    await waitFor(() => expect(within(openDialog()!).getByRole('button', {name: 'Copy password'})).toHaveFocus());
+    // Done takes Reset Password's place, and ignores a click straight away.
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Done'}));
+    expect(openDialog()).not.toBeNull();
+    await afterTheHold();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Done'}));
     expect(openDialog()).toBeNull();
+    await waitFor(() => expect(passwordKept(queryClient, 'Synth3tic')).toBe(false));
   });
 
   it('says when a reset gives back no new password', async () => {
