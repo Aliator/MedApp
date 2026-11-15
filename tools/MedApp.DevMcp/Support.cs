@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using FluentValidation;
+using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -101,5 +102,17 @@ public static class Passwords
         for (var i = 3; i < length; i++) chars[i] = all[RandomNumberGenerator.GetInt32(all.Length)];
         RandomNumberGenerator.Shuffle(chars.AsSpan());
         return new string(chars);
+    }
+
+    /// <summary>Checks a chosen password against the app's Identity password rules, without creating or changing anything.</summary>
+    public static async Task<IdentityResult> Validate(UserManager<ApplicationUser> users, string username, string password)
+    {
+        var errors = new List<IdentityError>();
+        foreach (var validator in users.PasswordValidators)
+        {
+            var result = await validator.ValidateAsync(users, new ApplicationUser { UserName = username }, password);
+            errors.AddRange(result.Errors);
+        }
+        return errors.Count == 0 ? IdentityResult.Success : IdentityResult.Failed([.. errors]);
     }
 }

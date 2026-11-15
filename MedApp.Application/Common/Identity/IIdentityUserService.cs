@@ -5,9 +5,12 @@ namespace MedApp.Application.Common.Identity;
 
 public interface IIdentityUserService
 {
-    Task<IdentityResult> CreateUserAsync(
+    /// <summary>
+    /// Creates an account with a generated password that meets the Identity password rules (the same generator as
+    /// <see cref="ResetUserPasswordAsync"/>). The result carries the password, once, when the account was created.
+    /// </summary>
+    Task<CreateUserResult> CreateUserAsync(
         string username,
-        string password,
         CancellationToken ct);
     
     Task<IdentityResult> UpdateUserPasswordAsync(

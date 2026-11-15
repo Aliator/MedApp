@@ -14,6 +14,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 ## Features
 
+- **Force a password change at first sign-in** (a must-change flag on the account; needs a migration).
 - **More notifications.** The bell (beside MedApp) and live delivery are in place, for being assigned a procedure. Add more kinds through `INotificationSender`: one of yours overdue or blocked, a stage unlocked, and optionally an email for each.
 
 ## Deployment

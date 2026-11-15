@@ -3,7 +3,7 @@ using MediatR;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
 using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
-using MedApp.Application.Authentication.Users.Commands.DeleteUser;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
@@ -51,9 +51,10 @@ public sealed class AccountTools
         await roles.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
 
     [McpServerTool(Name = "create_user")]
-    [Description("Creates a local dev account and gives it the listed roles. If no password is given, a random one is generated and returned. Use synthetic usernames only (e.g. dev-admin, dev-clinician).")]
+    [Description("Creates a local dev account and gives it the listed roles. If no password is given, the app generates one (as it does for accounts created in the UI), and it's returned. Use synthetic usernames only (e.g. dev-admin, dev-clinician).")]
     public static async Task<object> CreateUser(
         IMediator mediator,
+        UserManager<ApplicationUser> users,
         RoleManager<IdentityRole<Guid>> roleManager,
         [Description("Username for the new account.")] string username,
         [Description("Roles to give it, e.g. [\"Admin\"] or [\"User\"]. Must already exist.")] string[]? roles = null,
@@ -65,8 +66,24 @@ public sealed class AccountTools
             if (!await roleManager.RoleExistsAsync(role))
                 throw new McpException($"Role '{role}' does not exist. Use list_roles.");
 
-        password ??= Passwords.Generate();
-        Guards.Check(await Guards.Validated(() => mediator.Send(new CreateUserCommand(username, password), ct)), "Create user");
+        // A chosen password is checked against the password rules first, so a weak one doesn't leave an account behind.
+        if (password is not null)
+            Guards.Check(await Passwords.Validate(users, username, password), "Check password");
+
+        // The app's command generates the first password; a chosen one then replaces it.
+        var created = await Guards.Validated(() => mediator.Send(new CreateUserCommand(username), ct));
+        Guards.Check(created.Result, "Create user");
+        if (password is null)
+        {
+            password = created.GeneratedPassword!;
+        }
+        else
+        {
+            var user = await users.FindByNameAsync(username) ?? throw new McpException($"{username} was not created.");
+            var token = await users.GeneratePasswordResetTokenAsync(user);
+            Guards.Check(await users.ResetPasswordAsync(user, token, password), "Set password");
+        }
+
         foreach (var role in roles)
             await Guards.Validated(() => mediator.Send(new AssignRoleCommand(username, role), ct));
 
@@ -131,7 +148,7 @@ public sealed class AccountTools
     [McpServerTool(Name = "delete_user", Destructive = true)]
     [Description("Deletes an account. Refuses protected accounts. Needs confirm: true.")]
     public static async Task<object> DeleteUser(
-        IMediator mediator,
+        IIdentityUserService userService,
         DevMcpOptions options,
         [Description("Account to delete.")] string username,
         [Description("Must be true to delete.")] bool confirm = false,
@@ -139,7 +156,8 @@ public sealed class AccountTools
     {
         Guards.RequireNotProtected(options, username, "delete");
         Guards.RequireConfirm(confirm, $"Deleting '{username}'");
-        Guards.Check(await Guards.Validated(() => mediator.Send(new DeleteUserCommand(username), ct)), "Delete user");
+        // Not DeleteUserCommand: that wants a signed-in admin's password to confirm, and confirm: true does that here.
+        Guards.Check(await userService.DeleteUserAsync(username, ct), "Delete user");
         return new { username, deleted = true };
     }
 }

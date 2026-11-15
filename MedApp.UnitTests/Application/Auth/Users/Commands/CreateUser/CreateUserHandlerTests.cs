@@ -28,26 +28,43 @@ public sealed class CreateUserHandlerTests
     }
 
     [Test]
-    public async Task Handle_ValidCommand_ReturnsIdentityResult()
+    public async Task Handle_ValidCommand_ReturnsTheResultWithTheGeneratedPassword()
     {
-        var result = IdentityResult.Success;
+        var result = new CreateUserResult(IdentityResult.Success, AuthTestConstants.ValidPassword);
 
         _userService
             .Setup(s => s.CreateUserAsync(
                 AuthTestConstants.Usernames[0],
-                AuthTestConstants.Passwords[0],
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
-        var command = new CreateUserCommand(
-            AuthTestConstants.Usernames[0],
-            AuthTestConstants.Passwords[0]);
+        var command = new CreateUserCommand(AuthTestConstants.Usernames[0]);
 
         var response = await _handler.Handle(
             command,
             CancellationToken.None);
 
         response.Should().Be(result);
+        response.GeneratedPassword.Should().Be(AuthTestConstants.ValidPassword);
+    }
+
+    [Test]
+    public async Task Handle_ServiceFails_ReturnsTheFailureWithoutAPassword()
+    {
+        var failed = new CreateUserResult(IdentityResult.Failed(IdentityErrors.UserNotFound), null);
+
+        _userService
+            .Setup(s => s.CreateUserAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(failed);
+
+        var response = await _handler.Handle(
+            new CreateUserCommand(AuthTestConstants.Usernames[0]),
+            CancellationToken.None);
+
+        response.Result.Succeeded.Should().BeFalse();
+        response.GeneratedPassword.Should().BeNull();
     }
 
     [Test]
@@ -56,20 +73,16 @@ public sealed class CreateUserHandlerTests
         _userService
             .Setup(s => s.CreateUserAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(IdentityResult.Success);
+            .ReturnsAsync(new CreateUserResult(IdentityResult.Success, AuthTestConstants.ValidPassword));
 
-        var command = new CreateUserCommand(
-            AuthTestConstants.Usernames[0],
-            AuthTestConstants.Passwords[0]);
+        var command = new CreateUserCommand(AuthTestConstants.Usernames[0]);
 
         await _handler.Handle(command, CancellationToken.None);
 
         _userService.Verify(
             s => s.CreateUserAsync(
                 AuthTestConstants.Usernames[0],
-                AuthTestConstants.Passwords[0],
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -80,21 +93,17 @@ public sealed class CreateUserHandlerTests
         _userService
             .Setup(s => s.CreateUserAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(IdentityResult.Success);
+            .ReturnsAsync(new CreateUserResult(IdentityResult.Success, AuthTestConstants.ValidPassword));
 
         using var cts = new CancellationTokenSource();
 
-        var command = new CreateUserCommand(
-            AuthTestConstants.Usernames[0],
-            AuthTestConstants.Passwords[0]);
+        var command = new CreateUserCommand(AuthTestConstants.Usernames[0]);
 
         await _handler.Handle(command, cts.Token);
 
         _userService.Verify(
             s => s.CreateUserAsync(
-                It.IsAny<string>(),
                 It.IsAny<string>(),
                 cts.Token),
             Times.Once);

@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {DEFAULT_NEW_USER_PASSWORD, parsePasswordBody} from '../../api/users';
+import {parsePasswordBody} from '../../api/users';
 import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
 import {UsersPage} from './UsersPage';
@@ -52,16 +52,37 @@ describe('UsersPage', () => {
     expect(screen.getByText('3 users found')).toBeInTheDocument();
   });
 
-  it('creates a user with the default password', async () => {
-    const {user, fetch} = renderUsers({}, {'POST /api/auth/users': () => new Response(null, {status: 204})});
+  it('creates a user with only a username, then shows the generated password once', async () => {
+    const {user, fetch} = renderUsers({}, {'POST /api/auth/users': () => json({username: 'new.user', password: 'Synth3ticFirst'})});
 
     await user.click(await screen.findByRole('button', {name: 'Add User'}));
-    expect(within(openDialog()!).getByText(`Default password will be: ${DEFAULT_NEW_USER_PASSWORD}`)).toBeInTheDocument();
+    expect(within(openDialog()!).getByText('A password is generated for the account and shown to you once.')).toBeInTheDocument();
     await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
     await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
 
-    await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await bodies(fetch, 'POST')).toEqual([{username: 'new.user', password: DEFAULT_NEW_USER_PASSWORD}]);
+    const dialog = within(openDialog()!);
+    expect(await dialog.findByText('Synth3ticFirst')).toBeInTheDocument();
+    expect(dialog.getByText('Account created for new.user.')).toBeInTheDocument();
+    expect(dialog.getByText(/shown only once/)).toBeInTheDocument();
+    expect(await bodies(fetch, 'POST')).toEqual([{username: 'new.user'}]);
+
+    await user.click(dialog.getByRole('button', {name: 'Done'}));
+    expect(openDialog()).toBeNull();
+
+    // Opening it again starts afresh: the password is gone.
+    await user.click(screen.getByRole('button', {name: 'Add User'}));
+    expect(within(openDialog()!).queryByText('Synth3ticFirst')).toBeNull();
+    expect(within(openDialog()!).getByLabelText(/username/i)).toHaveValue('');
+  });
+
+  it('says a new user could not be created when the API sends back no password', async () => {
+    const {user} = renderUsers({}, {'POST /api/auth/users': () => json({username: 'new.user'})});
+
+    await user.click(await screen.findByRole('button', {name: 'Add User'}));
+    await user.type(within(openDialog()!).getByLabelText(/username/i), 'new.user');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Create User'}));
+
+    expect((await within(openDialog()!).findAllByText('The user could not be created. Please try again.')).length).toBeGreaterThan(0);
   });
 
   it("edits a user's roles in one dialog, starting from theirs, saved in one request", async () => {
@@ -129,6 +150,7 @@ describe('UsersPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Reset Password'}));
 
     expect(await within(openDialog()!).findByText('Synth3tic')).toBeInTheDocument();
+    expect(within(openDialog()!).getByText(/pass it on to a\.hartwell securely/)).toBeInTheDocument();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Done'}));
     expect(openDialog()).toBeNull();
   });

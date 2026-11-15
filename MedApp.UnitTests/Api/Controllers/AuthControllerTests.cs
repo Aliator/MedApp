@@ -107,23 +107,23 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public async Task CreateUser_Succeeds_ReturnsNoContent()
+    public async Task CreateUser_Succeeds_ReturnsTheUsernameAndGeneratedPassword()
     {
-        var mediator = new RecordingMediator(_ => IdentityResult.Success);
+        var mediator = new RecordingMediator(_ => new CreateUserResult(IdentityResult.Success, Password));
 
-        var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername, Password));
+        var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername));
 
-        mediator.Request.Should().Be(new CreateUserCommand(OtherUsername, Password));
-        result.Should().BeOfType<NoContentResult>();
+        mediator.Request.Should().Be(new CreateUserCommand(OtherUsername));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(new CreateUserResponse(OtherUsername, Password));
     }
 
     [Test]
     public async Task CreateUser_Fails_ReturnsBadRequestWithTheErrors()
     {
         var failed = Failed();
-        var mediator = new RecordingMediator(_ => failed);
+        var mediator = new RecordingMediator(_ => new CreateUserResult(failed, null));
 
-        var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername, Password));
+        var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername));
 
         result.Should().BeOfType<BadRequestObjectResult>().Which.Value.Should().BeEquivalentTo(failed.Errors);
     }
