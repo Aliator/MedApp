@@ -23,6 +23,9 @@ metadata:
   labels:
     {{- include "medapp.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
+  annotations:
+    # Under Argo CD: after the migrations (wave 1), so a new API never runs on an old schema.
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:

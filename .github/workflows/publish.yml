@@ -1,0 +1,67 @@
+name: Publish
+# On each merge to main: build the API's image (MedApp.API/Dockerfile), push it to GHCR tagged with the commit, then
+# deploy it to the kind environment by committing the tag to the env/kind branch, which Argo CD follows
+# (deploy/argocd). main only changes through pull requests, so the tag lives on its own branch.
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+permissions:
+  contents: write   # push to env/kind
+  packages: write   # push to GHCR
+concurrency:
+  # One at a time, in order, so env/kind always ends on the newest commit.
+  group: publish
+  cancel-in-progress: false
+env:
+  IMAGE: ghcr.io/aliator/medapp-api
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: MedApp.API/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          # Links the package to this repository on GitHub.
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to kind (env/kind)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin env/kind; then
+            git switch --create env/kind FETCH_HEAD
+          else
+            git switch --orphan env/kind
+          fi
+          cat > image.yaml <<EOF
+          # The image the kind environment runs: set by the Publish workflow on each merge to main, read by Argo CD.
+          image:
+            repository: ${IMAGE}
+            tag: ${GITHUB_SHA}
+            pullPolicy: IfNotPresent
+          EOF
+          git add image.yaml
+          # A re-run for the same commit has nothing to change.
+          if git diff --cached --quiet; then exit 0; fi
+          git commit --message "Deployed medapp-api ${GITHUB_SHA::7} to kind"
+          git push origin env/kind

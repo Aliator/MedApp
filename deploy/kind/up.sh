@@ -7,6 +7,8 @@
 #
 #   deploy/kind/up.sh                        # an empty database, with a first admin (see README.md)
 #   deploy/kind/up.sh --demo-data kind-demo  # replace the database with a medapp-dev snapshot (tools/MedApp.DevMcp/.backups)
+#   deploy/kind/up.sh --argocd               # GitOps instead: Argo CD deploys what's in git (deploy/argocd/README.md)
+#   deploy/kind/up.sh --argocd --revision feature/x   # ... with the chart and values from a branch
 #
 # Needs Docker, kind, kubectl, helm and openssl. Only ever touches the kind-medapp context.
 set -euo pipefail
@@ -19,14 +21,28 @@ release=medapp
 traefik_version=42.3.2
 cert_manager_version=v1.21.2
 external_secrets_version=2.14.0
+argocd_version=10.17.2
 demo=""
+argocd=false
+revision=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --demo-data) demo=${2:?--demo-data needs a snapshot name or a .bak path}; shift 2 ;;
+    --argocd) argocd=true; shift ;;
+    --revision) revision=${2:?--revision needs a branch, tag or commit}; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
+if $argocd && [[ -n $demo ]]; then
+  # Argo CD puts back anything changed by hand, such as the API scaled to none for a restore.
+  echo "--demo-data works only without --argocd." >&2
+  exit 2
+fi
+if [[ -n $revision ]] && ! $argocd; then
+  echo "--revision works only with --argocd." >&2
+  exit 2
+fi
 
 cd "$(dirname "$0")/../.."  # the repo root
 
@@ -84,6 +100,52 @@ fi
 if ! vault get secret medapp-first-admin >/dev/null 2>&1; then
   vault create secret generic medapp-first-admin \
     --from-literal=username=admin --from-literal=password="Aa1$(openssl rand -hex 12)"
+fi
+
+# Who deploys MedApp: Helm from this script, or Argo CD from git. Not both at once.
+helm_release=$(h list --namespace medapp --filter "^$release\$" --short 2>/dev/null || true)
+argocd_app=$(kubectl --context "$context" --namespace argocd get application medapp --ignore-not-found -o name 2>/dev/null || true)
+
+if $argocd; then
+  if [[ -n $helm_release ]]; then
+    echo "MedApp was deployed by up.sh without --argocd. Remove that first (the database is kept):" >&2
+    echo "  helm --kube-context $context --namespace medapp uninstall $release" >&2
+    exit 1
+  fi
+
+  echo "== Argo CD"
+  helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
+  helm repo update argo >/dev/null
+  h upgrade --install argocd argo/argo-cd --version $argocd_version \
+    --namespace argocd --create-namespace --values deploy/argocd/argocd-values.yaml --wait
+
+  echo "== MedApp (Argo CD)"
+  kubectl --context "$context" apply -f deploy/argocd/medapp-kind.yaml
+  if [[ -n $revision ]]; then
+    # The chart and the cluster's values from that revision; the image still from env/kind.
+    kubectl --context "$context" --namespace argocd patch application medapp --type json -p "[
+      {\"op\": \"replace\", \"path\": \"/spec/sources/0/targetRevision\", \"value\": \"$revision\"},
+      {\"op\": \"replace\", \"path\": \"/spec/sources/1/targetRevision\", \"value\": \"$revision\"}]"
+  fi
+  echo "Waiting for Argo CD to sync it from git..."
+  kubectl --context "$context" --namespace argocd wait application/medapp --timeout=15m \
+    --for=jsonpath='{.status.sync.status}'=Synced
+  kubectl --context "$context" --namespace argocd wait application/medapp --timeout=15m \
+    --for=jsonpath='{.status.health.status}'=Healthy
+
+  echo
+  echo "MedApp is running at http://localhost:8080 and https://localhost:8443, deployed by Argo CD."
+  echo "Argo CD is at http://argocd.localhost:8080: sign in as admin, with the password from:"
+  echo "  kubectl --context $context -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+  echo "MedApp's first admin is 'admin', with the password from:"
+  echo "  kubectl --context $context -n medapp-vault get secret medapp-first-admin -o jsonpath='{.data.password}' | base64 -d"
+  exit 0
+fi
+
+if [[ -n $argocd_app ]]; then
+  echo "MedApp is deployed by Argo CD (up.sh --argocd). Remove that first (the database is kept):" >&2
+  echo "  kubectl --context $context --namespace argocd delete application medapp" >&2
+  exit 1
 fi
 
 echo "== Image"

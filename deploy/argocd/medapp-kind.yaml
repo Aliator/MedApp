@@ -1,0 +1,44 @@
+# MedApp on the kind cluster, kept in step with git by Argo CD (deploy/kind/up.sh --argocd applies it):
+#   - the chart (deploy/helm/medapp) and the cluster's values (deploy/kind/values.yaml) from main
+#   - the image to run from the env/kind branch (image.yaml), which the Publish workflow updates after it pushes a
+#     new image to GHCR on each merge to main. main only changes through pull requests, so the tag lives there.
+# Argo CD syncs whatever lands in either, and puts back anything changed in the cluster by hand.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: medapp
+  namespace: argocd
+  # Deleting the Application deletes what it deployed (SQL Server's volume is kept, as a StatefulSet's always is).
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: medapp
+  sources:
+    - repoURL: https://github.com/Aliator/MedApp.git
+      targetRevision: main
+      path: deploy/helm/medapp
+      helm:
+        releaseName: medapp
+        valueFiles:
+          - $repo/deploy/kind/values.yaml
+          - $env/image.yaml
+    - repoURL: https://github.com/Aliator/MedApp.git
+      targetRevision: main
+      ref: repo
+    - repoURL: https://github.com/Aliator/MedApp.git
+      targetRevision: env/kind
+      ref: env
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    # The namespace refuses any pod that doesn't meet the "restricted" Pod Security Standard.
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/warn: restricted
