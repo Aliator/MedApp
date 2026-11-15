@@ -37,6 +37,7 @@ import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCa
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {formatDateTime} from '../../utils/dates';
+import {RichText} from '../../components/shared/RichText';
 
 /** The dialog the page has open, if any. */
 type Dialog =
@@ -386,7 +387,9 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           </ViewSection>
           {procedure.notes?.trim() && (
             <ViewSection useGrid={false}>
-              <MetadataListItem label="Procedure notes">{procedure.notes}</MetadataListItem>
+              <MetadataListItem label="Procedure notes">
+                <RichText>{procedure.notes}</RichText>
+              </MetadataListItem>
             </ViewSection>
           )}
         </DetailPart>

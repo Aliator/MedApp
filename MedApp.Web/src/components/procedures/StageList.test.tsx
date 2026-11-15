@@ -92,8 +92,11 @@ describe('StageList', () => {
     expect(finished).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Started by a.user, 3 Nov 2026, 13:05')).toBeVisible();
     expect(screen.getByText('Finished by b.user, 3 Nov 2026, 14:30')).toBeVisible();
-    expect(screen.getByText('Patient keen to go ahead.')).toBeVisible();
-    expect(screen.getByText('Leaflet given.')).toBeVisible();
+    // Formatted (RichText), its two lines kept apart as typed.
+    const notes = screen.getByText(/Patient keen to go ahead\./);
+    expect(notes).toBeVisible();
+    expect(notes).toHaveTextContent('Patient keen to go ahead.Leaflet given.');
+    expect(notes.querySelector('br')).not.toBeNull();
   });
 
   it('starts with every stage closed when the current one is shown elsewhere', async () => {

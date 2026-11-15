@@ -2,10 +2,10 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
-import {TextArea} from '@astryxdesign/core/TextArea';
 import {useLayoutEffect, useRef, useState} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
-import {NO_STATUS_LINE} from '../forms/fieldSpace';
+import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
+import {RichTextField} from '../forms/RichTextField';
 import {AppIcon} from '../shared/icons';
 import {StageNotes} from './StageList';
 
@@ -31,8 +31,8 @@ export interface StageWorkProps {
   onFitNotes?: (height: number) => void;
 }
 
-/** The notes box's usual size, in lines, and the smallest a fitted one is: fitting only ever grows it. */
-const DEFAULT_ROWS = 5;
+/** The notes box's usual height (five lines), and the least a fitted one has: fitting only ever grows it. */
+const DEFAULT_HEIGHT = '7.5rem';
 
 /** The nearest ancestor that scrolls up and down: the space the box has to fit in. */
 function scrollingParent(element: HTMLElement): HTMLElement | undefined {
@@ -52,15 +52,16 @@ function contentHeight(scroller: HTMLElement) {
 }
 
 /**
- * The height that fills the free space around the box exactly (to the pixel, not in whole lines, so no gap is left
- * under it), from its height now: never less than its usual five lines.
+ * The height of the box's writing area that fills the free space around it exactly (to the pixel, so no gap is
+ * left under it), from its height now: never less than its usual five lines.
  */
-function fittedHeight(box: HTMLTextAreaElement): number | undefined {
+function fittedHeight(box: HTMLElement): number | undefined {
+  const surface = box.querySelector<HTMLElement>('[contenteditable]');
   const scroller = scrollingParent(box);
   // Nothing laid out (e.g. hidden, or in tests): no answer, so it keeps its size.
-  if (!scroller || !box.offsetHeight || !scroller.clientHeight) return undefined;
+  if (!surface || !scroller || !surface.offsetHeight || !scroller.clientHeight) return undefined;
   const spare = Math.floor(scroller.clientHeight - contentHeight(scroller));
-  return box.offsetHeight + Math.max(0, spare);
+  return surface.offsetHeight + Math.max(0, spare);
 }
 
 /**
@@ -74,25 +75,24 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
   const saved = stage.notes ?? '';
   const [draft, setDraft] = useState(saved);
   const isChanged = draft !== saved;
-  const box = useRef<HTMLTextAreaElement>(null);
+  const box = useRef<HTMLDivElement>(null);
 
-  // Once, as the box first shows (the next frame, when the page around it is laid out), if it's to be fitted.
+  // Once, as the box first shows, if it's to be fitted: once the page around it is laid out and the editor has drawn
+  // its writing area (a frame or two; it gives up after a few, keeping its size).
   useLayoutEffect(() => {
     if (!onFitNotes || notesHeight !== undefined) return;
-    const frame = requestAnimationFrame(() => {
+    let frame = 0;
+    let tries = 0;
+    const fit = () => {
       const height = box.current && fittedHeight(box.current);
       if (height !== undefined && height !== null) onFitNotes(height);
-    });
+      else if (tries++ < 10) frame = requestAnimationFrame(fit);
+    };
+    frame = requestAnimationFrame(fit);
     return () => cancelAnimationFrame(frame);
     // Only when it first shows: a later change (a resize, a section folding) leaves it as it is.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // The fitted height, on the box itself (TextArea sizes it only in whole lines). A box someone has dragged to
-  // another size keeps theirs until the page opens again.
-  useLayoutEffect(() => {
-    if (box.current && notesHeight !== undefined) box.current.style.height = `${notesHeight}px`;
-  }, [notesHeight]);
 
   if (!stage.canEdit) {
     return (
@@ -113,19 +113,20 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
     );
   }
 
-  const notesProps = {
-    label: 'Notes',
-    value: draft,
-    onChange: setDraft,
-    placeholder: 'What was done, found or agreed at this stage',
-    isDisabled: isBusy,
-    // A failed save shows in the page's header, never on the box, so it needs no error line.
-    containerStyle: NO_STATUS_LINE,
-  };
-
   return (
     <VStack gap={3}>
-      <TextArea {...notesProps} ref={box} rows={DEFAULT_ROWS} />
+      {/* A failed save shows in the page's header, never on the box, so it has no error line. Its text grows the
+          box past its height. */}
+      <VStack gap={0} ref={box} style={NO_FIELD_STATUS_LINE}>
+        <RichTextField
+          label="Notes"
+          value={saved}
+          onChange={setDraft}
+          placeholder="What was done, found or agreed at this stage"
+          isDisabled={isBusy}
+          minHeight={notesHeight ?? DEFAULT_HEIGHT}
+        />
+      </VStack>
       <HStack gap={2} vAlign="center">
         {isChanged && (
           <Text type="supporting" color="secondary">

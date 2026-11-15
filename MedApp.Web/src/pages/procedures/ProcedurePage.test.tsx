@@ -2,6 +2,7 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {adminUser, calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE, ProcedurePage, ProcedureView} from './ProcedurePage';
+import {richText, typeRichText} from '../../test/richText';
 
 const id = 'proc-1';
 const procedure = {
@@ -130,7 +131,7 @@ describe('ProcedurePage: working on it', () => {
     const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
     const box = await screen.findByRole('textbox', {name: 'Notes'});
-    await user.type(box, ' Consent signed.');
+    await typeRichText(box, ' Consent signed.');
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`PUT ${PATH}/stages/s2/notes`));
@@ -146,7 +147,7 @@ describe('ProcedurePage: working on it', () => {
     });
     const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
-    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), ' All done.');
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' All done.');
     await user.click(screen.getByRole('button', {name: 'Finish Stage'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Finish Stage'}));
 
@@ -178,7 +179,7 @@ describe('ProcedurePage: working on it', () => {
     });
     const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
-    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
 
     expect(within(openDialog()!).getByText(NOT_ASSIGNED_MESSAGE)).toBeInTheDocument();
@@ -187,7 +188,7 @@ describe('ProcedurePage: working on it', () => {
     await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('PUT'))).toHaveLength(1));
 
     // The second change in the same visit goes straight through.
-    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), ' Even more.');
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' Even more.');
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
     await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('PUT'))).toHaveLength(2));
     expect(openDialog()).toBeNull();
@@ -200,7 +201,7 @@ describe('ProcedurePage: working on it', () => {
     });
     const {user} = renderWithApp(<ProcedurePage id={id} />, {user: adminUser});
 
-    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
 
     await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('PUT'))).toHaveLength(1));
@@ -347,7 +348,7 @@ describe('ProcedurePage on a narrow window', () => {
     // Patient info starts open; Assigned staff starts folded here, to save room.
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Assigned staff'})).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('textbox', {name: 'Notes'})).toHaveValue('Prep done.');
+    expect(richText(screen.getByRole('textbox', {name: 'Notes'}))).toBe('Prep done.');
   });
 
   it('opens Stages alongside the others, with every stage closed until clicked', async () => {
@@ -368,7 +369,7 @@ describe('ProcedurePage on a narrow window', () => {
     await user.click(screen.getByRole('button', {name: 'Show stages'}));
     await user.click(screen.getByRole('button', {name: /^2\. Procedure/}));
 
-    expect(screen.getByRole('textbox', {name: 'Notes'})).toHaveValue('Prep done.');
+    expect(richText(screen.getByRole('textbox', {name: 'Notes'}))).toBe('Prep done.');
   });
 
   it('keeps what is open and folded when the window switches between half and full view', async () => {

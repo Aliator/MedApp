@@ -5,7 +5,6 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
-import {TextArea} from '@astryxdesign/core/TextArea';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
@@ -29,6 +28,7 @@ import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
 import {useListSettings} from '../../app/listSettings';
+import {RichTextField} from '../../components/forms/RichTextField';
 
 type DefinitionRow = StageDefinition & Record<string, unknown>;
 
@@ -190,12 +190,13 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                 isRequired
                 status={fieldStatus(problem.validation, 'description')}
               />
-              <TextArea
+              {/* Started again for each stage opened (it reads its text as it opens). */}
+              <RichTextField
+                key={`${editing?.id ?? 'new'}:${dialog?.kind}`}
                 label="Instructions"
                 description="How staff carry the stage out."
                 value={form.instructions}
                 onChange={set('instructions')}
-                rows={5}
                 isRequired
                 status={fieldStatus(problem.validation, 'instructions')}
               />

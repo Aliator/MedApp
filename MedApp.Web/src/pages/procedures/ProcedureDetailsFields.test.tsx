@@ -2,6 +2,7 @@ import {screen} from '@testing-library/react';
 import {BLANK_DESCRIPTION} from '../../components/forms/fieldSpace';
 import {descriptionOf, renderWithApp} from '../../test/render';
 import {EMPTY_PROCEDURE_DETAILS, ProcedureDetailsFields} from './ProcedureDetailsFields';
+import {typeRichText} from '../../test/richText';
 
 describe('ProcedureDetailsFields', () => {
   it("keeps the priority level with the title: a blank description line when the title has one", async () => {
@@ -20,9 +21,9 @@ describe('ProcedureDetailsFields', () => {
 
   it('passes on each change with the other details kept', async () => {
     const onChange = vi.fn();
-    const {user} = renderWithApp(<ProcedureDetailsFields value={EMPTY_PROCEDURE_DETAILS} onChange={onChange} />);
+    renderWithApp(<ProcedureDetailsFields value={EMPTY_PROCEDURE_DETAILS} onChange={onChange} />);
 
-    await user.type(await screen.findByRole('textbox', {name: 'Notes'}), 'x');
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), 'x');
 
     expect(onChange).toHaveBeenLastCalledWith({...EMPTY_PROCEDURE_DETAILS, notes: 'x'});
   });

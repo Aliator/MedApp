@@ -18,13 +18,27 @@
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.15",
+    "@astryxdesign/richtext": "0.7.15",
     "@astryxdesign/theme-stone": "0.7.15",
     "@fontsource/atkinson-hyperlegible": "5.2.8",
+    "@lexical/code": "0.52.0",
+    "@lexical/extension": "0.52.0",
+    "@lexical/headless": "0.52.0",
+    "@lexical/html": "0.52.0",
+    "@lexical/link": "0.52.0",
+    "@lexical/list": "0.52.0",
+    "@lexical/markdown": "0.52.0",
+    "@lexical/react": "0.52.0",
+    "@lexical/rich-text": "0.52.0",
+    "@lexical/selection": "0.52.0",
+    "@lexical/table": "0.52.0",
+    "@lexical/utils": "0.52.0",
     "@microsoft/signalr": "10.0.11",
     "@remixicon/react": "^4.9.0",
     "@stylexjs/stylex": "^0.19.2",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
+    "lexical": "0.52.0",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -54,5 +68,8 @@
   "allowScripts": {
     "@astryxdesign/cli": false,
     "@astryxdesign/core": false
+  },
+  "overrides": {
+    "happy-dom": "21.0.4"
   }
 }
