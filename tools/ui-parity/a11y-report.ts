@@ -23,7 +23,10 @@ const [flag, ...playwrightArgs] = process.argv.slice(2);
 let runFailed = false;
 if (flag === '--run') {
   rmSync(dir, { recursive: true, force: true });
-  const run = spawnSync('npx', ['playwright', 'test', '--project=a11y', ...playwrightArgs.map((arg) => (/\s/.test(arg) ? JSON.stringify(arg) : arg))], { stdio: 'inherit', shell: true });
+  // Through a shell (npx is a script on Windows), so an argument with spaces or shell characters (a -g "a|b"
+  // filter) is quoted.
+  const quote = (arg: string) => (/[\s|&<>^()]/.test(arg) ? JSON.stringify(arg) : arg);
+  const run = spawnSync('npx', ['playwright', 'test', '--project=a11y', ...playwrightArgs.map(quote)], { stdio: 'inherit', shell: true });
   runFailed = run.status !== 0;
   if (runFailed) console.log('Some screens failed to load: see above. The results below are for the rest.');
 }

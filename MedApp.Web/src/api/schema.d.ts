@@ -420,6 +420,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    take?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["NotificationsResponse"];
+                        "application/json": components["schemas"]["NotificationsResponse"];
+                        "text/json": components["schemas"]["NotificationsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/procedures/patient-procedures": {
         parameters: {
             query?: never;
@@ -2589,6 +2696,23 @@ export interface components {
             sessionId?: string;
             /** Format: date-time */
             expiresAtUtc?: string;
+        };
+        NotificationResponse: {
+            /** Format: uuid */
+            id?: string;
+            kind?: string | null;
+            title?: string | null;
+            message?: string | null;
+            /** Format: uuid */
+            procedureId?: string | null;
+            /** Format: date-time */
+            createdAtUtc?: string;
+            isRead?: boolean;
+        };
+        NotificationsResponse: {
+            items?: components["schemas"]["NotificationResponse"][] | null;
+            /** Format: int32 */
+            unreadCount?: number;
         };
         PatientProcedureAssignmentResponse: {
             /** Format: uuid */

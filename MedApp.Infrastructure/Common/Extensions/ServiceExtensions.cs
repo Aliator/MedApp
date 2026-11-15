@@ -1,6 +1,7 @@
 ﻿using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -48,6 +49,7 @@ public static class ServiceExtensions
         services.AddScoped<IPatientProcedureStagesRepository, PatientProcedureStagesRepository>();
         services.AddScoped<IProcedureAuditRepository, ProcedureAuditRepository>();
         services.AddScoped<IUserSettingsRepository, UserSettingsRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         
         return services;
     }

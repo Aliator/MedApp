@@ -113,6 +113,13 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - **Definitions and templates in use are archived, not deleted;** deleting one that's in use is a 409. Patients with procedures can't be deleted (409).
 - Status numbers are stored, so never renumber `PatientProcedureStatus` or `PatientProcedureAuditAction`.
 
+### Notifications
+
+- A handler tells someone about something with `INotificationSender.SendAsync(new Notification { … })` (`MedApp.Application/Notifications/Common`), after its own change is saved. It stores the notification, then pushes it live to every page that user has open.
+- **Live delivery is SignalR:** `NotificationsHub` at `/api/notifications/hub`, addressed by user ID (the session's `NameIdentifier`), through `SignalRNotificationPublisher` in the API. Pushing is best effort: a failure is logged, and the stored notification shows on the next load.
+- `GET api/notifications` returns the newest and the unread count. `POST api/notifications/read` marks them all read, and `POST api/notifications/{id}/read` marks one.
+- Being assigned a procedure is the only kind so far (not when you assign yourself). Kind numbers are stored, so never renumber `NotificationKind`. Notifications have no foreign keys, like the audit log.
+
 ### Migrations
 
 - Migrations live in `MedApp.Infrastructure/Migrations/` with `MedAppDbContextModelSnapshot.cs`. They are a single linear history starting at `InitialCreate`. Always add a new migration on top, and never edit or delete one that has been applied to a database.

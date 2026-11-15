@@ -1,4 +1,5 @@
 ﻿using MedApp.API.Middleware;
+using MedApp.API.Notifications;
 
 namespace MedApp.API.Common.Extensions;
 
@@ -24,6 +25,7 @@ public static class ApplicationBuilderExtensions
         app.UseAuthorization();
 
         app.MapControllers();
+        app.MapHub<NotificationsHub>(NotificationsHub.Path);
 
         // An /api path that matches no endpoint is a 404, not the React app's index.html.
         app.Map("/api/{**path}", () => Results.NotFound());

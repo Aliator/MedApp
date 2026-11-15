@@ -1,4 +1,5 @@
 ﻿using MedApp.Domain.Authentication;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Common.Identity;
@@ -14,6 +15,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
+    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<PatientProcedure> PatientProcedures => Set<PatientProcedure>();
     public DbSet<PatientProcedureStage> PatientProcedureStages => Set<PatientProcedureStage>();
     public DbSet<PatientProcedureAssignment> PatientProcedureAssignments => Set<PatientProcedureAssignment>();

@@ -1,5 +1,7 @@
 ﻿using FluentValidation.AspNetCore;
 using MedApp.API.Common.Authentication;
+using MedApp.API.Notifications;
+using MedApp.Application.Notifications.Common;
 using Microsoft.AspNetCore.Authentication;
 
 namespace MedApp.API.Common.Extensions;
@@ -10,6 +12,10 @@ public static class ServiceExtensions
         this IServiceCollection services)
     {
         services.AddControllers();
+
+        // Live notifications: pushed to each signed-in user's open pages (NotificationsHub).
+        services.AddSignalR();
+        services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
         services.AddFluentValidationAutoValidation();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

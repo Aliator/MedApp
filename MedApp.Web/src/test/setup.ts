@@ -2,6 +2,10 @@ import '@testing-library/jest-dom/vitest';
 import {cleanup, configure} from '@testing-library/react';
 import {afterEach, vi} from 'vitest';
 import {appSettings} from '../app/settingsStore';
+import {liveHub} from './signalr';
+
+// No live connections to a server in tests: a stand-in that tests can push messages through (`liveHub`).
+vi.mock('@microsoft/signalr', () => import('./signalr'));
 
 // Routes are code-split, and loading a route chunk can take over a second while the whole suite runs.
 configure({asyncUtilTimeout: 5000});
@@ -30,4 +34,5 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   appSettings.reset();
+  liveHub.reset();
 });

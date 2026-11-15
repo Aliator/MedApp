@@ -61,3 +61,21 @@ export function formatDateTime(isoUtc: string): string {
 
 /** The same, shorter, for tables: "14 Mar 1980". */
 export const formatShortDate = (iso: string) => format(iso, 'short');
+
+/** A moment from the API as a Date: its times are UTC, though one read from the database may not say so. */
+const utc = (isoUtc: string) => new Date(/(Z|[+-]\d\d:\d\d)$/.test(isoUtc) ? isoUtc : `${isoUtc}Z`);
+
+/**
+ * How long ago a moment was, for recent things like notifications: "Just now", "5 min ago", "3 hours ago", then
+ * the date and time (`formatDateTime`) from a day on.
+ */
+export function timeAgo(isoUtc: string, now: Date = new Date()): string {
+  const then = utc(isoUtc);
+  if (Number.isNaN(then.getTime())) return isoUtc;
+  const minutes = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  return formatDateTime(then.toISOString());
+}
