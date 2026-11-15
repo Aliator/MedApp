@@ -156,7 +156,8 @@ public sealed class AccountTools
     {
         Guards.RequireNotProtected(options, username, "delete");
         Guards.RequireConfirm(confirm, $"Deleting '{username}'");
-        // Not DeleteUserCommand: that wants a signed-in admin's password to confirm, and confirm: true does that here.
+        // Straight to the user service, not DeleteUserCommand: in the app an admin confirms a delete with their own
+        // password, but this local tool has no signed-in admin; confirm: true is its confirmation.
         Guards.Check(await userService.DeleteUserAsync(username, ct), "Delete user");
         return new { username, deleted = true };
     }

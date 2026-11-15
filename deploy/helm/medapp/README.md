@@ -65,6 +65,7 @@ Set `api.replicas` above 1. Live notifications then go through the **backplane**
 - **Another server,** such as Azure Cache for Redis: turn Valkey off, and give the connection string through `backplane.existingSecret` or `externalSecrets`.
 - **Connecting:** browsers connect straight to a WebSocket, without SignalR's negotiate request, so no sticky sessions are needed.
 - **Disruption budget:** with more than one copy, a PodDisruptionBudget keeps one running while nodes are drained.
+- **Spread across nodes:** with more than one copy, the scheduler is asked to put them on different nodes (a topology spread over `kubernetes.io/hostname`). It's a preference, not a rule, so a one-node cluster such as kind still runs them all.
 - **The chart refuses** more than one copy without the backplane.
 
 ## How it's locked down
@@ -86,4 +87,8 @@ Set `api.replicas` above 1. Live notifications then go through the **backplane**
 
 ## Not yet
 
-- **Argo CD** and **Azure** (AKS, Azure SQL, Key Vault as the External Secrets store, a container registry): steps 4 and 5 in `docs/todo.md`.
+Argo CD (`deploy/argocd`) and Azure (`deploy/azure`) use this chart; what Azure still lacks is in `deploy/azure/README.md`. In the chart and the app:
+- **Readiness ignores the database and Valkey.** `/health` only says the process is up, so a pod stays ready while either is down. A database check needs care: it would hold up the first install, where the API starts before the migrations Job has made the schema.
+- **Node is never restarted.** If the page server exits, the API logs it once and serves pages rendered in the browser until the pod restarts, and nothing reports it.
+- **Images by tag, not digest.** SQL Server (`2022-latest`) and Valkey are pulled by tags that move, and so are the Dockerfile's base images, so a new node can pull something newer than the rest.
+- **Passwords changed in the store reach running pods only when they restart.** External Secrets updates the Secrets (`externalSecrets.refreshInterval`), but the API and Valkey read them as environment variables at start, and nothing restarts them.

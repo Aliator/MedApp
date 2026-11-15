@@ -1,12 +1,14 @@
 # MedApp on the kind cluster, kept in step with git by Argo CD (deploy/kind/up.sh --argocd applies it).
 #
 # It follows the env/kind branch: main as of the last deploy, plus deploy/argocd/kind-image.yaml, the image to run.
-# On each merge to main, the Publish workflow pushes a new image to GHCR, then merges that commit of main into
-# env/kind with the new tag, in one "Deployed ..." commit. (main only changes through pull requests, and Argo CD
-# can't mix two revisions of one repository, so the deployed state lives on its own branch.) env/kind's history is
-# the deploy history: revert a deploy commit there to roll back, chart and image together.
+# On each merge to main, the Publish workflow pushes a new image to GHCR, then records that commit of main on
+# env/kind with the new tag, in one "Deployed ..." commit whose files are exactly main's plus the tag. (main only
+# changes through pull requests, and Argo CD can't mix two revisions of one repository, so the deployed state lives
+# on its own branch.) env/kind's history is the deploy history. To roll back, revert the change on main: the next
+# deploy replaces whatever is on env/kind (deploy/argocd/README.md).
 #
-# Argo CD syncs whatever lands on env/kind, and puts back anything changed in the cluster by hand.
+# Argo CD syncs whatever lands on env/kind, within the limits of the medapp project (project.yaml), and puts back
+# anything changed in the cluster by hand.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,7 +18,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: medapp
   destination:
     server: https://kubernetes.default.svc
     namespace: medapp
@@ -35,10 +37,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-    # The namespace refuses any pod that doesn't meet the "restricted" Pod Security Standard.
-    managedNamespaceMetadata:
-      labels:
-        pod-security.kubernetes.io/enforce: restricted
-        pod-security.kubernetes.io/warn: restricted
+  # No CreateNamespace: up.sh --argocd makes the medapp namespace, with its Pod Security labels, before applying this,
+  # and the project doesn't let Argo CD make or change a Namespace (project.yaml).

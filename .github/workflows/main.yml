@@ -43,8 +43,30 @@ jobs:
           name: web-coverage
           path: MedApp.Web/coverage/coverage-summary.json
 
+      # The whole production build, as the image's Dockerfile runs it: tsc, the client build, the server rendering
+      # bundle (vite build --ssr) and the copy of the page server.
       - name: Build
-        run: npx vite build
+        run: npm run build
+
+  # The API's image (MedApp.API/Dockerfile), built as Publish builds it but not pushed, so a broken Dockerfile, a
+  # React or SSR bundle that won't build, or a migrations bundle that won't, fails on the pull request rather than
+  # after the merge. It shares the GitHub Actions cache with Publish: pull requests start from the layers Publish
+  # left on main, and each push to a pull request reuses that pull request's own.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: MedApp.API/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # The Helm chart (deploy/helm/medapp): lint it and render it in the configurations it's used in, so a broken
   # template fails here rather than on a deploy. Helm comes with the runner image.
@@ -73,8 +95,68 @@ jobs:
           --set sql.enabled=false --set externalSecrets.enabled=true
           --set externalSecrets.secretStoreRef.name=key-vault --set externalSecrets.database.sa-password=null
 
+      - name: Lint with Azure's values
+        run: helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
+
+      # The Azure infrastructure (deploy/azure): compiled and linted, so a broken template fails here rather than on a
+      # deploy. Placeholder passwords; nothing is deployed. The Azure CLI comes with the runner image.
+      - name: Build the Bicep
+        env:
+          MEDAPP_SQL_ADMIN_PASSWORD: ci
+          MEDAPP_FIRST_ADMIN_PASSWORD: ci
+          MEDAPP_BACKPLANE_PASSWORD: ci
+        run: |
+          az bicep install
+          az bicep build --file deploy/azure/main.bicep --stdout > /dev/null
+          az bicep lint --file deploy/azure/main.bicep
+          az bicep build-params --file deploy/azure/main.bicepparam --stdout > /dev/null
+
       - name: Render
         run: helm template medapp deploy/helm/medapp --values deploy/kind/values.yaml --set image.tag=ci > /dev/null
+
+      # The cluster services (Traefik, cert-manager, External Secrets and Argo CD), rendered at the versions
+      # deploy/kind/up.sh and deploy/azure/bootstrap.sh install (deploy/versions.sh), with every values file and
+      # --set value those scripts give them. A values file that doesn't match a chart's schema fails here, not halfway
+      # through setting up a cluster.
+      - name: Add the cluster services' chart repositories
+        run: |
+          helm repo add traefik https://traefik.github.io/charts
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add external-secrets https://charts.external-secrets.io
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
+
+      - name: Render Traefik with kind's and Azure's values
+        run: |
+          source deploy/versions.sh
+          for values in deploy/kind/traefik-values.yaml deploy/azure/traefik-values.yaml; do
+            helm template traefik traefik/traefik --version "$traefik_version" --namespace traefik \
+              --values "$values" > /dev/null
+          done
+
+      - name: Render cert-manager
+        run: |
+          source deploy/versions.sh
+          helm template cert-manager jetstack/cert-manager --version "$cert_manager_version" --namespace cert-manager \
+            --set crds.enabled=true > /dev/null
+
+      - name: Render External Secrets as kind and Azure install it
+        run: |
+          source deploy/versions.sh
+          helm template external-secrets external-secrets/external-secrets --version "$external_secrets_version" \
+            --namespace external-secrets > /dev/null
+          helm template external-secrets external-secrets/external-secrets --version "$external_secrets_version" \
+            --namespace external-secrets \
+            --set-string "serviceAccount.annotations.azure\.workload\.identity/client-id=00000000-0000-0000-0000-000000000000" \
+            --set-string "podLabels.azure\.workload\.identity/use=true" > /dev/null
+
+      - name: Render Argo CD with kind's and Azure's values
+        run: |
+          source deploy/versions.sh
+          for values in deploy/argocd/argocd-values.yaml deploy/azure/argocd-values.yaml; do
+            helm template argocd argo/argo-cd --version "$argocd_version" --namespace argocd \
+              --values "$values" > /dev/null
+          done
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -84,7 +166,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      
+
+      # The dev MCP tool (tools/MedApp.DevMcp) isn't in MedApp.sln, so nothing else builds it. It once stopped
+      # compiling, unnoticed, when an Application command it calls changed.
+      - name: Build the dev MCP tool
+        run: dotnet build tools/MedApp.DevMcp --configuration Release
+
       - name: Run unit tests with coverage
         run: |
           dotnet test MedApp.UnitTests \

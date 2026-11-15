@@ -1,7 +1,13 @@
 name: Publish
-# On each merge to main: build the API's image (MedApp.API/Dockerfile), push it to GHCR tagged with the commit, then
-# deploy it to the kind environment by committing the tag to the env/kind branch, which Argo CD follows
-# (deploy/argocd). main only changes through pull requests, so the tag lives on its own branch.
+# On each merge to main: build the API's image (MedApp.API/Dockerfile), push it to GHCR tagged with the commit, and
+# deploy it by moving the environment branches Argo CD follows (deploy/argocd/README.md):
+#   - env/kind, always (the deploy-kind job)
+#   - env/azure, once the Azure setup exists (deploy/azure/README.md): the image is copied to Azure Container Registry
+# The two deploys are separate jobs that each need only the image, so one failing doesn't stop the other.
+# main only changes through pull requests, so each environment's deployed state lives on its own branch
+# (.github/scripts/deploy-to-env.sh).
+# It only ever deploys main. Started by hand (workflow_dispatch) on another branch, it still builds that branch's
+# image and pushes it to GHCR, tagged with the commit, but moves no environment branch: both deploy jobs are skipped.
 on:
   push:
     branches: [ main ]
@@ -9,11 +15,11 @@ on:
       - '**.md'
       - 'docs/**'
   workflow_dispatch:
-permissions:
-  contents: write   # push to env/kind
-  packages: write   # push to GHCR
+# Each job asks for only what it needs.
+permissions: {}
 concurrency:
-  # One at a time, in order, so env/kind always ends on the newest commit.
+  # One run at a time, in order. Re-running an older run deploys nothing: deploy-to-env.sh never moves an environment
+  # branch back to an older commit of main. Roll back by reverting the change on main, which deploys as usual.
   group: publish
   cancel-in-progress: false
 env:
@@ -21,10 +27,11 @@ env:
 jobs:
   image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read    # check out the code
+      packages: write   # push to GHCR
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # all history, to merge main into env/kind
 
       - uses: docker/setup-buildx-action@v3
 
@@ -46,27 +53,53 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # env/kind is main as of the last deploy plus the image to run (deploy/argocd/kind-image.yaml). Merge this
-      # commit of main into it with the new tag, as one commit, so the chart and the image move together.
+  # kind: moves env/kind to this commit with the new image. The image on GHCR is public, so it needs no packages
+  # permission.
+  deploy-kind:
+    needs: image
+    # Only from main: a manual run on another branch deploys nothing.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push to env/kind
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # all history: the deploy commit's parents are env/kind's tip and this commit
+
       - name: Deploy to kind (env/kind)
+        run: .github/scripts/deploy-to-env.sh env/kind deploy/argocd/kind-image.yaml "$IMAGE" kind
+
+  # Azure: skipped until the repository variables below are set (deploy/azure/README.md, after deploy.sh). It signs
+  # in to Azure as the GitHub identity main.bicep made (OIDC: no stored secret), which may only push to the registry.
+  azure:
+    needs: image
+    # Only from main (a manual run on another branch deploys nothing), and only once Azure is set up.
+    if: github.ref == 'refs/heads/main' && vars.AZURE_CLIENT_ID != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push to env/azure
+      id-token: write   # sign in to Azure with OIDC
+    env:
+      ACR_IMAGE: ${{ vars.AZURE_ACR_NAME }}.azurecr.io/medapp-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # all history: the deploy commit's parents are env/azure's tip and this commit
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Copy the image to Azure Container Registry
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git fetch --quiet origin env/kind; then
-            git switch --create env/kind FETCH_HEAD
-            git merge --no-commit --no-ff "$GITHUB_SHA"
-          else
-            git switch --create env/kind "$GITHUB_SHA"
-          fi
-          cat > deploy/argocd/kind-image.yaml <<EOF
-          # The image the kind environment runs: written by the Publish workflow, only on the env/kind branch.
-          image:
-            repository: ${IMAGE}
-            tag: ${GITHUB_SHA}
-            pullPolicy: IfNotPresent
-          EOF
-          git add --all
-          # A re-run for the same commit has nothing to change.
-          if git diff --cached --quiet && [ ! -f .git/MERGE_HEAD ]; then exit 0; fi
-          git commit --message "Deployed medapp-api ${GITHUB_SHA::7} to kind"
-          git push origin env/kind
+          az acr login --name "${{ vars.AZURE_ACR_NAME }}"
+          # The image the image job built and pushed (public on GHCR), copied as is: the same digest runs everywhere.
+          docker buildx imagetools create --tag "$ACR_IMAGE:$GITHUB_SHA" "$IMAGE:$GITHUB_SHA"
+
+      - name: Deploy to Azure (env/azure)
+        run: .github/scripts/deploy-to-env.sh env/azure deploy/argocd/azure-image.yaml "$ACR_IMAGE" azure
