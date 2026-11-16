@@ -41,6 +41,9 @@ public sealed class SearchPatientProceduresRequest
     /// <summary>Only procedures assigned to the signed-in user.</summary>
     public bool AssignedToMe { get; set; }
 
+    /// <summary>Only procedures nobody is assigned.</summary>
+    public bool NobodyAssigned { get; set; }
+
     public bool OverdueOnly { get; set; }
 
     public DateOnly? DueFrom { get; set; }
