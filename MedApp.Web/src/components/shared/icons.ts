@@ -18,6 +18,7 @@ import {
   RiArrowRightSLine,
   RiArrowUpLine,
   RiArrowUpSLine,
+  RiBarChartBoxLine,
   RiCheckboxBlankCircleLine,
   RiCheckboxCircleLine,
   RiCheckLine,
@@ -58,6 +59,7 @@ import {
   RiSortDesc,
   RiStarLine,
   RiSubtractLine,
+  RiTableLine,
   RiTaskLine,
   RiTeamLine,
   RiToolsLine,
@@ -157,4 +159,11 @@ export const AppIcon = {
   HalfView: remix(RiLayoutColumnLine),
   OpenLeft: remix(RiLayoutLeftLine),
   OpenRight: remix(RiLayoutRightLine),
+  // Insights (admin): charts of the work, with a table of each
+  Insights: remix(RiBarChartBoxLine),
+  Chart: remix(RiBarChartBoxLine),
+  Table: remix(RiTableLine),
+  Increase: remix(RiArrowUpLine),
+  Decrease: remix(RiArrowDownLine),
+  NoChange: remix(RiSubtractLine),
 } as const satisfies Record<string, IconType>;
