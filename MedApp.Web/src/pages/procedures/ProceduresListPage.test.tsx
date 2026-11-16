@@ -186,6 +186,19 @@ describe('ProceduresListPage', () => {
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&PatientId=${patientId}`);
   });
 
+  it("shows the patient's banner on one patient's procedures, and none on the full list", async () => {
+    const {unmount} = renderList({}, {patientId});
+
+    const banner = await screen.findByRole('region', {name: 'Patient'});
+    expect(within(banner).getByText('PATIENT, Test')).toBeInTheDocument();
+    expect(within(banner).getByText('No NHS number')).toBeInTheDocument();
+    unmount();
+
+    renderList();
+    await screen.findByText('Colonoscopy');
+    expect(screen.queryByRole('region', {name: 'Patient'})).not.toBeInTheDocument();
+  });
+
   it('says when there are no open procedures', async () => {
     renderList({}, {body: pageOf([], 0)});
 

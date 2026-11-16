@@ -23,6 +23,7 @@ export const ACTIVITY_ACTIONS = [
   'PatientDisputeCleared',
   'RetentionKept',
   'ProcedureViewed',
+  'DemographicsLookedUp',
   'SignedIn',
   'SignInFailed',
   'SignedOut',
@@ -51,6 +52,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   PatientDisputeCleared: 'Dispute cleared',
   RetentionKept: 'Kept past retention',
   ProcedureViewed: 'Procedure viewed',
+  DemographicsLookedUp: 'NHS number looked up',
   SignedIn: 'Signed in',
   SignInFailed: 'Sign-in refused',
   SignedOut: 'Signed out',
@@ -123,6 +125,7 @@ const FIELD_NAMES: Record<string, string> = {
   dateOfBirth: 'date of birth',
   dateOfBirthFrom: 'born from',
   dateOfBirthTo: 'born to',
+  nhsNumber: 'NHS number',
 };
 
 const fieldNames = (value: unknown) =>
@@ -133,7 +136,8 @@ const roles = (value: unknown) => (Array.isArray(value) && value.length ? value.
 const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : '');
 
 /**
- * What an entry's details say, in a line of words, e.g. "Changed first name, email", "By last name: 3 found" or
+ * What an entry's details say, in a line of words, e.g. "Changed first name, email", "By last name: 3 found",
+ * "By NHS number (FHIR API): 1 found" or
  * "User → Admin, User". Empty when the action says it all.
  */
 export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'>): string {
@@ -146,8 +150,13 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
     case 'PatientsSearched': {
       const count = typeof d.resultCount === 'number' ? `${d.resultCount} found` : '';
       const by = Array.isArray(d.filters) && d.filters.includes('all') ? 'All patients' : `By ${fieldNames(d.filters)}`;
-      return [by, count].filter(Boolean).join(': ');
+      // A search through the FHIR API (another system asking by NHS number), not the patients list.
+      const via = d.via === 'fhir' ? ' (FHIR API)' : '';
+      return [by + via, count].filter(Boolean).join(': ');
     }
+    case 'DemographicsLookedUp':
+      // Whether the national demographics service found anyone; the number looked up is never recorded.
+      return d.found === true ? 'Found' : d.found === false ? 'Nobody found' : '';
     case 'SignInFailed':
       return d.reason === 'LockedOut' ? 'Account locked' : 'Wrong username or password';
     case 'RolesChanged':

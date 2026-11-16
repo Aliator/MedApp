@@ -19,6 +19,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
 import {PanelHeader} from '../../components/views/PanelCard';
 import {formatDate, formatDateTime} from '../../utils/dates';
+import {formatNhsNumber} from '../../utils/nhsNumber';
 
 /** While printing, only the export shows: the side nav and the page's buttons are left off the paper. */
 const PRINT_CSS = '@media print { .astryx-side-nav, button { display: none !important; } }';
@@ -120,6 +121,7 @@ function ExportContent({data}: {data: PatientExport}) {
         <MetadataList columns={2} label={{position: 'top'}}>
           <MetadataListItem label="Name">{`${patient?.firstName ?? ''} ${patient?.lastName ?? ''}`.trim() || '—'}</MetadataListItem>
           <MetadataListItem label="Date of Birth">{patient?.dateOfBirth ? formatDate(patient.dateOfBirth) : '—'}</MetadataListItem>
+          <MetadataListItem label="NHS Number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
           <MetadataListItem label="Email">{patient?.email || '—'}</MetadataListItem>
           <MetadataListItem label="Patient ID">{patient?.id}</MetadataListItem>
           <MetadataListItem label="Record Created">{when(patient?.createdAt)}</MetadataListItem>

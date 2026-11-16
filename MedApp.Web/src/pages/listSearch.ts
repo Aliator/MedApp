@@ -56,6 +56,8 @@ export interface PatientsListSearch {
   email?: string;
   dobFrom?: string;
   dobTo?: string;
+  /** Digits of an NHS number (spaces ignored by the API), which the patient's number contains. */
+  nhs?: string;
 }
 
 export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListSearch {
@@ -68,10 +70,12 @@ export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListS
     email: text(raw.email),
     dobFrom: date(raw.dobFrom),
     dobTo: date(raw.dobTo),
+    nhs: text(raw.nhs),
   });
 }
 
-export const hasPatientFilters = (s: PatientsListSearch) => Boolean(s.first || s.last || s.email || s.dobFrom || s.dobTo);
+export const hasPatientFilters = (s: PatientsListSearch) =>
+  Boolean(s.first || s.last || s.email || s.dobFrom || s.dobTo || s.nhs);
 
 // Users ---------------------------------------------------------------------------------------------------
 

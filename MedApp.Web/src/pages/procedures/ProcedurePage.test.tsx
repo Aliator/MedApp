@@ -37,6 +37,25 @@ const procedure = {
 };
 
 describe('ProcedurePage', () => {
+  it("shows the patient's banner: who the procedure is for", async () => {
+    const patient = {id: 'patient-1', firstName: 'Test', lastName: 'Patient', dateOfBirth: '1960-05-04', nhsNumber: '9990000026', isRestricted: true};
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, patient})});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    const banner = await screen.findByRole('region', {name: 'Patient'});
+    expect(within(banner).getByText('PATIENT, Test')).toBeInTheDocument();
+    expect(within(banner).getByText('NHS No. 999 000 0026')).toBeInTheDocument();
+    expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+  });
+
+  it('has no banner when the procedure comes without its patient', async () => {
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
+    expect(screen.queryByRole('region', {name: 'Patient'})).not.toBeInTheDocument();
+  });
+
   it("says why nothing can be changed while the patient's record is restricted", async () => {
     const reason = "This patient's record is restricted, so it can't be changed until an admin lifts the restriction.";
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, readOnlyReason: reason})});

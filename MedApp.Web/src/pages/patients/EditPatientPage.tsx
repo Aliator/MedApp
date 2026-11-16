@@ -19,6 +19,7 @@ const toInput = (p: Patient): PatientInput => ({
   lastName: p.lastName ?? '',
   dateOfBirth: p.dateOfBirth ?? '',
   email: p.email ?? '',
+  nhsNumber: p.nhsNumber ?? '',
 });
 
 const pageProps = {
@@ -133,7 +134,13 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
             isProcessing={remove.isPending}
             onConfirm={deletePatient}
             onCancel={() => setDialog(null)}>
-            <PatientSummary firstName={patient.firstName} lastName={patient.lastName} showDateOfBirth={false} showEmail={false} />
+            <PatientSummary
+              firstName={patient.firstName}
+              lastName={patient.lastName}
+              nhsNumber={patient.nhsNumber ?? null}
+              showDateOfBirth={false}
+              showEmail={false}
+            />
           </ConfirmDialog>
         </>
       }>

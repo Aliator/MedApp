@@ -22,6 +22,11 @@ export interface PageProps extends PageHeaderProps {
    * the page however few rows it has. The content gets the remaining height to fill (`height="100%"`).
    */
   fill?: boolean;
+  /**
+   * Who the page is about, between the header and the content (a `PatientBanner` on every page about one patient).
+   * It's always in view: it stays above the content, outside the cards that fold and scroll.
+   */
+  banner?: ReactNode;
   /** Dialogs the page opens. They render outside the content, so they stay available while it loads. */
   dialogs?: ReactNode;
   children?: ReactNode;
@@ -54,6 +59,7 @@ export function Page({
   loadingMessage = 'Loading...',
   maxWidth = PAGE_MAX_WIDTH,
   fill = false,
+  banner,
   dialogs,
   children,
   ...header
@@ -66,6 +72,7 @@ export function Page({
       <LayoutContent>
         <VStack gap={6} height={fill ? '100%' : undefined}>
           <PageHeader {...header} />
+          {banner}
           {isLoading ? (
             <Center axis="horizontal" padding={10}>
               <Spinner size="lg" label={loadingMessage} />

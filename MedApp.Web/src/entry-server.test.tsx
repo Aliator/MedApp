@@ -220,6 +220,22 @@ describe('server rendering', () => {
     expect(new URL(feed.url).search).toBe('?PageSize=20');
   });
 
+  it("renders the patient's banner on the server, with their NHS number", async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      // A synthetic test number (the 999 range is never issued to real patients).
+      [`/api/patients/${patient.id}`]: {...patient, nhsNumber: '9990000018'},
+    });
+
+    const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
+
+    expect(html).toContain('aria-label="Patient"');
+    expect(html).toContain('PATIENT, Test');
+    expect(html).toMatch(/NHS No\. (<!-- -->)?999 000 0018/);
+  });
+
   it('still renders the page when its data fails, for it to show its error', async () => {
     api({
       '/api/auth/whoami': signedIn,

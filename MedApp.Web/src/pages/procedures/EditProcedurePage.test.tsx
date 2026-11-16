@@ -28,6 +28,21 @@ function renderEdit(body = procedure(), handlers: Record<string, (request: Reque
 }
 
 describe('EditProcedurePage', () => {
+  it("shows the patient's banner, while editing and when it can't be edited", async () => {
+    const patient = {id: 'patient-1', firstName: 'Test', lastName: 'Patient', dateOfBirth: '1960-05-04', nhsNumber: null};
+    renderEdit(procedure({patient}));
+
+    const banner = await screen.findByRole('region', {name: 'Patient'});
+    expect(within(banner).getByText('PATIENT, Test')).toBeInTheDocument();
+    expect(within(banner).getByText('No NHS number')).toBeInTheDocument();
+  });
+
+  it("shows the patient's banner on a procedure that can't be edited", async () => {
+    renderEdit(procedure({canEditDetails: false, status: 'Completed', patient: {firstName: 'Test', lastName: 'Patient'}}));
+
+    expect(await screen.findByRole('region', {name: 'Patient'})).toHaveTextContent('PATIENT, Test');
+  });
+
   it("starts from the procedure's details", async () => {
     renderEdit();
 

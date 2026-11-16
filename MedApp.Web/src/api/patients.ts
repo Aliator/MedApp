@@ -1,4 +1,5 @@
 import {keepPreviousData, queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {normaliseNhsNumber} from '../utils/nhsNumber';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
@@ -13,6 +14,8 @@ export interface PatientInput {
   lastName: string;
   dateOfBirth: string;
   email: string;
+  /** Optional: as typed, spaces allowed. Blank means none. */
+  nhsNumber: string;
 }
 
 /**
@@ -22,8 +25,20 @@ export interface PatientInput {
  */
 export const NO_DATE = '0001-01-01';
 
-export function toPatientRequest(input: PatientInput): PatientInput {
-  return {...input, dateOfBirth: input.dateOfBirth || NO_DATE};
+export type PatientRequest = Schemas['CreatePatientRequest'] & Schemas['UpdatePatientRequest'];
+
+/**
+ * The request body for a new patient (`create`) or a change to one (`update`). The NHS number goes without its
+ * spaces. A blank one is left out of a new patient; on an update it's sent as "" so it's removed, since the API
+ * reads a missing (null) NHS number as "leave it as it is", and the edit form always shows the whole record.
+ */
+export function toPatientRequest(input: PatientInput, mode: 'create' | 'update'): PatientRequest {
+  const nhsNumber = normaliseNhsNumber(input.nhsNumber);
+  return {
+    ...input,
+    dateOfBirth: input.dateOfBirth || NO_DATE,
+    nhsNumber: nhsNumber || (mode === 'update' ? '' : undefined),
+  };
 }
 
 /** One patient, by ID (`GET api/patients/{id}`). A missing patient is an ApiError with status 404. */
@@ -43,7 +58,7 @@ function useInvalidatePatients() {
 export function useCreatePatient() {
   const invalidate = useInvalidatePatients();
   return useMutation({
-    mutationFn: (input: PatientInput) => unwrap(api.POST('/api/patients', {body: toPatientRequest(input)})),
+    mutationFn: (input: PatientInput) => unwrap(api.POST('/api/patients', {body: toPatientRequest(input, 'create')})),
     onSuccess: invalidate,
   });
 }
@@ -52,7 +67,7 @@ export function useUpdatePatient(id: string) {
   const invalidate = useInvalidatePatients();
   return useMutation({
     mutationFn: (input: PatientInput) =>
-      unwrap(api.PATCH('/api/patients/{id}', {params: {path: {id}}, body: toPatientRequest(input)})),
+      unwrap(api.PATCH('/api/patients/{id}', {params: {path: {id}}, body: toPatientRequest(input, 'update')})),
     onSuccess: invalidate,
   });
 }

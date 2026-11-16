@@ -1,6 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
+import {Grid} from '@astryxdesign/core/Grid';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
@@ -20,6 +21,7 @@ import {
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
+import {SnomedCell, snomedLabel} from '../../components/procedures/SnomedConcept';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
@@ -38,7 +40,7 @@ type DialogState =
   | {kind: 'archive' | 'delete'; definition: StageDefinition}
   | null;
 
-const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: ''};
+const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: '', snomedCode: '', snomedTerm: ''};
 const FIELDS = Object.keys(EMPTY);
 
 export interface StageDefinitionsPageProps {
@@ -50,7 +52,7 @@ const templatesUsing = (n: number) => (n === 0 ? 'No templates' : `${n} ${n === 
 
 /**
  * Stage definitions (admin, decision 17): the reusable steps templates are built from. Admins add and edit them
- * (name, description, instructions), archive ones no longer wanted (kept by the templates and procedures that have
+ * (name, description, instructions, and the SNOMED CT concept it records), archive ones no longer wanted (kept by the templates and procedures that have
  * them, but not offered for new templates), restore them, and delete ones no template has used (decision 11).
  * A procedure keeps its own copy of each stage, so editing a definition changes templates, not existing procedures.
  */
@@ -72,7 +74,13 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const openEditor = (definition: StageDefinition | null) => {
     setForm(
       definition
-        ? {name: definition.name ?? '', description: definition.description ?? '', instructions: definition.instructions ?? ''}
+        ? {
+            name: definition.name ?? '',
+            description: definition.description ?? '',
+            instructions: definition.instructions ?? '',
+            snomedCode: definition.snomedCode ?? '',
+            snomedTerm: definition.snomedTerm ?? '',
+          }
         : EMPTY,
     );
     setProblem(NO_PROBLEM);
@@ -110,6 +118,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       width: proportional(3, {minWidth: 120}),
       renderCell: (d) => <SetupNameCell name={d.name ?? ''} secondary={d.description} />,
     },
+    {key: 'snomed', header: 'SNOMED CT', width: pixel(180), renderCell: (d) => <SnomedCell code={d.snomedCode} term={d.snomedTerm} />},
     {key: 'templates', header: 'Used in', width: pixel(140), renderCell: (d) => <Text type="body">{templatesUsing(d.templateCount ?? 0)}</Text>},
     {key: 'status', header: 'Status', width: pixel(100), renderCell: (d) => <SetupStatusToken isArchived={d.isArchived ?? false} />},
     {
@@ -146,6 +155,9 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const summary = target && (
     <MetadataList>
       <MetadataListItem label="Stage">{target.name}</MetadataListItem>
+      {snomedLabel({code: target.snomedCode, term: target.snomedTerm}) && (
+        <MetadataListItem label="SNOMED CT">{snomedLabel({code: target.snomedCode, term: target.snomedTerm})}</MetadataListItem>
+      )}
       <MetadataListItem label="Used in">{templatesUsing(target.templateCount ?? 0)}</MetadataListItem>
     </MetadataList>
   );
@@ -209,6 +221,30 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                 isRequired
                 status={fieldStatus(problem.validation, 'instructions')}
               />
+              {/* The clinical concept the stage records, for reports and other systems: optional, both or neither. */}
+              <Grid columns={2} gap={4}>
+                <TextInput
+                  label="SNOMED CT Code"
+                  description="The concept's ID, e.g. 80146002."
+                  value={form.snomedCode}
+                  onChange={set('snomedCode')}
+                  placeholder="e.g. 80146002"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  isOptional
+                  status={fieldStatus(problem.validation, 'snomedCode')}
+                />
+                <TextInput
+                  label="Display Term"
+                  description="The concept's name, e.g. Appendectomy."
+                  value={form.snomedTerm}
+                  onChange={set('snomedTerm')}
+                  placeholder="e.g. Appendectomy"
+                  autoComplete="off"
+                  isOptional
+                  status={fieldStatus(problem.validation, 'snomedTerm')}
+                />
+              </Grid>
             </VStack>
           </ConfirmDialog>
 

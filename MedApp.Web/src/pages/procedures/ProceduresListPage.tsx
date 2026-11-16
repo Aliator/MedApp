@@ -5,6 +5,7 @@ import {useQuery} from '@tanstack/react-query';
 import {patientQuery} from '../../api/patients';
 import type {ProcedureSummary} from '../../api/procedures';
 import {procedureSearchQuery} from '../../api/search';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
   AssigneesCell,
@@ -186,6 +187,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       backHref={patientId ? `/patients/${patientId}` : undefined}
       backLabel="Back to patient"
       fill
+      banner={patientId && patient.data && <PatientBanner patient={patient.data} />}
       message={isError && <AlertMessage message="The procedures could not be loaded. Please try again." />}
       actions={
         patientId && (
