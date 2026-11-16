@@ -53,6 +53,7 @@ import {
   RiPaletteLine,
   RiPlayCircleLine,
   RiQuestionLine,
+  RiRadarLine,
   RiPencilLine,
   RiRefreshLine,
   RiSaveLine,
@@ -175,4 +176,6 @@ export const AppIcon = {
   Unlock: remix(RiLockUnlockLine),
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),
+  // Monitoring (admin): rules for being told what staff do
+  Monitoring: remix(RiRadarLine),
 } as const satisfies Record<string, IconType>;

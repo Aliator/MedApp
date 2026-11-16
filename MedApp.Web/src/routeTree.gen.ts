@@ -20,6 +20,7 @@ import { Route as AppAccountColoursRouteImport } from './routes/_app/account/col
 import { Route as AppAccountPasswordRouteImport } from './routes/_app/account/password'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
+import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
@@ -87,6 +88,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
 const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
   id: '/admin/insights',
   path: '/admin/insights',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminMonitoringRoute = AppAdminMonitoringRouteImport.update({
+  id: '/admin/monitoring',
+  path: '/admin/monitoring',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/account/password': typeof AppAccountPasswordRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/account/password': typeof AppAccountPasswordRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/_app/account/password': typeof AppAccountPasswordRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/insights': typeof AppAdminInsightsRoute
+  '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/account/password'
     | '/admin/audit'
     | '/admin/insights'
+    | '/admin/monitoring'
     | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/account/password'
     | '/admin/audit'
     | '/admin/insights'
+    | '/admin/monitoring'
     | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/_app/account/password'
     | '/_app/admin/audit'
     | '/_app/admin/insights'
+    | '/_app/admin/monitoring'
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/patients/add'
@@ -405,6 +417,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/insights'
       fullPath: '/admin/insights'
       preLoaderRoute: typeof AppAdminInsightsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/monitoring': {
+      id: '/_app/admin/monitoring'
+      path: '/admin/monitoring'
+      fullPath: '/admin/monitoring'
+      preLoaderRoute: typeof AppAdminMonitoringRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/stages': {
@@ -516,6 +535,7 @@ interface AppRouteChildren {
   AppAccountPasswordRoute: typeof AppAccountPasswordRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminInsightsRoute: typeof AppAdminInsightsRoute
+  AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
@@ -541,6 +561,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountPasswordRoute: AppAccountPasswordRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminInsightsRoute: AppAdminInsightsRoute,
+  AppAdminMonitoringRoute: AppAdminMonitoringRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,

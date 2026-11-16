@@ -304,6 +304,17 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  { name: 'admin-monitoring', title: "Monitoring (admin): the admin's rules, as sentences", path: '/admin/monitoring' },
+  {
+    name: 'admin-monitoring-add',
+    title: 'Monitoring: adding a rule, with its sentence previewed',
+    path: '/admin/monitoring',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Rule' }).first().click();
+      await page.getByText('Preview').waitFor();
+      await settle(page);
+    },
+  },
   {
     name: 'admin-insights-narrow',
     title: 'Insights on a narrow window: one column of charts',
