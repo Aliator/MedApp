@@ -1,3 +1,4 @@
+using System.Globalization;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
 using static MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
@@ -10,9 +11,12 @@ namespace MedApp.Application.Procedures.Insights.Common;
 /// repository runs them in SQL and the unit tests run them in memory. Each ends in a GroupBy or a Count, so SQL sends
 /// back totals, not rows.
 /// <para>
-/// A procedure's past statuses come from the audit log: each status change is a <see cref="Action.StatusChanged"/>
-/// entry whose details are <c>{"from":"…","to":"…"}</c> (<see cref="ProcedureAudit"/>), so the status at a moment is
-/// the "to" of the last change before it, or Unassigned (how every procedure starts) if there was none.
+/// A procedure's past state is rebuilt from the audit log, backwards from now: each status change is a
+/// <see cref="Action.StatusChanged"/> entry whose details are <c>{"from":"…","to":"…"}</c> (<see cref="ProcedureAudit"/>),
+/// so its status at a moment is the "from" of its first change after it, or its status now if nothing has changed
+/// since. Its due date then is the "from" of its first due date change after it (a <see cref="Action.DetailsUpdated"/>
+/// entry's <c>changes.dueDate</c>), or its due date now. Only the history since the moment is read, so the work
+/// follows the period, not the whole log, and procedures from before the audit log need no history at all.
 /// </para>
 /// </summary>
 public static class ProcedureInsightsQueries
@@ -26,6 +30,19 @@ public static class ProcedureInsightsQueries
     public const string ToCancelled = "\"to\":\"Cancelled\"";
     public const string ToBlocked = "\"to\":\"Blocked\"";
     public const string ToArchived = "\"to\":\"Archived\"";
+
+    // And where it changed from.
+    public const string FromUnassigned = "\"from\":\"Unassigned\"";
+    public const string FromAssigned = "\"from\":\"Assigned\"";
+    public const string FromInProgress = "\"from\":\"InProgress\"";
+    public const string FromInReview = "\"from\":\"InReview\"";
+    public const string FromCompleted = "\"from\":\"Completed\"";
+    public const string FromCancelled = "\"from\":\"Cancelled\"";
+    public const string FromBlocked = "\"from\":\"Blocked\"";
+    public const string FromArchived = "\"from\":\"Archived\"";
+
+    /// <summary>Where a details change's old due date is: a UK day, <c>yyyy-MM-dd</c> (<c>UpdatePatientProcedureHandler</c>).</summary>
+    public const string DueDateFromPath = "$.changes.dueDate.from";
 
     /// <summary>Only procedures made from this template, when there is one.</summary>
     public static IQueryable<PatientProcedure> ForTemplate(this IQueryable<PatientProcedure> procedures, Guid? templateId) =>
@@ -47,38 +64,61 @@ public static class ProcedureInsightsQueries
             .Select(g => new StatusCount(g.Key.Status, g.Key.IsPastDue, g.Count()));
 
     /// <summary>
-    /// How many procedures had each status at a past moment (from the audit log), and whether they were past their
-    /// due date then. Only procedures that existed then, and still do; due dates are today's.
+    /// How many procedures had each status at a past moment, and whether they were past their due date then, rebuilt
+    /// from the audit log entries since (see the class's summary). Only procedures that existed then, and still do.
     /// </summary>
     public static IQueryable<StatusCount> StatusCountsAt(
         this IQueryable<PatientProcedure> procedures,
         IQueryable<PatientProcedureAuditEntry> audit,
-        DateTime atUtc) =>
-        procedures
+        DateTime atUtc)
+    {
+        // Due dates are whole UK days, due by the end of the day: one was past at the moment if its day was before the
+        // moment's day. As yyyy-MM-dd text, the days compare in order.
+        var atDay = DueDates.ToUkDate(atUtc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return procedures
             .Where(p => p.CreatedAt <= atUtc)
             .Select(p => new
             {
                 Status = audit
-                    .Where(e => e.PatientProcedureId == p.Id && e.Action == Action.StatusChanged && e.AtUtc <= atUtc)
+                    .Where(e => e.PatientProcedureId == p.Id && e.Action == Action.StatusChanged && e.AtUtc > atUtc)
                     // One change can make two at the same moment: finishing the only stage left of an unstarted
-                    // procedure starts it (to InProgress) and finishes it (to InReview). The later is never InProgress.
-                    .OrderByDescending(e => e.AtUtc)
-                    .ThenBy(e => e.Details.Contains(ToInProgress) ? 1 : 0)
+                    // procedure starts it (to InProgress) and finishes it (to InReview). The one to InProgress came
+                    // first, so the other is left out. (A filter, not a second sort key: sorting on the details would
+                    // stop SQL Server seeking the index on PatientProcedureId and AtUtc, and it scans the table.)
+                    .Where(e => !(e.Details.Contains(FromInProgress)
+                                  && audit.Any(o => o.PatientProcedureId == e.PatientProcedureId
+                                                    && o.Action == Action.StatusChanged
+                                                    && o.AtUtc == e.AtUtc
+                                                    && o.Details.Contains(ToInProgress))))
+                    .OrderBy(e => e.AtUtc)
                     .Select(e =>
-                        e.Details.Contains(ToCompleted) ? Completed
-                        : e.Details.Contains(ToCancelled) ? Cancelled
-                        : e.Details.Contains(ToArchived) ? Archived
-                        : e.Details.Contains(ToBlocked) ? Blocked
-                        : e.Details.Contains(ToInReview) ? InReview
-                        : e.Details.Contains(ToInProgress) ? InProgress
-                        : e.Details.Contains(ToAssigned) ? Assigned
+                        e.Details.Contains(FromCompleted) ? Completed
+                        : e.Details.Contains(FromCancelled) ? Cancelled
+                        : e.Details.Contains(FromArchived) ? Archived
+                        : e.Details.Contains(FromBlocked) ? Blocked
+                        : e.Details.Contains(FromInReview) ? InReview
+                        : e.Details.Contains(FromInProgress) ? InProgress
+                        : e.Details.Contains(FromAssigned) ? Assigned
                         : Unassigned)
                     .Cast<PatientProcedureStatus?>()
-                    .FirstOrDefault() ?? Unassigned,
-                IsPastDue = p.DueDateUtc < atUtc,
+                    .FirstOrDefault() ?? p.Status,
+                DueDayThen = audit
+                    .Where(e => e.PatientProcedureId == p.Id && e.Action == Action.DetailsUpdated && e.AtUtc > atUtc)
+                    .Select(e => new { e.AtUtc, Day = InsightsFunctions.JsonValue(e.Details, DueDateFromPath) })
+                    .Where(x => x.Day != null)
+                    .OrderBy(x => x.AtUtc)
+                    .Select(x => x.Day)
+                    .FirstOrDefault(),
+                p.DueDateUtc,
+            })
+            .Select(x => new
+            {
+                x.Status,
+                IsPastDue = x.DueDayThen != null ? string.Compare(x.DueDayThen, atDay) < 0 : x.DueDateUtc < atUtc,
             })
             .GroupBy(x => new { x.Status, x.IsPastDue })
             .Select(g => new StatusCount(g.Key.Status, g.Key.IsPastDue, g.Count()));
+    }
 
     /// <summary>How many times procedures were marked Completed between two moments (from inclusive, to exclusive).</summary>
     public static IQueryable<PatientProcedureAuditEntry> Completions(
@@ -148,6 +188,7 @@ public static class ProcedureInsightsQueries
             where s.IsCompleted && s.StartedAtUtc != null && s.CompletedAtUtc != null && s.CompletedAtUtc >= fromUtc
             select new
             {
+                StageId = s.Id,
                 p.TemplateId,
                 p.TemplateName,
                 s.StageOrder,
@@ -155,13 +196,17 @@ public static class ProcedureInsightsQueries
                 s.Name,
                 ReachedUtc = stages
                     .Where(b => b.PatientProcedureId == s.PatientProcedureId && b.StageOrder == s.StageOrder - 1)
-                    .Select(b => finishes.Where(e => e.PatientProcedureId == b.PatientProcedureId && e.StageId == b.Id).Min(e => (DateTime?)e.AtUtc) ?? b.CompletedAtUtc)
+                    .Select(b => finishes.Where(e => e.PatientProcedureId == b.PatientProcedureId && e.StageId == b.Id).OrderBy(e => e.AtUtc).Select(e => (DateTime?)e.AtUtc).FirstOrDefault() ?? b.CompletedAtUtc)
                     .FirstOrDefault() ?? p.CreatedAt,
                 StartedUtc = s.StartedAtUtc!.Value,
-                FinishedUtc = finishes.Where(e => e.PatientProcedureId == s.PatientProcedureId && e.StageId == s.Id).Min(e => (DateTime?)e.AtUtc) ?? s.CompletedAtUtc!.Value,
+                FinishedUtc = finishes.Where(e => e.PatientProcedureId == s.PatientProcedureId && e.StageId == s.Id).OrderBy(e => e.AtUtc).Select(e => (DateTime?)e.AtUtc).FirstOrDefault() ?? s.CompletedAtUtc!.Value,
             };
 
         return timed
+            // Each stage is a row already (its ID is in it), so this changes nothing but the SQL: it makes SQL work out
+            // each stage's first finish, and the one before's, once, in a derived table, rather than copying those
+            // subqueries into everywhere they're used below.
+            .Distinct()
             .Where(x => x.FinishedUtc >= fromUtc && x.FinishedUtc < toUtc)
             .Select(x => new
             {
@@ -170,6 +215,8 @@ public static class ProcedureInsightsQueries
                 x.StageOrder,
                 x.StageDefinitionId,
                 x.Name,
+                // A stage started before the one before it was first finished (only possible when that finish isn't in
+                // the audit log, for procedures from before it) didn't wait at all.
                 Waiting = InsightsFunctions.SecondsBetween(x.ReachedUtc, x.StartedUtc),
                 Working = InsightsFunctions.SecondsBetween(x.StartedUtc, x.FinishedUtc),
             })
@@ -181,8 +228,6 @@ public static class ProcedureInsightsQueries
                 g.Key.StageDefinitionId,
                 g.Max(x => x.Name)!,
                 g.Count(),
-                // A stage started before the one before it was finished (only once an admin has unlocked that one)
-                // didn't wait at all.
                 g.Average(x => (double)(x.Waiting < 0 ? 0 : x.Waiting)),
                 g.Average(x => (double)(x.Working < 0 ? 0 : x.Working))));
     }

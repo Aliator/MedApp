@@ -4,6 +4,7 @@ using MedApp.Application.Procedures.Insights.Queries.GetProcedureInsights;
 using MedApp.Contracts.Procedures.Insights.Requests;
 using MedApp.Contracts.Procedures.Insights.Responses;
 using MedApp.UnitTests.Common.Fixtures;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
 using static MedApp.UnitTests.Common.Constants.InsightsTestConstants;
@@ -36,5 +37,17 @@ public sealed class ProcedureInsightsControllerTests
 
         request.Weeks.Should().Be(GetProcedureInsightsQuery.DefaultWeeks);
         request.TemplateId.Should().BeNull();
+    }
+
+    [Test]
+    public void GetProcedureInsights_IsForAdminsOnly()
+    {
+        // The API has no fallback policy: without this attribute, anyone could read the counts and usernames.
+        var action = typeof(ProcedureInsightsController).GetMethod(nameof(ProcedureInsightsController.GetProcedureInsights))!;
+
+        action.GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()
+            .Should().ContainSingle().Which.Roles.Should().Be("Admin");
+        action.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Should().BeEmpty();
+        typeof(ProcedureInsightsController).GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Should().BeEmpty();
     }
 }

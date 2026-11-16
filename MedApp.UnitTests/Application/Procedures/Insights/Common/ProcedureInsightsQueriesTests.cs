@@ -35,52 +35,59 @@ public sealed class ProcedureInsightsQueriesTests
 
     [TestCase(Status.Unassigned, Status.Assigned)]
     [TestCase(Status.Assigned, Status.Unassigned)]
-    [TestCase(Status.InProgress, Status.Assigned)]
-    [TestCase(Status.InReview, Status.Assigned)]
-    [TestCase(Status.Completed, Status.Assigned)]
-    [TestCase(Status.Cancelled, Status.Assigned)]
-    [TestCase(Status.Blocked, Status.Assigned)]
+    [TestCase(Status.InProgress, Status.Blocked)]
+    [TestCase(Status.InReview, Status.Completed)]
+    [TestCase(Status.Completed, Status.Archived)]
+    [TestCase(Status.Cancelled, Status.Archived)]
+    [TestCase(Status.Blocked, Status.Cancelled)]
     [TestCase(Status.Archived, Status.Assigned)]
-    public void StatusCountsAt_LastChangeBeforeTheMoment_GivesTheStatusThen(Status then, Status from)
+    public void StatusCountsAt_ChangeAfterTheMoment_WasWhatItChangedFrom(Status then, Status now)
     {
-        var procedure = CreateProcedure(from);
-        var audit = ChangeStatus(procedure, then, Moment.AddHours(-1));
+        var procedure = CreateProcedure(then);
+        var audit = ChangeStatus(procedure, now, Moment.AddHours(1));
 
+        procedure.Status.Should().Be(now);
         CountsAt([procedure], audit).Should().Equal(Count(then, 1));
     }
 
     [Test]
-    public void StatusCountsAt_NoChangesBeforeTheMoment_WasUnassigned()
+    public void StatusCountsAt_NoChangeSinceTheMoment_IsItsStatusNow()
     {
-        var procedure = CreateProcedure(Status.Unassigned);
-        var later = ChangeStatus(procedure, Status.Assigned, Moment.AddHours(1));
+        // Changes before the moment say nothing about it; nor does the lack of any (a procedure from before the log).
+        var procedure = CreateProcedure(Status.Assigned);
+        var before = ChangeStatus(procedure, Status.Completed, Moment.AddDays(-1));
+        var fromBeforeTheLog = CreateProcedure(Status.Completed);
 
-        CountsAt([procedure], later).Should().Equal(Count(Status.Unassigned, 1));
+        CountsAt([procedure, fromBeforeTheLog], before).Should().Equal(Count(Status.Completed, 2));
     }
 
     [Test]
-    public void StatusCountsAt_SeveralChanges_UsesTheLastBeforeTheMoment()
+    public void StatusCountsAt_SeveralChangesSince_UsesTheFirst()
     {
-        var procedure = CreateProcedure(Status.Assigned);
-        var audit = ChangeStatus(procedure, Status.Blocked, Moment.AddDays(-2))
-            .Concat(ChangeStatus(procedure, Status.Assigned, Moment.AddDays(-1)))
-            .Concat(ChangeStatus(procedure, Status.Cancelled, Moment.AddHours(1)))
+        var procedure = CreateProcedure(Status.InProgress);
+        var audit = ChangeStatus(procedure, Status.Blocked, Moment.AddHours(1))
+            .Concat(ChangeStatus(procedure, Status.InProgress, Moment.AddHours(2)))
+            .Concat(ChangeStatus(procedure, Status.Cancelled, Moment.AddHours(3)))
+            .Reverse()
             .ToList();
 
-        CountsAt([procedure], audit).Should().Equal(Count(Status.Assigned, 1));
+        CountsAt([procedure], audit).Should().Equal(Count(Status.InProgress, 1));
     }
 
-    [Test]
-    public void StatusCountsAt_TwoChangesAtOnce_UsesTheOneAfterInProgress()
+    [TestCase(Status.Assigned)]
+    [TestCase(Status.Unassigned)]
+    public void StatusCountsAt_TwoChangesAtOnce_WasWhatTheFirstChangedFrom(Status then)
     {
-        // Finishing the last stage of a procedure nobody had started: Assigned → InProgress → InReview, all at once.
-        var procedure = CreateProcedure(Status.Assigned, finishedStages: 2);
+        // Finishing the last stage of a procedure nobody had started: then → InProgress → InReview, all at once.
+        var procedure = CreateProcedure(then, finishedStages: 2);
         procedure.StageAt(3).StartedAtUtc = null;
         procedure.StageAt(3).IsCompleted = false;
-        var change = new ProcedureChange(procedure, Staff, Moment.AddHours(-1));
+        var change = new ProcedureChange(procedure, Staff, Moment.AddHours(1));
         change.FinishStage(procedure.StageAt(3));
 
-        CountsAt([procedure], change.AuditEntries.Reverse().ToList()).Should().Equal(Count(Status.InReview, 1));
+        procedure.Status.Should().Be(Status.InReview);
+        CountsAt([procedure], change.AuditEntries).Should().Equal(Count(then, 1));
+        CountsAt([procedure], change.AuditEntries.Reverse().ToList()).Should().Equal(Count(then, 1));
     }
 
     [Test]
@@ -100,14 +107,60 @@ public sealed class ProcedureInsightsQueriesTests
     }
 
     [Test]
+    public void StatusCountsAt_DueDateMovedOnSince_WasPastDueThenByItsOldDate()
+    {
+        // Due on the moment's day before last, moved to next month since: it was overdue then.
+        var procedure = CreateProcedure(Status.Assigned, dueDateUtc: Now.AddDays(30));
+        var audit = new[] { DueDateChanged(procedure, MomentDay.AddDays(-2), MomentDay.AddDays(30), Moment.AddHours(1)) };
+
+        CountsAt([procedure], audit).Should().Equal(Count(Status.Assigned, 1, isPastDue: true));
+    }
+
+    [Test]
+    public void StatusCountsAt_DueDateBroughtForwardSince_WasNotPastDueThen()
+    {
+        // Due today (the moment's day) when it was moved back a week: not past due at the moment, though it is now.
+        var procedure = CreateProcedure(Status.Assigned, dueDateUtc: Moment.AddDays(-7));
+        var audit = new[] { DueDateChanged(procedure, MomentDay, MomentDay.AddDays(-7), Moment.AddHours(1)) };
+
+        CountsAt([procedure], audit).Should().Equal(Count(Status.Assigned, 1));
+    }
+
+    [Test]
+    public void StatusCountsAt_SeveralDetailChangesSince_UsesTheFirstThatMovedTheDueDate()
+    {
+        var procedure = CreateProcedure(Status.Assigned, dueDateUtc: Now.AddDays(30));
+        var audit = new[]
+        {
+            DetailsChanged(procedure, Moment.AddMinutes(30), new Dictionary<string, object> { ["title"] = new { from = "A", to = "B" } }),
+            DueDateChanged(procedure, MomentDay.AddDays(5), MomentDay.AddDays(10), Moment.AddHours(2)),
+            DueDateChanged(procedure, MomentDay.AddDays(-1), MomentDay.AddDays(5), Moment.AddHours(1)),
+        };
+
+        CountsAt([procedure], audit).Should().Equal(Count(Status.Assigned, 1, isPastDue: true));
+    }
+
+    [Test]
+    public void StatusCountsAt_DueDateChangedBeforeTheMoment_UsesTheDueDateNow()
+    {
+        var procedure = CreateProcedure(Status.Assigned, dueDateUtc: Now.AddDays(3));
+        var audit = new[] { DueDateChanged(procedure, MomentDay.AddDays(-5), MomentDay.AddDays(4), Moment.AddHours(-1)) };
+
+        CountsAt([procedure], audit).Should().Equal(Count(Status.Assigned, 1));
+    }
+
+    [Test]
     public void StatusCountsAt_OtherProceduresChanges_AreNotItsOwn()
     {
         var procedure = CreateProcedure(Status.Unassigned);
         var other = CreateProcedure(Status.Assigned);
-        var audit = ChangeStatus(other, Status.Blocked, Moment.AddHours(-1));
+        var audit = ChangeStatus(other, Status.Blocked, Moment.AddHours(1))
+            .Append(DueDateChanged(other, MomentDay.AddDays(-3), MomentDay, Moment.AddHours(1)));
 
         CountsAt([procedure], audit).Should().Equal(Count(Status.Unassigned, 1));
     }
+
+    private static readonly DateOnly MomentDay = DueDates.ToUkDate(Moment);
 
     private static List<StatusCount> CountsAt(IEnumerable<PatientProcedure> procedures, IEnumerable<PatientProcedureAuditEntry> audit) =>
         procedures.AsQueryable().StatusCountsAt(audit.AsQueryable(), Moment).ToList();
@@ -352,5 +405,20 @@ public sealed class ProcedureInsightsQueriesTests
     {
         InsightsFunctions.SecondsBetween(Now, Now.AddMinutes(2).AddMilliseconds(500)).Should().Be(120);
         InsightsFunctions.SecondsBetween(Now.AddSeconds(90), Now).Should().Be(-90);
+    }
+
+    [TestCase("{\"changes\":{\"dueDate\":{\"from\":\"2026-06-12\"}}}", "$.changes.dueDate.from", "2026-06-12")]
+    [TestCase("{\"a\":{\"n\":3,\"t\":true}}", "$.a.n", "3")]
+    [TestCase("{\"a\":{\"n\":3,\"t\":true}}", "$.a.t", "true")]
+    [TestCase("{\"a\":{\"b\":[1]}}", "$.a.b", null)]
+    [TestCase("{\"a\":\"x\"}", "$.a.b", null)]
+    [TestCase("{\"a\":1}", "$.b", null)]
+    [TestCase("not json", "$.a", null)]
+    [TestCase("", "$.a", null)]
+    [TestCase(null, "$.a", null)]
+    [TestCase("{\"a\":1}", "a", null)]
+    public void JsonValue_PathInDocument_ReturnsItsTextOrNull(string? json, string path, string? expected)
+    {
+        InsightsFunctions.JsonValue(json, path).Should().Be(expected);
     }
 }

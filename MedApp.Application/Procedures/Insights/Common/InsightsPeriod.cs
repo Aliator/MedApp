@@ -25,7 +25,10 @@ public sealed class InsightsPeriod
         Weeks = weeks;
         var lastWeekStart = Week(ThisWeek.Monday.AddDays(-7)).StartUtc;
         LastWeekStartUtc = lastWeekStart;
-        SameMomentLastWeekUtc = lastWeekStart + (nowUtc - ThisWeek.StartUtc);
+        // The week the clocks go forward is an hour short, so in the next week's last hour "as far in" would run past
+        // last week's end: it stops there.
+        var sameMoment = lastWeekStart + (nowUtc - ThisWeek.StartUtc);
+        SameMomentLastWeekUtc = sameMoment < ThisWeek.StartUtc ? sameMoment : ThisWeek.StartUtc;
     }
 
     public DateTime NowUtc { get; }
@@ -41,7 +44,7 @@ public sealed class InsightsPeriod
     /// <summary>Monday 00:00 last week, UK time.</summary>
     public DateTime LastWeekStartUtc { get; }
 
-    /// <summary>The moment last week that is as far into it as now is into this week.</summary>
+    /// <summary>The moment last week that is as far into it as now is into this week, but never past its end.</summary>
     public DateTime SameMomentLastWeekUtc { get; }
 
     /// <summary>The <paramref name="weeks"/> UK weeks up to and including the one <paramref name="nowUtc"/> is in.</summary>

@@ -21,5 +21,10 @@ public static class InsightsDbFunctions
                 argumentsPropagateNullability: [false, true, true],
                 typeof(long),
                 null));
+
+        modelBuilder
+            .HasDbFunction(typeof(InsightsFunctions).GetMethod(nameof(InsightsFunctions.JsonValue))!)
+            .HasName("JSON_VALUE")
+            .IsBuiltIn();
     }
 }

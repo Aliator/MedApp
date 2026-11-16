@@ -37,9 +37,10 @@ public sealed class ProcedureInsightsSqlTests
         Procedures.StatusCounts(Now).ToQueryString().Should().Contain("GROUP BY");
 
     [Test]
-    public void StatusCountsAt_TranslatesTheLastStatusChangeToASubquery() =>
+    public void StatusCountsAt_TranslatesTheFirstChangesSinceToSubqueries() =>
         Procedures.StatusCountsAt(_context.PatientProcedureAuditEntries, Now).ToQueryString()
-            .Should().Contain("GROUP BY").And.Contain("TOP(1)").And.Contain(ProcedureInsightsQueries.ToCompleted);
+            .Should().Contain("GROUP BY").And.Contain("TOP(1)").And.Contain(ProcedureInsightsQueries.FromCompleted)
+            .And.Contain("JSON_VALUE(").And.Contain("N'$.changes.dueDate.from'");
 
     [Test]
     public void CompletionsAndCreationsByHour_TranslateToGroupBys()
@@ -58,5 +59,5 @@ public sealed class ProcedureInsightsSqlTests
     [Test]
     public void StageDurations_AveragesWithDateDiffBig() =>
         Procedures.StageDurations(_context.PatientProcedureStages, _context.PatientProcedureAuditEntries, Now.AddDays(-7), Now)
-            .ToQueryString().Should().Contain("DATEDIFF_BIG(second").And.Contain("AVG(");
+            .ToQueryString().Should().Contain("DATEDIFF_BIG(second").And.Contain("AVG(").And.Contain("DISTINCT");
 }

@@ -51,6 +51,25 @@ public sealed class InsightsPeriodTests
     }
 
     [Test]
+    public void SameMomentLastWeek_InTheLastHourAfterTheClocksGoForward_StopsAtLastWeeksEnd()
+    {
+        // The clocks went forward on Sunday 28 March 2027, so that week was 167 hours long. At 23:30 BST on Sunday
+        // 4 April, "as far into last week" would be 00:30 on this Monday.
+        var period = InsightsPeriod.For(new DateTime(2027, 4, 4, 22, 30, 0, DateTimeKind.Utc), 4);
+
+        period.ThisWeek.StartUtc.Should().Be(new DateTime(2027, 3, 28, 23, 0, 0, DateTimeKind.Utc));
+        period.SameMomentLastWeekUtc.Should().Be(period.ThisWeek.StartUtc);
+    }
+
+    [Test]
+    public void SameMomentLastWeek_AnHourEarlierThatSunday_IsAsFarIn()
+    {
+        var period = InsightsPeriod.For(new DateTime(2027, 4, 4, 21, 30, 0, DateTimeKind.Utc), 4);
+
+        period.SameMomentLastWeekUtc.Should().Be(new DateTime(2027, 3, 28, 22, 30, 0, DateTimeKind.Utc));
+    }
+
+    [Test]
     public void For_NoWeeks_Throws()
     {
         var act = () => InsightsPeriod.For(Now, 0);

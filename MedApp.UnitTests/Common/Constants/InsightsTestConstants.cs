@@ -37,6 +37,14 @@ public static class InsightsTestConstants
     public static PatientProcedureAuditEntry Finished(PatientProcedure procedure, PatientProcedureStage stage, DateTime atUtc) =>
         ProcedureAudit.Entry(procedure, ProceduresTestConstants.Staff, PatientProcedureAuditAction.StageFinished, atUtc, stage);
 
+    /// <summary>The audit entry for editing a procedure's details, as UpdatePatientProcedureHandler writes it.</summary>
+    public static PatientProcedureAuditEntry DetailsChanged(PatientProcedure procedure, DateTime atUtc, Dictionary<string, object> changes) =>
+        ProcedureAudit.Entry(procedure, ProceduresTestConstants.Staff, PatientProcedureAuditAction.DetailsUpdated, atUtc, details: new { changes });
+
+    /// <summary>The audit entry for moving a procedure's due date (its own due date isn't changed).</summary>
+    public static PatientProcedureAuditEntry DueDateChanged(PatientProcedure procedure, DateOnly from, DateOnly to, DateTime atUtc) =>
+        DetailsChanged(procedure, atUtc, new Dictionary<string, object> { ["dueDate"] = new { from, to } });
+
     /// <summary>Sets a stage's times: started and (last) finished.</summary>
     public static PatientProcedureStage Times(this PatientProcedureStage stage, DateTime startedUtc, DateTime finishedUtc)
     {
