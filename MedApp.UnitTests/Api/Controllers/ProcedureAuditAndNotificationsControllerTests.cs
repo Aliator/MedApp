@@ -1,4 +1,5 @@
-﻿using AutoFixture;
+﻿using System.Text.Json;
+using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Notifications.Commands.MarkNotificationsRead;
@@ -8,9 +9,13 @@ using MedApp.Contracts.Common;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Procedures.Audit.Requests;
 using MedApp.Contracts.Procedures.Audit.Responses;
+using MedApp.Infrastructure.Data.Conversions;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
+using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 
 namespace MedApp.UnitTests.Api.Controllers;
 
@@ -33,6 +38,27 @@ public sealed class ProcedureAuditControllerTests
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
+
+    [Test]
+    public async Task SearchProcedureAudit_TimeReadFromTheDatabase_IsSentAsUtcWithZ()
+    {
+        // As SQL Server gives a time back (no time zone), then as EF reads it (UtcDateTimeConverter).
+        var stored = DateTime.SpecifyKind(Now, DateTimeKind.Unspecified);
+        var read = (DateTime)new UtcDateTimeConverter().ConvertFromProvider(stored)!;
+        var page = new PagedResponse<PatientProcedureAuditEntryResponse>([new PatientProcedureAuditEntryResponse { AtUtc = read }], 1, 10, 1, 1);
+        var mediator = new RecordingMediator(_ => page);
+
+        var result = await new ProcedureAuditController(mediator).WithRequest(SignedIn("Admin"))
+            .SearchProcedureAudit(AutoFixtureFactory.Create().Create<SearchProcedureAuditRequest>(), CancellationToken.None);
+
+        var json = JsonSerializer.Serialize(result.Should().BeOfType<OkObjectResult>().Which.Value, MvcJsonOptions());
+        json.Should().Contain("\"atUtc\":\"2026-06-15T12:00:00Z\"");
+    }
+
+    /// <summary>The JSON options the API's controllers write responses with.</summary>
+    private static JsonSerializerOptions MvcJsonOptions() =>
+        new ServiceCollection().AddControllers().Services.BuildServiceProvider()
+            .GetRequiredService<IOptions<JsonOptions>>().Value.JsonSerializerOptions;
 }
 
 [TestFixture]
