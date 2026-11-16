@@ -40,6 +40,7 @@ const ADMIN_PAGES = [
   {label: 'Stages', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
   {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
+  {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},
   {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention'},
 ];

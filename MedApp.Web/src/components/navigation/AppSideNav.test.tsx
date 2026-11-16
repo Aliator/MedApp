@@ -29,6 +29,7 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'Stages'})).toHaveAttribute('href', '/admin/stages');
     expect(screen.getByRole('link', {name: /templates/i})).toHaveAttribute('href', '/admin/templates');
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
+    expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: /activity log/i})).toHaveAttribute('href', '/admin/activity');
     expect(screen.getByRole('link', {name: /retention review/i})).toHaveAttribute('href', '/admin/retention');
     expect(screen.getByText('test-admin')).toBeInTheDocument();

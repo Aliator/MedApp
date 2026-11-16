@@ -20,6 +20,7 @@ import { Route as AppAccountColoursRouteImport } from './routes/_app/account/col
 import { Route as AppAccountPasswordRouteImport } from './routes/_app/account/password'
 import { Route as AppAdminActivityRouteImport } from './routes/_app/admin/activity'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
 import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/retention'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
@@ -89,6 +90,11 @@ const AppAdminActivityRoute = AppAdminActivityRouteImport.update({
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/admin/audit',
   path: '/admin/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
+  id: '/admin/insights',
+  path: '/admin/insights',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminRetentionRoute = AppAdminRetentionRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/account/password': typeof AppAccountPasswordRoute
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/insights': typeof AppAdminInsightsRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/account/password': typeof AppAccountPasswordRoute
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/insights': typeof AppAdminInsightsRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/_app/account/password': typeof AppAccountPasswordRoute
   '/_app/admin/activity': typeof AppAdminActivityRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
+  '/_app/admin/insights': typeof AppAdminInsightsRoute
   '/_app/admin/retention': typeof AppAdminRetentionRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/account/password'
     | '/admin/activity'
     | '/admin/audit'
+    | '/admin/insights'
     | '/admin/retention'
     | '/admin/stages'
     | '/admin/users'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/account/password'
     | '/admin/activity'
     | '/admin/audit'
+    | '/admin/insights'
     | '/admin/retention'
     | '/admin/stages'
     | '/admin/users'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/_app/account/password'
     | '/_app/admin/activity'
     | '/_app/admin/audit'
+    | '/_app/admin/insights'
     | '/_app/admin/retention'
     | '/_app/admin/stages'
     | '/_app/admin/users'
@@ -429,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AppAdminAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/insights': {
+      id: '/_app/admin/insights'
+      path: '/admin/insights'
+      fullPath: '/admin/insights'
+      preLoaderRoute: typeof AppAdminInsightsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/retention': {
@@ -554,6 +573,7 @@ interface AppRouteChildren {
   AppAccountPasswordRoute: typeof AppAccountPasswordRoute
   AppAdminActivityRoute: typeof AppAdminActivityRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminInsightsRoute: typeof AppAdminInsightsRoute
   AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
@@ -581,6 +601,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountPasswordRoute: AppAccountPasswordRoute,
   AppAdminActivityRoute: AppAdminActivityRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminInsightsRoute: AppAdminInsightsRoute,
   AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,

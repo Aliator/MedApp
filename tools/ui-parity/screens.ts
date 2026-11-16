@@ -285,6 +285,36 @@ export const screens: Screen[] = [
   },
   { name: 'admin-audit', title: 'Audit log (admin)', path: '/admin/audit' },
   {
+    name: 'admin-insights',
+    title: 'Insights (admin): headline counts, overdue work, throughput and time at each stage',
+    path: '/admin/insights',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-insights-tables',
+    title: "Insights with every chart's numbers as a table",
+    path: '/admin/insights?weeks=4',
+    prepare: async (page) => {
+      // Each button becomes Show Chart once pressed, so press the first left until none are.
+      const showTable = page.getByRole('button', { name: /^Show Table of / });
+      while ((await showTable.count()) > 0) await showTable.first().click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-insights-narrow',
+    title: 'Insights on a narrow window: one column of charts',
+    path: '/admin/insights',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
     name: 'admin-audit-procedure',
     title: "One procedure's audit log, from its View Audit Log",
     path: (d) => `/admin/audit?procedureId=${d.procedureId}`,

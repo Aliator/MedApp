@@ -11,11 +11,6 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 ## Features
 
-- **An admin insights page.** An overview for admins of the procedures that are overdue or in progress, with graphs, to keep an eye on the work: (Roadmap step 9 has a version of this.)
-  - KPI tiles: open, overdue, in progress, completed this week
-  - overdue work by assignee and by priority
-  - the time spent in each stage, to show the bottlenecks (the audit log already records when each stage starts and finishes)
-  - created against completed over time
 - **Appointments and booking.** Book appointments for patients with staff. Each member of staff gets a calendar (day and week) showing their appointments with their procedures' due dates. Appointments tie into the workflow: booking the next stage, or a follow-up when a procedure finishes.
 - **Notification settings for each person.** Admins choose which events notify each member of staff (for example, a procedure finished, a stage unlocked, something overdue or blocked), separately for each person. Only "assigned to a procedure" exists today, so it needs those new notification kinds too, and a per-user setting checked before each one is sent. Overdue notifications need a scheduled job that runs once across both API copies. Store the admins' choices apart from each person's own settings, so nobody can undo them.
 - **Emails, and resetting your own password.** Send emails (notifications, a welcome email for a new account), and let people reset a forgotten password by an emailed link instead of asking an admin. It needs an email service and single-use, expiring reset links. ASP.NET Identity's password reset tokens fit. Staff accounts have no email address yet, so add one. Reset links need data protection keys shared by every API copy (roadmap step 2). Emails must never carry free text that may hold clinical information (a notification's title is a procedure's title), and a welcome email never carries the password. Roadmap step 4 plans the reset.
@@ -58,6 +53,7 @@ The first part is built: the activity log and access report, the subject access 
   - **Restarting the API and Valkey when a password changes,** for example with a reloader. Until then it's by hand (`deploy/azure/README.md`, Passwords).
   - **Pinning actions and images by digest,** with Dependabot keeping them current.
   - **Repository settings:** `web`, `helm`, `unit-tests` and `image` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
+- **An audit index for Insights' stage times.** Add an index on the audit log's `(PatientProcedureId, Action, AtUtc)`, including `StageId`, in a migration of its own (#66 left it out while two other branches were adding migrations). Each stage's first finish is a `TOP(1)` over its procedure's entries; today that seeks `(PatientProcedureId, AtUtc)` and looks up every entry to check its action. Measured on LocalDB with 20,000 procedures and 342,627 audit entries (the second of two runs), the whole Insights query took 239 ms, 495 ms and 1,025 ms for 4, 12 and 26 weeks; with the index, 189 ms, 209 ms and 516 ms. Stage times are most of it, and grow with the stages finished in the period (PR #66 review, finding 4).
 - **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).
 
 ## Testing
