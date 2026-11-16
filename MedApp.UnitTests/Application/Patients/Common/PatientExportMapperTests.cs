@@ -119,6 +119,38 @@ public sealed class PatientExportMapperTests
     }
 
     [Test]
+    public void ToResponse_MonitoringNotification_IsLeftOut_WithItsAdmin()
+    {
+        var procedure = CreateProcedure();
+        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var monitoringAdmin = Guid.NewGuid();
+        var withMonitoring = new PatientRecord
+        {
+            Patient = record.Patient,
+            Procedures = record.Procedures,
+            ProcedureHistory = record.ProcedureHistory,
+            Activity = record.Activity,
+            Notifications =
+            [
+                .. record.Notifications,
+                new Notification
+                {
+                    Id = Guid.NewGuid(), UserId = monitoringAdmin, Kind = NotificationKind.MonitoredStageFinished,
+                    Title = "Stage finished", Message = "test.staff finished a stage on a Medium priority Test template procedure.",
+                    ProcedureId = procedure.Id, CreatedAtUtc = Now,
+                },
+            ],
+        };
+
+        var export = PatientExportMapper.ToResponse(withMonitoring, Usernames, Now, "exporter");
+
+        export.Notifications.Should().ContainSingle().Which.Kind.Should().Be(nameof(NotificationKind.ProcedureAssigned));
+        PatientExportMapper.UserIds(withMonitoring).Should().NotContain(monitoringAdmin);
+        // Anonymisation still finds it: it's in the record, only the export leaves it out.
+        withMonitoring.Notifications.Should().HaveCount(2);
+    }
+
+    [Test]
     public void ToExported_CopiesEveryField()
     {
         var patient = PatientsTestConstants.CreateValidPatient();

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Patients.Common;
@@ -12,7 +13,8 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
 /// <item>Procedure titles become the template's name; procedure and stage notes become <see cref="RemovedText"/>.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
-/// <item>Notifications about the procedures take the new titles.</item>
+/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (monitoring's "Stage
+/// finished"), which never held the procedure's title; their messages hold no free text either.</item>
 /// </list>
 /// The patient's ID, and every link to it, stays: on its own it identifies nobody.
 /// </summary>
@@ -67,7 +69,7 @@ public static class PatientAnonymiser
         foreach (var entry in record.Activity)
             entry.Details = ScrubDetails(entry.Details, isNotesChange: false);
 
-        foreach (var notification in record.Notifications)
+        foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.ProcedureId is { } id ? titles.GetValueOrDefault(id, ProcedureTitle) : ProcedureTitle;
     }
 

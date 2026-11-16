@@ -7,6 +7,7 @@ using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Demographics.Common;
+using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
@@ -127,6 +128,8 @@ public static class ServiceExtensions
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
         services.AddScoped<ISecuritySettingsRepository, SecuritySettingsRepository>();
+        services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
+        services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         

@@ -85,7 +85,7 @@ UK GDPR isn't the only law. Patient information given in confidence is protected
 | Customer | Article 6 basis | Notes |
 |---|---|---|
 | **NHS bodies** | **6(1)(e) public task** for running the service; **6(1)(c) legal obligation** for the security and audit records that Article 32 requires (the DSPT is a contractual requirement, covered by public task) | Staff data isn't special category data in MedApp. MedApp holds no health or other special category data about staff. |
-| **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail and the access monitoring that roadmap step 7 adds. |
+| **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail, the access monitoring that roadmap step 7 adds, and admins' monitoring rules (telling admins about named staff members' actions: DPIA risk 24). NHS bodies should cover the monitoring rules in their monitoring policy. |
 
 ## 3. Lawful bases for the supplier's own processing
 

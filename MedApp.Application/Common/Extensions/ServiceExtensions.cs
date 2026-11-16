@@ -4,6 +4,7 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Behaviors;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Security;
+using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Notifications.Common;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,8 @@ public static class ServiceExtensions
         // application log.
         services.AddScoped<LoggingSecurityEventLog>();
         services.AddScoped<ISecurityEventLog, ActivitySecurityEventLog>();
+        // Tells admins about procedure changes that match their monitoring rules.
+        services.AddScoped<IProcedureMonitor, ProcedureMonitor>();
         // The activity log (the host provides IActivityContext, the request's actor), and its and the retention
         // schedule's settings, which the host binds to its configuration.
         services.AddScoped<IActivityLog, ActivityLog>();

@@ -29,7 +29,7 @@ public sealed class DemoDataTools
     private static readonly Guid MissingDefinitionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     [McpServerTool(Name = "reset_demo_data", Destructive = true)]
-    [Description("WIPES all patients, procedures, stage definitions and templates, sessions, and every account except the kept ones (default: just the protected accounts, i.e. admin). Then it makes sure the local test login admin / admin exists, the only Admin account (see ensure_test_admin), and fills the app with plausible synthetic data: 6 staff accounts (role User, with generated passwords they can sign in with straight away, not made to change them), 60 patients, 11 stage definitions (one archived), 4 templates (one archived; the others repeat stages, e.g. Consultation), and about 80 procedures in every status, with stage notes and a full audit trail. admin is assigned some procedures too, so its task list isn't empty. It saves a 'pre-reset-<timestamp>' snapshot first. Needs confirm: true. The same seed gives the same data.")]
+    [Description("WIPES all patients, procedures, stage definitions and templates, sessions, notifications, monitoring rules and notification choices, and every account except the kept ones (default: just the protected accounts, i.e. admin). Then it makes sure the local test login admin / admin exists, the only Admin account (see ensure_test_admin), and fills the app with plausible synthetic data: 6 staff accounts (role User, with generated passwords they can sign in with straight away, not made to change them), 60 patients, 11 stage definitions (one archived), 4 templates (one archived; the others repeat stages, e.g. Consultation), and about 80 procedures in every status, with stage notes and a full audit trail. admin is assigned some procedures too, so its task list isn't empty. It saves a 'pre-reset-<timestamp>' snapshot first. Needs confirm: true. The same seed gives the same data.")]
     public static async Task<object> ResetDemoData(
         IMediator mediator,
         MedAppDbContext db,
@@ -101,6 +101,10 @@ public sealed class DemoDataTools
             await db.PatientProcedureStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
             await db.Patients.ExecuteDeleteAsync(cancellationToken);
             await db.UserSessions.ExecuteDeleteAsync(cancellationToken);
+            // Rules, choices and notifications name the accounts, templates and stages being wiped.
+            await db.MonitoringRules.ExecuteDeleteAsync(cancellationToken);
+            await db.NotificationPreferences.ExecuteDeleteAsync(cancellationToken);
+            await db.Notifications.ExecuteDeleteAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
         }, ct);
 

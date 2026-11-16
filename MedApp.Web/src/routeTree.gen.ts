@@ -27,6 +27,7 @@ import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/se
 import { Route as AppAdminActivityRouteImport } from './routes/_app/admin/activity'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
+import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
 import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/retention'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
@@ -134,6 +135,11 @@ const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
   path: '/admin/insights',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminMonitoringRoute = AppAdminMonitoringRouteImport.update({
+  id: '/admin/monitoring',
+  path: '/admin/monitoring',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminRetentionRoute = AppAdminRetentionRouteImport.update({
   id: '/admin/retention',
   path: '/admin/retention',
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/stages': typeof AppAdminStagesRoute
@@ -273,6 +280,7 @@ export interface FileRoutesByTo {
   '/admin/activity': typeof AppAdminActivityRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/monitoring': typeof AppAdminMonitoringRoute
   '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/stages': typeof AppAdminStagesRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/_app/admin/activity': typeof AppAdminActivityRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/insights': typeof AppAdminInsightsRoute
+  '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
   '/_app/admin/retention': typeof AppAdminRetentionRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
@@ -349,6 +358,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/audit'
     | '/admin/insights'
+    | '/admin/monitoring'
     | '/admin/retention'
     | '/admin/settings'
     | '/admin/stages'
@@ -385,6 +395,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/audit'
     | '/admin/insights'
+    | '/admin/monitoring'
     | '/admin/retention'
     | '/admin/settings'
     | '/admin/stages'
@@ -422,6 +433,7 @@ export interface FileRouteTypes {
     | '/_app/admin/activity'
     | '/_app/admin/audit'
     | '/_app/admin/insights'
+    | '/_app/admin/monitoring'
     | '/_app/admin/retention'
     | '/_app/admin/settings'
     | '/_app/admin/stages'
@@ -580,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminInsightsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/monitoring': {
+      id: '/_app/admin/monitoring'
+      path: '/admin/monitoring'
+      fullPath: '/admin/monitoring'
+      preLoaderRoute: typeof AppAdminMonitoringRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/retention': {
       id: '/_app/admin/retention'
       path: '/admin/retention'
@@ -713,6 +732,7 @@ interface AppRouteChildren {
   AppAdminActivityRoute: typeof AppAdminActivityRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminInsightsRoute: typeof AppAdminInsightsRoute
+  AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
   AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
@@ -744,6 +764,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminActivityRoute: AppAdminActivityRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminInsightsRoute: AppAdminInsightsRoute,
+  AppAdminMonitoringRoute: AppAdminMonitoringRoute,
   AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
