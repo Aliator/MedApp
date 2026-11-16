@@ -11,6 +11,8 @@ export type ProcedureStage = Schemas['PatientProcedureStageResponse'];
  */
 export const procedureKeys = {
   all: ['procedures'] as const,
+  /** Every patient's timeline (`src/api/timeline.ts`), which a change to any procedure adds to. */
+  timelines: ['procedures', 'timeline'] as const,
   countForPatient: (patientId: string) => ['patients', patientId, 'procedures', 'count'] as const,
 };
 
@@ -49,6 +51,7 @@ export function useProcedureActions(id: string) {
   const onSuccess = async (procedure: Procedure) => {
     queryClient.setQueryData(procedureQuery(id).queryKey, procedure);
     await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+    await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
   };
   const stage = (stageId: string) => ({params: {path: {id, stageId}}});
 
@@ -118,6 +121,7 @@ export function useCreateProcedure() {
     onSuccess: async (procedure) => {
       queryClient.setQueryData(procedureQuery(procedure.id ?? '').queryKey, procedure);
       await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+      await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
       await queryClient.invalidateQueries({queryKey: procedureKeys.countForPatient(procedure.patientId ?? '')});
     },
   });
@@ -132,6 +136,7 @@ export function useUpdateProcedure(id: string) {
     onSuccess: async (procedure) => {
       queryClient.setQueryData(procedureQuery(id).queryKey, procedure);
       await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+      await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
     },
   });
 }

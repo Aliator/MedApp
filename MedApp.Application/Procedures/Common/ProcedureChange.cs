@@ -22,9 +22,14 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
     /// <summary>Whether anything changed (every change is audited).</summary>
     public bool HasChanges => _auditEntries.Count > 0;
 
+    /// <summary>
+    /// Records an audit entry. Entries one change writes (a stage started, its notes saved, the status that followed)
+    /// are each a tick (100 ns) after the one before, so they sort in the order they happened; their IDs are random.
+    /// </summary>
     public void Audit(PatientProcedureAuditAction action, object? details = null, PatientProcedureStage? stage = null)
     {
-        _auditEntries.Add(ProcedureAudit.Entry(procedure, actor, action, nowUtc, stage, details));
+        var atUtc = nowUtc.AddTicks(_auditEntries.Count);
+        _auditEntries.Add(ProcedureAudit.Entry(procedure, actor, action, atUtc, stage, details));
         procedure.LastUpdated = nowUtc;
     }
 
