@@ -1,7 +1,9 @@
 ﻿using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace MedApp.Infrastructure.Common.Authentication;
 
@@ -9,15 +11,22 @@ namespace MedApp.Infrastructure.Common.Authentication;
 /// Checks a sign-in, counting wrong passwords towards the lockout set under <c>Identity</c> in
 /// <c>appsettings.json</c>: a locked account is refused (even with the right password) until its lockout ends, a
 /// wrong password counts one more failure (the one that reaches the limit locks it), and a right one clears the count.
+/// A name that couldn't be an account's (<see cref="UsernameRules.CouldExist"/>) is unknown, without being looked up.
 /// </summary>
 public sealed class IdentityAuthenticationService(
     UserManager<ApplicationUser> userManager,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IOptions<IdentityOptions> identityOptions)
     : IAuthenticationService
 {
     public async Task<(Guid, string, IEnumerable<string>)>
         ValidateCredentialsAsync(string username, string password)
     {
+        // SQL Server would match some names no account has to one that does (a byte order mark in front, a NUL after,
+        // full-width letters), so they never reach it.
+        if (!UsernameRules.CouldExist(username, identityOptions.Value.User.AllowedUserNameCharacters))
+            throw new InvalidCredentialsException();
+
         var user = await userManager.FindByNameAsync(username);
         if (user is null)
             throw new InvalidCredentialsException();

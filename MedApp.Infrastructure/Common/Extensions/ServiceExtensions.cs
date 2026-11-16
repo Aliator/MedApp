@@ -74,6 +74,8 @@ public static class ServiceExtensions
         services
             .AddIdentityCore<ApplicationUser>()
             .AddRoles<IdentityRole<Guid>>()
+            // Refuses the most common passwords, beside the length and character rules (Identity settings).
+            .AddPasswordValidator<CommonPasswordValidator>()
             .AddEntityFrameworkStores<MedAppDbContext>()
             .AddDefaultTokenProviders();
 

@@ -60,7 +60,7 @@ describe('UsersPage', () => {
     renderUsers();
 
     const own = await rowOf(adminUser.username);
-    for (const name of ['Edit roles', 'Reset password', 'Delete user']) {
+    for (const name of ['Edit roles', 'Reset password', 'Sign out everywhere', 'Delete user']) {
       expect(isDisabled(within(own).getByRole('button', {name}))).toBe(true);
     }
     expect(isDisabled(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Delete user'}))).toBe(false);
@@ -235,6 +235,40 @@ describe('UsersPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Reset Password'}));
 
     expect(await findAlert('The password could not be reset.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
+  it('signs a user out everywhere once the admin confirms, and says so', async () => {
+    const {user, fetch} = renderUsers({}, {'POST /api/auth/users/*': () => new Response(null, {status: 204})});
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Sign out everywhere'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText(/Sign a\.hartwell out everywhere\?/)).toBeInTheDocument();
+    expect(calls(fetch)).not.toContain('POST /api/auth/users/a.hartwell/sign-out-everywhere');
+    await user.click(dialog.getByRole('button', {name: 'Sign Out Everywhere'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/auth/users/a.hartwell/sign-out-everywhere'));
+    expect(await screen.findByText('a.hartwell has been signed out everywhere.')).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
+  it('signs no one out when the admin cancels', async () => {
+    const {user, fetch} = renderUsers({}, {'POST /api/auth/users/*': () => new Response(null, {status: 204})});
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Sign out everywhere'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    expect(openDialog()).toBeNull();
+    expect(calls(fetch).some((call) => call.includes('sign-out-everywhere'))).toBe(false);
+  });
+
+  it('says when a user could not be signed out everywhere', async () => {
+    const {user} = renderUsers({}, {'POST /api/auth/users/*': () => json({title: 'Not Found', status: 404}, 404)});
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Sign out everywhere'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Sign Out Everywhere'}));
+
+    expect(await findAlert('a.hartwell could not be signed out.')).toBeInTheDocument();
     expect(openDialog()).toBeNull();
   });
 

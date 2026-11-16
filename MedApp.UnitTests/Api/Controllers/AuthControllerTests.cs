@@ -4,6 +4,7 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.Extensions;
+using MedApp.API.Common.RateLimiting;
 using MedApp.API.Controllers;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
 using MedApp.Application.Authentication.Roles.Commands.CreateRole;
@@ -16,6 +17,7 @@ using MedApp.Application.Authentication.Sessions.Commands.ExtendSession;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
 using MedApp.Application.Authentication.Sessions.Queries.GetSession;
 using MedApp.Application.Authentication.Sessions.Commands.Logout;
+using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Settings.Commands.SaveMySettings;
 using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
@@ -35,6 +37,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -53,7 +56,15 @@ public sealed class AuthControllerTests
     {
         _fixture = AutoFixtureFactory.Create();
         _cookies = new Mock<ISessionCookieService>();
+        // Reads the session cookie as the real service does outside Development (a test may set up its own answer).
+        var real = MedApp.UnitTests.Api.Authentication.SessionCookieServiceTests.Service(Microsoft.Extensions.Hosting.Environments.Production);
+        Guid? any;
+        _cookies
+            .Setup(c => c.TryGetSessionCookie(It.IsAny<HttpRequest>(), out any))
+            .Returns(new TryGetSessionCookie((HttpRequest request, out Guid? sessionId) => real.TryGetSessionCookie(request, out sessionId)));
     }
+
+    private delegate bool TryGetSessionCookie(HttpRequest request, out Guid? sessionId);
 
     private AuthController Controller(RecordingMediator mediator, Action<HttpContext>? configure = null, params string[] roles) =>
         new AuthController(mediator, _cookies.Object).WithRequest(SignedIn(roles), configure);
@@ -79,10 +90,23 @@ public sealed class AuthControllerTests
     }
 
     [Test]
+    public void Login_IsThrottledPerClientAndPerUsername()
+    {
+        var login = typeof(AuthController).GetMethod(nameof(AuthController.Login))!;
+
+        login.GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName.Should().Be(LoginThrottling.Policy);
+        login.GetCustomAttribute<ThrottleLoginByUsernameAttribute>().Should().NotBeNull();
+        // A username and a password: Kestrel refuses a bigger body (413) before it's read, or counted.
+        ((Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata)login.GetCustomAttribute<RequestSizeLimitAttribute>()!).MaxRequestBodySize.Should().Be(16 * 1024);
+    }
+
+    [Test]
     public async Task Logout_WithASessionCookie_EndsThatSessionAndClearsTheCookie()
     {
         var mediator = new RecordingMediator();
-        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.CookieName}={SessionId}");
+        Guid? sessionId = SessionId;
+        _cookies.Setup(c => c.TryGetSessionCookie(It.IsAny<HttpRequest>(), out sessionId)).Returns(true);
+        var controller = Controller(mediator);
 
         var result = await controller.Logout();
 
@@ -91,15 +115,14 @@ public sealed class AuthControllerTests
         result.Should().BeOfType<NoContentResult>();
     }
 
-    [TestCase(null)]
-    [TestCase("not-a-session-id")]
-    public async Task Logout_NoReadableSessionCookie_StillClearsTheCookie(string? cookie)
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Logout_NoReadableSessionCookie_StillClearsTheCookie(bool hasCookie)
     {
         var mediator = new RecordingMediator();
-        var controller = Controller(mediator, context =>
-        {
-            if (cookie is not null) context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.CookieName}={cookie}";
-        });
+        Guid? unreadable = null;
+        _cookies.Setup(c => c.TryGetSessionCookie(It.IsAny<HttpRequest>(), out unreadable)).Returns(hasCookie);
+        var controller = Controller(mediator);
 
         var result = await controller.Logout();
 
@@ -113,7 +136,7 @@ public sealed class AuthControllerTests
     {
         var expiry = new SessionResponse(ExpiresAtUtc, 300, true);
         var mediator = new RecordingMediator(_ => expiry);
-        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.CookieName}={SessionId}");
+        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={SessionId}");
         using var cts = new CancellationTokenSource();
 
         var result = await controller.GetSession(cts.Token);
@@ -129,7 +152,7 @@ public sealed class AuthControllerTests
     {
         var extended = new SessionResponse(ExpiresAtUtc, 8 * 60 * 60, true);
         var mediator = new RecordingMediator(_ => extended);
-        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.CookieName}={SessionId}");
+        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={SessionId}");
         using var cts = new CancellationTokenSource();
 
         var result = await controller.ExtendSession(cts.Token);
@@ -148,7 +171,7 @@ public sealed class AuthControllerTests
         var mediator = new RecordingMediator();
         Action<HttpContext> configure = context =>
         {
-            if (cookie is not null) context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.CookieName}={cookie}";
+            if (cookie is not null) context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={cookie}";
         };
 
         var got = await Controller(mediator, configure).GetSession(CancellationToken.None);
@@ -284,6 +307,17 @@ public sealed class AuthControllerTests
     }
 
     [Test]
+    public async Task UpdateUserPassword_FromASession_SendsItSoItCarriesOn()
+    {
+        var mediator = new RecordingMediator(_ => IdentityResult.Success);
+        var controller = new AuthController(mediator, _cookies.Object).WithRequest(SignedInWithSession("User"));
+
+        await controller.UpdateUserPassword(Username, new UpdateUserPasswordRequest(Password, "New-" + Password));
+
+        mediator.Request.Should().Be(new UpdateUserPasswordCommand(Username, Password, "New-" + Password, SessionId));
+    }
+
+    [Test]
     public async Task UpdateUserPassword_Fails_ReturnsBadRequest()
     {
         var mediator = new RecordingMediator(_ => Failed(IdentityErrors.OldPasswordIncorrectCode));
@@ -322,6 +356,40 @@ public sealed class AuthControllerTests
         var result = await Controller(mediator).ResetUserPassword(OtherUsername);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task SignOutEverywhere_UserFound_ReturnsNoContent()
+    {
+        var mediator = new RecordingMediator(_ => true);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).SignOutEverywhere(OtherUsername, cts.Token);
+
+        mediator.Request.Should().Be(new SignOutEverywhereCommand(OtherUsername));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Test]
+    public async Task SignOutEverywhere_UserNotFound_ReturnsNotFound()
+    {
+        var result = await Controller(new RecordingMediator(_ => false)).SignOutEverywhere(OtherUsername, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task SignOutEverywhere_Admin_IsAllowed()
+    {
+        (await MayCall(nameof(AuthController.SignOutEverywhere), OtherUsername, "Admin")).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SignOutEverywhere_NotAdmin_IsRefused()
+    {
+        (await MayCall(nameof(AuthController.SignOutEverywhere), OtherUsername, "User")).Should().BeFalse();
+        (await MayCall(nameof(AuthController.SignOutEverywhere), OtherUsername)).Should().BeFalse();
     }
 
     [Test]
