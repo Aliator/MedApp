@@ -4,6 +4,7 @@ using FluentAssertions;
 using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Demographics.Requests;
 using MedApp.Contracts.Demographics.Responses;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Requests;
@@ -27,13 +28,16 @@ public sealed class DemographicsAndSnomedTests : IntegrationTest
     private const string SnomedCode = "80146002";
     private const string SnomedTerm = "Appendectomy";
 
+    private static Task<HttpResponseMessage> LookUpAsync(HttpClient client, string nhsNumber) =>
+        client.PostAsJsonAsync("/api/demographics/lookup", new LookUpDemographicsRequest { NhsNumber = nhsNumber });
+
     [Test]
     public async Task Demographics_ByDefault_IsOff()
     {
         var staff = (await CreateStaffAsync(UserRole)).Client;
 
         var status = await (await staff.GetAsync("/api/demographics/status")).ReadAsAsync<DemographicsStatusResponse>();
-        var lookUp = await staff.GetAsync("/api/demographics/9990000018");
+        var lookUp = await LookUpAsync(staff, "9990000018");
 
         status.IsAvailable.Should().BeFalse();
         status.Source.Should().BeNull();
@@ -55,10 +59,10 @@ public sealed class DemographicsAndSnomedTests : IntegrationTest
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var status = await (await staff.GetAsync("/api/demographics/status")).ReadAsAsync<DemographicsStatusResponse>();
-        var found = await staff.GetAsync($"/api/demographics/{Uri.EscapeDataString("999 000 0026")}");
+        var found = await LookUpAsync(staff, "999 000 0026");
         var person = await found.ReadAsAsync<DemographicsLookupResponse>();
-        var nobody = await staff.GetAsync("/api/demographics/9990000050");
-        var invalid = await staff.GetAsync("/api/demographics/9990000019");
+        var nobody = await LookUpAsync(staff, "9990000050");
+        var invalid = await LookUpAsync(staff, "9990000019");
 
         status.IsAvailable.Should().BeTrue();
         found.Headers.CacheControl!.NoStore.Should().BeTrue();

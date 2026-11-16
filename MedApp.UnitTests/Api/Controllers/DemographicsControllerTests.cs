@@ -2,6 +2,7 @@ using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Demographics.Queries.GetDemographicsStatus;
 using MedApp.Application.Demographics.Queries.LookUpDemographics;
+using MedApp.Contracts.Demographics.Requests;
 using MedApp.Contracts.Demographics.Responses;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,16 @@ public sealed class DemographicsControllerTests
     }
 
     [Test]
+    public async Task LookUp_NoNumber_SendsAnEmptyOne()
+    {
+        var mediator = new RecordingMediator(_ => new DemographicsLookupResponse());
+
+        await new DemographicsController(mediator).WithRequest(SignedIn("User")).LookUp(new LookUpDemographicsRequest(), CancellationToken.None);
+
+        mediator.Request.Should().Be(new LookUpDemographicsQuery(""));
+    }
+
+    [Test]
     public async Task LookUp_SendsTheNumber_ReturnsThePersonUncached()
     {
         var person = new DemographicsLookupResponse { NhsNumber = NhsNumber, FirstName = "Ada", LastName = "Synthetic" };
@@ -33,7 +44,7 @@ public sealed class DemographicsControllerTests
         using var cts = new CancellationTokenSource();
         var controller = new DemographicsController(mediator).WithRequest(SignedIn("User"));
 
-        var result = await controller.LookUp(NhsNumberWithSpaces, cts.Token);
+        var result = await controller.LookUp(new LookUpDemographicsRequest { NhsNumber = NhsNumberWithSpaces }, cts.Token);
 
         mediator.Request.Should().Be(new LookUpDemographicsQuery(NhsNumberWithSpaces));
         mediator.Tokens.Should().Equal(cts.Token);

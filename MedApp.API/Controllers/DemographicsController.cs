@@ -1,6 +1,7 @@
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Demographics.Queries.GetDemographicsStatus;
 using MedApp.Application.Demographics.Queries.LookUpDemographics;
+using MedApp.Contracts.Demographics.Requests;
 using MedApp.Contracts.Demographics.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -25,15 +26,16 @@ public sealed class DemographicsController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// The person with this NHS number (spaces allowed). 400 for a number that isn't valid; 404 when nobody has it, or
-    /// no lookup is set up. Recorded in the activity log, without the number. Never cached.
+    /// no lookup is set up. Recorded in the activity log, without the number. Never cached. A POST, so the number is
+    /// in the body, never in a URL that logs and traces record.
     /// </summary>
-    [HttpGet("{nhsNumber}")]
+    [HttpPost("lookup")]
     [ProducesResponseType(typeof(DemographicsLookupResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> LookUp(string nhsNumber, CancellationToken ct)
+    public async Task<IActionResult> LookUp([FromBody] LookUpDemographicsRequest request, CancellationToken ct)
     {
-        var person = await mediator.Send(new LookUpDemographicsQuery(nhsNumber), ct);
+        var person = await mediator.Send(new LookUpDemographicsQuery(request.NhsNumber ?? string.Empty), ct);
         Response.Headers.CacheControl = "no-store";
         return Ok(person);
     }
