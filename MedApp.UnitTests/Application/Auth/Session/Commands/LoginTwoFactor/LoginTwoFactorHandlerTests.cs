@@ -25,6 +25,7 @@ public sealed class LoginTwoFactorHandlerTests
     private FixedTimeProvider _clock = null!;
     private RecordingActivityLog _activity = null!;
     private Mock<IIdentityReadService> _read = null!;
+    private Mock<IAccountAttemptLimiter> _attempts = null!;
     private LoginTwoFactorHandler _handler = null!;
     private SignInChallenge _challenge = null!;
     private readonly LoginResult _session = new(SessionId, NowUtc.AddHours(8));
@@ -42,14 +43,16 @@ public sealed class LoginTwoFactorHandlerTests
         _read = new Mock<IIdentityReadService>();
         _read.Setup(r => r.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, string> { [UserId] = Username });
+        _attempts = new Mock<IAccountAttemptLimiter>();
         _handler = new LoginTwoFactorHandler(
-            _challenges.Object, _twoFactor.Object, _sessions.Object, _read.Object, _activity, _notices.Object, _events.Object, _clock);
+            _challenges.Object, _twoFactor.Object, _sessions.Object, _read.Object, _activity, _notices.Object, _events.Object, _attempts.Object, _clock);
 
         _challenge = new SignInChallenge(UserId, SignInChallengeTokens.Hash(ChallengeToken), NowUtc.AddMinutes(-1));
         _challenges
             .Setup(c => c.FindByTokenHashAsync(SignInChallengeTokens.Hash(ChallengeToken), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_challenge);
         _challenges.Setup(c => c.ConsumeAsync(_challenge.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _challenges.Setup(c => c.TryReserveAttemptAsync(_challenge.Id, NowUtc, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _sessions
             .Setup(s => s.CreateSessionAsync(UserId, "192.0.2.1", "Browser", It.IsAny<CancellationToken>()))
             .ReturnsAsync(_session);
@@ -133,7 +136,7 @@ public sealed class LoginTwoFactorHandlerTests
         var act = () => _handler.Handle(WithCode(), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidTwoFactorCodeException>();
-        _challenges.Verify(c => c.RecordFailureAsync(_challenge.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _challenges.Verify(c => c.TryReserveAttemptAsync(_challenge.Id, NowUtc, It.IsAny<CancellationToken>()), Times.Once);
         _twoFactor.Verify(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
         _challenges.Verify(c => c.ConsumeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         var refused = _activity.Recorded.Should().ContainSingle().Subject;
@@ -198,5 +201,45 @@ public sealed class LoginTwoFactorHandlerTests
         _challenges.Verify(c => c.FindByTokenHashAsync(It.IsAny<string>(), cts.Token), Times.Once);
         _challenges.Verify(c => c.ConsumeAsync(_challenge.Id, cts.Token), Times.Once);
         _sessions.Verify(s => s.CreateSessionAsync(UserId, "192.0.2.1", "Browser", cts.Token), Times.Once);
+    }
+
+    // The review of #86: attempts are reserved atomically before any code is checked, and limited per account.
+
+    [Test]
+    public async Task Handle_NoAttemptLeftToReserve_ChecksNoCode()
+    {
+        _challenges.Setup(c => c.TryReserveAttemptAsync(_challenge.Id, NowUtc, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var act = () => _handler.Handle(WithCode(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<SignInExpiredException>();
+        _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _twoFactor.Verify(t => t.RecordFailedCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _activity.Recorded.Should().ContainSingle().Which.Details.Should().Contain("ChallengeExpired");
+    }
+
+    [Test]
+    public async Task Handle_OverTheAccountsLimit_IsRefusedAndRecorded()
+    {
+        _attempts.Setup(a => a.Attempt(AccountAttempt.TwoFactorCode, UserId)).Throws(new TooManyAttemptsException("Too many.", 120));
+
+        var act = () => _handler.Handle(WithCode(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<TooManyAttemptsException>()).Which.RetryAfterSeconds.Should().Be(120);
+        _challenges.Verify(c => c.TryReserveAttemptAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+        _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _activity.Recorded.Should().ContainSingle().Which.Details.Should().Contain("TooManyCodes");
+    }
+
+    [Test]
+    public async Task Handle_WrongCodeThatLocks_EndsTheChallengeAndTellsTheHolder()
+    {
+        _twoFactor.Setup(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(15);
+
+        var act = () => _handler.Handle(WithCode(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<AccountLockedOutException>()).Which.MinutesLeft.Should().Be(15);
+        _challenges.Verify(c => c.ConsumeAsync(_challenge.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.TwoFactorCodesLockedOut, It.IsAny<CancellationToken>(), null, null), Times.Once);
     }
 }

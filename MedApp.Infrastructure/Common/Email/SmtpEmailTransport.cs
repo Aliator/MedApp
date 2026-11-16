@@ -46,13 +46,14 @@ public sealed class SmtpEmailTransport(IOptions<EmailDeliveryOptions> options) :
         return mime;
     }
 
-    /// <summary>The MailKit option for a <see cref="SmtpOptions.Security"/> value (ignoring case); anything else is Auto.</summary>
+    /// <summary>The MailKit option for a <see cref="SmtpOptions.Security"/> value (ignoring case); anything else requires TLS (StartTls).</summary>
     public static SecureSocketOptions SecurityFor(string? security) =>
         security?.Trim().ToLowerInvariant() switch
         {
             "none" => SecureSocketOptions.None,
             "starttls" => SecureSocketOptions.StartTls,
             "sslonconnect" => SecureSocketOptions.SslOnConnect,
-            _ => SecureSocketOptions.Auto,
+            "auto" => SecureSocketOptions.Auto,
+            _ => SecureSocketOptions.StartTls,
         };
 }

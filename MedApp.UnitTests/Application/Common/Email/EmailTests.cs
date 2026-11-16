@@ -1,3 +1,4 @@
+using MedApp.Application.Authentication.TwoFactor.Common;
 using FluentAssertions;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
@@ -46,10 +47,10 @@ public sealed class EmailTests
     [Test]
     public void ResetPassword_HasTheLinkTheAccountAndHowLongItLasts()
     {
-        var email = EmailTemplates.ResetPassword(Address, Username, "https://x.test/reset-password#token=a&b");
+        var email = EmailTemplates.ResetLink(Address, Username, "https://x.test/reset-password#token=a&b");
 
         email.To.Should().Be(Address);
-        email.Subject.Should().Be(EmailTemplates.ResetPasswordSubject);
+        email.Subject.Should().Be(EmailTemplates.ResetLinkSubject);
         email.TextBody.Should().Contain(Username).And.Contain("https://x.test/reset-password#token=a&b").And.Contain("30 minutes");
         // HTML-encoded in the HTML.
         email.HtmlBody.Should().Contain("https://x.test/reset-password#token=a&amp;b").And.Contain("lang=\"en-GB\"").And.Contain("<title>");
@@ -58,16 +59,16 @@ public sealed class EmailTests
     [Test]
     public void ConfirmEmail_HasTheLink()
     {
-        var email = EmailTemplates.ConfirmEmail(Address, Username, "https://x.test/confirm");
+        var email = EmailTemplates.ConfirmAddress(Address, Username, "https://x.test/confirm");
 
-        email.Subject.Should().Be(EmailTemplates.ConfirmEmailSubject);
+        email.Subject.Should().Be(EmailTemplates.ConfirmAddressSubject);
         email.TextBody.Should().Contain("https://x.test/confirm").And.Contain("24 hours");
     }
 
     [Test]
     public void Templates_EncodeEveryValue()
     {
-        var email = EmailTemplates.ConfirmEmail(Address, "<script>alert(1)</script>", "https://x.test/\"><b>");
+        var email = EmailTemplates.ConfirmAddress(Address, "<script>alert(1)</script>", "https://x.test/\"><b>");
 
         email.HtmlBody.Should().NotContain("<script>").And.NotContain("\"><b>");
         email.HtmlBody.Should().Contain("&lt;script&gt;");
@@ -108,9 +109,10 @@ public sealed class EmailTests
     [Test]
     public void Message_ToString_NeverShowsTheAddressOrBody()
     {
-        var email = EmailTemplates.ResetPassword(Address, Username, "https://x.test/secret-token");
+        var email = EmailTemplates.ResetLink(Address, Username, "https://x.test/secret-token");
 
-        email.ToString().Should().NotContain(Address).And.NotContain("secret-token").And.Contain(EmailTemplates.ResetPasswordSubject);
+        // Only the category: never the address, the subject (which says what happened) or the body.
+        email.ToString().Should().Be("EmailMessage { Category = Link }");
     }
 
     private static IEnumerable<SecurityNotice> AllNotices() => Enum.GetValues<SecurityNotice>();
@@ -132,7 +134,7 @@ public sealed class EmailTests
     {
         var (notices, sent, _) = NoticesWith(Account());
 
-        await notices.SendAsync(UserId, SecurityNotice.EmailChanged, CancellationToken.None, toAddress: OtherAddress);
+        await notices.SendAsync(UserId, SecurityNotice.AddressChanged, CancellationToken.None, toAddress: OtherAddress);
 
         sent.Should().ContainSingle(m => m.To == OtherAddress);
     }
@@ -148,6 +150,21 @@ public sealed class EmailTests
     }
 
     [Test]
+    public async Task Notices_ToOtherAdmins_SkipsTheOneItsAboutAndNamesThem()
+    {
+        var other = Guid.NewGuid();
+        var (notices, sent, _) = NoticesWith(null, [new AccountContact(UserId, Username, Address), new AccountContact(other, "other.admin", OtherAddress)]);
+
+        await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorRemoved, UserId, Username, CancellationToken.None);
+
+        var message = sent.Should().ContainSingle().Subject;
+        message.To.Should().Be(OtherAddress);
+        message.Category.Should().Be(EmailCategory.Notice);
+        message.TextBody.Should().Contain(Username).And.Contain("other.admin");
+        message.ToString().Should().NotContain(OtherAddress);
+    }
+
+    [Test]
     public async Task Notices_NoAccount_SendNothing()
     {
         var (notices, sent, _) = NoticesWith(null);
@@ -157,14 +174,17 @@ public sealed class EmailTests
         sent.Should().BeEmpty();
     }
 
-    private static (SecurityNotices Notices, List<EmailMessage> Sent, Mock<IAccountEmailService> Emails) NoticesWith(AccountEmail? account)
+    private static (SecurityNotices Notices, List<EmailMessage> Sent, Mock<IAccountEmailService> Emails) NoticesWith(
+        AccountEmail? account, IReadOnlyList<AccountContact>? admins = null)
     {
+        var twoFactor = new Mock<ITwoFactorService>();
+        twoFactor.Setup(t => t.GetAdminContactsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(admins ?? []);
         var emails = new Mock<IAccountEmailService>();
         emails.Setup(e => e.GetAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(account);
         var sent = new List<EmailMessage>();
         var sender = new Mock<IEmailSender>();
         sender.Setup(s => s.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
             .Callback<EmailMessage, CancellationToken>((m, _) => sent.Add(m)).Returns(Task.CompletedTask);
-        return (new SecurityNotices(emails.Object, sender.Object, Links(), NullLogger<SecurityNotices>.Instance), sent, emails);
+        return (new SecurityNotices(emails.Object, twoFactor.Object, sender.Object, Links(), NullLogger<SecurityNotices>.Instance), sent, emails);
     }
 }

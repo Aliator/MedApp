@@ -17,10 +17,17 @@ public interface ISecurityNotices
         CancellationToken ct,
         string? toAddress = null,
         int? recoveryCodesLeft = null);
+
+    /// <summary>
+    /// Emails the notice about the admin <paramref name="aboutUsername"/> to every other admin with a confirmed address
+    /// (an admin's two-factor turned on, off or reset), so a change nobody expected is seen by someone who can undo it.
+    /// </summary>
+    Task SendToOtherAdminsAsync(SecurityNotice notice, Guid aboutUserId, string aboutUsername, CancellationToken ct);
 }
 
 public sealed class SecurityNotices(
     IAccountEmailService emails,
+    ITwoFactorService twoFactor,
     IEmailSender sender,
     EmailLinks links,
     ILogger<SecurityNotices> logger)
@@ -40,12 +47,25 @@ public sealed class SecurityNotices(
         var to = toAddress ?? account.Email;
         if (string.IsNullOrWhiteSpace(to))
         {
-            logger.LogDebug("No {Notice} email for user {UserId}: no confirmed email address.", notice, userId);
+            logger.LogDebug("No notice sent to user {UserId}: no confirmed address.", userId);
             return;
         }
 
         await sender.SendAsync(
             EmailTemplates.Notice(to, account.Username, notice, links.SignIn(), recoveryCodesLeft),
             ct);
+    }
+
+    public async Task SendToOtherAdminsAsync(SecurityNotice notice, Guid aboutUserId, string aboutUsername, CancellationToken ct)
+    {
+        foreach (var admin in await twoFactor.GetAdminContactsAsync(ct))
+        {
+            if (admin.UserId == aboutUserId)
+                continue;
+
+            await sender.SendAsync(
+                EmailTemplates.Notice(admin.Email, admin.Username, notice, links.SignIn(), aboutUsername: aboutUsername),
+                ct);
+        }
     }
 }

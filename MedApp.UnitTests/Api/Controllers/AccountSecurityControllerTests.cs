@@ -111,7 +111,7 @@ public sealed class AccountSecurityControllerTests
         var mediator = new RecordingMediator(_ => IdentityResult.Success);
 
         (await Controller(mediator).ConfirmEmail(new ConfirmEmailRequest(userId, "token"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
-        mediator.Request.Should().Be(new ConfirmEmailCommand(userId, "token"));
+        mediator.Request.Should().Be(new ConfirmEmailCommand(userId, "token", UserId));
         (await Controller(new RecordingMediator(_ => IdentityResult.Failed(IdentityErrors.InvalidToken)))
             .ConfirmEmail(new ConfirmEmailRequest(userId, "token"), CancellationToken.None)).Should().BeOfType<BadRequestObjectResult>();
     }
@@ -124,11 +124,11 @@ public sealed class AccountSecurityControllerTests
         var controller = Controller(mediator);
 
         (await controller.GetMyEmail(CancellationToken.None)).Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
-        (await controller.ChangeMyEmail(new ChangeEmailRequest(Email), CancellationToken.None)).Should().BeOfType<AcceptedResult>()
+        (await controller.ChangeMyEmail(new ChangeEmailRequest(Email, Password), CancellationToken.None)).Should().BeOfType<AcceptedResult>()
             .Which.Value.Should().Be(response);
-        (await controller.RemoveMyEmail(CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await controller.RemoveMyEmail(new RemoveEmailRequest(Password), CancellationToken.None)).Should().BeOfType<NoContentResult>();
 
-        mediator.Sent.Should().Equal(new GetMyEmailQuery(UserId), new ChangeMyEmailCommand(UserId, Email), new RemoveMyEmailCommand(UserId));
+        mediator.Sent.Should().Equal(new GetMyEmailQuery(UserId), new ChangeMyEmailCommand(UserId, Email, Password), new RemoveMyEmailCommand(UserId, Password));
     }
 
     [Test]
@@ -144,16 +144,35 @@ public sealed class AccountSecurityControllerTests
 
         (await controller.GetMyTwoFactor(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.BeginAuthenticatorSetup(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await controller.EnableTwoFactor(new TwoFactorCodeRequest(AuthenticatorCode), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await controller.EnableTwoFactor(new TwoFactorCodeRequest(Password, AuthenticatorCode), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.DisableTwoFactor(new DisableTwoFactorRequest(Password, AuthenticatorCode), CancellationToken.None)).Should().BeOfType<NoContentResult>();
-        (await controller.RegenerateRecoveryCodes(new TwoFactorCodeRequest(AuthenticatorCode), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await controller.RegenerateRecoveryCodes(new TwoFactorCodeRequest(Password, AuthenticatorCode), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
 
         mediator.Sent.Should().Equal(
             new GetMyTwoFactorStatusQuery(UserId),
             new BeginAuthenticatorSetupCommand(UserId),
-            new EnableTwoFactorCommand(UserId, AuthenticatorCode, SessionId),
+            new EnableTwoFactorCommand(UserId, Password, AuthenticatorCode, SessionId),
             new DisableTwoFactorCommand(UserId, Password, AuthenticatorCode, SessionId),
-            new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode));
+            new RegenerateRecoveryCodesCommand(UserId, Password, AuthenticatorCode));
+    }
+
+    [Test]
+    public async Task RemoveUserEmail_IsByTheAdminAndUnknownIsNotFound()
+    {
+        var mediator = new RecordingMediator(_ => IdentityResult.Success);
+
+        (await Controller(mediator, SignedIn("Admin")).RemoveUserEmail(OtherUsername, CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        mediator.Request.Should().Be(new MedApp.Application.Authentication.Emails.Commands.RemoveUserEmail.RemoveUserEmailCommand(OtherUsername, UserId, Username));
+        (await Controller(new RecordingMediator(_ => IdentityResult.Failed(IdentityErrors.UserNotFound)), SignedIn("Admin"))
+            .RemoveUserEmail(OtherUsername, CancellationToken.None)).Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public void Requests_NeverPrintThePasswordOrCode()
+    {
+        new ChangeEmailRequest(Email, Password).ToString().Should().NotContain(Password);
+        new RemoveEmailRequest(Password).ToString().Should().NotContain(Password);
+        new TwoFactorCodeRequest(Password, AuthenticatorCode).ToString().Should().NotContain(Password).And.NotContain(AuthenticatorCode);
     }
 
     [TestCase(true, typeof(NoContentResult))]
@@ -179,7 +198,7 @@ public sealed class AccountSecurityControllerTests
     [Test]
     public async Task SecuritySettings_GetAndSave()
     {
-        var response = new SecuritySettingsResponse(true, 0, ExpiresAtUtc, Username);
+        var response = new SecuritySettingsResponse(true, 0, ExpiresAtUtc, Username, []);
         var mediator = new RecordingMediator(_ => response);
         var controller = Controller(mediator, SignedIn("Admin"));
 
@@ -192,7 +211,6 @@ public sealed class AccountSecurityControllerTests
     [TestCase(nameof(AccountSecurityController.LoginTwoFactor))]
     [TestCase(nameof(AccountSecurityController.ForgotPassword))]
     [TestCase(nameof(AccountSecurityController.ResetPassword))]
-    [TestCase(nameof(AccountSecurityController.ConfirmEmail))]
     public void EndpointsUsedBeforeSigningIn_AreAnonymousAndThrottledPerAddress(string action)
     {
         var method = typeof(AccountSecurityController).GetMethod(action)!;
@@ -201,6 +219,22 @@ public sealed class AccountSecurityControllerTests
         method.GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName.Should().Be(LoginThrottling.Policy);
         method.GetCustomAttribute<RequestSizeLimitAttribute>().Should().NotBeNull();
     }
+
+    [Test]
+    public void ConfirmEmail_NeedsTheAccountSignedIn()
+    {
+        var method = typeof(AccountSecurityController).GetMethod(nameof(AccountSecurityController.ConfirmEmail))!;
+
+        method.GetCustomAttributes<AuthorizeAttribute>().Should().ContainSingle();
+        method.GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName.Should().Be(LoginThrottling.Policy);
+    }
+
+    [TestCase(nameof(AccountSecurityController.EnableTwoFactor))]
+    [TestCase(nameof(AccountSecurityController.DisableTwoFactor))]
+    [TestCase(nameof(AccountSecurityController.RegenerateRecoveryCodes))]
+    public void EndpointsThatCheckACode_AreThrottledPerAddress(string action) =>
+        typeof(AccountSecurityController).GetMethod(action)!.GetCustomAttribute<EnableRateLimitingAttribute>()!
+            .PolicyName.Should().Be(LoginThrottling.Policy);
 
     [Test]
     public void ForgotPassword_IsAlsoThrottledPerIdentifier() =>

@@ -21,10 +21,12 @@ public sealed class SignInChallengeRepository(MedAppDbContext context) : ISignIn
             .AsNoTracking()
             .FirstOrDefaultAsync(challenge => challenge.TokenHash == tokenHash, ct);
 
-    public Task RecordFailureAsync(Guid challengeId, CancellationToken ct) =>
-        context.SignInChallenges
-            .Where(challenge => challenge.Id == challengeId)
-            .ExecuteUpdateAsync(set => set.SetProperty(c => c.FailedAttempts, c => c.FailedAttempts + 1), ct);
+    public async Task<bool> TryReserveAttemptAsync(Guid challengeId, DateTime utcNow, CancellationToken ct) =>
+        await context.SignInChallenges
+            .Where(challenge => challenge.Id == challengeId
+                                && challenge.FailedAttempts < SignInChallenge.MaxFailedAttempts
+                                && challenge.ExpiresAtUtc > utcNow)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.FailedAttempts, c => c.FailedAttempts + 1), ct) > 0;
 
     public async Task<bool> ConsumeAsync(Guid challengeId, CancellationToken ct) =>
         await context.SignInChallenges

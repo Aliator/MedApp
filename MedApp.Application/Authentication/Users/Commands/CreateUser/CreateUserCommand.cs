@@ -9,5 +9,7 @@ namespace MedApp.Application.Authentication.Users.Commands.CreateUser;
 /// </summary>
 public sealed record CreateUserCommand(
     string Username,
-    string? Email = null
+    string? Email = null,
+    Guid? ActorUserId = null,
+    string? ActorUsername = null
 ) : IRequest<CreateUserResult>;

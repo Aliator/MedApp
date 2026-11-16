@@ -36,7 +36,7 @@ public sealed class SecuritySettingsHandlersTests
         _read.Setup(r => r.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, string> { [ActorId] = "an.admin" });
         _twoFactor = new Mock<ITwoFactorService>();
-        _twoFactor.Setup(t => t.CountAdminsWithoutTwoFactorAsync(It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        _twoFactor.Setup(t => t.GetAdminsWithoutTwoFactorAsync(It.IsAny<CancellationToken>())).ReturnsAsync(["admin.one", "admin.two"]);
         _events = new Mock<ISecurityEventLog>();
     }
 
@@ -49,7 +49,7 @@ public sealed class SecuritySettingsHandlersTests
         var result = await new GetSecuritySettingsHandler(_settings.Object, _read.Object, _twoFactor.Object)
             .Handle(new GetSecuritySettingsQuery(), CancellationToken.None);
 
-        result.Should().Be(new SecuritySettingsResponse(false, 2, null, null));
+        result.Should().BeEquivalentTo(new SecuritySettingsResponse(false, 2, null, null, ["admin.one", "admin.two"]));
         _read.Verify(r => r.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -60,7 +60,7 @@ public sealed class SecuritySettingsHandlersTests
 
         var result = await SaveHandler().Handle(new SaveSecuritySettingsCommand(true, ActorId, "an.admin"), CancellationToken.None);
 
-        result.Should().Be(new SecuritySettingsResponse(true, 2, NowUtc, "an.admin"));
+        result.Should().BeEquivalentTo(new SecuritySettingsResponse(true, 2, NowUtc, "an.admin", ["admin.one", "admin.two"]));
         _stored.UpdatedByUserId.Should().Be(ActorId);
         _events.Verify(e => e.RecordAsync(
             It.Is<SecurityEvent>(ev => ev.Kind == SecurityEventKind.TwoFactorRequirementChanged && (bool)ev.Details!["requireTwoFactorForAdmins"]!),
@@ -97,8 +97,8 @@ public sealed class SecuritySettingsHandlersTests
 
     [Test]
     public void Mapper_CarriesEverything() =>
-        SecuritySettingsMapper.ToResponse(new SecuritySettings { RequireTwoFactorForAdmins = true, UpdatedAtUtc = NowUtc }, "someone", 3)
-            .Should().Be(new SecuritySettingsResponse(true, 3, NowUtc, "someone"));
+        SecuritySettingsMapper.ToResponse(new SecuritySettings { RequireTwoFactorForAdmins = true, UpdatedAtUtc = NowUtc }, "someone", ["a", "b", "c"])
+            .Should().BeEquivalentTo(new SecuritySettingsResponse(true, 3, NowUtc, "someone", ["a", "b", "c"]));
 
     [TestCase(true)]
     [TestCase(false)]

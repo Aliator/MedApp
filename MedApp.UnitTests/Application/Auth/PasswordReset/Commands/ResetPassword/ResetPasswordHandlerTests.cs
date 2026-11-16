@@ -45,9 +45,9 @@ public sealed class ResetPasswordHandlerTests
         result.Succeeded.Should().BeTrue();
         _transactions.Runs.Should().Be(1);
         _sessions.Verify(s => s.RevokeUserSessionsAsync(UserId, null, It.IsAny<CancellationToken>()), Times.Once);
-        _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.PasswordReset, It.IsAny<CancellationToken>(), null, null), Times.Once);
+        _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.ResetByLink, It.IsAny<CancellationToken>(), null, null), Times.Once);
         _events.Verify(e => e.RecordAsync(
-            It.Is<SecurityEvent>(ev => ev.Kind == SecurityEventKind.PasswordResetCompleted && ev.UserId == UserId && ev.Username == Username),
+            It.Is<SecurityEvent>(ev => ev.Kind == SecurityEventKind.ResetByLink && ev.UserId == UserId && ev.Username == Username),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

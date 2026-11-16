@@ -30,6 +30,7 @@ public static class LoginThrottling
         services.AddOptions<LoginThrottlingOptions>().BindConfiguration(LoginThrottlingOptions.Section);
         services.AddSingleton<LoginUsernameLimiter>();
         services.AddSingleton<ResetRequestLimiter>();
+        services.AddSingleton<MedApp.Application.Common.Security.IAccountAttemptLimiter, AccountAttemptLimiter>();
 
         services.AddRateLimiter(options =>
         {

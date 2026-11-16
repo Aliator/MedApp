@@ -128,6 +128,7 @@ public static class ServiceExtensions
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
         services.AddScoped<ISecuritySettingsRepository, SecuritySettingsRepository>();
+        services.AddScoped<IAccountLockoutRepository, AccountLockoutRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
         services.AddScoped<IActivityRepository, ActivityRepository>();

@@ -108,7 +108,7 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with notification preferences), `AuditEntryMapper`, `MonitoringRuleMapper` (with the names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper` (with notification preferences), `AuditEntryMapper`, `MonitoringRuleMapper` (with the names from `MonitoringRuleNames`), `EmailMapper`, `TwoFactorMapper`, `SecuritySettingsMapper`
   - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `TimelineMapper`, `ProcedureInsightsMapper` (from totals, not entities)
   - `FhirPatientMapper` (a patient as a UK Core Patient) and `DemographicsMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type

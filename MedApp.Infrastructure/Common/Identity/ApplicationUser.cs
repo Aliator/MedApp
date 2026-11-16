@@ -20,4 +20,11 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     /// <c>EmailConfirmed</c> set.
     /// </summary>
     public string? PendingEmail { get; set; }
+
+    /// <summary>
+    /// How many times wrong two-factor codes have locked the account since its last complete sign-in. Each lockout from
+    /// codes lasts twice as long as the one before (<c>CodeLockouts</c>), so codes can't be guessed at a steady rate for
+    /// ever. A complete sign-in sets it back to 0.
+    /// </summary>
+    public int TwoFactorLockouts { get; set; }
 }

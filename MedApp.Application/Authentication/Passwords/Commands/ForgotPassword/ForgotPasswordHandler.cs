@@ -27,7 +27,7 @@ public sealed class ForgotPasswordHandler(
         if (targets.Count == 0)
         {
             await events.RecordAsync(
-                new SecurityEvent(SecurityEventKind.PasswordResetRequested, null, null,
+                new SecurityEvent(SecurityEventKind.ResetLinkRequested, null, null,
                     Details: new Dictionary<string, object?> { ["matched"] = false }),
                 ct);
             return;
@@ -36,7 +36,7 @@ public sealed class ForgotPasswordHandler(
         foreach (var target in targets)
         {
             await events.RecordAsync(
-                new SecurityEvent(SecurityEventKind.PasswordResetRequested, target.UserId, target.Username,
+                new SecurityEvent(SecurityEventKind.ResetLinkRequested, target.UserId, target.Username,
                     Details: new Dictionary<string, object?> { ["matched"] = true }),
                 ct);
 
@@ -48,7 +48,7 @@ public sealed class ForgotPasswordHandler(
                 continue;
             }
 
-            await sender.SendAsync(EmailTemplates.ResetPassword(target.Email, target.Username, link), ct);
+            await sender.SendAsync(EmailTemplates.ResetLink(target.Email, target.Username, link), ct);
         }
     }
 }

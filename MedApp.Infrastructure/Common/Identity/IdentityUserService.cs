@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using MedApp.Application.Authentication.TwoFactor.Repositories;
+using System.Security.Cryptography;
 using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Authentication.Responses;
 using Microsoft.AspNetCore.Identity;
@@ -8,7 +9,9 @@ namespace MedApp.Infrastructure.Common.Identity;
 
 public sealed class IdentityUserService(
     UserManager<ApplicationUser> userManager,
-    IOptions<IdentityOptions> identityOptions) : IIdentityUserService
+    IOptions<IdentityOptions> identityOptions,
+    IAccountLockoutRepository lockouts,
+    TimeProvider timeProvider) : IIdentityUserService
 {
     private readonly IdentityOptions _identityOptions = identityOptions.Value;
     
@@ -108,13 +111,18 @@ public sealed class IdentityUserService(
 
         if (await userManager.CheckPasswordAsync(user, password))
         {
-            await userManager.ResetAccessFailedCountAsync(user);
+            // With two-factor on, a right password doesn't clear the count: it holds wrong codes too, and clearing it would
+            // let someone with the password (and a session) guess codes without ever reaching the lockout.
+            if (!user.TwoFactorEnabled)
+                await lockouts.ResetAsync(user.Id, ct);
             return IdentityResult.Success;
         }
 
-        await userManager.AccessFailedAsync(user);
-        return IdentityResult.Failed(
-            await userManager.IsLockedOutAsync(user) ? IdentityErrors.LockedOut : IdentityErrors.PasswordIncorrect);
+        // Counted in one statement, so wrong passwords sent together all count (and none leaves a failed update behind).
+        var lockout = userManager.Options.Lockout;
+        var lockedFor = await lockouts.RecordFailedPasswordAsync(
+            user.Id, lockout.MaxFailedAccessAttempts, lockout.DefaultLockoutTimeSpan, timeProvider.GetUtcNow(), ct);
+        return IdentityResult.Failed(lockedFor is null ? IdentityErrors.PasswordIncorrect : IdentityErrors.LockedOut);
     }
 
     public async Task<IdentityResult> DeleteUserAsync(

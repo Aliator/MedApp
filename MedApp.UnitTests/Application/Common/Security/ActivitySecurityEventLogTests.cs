@@ -25,6 +25,7 @@ public sealed class ActivitySecurityEventLogTests
     [Test]
     public async Task OwnAccount_IsByTheUserFromTheRequestsAddress()
     {
+        _activity.Actor = new ActivityActor(UserId, Username, "192.0.2.30");
         await _log.RecordAsync(new SecurityEvent(SecurityEventKind.TwoFactorEnabled, UserId, Username), CancellationToken.None);
 
         var entry = _activity.Recorded.Should().ContainSingle().Subject;
@@ -34,6 +35,19 @@ public sealed class ActivitySecurityEventLogTests
         entry.IpAddress.Should().Be("192.0.2.30");
         entry.TargetUsername.Should().BeNull();
         entry.Details.Should().Be("{}");
+    }
+
+    [Test]
+    public async Task NobodySignedIn_IsByNobodyWithTheAccountAsTarget()
+    {
+        await _log.RecordAsync(new SecurityEvent(SecurityEventKind.ResetByLink, UserId, Username), CancellationToken.None);
+
+        var entry = _activity.Recorded.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(ActivityAction.PasswordResetByEmail);
+        entry.UserId.Should().BeNull();
+        entry.Username.Should().BeEmpty();
+        entry.IpAddress.Should().Be("192.0.2.30");
+        entry.TargetUsername.Should().Be(Username);
     }
 
     [Test]
@@ -54,7 +68,7 @@ public sealed class ActivitySecurityEventLogTests
     public async Task NoAccount_IsByNobodyWithItsDetails()
     {
         await _log.RecordAsync(
-            new SecurityEvent(SecurityEventKind.PasswordResetRequested, null, null,
+            new SecurityEvent(SecurityEventKind.ResetLinkRequested, null, null,
                 Details: new Dictionary<string, object?> { ["matched"] = false }),
             CancellationToken.None);
 
@@ -64,11 +78,11 @@ public sealed class ActivitySecurityEventLogTests
         entry.Details.Should().Be("{\"matched\":false}");
     }
 
-    [TestCase(SecurityEventKind.PasswordResetRequested, ActivityAction.PasswordResetRequested)]
-    [TestCase(SecurityEventKind.PasswordResetCompleted, ActivityAction.PasswordResetByEmail)]
-    [TestCase(SecurityEventKind.EmailChangeRequested, ActivityAction.EmailChangeRequested)]
-    [TestCase(SecurityEventKind.EmailConfirmed, ActivityAction.EmailConfirmed)]
-    [TestCase(SecurityEventKind.EmailRemoved, ActivityAction.EmailRemoved)]
+    [TestCase(SecurityEventKind.ResetLinkRequested, ActivityAction.PasswordResetRequested)]
+    [TestCase(SecurityEventKind.ResetByLink, ActivityAction.PasswordResetByEmail)]
+    [TestCase(SecurityEventKind.AddressChangeRequested, ActivityAction.EmailChangeRequested)]
+    [TestCase(SecurityEventKind.AddressConfirmed, ActivityAction.EmailConfirmed)]
+    [TestCase(SecurityEventKind.AddressRemoved, ActivityAction.EmailRemoved)]
     [TestCase(SecurityEventKind.TwoFactorEnabled, ActivityAction.TwoFactorEnabled)]
     [TestCase(SecurityEventKind.TwoFactorDisabled, ActivityAction.TwoFactorDisabled)]
     [TestCase(SecurityEventKind.TwoFactorReset, ActivityAction.TwoFactorReset)]

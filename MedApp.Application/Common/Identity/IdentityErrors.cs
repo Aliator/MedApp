@@ -71,6 +71,15 @@ public static class IdentityErrors
             Description = "You can't reset your own two-factor authentication. Turn it off in Account Settings, Security, or ask another admin."
         };
 
+    /// <summary>An emailed link opened while signed in as another account than the one it's for.</summary>
+    public static IdentityError WrongAccount =>
+        new()
+        {
+            Code = WrongAccountCode,
+            Description = "This link is for another account. Sign in as that account, then open the link again."
+        };
+
+    public const string WrongAccountCode = "WrongAccount";
     public const string UserNotFoundCode = "UserNotFound";
     public const string InvalidTokenCode = "InvalidToken";
     public const string SamePasswordCode = "SamePassword";

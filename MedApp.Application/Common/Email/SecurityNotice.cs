@@ -7,7 +7,7 @@ namespace MedApp.Application.Common.Email;
 public enum SecurityNotice
 {
     /// <summary>Their password was reset with an emailed link.</summary>
-    PasswordReset,
+    ResetByLink,
 
     TwoFactorEnabled,
     TwoFactorDisabled,
@@ -21,8 +21,20 @@ public enum SecurityNotice
     RecoveryCodeUsed,
 
     /// <summary>Their email address changed (sent to the old one).</summary>
-    EmailChanged,
+    AddressChanged,
 
     /// <summary>Their email address was removed (sent to the removed one).</summary>
-    EmailRemoved,
+    AddressRemoved,
+
+    /// <summary>Someone asked to change their email address (sent to the confirmed one, before the new one is confirmed).</summary>
+    AddressChangeRequested,
+
+    /// <summary>Wrong two-factor codes locked the account: someone may have their password.</summary>
+    TwoFactorCodesLockedOut,
+
+    /// <summary>Another admin turned two-factor on (sent to every admin with a confirmed address).</summary>
+    AdminTwoFactorEnabled,
+
+    /// <summary>Another admin's two-factor was reset or turned off (sent to every admin with a confirmed address).</summary>
+    AdminTwoFactorRemoved,
 }

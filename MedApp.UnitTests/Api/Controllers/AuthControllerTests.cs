@@ -109,7 +109,11 @@ public sealed class AuthControllerTests
 
         await Controller(mediator, null, "Admin").CreateUser(new CreateUserRequest(Username, Email));
 
-        mediator.Request.Should().Be(new CreateUserCommand(Username, Email));
+        var command = mediator.Request.Should().BeOfType<CreateUserCommand>().Subject;
+        command.Should().BeEquivalentTo(new { Username, Email });
+        // The admin is recorded as who gave the address.
+        command.ActorUserId.Should().NotBeNull();
+        command.ActorUsername.Should().NotBeNullOrEmpty();
     }
 
     [Test]
@@ -236,7 +240,7 @@ public sealed class AuthControllerTests
 
         var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername));
 
-        mediator.Request.Should().Be(new CreateUserCommand(OtherUsername));
+        mediator.Request.Should().BeOfType<CreateUserCommand>().Which.Should().BeEquivalentTo(new { Username = OtherUsername, Email = (string?)null });
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(new CreateUserResponse(OtherUsername, Password));
     }
 

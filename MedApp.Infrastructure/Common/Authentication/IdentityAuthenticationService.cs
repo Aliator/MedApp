@@ -1,3 +1,4 @@
+using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
@@ -17,7 +18,8 @@ namespace MedApp.Infrastructure.Common.Authentication;
 public sealed class IdentityAuthenticationService(
     UserManager<ApplicationUser> userManager,
     TimeProvider timeProvider,
-    IOptions<IdentityOptions> identityOptions)
+    IOptions<IdentityOptions> identityOptions,
+    IAccountLockoutRepository lockouts)
     : IAuthenticationService
 {
     public async Task<(Guid, string, IEnumerable<string>)>
@@ -37,9 +39,13 @@ public sealed class IdentityAuthenticationService(
 
         if (!await userManager.CheckPasswordAsync(user, password))
         {
-            await userManager.AccessFailedAsync(user);
-            if (await userManager.IsLockedOutAsync(user))
-                throw await LockedOut(user);
+            // Counted in one statement, so wrong passwords sent together all count, and none leaves a failed update
+            // behind to break the activity log's save.
+            var lockout = userManager.Options.Lockout;
+            if (await lockouts.RecordFailedPasswordAsync(
+                    user.Id, lockout.MaxFailedAccessAttempts, lockout.DefaultLockoutTimeSpan, timeProvider.GetUtcNow(), CancellationToken.None)
+                is { } lockedFor)
+                throw new AccountLockedOutException(Math.Max(1, (int)Math.Ceiling(lockedFor.TotalMinutes)), user.Id);
             throw new InvalidCredentialsException(user.Id);
         }
 
@@ -47,7 +53,7 @@ public sealed class IdentityAuthenticationService(
         // too (TwoFactorService.RecordSignInAsync). Clearing it here would let someone with the password guess codes
         // without ever reaching the lockout, by entering the password again after every few.
         if (!user.TwoFactorEnabled)
-            await userManager.ResetAccessFailedCountAsync(user);
+            await lockouts.ResetAsync(user.Id, CancellationToken.None);
         var roles = await userManager.GetRolesAsync(user);
 
         return (user.Id, user.UserName!, roles);

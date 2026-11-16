@@ -35,6 +35,10 @@ public sealed class SignInChallenge
 
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
+    /// <summary>
+    /// Attempts used: each code checked reserves one first (<c>TryReserveAttemptAsync</c>, in one statement), right or
+    /// wrong, so a right code on the last attempt still signs in.
+    /// </summary>
     public int FailedAttempts { get; private set; }
 
     /// <summary>Whether it can still be used at <paramref name="utcNow"/>: not expired, and not out of attempts.</summary>

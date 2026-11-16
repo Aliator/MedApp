@@ -13,12 +13,13 @@ using Microsoft.AspNetCore.Identity;
 namespace MedApp.Application.Authentication.TwoFactor.Commands.EnableTwoFactor;
 
 /// <summary>
-/// Checks the code against the key just set up, then turns two-factor on with new recovery codes and ends the account's
+/// Checks the password, then the code against the key just set up, then turns two-factor on with new recovery codes and ends the account's
 /// other sessions, together (one transaction). A wrong code is a validation error on <c>Code</c>; it doesn't count
 /// towards the lockout, since the person setting up holds the key anyway. The owner is told by email.
 /// </summary>
 public sealed class EnableTwoFactorHandler(
     ITwoFactorService twoFactor,
+    IIdentityUserService users,
     ISessionService sessionService,
     IIdentityTransactions transactions,
     ISecurityNotices notices,
@@ -32,6 +33,9 @@ public sealed class EnableTwoFactorHandler(
 
         if (state.Enabled)
             throw new ConflictException("Two-factor authentication is already on.");
+
+        // A session alone isn't enough to tie the account to someone's app: the password too.
+        await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
 
         if (!await twoFactor.VerifyAuthenticatorCodeAsync(request.UserId, request.Code, ct))
             throw new ValidationException([new ValidationFailure(nameof(request.Code), TwoFactorCodes.WrongCode)]);
@@ -53,6 +57,8 @@ public sealed class EnableTwoFactorHandler(
 
         await events.RecordAsync(new SecurityEvent(SecurityEventKind.TwoFactorEnabled, request.UserId, state.Username), ct);
         await notices.SendAsync(request.UserId, SecurityNotice.TwoFactorEnabled, ct);
+        if (state.IsAdmin)
+            await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorEnabled, request.UserId, state.Username, ct);
 
         return TwoFactorMapper.ToResponse(codes!);
     }

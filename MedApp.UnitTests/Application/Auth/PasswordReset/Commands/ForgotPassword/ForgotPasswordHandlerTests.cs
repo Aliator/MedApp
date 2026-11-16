@@ -45,9 +45,9 @@ public sealed class ForgotPasswordHandlerTests
 
         var email = _sent.Should().ContainSingle().Subject;
         email.To.Should().Be(Address);
-        email.Subject.Should().Be(EmailTemplates.ResetPasswordSubject);
+        email.Subject.Should().Be(EmailTemplates.ResetLinkSubject);
         email.TextBody.Should().Contain($"{LinkBaseUrl}/reset-password#user={UserId:D}&token={Uri.EscapeDataString(Token)}");
-        _recorded.Should().ContainSingle(e => e.Kind == SecurityEventKind.PasswordResetRequested && e.UserId == UserId);
+        _recorded.Should().ContainSingle(e => e.Kind == SecurityEventKind.ResetLinkRequested && e.UserId == UserId);
     }
 
     [Test]
@@ -59,7 +59,7 @@ public sealed class ForgotPasswordHandlerTests
 
         _sent.Should().BeEmpty();
         var recorded = _recorded.Should().ContainSingle().Subject;
-        recorded.Kind.Should().Be(SecurityEventKind.PasswordResetRequested);
+        recorded.Kind.Should().Be(SecurityEventKind.ResetLinkRequested);
         recorded.UserId.Should().BeNull();
         recorded.ToString().Should().NotContain(OtherAddress);
         recorded.Details!["matched"].Should().Be(false);

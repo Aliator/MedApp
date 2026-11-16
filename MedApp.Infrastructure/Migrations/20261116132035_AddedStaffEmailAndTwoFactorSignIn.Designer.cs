@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261116122535_AddedStaffEmailAndTwoFactorSignIn")]
+    [Migration("20261116132035_AddedStaffEmailAndTwoFactorSignIn")]
     partial class AddedStaffEmailAndTwoFactorSignIn
     {
         /// <inheritdoc />
@@ -727,6 +727,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
+
+                    b.Property<int>("TwoFactorLockouts")
+                        .HasColumnType("int");
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)

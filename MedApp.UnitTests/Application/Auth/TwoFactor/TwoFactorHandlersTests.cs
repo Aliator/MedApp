@@ -33,6 +33,7 @@ public sealed class TwoFactorHandlersTests
     private PassThroughIdentityTransactions _transactions = null!;
     private Mock<ISecurityNotices> _notices = null!;
     private Mock<ISecurityEventLog> _events = null!;
+    private Mock<IAccountAttemptLimiter> _attempts = null!;
 
     private static readonly IReadOnlyList<string> Codes = Enumerable.Range(0, 10).Select(i => $"CODE{i}-23456").ToList();
 
@@ -48,6 +49,9 @@ public sealed class TwoFactorHandlersTests
         _transactions = new PassThroughIdentityTransactions();
         _notices = new Mock<ISecurityNotices>();
         _events = new Mock<ISecurityEventLog>();
+        _attempts = new Mock<IAccountAttemptLimiter>();
+        // The right password, unless a test says otherwise.
+        _users.Setup(u => u.VerifyPasswordAsync(Username, CurrentPassword, It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
     }
 
     private void GivenState(TwoFactorState state) =>
@@ -135,7 +139,7 @@ public sealed class TwoFactorHandlersTests
     // EnableTwoFactor
 
     private EnableTwoFactorHandler EnableHandler() =>
-        new(_twoFactor.Object, _sessions.Object, _transactions, _notices.Object, _events.Object);
+        new(_twoFactor.Object, _users.Object, _sessions.Object, _transactions, _notices.Object, _events.Object);
 
     [Test]
     public async Task Enable_RightCode_TurnsItOnEndsOtherSessionsAndReturnsTheCodesOnce()
@@ -144,7 +148,7 @@ public sealed class TwoFactorHandlersTests
         _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _twoFactor.Setup(t => t.EnableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
 
-        var result = await EnableHandler().Handle(new EnableTwoFactorCommand(UserId, AuthenticatorCode, SessionId), CancellationToken.None);
+        var result = await EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
         result.RecoveryCodes.Should().Equal(Codes);
         _transactions.Runs.Should().Be(1);
@@ -159,7 +163,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State(enabled: false));
 
-        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, AuthenticatorCode, SessionId), CancellationToken.None);
+        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Code");
         _twoFactor.Verify(t => t.EnableAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -171,7 +175,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State(enabled: true));
 
-        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, AuthenticatorCode, SessionId), CancellationToken.None);
+        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -184,7 +188,7 @@ public sealed class TwoFactorHandlersTests
         _twoFactor.Setup(t => t.EnableAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Failed(new IdentityError { Description = "No." }), []));
 
-        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, AuthenticatorCode, SessionId), CancellationToken.None);
+        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
         _sessions.VerifyNoOtherCalls();
@@ -193,7 +197,7 @@ public sealed class TwoFactorHandlersTests
     [Test]
     public async Task Enable_NoAccount_IsNotFound()
     {
-        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, AuthenticatorCode, SessionId), CancellationToken.None);
+        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -204,12 +208,12 @@ public sealed class TwoFactorHandlersTests
     [TestCase("ABCDE-23456", false)]
     [TestCase("", false)]
     public void EnableValidator_WantsSixDigits(string code, bool valid) =>
-        new EnableTwoFactorValidator().Validate(new EnableTwoFactorCommand(UserId, code, null)).IsValid.Should().Be(valid);
+        new EnableTwoFactorValidator().Validate(new EnableTwoFactorCommand(UserId, CurrentPassword, code, null)).IsValid.Should().Be(valid);
 
     // DisableTwoFactor
 
     private DisableTwoFactorHandler DisableHandler() =>
-        new(_twoFactor.Object, _users.Object, _settings.Object, _sessions.Object, _transactions, _notices.Object, _events.Object);
+        new(_twoFactor.Object, _users.Object, _settings.Object, _sessions.Object, _transactions, _notices.Object, _events.Object, _attempts.Object);
 
     private static DisableTwoFactorCommand Disable(string code = AuthenticatorCode) => new(UserId, CurrentPassword, code, SessionId);
 
@@ -337,7 +341,7 @@ public sealed class TwoFactorHandlersTests
 
     // RegenerateRecoveryCodes
 
-    private RegenerateRecoveryCodesHandler RegenerateHandler() => new(_twoFactor.Object, _notices.Object, _events.Object);
+    private RegenerateRecoveryCodesHandler RegenerateHandler() => new(_twoFactor.Object, _users.Object, _notices.Object, _events.Object, _attempts.Object);
 
     [Test]
     public async Task Regenerate_RightCode_ReturnsNewCodesAndTellsTheOwner()
@@ -347,7 +351,7 @@ public sealed class TwoFactorHandlersTests
         _twoFactor.Setup(t => t.RegenerateRecoveryCodesAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
 
-        var result = await RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode), CancellationToken.None);
+        var result = await RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
 
         result.RecoveryCodes.Should().Equal(Codes);
         _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.RecoveryCodesRegenerated, It.IsAny<CancellationToken>(), null, null), Times.Once);
@@ -359,7 +363,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State());
 
-        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, RecoveryCode), CancellationToken.None);
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, RecoveryCode), CancellationToken.None);
 
         await act.Should().ThrowAsync<ValidationException>();
         _twoFactor.Verify(t => t.RedeemRecoveryCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -370,7 +374,7 @@ public sealed class TwoFactorHandlersTests
     {
         GivenState(State(enabled: false));
 
-        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode), CancellationToken.None);
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -381,7 +385,7 @@ public sealed class TwoFactorHandlersTests
         GivenState(State());
         _twoFactor.Setup(t => t.LockoutMinutesLeftAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(3);
 
-        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode), CancellationToken.None);
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
 
         await act.Should().ThrowAsync<AccountLockedOutException>();
     }
@@ -392,7 +396,7 @@ public sealed class TwoFactorHandlersTests
         GivenState(State());
         _twoFactor.Setup(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(5);
 
-        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode), CancellationToken.None);
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
 
         await act.Should().ThrowAsync<AccountLockedOutException>();
     }
@@ -405,7 +409,7 @@ public sealed class TwoFactorHandlersTests
         _twoFactor.Setup(t => t.RegenerateRecoveryCodesAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecoveryCodesResult(IdentityResult.Failed(), []));
 
-        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode), CancellationToken.None);
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -413,7 +417,7 @@ public sealed class TwoFactorHandlersTests
     [Test]
     public async Task Regenerate_NoAccount_IsNotFound()
     {
-        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode), CancellationToken.None);
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -423,10 +427,10 @@ public sealed class TwoFactorHandlersTests
     {
         var validator = new RegenerateRecoveryCodesValidator();
 
-        validator.Validate(new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode)).IsValid.Should().BeTrue();
-        validator.Validate(new RegenerateRecoveryCodesCommand(UserId, RecoveryCode)).IsValid.Should().BeFalse();
-        new RegenerateRecoveryCodesCommand(UserId, AuthenticatorCode).ToString().Should().NotContain(AuthenticatorCode);
-        new EnableTwoFactorCommand(UserId, AuthenticatorCode, null).ToString().Should().NotContain(AuthenticatorCode);
+        validator.Validate(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode)).IsValid.Should().BeTrue();
+        validator.Validate(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, RecoveryCode)).IsValid.Should().BeFalse();
+        new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode).ToString().Should().NotContain(AuthenticatorCode);
+        new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, null).ToString().Should().NotContain(AuthenticatorCode);
     }
 
     // ResetUserTwoFactor
@@ -512,4 +516,103 @@ public sealed class TwoFactorHandlersTests
     [Test]
     public void Mapper_RecoveryCodes_AreReturnedInOrder() =>
         TwoFactorMapper.ToResponse(new RecoveryCodesResult(IdentityResult.Success, Codes)).RecoveryCodes.Should().Equal(Codes);
+
+    // The review of #86: a session alone can't change how someone signs in, codes are limited per account, and admins
+    // hear about each other's two-factor.
+
+    [Test]
+    public async Task Enable_WrongPassword_IsAValidationErrorOnPasswordAndChecksNoCode()
+    {
+        GivenState(State(enabled: false));
+        _users.Setup(u => u.VerifyPasswordAsync(Username, CurrentPassword, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.PasswordIncorrect));
+
+        var act = () => EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Password");
+        _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Enable_AnAdmin_TellsTheOtherAdmins()
+    {
+        GivenState(State(enabled: false, isAdmin: true));
+        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.EnableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(new RecoveryCodesResult(IdentityResult.Success, Codes));
+
+        await EnableHandler().Handle(new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, SessionId), CancellationToken.None);
+
+        _notices.Verify(n => n.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorEnabled, UserId, Username, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Disable_AnAdmin_TellsTheOtherAdmins()
+    {
+        GivenState(State(isAdmin: true));
+        _twoFactor.Setup(t => t.VerifyAuthenticatorCodeAsync(UserId, AuthenticatorCode, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactor.Setup(t => t.DisableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
+
+        await DisableHandler().Handle(Disable(), CancellationToken.None);
+
+        _notices.Verify(n => n.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorRemoved, UserId, Username, It.IsAny<CancellationToken>()), Times.Once);
+        _attempts.Verify(a => a.Attempt(AccountAttempt.TwoFactorCode, UserId), Times.Once);
+    }
+
+    [Test]
+    public async Task Reset_AnAdmin_TellsTheOtherAdmins()
+    {
+        _read.Setup(r => r.GetUserAsync(Username, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserResponse(UserId, Username, ["Admin", "User"], TwoFactorEnabled: true));
+        _twoFactor.Setup(t => t.DisableAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(IdentityResult.Success);
+
+        await ResetHandler().Handle(new ResetUserTwoFactorCommand(Username, ActorId, "an.admin"), CancellationToken.None);
+
+        _notices.Verify(n => n.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorRemoved, UserId, Username, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Regenerate_WrongPassword_ChecksNoCode()
+    {
+        GivenState(State());
+        _users.Setup(u => u.VerifyPasswordAsync(Username, CurrentPassword, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.PasswordIncorrect));
+
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.PropertyName == "Password");
+        _attempts.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Regenerate_OverTheAccountsLimit_ChecksNoCode()
+    {
+        GivenState(State());
+        _attempts.Setup(a => a.Attempt(AccountAttempt.TwoFactorCode, UserId)).Throws(new TooManyAttemptsException("Too many.", 600));
+
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<TooManyAttemptsException>()).Which.RetryAfterSeconds.Should().Be(600);
+        _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Regenerate_WrongCodeThatLocks_TellsTheHolder()
+    {
+        GivenState(State());
+        _twoFactor.Setup(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+
+        var act = () => RegenerateHandler().Handle(new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<AccountLockedOutException>()).Which.MinutesLeft.Should().Be(10);
+        _notices.Verify(n => n.SendAsync(UserId, SecurityNotice.TwoFactorCodesLockedOut, It.IsAny<CancellationToken>(), null, null), Times.Once);
+    }
+
+    [Test]
+    public void Validators_NeedThePassword()
+    {
+        new EnableTwoFactorValidator().Validate(new EnableTwoFactorCommand(UserId, "", AuthenticatorCode, null)).IsValid.Should().BeFalse();
+        new RegenerateRecoveryCodesValidator().Validate(new RegenerateRecoveryCodesCommand(UserId, "", AuthenticatorCode)).IsValid.Should().BeFalse();
+        new EnableTwoFactorCommand(UserId, CurrentPassword, AuthenticatorCode, null).ToString().Should().NotContain(CurrentPassword);
+        new RegenerateRecoveryCodesCommand(UserId, CurrentPassword, AuthenticatorCode).ToString().Should().NotContain(CurrentPassword);
+    }
 }

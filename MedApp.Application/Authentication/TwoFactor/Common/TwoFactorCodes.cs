@@ -1,13 +1,17 @@
 using FluentValidation;
 using FluentValidation.Results;
+using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Security;
 
 namespace MedApp.Application.Authentication.TwoFactor.Common;
 
 /// <summary>
-/// Checking a code a signed-in person types to confirm a two-factor change. A wrong one counts towards the lockout, as
-/// at sign-in, so a stolen session can't be used to guess codes; a locked account is refused.
+/// Checking a code a signed-in person types to confirm a two-factor change. It counts against the account's limit on
+/// codes (shared with sign-in), and a wrong one counts towards the lockout in one statement, as at sign-in, so a stolen
+/// session can't be used to guess codes, one at a time or all at once; a locked account is refused, and a lockout is
+/// emailed to the holder.
 /// </summary>
 public static class TwoFactorCodes
 {
@@ -28,6 +32,8 @@ public static class TwoFactorCodes
     /// </summary>
     public static async Task VerifyOrThrowAsync(
         this ITwoFactorService twoFactor,
+        IAccountAttemptLimiter attempts,
+        ISecurityNotices notices,
         Guid userId,
         string code,
         string field,
@@ -37,6 +43,8 @@ public static class TwoFactorCodes
         if (await twoFactor.LockoutMinutesLeftAsync(userId, ct) is { } lockedFor)
             throw new AccountLockedOutException(lockedFor);
 
+        attempts.Attempt(AccountAttempt.TwoFactorCode, userId);
+
         var verified = IsAuthenticatorCode(code)
             ? await twoFactor.VerifyAuthenticatorCodeAsync(userId, code, ct)
             : allowRecoveryCode && (await twoFactor.RedeemRecoveryCodeAsync(userId, code, ct)).Succeeded;
@@ -45,7 +53,10 @@ public static class TwoFactorCodes
             return;
 
         if (await twoFactor.RecordFailedCodeAsync(userId, ct) is { } lockedNow)
+        {
+            await notices.SendAsync(userId, SecurityNotice.TwoFactorCodesLockedOut, ct);
             throw new AccountLockedOutException(lockedNow);
+        }
 
         throw new ValidationException([new ValidationFailure(field, WrongCode)]);
     }

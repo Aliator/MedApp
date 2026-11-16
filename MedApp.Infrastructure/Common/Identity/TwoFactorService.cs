@@ -1,4 +1,5 @@
 using System.Globalization;
+using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 
@@ -10,10 +11,14 @@ namespace MedApp.Infrastructure.Common.Identity;
 /// Codes are checked by <see cref="Totp"/> against <see cref="TimeProvider"/>, and the step of the last accepted code is
 /// kept as a token of the user's (<see cref="LastTimeStepToken"/>), so each code is accepted once: a code seen over a
 /// shoulder or replayed can't be used again. Saving that step is an update of the user, which Identity guards with its
-/// concurrency stamp, so of two requests with the same code at the same moment only one gets through.
+/// concurrency stamp, so of two requests with the same code at the same moment only one gets through; the other's
+/// failed update is forgotten (<see cref="IAccountLockoutRepository.Forget"/>), so it can't break a later save. Wrong
+/// codes are counted in single statements (<see cref="IAccountLockoutRepository"/>), never with Identity's
+/// read-then-write <c>AccessFailedAsync</c>, which loses counts to requests that arrive together.
 /// </summary>
 public sealed class TwoFactorService(
     UserManager<ApplicationUser> userManager,
+    IAccountLockoutRepository lockouts,
     TimeProvider timeProvider)
     : ITwoFactorService
 {
@@ -94,6 +99,8 @@ public sealed class TwoFactorService(
 
         var saved = await userManager.SetAuthenticationTokenAsync(
             user, TokenProvider, LastTimeStepToken, step.ToString(CultureInfo.InvariantCulture));
+        if (!saved.Succeeded)
+            lockouts.Forget(userId);
         return saved.Succeeded;
     }
 
@@ -106,6 +113,15 @@ public sealed class TwoFactorService(
         var normalised = NormaliseRecoveryCode(code);
         var redeemed = normalised.Length > 0
                        && (await userManager.RedeemTwoFactorRecoveryCodeAsync(user, normalised)).Succeeded;
+        if (!redeemed)
+        {
+            // A refused code changes nothing worth saving, and a lost race leaves the user modified: forget it, and
+            // count what's left afresh.
+            lockouts.Forget(userId);
+            user = await FindAsync(userId);
+            if (user is null)
+                return new RecoveryCodeRedemption(false, 0);
+        }
 
         return new RecoveryCodeRedemption(redeemed, await userManager.CountRecoveryCodesAsync(user));
     }
@@ -169,23 +185,27 @@ public sealed class TwoFactorService(
 
     public async Task<int?> RecordFailedCodeAsync(Guid userId, CancellationToken ct)
     {
-        var user = await FindAsync(userId);
-        if (user is null)
-            return null;
-
-        await userManager.AccessFailedAsync(user);
-        return await userManager.IsLockedOutAsync(user) ? await MinutesLeftAsync(user) : null;
+        var lockout = userManager.Options.Lockout;
+        var lockedFor = await lockouts.RecordFailedCodeAsync(
+            userId, lockout.MaxFailedAccessAttempts, lockout.DefaultLockoutTimeSpan, timeProvider.GetUtcNow(), ct);
+        return lockedFor is { } duration ? Math.Max(1, (int)Math.Ceiling(duration.TotalMinutes)) : null;
     }
 
-    public async Task RecordSignInAsync(Guid userId, CancellationToken ct)
-    {
-        var user = await FindAsync(userId);
-        if (user is not null)
-            await userManager.ResetAccessFailedCountAsync(user);
-    }
+    public Task RecordSignInAsync(Guid userId, CancellationToken ct) =>
+        lockouts.ResetAsync(userId, ct);
 
-    public async Task<int> CountAdminsWithoutTwoFactorAsync(CancellationToken ct) =>
-        (await userManager.GetUsersInRoleAsync(FirstAdminSetup.AdminRole)).Count(user => !user.TwoFactorEnabled);
+    public async Task<IReadOnlyList<string>> GetAdminsWithoutTwoFactorAsync(CancellationToken ct) =>
+        (await userManager.GetUsersInRoleAsync(FirstAdminSetup.AdminRole))
+            .Where(user => !user.TwoFactorEnabled)
+            .Select(user => user.UserName ?? string.Empty)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    public async Task<IReadOnlyList<AccountContact>> GetAdminContactsAsync(CancellationToken ct) =>
+        (await userManager.GetUsersInRoleAsync(FirstAdminSetup.AdminRole))
+            .Where(user => user.EmailConfirmed && !string.IsNullOrEmpty(user.Email))
+            .Select(user => new AccountContact(user.Id, user.UserName ?? string.Empty, user.Email!))
+            .ToList();
 
     /// <summary>A recovery code as Identity stores them: no spaces, upper case (they're letters, digits and a dash).</summary>
     public static string NormaliseRecoveryCode(string code) =>

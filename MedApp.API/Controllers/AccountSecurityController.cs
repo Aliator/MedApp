@@ -3,6 +3,7 @@ using MedApp.API.Common.RateLimiting;
 using MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail;
 using MedApp.Application.Authentication.Emails.Commands.ConfirmEmail;
 using MedApp.Application.Authentication.Emails.Commands.RemoveMyEmail;
+using MedApp.Application.Authentication.Emails.Commands.RemoveUserEmail;
 using MedApp.Application.Authentication.Emails.Queries.GetMyEmail;
 using MedApp.Application.Authentication.Passwords.Commands.ForgotPassword;
 using MedApp.Application.Authentication.Passwords.Commands.ResetPassword;
@@ -115,10 +116,13 @@ public sealed class AccountSecurityController(
     }
 
     /// <summary>
-    /// Confirms an email address with the account and token from the link sent to it. A wrong, used or expired link
-    /// is a 400 with the code <c>InvalidToken</c>. Doesn't need signing in: the link proves the address.
+    /// Confirms an email address with the account and token from the link sent to it, signed in as that account: the
+    /// link proves the mailbox, the session the person (a mistyped or shared address can't be confirmed by whoever reads
+    /// it). Signed out is a 401; a wrong, used or expired link a 400 with the code <c>InvalidToken</c>; a link for
+    /// another account a 400 with <c>WrongAccount</c>.
     /// </summary>
     [HttpPost("email/confirm")]
+    [Authorize]
     [Tags("Account")]
     [RequestSizeLimit(16 * 1024)]
     [EnableRateLimiting(LoginThrottling.Policy)]
@@ -126,7 +130,7 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(IEnumerable<IdentityError>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request, CancellationToken ct)
     {
-        var result = await mediator.Send(new ConfirmEmailCommand(request.UserId, request.Token ?? string.Empty), ct);
+        var result = await mediator.Send(new ConfirmEmailCommand(request.UserId, request.Token ?? string.Empty, User.GetUserId()), ct);
         return result.Succeeded ? NoContent() : BadRequest(result.Errors);
     }
 
@@ -139,8 +143,10 @@ public sealed class AccountSecurityController(
         Ok(await mediator.Send(new GetMyEmailQuery(User.GetUserId()), ct));
 
     /// <summary>
-    /// Asks to use a new email address: it's sent a link to confirm it, and until that's opened the old one stays in use
-    /// (a 202, with the addresses as they now are). A 409 where email can't be sent.
+    /// Asks to use a new email address, with the password (a wrong one is a 400 on <c>Password</c> and counts towards the
+    /// lockout): it's sent a link to confirm it, the confirmed address (if any) is told, and until the link is opened the
+    /// old one stays in use (a 202, with the addresses as they now are). A 409 where email can't be sent; a 429 after
+    /// three requests in 15 minutes.
     /// </summary>
     [HttpPut("me/email")]
     [Authorize(Policy = AuthPolicies.Staff)]
@@ -148,18 +154,40 @@ public sealed class AccountSecurityController(
     [ProducesResponseType(typeof(EmailResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ChangeMyEmail(ChangeEmailRequest request, CancellationToken ct) =>
-        Accepted(await mediator.Send(new ChangeMyEmailCommand(User.GetUserId(), request.Email ?? string.Empty), ct));
+        Accepted(await mediator.Send(
+            new ChangeMyEmailCommand(User.GetUserId(), request.Email ?? string.Empty, request.Password ?? string.Empty), ct));
 
-    /// <summary>Removes the signed-in account's email address, and any waiting to be confirmed.</summary>
+    /// <summary>Removes the signed-in account's email address, and any waiting to be confirmed, with the password.</summary>
     [HttpDelete("me/email")]
     [Authorize(Policy = AuthPolicies.Staff)]
     [Tags("Account")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> RemoveMyEmail(CancellationToken ct)
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    public async Task<IActionResult> RemoveMyEmail([FromBody] RemoveEmailRequest request, CancellationToken ct)
     {
-        await mediator.Send(new RemoveMyEmailCommand(User.GetUserId()), ct);
+        await mediator.Send(new RemoveMyEmailCommand(User.GetUserId(), request.Password ?? string.Empty), ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Removes another account's email address and any pending one (for example one put on it without its owner), so
+    /// "Forgot your password?" can't send a link there. Recorded with the admin who did it; the removed address is told.
+    /// A 404 for an unknown account.
+    /// </summary>
+    [HttpDelete("users/{username}/email")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Authentication")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveUserEmail(string username, CancellationToken ct)
+    {
+        var result = await mediator.Send(
+            new RemoveUserEmailCommand(username, User.GetUserId(), User.Identity?.Name ?? string.Empty), ct);
+        return result.Succeeded ? NoContent() : NotFound();
     }
 
     /// <summary>Whether the signed-in account uses two-factor authentication, its recovery codes left, and whether it must.</summary>
@@ -183,17 +211,19 @@ public sealed class AccountSecurityController(
         Ok(await mediator.Send(new BeginAuthenticatorSetupCommand(User.GetUserId()), ct));
 
     /// <summary>
-    /// Turns two-factor on, given a code from the app just set up, and returns the recovery codes once. The account's
-    /// other sessions end. A wrong code is a 400 on <c>Code</c>.
+    /// Turns two-factor on, given the password and a code from the app just set up, and returns the recovery codes once.
+    /// The account's other sessions end. A wrong password or code is a 400 on its field.
     /// </summary>
     [HttpPost("me/two-factor/enable")]
     [Authorize(Policy = AuthPolicies.Staff)]
+    [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(RecoveryCodesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> EnableTwoFactor(TwoFactorCodeRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new EnableTwoFactorCommand(User.GetUserId(), request.Code ?? string.Empty, User.GetSessionId()), ct));
+        Ok(await mediator.Send(new EnableTwoFactorCommand(
+            User.GetUserId(), request.Password ?? string.Empty, request.Code ?? string.Empty, User.GetSessionId()), ct));
 
     /// <summary>
     /// Turns two-factor off, given the password and a current code (or a recovery code). The account's other sessions
@@ -201,6 +231,7 @@ public sealed class AccountSecurityController(
     /// </summary>
     [HttpPost("me/two-factor/disable")]
     [Authorize(Policy = AuthPolicies.Staff)]
+    [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -214,18 +245,20 @@ public sealed class AccountSecurityController(
     }
 
     /// <summary>
-    /// Replaces the recovery codes with a new set, returned once, given a current authenticator code (a wrong one is a
-    /// 400 and counts towards the lockout).
+    /// Replaces the recovery codes with a new set, returned once, given the password and a current authenticator code
+    /// (wrong ones are a 400 and count towards the lockout; codes count towards the account's limit, a 429).
     /// </summary>
     [HttpPost("me/two-factor/recovery-codes")]
     [Authorize(Policy = AuthPolicies.Staff)]
+    [EnableRateLimiting(LoginThrottling.Policy)]
     [Tags("Account")]
     [ProducesResponseType(typeof(RecoveryCodesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     public async Task<IActionResult> RegenerateRecoveryCodes(TwoFactorCodeRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new RegenerateRecoveryCodesCommand(User.GetUserId(), request.Code ?? string.Empty), ct));
+        Ok(await mediator.Send(new RegenerateRecoveryCodesCommand(
+            User.GetUserId(), request.Password ?? string.Empty, request.Code ?? string.Empty), ct));
 
     /// <summary>
     /// Turns off a user's two-factor authentication (their key and recovery codes too), for someone who has lost their

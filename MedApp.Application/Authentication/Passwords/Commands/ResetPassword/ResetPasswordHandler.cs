@@ -39,9 +39,9 @@ public sealed class ResetPasswordHandler(
             return result;
 
         await events.RecordAsync(
-            new SecurityEvent(SecurityEventKind.PasswordResetCompleted, request.UserId, reset?.Username),
+            new SecurityEvent(SecurityEventKind.ResetByLink, request.UserId, reset?.Username),
             ct);
-        await notices.SendAsync(request.UserId, SecurityNotice.PasswordReset, ct);
+        await notices.SendAsync(request.UserId, SecurityNotice.ResetByLink, ct);
 
         return result;
     }

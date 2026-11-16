@@ -11,5 +11,9 @@ public sealed class ChangeMyEmailValidator : AbstractValidator<ChangeMyEmailComm
             .NotEmpty()
             .WithMessage("Enter an email address.")
             .ValidEmailAddress();
+
+        RuleFor(x => x.Password)
+            .NotEmpty()
+            .WithMessage("Enter your password.");
     }
 }

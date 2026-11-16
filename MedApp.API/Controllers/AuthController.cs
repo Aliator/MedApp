@@ -149,7 +149,7 @@ public sealed class AuthController(
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var created = await mediator.Send(
-            new CreateUserCommand(request.Username, request.Email));
+            new CreateUserCommand(request.Username, request.Email, User.GetUserId(), User.Identity?.Name));
 
         if (!created.Succeeded)
             return BadRequest(created.Result.Errors);

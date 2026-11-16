@@ -16,6 +16,12 @@ namespace MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
 /// against the challenge and towards the account's lockout, as a wrong password does; a locked account is refused, as at
 /// the password step. Signing in with a recovery code uses it up, and the account's owner is told by email.
 /// <para>
+/// Codes sent together are counted together: each first passes the account's limit across challenges
+/// (<see cref="IAccountAttemptLimiter"/>) and reserves one of the challenge's attempts in one statement, and each wrong
+/// one is counted towards the lockout in one statement, so a burst gets no more guesses than the same codes one by one.
+/// A lockout from codes, which grows each time, is emailed to the account holder.
+/// </para>
+/// <para>
 /// The activity log records the sign-in (<see cref="ActivityAction.SignedIn"/>, saying which kind of code), or a refused
 /// one (<see cref="ActivityAction.SignInFailed"/>: a wrong code, a locked account, or a challenge that can't be used),
 /// with the address it came from. Never the code.
@@ -29,6 +35,7 @@ public sealed class LoginTwoFactorHandler(
     IActivityLog activityLog,
     ISecurityNotices notices,
     ISecurityEventLog events,
+    IAccountAttemptLimiter attempts,
     TimeProvider timeProvider)
     : IRequestHandler<LoginTwoFactorCommand, LoginResult>
 {
@@ -42,7 +49,8 @@ public sealed class LoginTwoFactorHandler(
         var usedRecoveryCode = string.IsNullOrWhiteSpace(request.Code);
         var actor = new ActivityActor(userId, await UsernameAsync(userId, ct), request.IpAddress);
 
-        if (!challenge.IsUsable(timeProvider.GetUtcNow().UtcDateTime))
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        if (!challenge.IsUsable(now))
         {
             await RecordFailureAsync(actor, "ChallengeExpired", ct);
             throw new SignInExpiredException();
@@ -53,6 +61,24 @@ public sealed class LoginTwoFactorHandler(
             await challenges.ConsumeAsync(challenge.Id, ct);
             await RecordFailureAsync(actor, "LockedOut", ct);
             throw new AccountLockedOutException(lockedFor);
+        }
+
+        // At most so many codes for the account across every challenge (a 429), then one of this challenge's attempts,
+        // reserved in one statement before the code is checked: codes sent together can't all slip past the limit.
+        try
+        {
+            attempts.Attempt(AccountAttempt.TwoFactorCode, userId);
+        }
+        catch (TooManyAttemptsException)
+        {
+            await RecordFailureAsync(actor, "TooManyCodes", ct);
+            throw;
+        }
+
+        if (!await challenges.TryReserveAttemptAsync(challenge.Id, now, ct))
+        {
+            await RecordFailureAsync(actor, "ChallengeExpired", ct);
+            throw new SignInExpiredException();
         }
 
         RecoveryCodeRedemption? redemption = null;
@@ -69,12 +95,12 @@ public sealed class LoginTwoFactorHandler(
 
         if (!verified)
         {
-            await challenges.RecordFailureAsync(challenge.Id, ct);
-
             if (await twoFactor.RecordFailedCodeAsync(userId, ct) is { } lockedNow)
             {
                 await challenges.ConsumeAsync(challenge.Id, ct);
                 await RecordFailureAsync(actor, usedRecoveryCode ? "InvalidRecoveryCodeLockedOut" : "InvalidCodeLockedOut", ct);
+                // Whoever it was knew the password: the holder should know too.
+                await notices.SendAsync(userId, SecurityNotice.TwoFactorCodesLockedOut, ct);
                 throw new AccountLockedOutException(lockedNow);
             }
 

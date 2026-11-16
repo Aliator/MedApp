@@ -41,8 +41,7 @@ public sealed class EmailDeliveryTests
         await queue.SendAsync(Message(), CancellationToken.None);
 
         queue.CanSend.Should().BeTrue();
-        queue.Reader.TryRead(out var queued).Should().BeTrue();
-        queued!.Subject.Should().Be("Subject");
+        queue.TryTakeNext()!.Subject.Should().Be("Subject");
     }
 
     [Test]
@@ -53,7 +52,7 @@ public sealed class EmailDeliveryTests
         await queue.SendAsync(Message(), CancellationToken.None);
 
         queue.CanSend.Should().BeFalse();
-        queue.Reader.TryRead(out _).Should().BeFalse();
+        queue.TryTakeNext().Should().BeNull();
     }
 
     [Test]
@@ -65,9 +64,89 @@ public sealed class EmailDeliveryTests
         var second = queue.SendAsync(Message("second"), CancellationToken.None);
 
         second.IsCompleted.Should().BeTrue();
-        queue.Reader.TryRead(out var kept).Should().BeTrue();
-        kept!.Subject.Should().Be("first");
-        queue.Reader.TryRead(out _).Should().BeFalse();
+        queue.TryTakeNext()!.Subject.Should().Be("first");
+        queue.TryTakeNext().Should().BeNull();
+    }
+
+    [Test]
+    public async Task Queue_NoticesComeBeforeLinks_AndHaveTheirOwnRoom()
+    {
+        var queue = new EmailQueue(Options.Create(Configured(capacity: 1)), NullLogger<EmailQueue>.Instance);
+
+        await queue.SendAsync(Message("link"), CancellationToken.None);
+        await queue.SendAsync(Message("another link"), CancellationToken.None);
+        await queue.SendAsync(Message("notice") with { Category = EmailCategory.Notice }, CancellationToken.None);
+
+        queue.TryTakeNext()!.Subject.Should().Be("notice");
+        queue.TryTakeNext()!.Subject.Should().Be("link");
+        queue.TryTakeNext().Should().BeNull();
+    }
+
+    [Test]
+    public async Task Queue_Wait_ReturnsOnceEitherHasOne()
+    {
+        var queue = new EmailQueue(Options.Create(Configured()), NullLogger<EmailQueue>.Instance);
+        var waiting = queue.WaitAsync(CancellationToken.None);
+        waiting.IsCompleted.Should().BeFalse();
+
+        await queue.SendAsync(Message("notice") with { Category = EmailCategory.Notice }, CancellationToken.None);
+
+        await waiting.WaitAsync(TimeSpan.FromSeconds(5));
+        await queue.WaitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Test]
+    public void Budget_KeepsAShareForNotices_AndStartsAgainEachHour()
+    {
+        var now = new DateTimeOffset(2026, 11, 16, 10, 59, 0, TimeSpan.Zero);
+        var clock = new Mock<TimeProvider>();
+        clock.Setup(c => c.GetUtcNow()).Returns(() => now);
+        var budget = new EmailBudget(10, clock.Object);
+
+        budget.NoticeReserve.Should().Be(2);
+        Enumerable.Range(0, 8).Should().OnlyContain(_ => budget.TryTake(EmailCategory.Link));
+        budget.TryTake(EmailCategory.Link).Should().BeFalse();
+        budget.TryTake(EmailCategory.Notice).Should().BeTrue();
+        budget.TryTake(EmailCategory.Notice).Should().BeTrue();
+        budget.TryTake(EmailCategory.Notice).Should().BeFalse();
+
+        now = now.AddMinutes(1);
+        budget.TryTake(EmailCategory.Link).Should().BeTrue();
+        new EmailBudget(0, clock.Object).MaxPerHour.Should().Be(1);
+    }
+
+    [Test]
+    public void SmtpStatus_NeverTheServersMessage()
+    {
+        EmailDispatcher.SmtpStatus(new MailKit.Net.Smtp.SmtpCommandException(
+                MailKit.Net.Smtp.SmtpErrorCode.RecipientNotAccepted, MailKit.Net.Smtp.SmtpStatusCode.MailboxUnavailable, "550 " + Address + " unknown"))
+            .Should().Be("550");
+        EmailDispatcher.SmtpStatus(new MailKit.Net.Smtp.SmtpProtocolException("x")).Should().Be("protocol");
+        EmailDispatcher.SmtpStatus(new MailKit.ServiceNotAuthenticatedException("x")).Should().Be("not-authenticated");
+        EmailDispatcher.SmtpStatus(new InvalidOperationException(Address)).Should().Be("none");
+    }
+
+    [Test]
+    public async Task Dispatcher_OverTheHoursLimit_DropsTheRest()
+    {
+        var options = Configured();
+        options.MaxPerHour = 1;
+        var queue = new EmailQueue(Options.Create(options), NullLogger<EmailQueue>.Instance);
+        var transport = new Mock<IEmailTransport>();
+        var sent = new List<string>();
+        transport.Setup(t => t.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<EmailMessage, CancellationToken>((m, _) => sent.Add(m.Subject)).Returns(Task.CompletedTask);
+        await queue.SendAsync(Message("notice") with { Category = EmailCategory.Notice }, CancellationToken.None);
+        await queue.SendAsync(Message("link"), CancellationToken.None);
+        using var dispatcher = new EmailDispatcher(queue, transport.Object, Options.Create(options), TimeProvider.System, NullLogger<EmailDispatcher>.Instance);
+
+        await dispatcher.StartAsync(CancellationToken.None);
+        for (var i = 0; i < 250 && sent.Count == 0; i++)
+            await Task.Delay(20);
+        await Task.Delay(200);
+        await dispatcher.StopAsync(CancellationToken.None);
+
+        sent.Should().Equal("notice");
     }
 
     [Test]
@@ -87,7 +166,7 @@ public sealed class EmailDeliveryTests
                     allDone.SetResult();
                 return Task.CompletedTask;
             });
-        using var dispatcher = new EmailDispatcher(queue, transport.Object, NullLogger<EmailDispatcher>.Instance);
+        using var dispatcher = new EmailDispatcher(queue, transport.Object, Options.Create(Configured()), TimeProvider.System, NullLogger<EmailDispatcher>.Instance);
 
         await dispatcher.StartAsync(CancellationToken.None);
         await queue.SendAsync(Message("fails"), CancellationToken.None);
@@ -102,7 +181,7 @@ public sealed class EmailDeliveryTests
     public async Task Dispatcher_Stopping_EndsQuietly()
     {
         var queue = new EmailQueue(Options.Create(Configured()), NullLogger<EmailQueue>.Instance);
-        using var dispatcher = new EmailDispatcher(queue, Mock.Of<IEmailTransport>(), NullLogger<EmailDispatcher>.Instance);
+        using var dispatcher = new EmailDispatcher(queue, Mock.Of<IEmailTransport>(), Options.Create(Configured()), TimeProvider.System, NullLogger<EmailDispatcher>.Instance);
 
         await dispatcher.StartAsync(CancellationToken.None);
         var stop = () => dispatcher.StopAsync(CancellationToken.None);
@@ -146,10 +225,14 @@ public sealed class EmailDeliveryTests
     [TestCase("starttls", SecureSocketOptions.StartTls)]
     [TestCase(" SslOnConnect ", SecureSocketOptions.SslOnConnect)]
     [TestCase("Auto", SecureSocketOptions.Auto)]
-    [TestCase(null, SecureSocketOptions.Auto)]
-    [TestCase("nonsense", SecureSocketOptions.Auto)]
+    [TestCase(null, SecureSocketOptions.StartTls)]
+    [TestCase("nonsense", SecureSocketOptions.StartTls)]
     public void SecurityFor_MapsTheSetting(string? setting, SecureSocketOptions expected) =>
         SmtpEmailTransport.SecurityFor(setting).Should().Be(expected);
+
+    [Test]
+    public void Smtp_RequiresTlsByDefault() =>
+        SmtpEmailTransport.SecurityFor(new SmtpOptions().Security).Should().Be(SecureSocketOptions.StartTls);
 
     [Test]
     public void QrCode_IsASquareSvgPathWithAQuietZone()

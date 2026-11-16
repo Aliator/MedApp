@@ -11,8 +11,8 @@ namespace MedApp.Application.Common.Email;
 /// </summary>
 public static class EmailTemplates
 {
-    public const string ConfirmEmailSubject = "Confirm your email address for MedApp";
-    public const string ResetPasswordSubject = "Reset your MedApp password";
+    public const string ConfirmAddressSubject = "Confirm your email address for MedApp";
+    public const string ResetLinkSubject = "Reset your MedApp password";
 
     /// <summary>How long a reset link works, as the emails say it (the token's lifetime is set to match).</summary>
     public static readonly TimeSpan ResetLinkLifetime = TimeSpan.FromMinutes(30);
@@ -24,10 +24,10 @@ public static class EmailTemplates
         "If this wasn't you, tell your MedApp administrator at once: someone else may be using your account.";
 
     /// <summary>A link to confirm a new email address, sent to that address.</summary>
-    public static EmailMessage ConfirmEmail(string to, string username, string link) =>
+    public static EmailMessage ConfirmAddress(string to, string username, string link) =>
         Build(
             to,
-            ConfirmEmailSubject,
+            ConfirmAddressSubject,
             $"Hello {username},",
             [
                 $"Someone asked to use this email address for the MedApp account {username}. MedApp uses it to send you a link if you forget your password, and to tell you about changes to how you sign in.",
@@ -37,10 +37,10 @@ public static class EmailTemplates
             ["If you didn't ask for this, you can ignore this email: the address won't be used."]);
 
     /// <summary>A link to choose a new password, sent to the account's confirmed email address.</summary>
-    public static EmailMessage ResetPassword(string to, string username, string link) =>
+    public static EmailMessage ResetLink(string to, string username, string link) =>
         Build(
             to,
-            ResetPasswordSubject,
+            ResetLinkSubject,
             $"Hello {username},",
             [
                 $"Someone asked to reset the password of the MedApp account {username}.",
@@ -50,11 +50,18 @@ public static class EmailTemplates
             ["If you didn't ask for this, you can ignore this email: your password hasn't changed."]);
 
     /// <summary>A notice of a change to the account, sent to its confirmed email address (or the one it changed from).</summary>
-    public static EmailMessage Notice(string to, string username, SecurityNotice notice, string? signInLink, int? recoveryCodesLeft = null)
+    /// <param name="aboutUsername">For a notice to admins about another admin: that admin's username.</param>
+    public static EmailMessage Notice(
+        string to,
+        string username,
+        SecurityNotice notice,
+        string? signInLink,
+        int? recoveryCodesLeft = null,
+        string? aboutUsername = null)
     {
         var (subject, what) = notice switch
         {
-            SecurityNotice.PasswordReset => (
+            SecurityNotice.ResetByLink => (
                 "Your MedApp password was reset",
                 "The password of your MedApp account was reset with a link sent to this email address. Every session you had has been signed out."),
             SecurityNotice.TwoFactorEnabled => (
@@ -72,22 +79,35 @@ public static class EmailTemplates
             SecurityNotice.RecoveryCodeUsed => (
                 "A recovery code was used to sign in to MedApp",
                 $"Someone signed in to your MedApp account with one of its recovery codes. Each code works once{(recoveryCodesLeft is { } left ? $", and you have {left} left" : string.Empty)}. If you've lost your authenticator app, set up two-factor authentication again in Account Settings, Security."),
-            SecurityNotice.EmailChanged => (
+            SecurityNotice.AddressChanged => (
                 "Your MedApp email address was changed",
                 "The email address of your MedApp account was changed to another one. MedApp won't send email to this address any more."),
-            SecurityNotice.EmailRemoved => (
+            SecurityNotice.AddressRemoved => (
                 "Your MedApp email address was removed",
                 "This email address was removed from your MedApp account. MedApp won't send email to it any more, and a forgotten password will need an administrator."),
+            SecurityNotice.AddressChangeRequested => (
+                "Someone asked to change your MedApp email address",
+                "Someone signed in to your MedApp account asked to use a different email address for it. This address stays in use until the new one is confirmed."),
+            SecurityNotice.TwoFactorCodesLockedOut => (
+                "Wrong sign-in codes locked your MedApp account",
+                "Someone entered your MedApp password correctly, then too many wrong two-factor codes, so the account is locked for a while. If it wasn't you, they know your password: change it as soon as you can."),
+            SecurityNotice.AdminTwoFactorEnabled => (
+                "An administrator turned on two-factor authentication",
+                $"Two-factor authentication was turned on for the MedApp administrator account {aboutUsername}. You're told because you're an administrator too."),
+            SecurityNotice.AdminTwoFactorRemoved => (
+                "An administrator's two-factor authentication was turned off",
+                $"Two-factor authentication was turned off or reset for the MedApp administrator account {aboutUsername}. You're told because you're an administrator too."),
             _ => throw new ArgumentOutOfRangeException(nameof(notice), notice, "No email for this notice."),
         };
 
-        return Build(
+        var message = Build(
             to,
             subject,
             $"Hello {username},",
             [what],
             signInLink is null ? null : ("Open MedApp", signInLink),
             [NotYou]);
+        return message with { Category = EmailCategory.Notice };
     }
 
     private static EmailMessage Build(

@@ -43,16 +43,20 @@ public interface ITwoFactorService
     Task<int?> LockoutMinutesLeftAsync(Guid userId, CancellationToken ct);
 
     /// <summary>
-    /// Counts a wrong code towards the account's lockout, as a wrong password counts. Returns the minutes left if this
-    /// locked it, otherwise null.
+    /// Counts a wrong code towards the account's lockout, in one statement (so codes sent together are all counted).
+    /// The one that reaches the limit locks it, for longer each time (<c>CodeLockouts</c>). Returns the lockout's minutes
+    /// if this call locked it, otherwise null.
     /// </summary>
     Task<int?> RecordFailedCodeAsync(Guid userId, CancellationToken ct);
 
-    /// <summary>Clears the account's count of failures, after a complete sign-in.</summary>
+    /// <summary>Clears the account's count of failures and of code lockouts, after a complete sign-in.</summary>
     Task RecordSignInAsync(Guid userId, CancellationToken ct);
 
-    /// <summary>How many accounts with the Admin role don't have two-factor on.</summary>
-    Task<int> CountAdminsWithoutTwoFactorAsync(CancellationToken ct);
+    /// <summary>The usernames of the accounts with the Admin role that don't have two-factor on.</summary>
+    Task<IReadOnlyList<string>> GetAdminsWithoutTwoFactorAsync(CancellationToken ct);
+
+    /// <summary>The accounts with the Admin role that have a confirmed email address, to tell about an admin's two-factor.</summary>
+    Task<IReadOnlyList<AccountContact>> GetAdminContactsAsync(CancellationToken ct);
 }
 
 /// <param name="IsAdmin">Whether the account has the Admin role (which the admin requirement covers).</param>
@@ -70,6 +74,17 @@ public sealed record AuthenticatorKey(string Username, string Key)
 }
 
 public sealed record RecoveryCodeRedemption(bool Succeeded, int CodesLeft);
+
+/// <summary>An account and its confirmed email address.</summary>
+public sealed record AccountContact(Guid UserId, string Username, string Email)
+{
+    // Never prints the address.
+    private bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append($"{nameof(UserId)} = {UserId}, {nameof(Username)} = {Username}");
+        return true;
+    }
+}
 
 public sealed record RecoveryCodesResult(IdentityResult Result, IReadOnlyList<string> Codes)
 {

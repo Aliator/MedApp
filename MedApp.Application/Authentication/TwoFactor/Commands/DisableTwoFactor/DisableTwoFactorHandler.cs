@@ -1,5 +1,3 @@
-using FluentValidation;
-using FluentValidation.Results;
 using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Common;
 using MedApp.Application.Common.Authentication;
@@ -24,7 +22,8 @@ public sealed class DisableTwoFactorHandler(
     ISessionService sessionService,
     IIdentityTransactions transactions,
     ISecurityNotices notices,
-    ISecurityEventLog events)
+    ISecurityEventLog events,
+    IAccountAttemptLimiter attempts)
     : IRequestHandler<DisableTwoFactorCommand>
 {
     public async Task Handle(DisableTwoFactorCommand request, CancellationToken ct)
@@ -38,18 +37,8 @@ public sealed class DisableTwoFactorHandler(
         if (await settings.IsRequiredAsync(state, ct))
             throw new ConflictException("Admin accounts must use two-factor authentication here, so it can't be turned off.");
 
-        var password = await users.VerifyPasswordAsync(state.Username, request.Password, ct);
-        if (!password.Succeeded)
-        {
-            if (password.Errors.Any(e => e.Code == IdentityErrors.LockedOutCode)
-                && await twoFactor.LockoutMinutesLeftAsync(request.UserId, ct) is { } lockedFor)
-                throw new AccountLockedOutException(lockedFor);
-
-            throw new ValidationException(
-                [new ValidationFailure(nameof(request.Password), IdentityErrors.PasswordIncorrect.Description)]);
-        }
-
-        await twoFactor.VerifyOrThrowAsync(request.UserId, request.Code, nameof(request.Code), allowRecoveryCode: true, ct);
+        await users.VerifyOrThrowAsync(twoFactor, request.UserId, state.Username, request.Password, ct);
+        await twoFactor.VerifyOrThrowAsync(attempts, notices, request.UserId, request.Code, nameof(request.Code), allowRecoveryCode: true, ct);
 
         var result = await transactions.RunAsync(async () =>
         {
@@ -66,5 +55,7 @@ public sealed class DisableTwoFactorHandler(
 
         await events.RecordAsync(new SecurityEvent(SecurityEventKind.TwoFactorDisabled, request.UserId, state.Username), ct);
         await notices.SendAsync(request.UserId, SecurityNotice.TwoFactorDisabled, ct);
+        if (state.IsAdmin)
+            await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorRemoved, request.UserId, state.Username, ct);
     }
 }

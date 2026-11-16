@@ -5,8 +5,10 @@ namespace MedApp.Contracts.Authentication.Responses;
 /// <param name="AdminsWithoutTwoFactor">How many admin accounts don't have it on yet.</param>
 /// <param name="UpdatedAtUtc">When an admin last changed them; null if never.</param>
 /// <param name="UpdatedBy">Who did; null if never, or if their account is gone.</param>
+/// <param name="AdminsWithoutTwoFactorUsernames">Which admin accounts don't have it on yet, by username.</param>
 public sealed record SecuritySettingsResponse(
     bool RequireTwoFactorForAdmins,
     int AdminsWithoutTwoFactor,
     DateTime? UpdatedAtUtc,
-    string? UpdatedBy);
+    string? UpdatedBy,
+    IReadOnlyList<string> AdminsWithoutTwoFactorUsernames);

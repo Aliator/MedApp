@@ -46,7 +46,7 @@ public sealed class CreateUserWithEmailTests
         result.GeneratedPassword.Should().Be(NewPassword);
         var email = _sent.Should().ContainSingle().Subject;
         email.To.Should().Be(Address);
-        email.Subject.Should().Be(EmailTemplates.ConfirmEmailSubject);
+        email.Subject.Should().Be(EmailTemplates.ConfirmAddressSubject);
         email.HtmlBody.Should().NotContain(NewPassword);
         email.TextBody.Should().NotContain(NewPassword);
     }

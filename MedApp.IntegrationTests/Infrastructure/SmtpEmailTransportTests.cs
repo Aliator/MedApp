@@ -44,14 +44,14 @@ public sealed class SmtpEmailTransportTests
             FromName = "MedApp",
             Smtp = new SmtpOptions { Host = _mailpit.Hostname, Port = _mailpit.GetMappedPublicPort(1025), Security = "None" },
         };
-        var message = EmailTemplates.ResetPassword("someone@example.test", "synthetic.user", "https://medapp.example.test/reset-password#user=x&token=y");
+        var message = EmailTemplates.ResetLink("someone@example.test", "synthetic.user", "https://medapp.example.test/reset-password#user=x&token=y");
 
         await new SmtpEmailTransport(Options.Create(options)).SendAsync(message, CancellationToken.None);
 
         using var http = new HttpClient { BaseAddress = new Uri($"http://{_mailpit.Hostname}:{_mailpit.GetMappedPublicPort(8025)}") };
         var list = await http.GetFromJsonAsync<JsonElement>("/api/v1/messages");
         var received = list.GetProperty("messages").EnumerateArray().Should().ContainSingle().Subject;
-        received.GetProperty("Subject").GetString().Should().Be(EmailTemplates.ResetPasswordSubject);
+        received.GetProperty("Subject").GetString().Should().Be(EmailTemplates.ResetLinkSubject);
         received.GetProperty("From").GetProperty("Address").GetString().Should().Be("medapp@example.test");
         received.GetProperty("To")[0].GetProperty("Address").GetString().Should().Be("someone@example.test");
 

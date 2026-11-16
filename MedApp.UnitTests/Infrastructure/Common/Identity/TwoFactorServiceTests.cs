@@ -1,3 +1,5 @@
+using MedApp.Application.Authentication.TwoFactor.Common;
+using MedApp.Application.Authentication.TwoFactor.Repositories;
 using FluentAssertions;
 using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
@@ -18,6 +20,7 @@ public sealed class TwoFactorServiceTests
     private ApplicationUser _user = null!;
     private FixedTimeProvider _clock = null!;
     private TwoFactorService _service = null!;
+    private Mock<IAccountLockoutRepository> _lockouts = null!;
     private string? _lastStep;
 
     private static readonly byte[] KeyBytes = Base32.Decode(AuthenticatorKeyBase32);
@@ -40,7 +43,8 @@ public sealed class TwoFactorServiceTests
             .Callback<ApplicationUser, string, string, string?>((_, _, _, value) => _lastStep = value)
             .ReturnsAsync(IdentityResult.Success);
         _clock = new FixedTimeProvider(NowUtc);
-        _service = new TwoFactorService(_userManager.Object, _clock);
+        _lockouts = new Mock<IAccountLockoutRepository>();
+        _service = new TwoFactorService(_userManager.Object, _lockouts.Object, _clock);
     }
 
     private static string CodeAt(DateTime utc, int stepsAway = 0) =>
@@ -266,18 +270,24 @@ public sealed class TwoFactorServiceTests
         _userManager.Setup(u => u.IsLockedOutAsync(_user)).ReturnsAsync(false);
         (await _service.LockoutMinutesLeftAsync(UserId, CancellationToken.None)).Should().BeNull();
         (await _service.RecordFailedCodeAsync(UserId, CancellationToken.None)).Should().BeNull();
-        _userManager.Verify(u => u.AccessFailedAsync(_user), Times.Once);
+        _lockouts.Verify(l => l.RecordFailedCodeAsync(
+            UserId, _userManager.Object.Options.Lockout.MaxFailedAccessAttempts, _userManager.Object.Options.Lockout.DefaultLockoutTimeSpan,
+            new DateTimeOffset(NowUtc), It.IsAny<CancellationToken>()), Times.Once);
+        // Never Identity's read-then-write count, which loses counts to requests that arrive together.
+        _userManager.Verify(u => u.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
 
         _userManager.Setup(u => u.IsLockedOutAsync(_user)).ReturnsAsync(true);
         _userManager.Setup(u => u.GetLockoutEndDateAsync(_user)).ReturnsAsync(new DateTimeOffset(NowUtc.AddSeconds(90)));
         (await _service.LockoutMinutesLeftAsync(UserId, CancellationToken.None)).Should().Be(2);
+        _lockouts.Setup(l => l.RecordFailedCodeAsync(UserId, It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TimeSpan.FromSeconds(90));
         (await _service.RecordFailedCodeAsync(UserId, CancellationToken.None)).Should().Be(2);
 
         _userManager.Setup(u => u.GetLockoutEndDateAsync(_user)).ReturnsAsync((DateTimeOffset?)null);
         (await _service.LockoutMinutesLeftAsync(UserId, CancellationToken.None)).Should().Be(1);
 
         await _service.RecordSignInAsync(UserId, CancellationToken.None);
-        _userManager.Verify(u => u.ResetAccessFailedCountAsync(_user), Times.Once);
+        _lockouts.Verify(l => l.ResetAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -287,24 +297,68 @@ public sealed class TwoFactorServiceTests
 
         (await _service.LockoutMinutesLeftAsync(nobody, CancellationToken.None)).Should().BeNull();
         (await _service.RecordFailedCodeAsync(nobody, CancellationToken.None)).Should().BeNull();
-        await _service.RecordSignInAsync(nobody, CancellationToken.None);
-
-        _userManager.Verify(u => u.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
-        _userManager.Verify(u => u.ResetAccessFailedCountAsync(It.IsAny<ApplicationUser>()), Times.Never);
     }
 
     [Test]
-    public async Task CountAdminsWithoutTwoFactor_CountsOnlyThoseWithItOff()
+    public async Task AdminsWithoutTwoFactor_NamesOnlyThoseWithItOff()
     {
         _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.AdminRole)).ReturnsAsync(
         [
-            new ApplicationUser { TwoFactorEnabled = true },
-            new ApplicationUser { TwoFactorEnabled = false },
-            new ApplicationUser { TwoFactorEnabled = false },
+            new ApplicationUser { UserName = "zed", TwoFactorEnabled = false },
+            new ApplicationUser { UserName = "on", TwoFactorEnabled = true },
+            new ApplicationUser { UserName = "amy", TwoFactorEnabled = false },
         ]);
 
-        (await _service.CountAdminsWithoutTwoFactorAsync(CancellationToken.None)).Should().Be(2);
+        (await _service.GetAdminsWithoutTwoFactorAsync(CancellationToken.None)).Should().Equal("amy", "zed");
     }
+
+    [Test]
+    public async Task AdminContacts_OnlyConfirmedAddresses()
+    {
+        var withAddress = new ApplicationUser { Id = Guid.NewGuid(), UserName = "a", Email = Address, EmailConfirmed = true };
+        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.AdminRole)).ReturnsAsync(
+        [
+            withAddress,
+            new ApplicationUser { UserName = "b", Email = OtherAddress, EmailConfirmed = false },
+            new ApplicationUser { UserName = "c" },
+        ]);
+
+        var contacts = await _service.GetAdminContactsAsync(CancellationToken.None);
+
+        contacts.Should().ContainSingle().Which.Should().Be(new AccountContact(withAddress.Id, "a", Address));
+        contacts[0].ToString().Should().NotContain(Address);
+    }
+
+    [Test]
+    public async Task FailedSave_IsForgottenSoALaterSaveCantThrow()
+    {
+        _userManager
+            .Setup(u => u.SetAuthenticationTokenAsync(_user, TwoFactorService.TokenProvider, TwoFactorService.LastTimeStepToken, It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "ConcurrencyFailure" }));
+
+        (await _service.VerifyAuthenticatorCodeAsync(UserId, CodeAt(NowUtc), CancellationToken.None)).Should().BeFalse();
+
+        _lockouts.Verify(l => l.Forget(UserId), Times.Once);
+    }
+
+    [Test]
+    public async Task FailedRedeem_IsForgottenAndTheUserReadAgain()
+    {
+        _userManager.Setup(u => u.RedeemTwoFactorRecoveryCodeAsync(_user, "WRONG")).ReturnsAsync(IdentityResult.Failed());
+        _userManager.Setup(u => u.CountRecoveryCodesAsync(_user)).ReturnsAsync(4);
+
+        (await _service.RedeemRecoveryCodeAsync(UserId, "wrong", CancellationToken.None)).Should().Be(new RecoveryCodeRedemption(false, 4));
+
+        _lockouts.Verify(l => l.Forget(UserId), Times.Once);
+        _userManager.Verify(u => u.FindByIdAsync(UserId.ToString()), Times.Exactly(2));
+    }
+
+    [TestCase(0, 15)]
+    [TestCase(1, 30)]
+    [TestCase(3, 120)]
+    [TestCase(20, 1440)]
+    public void CodeLockouts_DoubleEachTimeUpToADay(int previous, int minutes) =>
+        CodeLockouts.Duration(TimeSpan.FromMinutes(15), previous).Should().Be(TimeSpan.FromMinutes(minutes));
 
     [TestCase(" abcde-23456 ", "ABCDE-23456")]
     [TestCase("abcde 23456", "ABCDE23456")]

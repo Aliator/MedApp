@@ -7,6 +7,10 @@ public sealed class RegenerateRecoveryCodesValidator : AbstractValidator<Regener
 {
     public RegenerateRecoveryCodesValidator()
     {
+        RuleFor(x => x.Password)
+            .NotEmpty()
+            .WithMessage("Enter your password.");
+
         RuleFor(x => x.Code)
             .NotEmpty()
             .WithMessage("Enter the 6-digit code from your authenticator app.")

@@ -43,11 +43,11 @@ public sealed class TwoFactorTests : IntegrationTest
         setup.QrCodePath.Should().StartWith("M");
         setup.QrCodeSize.Should().BeGreaterThan(20);
 
-        var wrong = await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest("000000"));
+        var wrong = await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest(staff.Password, "000000"));
         await wrong.ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
         (await (await staff.Client.GetAsync("/api/auth/me/two-factor")).ReadAsAsync<TwoFactorStatusResponse>()).Enabled.Should().BeFalse();
 
-        var codes = await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest(NextCode(setup.SharedKey))))
+        var codes = await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest(staff.Password, NextCode(setup.SharedKey))))
             .ReadAsAsync<RecoveryCodesResponse>();
         codes.RecoveryCodes.Should().HaveCount(10).And.OnlyHaveUniqueItems();
 
@@ -63,7 +63,7 @@ public sealed class TwoFactorTests : IntegrationTest
         var staff = await CreateStaffAsync(UserRole);
         var elsewhere = await SignInAsync(staff.Username, staff.Password);
 
-        await TurnOnTwoFactorAsync(staff.Client);
+        await TurnOnTwoFactorAsync(staff.Client, staff.Password);
 
         await ShouldBeSignedInAsync(staff.Client);
         await ShouldBeSignedInAsync(elsewhere, false);
@@ -73,7 +73,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task SignIn_PasswordGivesAChallengeWithNoSession_ThenTheCodeGivesTheSession()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var client = NewClient();
 
         var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
@@ -91,7 +91,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task SignIn_WrongCode_Is401AndTheSameChallengeCanTryAgain()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var client = NewClient();
         var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
 
@@ -106,7 +106,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task SignIn_AChallengeWorksOnce()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var client = NewClient();
         var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
         await (await SecondStepAsync(client, challenge.Challenge, NextCode(key))).ShouldHaveStatusAsync(HttpStatusCode.OK);
@@ -121,7 +121,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task SignIn_ChallengeExpiresAfterFiveMinutes()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var client = NewClient();
         var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
 
@@ -137,7 +137,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task SignIn_TheSameCodeTwice_IsRefusedTheSecondTime()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var code = NextCode(key);
         var first = NewClient();
         await (await SecondStepAsync(first, (await PasswordStepAsync(first, staff.Username, staff.Password)).Challenge, code))
@@ -153,7 +153,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task SignIn_WrongCodesCountTowardsTheLockout_EvenAcrossNewChallenges()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
 
         // Entering the right password again doesn't clear the count: only a complete sign-in does.
         HttpResponseMessage last = null!;
@@ -175,8 +175,8 @@ public sealed class TwoFactorTests : IntegrationTest
     {
         var staff = await CreateStaffAsync(UserRole);
         var address = NewAddress();
-        await ConfirmAddressAsync(staff.Client, address);
-        var (_, codes) = await TurnOnTwoFactorAsync(staff.Client);
+        await ConfirmAddressAsync(staff.Client, staff.Password, address);
+        var (_, codes) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var client = NewClient();
 
         await (await SecondStepAsync(client, (await PasswordStepAsync(client, staff.Username, staff.Password)).Challenge, recoveryCode: codes[0].ToLowerInvariant()))
@@ -195,7 +195,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task ForcedPasswordChange_ComesAfterTheCode()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var admin = await SignInAsAdminAsync();
         var reset = await (await admin.PutAsync($"/api/auth/users/{staff.Username}/reset-password", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         // A bare string comes back as text/plain, not JSON.
@@ -213,8 +213,8 @@ public sealed class TwoFactorTests : IntegrationTest
     {
         var staff = await CreateStaffAsync(UserRole);
         var address = NewAddress();
-        await ConfirmAddressAsync(staff.Client, address);
-        var (key, _) = await TurnOnTwoFactorAsync(staff.Client);
+        await ConfirmAddressAsync(staff.Client, staff.Password, address);
+        var (key, _) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
 
         (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/disable", new DisableTwoFactorRequest(WrongPassword, NextCode(key))))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -232,9 +232,9 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task NewRecoveryCodes_ReplaceTheOldOnes()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, old) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, old) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
 
-        var fresh = await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/recovery-codes", new TwoFactorCodeRequest(NextCode(key))))
+        var fresh = await (await staff.Client.PostAsJsonAsync("/api/auth/me/two-factor/recovery-codes", new TwoFactorCodeRequest(staff.Password, NextCode(key))))
             .ReadAsAsync<RecoveryCodesResponse>();
 
         fresh.RecoveryCodes.Should().HaveCount(10).And.NotIntersectWith(old);
@@ -251,8 +251,8 @@ public sealed class TwoFactorTests : IntegrationTest
     {
         var staff = await CreateStaffAsync(UserRole);
         var address = NewAddress();
-        await ConfirmAddressAsync(staff.Client, address);
-        await TurnOnTwoFactorAsync(staff.Client);
+        await ConfirmAddressAsync(staff.Client, staff.Password, address);
+        await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var admin = await SignInAsAdminAsync();
         var listed = await (await admin.GetAsync($"/api/auth/users/{staff.Username}")).ReadAsAsync<UserResponse>();
         listed.TwoFactorEnabled.Should().BeTrue();
@@ -285,7 +285,7 @@ public sealed class TwoFactorTests : IntegrationTest
 
         // Not until the admin turning it on uses it themselves.
         (await admin.PutAsJsonAsync("/api/auth/security-settings", new SaveSecuritySettingsRequest(true))).StatusCode.Should().Be(HttpStatusCode.Conflict);
-        var (adminKey, _) = await TurnOnTwoFactorAsync(admin);
+        var (adminKey, _) = await TurnOnTwoFactorAsync(admin, AdminPassword);
         var settings = await (await admin.PutAsJsonAsync("/api/auth/security-settings", new SaveSecuritySettingsRequest(true)))
             .ReadAsAsync<SecuritySettingsResponse>();
         settings.RequireTwoFactorForAdmins.Should().BeTrue();
@@ -301,7 +301,7 @@ public sealed class TwoFactorTests : IntegrationTest
         await (await staff.Client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         // Setting it up frees them.
-        await TurnOnTwoFactorAsync(otherAdmin.Client);
+        await TurnOnTwoFactorAsync(otherAdmin.Client, otherAdmin.Password);
         await (await otherAdmin.Client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         // And it can't be turned off while it's required.
@@ -324,7 +324,7 @@ public sealed class TwoFactorTests : IntegrationTest
     public async Task ActivityLog_RecordsTheChallengeTheRefusedCodeTheSignInAndTheChanges_NeverACode()
     {
         var staff = await CreateStaffAsync(UserRole);
-        var (key, codes) = await TurnOnTwoFactorAsync(staff.Client);
+        var (key, codes) = await TurnOnTwoFactorAsync(staff.Client, staff.Password);
         var client = NewClient();
         var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
         await SecondStepAsync(client, challenge.Challenge, "000000");

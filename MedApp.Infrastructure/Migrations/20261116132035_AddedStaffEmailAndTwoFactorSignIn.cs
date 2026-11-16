@@ -18,6 +18,13 @@ namespace MedApp.Infrastructure.Migrations
                 maxLength: 256,
                 nullable: true);
 
+            migrationBuilder.AddColumn<int>(
+                name: "TwoFactorLockouts",
+                table: "AspNetUsers",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
             migrationBuilder.CreateTable(
                 name: "DataProtectionKeys",
                 columns: table => new
@@ -93,6 +100,10 @@ namespace MedApp.Infrastructure.Migrations
 
             migrationBuilder.DropColumn(
                 name: "PendingEmail",
+                table: "AspNetUsers");
+
+            migrationBuilder.DropColumn(
+                name: "TwoFactorLockouts",
                 table: "AspNetUsers");
         }
     }

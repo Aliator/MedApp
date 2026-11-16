@@ -49,6 +49,8 @@ public sealed class ResetUserTwoFactorHandler(
             new SecurityEvent(SecurityEventKind.TwoFactorReset, user.UserId, user.Username, request.ActorUserId, request.ActorUsername),
             ct);
         await notices.SendAsync(user.UserId, SecurityNotice.TwoFactorReset, ct);
+        if (user.Roles.Contains("Admin", StringComparer.OrdinalIgnoreCase))
+            await notices.SendToOtherAdminsAsync(SecurityNotice.AdminTwoFactorRemoved, user.UserId, user.Username, ct);
 
         return result;
     }

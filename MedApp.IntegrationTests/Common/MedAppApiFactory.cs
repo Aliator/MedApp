@@ -51,6 +51,8 @@ public sealed class MedAppApiFactory(string connectionString) : WebApplicationFa
         builder.UseSetting("LoginThrottling:PerClientPermitLimit", "100000");
         builder.UseSetting("LoginThrottling:PerUsernamePermitLimit", "100000");
         builder.UseSetting("LoginThrottling:ResetRequestsPerIdentifierPermitLimit", "100000");
+        builder.UseSetting("LoginThrottling:TwoFactorCodesPerAccountPermitLimit", "100000");
+        builder.UseSetting("LoginThrottling:EmailChangesPerAccountPermitLimit", "100000");
         builder.UseSetting("Email:LinkBaseUrl", LinkBaseUrl);
 
         // Emails are kept, not sent, and the clock can be moved on.

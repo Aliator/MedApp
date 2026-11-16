@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Authentication.Emails.Common;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Security;
@@ -43,12 +44,16 @@ public sealed class CreateUserHandler(
         if (await readService.GetUserAsync(request.Username, ct) is not { } user)
             return created;
 
-        var change = await emails.RequestChangeAsync(user.UserId, request.Email.Trim(), ct);
+        if (EmailAddressRules.Normalize(request.Email) is not { } address)
+            return created;
+
+        var change = await emails.RequestChangeAsync(user.UserId, address, ct);
         if (change?.Token is { } token && links.ConfirmEmail(user.UserId, token) is { } link)
         {
-            await sender.SendAsync(EmailTemplates.ConfirmEmail(change.Email, change.Username, link), ct);
+            await sender.SendAsync(EmailTemplates.ConfirmAddress(change.Email, change.Username, link), ct);
             await events.RecordAsync(
-                new SecurityEvent(SecurityEventKind.EmailChangeRequested, user.UserId, change.Username),
+                new SecurityEvent(SecurityEventKind.AddressChangeRequested, user.UserId, change.Username,
+                    request.ActorUserId, request.ActorUsername),
                 ct);
         }
 

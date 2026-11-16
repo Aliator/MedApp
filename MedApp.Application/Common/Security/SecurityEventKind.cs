@@ -10,16 +10,16 @@ public enum SecurityEventKind
     /// Someone asked for a password reset link: the account, if one with a confirmed email matched (one event each),
     /// otherwise none. Never what was typed.
     /// </summary>
-    PasswordResetRequested,
+    ResetLinkRequested,
 
     /// <summary>A password was reset with an emailed link.</summary>
-    PasswordResetCompleted,
+    ResetByLink,
 
     /// <summary>Someone asked to use a new email address (a confirmation link was sent). Never the address.</summary>
-    EmailChangeRequested,
+    AddressChangeRequested,
 
-    EmailConfirmed,
-    EmailRemoved,
+    AddressConfirmed,
+    AddressRemoved,
 
     TwoFactorEnabled,
     TwoFactorDisabled,

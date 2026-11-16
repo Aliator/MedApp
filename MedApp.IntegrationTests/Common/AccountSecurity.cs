@@ -20,22 +20,32 @@ public static class AccountSecurity
     /// <summary>A synthetic address, new each time.</summary>
     public static string NewAddress() => $"{Guid.NewGuid():N}@example.test";
 
-    /// <summary>Gives the signed-in account <paramref name="address"/>, confirmed from the link emailed to it.</summary>
-    public static async Task ConfirmAddressAsync(HttpClient client, string address)
+    /// <summary>
+    /// Gives the signed-in account <paramref name="address"/> (asked for with its <paramref name="password"/>), confirmed
+    /// from the link emailed to it.
+    /// </summary>
+    public static async Task ConfirmAddressAsync(HttpClient client, string password, string address)
     {
-        await (await client.PutAsJsonAsync("/api/auth/me/email", new ChangeEmailRequest(address)))
+        await (await client.PutAsJsonAsync("/api/auth/me/email", new ChangeEmailRequest(address, password)))
             .ShouldHaveStatusAsync(HttpStatusCode.Accepted);
-        await ConfirmFromEmailAsync(address);
+        await ConfirmFromEmailAsync(client, address);
     }
 
-    /// <summary>Opens the newest confirmation link sent to <paramref name="address"/>, signed out, as from an email app.</summary>
-    public static async Task ConfirmFromEmailAsync(string address)
+    /// <summary>The account and token in the newest confirmation link sent to <paramref name="address"/>.</summary>
+    public static ConfirmEmailRequest ConfirmationLinkTo(string address)
     {
-        var email = Api.Emails.To(address).Last(m => m.Subject == EmailTemplates.ConfirmEmailSubject);
+        var email = Api.Emails.To(address).Last(m => m.Subject == EmailTemplates.ConfirmAddressSubject);
         var (userId, token) = FakeEmailSender.LinkIn(email);
-        await (await Api.CreateApiClient().PostAsJsonAsync("/api/auth/email/confirm", new ConfirmEmailRequest(userId, token)))
-            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        return new ConfirmEmailRequest(userId, token);
     }
+
+    /// <summary>
+    /// Opens the newest confirmation link sent to <paramref name="address"/> with <paramref name="client"/>, which must
+    /// be signed in as the account it's for.
+    /// </summary>
+    public static async Task ConfirmFromEmailAsync(HttpClient client, string address) =>
+        await (await client.PostAsJsonAsync("/api/auth/email/confirm", ConfirmationLinkTo(address)))
+            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
     /// <summary>
     /// The authenticator code for <paramref name="sharedKey"/> (as the API shows it, in groups) at the next 30-second
@@ -51,11 +61,14 @@ public static class AccountSecurity
     public static string CodeNow(string sharedKey) =>
         Totp.Compute(Base32.Decode(sharedKey.Replace(" ", string.Empty)), Totp.TimeStep(Api.Clock.GetUtcNow()));
 
-    /// <summary>Sets up an authenticator and turns two-factor on for the signed-in account: its key and recovery codes.</summary>
-    public static async Task<(string Key, IReadOnlyList<string> RecoveryCodes)> TurnOnTwoFactorAsync(HttpClient client)
+    /// <summary>
+    /// Sets up an authenticator and turns two-factor on for the signed-in account (whose <paramref name="password"/> it
+    /// needs): its key and recovery codes.
+    /// </summary>
+    public static async Task<(string Key, IReadOnlyList<string> RecoveryCodes)> TurnOnTwoFactorAsync(HttpClient client, string password)
     {
         var setup = await (await client.PostAsync("/api/auth/me/two-factor/authenticator", null)).ReadAsAsync<AuthenticatorSetupResponse>();
-        var codes = await (await client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest(NextCode(setup.SharedKey))))
+        var codes = await (await client.PostAsJsonAsync("/api/auth/me/two-factor/enable", new TwoFactorCodeRequest(password, NextCode(setup.SharedKey))))
             .ReadAsAsync<RecoveryCodesResponse>();
         return (setup.SharedKey, codes.RecoveryCodes);
     }

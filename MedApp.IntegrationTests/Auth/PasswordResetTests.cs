@@ -34,7 +34,7 @@ public sealed class PasswordResetTests : IntegrationTest
     {
         var staff = await CreateStaffAsync(UserRole);
         var address = NewAddress();
-        await ConfirmAddressAsync(staff.Client, address);
+        await ConfirmAddressAsync(staff.Client, staff.Password, address);
         Api.Emails.Clear();
         return (staff, address);
     }
@@ -60,7 +60,7 @@ public sealed class PasswordResetTests : IntegrationTest
             (await answer.Content.ReadAsStringAsync()).Should().BeEmpty();
         }
 
-        Api.Emails.Sent.Should().HaveCount(2).And.OnlyContain(m => m.To == address && m.Subject == EmailTemplates.ResetPasswordSubject);
+        Api.Emails.Sent.Should().HaveCount(2).And.OnlyContain(m => m.To == address && m.Subject == EmailTemplates.ResetLinkSubject);
     }
 
     [Test]
@@ -130,7 +130,7 @@ public sealed class PasswordResetTests : IntegrationTest
     {
         var staff = await CreateStaffAsync(UserRole);
         var address = NewAddress();
-        await ConfirmAddressAsync(staff.Client, address);
+        await ConfirmAddressAsync(staff.Client, staff.Password, address);
         var admin = await SignInAsAdminAsync();
         // An admin's reset makes them choose their own password; then they lock themselves out.
         await (await admin.PutAsync($"/api/auth/users/{staff.Username}/reset-password", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);

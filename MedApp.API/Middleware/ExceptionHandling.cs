@@ -49,6 +49,11 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status423Locked, ex.Message);
         }
+        catch (TooManyAttemptsException ex)
+        {
+            context.Response.Headers.RetryAfter = ex.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await WriteProblem(context, StatusCodes.Status429TooManyRequests, ex.Message);
+        }
     }
 
     private static async Task WriteValidationProblem(

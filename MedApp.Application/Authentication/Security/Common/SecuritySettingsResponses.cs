@@ -22,6 +22,6 @@ public static class SecuritySettingsResponses
             updatedBy = names.GetValueOrDefault(updatedById);
         }
 
-        return SecuritySettingsMapper.ToResponse(settings, updatedBy, await twoFactor.CountAdminsWithoutTwoFactorAsync(ct));
+        return SecuritySettingsMapper.ToResponse(settings, updatedBy, await twoFactor.GetAdminsWithoutTwoFactorAsync(ct));
     }
 }

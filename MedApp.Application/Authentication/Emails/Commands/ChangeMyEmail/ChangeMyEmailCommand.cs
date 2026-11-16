@@ -1,13 +1,23 @@
+using System.Text;
 using MedApp.Contracts.Authentication.Responses;
 using MediatR;
 
 namespace MedApp.Application.Authentication.Emails.Commands.ChangeMyEmail;
 
 /// <summary>
-/// The signed-in account asks to use a new email address. It waits until the link sent to it is opened; until then the
-/// old one (if any) stays in use.
+/// The signed-in account asks to use a new email address, with its password. The address waits until the link sent to
+/// it is opened, by the same account signed in; until then the old one (if any) stays in use, and is told of the request.
 /// </summary>
 public sealed record ChangeMyEmailCommand(
     Guid UserId,
-    string Email
-) : IRequest<EmailResponse>;
+    string Email,
+    string Password
+) : IRequest<EmailResponse>
+{
+    // Never prints the address or the password.
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append($"{nameof(UserId)} = {UserId}, {nameof(Email)} = ***, {nameof(Password)} = ***");
+        return true;
+    }
+}

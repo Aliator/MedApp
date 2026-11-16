@@ -7,7 +7,7 @@ namespace MedApp.Application.Authentication.Security.Common;
 public static class SecuritySettingsMapper
 {
     /// <param name="updatedBy">The username of the admin who last changed them, if their account still exists.</param>
-    /// <param name="adminsWithoutTwoFactor">How many admin accounts don't have two-factor on.</param>
-    public static SecuritySettingsResponse ToResponse(SecuritySettings settings, string? updatedBy, int adminsWithoutTwoFactor) =>
-        new(settings.RequireTwoFactorForAdmins, adminsWithoutTwoFactor, settings.UpdatedAtUtc, updatedBy);
+    /// <param name="adminsWithoutTwoFactor">The usernames of the admin accounts that don't have two-factor on.</param>
+    public static SecuritySettingsResponse ToResponse(SecuritySettings settings, string? updatedBy, IReadOnlyList<string> adminsWithoutTwoFactor) =>
+        new(settings.RequireTwoFactorForAdmins, adminsWithoutTwoFactor.Count, settings.UpdatedAtUtc, updatedBy, adminsWithoutTwoFactor.ToList());
 }

@@ -60,6 +60,15 @@ public sealed class ExceptionHandlingTests
         yield return new TestCaseData(new AccountLockedOutException(5), StatusCodes.Status423Locked);
         yield return new TestCaseData(new InvalidTwoFactorCodeException(), StatusCodes.Status401Unauthorized);
         yield return new TestCaseData(new SignInExpiredException(), StatusCodes.Status401Unauthorized);
+        yield return new TestCaseData(new TooManyAttemptsException("Synthetic problem.", 90), StatusCodes.Status429TooManyRequests);
+    }
+
+    [Test]
+    public async Task InvokeAsync_TooManyAttempts_SaysWhenToRetry()
+    {
+        var (context, _) = await Run(new TooManyAttemptsException("Synthetic problem.", 90));
+
+        context.Response.Headers.RetryAfter.ToString().Should().Be("90");
     }
 
     [TestCaseSource(nameof(KnownProblems))]

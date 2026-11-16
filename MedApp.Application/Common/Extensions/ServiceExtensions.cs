@@ -40,6 +40,9 @@ public static class ServiceExtensions
         // application log.
         services.AddScoped<LoggingSecurityEventLog>();
         services.AddScoped<ISecurityEventLog, ActivitySecurityEventLog>();
+
+        // Per-account limits on two-factor codes and email changes: none unless the host provides them (the API does).
+        services.TryAddSingleton<IAccountAttemptLimiter, UnlimitedAccountAttempts>();
         // Tells admins about procedure changes that match their monitoring rules.
         services.AddScoped<IProcedureMonitor, ProcedureMonitor>();
         // The activity log (the host provides IActivityContext, the request's actor), and its and the retention

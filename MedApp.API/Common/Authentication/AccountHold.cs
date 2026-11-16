@@ -11,9 +11,11 @@ namespace MedApp.API.Common.Authentication;
 /// the user, and before authorization.
 /// <para>
 /// Every hold allows asking who you are, reading your own UI settings (so the page shows in your theme), signing in
-/// again (which checks afresh and replaces the session) and out, and the endpoints used before signing in (sign-in's
-/// features, a forgotten password and its reset, and confirming an email address), which never use the session, so a
-/// browser still holding a held session can open an emailed link.
+/// again (which checks afresh and replaces the session) and out, the endpoints used before signing in (sign-in's
+/// features, a forgotten password and its reset), which never use the session, so a browser still holding a held session
+/// can open an emailed link, and confirming an email address, which needs the session of the account the link is for (so
+/// someone signing in for the first time, held to choose a password, can confirm the address an admin gave them) and
+/// changes nothing else.
 /// </para>
 /// </summary>
 public abstract class AccountHold(RequestDelegate next)

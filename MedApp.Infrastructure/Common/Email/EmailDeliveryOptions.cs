@@ -22,8 +22,14 @@ public sealed class EmailDeliveryOptions
 
     public SmtpOptions Smtp { get; set; } = new();
 
-    /// <summary>How many emails can wait to be sent before more are dropped (and logged).</summary>
+    /// <summary>How many emails can wait to be sent, in each queue (notices, links), before more are dropped (and logged).</summary>
     public int QueueCapacity { get; set; } = 1000;
+
+    /// <summary>
+    /// The most emails sent in a clock hour, by each copy of the API (<see cref="EmailBudget"/>): keep it under the mail
+    /// provider's quota (Azure's managed domain allows 10 an hour for the whole subscription, a custom domain 100).
+    /// </summary>
+    public int MaxPerHour { get; set; } = 100;
 
     /// <summary>Whether email can be sent: a server and a from address.</summary>
     public bool CanSend => !string.IsNullOrWhiteSpace(Smtp.Host) && !string.IsNullOrWhiteSpace(FromAddress);
@@ -37,10 +43,11 @@ public sealed class SmtpOptions
     public int Port { get; set; } = 587;
 
     /// <summary>
-    /// How the connection is secured: <c>Auto</c> (MailKit decides from the port), <c>StartTls</c>, <c>SslOnConnect</c>,
-    /// or <c>None</c> (only for a local catcher such as Mailpit).
+    /// How the connection is secured: <c>StartTls</c> (the default: TLS is required, so nobody on the way can strip it and
+    /// read the password and the links), <c>SslOnConnect</c>, <c>Auto</c> (TLS only if the server offers it), or
+    /// <c>None</c> (only for a local catcher such as Mailpit).
     /// </summary>
-    public string Security { get; set; } = "Auto";
+    public string Security { get; set; } = "StartTls";
 
     /// <summary>The user name to sign in with; none means the server doesn't ask.</summary>
     public string? Username { get; set; }
