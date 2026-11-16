@@ -77,6 +77,16 @@ export function parsePasswordBody(body: unknown): string | null {
   return text || null;
 }
 
+/**
+ * Signs a user out everywhere: every session they have ends, on every browser and device, and they must sign in again.
+ * Their account and password are unchanged.
+ */
+export function useSignOutEverywhere() {
+  return useUserMutation((username: string) =>
+    unwrap(api.POST('/api/auth/users/{username}/sign-out-everywhere', {params: {path: {username}}})),
+  );
+}
+
 export interface RoleChange {
   username: string;
   roles: string[];

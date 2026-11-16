@@ -32,11 +32,14 @@ function api(routes: Record<string, unknown>) {
   return requests;
 }
 
-const page = (path: string, cookie?: string) =>
+const page = (path: string, cookie?: string, cspNonce?: string) =>
   render(new Request(`http://medapp.test${path}`, {headers: cookie ? {cookie} : {}}), {
     manifest: MANIFEST,
-    context: {apiUrl: API, cookie, ssrKey: 'test-key'},
+    context: {apiUrl: API, cookie, ssrKey: 'test-key', cspNonce},
   });
+
+/** Every <script> tag in the page, opening tag only. */
+const scriptTags = (html: string) => [...html.matchAll(/<script\b[^>]*>/g)].map(([tag]) => tag);
 
 describe('server rendering', () => {
   it('renders the whole page, with the build’s stylesheets and scripts', async () => {
@@ -50,6 +53,31 @@ describe('server rendering', () => {
     expect(html).toContain('<link rel="stylesheet" href="/assets/app.css"');
     expect(html).toContain('<script type="module" src="/assets/app.js"');
     expect(html).toContain('Sign in');
+  });
+
+  it('puts the page’s nonce on every script it writes, and in the head for the browser’s router', async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/patients/search': {items: [patient], page: 1, pageSize: 10, totalCount: 1, totalPages: 1},
+    });
+
+    const html = await (await page('/patients', 'medapp_session=abc', 'dGVzdC1ub25jZS0xMjM0NQ==')).text();
+
+    const scripts = scriptTags(html);
+    // The router's hydration data is written inline, so the policy must allow it, by nonce.
+    expect(scripts.some((tag) => !tag.includes(' src='))).toBe(true);
+    expect(scripts.every((tag) => tag.includes('nonce="dGVzdC1ub25jZS0xMjM0NQ=="'))).toBe(true);
+    expect(html).toContain('<meta property="csp-nonce" content="dGVzdC1ub25jZS0xMjM0NQ=="');
+  });
+
+  it('writes no nonce when the page has none', async () => {
+    api({'/api/auth/whoami': {isAuthenticated: false}});
+
+    const html = await (await page('/login')).text();
+
+    expect(html).not.toContain('nonce');
   });
 
   it('sends someone signed out to sign in', async () => {
