@@ -2,6 +2,7 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
+using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
@@ -17,6 +18,7 @@ public sealed class SetUserRolesHandlerTests
     private Mock<IIdentityRoleService> _service = null!;
     private Mock<IIdentityReadService> _read = null!;
     private Mock<IAppointmentRepository> _appointments = null!;
+    private Mock<IMeetingRepository> _meetings = null!;
     private SetUserRolesHandler _handler = null!;
 
     [SetUp]
@@ -27,6 +29,8 @@ public sealed class SetUserRolesHandlerTests
         _service = new Mock<IIdentityRoleService>();
         _read = new Mock<IIdentityReadService>();
         _appointments = new Mock<IAppointmentRepository>();
+        _meetings = new Mock<IMeetingRepository>();
+        _fixture.Inject(_meetings.Object);
         _read.Setup(r => r.GetUserAsync(AuthTestConstants.Usernames[1], It.IsAny<CancellationToken>()))
             .ReturnsAsync(AuthTestConstants.SessionUser("User"));
         _service.Setup(s => s.SetRolesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
@@ -132,5 +136,59 @@ public sealed class SetUserRolesHandlerTests
 
         result.Errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.UserNotFoundCode);
         _appointments.VerifyNoOtherCalls();
+        _meetings.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_NoStaffRoleLeft_TakesThemOffTheirMeetingsStillToCome()
+    {
+        using var cts = new CancellationTokenSource();
+
+        var result = await _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [], AuthTestConstants.Usernames[0]), cts.Token);
+
+        result.Succeeded.Should().BeTrue();
+        _meetings.Verify(
+            m => m.RemoveAttendeeFromUpcomingAsync(AuthTestConstants.SessionUserId, CalendarTestConstants.Now, cts.Token),
+            Times.Once);
+        _meetings.VerifyNoOtherCalls();
+    }
+
+    [TestCase("User")]
+    [TestCase("Admin")]
+    public async Task Handle_AStaffRoleLeft_LeavesTheirMeetings(string role)
+    {
+        await _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [role], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        _meetings.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_NoStaffRoleLeftButTheChangeFails_LeavesTheirMeetings()
+    {
+        _service.Setup(s => s.SetRolesAsync(AuthTestConstants.Usernames[1], It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed());
+
+        await _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        _meetings.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_NoStaffRoleLeftWithUpcomingAppointments_LeavesTheirMeetings()
+    {
+        _appointments.Setup(a => a.CountUpcomingForStaffAsync(AuthTestConstants.SessionUserId, CalendarTestConstants.Now, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        await _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        _meetings.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_OwnRoles_LeavesTheirMeetings()
+    {
+        await _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[0], [], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        _meetings.VerifyNoOtherCalls();
     }
 }

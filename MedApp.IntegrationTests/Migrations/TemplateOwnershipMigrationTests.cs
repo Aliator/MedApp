@@ -63,7 +63,8 @@ public sealed class TemplateOwnershipMigrationTests
         await _seed.InsertAsync(_context, withAdmin: true);
         var before = new[] { StaffA, StaffB }.ToDictionary(id => id, id => Project(_seed.DataFor(id)));
 
-        await _context.GetService<IMigrator>().MigrateAsync(Migration);
+        // To the latest, as the repository reads meetings too (the migrations after this one only add).
+        await _context.Database.MigrateAsync();
 
         var repository = new CalendarRepository(_context);
         foreach (var staffUserId in new[] { StaffA, StaffB })
@@ -76,7 +77,7 @@ public sealed class TemplateOwnershipMigrationTests
         // The removed lunch (an exception) is still off that day, and the past days kept their old lunch.
         before[StaffA].Blocks.Should().NotContain(b => b.Date == _seed.ExceptionDate && b.ActivityTypeId == Lunch);
         before[StaffA].Blocks.Should().Contain(b => b.Date == From && b.Start == new TimeOnly(12, 0));
-        before[StaffA].Blocks.Should().Contain(b => b.Date == Today && b.Start == new TimeOnly(12, 30));
+        before[StaffA].Blocks.Should().Contain(b => b.Date == Today.AddDays(1) && b.Start == new TimeOnly(12, 30));
     }
 
     [Test]
@@ -94,7 +95,7 @@ public sealed class TemplateOwnershipMigrationTests
         var standardWeeks = weeks.Where(w => w.Name == Seed.StandardWeekName).ToList();
         standardWeeks.Select(w => w.OwnerUserId).Should().BeEquivalentTo([StaffA, StaffB]);
         standardWeeks.Should().Contain(w => w.Id == _seed.StandardWeekId && w.OwnerUserId == StaffA);
-        standardWeeks.Should().AllSatisfy(w => w.Days.Should().HaveCount(_seed.WeekDays.Count));
+        standardWeeks.Should().AllSatisfy(w => w.Days.Should().HaveCount(_seed.WeekDays.Count(d => d.WeekTemplateId == _seed.StandardWeekId)));
         staffWeeks.Should().AllSatisfy(s =>
             standardWeeks.Single(w => w.Id == s.WeekTemplateId).OwnerUserId.Should().Be(s.StaffUserId));
 
@@ -108,8 +109,9 @@ public sealed class TemplateOwnershipMigrationTests
             t.Blocks.Select(b => (b.StartTime, b.ValidFrom, b.ValidTo)).Should().BeEquivalentTo(
                 _seed.ClinicBlocks.Select(b => (b.StartTime, b.ValidFrom, b.ValidTo))));
 
-        // The theatre day: only A uses it (by their override), so only A has it.
-        days.Should().ContainSingle(t => t.Name == Seed.TheatreDayName).Which.OwnerUserId.Should().Be(StaffA);
+        // The theatre day: A uses it by their override and from the week's Monday; B from the week's Monday too
+        // (any dated row counts), so each has one.
+        days.Where(t => t.Name == Seed.TheatreDayName).Select(t => t.OwnerUserId).Should().BeEquivalentTo([StaffA, StaffB]);
 
         // Nobody used these: the longest-standing admin has them, not the later one.
         weeks.Should().ContainSingle(t => t.Name == Seed.UnusedWeekName).Which.OwnerUserId.Should().Be(AdminUserId);
@@ -145,7 +147,7 @@ public sealed class TemplateOwnershipMigrationTests
         await migrator.MigrateAsync(Before);
 
         var names = await QueryAsync("SELECT Name FROM DayTemplates");
-        names.Should().OnlyHaveUniqueItems().And.HaveCount(4);
+        names.Should().OnlyHaveUniqueItems().And.HaveCount(5);
         names.Should().Contain(Seed.ClinicDayName).And.Contain(n => n.StartsWith(Seed.ClinicDayName + " ("));
         (await QueryAsync("SELECT Name FROM WeekTemplates")).Should().OnlyHaveUniqueItems().And.HaveCount(3);
         (await QueryAsync("SELECT CONVERT(nvarchar(36), WeekTemplateId) FROM StaffWeekTemplates ORDER BY Id"))
@@ -153,7 +155,7 @@ public sealed class TemplateOwnershipMigrationTests
 
         // And up again.
         await migrator.MigrateAsync(Migration);
-        (await _context.DayTemplates.CountAsync()).Should().Be(4);
+        (await _context.DayTemplates.CountAsync()).Should().Be(5);
     }
 
     private async Task<List<string>> QueryAsync(string sql)

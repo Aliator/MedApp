@@ -26,6 +26,9 @@ public sealed class Notification
     /// <summary>The appointment it's about, if any, for a link to it.</summary>
     public Guid? AppointmentId { get; init; }
 
+    /// <summary>The UK date on the calendar it's about, if any (a meeting's day), for a link to the Calendar that day.</summary>
+    public DateOnly? CalendarDate { get; init; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     /// <summary>When the user marked it read; null while unread.</summary>
@@ -39,9 +42,10 @@ public sealed class Notification
         kind is >= NotificationKind.MonitoredProcedureCreated and <= NotificationKind.MonitoredDueDateChanged;
 
     /// <summary>
-    /// Whether notifications of this kind have a fixed title (the appointment kinds' "Appointment booked", the
-    /// monitoring kinds' "Stage finished"), rather than the procedure's title, so anonymising a patient leaves it as it is.
+    /// Whether notifications of this kind have a fixed title (the appointment kinds' "Appointment booked", the meeting
+    /// kinds' "Meeting invitation", the monitoring kinds' "Stage finished"), rather than the procedure's title, so
+    /// anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
-        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.AppointmentCancelled || IsMonitoring(kind);
+        kind is >= NotificationKind.AppointmentBooked and <= NotificationKind.MeetingCancelled || IsMonitoring(kind);
 }

@@ -5,8 +5,8 @@ namespace MedApp.Application.Calendar.Common;
 
 /// <summary>
 /// Everything that puts something on one member of staff's calendar over a range of UK dates, as the repository loads
-/// it (<c>ICalendarRepository.GetCalendarDataAsync</c>), for <see cref="CalendarProjection"/> and
-/// <see cref="CalendarClashes"/>. Dated rows are those valid on any date in the range.
+/// it (<c>ICalendarRepository.GetCalendarDataAsync</c>), for <see cref="CalendarProjection"/>,
+/// <see cref="CalendarClashes"/> and <see cref="Availability"/>. Dated rows are those valid on any date in the range.
 /// </summary>
 /// <param name="StaffWeekTemplates">The person's default week template rows, each with its week template.</param>
 /// <param name="WeekTemplateDays">The days of those week templates.</param>
@@ -33,7 +33,10 @@ public sealed record CalendarData(
     IReadOnlyList<Appointment> Appointments,
     IReadOnlyDictionary<Guid, string> DayTemplateNames)
 {
-    /// <summary>Nothing on the calendar: no templates, blocks or appointments.</summary>
+    /// <summary>The meetings the person is going to in the range, each with its attendees.</summary>
+    public IReadOnlyList<Meeting> Meetings { get; init; } = [];
+
+    /// <summary>Nothing on the calendar: no templates, blocks, appointments or meetings.</summary>
     public static CalendarData Empty(Guid staffUserId, DateOnly from, DateOnly to) =>
         new(staffUserId, from, to, [], [], [], [], [], [], [], new Dictionary<Guid, string>());
 }

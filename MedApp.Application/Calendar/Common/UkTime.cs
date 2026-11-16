@@ -32,6 +32,10 @@ public static class UkTime
     /// <summary>A moment's UK clock time, for messages: "10:00".</summary>
     public static string DescribeTime(DateTime utc) => ToUk(utc).ToString("HH:mm", CultureInfo.InvariantCulture);
 
+    /// <summary>A time on one day in words, UK time, for messages: "Monday 23 November, 10:00 to 11:00".</summary>
+    public static string DescribeRange(DateTime startUtc, DateTime endUtc) =>
+        $"{ToUk(startUtc).ToString("dddd d MMMM, HH:mm", CultureInfo.InvariantCulture)} to {DescribeTime(endUtc)}";
+
     /// <summary>A UK date in words, for messages: "Monday 23 November".</summary>
     public static string DescribeDate(DateOnly date) => date.ToString("dddd d MMMM", CultureInfo.InvariantCulture);
 

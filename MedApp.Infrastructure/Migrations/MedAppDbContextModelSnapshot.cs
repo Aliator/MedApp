@@ -637,6 +637,67 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("DayTemplateBlocks", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Calendar.Meeting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasDefaultValue("");
+
+                    b.Property<Guid>("OrganiserUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartUtc");
+
+                    b.ToTable("Meetings", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Calendar.MeetingAttendee", b =>
+                {
+                    b.Property<Guid>("MeetingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("MeetingId", "StaffUserId");
+
+                    b.HasIndex("StaffUserId");
+
+                    b.ToTable("MeetingAttendees", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -774,6 +835,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<Guid?>("AppointmentId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("CalendarDate")
+                        .HasColumnType("date");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
@@ -1531,6 +1595,17 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("DayTemplate");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Calendar.MeetingAttendee", b =>
+                {
+                    b.HasOne("MedApp.Domain.Calendar.Meeting", "Meeting")
+                        .WithMany("Attendees")
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Meeting");
+                });
+
             modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
                 {
                     b.HasOne("MedApp.Domain.Calendar.WeekTemplate", "WeekTemplate")
@@ -1680,6 +1755,11 @@ namespace MedApp.Infrastructure.Migrations
             modelBuilder.Entity("MedApp.Domain.Calendar.DayTemplate", b =>
                 {
                     b.Navigation("Blocks");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Calendar.Meeting", b =>
+                {
+                    b.Navigation("Attendees");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Calendar.WeekTemplate", b =>

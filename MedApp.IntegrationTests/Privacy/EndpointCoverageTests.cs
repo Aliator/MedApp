@@ -46,6 +46,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/appointments/{id:guid}"] = Records("PatientViewed"),
         ["api/appointments/search"] = Records("PatientListed"),
         ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar
+        ["api/calendar/team"] = Records("PatientListed"), // each patient with an appointment on any calendar shown
         ["api/attachments"] = Records("AttachmentsViewed"),
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the procedure audit log
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
@@ -77,6 +78,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/auth/roles"] = Nothing("role names"),
         ["api/calendar/staff"] = Nothing("staff accounts and their default weeks, not patients"),
         ["api/calendar/staff/{userId:guid}/week-template"] = Nothing("a member of staff's default week: configuration"),
+        ["api/calendar/availability"] = Nothing("staff's free and busy times; an appointment is only \"another appointment\", never a patient"),
+        ["api/calendar/meetings/{id:guid}"] = Nothing("a staff meeting: staff, not patients"),
         ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 
         // Configuration.
@@ -150,6 +153,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
             (AppointmentUrl(appointment.Id), "PatientViewed", patientId),
             ("/api/appointments/search", "PatientListed", patientId),
             ($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}", "PatientListed", patientId),
+            ($"/api/calendar/team?date={day:yyyy-MM-dd}&staffUserIds={adminId}", "PatientListed", patientId),
             ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),
             ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
         };

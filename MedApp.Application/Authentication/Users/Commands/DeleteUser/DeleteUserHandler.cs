@@ -1,6 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
+using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Identity;
 using MedApp.Domain.Activity;
 using MediatR;
@@ -12,6 +13,7 @@ public sealed class DeleteUserHandler(
     IIdentityUserService userService,
     IIdentityReadService identityReadService,
     IAppointmentRepository appointmentRepository,
+    IMeetingRepository meetingRepository,
     TimeProvider timeProvider,
     IActivityLog activityLog)
     : IRequestHandler<DeleteUserCommand, IdentityResult>
@@ -26,9 +28,10 @@ public sealed class DeleteUserHandler(
             return confirmed;
 
         // No appointment may be left with nobody: upcoming ones must be moved or cancelled first.
-        if (await identityReadService.GetUserAsync(request.Username, ct) is { } user
-            && await appointmentRepository.WhyCantStopBeingStaffAsync(
-                user.UserId, user.Username, timeProvider.GetUtcNow().UtcDateTime, ct) is { } upcoming)
+        var user = await identityReadService.GetUserAsync(request.Username, ct);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        if (user is not null
+            && await appointmentRepository.WhyCantStopBeingStaffAsync(user.UserId, user.Username, now, ct) is { } upcoming)
             return IdentityResult.Failed(upcoming);
 
         var result = await userService.DeleteUserAsync(
@@ -36,9 +39,15 @@ public sealed class DeleteUserHandler(
             ct);
 
         if (result.Succeeded)
+        {
+            // Meetings involve no patient, so they don't stop it: they just lose the person (and go, if nobody's left).
+            if (user is not null)
+                await meetingRepository.RemoveAttendeeFromUpcomingAsync(user.UserId, now, ct);
+
             await activityLog.RecordAsync(
                 activityLog.Entry(ActivityAction.AccountDeleted, targetUsername: request.Username),
                 ct);
+        }
 
         return result;
     }

@@ -64,12 +64,14 @@ public sealed class CalendarAccessTests : IntegrationTest
             .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         await (await _staff.Client.DeleteAsync(dayUrl)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
 
-        // Their own, and an admin for anyone.
-        await (await SetDefaultWeekAsync(_staff.Client, _staff.UserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        // Their own (from their own templates), and an admin for anyone.
+        var ownDay = await CreateDayTemplateAsync(_staff.Client, _staff.UserId, TemplateBlock(12, 13));
+        var ownWeek = await CreateWeekTemplateAsync(_staff.Client, _staff.UserId, ownDay.Id);
+        await (await SetDefaultWeekAsync(_staff.Client, _staff.UserId, ownWeek.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await SetDefaultWeekAsync(_admin, _other.UserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var staffList = await (await _staff.Client.GetAsync("/api/calendar/staff")).ReadAsAsync<List<StaffMemberResponse>>();
-        staffList.Where(s => s.UserId == _staff.UserId || s.UserId == _other.UserId)
-            .Should().HaveCount(2).And.AllSatisfy(s => s.WeekTemplateId.Should().Be(week.Id));
+        staffList.Single(s => s.UserId == _staff.UserId).WeekTemplateId.Should().Be(ownWeek.Id);
+        staffList.Single(s => s.UserId == _other.UserId).WeekTemplateId.Should().Be(week.Id);
     }
 
     [Test]

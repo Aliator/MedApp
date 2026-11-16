@@ -1,0 +1,274 @@
+using AutoFixture;
+using FluentAssertions;
+using MedApp.Application.Calendar.Common;
+using MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
+using MedApp.Application.Common.Exceptions;
+using MedApp.Domain.Calendar;
+using MedApp.Domain.Notifications;
+using Moq;
+using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
+using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
+
+namespace MedApp.UnitTests.Application.Calendar.Meetings.Commands.UpdateMeeting;
+
+[TestFixture]
+public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
+{
+    private UpdateMeetingHandler _handler = null!;
+
+    /// <summary>The meeting as stored, tracked for the change: 10:00 to 11:00 next Monday, for both members of staff.</summary>
+    private Meeting _tracked = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        GivenMeeting(NewMeeting(At(NextMonday, 10), At(NextMonday, 11)));
+        _handler = Fixture.Create<UpdateMeetingHandler>();
+    }
+
+    /// <summary>The repository reads this meeting, and loads a separate copy of it for the change.</summary>
+    private void GivenMeeting(Meeting meeting, Meeting? tracked = null)
+    {
+        _tracked = tracked ?? Copy(meeting);
+        Meetings.Setup(r => r.GetAsync(meeting.Id, It.IsAny<CancellationToken>())).ReturnsAsync(meeting);
+        Meetings.Setup(r => r.GetForUpdateAsync(meeting.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_tracked);
+    }
+
+    /// <summary>The admin changes the meeting: by default, nothing but the title, to <see cref="OtherTitle"/>.</summary>
+    private static UpdateMeetingCommand Command(
+        DateTime? startUtc = null,
+        DateTime? endUtc = null,
+        IReadOnlyList<Guid>? attendees = null,
+        CalendarActor? actor = null,
+        string title = OtherTitle) =>
+        new(
+            MeetingId,
+            $" {title} ",
+            $" {Notes} ",
+            startUtc ?? At(NextMonday, 10),
+            endUtc ?? At(NextMonday, 11),
+            attendees ?? [StaffUserId, OtherStaffUserId],
+            actor ?? AdminActor);
+
+    [Test]
+    public async Task Handle_Changes_AreSavedOnTheTrackedMeeting()
+    {
+        await _handler.Handle(Command(At(NextMonday, 14), At(NextMonday, 15, 30), [OtherStaffUserId, AdminUserId, AdminUserId]), Token);
+
+        _tracked.Title.Should().Be(OtherTitle);
+        _tracked.Notes.Should().Be(Notes);
+        _tracked.StartUtc.Should().Be(At(NextMonday, 14));
+        _tracked.EndUtc.Should().Be(At(NextMonday, 15, 30));
+        _tracked.LastUpdated.Should().Be(Now);
+        _tracked.CreatedAtUtc.Should().Be(Now.AddDays(-1));
+        _tracked.Attendees.Select(a => a.StaffUserId).Should().Equal(OtherStaffUserId, AdminUserId);
+        _tracked.Attendees.Should().OnlyContain(a => a.MeetingId == MeetingId);
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+        Meetings.Verify(r => r.GetAsync(MeetingId, Token), Times.Once);
+        Meetings.Verify(r => r.GetForUpdateAsync(MeetingId, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_NoNotes_StoresThemEmpty()
+    {
+        await _handler.Handle(Command() with { Notes = null }, Token);
+
+        _tracked.Notes.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AttendeesChanged_HoldsTheLocksOfEveryoneGoingBeforeAndAfter()
+    {
+        await _handler.Handle(Command(attendees: [OtherStaffUserId, AdminUserId]), Token);
+
+        VerifyLockedOnce(StaffUserId, OtherStaffUserId, AdminUserId);
+    }
+
+    [Test]
+    public async Task Handle_ClashCheck_ReadsTheNewAttendeesCalendarsOnTheNewDay()
+    {
+        var tuesday = NextMonday.AddDays(1);
+
+        await _handler.Handle(Command(At(tuesday, 10), At(tuesday, 11), [OtherStaffUserId, AdminUserId]), Token);
+
+        var read = CalendarReads.Should().ContainSingle().Subject;
+        read.StaffUserIds.Should().Equal(OtherStaffUserId, AdminUserId);
+        read.From.Should().Be(tuesday);
+        read.To.Should().Be(tuesday);
+        read.Token.Should().Be(Token);
+    }
+
+    [Test]
+    public async Task Handle_OverlappingItsOwnOldTime_IsNotAClash()
+    {
+        var self = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
+        GivenCalendar(CalendarOf(StaffUserId, NextMonday, meetings: [self]));
+        GivenCalendar(CalendarOf(OtherStaffUserId, NextMonday, meetings: [self]));
+
+        await _handler.Handle(Command(At(NextMonday, 10, 30), At(NextMonday, 11, 30)), Token);
+
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_AnAttendeeHasSomethingOn_ThrowsConflictNamingThemWithoutSaving()
+    {
+        GivenCalendar(CalendarOf(OtherStaffUserId, NextMonday, templateBlocks: [CreateTemplateBlock(12, 13)]));
+
+        var act = () => _handler.Handle(Command(At(NextMonday, 12), At(NextMonday, 13)), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"{OtherStaffUsername} has Lunch, 12:00 to 13:00.");
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_NotFound_ThrowsNotFoundWithoutLocking()
+    {
+        Meetings.Setup(r => r.GetAsync(MeetingId, It.IsAny<CancellationToken>())).ReturnsAsync((Meeting?)null);
+
+        var act = () => _handler.Handle(Command(), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Meeting '{MeetingId}' was not found.");
+        VerifyNotLocked();
+    }
+
+    [Test]
+    public async Task Handle_CancelledMeanwhile_ThrowsNotFoundWithoutSaving()
+    {
+        Meetings.Setup(r => r.GetForUpdateAsync(MeetingId, It.IsAny<CancellationToken>())).ReturnsAsync((Meeting?)null);
+
+        var act = () => _handler.Handle(Command(), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Meeting '{MeetingId}' was not found.");
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_SomeoneAddedAnAttendeeMeanwhile_ThrowsConflictWithoutSaving()
+    {
+        var read = NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId]);
+        GivenMeeting(read, NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId, AdminUserId]));
+
+        var act = () => _handler.Handle(Command(attendees: [StaffUserId, OtherStaffUserId]), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(MeetingLimits.ChangedMeanwhile);
+        VerifyLockedOnce(StaffUserId, OtherStaffUserId);
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_SomeoneRemovedAnAttendeeMeanwhile_StillSaves()
+    {
+        GivenMeeting(
+            NewMeeting(At(NextMonday, 10), At(NextMonday, 11)),
+            NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId]));
+
+        await _handler.Handle(Command(), Token);
+
+        _tracked.Attendees.Select(a => a.StaffUserId).Should().Equal(StaffUserId, OtherStaffUserId);
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_MeetingOnAPastDay_ThrowsConflictWithoutLocking()
+    {
+        var friday = Today.AddDays(-3);
+        GivenMeeting(NewMeeting(At(friday, 10), At(friday, 11)));
+
+        var act = () => _handler.Handle(Command(), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(CalendarGuards.PastDay);
+        VerifyNotLocked();
+    }
+
+    [Test]
+    public async Task Handle_MovedToAPastDay_ThrowsConflictWithoutLocking()
+    {
+        var friday = Today.AddDays(-3);
+
+        var act = () => _handler.Handle(Command(At(friday, 10), At(friday, 11)), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(CalendarGuards.PastDay);
+        VerifyNotLocked();
+    }
+
+    [Test]
+    public async Task Handle_UnknownAttendee_ThrowsNotFoundWithoutLocking()
+    {
+        var stranger = Guid.Parse("0000000d-0000-0000-0000-0000000000ff");
+
+        var act = () => _handler.Handle(Command(attendees: [stranger]), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Staff member(s) not found: {stranger}.");
+        VerifyNotLocked();
+    }
+
+    [Test]
+    public async Task Handle_OnlyTheTitleChanged_TellsNobody()
+    {
+        await _handler.Handle(Command(), Token);
+
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_Moved_TellsEachAttendeeWhereTo()
+    {
+        await _handler.Handle(Command(At(NextMonday, 14), At(NextMonday, 15)), Token);
+
+        Sent.Select(s => s.Notification.UserId).Should().BeEquivalentTo([StaffUserId, OtherStaffUserId]);
+        Sent.Should().OnlyContain(s => s.Token == Token);
+        Sent.Should().OnlyContain(s => s.Notification.Kind == NotificationKind.MeetingChanged);
+        Sent.Should().OnlyContain(s => s.Notification.Title == "Meeting moved");
+        Sent.Should().OnlyContain(s =>
+            s.Notification.Message == $"{AdminUsername} moved '{OtherTitle}' to Monday 23 November, 14:00 to 15:00.");
+        Sent.Should().OnlyContain(s => s.Notification.CalendarDate == NextMonday);
+    }
+
+    [Test]
+    public async Task Handle_AttendeesChanged_InvitesThoseAddedAndTellsThoseTakenOff()
+    {
+        var thursday = NextMonday.AddDays(3);
+
+        await _handler.Handle(Command(At(thursday, 9), At(thursday, 10), [OtherStaffUserId, AdminUserId], StaffActor with { IsAdmin = true }), Token);
+
+        // The actor (calendar.staff, taken off) isn't told about their own change; the admin is invited, the other moved.
+        Sent.Should().HaveCount(2);
+        var invited = Sent.Single(s => s.Notification.UserId == AdminUserId).Notification;
+        invited.Kind.Should().Be(NotificationKind.MeetingInvited);
+        invited.Message.Should().Be($"{StaffUsername} invited you to '{OtherTitle}', Thursday 26 November, 09:00 to 10:00.");
+        invited.CalendarDate.Should().Be(thursday);
+        Sent.Single(s => s.Notification.UserId == OtherStaffUserId).Notification.Kind.Should().Be(NotificationKind.MeetingChanged);
+    }
+
+    [Test]
+    public async Task Handle_AttendeeTakenOff_IsToldItsCancelledForThemWithTheOldTime()
+    {
+        var thursday = NextMonday.AddDays(3);
+
+        await _handler.Handle(Command(At(thursday, 9), At(thursday, 10), [OtherStaffUserId]), Token);
+
+        var cancelled = Sent.Single(s => s.Notification.UserId == StaffUserId).Notification;
+        cancelled.Kind.Should().Be(NotificationKind.MeetingCancelled);
+        cancelled.Title.Should().Be("Meeting cancelled");
+        cancelled.Message.Should().Be($"{AdminUsername} took you off '{OtherTitle}', Monday 23 November, 10:00 to 11:00.");
+        cancelled.CalendarDate.Should().Be(NextMonday);
+    }
+
+    [Test]
+    public async Task Handle_Changed_ReturnsItWithItsPeopleByUsername()
+    {
+        var response = await _handler.Handle(Command(attendees: [OtherStaffUserId, AdminUserId]), Token);
+
+        response.Id.Should().Be(MeetingId);
+        response.Title.Should().Be(OtherTitle);
+        response.Date.Should().Be(NextMonday);
+        response.OrganiserUsername.Should().Be(AdminUsername);
+        response.Attendees.Select(a => a.Username).Should().Equal(AdminUsername, OtherStaffUsername);
+        response.CanEdit.Should().BeTrue();
+        response.LastUpdated.Should().Be(Now);
+        Identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), Token), Times.Once);
+    }
+}
