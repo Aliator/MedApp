@@ -95,8 +95,11 @@ export interface ListFilterBarProps {
    * shows none; a list that starts filtered (My Tasks on Not started) says, as its bar shows that filter.
    */
   isUnfiltered?: boolean;
-  /** Whether the name of the favourite the list is showing sits beside the star (`ListFavourites`); by default it does. */
-  showsFavouriteName?: boolean;
+  /**
+   * Whether the name of a quick look-up the list is showing sits beside the star (`ListFavourites`); by default it
+   * does. A saved search's name always shows.
+   */
+  namesQuickFilters?: boolean;
 }
 
 // Dates are whole days, kept in the URL as yyyy-mm-dd; PowerSearch holds a day as its midnight UTC in seconds
@@ -248,7 +251,7 @@ export function ListFilterBar({
   list,
   favourites,
   isUnfiltered,
-  showsFavouriteName,
+  namesQuickFilters,
 }: ListFilterBarProps) {
   const config = useMemo(() => configFor(fields, textKey), [fields, textKey]);
   const filters = filtersFrom(fields, values);
@@ -274,7 +277,7 @@ export function ListFilterBar({
         normalize={(saved) => valuesFrom(fields, filtersFrom(fields, saved))}
         onApply={(saved) => onChange({...cleared(fields), ...saved})}
         isUnfiltered={isUnfiltered ?? filters.length === 0}
-        showsName={showsFavouriteName}
+        namesQuickFilters={namesQuickFilters}
       />
     </HStack>
   );

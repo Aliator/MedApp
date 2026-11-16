@@ -32,10 +32,11 @@ export interface ListFavouritesProps {
   /** Whether the list opened with no filters in its URL: the moment it takes its starting search, if it has one. */
   isUnfiltered: boolean;
   /**
-   * Whether the name of the favourite the list is showing sits beside the star (by default it does). A list whose
-   * bar already shows that filter as a token (My Tasks' progress) can leave it out; the star still says it.
+   * Whether the name of a quick look-up the list is showing sits beside the star (by default it does). A list whose
+   * quick look-ups each match a token the bar already shows (My Tasks' Not started) can leave them out; the star
+   * still says them. A saved search's name, which someone chose, always shows.
    */
-  showsName?: boolean;
+  namesQuickFilters?: boolean;
 }
 
 /** A search, as a key that's the same for the same filters (whatever order, and leaving out unset ones). */
@@ -51,9 +52,17 @@ const nameOf = (name: string) => name.trim() || 'Untitled favourite';
 /**
  * The star beside a list's search: its quick look-ups, the searches you've saved (kept with your account), saving
  * the search you have, and managing them (rename, delete, and the one the list starts on). The name of the
- * favourite the list is showing, if any, sits beside the star, unless `showsName` is off.
+ * favourite the list is showing, if any, sits beside the star (a quick look-up's only with `namesQuickFilters`).
  */
-export function ListFavourites({list, quick = [], current, normalize, onApply, isUnfiltered, showsName = true}: ListFavouritesProps) {
+export function ListFavourites({
+  list,
+  quick = [],
+  current,
+  normalize,
+  onApply,
+  isUnfiltered,
+  namesQuickFilters = true,
+}: ListFavouritesProps) {
   const favourites = useSavedFavourites(list);
   const [dialog, setDialog] = useState<'save' | 'manage' | null>(null);
   const [name, setName] = useState('');
@@ -68,9 +77,10 @@ export function ListFavourites({list, quick = [], current, normalize, onApply, i
 
   const currentKey = keyOf(current);
   const isEmpty = currentKey === '[]';
-  const showing =
-    quick.find((q) => keyOf(normalize(q.values)) === currentKey)?.label ??
-    favourites.saved.find((f) => keyOf(normalize(f.values)) === currentKey)?.name;
+  const quickShowing = quick.find((q) => keyOf(normalize(q.values)) === currentKey)?.label;
+  const savedShowing = favourites.saved.find((f) => keyOf(normalize(f.values)) === currentKey)?.name;
+  const showing = quickShowing ?? savedShowing;
+  const label = namesQuickFilters ? showing : savedShowing;
   const isSaved = favourites.saved.some((f) => keyOf(normalize(f.values)) === currentKey);
 
   const items: DropdownMenuOption[] = [];
@@ -119,7 +129,7 @@ export function ListFavourites({list, quick = [], current, normalize, onApply, i
 
   return (
     <HStack gap={2} vAlign="center">
-      {showsName && showing && <Token label={showing} color="blue" />}
+      {label && <Token label={label} color="blue" />}
       <DropdownMenu
         items={items}
         alignment="end"

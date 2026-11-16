@@ -51,13 +51,20 @@ describe('ListFavourites', () => {
     expect(within(menu).getByRole('menuitem', {name: /Save this search/, hidden: true})).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('leaves the name out beside the star when told to, while the star still says it', async () => {
-    localStorage.setItem(KEY, JSON.stringify({patients: {saved: [{id: 'f1', name: 'The Bennetts', values: {last: 'bennett'}}]}}));
-    renderFavourites({current: {last: 'bennett'}, showsName: false});
+  it("leaves a quick filter's name out beside the star when told to, while the star still says it", async () => {
+    renderFavourites({quick: [{label: 'Over 65', values: {dobTo: '1961-11-15'}}], current: {dobTo: '1961-11-15'}, namesQuickFilters: false});
 
-    expect(await screen.findByRole('button', {name: 'Favourites (showing The Bennetts)'})).toBeInTheDocument();
-    // Only in the (closed) menu, under Your favourites.
-    expect(screen.queryAllByText('The Bennetts').filter((el) => !el.closest('[role="menu"]'))).toEqual([]);
+    expect(await screen.findByRole('button', {name: 'Favourites (showing Over 65)'})).toBeInTheDocument();
+    // Only in the (closed) menu, under Quick filters.
+    expect(screen.queryAllByText('Over 65').filter((el) => !el.closest('[role="menu"]'))).toEqual([]);
+  });
+
+  it("still names a saved search beside the star when quick filters' names are left out", async () => {
+    localStorage.setItem(KEY, JSON.stringify({patients: {saved: [{id: 'f1', name: 'The Bennetts', values: {last: 'bennett'}}]}}));
+    renderFavourites({current: {last: 'bennett'}, namesQuickFilters: false});
+
+    await screen.findByRole('button', {name: 'Favourites (showing The Bennetts)'});
+    expect(screen.queryAllByText('The Bennetts').filter((el) => !el.closest('[role="menu"]'))).toHaveLength(1);
   });
 
   it('takes its starting search when the list opens with no filters', async () => {
