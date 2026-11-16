@@ -64,7 +64,8 @@ const nothing = (text: string) => (
 /**
  * A subject access export (admin): everything MedApp holds about a patient (their details, procedures with stages,
  * notes and assignments, the history of changes to them, who has accessed the record, and notifications about them),
- * readable on screen, printable, and downloadable as JSON. Opening it is recorded in the activity log, once: it's
+ * readable on screen, printable, and downloadable as JSON. The page shows every field the JSON holds, so what's checked
+ * on screen is what's given; staff appear by username only (no account IDs or network addresses). Opening it is recorded in the activity log, once: it's
  * fetched once per visit, and the download and print use that copy. Before it's given to the patient, a clinician
  * should check it for anything that meets the serious harm test, and for other people's details.
  */
@@ -171,27 +172,26 @@ function ExportContent({data}: {data: PatientExport}) {
                     <MetadataListItem label="Priority">{procedure.priority}</MetadataListItem>
                     <MetadataListItem label="Due">{procedure.dueDate ? formatDate(procedure.dueDate) : '—'}</MetadataListItem>
                     <MetadataListItem label="Created">{when(procedure.createdAt)}</MetadataListItem>
-                    <MetadataListItem label="Assigned To">
-                      {(procedure.assignments ?? []).map((a) => a.username).join(', ') || 'Nobody'}
-                    </MetadataListItem>
+                    <MetadataListItem label="Last Changed">{when(procedure.lastUpdated)}</MetadataListItem>
+                    <MetadataListItem label="Assigned To">{(procedure.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
                   </MetadataList>
                   {procedure.notes && <RichText>{procedure.notes}</RichText>}
                   <List hasDividers edge="bleed">
                     {(procedure.stages ?? []).map((stage) => (
                       <ListItem
-                        key={stage.id}
+                        key={stage.order}
                         align="first-line"
                         label={
                           <Text type="body" weight="semibold">
-                            {`${stage.stageOrder}. ${stage.name}`}
+                            {`${stage.order}. ${stage.name}`}
                           </Text>
                         }
                         description={
                           <VStack gap={1}>
                             <Text type="supporting" color="secondary">
                               {[
-                                stage.startedAtUtc ? `Started ${when(stage.startedAtUtc)} by ${stage.startedByUsername}` : 'Not started',
-                                stage.completedAtUtc ? `finished ${when(stage.completedAtUtc)} by ${stage.completedByUsername}` : null,
+                                stage.startedAtUtc ? `Started ${when(stage.startedAtUtc)} by ${stage.startedBy}` : 'Not started',
+                                stage.finishedAtUtc ? `finished ${when(stage.finishedAtUtc)} by ${stage.finishedBy}` : null,
                               ]
                                 .filter(Boolean)
                                 .join(', ')}
@@ -213,9 +213,9 @@ function ExportContent({data}: {data: PatientExport}) {
           ? nothing('No changes recorded.')
           : (
             <List hasDividers edge="bleed">
-              {history.map((entry) => (
+              {history.map((entry, i) => (
                 <ListItem
-                  key={entry.id}
+                  key={i}
                   align="first-line"
                   label={<Text type="body">{`${when(entry.atUtc)}: ${auditActionLabel(entry.action)} by ${entry.username}`}</Text>}
                   description={
@@ -234,9 +234,9 @@ function ExportContent({data}: {data: PatientExport}) {
           ? nothing('No access recorded.')
           : (
             <List hasDividers edge="bleed">
-              {access.map((entry) => (
+              {access.map((entry, i) => (
                 <ListItem
-                  key={entry.id}
+                  key={i}
                   align="first-line"
                   label={<Text type="body">{`${when(entry.atUtc)}: ${activityActionLabel(entry.action)} by ${entry.username}`}</Text>}
                   description={
@@ -257,9 +257,9 @@ function ExportContent({data}: {data: PatientExport}) {
           ? nothing('No notifications.')
           : (
             <List hasDividers edge="bleed">
-              {notifications.map((n) => (
+              {notifications.map((n, i) => (
                 <ListItem
-                  key={n.id}
+                  key={i}
                   align="first-line"
                   label={<Text type="body">{`${when(n.createdAtUtc)}: to ${n.username}`}</Text>}
                   description={

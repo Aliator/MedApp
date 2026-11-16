@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.Results;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
@@ -30,6 +32,19 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
 
         if (!request.Set && !isSet)
             return PatientMapper.ToResponse(patient);
+
+        // Restricting freezes the procedures under way (all but blocking and cancelling), so the admin must say they know.
+        if (request is { Flag: PatientFlag.Restricted, Set: true, ConfirmOpenProcedures: false })
+        {
+            var underWay = await repository.CountProceduresUnderWayAsync(patient.Id, cancellationToken);
+            if (underWay > 0)
+                throw new ValidationException([
+                    new ValidationFailure(
+                        nameof(request.ConfirmOpenProcedures),
+                        $"This patient has {underWay} procedure{(underWay == 1 ? "" : "s")} under way. Confirm that work on " +
+                        $"{(underWay == 1 ? "it" : "them")} stops while the record is restricted (blocking and cancelling stay possible).")
+                ]);
+        }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var reason = request.Reason?.Trim();

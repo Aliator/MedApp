@@ -35,7 +35,7 @@ public sealed class ProcedurePatientRestrictionTests : ProcedureHandlerTestBase
     }
 
     [TestCaseSource(nameof(LockedPatients))]
-    public void ToResponse_LockedPatient_OffersNothing(Func<Patient> patient)
+    public void ToResponse_LockedPatient_OffersNothingButPausing(Func<Patient> patient)
     {
         var procedure = CreateProcedure(Status.InReview, finishedStages: 3, patient: patient());
         procedure.Stages[2].IsLocked = true;
@@ -43,7 +43,9 @@ public sealed class ProcedurePatientRestrictionTests : ProcedureHandlerTestBase
         var response = ProcedureMapper.ToResponse(procedure, Usernames, Now);
 
         response.ReadOnlyReason.Should().Be(PatientRules.WhyCantChange(procedure.Patient));
-        response.AllowedStatusChanges.Should().BeEmpty();
+        // A restricted record's procedures can still be blocked or cancelled; an anonymised one's, nothing.
+        response.AllowedStatusChanges.Should().BeEquivalentTo(
+            PatientRules.IsAnonymised(procedure.Patient) ? [] : new[] { "Blocked", "Cancelled" });
         response.CanWorkOnStages.Should().BeFalse();
         response.CanEditDetails.Should().BeFalse();
         response.CanChangeAssignments.Should().BeFalse();

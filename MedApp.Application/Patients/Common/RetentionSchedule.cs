@@ -21,9 +21,10 @@ public static class RetentionSchedule
     /// <summary>When the patient's record is due for review.</summary>
     public static RetentionDue Due(RetentionCandidate patient, RetentionOptions options)
     {
-        var lastChange = patient.LastProcedureChangedUtc is { } procedureChange && procedureChange > patient.LastUpdatedUtc
-            ? procedureChange
-            : patient.LastUpdatedUtc;
+        // The latest of the record, its procedures, and their audit trail, which outlives a procedure deleted since.
+        var lastChange = new[] { patient.LastUpdatedUtc, patient.LastProcedureChangedUtc, patient.LastAuditUtc }
+            .OfType<DateTime>()
+            .Max();
         return Due(patient.DateOfBirth, DueDates.ToUkDate(lastChange), options);
     }
 
@@ -32,19 +33,29 @@ public static class RetentionSchedule
     {
         var age = AgeOn(dateOfBirth, conclusion);
         if (age >= options.AdultAge)
-            return new RetentionDue(RetentionClass.Adult, conclusion, conclusion.AddYears(options.AdultYears));
+            return new RetentionDue(RetentionClass.Adult, conclusion, AddYears(conclusion, options.AdultYears));
 
         var until = age == options.AdultAge - 1 ? options.ChildAgedSeventeenUntilAge : options.ChildUntilAge;
-        return new RetentionDue(RetentionClass.Child, conclusion, dateOfBirth.AddYears(until));
+        return new RetentionDue(RetentionClass.Child, conclusion, AddYears(dateOfBirth, until));
     }
 
-    /// <summary>Whole years of age on a date.</summary>
+    /// <summary>Whole years of age on a date (a 29 February birthday falls on 1 March in other years).</summary>
     public static int AgeOn(DateOnly dateOfBirth, DateOnly on)
     {
         var age = on.Year - dateOfBirth.Year;
-        if (on < dateOfBirth.AddYears(age))
+        if (on < AddYears(dateOfBirth, age))
             age--;
         return age;
+    }
+
+    /// <summary>
+    /// A date so many years on. In England, someone born on 29 February has their birthday on 1 March in other years,
+    /// so that's the day it falls on then (<see cref="DateOnly.AddYears"/> would give 28 February, a day early).
+    /// </summary>
+    public static DateOnly AddYears(DateOnly date, int years)
+    {
+        var moved = date.AddYears(years);
+        return date is { Month: 2, Day: 29 } && moved.Day == 28 ? moved.AddDays(1) : moved;
     }
 
     /// <summary>

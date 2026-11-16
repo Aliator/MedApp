@@ -41,8 +41,8 @@ public sealed class AnonymisePatientHandlerTests
         return record;
     }
 
-    private static AnonymisePatientCommand Command(Guid id, string confirmation = FullName) =>
-        new(id, "  Past its retention period  ", confirmation);
+    private static AnonymisePatientCommand Command(Guid id, string confirmation = FullName, string? note = "  Reviewed by the records manager  ") =>
+        new(id, "retentionPeriodEnded", note, confirmation);
 
     [Test]
     public async Task Handle_UnknownPatient_ThrowsNotFound()
@@ -124,8 +124,23 @@ public sealed class AnonymisePatientHandlerTests
         record.Procedures.Should().AllSatisfy(p => p.Title.Should().Be(TemplateName));
         entry!.Action.Should().Be(ActivityAction.PatientAnonymised);
         entry.PatientId.Should().Be(record.Patient.Id);
-        entry.Details.Should().Be("""{"reason":"Past its retention period","procedureCount":2}""");
+        entry.Details.Should().Be("""{"reason":"RetentionPeriodEnded","note":"Reviewed by the records manager","procedureCount":2}""");
         _repository.Verify(r => r.GetAsync(record.Patient.Id, true, cts.Token), Times.Once);
         _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), cts.Token), Times.Once);
+    }
+
+    [TestCase(null)]
+    [TestCase("   ")]
+    public async Task Handle_NoNote_RecordsOnlyTheReasonByName(string? note)
+    {
+        var record = Given(PrivacyTestConstants.CreateRecord(null));
+        ActivityEntry? entry = null;
+        _repository.Setup(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()))
+            .Callback((ActivityEntry e, CancellationToken _) => entry = e)
+            .Returns(Task.CompletedTask);
+
+        await Handler.Handle(new AnonymisePatientCommand(record.Patient.Id, "CreatedInError", note, FullName), CancellationToken.None);
+
+        entry!.Details.Should().Be("""{"reason":"CreatedInError","procedureCount":0}""");
     }
 }

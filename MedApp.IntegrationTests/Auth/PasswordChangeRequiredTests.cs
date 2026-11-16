@@ -69,8 +69,8 @@ public sealed class PasswordChangeRequiredTests : IntegrationTest
         var client = await SignInAsync(staff.Username, generated);
 
         await ShouldBePasswordChangeRequiredAsync(await client.GetAsync("/api/patients/search"));
-        // Their session from before the reset is held too: the flag is read on every request.
-        await ShouldBePasswordChangeRequiredAsync(await staff.Client.GetAsync("/api/patients/search"));
+        // Their session from before the reset was ended by it.
+        await (await staff.Client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.Unauthorized);
     }
 
     [Test]
@@ -84,7 +84,7 @@ public sealed class PasswordChangeRequiredTests : IntegrationTest
             {
                 options.Transports = HttpTransportType.LongPolling;
                 options.HttpMessageHandlerFactory = _ => Api.Server.CreateHandler();
-                options.Headers["Cookie"] = $"{SessionAuthenticationDefaults.CookieName}={login.SessionId}";
+                options.Headers["Cookie"] = $"{SessionAuthenticationDefaults.HostCookieName}={login.SessionId}";
             })
             .Build();
 

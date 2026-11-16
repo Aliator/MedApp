@@ -5,8 +5,9 @@ namespace MedApp.API.Common.Authentication;
 
 /// <summary>
 /// The activity log's actor for the current HTTP request: the signed-in user from the session's claims, and the
-/// address the request came from as Kestrel saw it (behind a proxy, or for a page rendered on the server, that's the
-/// proxy's or the page server's address).
+/// address the request came from. Behind the ingress that's the browser's address, since the Helm chart turns on
+/// forwarded headers (<c>ASPNETCORE_FORWARDEDHEADERS_ENABLED</c>); for a page rendered on the server, it's the page
+/// server's own (loopback) address, because the API is called from Node, not the browser.
 /// </summary>
 public sealed class HttpActivityContext(IHttpContextAccessor accessor) : IActivityContext
 {

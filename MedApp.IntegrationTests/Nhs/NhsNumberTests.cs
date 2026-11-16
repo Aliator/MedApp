@@ -188,7 +188,7 @@ public sealed class NhsNumberTests : IntegrationTest
 
         var anonymised = await (await admin.PostAsJsonAsync($"/api/patients/{patient.Id}/anonymise", new AnonymisePatientRequest
         {
-            Reason = "Synthetic: past its retention period",
+            Reason = "RetentionPeriodEnded",
             Confirmation = $"{patient.FirstName} {patient.LastName}",
         })).ReadAsAsync<PatientResponse>();
 

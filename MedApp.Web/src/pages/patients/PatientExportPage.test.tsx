@@ -36,27 +36,26 @@ const data: PatientExport = {
       priority: 'High',
       dueDate: '2026-10-01',
       createdAt: '2026-09-01T09:00:00Z',
+      lastUpdated: '2026-10-02T09:00:00Z',
       notes: 'Synthetic procedure note',
-      assignments: [{userId: 'u1', username: 'k.ashford'}],
+      assignedTo: ['k.ashford'],
       stages: [
         {
-          id: 's1',
-          stageOrder: 1,
+          order: 1,
           name: 'Consent',
           notes: 'Synthetic stage note',
           startedAtUtc: '2026-09-02T09:00:00Z',
-          startedByUsername: 'k.ashford',
-          completedAtUtc: '2026-09-03T09:00:00Z',
-          completedByUsername: 'l.northcott',
+          startedBy: 'k.ashford',
+          finishedAtUtc: '2026-09-03T09:00:00Z',
+          finishedBy: 'l.northcott',
         },
-        {id: 's2', stageOrder: 2, name: 'Scan', notes: ''},
+        {order: 2, name: 'Scan', notes: ''},
       ],
     },
   ],
   procedureHistory: [
     {
-      id: 'h1',
-      patientProcedureId: procedureId,
+      procedureId,
       procedureTitle: 'Synthetic knee review',
       stageName: 'Consent',
       action: 'StageFinished',
@@ -66,11 +65,11 @@ const data: PatientExport = {
     },
   ],
   accessLog: [
-    {id: 'a1', action: 'PatientExported', username: 'test-admin', atUtc: '2026-11-16T09:30:00Z', patientId: id, details: '{}'},
-    {id: 'a2', action: 'PatientRestricted', username: 'test-admin', atUtc: '2026-11-01T09:00:00Z', patientId: id, details: JSON.stringify({reason: 'Synthetic accuracy check'})},
+    {action: 'PatientExported', username: 'test-admin', atUtc: '2026-11-16T09:30:00Z', details: '{}'},
+    {action: 'PatientRestricted', username: 'test-admin', atUtc: '2026-11-01T09:00:00Z', details: JSON.stringify({reason: 'Synthetic accuracy check'})},
   ],
   notifications: [
-    {id: 'n1', kind: 'ProcedureAssigned', username: 'k.ashford', title: 'Synthetic knee review', message: 'test-admin assigned you to this procedure.', createdAtUtc: '2026-09-01T09:00:00Z'},
+    {kind: 'ProcedureAssigned', username: 'k.ashford', title: 'Synthetic knee review', message: 'test-admin assigned you to this procedure.', createdAtUtc: '2026-09-01T09:00:00Z'},
   ],
 };
 
@@ -99,6 +98,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/Started .* by k\.ashford, finished .* by l\.northcott/)).toBeInTheDocument();
     expect(screen.getByText('Synthetic stage note')).toBeInTheDocument();
     expect(screen.getByText('Not started')).toBeInTheDocument();
+    expect(screen.getByText('k.ashford', {selector: '*'})).toBeInTheDocument();
     // The history, the access log and the notifications.
     expect(screen.getByText(/Stage finished by l\.northcott/)).toBeInTheDocument();
     expect(screen.getByText(/Record exported by test-admin/)).toBeInTheDocument();

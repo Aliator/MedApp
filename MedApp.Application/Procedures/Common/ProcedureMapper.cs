@@ -11,6 +11,10 @@ public static class ProcedureMapper
     /// <summary>Shown in place of a username whose account no longer exists.</summary>
     public const string DeletedUser = "Deleted user";
 
+    /// <summary>A procedure's title and its patient's name only, for a pin's label.</summary>
+    public static PatientProcedureLabelResponse ToLabel(ProcedureLabel label) =>
+        new(label.Id, label.Title, $"{label.PatientFirstName} {label.PatientLastName}");
+
     public static string PatientName(Patient? patient) =>
         patient is null ? string.Empty : $"{patient.FirstName} {patient.LastName}";
 
@@ -45,6 +49,8 @@ public static class ProcedureMapper
         // A restricted or anonymised patient's procedures can't change, so nothing on them is offered.
         var readOnlyReason = PatientRules.WhyCantChange(patient);
         var canChange = readOnlyReason is null;
+        // A restricted record's procedures can still be paused: blocked or cancelled, with a reason.
+        var canPause = !PatientRules.IsAnonymised(procedure.Patient);
 
         return new PatientProcedureResponse
         {
@@ -67,14 +73,16 @@ public static class ProcedureMapper
             CurrentStageId = current?.Id,
             CompletedStageCount = procedure.Stages.Count(s => s.IsCompleted),
             StageCount = procedure.Stages.Count,
-            AllowedStatusChanges = canChange
-                ? ProcedureWorkflow.AllowedStatusChanges(procedure).Select(s => s.ToString()).ToList()
-                : [],
+            AllowedStatusChanges = ProcedureWorkflow.AllowedStatusChanges(procedure)
+                .Where(s => canChange || (canPause && PatientRules.PausesWhileRestricted.Contains(s)))
+                .Select(s => s.ToString())
+                .ToList(),
             CanWorkOnStages = canChange && ProcedureWorkflow.CanWorkOnStages(procedure),
             CanEditDetails = canChange && ProcedureWorkflow.CanEditDetails(procedure),
             CanChangeAssignments = canChange && ProcedureWorkflow.CanChangeAssignments(procedure),
             CanBeDeleted = canChange && ProcedureWorkflow.CanBeDeleted(procedure),
             ReadOnlyReason = readOnlyReason,
+            PatientFlags = procedure.Patient is null ? null : PatientMapper.ToFlags(procedure.Patient),
             Stages = procedure.Stages
                 .OrderBy(s => s.StageOrder)
                 .Select(s => new PatientProcedureStageResponse

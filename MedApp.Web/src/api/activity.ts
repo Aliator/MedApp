@@ -34,6 +34,7 @@ export const ACTIVITY_ACTIONS = [
   'RolesChanged',
   'RoleCreated',
   'RoleDeleted',
+  'SignedOutEverywhere',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -63,6 +64,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   RolesChanged: 'Roles changed',
   RoleCreated: 'Role created',
   RoleDeleted: 'Role deleted',
+  SignedOutEverywhere: 'Signed out everywhere',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -84,6 +86,7 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'RolesChanged',
   'RoleCreated',
   'RoleDeleted',
+  'SignedOutEverywhere',
 ];
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */

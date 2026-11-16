@@ -2,9 +2,12 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
+import {useMemo} from 'react';
 import {patientQuery} from '../../api/patients';
 import type {ProcedureSummary} from '../../api/procedures';
-import {procedureSearchQuery} from '../../api/search';
+import {allTemplatesQuery} from '../../api/procedureSetup';
+import {procedureSearchQuery, userSearchQuery} from '../../api/search';
+import {useCurrentUser} from '../../auth/auth';
 import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
@@ -18,6 +21,7 @@ import {
   StatusToken,
   statusLabel,
 } from '../../components/procedures/ProcedureCells';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {TextCell} from '../../components/tables/TextCell';
@@ -26,6 +30,7 @@ import {ListFilterBar, type ListFilterFavourite, type ListFilterField} from '../
 import {
   choiceValues,
   hasProcedureFilters,
+  NOBODY,
   PROCEDURE_SORTS,
   PROCEDURE_STATUSES,
   procedureStatuses,
@@ -53,6 +58,29 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'flag', key: 'mine', label: 'Assigned to me', operator: 'only'},
   {kind: 'flag', key: 'closed', label: 'Completed, cancelled and archived', operator: 'included'},
 ];
+
+/**
+ * Who a procedure can be filtered as assigned to: nobody, and (for admins, who can list the accounts) each person.
+ * A person not in the list (staff can't list accounts) still shows, as "Selected person".
+ */
+function assigneeField(users: readonly {userId?: string; username?: string | null}[], current: string | undefined): ListFilterField {
+  const options = [
+    {value: NOBODY, label: 'Nobody'},
+    ...users.map((u) => ({value: (u.userId ?? '').toLowerCase(), label: u.username ?? ''})),
+  ];
+  if (current && !options.some((o) => o.value === current)) options.push({value: current, label: 'Selected person'});
+  return {kind: 'choice', key: 'assignee', label: 'Assigned to', options};
+}
+
+/**
+ * Which template procedures were made from, by its ID (so a renamed template still finds them all): the templates by
+ * their names now. One not in the list still shows, as "Selected template".
+ */
+function templateField(templates: readonly {id?: string; name?: string | null}[], current: string | undefined): ListFilterField {
+  const options = templates.map((t) => ({value: (t.id ?? '').toLowerCase(), label: t.name ?? ''}));
+  if (current && !options.some((o) => o.value === current)) options.push({value: current, label: 'Selected template'});
+  return {kind: 'choice', key: 'templateId', label: 'From template', options};
+}
 
 /** Quick look-ups: mine, and the ones needing attention. */
 const FAVOURITES: ListFilterFavourite[] = [
@@ -103,6 +131,9 @@ export function proceduresListQuery(
     Priorities: choiceValues(search.priority, TASK_PRIORITIES),
     OverdueOnly: search.overdue,
     AssignedToMe: mine || undefined,
+    AssignedToUserId: search.assignee && search.assignee !== NOBODY ? search.assignee : undefined,
+    NobodyAssigned: search.assignee === NOBODY || undefined,
+    TemplateId: search.templateId,
     IncludeClosed: search.closed,
     DueFrom: search.dueFrom,
     DueTo: search.dueTo,
@@ -120,6 +151,21 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
 
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const {data, isPending, isError} = useQuery(proceduresListQuery(search, {pageSize, startsOnMine}, patientId));
+  // Admins can filter by anyone assigned; the bar names them from the accounts list.
+  const me = useCurrentUser();
+  // The first 100 accounts, by username (the API's largest page): a larger team's later names can't be chosen here,
+  // and a link to one shows as "Selected person".
+  const staff = useQuery({...userSearchQuery({PageSize: 100, Sort: 'username'}), enabled: me.isAdmin});
+  const staffList = staff.data?.items;
+  const templates = useQuery(allTemplatesQuery).data;
+  const fields = useMemo(
+    () => [
+      ...(patientId ? FIELDS_FOR_ONE_PATIENT : FILTER_FIELDS),
+      assigneeField(staffList ?? [], search.assignee),
+      templateField(templates ?? [], search.templateId),
+    ],
+    [patientId, staffList, search.assignee, templates, search.templateId],
+  );
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as ProcedureRow[];
 
@@ -188,7 +234,14 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       backLabel="Back to patient"
       fill
       banner={patientId && patient.data && <PatientBanner patient={patient.data} />}
-      message={isError && <AlertMessage message="The procedures could not be loaded. Please try again." />}
+      message={
+        isError ? (
+          <AlertMessage message="The procedures could not be loaded. Please try again." />
+        ) : (
+          // A patient's procedures carry the patient's banners (restricted, disputed, anonymised).
+          patient.data && <PatientFlagBanners patient={patient.data} />
+        )
+      }
       actions={
         patientId && (
           <Button label="New Procedure" variant="primary" icon={<Icon icon={AppIcon.Add} />} href={`/procedures/new?patientId=${patientId}`} />
@@ -205,7 +258,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
         search={
           <ListFilterBar
             // One patient's procedures have no need of a patient filter.
-            fields={patientId ? FIELDS_FOR_ONE_PATIENT : FILTER_FIELDS}
+            fields={fields}
             values={{...search, mine: mine || undefined}}
             // Mine kept out of the URL when it's where the list starts anyway, and false there when it starts on it.
             onChange={(filters) =>

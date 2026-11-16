@@ -57,9 +57,12 @@ public enum ActivityAction
     RoleCreated = 22,
     RoleDeleted = 23,
 
+    /// <summary>An admin ended every session an account had ("Sign out everywhere").</summary>
+    SignedOutEverywhere = 24,
+
     /// <summary>
     /// Someone looked a person up by NHS number in the demographics service (PDS): whether anyone was found, never the
     /// number.
     /// </summary>
-    DemographicsLookedUp = 24
+    DemographicsLookedUp = 25
 }

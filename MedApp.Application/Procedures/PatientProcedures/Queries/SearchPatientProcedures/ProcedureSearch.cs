@@ -81,6 +81,9 @@ public static class ProcedureSearch
         if (query.AssignedToUserId is { } userId)
             procedures = procedures.Where(p => p.Assignments.Any(a => a.UserId == userId));
 
+        if (query.NobodyAssigned)
+            procedures = procedures.Where(p => !p.Assignments.Any());
+
         if (query.AssignedToMe)
         {
             var me = query.CurrentUserId;

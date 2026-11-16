@@ -90,6 +90,29 @@ export function clearStorageAtSignOut() {
   if (isChanged) notify(listeners);
 }
 
+type Flusher = () => Promise<void>;
+
+const flushers = new Set<Flusher>();
+
+/**
+ * Registers a save that may be pending (`SettingsSync`'s, a moment after the last change), to be made at once by
+ * `flushSettings`. Returns a function that removes it.
+ */
+export function onFlushSettings(flusher: Flusher) {
+  flushers.add(flusher);
+  return () => {
+    flushers.delete(flusher);
+  };
+}
+
+/**
+ * Makes any pending save of the settings to the account now, so a change made just before signing out (a pin, say)
+ * isn't lost when signing out clears this browser. A failed save is ignored: signing out goes ahead.
+ */
+export async function flushSettings() {
+  await Promise.all([...flushers].map((flush) => flush().catch(() => {})));
+}
+
 /** A setting changed in another tab of this browser shows here too (not saved again: that tab saves it). */
 function onOtherTabChange(event: StorageEvent) {
   if (event.storageArea !== null && event.storageArea !== localStorage) return;

@@ -1,6 +1,8 @@
 ﻿using FluentValidation.AspNetCore;
 using MedApp.API.Common.Authentication;
+using MedApp.API.Common.RateLimiting;
 using MedApp.API.Fhir;
+using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
 using MedApp.Application.Activity.Common;
@@ -54,6 +56,10 @@ public static class ServiceExtensions
         services.AddScoped<IActivityContext, HttpActivityContext>();
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
         services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
+
+        // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.
+        services.AddOptions<SecurityHeadersOptions>().BindConfiguration(SecurityHeadersOptions.Section);
+        services.AddLoginThrottling();
 
         return services;
     }

@@ -217,7 +217,7 @@ public sealed class FhirPatientApiTests : IntegrationTest
 
         (await admin.PostAsJsonAsync($"{url}/anonymise", new AnonymisePatientRequest
         {
-            Reason = "Synthetic: past its retention period",
+            Reason = "RetentionPeriodEnded",
             Confirmation = $"{_patient.FirstName} {_patient.LastName}",
         })).StatusCode.Should().Be(HttpStatusCode.OK);
 

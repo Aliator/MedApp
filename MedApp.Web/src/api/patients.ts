@@ -49,6 +49,21 @@ export function patientQuery(id: string) {
   });
 }
 
+/**
+ * These patients' names (`GET api/patients/labels`), for the side nav's pins: labels, not a view of the records, so
+ * the API records nothing. Patients that no longer exist are left out. One request for every pin; keyed under
+ * ['patients'], so patient writes refresh it.
+ */
+export function patientLabelsQuery(ids: readonly string[]) {
+  const sorted = [...new Set(ids)].sort();
+  return queryOptions({
+    queryKey: ['patients', 'labels', sorted],
+    queryFn: () => unwrap(api.GET('/api/patients/labels', {params: {query: {ids: sorted}}})),
+    enabled: sorted.length > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
 /** Every patient query (lists, searches and single patients) is keyed under ['patients'], so writes refresh them all. */
 function useInvalidatePatients() {
   const queryClient = useQueryClient();
@@ -115,14 +130,16 @@ export interface PatientFlagInput {
   /** True to set it, false to clear it. */
   set: boolean;
   reason: string;
+  /** Restricting a record with procedures under way: the admin confirms their work stops (but for blocking and cancelling). */
+  confirmOpenProcedures?: boolean;
 }
 
 /** Sets or clears a patient's restricted or disputed flag, with a reason (admins only). */
 export function useSetPatientFlag(id: string) {
   const after = useAfterPatientChange(id);
   return useMutation({
-    mutationFn: ({flag, set, reason}: PatientFlagInput) => {
-      const body = {set, reason: reason.trim() || null};
+    mutationFn: ({flag, set, reason, confirmOpenProcedures = false}: PatientFlagInput) => {
+      const body = {set, reason: reason.trim() || null, confirmOpenProcedures};
       return unwrap(
         flag === 'restriction'
           ? api.PUT('/api/patients/{id}/restriction', {params: {path: {id}}, body})
@@ -133,8 +150,18 @@ export function useSetPatientFlag(id: string) {
   });
 }
 
+/** Why a record is anonymised: a fixed list (as the API takes it), so the reason can't hold a patient's details. */
+export const ANONYMISATION_REASONS = [
+  {value: 'RetentionPeriodEnded', label: 'Past its retention period'},
+  {value: 'ErasureRequest', label: 'The patient asked for erasure'},
+  {value: 'CreatedInError', label: 'Created in error'},
+] as const;
+export type AnonymisationReason = (typeof ANONYMISATION_REASONS)[number]['value'];
+
 export interface AnonymiseInput {
-  reason: string;
+  reason: AnonymisationReason;
+  /** An optional note for the activity log, which must hold no patient details; sent as none when empty. */
+  note?: string;
   /** The patient's full name, typed to confirm. */
   confirmation: string;
 }
@@ -143,7 +170,8 @@ export interface AnonymiseInput {
 export function useAnonymisePatient(id: string) {
   const after = useAfterPatientChange(id);
   return useMutation({
-    mutationFn: (body: AnonymiseInput) => unwrap(api.POST('/api/patients/{id}/anonymise', {params: {path: {id}}, body})),
+    mutationFn: ({reason, note, confirmation}: AnonymiseInput) =>
+      unwrap(api.POST('/api/patients/{id}/anonymise', {params: {path: {id}}, body: {reason, note: note?.trim() || null, confirmation}})),
     onSuccess: after,
   });
 }

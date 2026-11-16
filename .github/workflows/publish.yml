@@ -25,24 +25,30 @@ concurrency:
 env:
   IMAGE: ghcr.io/aliator/medapp-api
 jobs:
+  # The image, then its SBOM and two signed attestations, both stored on GitHub and pushed to GHCR beside the image:
+  # build provenance (which workflow run, commit and repository built this digest) and the SBOM. Check them with
+  # `gh attestation verify oci://ghcr.io/aliator/medapp-api:<commit> --repo Aliator/MedApp`.
   image:
     runs-on: ubuntu-latest
     permissions:
-      contents: read    # check out the code
-      packages: write   # push to GHCR
+      contents: read      # check out the code
+      packages: write     # push to GHCR (the image and its attestations)
+      id-token: write     # sign the attestations (Sigstore, through GitHub's OIDC token)
+      attestations: write # store the attestations on GitHub
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: MedApp.API/Dockerfile
@@ -52,6 +58,45 @@ jobs:
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # The SBOM (SPDX JSON) of exactly what was pushed: Syft reads the image back from GHCR by its digest.
+      - name: Generate the SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          format: spdx-json
+          output-file: medapp-api.spdx.json
+          # Uploaded below, under a name of our choosing; and this never runs for a release.
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload the SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: medapp-api-sbom
+          path: medapp-api.spdx.json
+
+      # actions/attest rather than attest-build-provenance and attest-sbom: since v4 those two are thin wrappers around
+      # it, and attest-sbom is deprecated in its favour. With no sbom-path it attests SLSA build provenance.
+      # No storage record: GitHub only keeps those for organisations' packages, and this repository is a user's.
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Attest the SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: medapp-api.spdx.json
+          push-to-registry: true
+          create-storage-record: false
 
   # kind: moves env/kind to this commit with the new image. The image on GHCR is public, so it needs no packages
   # permission.
@@ -63,7 +108,7 @@ jobs:
     permissions:
       contents: write   # push to env/kind
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0   # all history: the deploy commit's parents are env/kind's tip and this commit
 
@@ -83,13 +128,13 @@ jobs:
     env:
       ACR_IMAGE: ${{ vars.AZURE_ACR_NAME }}.azurecr.io/medapp-api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0   # all history: the deploy commit's parents are env/azure's tip and this commit
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-      - uses: azure/login@v2
+      - uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}

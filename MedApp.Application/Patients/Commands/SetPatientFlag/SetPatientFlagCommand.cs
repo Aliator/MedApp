@@ -13,10 +13,15 @@ public enum PatientFlag
     Disputed
 }
 
-/// <summary>Sets (<paramref name="Set"/>) or clears a patient's flag (admins only). Setting one needs a reason.</summary>
+/// <summary>
+/// Sets (<paramref name="Set"/>) or clears a patient's flag (admins only). Setting one needs a reason. Restricting a
+/// record whose procedures are under way also needs <paramref name="ConfirmOpenProcedures"/>: their work stops, but
+/// for blocking and cancelling.
+/// </summary>
 public sealed record SetPatientFlagCommand(
     Guid PatientId,
     PatientFlag Flag,
     bool Set,
-    string? Reason
+    string? Reason,
+    bool ConfirmOpenProcedures = false
 ) : IRequest<PatientResponse>;

@@ -70,7 +70,7 @@ See [sub-processors.md](sub-processors.md). Today: Microsoft (Azure). GitHub hol
 A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the code, and marks what's planned.
 
 **In place in the code and the deployment design:**
-- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
+- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes, with sign-in throttling in front of it; the 10,000 most common passwords refused; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
 - **Audit:** every change to a procedure is recorded with who, when and what, in the same database transaction, and kept after deletes.
 - **Transport:** TLS to the ingress, HSTS, and TLS to Azure SQL.
 - **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server.
@@ -78,7 +78,7 @@ A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the co
 - **Pages:** no caching of pages that carry personal data (`Cache-Control: no-store`).
 - **Development:** synthetic data only; required CI checks; a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions (not yet a second human reviewer).
 
-**Planned before real patient data** (roadmap steps 2, 4, 5 and 7, and step 6's patient banner): a patient banner (built on branch `feature/nhs-integrations`, to be verified by the Clinical Safety Officer); MFA; an idle session timeout; security headers; sign-in throttling; a least-privilege, passwordless database identity; monitoring and alerting; tested backups with longer retention; audit of reads and of patient and account changes; retention enforcement; subject access export.
+**Planned before real patient data** (roadmap steps 2, 4, 5 and 7, and step 6's patient banner): a patient banner (built on branch `feature/nhs-integrations`, to be verified by the Clinical Safety Officer); MFA; an idle session timeout; a least-privilege, passwordless database identity; monitoring and alerting; tested backups with longer retention; audit of reads and of patient and account changes; retention enforcement; subject access export.
 
 **Organisational:** a DPO; confidentiality clauses; MFA on every company account [to confirm]; annual data security training; a support access policy; a breach procedure; Cyber Essentials; the DSPT (all planned; see [dspt-readiness.md](dspt-readiness.md)).
 

@@ -3,7 +3,7 @@ import {redirect, useNavigate} from '@tanstack/react-router';
 import {api, unwrap} from '../api/client';
 import {settingsQuery} from '../api/settings';
 import {currentStartPagePath} from '../app/navSettings';
-import {appSettings, clearStorageAtSignOut} from '../app/settingsStore';
+import {appSettings, clearStorageAtSignOut, flushSettings} from '../app/settingsStore';
 
 export interface CurrentUser {
   isAuthenticated: boolean;
@@ -118,16 +118,20 @@ export function useLogin() {
 }
 
 /**
- * Signs out and goes to the login page. Local state is cleared even if the API call fails, as in the Blazor app:
- * the query cache, and the app's browser storage but for the purely visual settings (`clearStorageAtSignOut`), so
- * nothing of the user's is left on a shared computer. Both are cleared after leaving the signed-in layout, so its
- * components don't refetch, or save settings to the account, while still mounted.
+ * Signs out and goes to the login page. First, a settings change still waiting to be saved (a pin made just before)
+ * is saved to the account, while the session can still save it (`flushSettings`). Local state is cleared even if the
+ * API call fails, as in the Blazor app: the query cache, and the app's browser storage but for the purely visual
+ * settings (`clearStorageAtSignOut`), so nothing of the user's is left on a shared computer. Both are cleared after
+ * leaving the signed-in layout, so its components don't refetch, or save settings to the account, while still mounted.
  */
 export function useLogout() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   return useMutation({
-    mutationFn: () => api.POST('/api/auth/logout'),
+    mutationFn: async () => {
+      await flushSettings();
+      return api.POST('/api/auth/logout');
+    },
     onSettled: async () => {
       await navigate({to: '/login'});
       queryClient.clear();

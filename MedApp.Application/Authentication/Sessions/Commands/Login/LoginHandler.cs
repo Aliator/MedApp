@@ -27,14 +27,14 @@ public sealed class LoginHandler(
                     request.Username,
                     request.Password);
         }
-        catch (InvalidCredentialsException)
+        catch (InvalidCredentialsException refused)
         {
-            await RecordFailureAsync(request, "InvalidCredentials", ct);
+            await RecordFailureAsync(request, "InvalidCredentials", refused.UserId, ct);
             throw;
         }
-        catch (AccountLockedOutException)
+        catch (AccountLockedOutException refused)
         {
-            await RecordFailureAsync(request, "LockedOut", ct);
+            await RecordFailureAsync(request, "LockedOut", refused.UserId, ct);
             throw;
         }
 
@@ -51,11 +51,12 @@ public sealed class LoginHandler(
         return session;
     }
 
-    private Task RecordFailureAsync(LoginCommand request, string reason, CancellationToken ct) =>
+    /// <summary>A refused sign-in, by the account tried when it exists (so filtering by user finds it), or by the username typed.</summary>
+    private Task RecordFailureAsync(LoginCommand request, string reason, Guid? userId, CancellationToken ct) =>
         activityLog.RecordAsync(
             activityLog.Entry(
                 ActivityAction.SignInFailed,
                 details: new { reason },
-                actor: new ActivityActor(null, request.Username, request.IpAddress)),
+                actor: new ActivityActor(userId, request.Username, request.IpAddress)),
             ct);
 }

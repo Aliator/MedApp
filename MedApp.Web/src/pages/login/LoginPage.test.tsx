@@ -122,6 +122,31 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('This account is locked. Try again later.')).toBeInTheDocument();
   });
+
+  it('says when there have been too many sign-in attempts, and how long to wait', async () => {
+    const message = 'Too many sign-in attempts. Try again in 42 seconds.';
+    mockFetch(() => json({title: message, status: 429}, 429));
+    const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'wrong');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
+  });
+
+  it("says there have been too many attempts when the API doesn't say how long to wait", async () => {
+    mockFetch(() => new Response(null, {status: 429}));
+    const {user} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'wrong');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    expect(await screen.findByText('Too many sign-in attempts. Wait a minute, then try again.')).toBeInTheDocument();
+  });
 });
 
 describe('after a session timed out', () => {

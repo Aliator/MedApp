@@ -40,6 +40,12 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     public async Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken) =>
         await context.PatientProcedures.CountAsync(p => p.PatientId == patientId, cancellationToken);
 
+    public async Task<int> CountProceduresUnderWayAsync(Guid patientId, CancellationToken cancellationToken)
+    {
+        var closed = ProcedureWorkflow.ClosedStatuses.ToList();
+        return await context.PatientProcedures.CountAsync(p => p.PatientId == patientId && !closed.Contains(p.Status), cancellationToken);
+    }
+
     public async Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await context.Patients
@@ -82,6 +88,8 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
             .Where(p => p.AnonymisedAtUtc == null && p.LastUpdated <= changedBeforeUtc)
             .Where(p => !context.PatientProcedures.Any(pp =>
                 pp.PatientId == p.Id && (!closed.Contains(pp.Status) || pp.LastUpdated > changedBeforeUtc)))
+            // The audit trail outlives a deleted procedure, so it counts towards the conclusion of treatment too.
+            .Where(p => !context.PatientProcedureAuditEntries.Any(a => a.PatientId == p.Id && a.AtUtc > changedBeforeUtc))
             .Select(p => new RetentionCandidate(
                 p.Id,
                 p.FirstName,
@@ -90,10 +98,15 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
                 p.LastUpdated,
                 context.PatientProcedures.Where(pp => pp.PatientId == p.Id).Max(pp => (DateTime?)pp.LastUpdated),
                 p.RetentionKeptUntil,
-                p.RetentionKeptReason))
+                p.RetentionKeptReason,
+                context.PatientProcedureAuditEntries.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc)))
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Saves a patient read earlier (without tracking), and its activity entry. The row version read with it is the
+    /// concurrency check: if someone else saved the patient since, nothing is saved and it's a 409.
+    /// </summary>
     public async Task UpdateAsync(Patient patient, ActivityEntry activity, CancellationToken cancellationToken)
     {
         context.Patients.Update(patient);
@@ -102,14 +115,15 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     }
 
     /// <summary>
-    /// Saves, turning a clash on the NHS number's unique index (two saves racing past the handler's check) into the
-    /// same 409 the check gives.
+    /// Saves, turning a concurrency conflict (the row version changed since it was read) into its 409
+    /// (<see cref="ConcurrencyExtensions.SaveChangesOrConflictAsync"/>), and a clash on the NHS number's unique index
+    /// (two saves racing past the handler's check) into the same 409 the check gives.
     /// </summary>
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await context.SaveChangesAsync(cancellationToken);
+            await context.SaveChangesOrConflictAsync(cancellationToken);
         }
         catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 } sql
                                           && sql.Message.Contains(NhsNumberIndex, StringComparison.Ordinal))
@@ -132,6 +146,6 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
 
         context.Patients.Remove(patient);
         context.ActivityEntries.Add(activity);
-        await context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesOrConflictAsync(cancellationToken);
     }
 }

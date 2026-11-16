@@ -192,13 +192,35 @@ describe('AddPatientPage', () => {
 
 describe('EditPatientPage', () => {
   it.each([
-    ['restricted', {isRestricted: true}, "This patient's record is restricted, so it can't be changed until an admin lifts the restriction."],
-    ['anonymised', {isAnonymised: true}, "This patient's record has been anonymised, so it can't be changed."],
-  ])('says before anyone tries that a %s record cannot be changed', async (_, flags, message) => {
+    ['restricted', {isRestricted: true, restrictionReason: 'Synthetic accuracy check'}, /Restricted record: nothing about this patient/],
+    ['anonymised', {isAnonymised: true}, /This record has been anonymised/],
+  ])('says before anyone tries that a %s record cannot be changed, with its banner', async (_, flags, message) => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, ...flags})});
     renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
-    expect(await findAlert(message)).toBeInTheDocument();
+    expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
+  it("shows a dispute's banner, saying what the patient disputes", async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, isDisputed: true, disputeReason: 'Synthetic date of birth'})});
+    renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    expect(await screen.findByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();
+  });
+
+  it('says when someone else changed the record while it was being edited', async () => {
+    const changed = "Someone else changed this patient's record while you were working on it. Reload it to see their change, then try again.";
+    mockApi({
+      [`GET /api/patients/${id}`]: () => json(freya),
+      [`PATCH /api/patients/${id}`]: () => json({title: changed, status: 409}, 409),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {path: `/patients/${id}/edit`, user: adminUser});
+
+    await screen.findByLabelText(/^first name/i);
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await findAlert(changed);
   });
 
   it('saves changes after confirming, then shows the patient', async () => {

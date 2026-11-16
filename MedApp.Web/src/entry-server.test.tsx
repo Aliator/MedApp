@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {render, type RouterManifest} from './entry-server';
+import {insights, templates} from './test/insights';
 
 /**
  * Server rendering, end to end, as the Node server runs it (in Node, with no browser): the page's route guards and
@@ -33,11 +34,14 @@ function api(routes: Record<string, unknown>) {
   return requests;
 }
 
-const page = (path: string, cookie?: string) =>
+const page = (path: string, cookie?: string, cspNonce?: string) =>
   render(new Request(`http://medapp.test${path}`, {headers: cookie ? {cookie} : {}}), {
     manifest: MANIFEST,
-    context: {apiUrl: API, cookie, ssrKey: 'test-key'},
+    context: {apiUrl: API, cookie, ssrKey: 'test-key', cspNonce},
   });
+
+/** Every <script> tag in the page, opening tag only. */
+const scriptTags = (html: string) => [...html.matchAll(/<script\b[^>]*>/g)].map(([tag]) => tag);
 
 describe('server rendering', () => {
   it('renders the whole page, with the build’s stylesheets and scripts', async () => {
@@ -51,6 +55,31 @@ describe('server rendering', () => {
     expect(html).toContain('<link rel="stylesheet" href="/assets/app.css"');
     expect(html).toContain('<script type="module" src="/assets/app.js"');
     expect(html).toContain('Sign in');
+  });
+
+  it('puts the page’s nonce on every script it writes, and in the head for the browser’s router', async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/patients/search': {items: [patient], page: 1, pageSize: 10, totalCount: 1, totalPages: 1},
+    });
+
+    const html = await (await page('/patients', 'medapp_session=abc', 'dGVzdC1ub25jZS0xMjM0NQ==')).text();
+
+    const scripts = scriptTags(html);
+    // The router's hydration data is written inline, so the policy must allow it, by nonce.
+    expect(scripts.some((tag) => !tag.includes(' src='))).toBe(true);
+    expect(scripts.every((tag) => tag.includes('nonce="dGVzdC1ub25jZS0xMjM0NQ=="'))).toBe(true);
+    expect(html).toContain('<meta property="csp-nonce" content="dGVzdC1ub25jZS0xMjM0NQ=="');
+  });
+
+  it('writes no nonce when the page has none', async () => {
+    api({'/api/auth/whoami': {isAuthenticated: false}});
+
+    const html = await (await page('/login')).text();
+
+    expect(html).not.toContain('nonce');
   });
 
   it('sends someone signed out to sign in', async () => {
@@ -264,5 +293,24 @@ describe('server rendering', () => {
 
     expect(await at('large')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark" style="font-size:112.5%"/);
     expect(await at('standard')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark">/);
+  });
+
+  it("renders Insights for an admin with its numbers and summaries; its charts draw once it's in a browser", async () => {
+    api({
+      '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/procedures/insights': insights,
+      '/api/procedures/patient-procedure-stage/templates': templates,
+    });
+
+    const response = await page('/admin/insights', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Completed this week');
+    expect(html).toContain('5 procedures are overdue. k.ashford has the most (3). 2 have nobody assigned.');
+    expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
+    expect(html).not.toContain('recharts-surface');
   });
 });

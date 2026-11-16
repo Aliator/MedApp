@@ -54,5 +54,8 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
 
         builder.Property(x => x.RetentionKeptReason)
             .HasMaxLength(500);
+
+        builder.Property(x => x.RowVersion)
+            .IsRowVersion();
     }
 }

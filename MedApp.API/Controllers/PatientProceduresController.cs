@@ -10,6 +10,7 @@ using MedApp.Application.Procedures.PatientProcedures.Commands.UnlockProcedureSt
 using MedApp.Application.Procedures.PatientProcedures.Commands.UpdatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.UpdateProcedureStageNotes;
 using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedureById;
+using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedureLabels;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
@@ -56,6 +57,17 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     public async Task<IActionResult> GetPatientProcedureById(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPatientProcedureByIdQuery(id), ct));
 
+    /// <summary>
+    /// Procedures' titles and patients' names only, for the side nav's pins (at most 20). Not recorded in the activity
+    /// log: a pin's label isn't a view of the record. Procedures that no longer exist are left out.
+    /// </summary>
+    [HttpGet("labels")]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientProcedureLabelResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    public async Task<IActionResult> GetPatientProcedureLabels([FromQuery] List<Guid>? ids, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetPatientProcedureLabelsQuery(ids ?? []), ct));
+
     /// <summary>One page of procedures. By default sorted by due date, soonest first, without closed ones.</summary>
     [HttpGet("search")]
     [ProducesResponseType(typeof(PagedResponse<PatientProcedureSummaryResponse>), StatusCodes.Status200OK)]
@@ -83,7 +95,8 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
             request.Priorities,
             request.Title,
             request.TemplateName,
-            request.PatientName), ct));
+            request.PatientName,
+            request.NobodyAssigned), ct));
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientProcedureResponse), StatusCodes.Status200OK)]
