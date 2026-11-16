@@ -11,6 +11,7 @@ describe('KeyboardShortcuts', () => {
     await user.keyboard('?');
     const dialog = within(await waitFor(() => openDialog()!));
     expect(dialog.getByText('Go to Patients')).toBeInTheDocument();
+    expect(dialog.getByText('Save the form')).toBeInTheDocument();
     expect(dialog.queryByText('Go to Users')).not.toBeInTheDocument();
     unmount();
 

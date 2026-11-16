@@ -2,11 +2,15 @@ import {Field} from '@astryxdesign/core/Field';
 import {HStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useId, useState} from 'react';
-import {NO_STATUS_LINE} from './fieldSpace';
+import {NO_FIELD_STATUS_LINE, NO_STATUS_LINE} from './fieldSpace';
 
-/** Padded and rounded like a list row (and as wide as the list's rows), so its hover shade has room. */
+/**
+ * Padded and rounded like a list row (and as wide as the list's rows), so its hover shade has room. It keeps no empty
+ * line for a message: a warning, when there is one, takes its own room inside the padding.
+ */
 const ROW = {
   ...NO_STATUS_LINE,
+  ...NO_FIELD_STATUS_LINE,
   padding: 'var(--spacing-3)',
   borderRadius: 'var(--radius-element)',
   cursor: 'pointer',
@@ -20,13 +24,15 @@ export interface ColourFieldProps {
   value: string;
   /** Called as the colour is picked (while dragging too), so what it colours can follow at once. */
   onChange: (value: string) => void;
+  /** A warning under the colour, e.g. that text on it is hard to read. Screen readers say it as it appears. */
+  warning?: string;
 }
 
 /**
  * Picks a colour, with its hex value beside it. Astryx has no colour picker, so this is the browser's own colour
  * input inside an Astryx Field (its label and description), as Field expects of a custom control.
  */
-export function ColourField({label, description, value, onChange}: ColourFieldProps) {
+export function ColourField({label, description, value, onChange, warning}: ColourFieldProps) {
   const id = useId();
   const [isHovered, setIsHovered] = useState(false);
   return (
@@ -35,6 +41,7 @@ export function ColourField({label, description, value, onChange}: ColourFieldPr
       label={label}
       description={description}
       inputID={id}
+      status={warning ? {type: 'warning', message: warning} : undefined}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{...ROW, ...(isHovered ? HOVERED : undefined)}}>
