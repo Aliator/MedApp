@@ -23,10 +23,18 @@ public interface IAppointmentRepository
     /// <summary>An appointment with its patient, procedure and stage, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
     Task<Appointment?> GetForUpdateAsync(Guid id, CancellationToken ct);
 
-    /// <summary>Adds a new appointment and its history entries.</summary>
+    /// <summary>
+    /// Adds a new appointment and its history entries. Throws <see cref="Common.StageHasOpenAppointmentException"/>
+    /// if its stage already has an open one (the database's unique index: another request added it after this one's
+    /// check).
+    /// </summary>
     Task AddAsync(Appointment appointment, IEnumerable<AppointmentEvent> events, CancellationToken ct);
 
-    /// <summary>Saves changes to appointments loaded with <see cref="GetForUpdateAsync"/>, with their history entries.</summary>
+    /// <summary>
+    /// Saves changes to appointments loaded with <see cref="GetForUpdateAsync"/>, with their history entries. If
+    /// someone else saved one of them since it was loaded (its row version changed), nothing is saved and it's a 409
+    /// (<see cref="Common.AppointmentWorkflow.ChangedMeanwhileMessage"/>).
+    /// </summary>
     Task SaveAsync(IEnumerable<AppointmentEvent> events, CancellationToken ct);
 
     /// <summary>The stage's Requested or Booked appointment, if it has one, read-only.</summary>

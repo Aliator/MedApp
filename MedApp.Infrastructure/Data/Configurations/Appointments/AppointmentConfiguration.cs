@@ -1,3 +1,4 @@
+using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -29,6 +30,11 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
         builder.Property(x => x.LastUpdated)
             .IsRequired();
 
+        // Two people changing one appointment at once: the later save is refused (409) instead of overwriting the
+        // earlier one (ConcurrencyExtensions.SaveChangesOrConflictAsync).
+        builder.Property(x => x.RowVersion)
+            .IsRowVersion();
+
         // A patient with appointments can't be deleted (DeletePatientHandler), so no cascade.
         builder.HasOne(x => x.Patient)
             .WithMany()
@@ -55,5 +61,17 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
         builder.HasIndex(x => x.PatientId);
         builder.HasIndex(x => x.ProcedureId);
         builder.HasIndex(x => x.StageId);
+        // One open (Requested or Booked) appointment per stage: checked in CreateAppointmentHandler, and enforced here
+        // too, so two requests at once can't both add one. A violation is recognised by the index's name
+        // (AppointmentRepository). The filter's numbers are AppointmentWorkflow.OpenStatuses.
+        builder.HasIndex(x => x.StageId, OpenPerStageIndex)
+            .IsUnique()
+            .HasFilter(OpenPerStageFilter);
     }
+
+    /// <summary>The unique index that allows one open appointment per stage.</summary>
+    public const string OpenPerStageIndex = "IX_Appointments_StageId_Open";
+
+    private static readonly string OpenPerStageFilter =
+        $"[StageId] IS NOT NULL AND [Status] IN ({string.Join(", ", AppointmentWorkflow.OpenStatuses.Select(s => (int)s))})";
 }

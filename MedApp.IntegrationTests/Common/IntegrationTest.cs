@@ -430,14 +430,26 @@ public abstract class IntegrationTest
         return await response.ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
     }
 
-    /// <summary>Books a Requested appointment, or moves a Booked one: the response, whatever it is.</summary>
-    protected static Task<HttpResponseMessage> PostBookAsync(HttpClient client, Guid appointmentId, Guid staffUserId, DateTime startUtc, int minutes = AppointmentMinutes) =>
+    /// <summary>Books a Requested appointment (as the caller saw it): the response, whatever it is.</summary>
+    protected static Task<HttpResponseMessage> PostBookAsync(
+        HttpClient client,
+        Guid appointmentId,
+        Guid staffUserId,
+        DateTime startUtc,
+        int minutes = AppointmentMinutes,
+        string expectedStatus = "Requested") =>
         client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/book", new BookAppointmentRequest
         {
             StaffUserId = staffUserId,
             StartUtc = startUtc,
             EndUtc = startUtc.AddMinutes(minutes),
+            ExpectedStatus = expectedStatus,
         });
+
+    /// <summary>Moves a Booked appointment (as the caller saw it) to another time or member of staff: the response, whatever it is.</summary>
+    protected static Task<HttpResponseMessage> PostRescheduleAsync(
+        HttpClient client, Guid appointmentId, Guid staffUserId, DateTime startUtc, int minutes = AppointmentMinutes) =>
+        PostBookAsync(client, appointmentId, staffUserId, startUtc, minutes, "Booked");
 
     protected static Task<HttpResponseMessage> PostOutcomeAsync(HttpClient client, Guid appointmentId, string outcome) =>
         client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/outcome", new RecordAppointmentOutcomeRequest { Outcome = outcome });

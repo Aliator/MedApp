@@ -5,6 +5,7 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
+using MedApp.Application.Procedures.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -28,8 +29,13 @@ public sealed class BookAppointmentHandler(
         var end = UkTime.Utc(request.EndUtc);
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
+        var expected = ProcedureEnums.Parse<AppointmentStatus>(request.ExpectedStatus);
+
         // Loaded, checked and saved holding the new member of staff's calendar lock, so two bookings can't race for a
-        // slot. Moving it off someone's calendar can't make a clash there.
+        // slot. Moving it off someone's calendar can't make a clash there. The lock is the member of staff's, not the
+        // appointment's: two requests booking one appointment with different people don't wait for each other. The
+        // expected status refuses a stale request that comes second, and the appointment's row version refuses the
+        // later save of two that overlap (both 409), so neither silently overwrites the other.
         var result = await calendarLock.RunAsync([request.StaffUserId], async ct =>
         {
             var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, ct);
@@ -37,6 +43,12 @@ public sealed class BookAppointmentHandler(
             if (!AppointmentWorkflow.CanBook(appointment) && !AppointmentWorkflow.CanReschedule(appointment))
                 throw new ConflictException(
                     $"An appointment that's {AppointmentWorkflow.Describe(appointment.Status)} can't be booked or moved.");
+
+            // The caller meant to book it, and someone else has (or the reverse): don't book over them or move theirs.
+            if (appointment.Status != expected)
+                throw new ConflictException(expected == AppointmentStatus.Requested
+                    ? AppointmentWorkflow.BookedMeanwhileMessage
+                    : AppointmentWorkflow.ChangedMeanwhileMessage);
 
             var before = new Before(appointment.Status, appointment.StaffUserId, appointment.StartUtc);
 

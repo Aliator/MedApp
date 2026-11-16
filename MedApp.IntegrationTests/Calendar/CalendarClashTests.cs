@@ -154,12 +154,12 @@ public sealed class CalendarClashTests : IntegrationTest
         var appointment = await BookNewAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10));
         await CreateBlockAsync(_staff.Client, _staff.UserId, UkAt(_day, 14), UkAt(_day, 15));
 
-        await (await PostBookAsync(_staff.Client, appointment.Id, _staff.UserId, UkAt(_day, 14, 30)))
+        await (await PostRescheduleAsync(_staff.Client, appointment.Id, _staff.UserId, UkAt(_day, 14, 30)))
             .ShouldHaveStatusAsync(HttpStatusCode.Conflict);
 
         (await GetAppointmentAsync(_staff.Client, appointment.Id)).StartUtc.Should().Be(UkAt(_day, 10));
         // Moving it later by a quarter of an hour overlaps only itself.
-        var moved = await (await PostBookAsync(_staff.Client, appointment.Id, _staff.UserId, UkAt(_day, 10, 15)))
+        var moved = await (await PostRescheduleAsync(_staff.Client, appointment.Id, _staff.UserId, UkAt(_day, 10, 15)))
             .ReadAsAsync<AppointmentResponse>();
         moved.StartUtc.Should().Be(UkAt(_day, 10, 15));
     }

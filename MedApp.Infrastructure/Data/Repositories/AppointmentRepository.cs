@@ -1,9 +1,11 @@
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Procedures.Timeline.Common;
 using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
 using MedApp.Domain.Appointments;
+using MedApp.Infrastructure.Data.Configurations.Appointments;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -23,16 +25,36 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
 
     public async Task AddAsync(Appointment appointment, IEnumerable<AppointmentEvent> events, CancellationToken ct)
     {
+        var history = events.ToList();
         context.Appointments.Add(appointment);
-        context.AppointmentEvents.AddRange(events);
-        await context.SaveChangesAsync(ct);
+        context.AppointmentEvents.AddRange(history);
+        try
+        {
+            await SaveAsync(ct);
+        }
+        catch (DbUpdateException e) when (appointment.StageId is { } stageId
+                                          && e.IsViolationOf(AppointmentConfiguration.OpenPerStageIndex))
+        {
+            // Another request gave the stage its open appointment first. Forget this one, so nothing saves it later.
+            context.Entry(appointment).State = EntityState.Detached;
+            foreach (var entry in history)
+                context.Entry(entry).State = EntityState.Detached;
+            throw new StageHasOpenAppointmentException(stageId);
+        }
     }
 
     public async Task SaveAsync(IEnumerable<AppointmentEvent> events, CancellationToken ct)
     {
         context.AppointmentEvents.AddRange(events);
-        await context.SaveChangesAsync(ct);
+        await SaveAsync(ct);
     }
+
+    /// <summary>
+    /// Saves, refusing (409) a change to an appointment someone else saved since it was read (its row version), so
+    /// two people changing one appointment at once can't silently overwrite each other.
+    /// </summary>
+    private Task SaveAsync(CancellationToken ct) =>
+        context.SaveChangesOrConflictAsync(AppointmentWorkflow.ChangedMeanwhileMessage, ct);
 
     public async Task<Appointment?> GetOpenForStageAsync(Guid stageId, CancellationToken ct) =>
         await context.Appointments

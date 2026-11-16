@@ -7,7 +7,6 @@ using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -138,8 +137,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         {
             await context.SaveChangesOrConflictAsync(cancellationToken);
         }
-        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 } sql
-                                          && sql.Message.Contains(NhsNumberIndex, StringComparison.Ordinal))
+        catch (DbUpdateException e) when (e.IsViolationOf(NhsNumberIndex))
         {
             throw new ConflictException(NhsNumberRules.InUse);
         }

@@ -15,6 +15,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useMemo, useRef, useState, type ReactNode, type RefObject} from 'react';
 import {
   APPOINTMENT_LENGTHS,
+  appointmentKeys,
   DEFAULT_APPOINTMENT_LENGTH,
   useAppointmentActions,
   useCreateAppointment,
@@ -225,9 +226,11 @@ function BookingForm({
     }
     setProblem({validation: null, message: problemMessage(error, 'The appointment could not be saved. Please try again.')});
     if (error instanceof ApiError && error.status === 409) {
-      // Someone took the time: show what's free now.
+      // Someone took the time, or booked or changed this appointment first (the server's message says which): show
+      // what's free now, and refresh the lists the appointment is in, so they show it as it is.
       setChosenStart(undefined);
       void queryClient.invalidateQueries({queryKey: calendarKeys.all});
+      void queryClient.invalidateQueries({queryKey: appointmentKeys.all});
     }
   };
 
@@ -242,8 +245,10 @@ function BookingForm({
     setProblem(NO_PROBLEM);
     const time = {staffUserId: staffId, startUtc: start, endUtc: end};
     if (appointment) {
+      // Says what this is, by the status the page showed: booking a Requested one, or moving a Booked one. If someone
+      // else has booked or changed it since, the API refuses (409) rather than book over them or move theirs.
       book.mutate(
-        {id: appointment.id ?? '', ...time},
+        {id: appointment.id ?? '', ...time, expectedStatus: appointment.status},
         {onSuccess: (saved) => succeed(saved, isRescheduling ? 'Appointment rescheduled' : 'Appointment booked'), onError: fail},
       );
     } else {

@@ -17,6 +17,8 @@ namespace MedApp.UnitTests.Application.Appointments.Commands.BookAppointment;
 [TestFixture]
 public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
 {
+    private const string Requested = nameof(AppointmentStatus.Requested);
+
     private BookAppointmentHandler _handler = null!;
 
     [SetUp]
@@ -27,10 +29,18 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
         Guid? staffUserId = null,
         DateTime? startUtc = null,
         int minutes = 30,
-        ProcedureActor? by = null)
+        ProcedureActor? by = null,
+        AppointmentStatus? expected = null)
     {
         var start = startUtc ?? At(NextMonday, 14);
-        return new BookAppointmentCommand(appointment.Id, staffUserId ?? StaffUserId, start, start.AddMinutes(minutes), by ?? Colleague);
+        // By default the caller saw the appointment as it is: booking a Requested one, moving a Booked one.
+        return new BookAppointmentCommand(
+            appointment.Id,
+            staffUserId ?? StaffUserId,
+            start,
+            start.AddMinutes(minutes),
+            (expected ?? appointment.Status).ToString(),
+            by ?? Colleague);
     }
 
     [Test]
@@ -48,7 +58,7 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
     public async Task Handle_AppointmentDoesNotExist_ThrowsNotFound()
     {
         var act = () => _handler.Handle(
-            new BookAppointmentCommand(Guid.NewGuid(), StaffUserId, At(NextMonday, 14), At(NextMonday, 15), Colleague),
+            new BookAppointmentCommand(Guid.NewGuid(), StaffUserId, At(NextMonday, 14), At(NextMonday, 15), Requested, Colleague),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
@@ -67,6 +77,74 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
         await act.Should().ThrowAsync<ConflictException>()
             .WithMessage($"An appointment that's {described} can't be booked or moved.");
         SaveTokens.Should().BeEmpty();
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ToBookButSomeoneElseBookedItFirst_ThrowsConflictWithoutMovingTheirBooking()
+    {
+        // Ana booked it at 10:00 with the member of staff; Ben's list still showed it as needing booking.
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10)));
+
+        var act = () => _handler.Handle(
+            Command(appointment, startUtc: At(NextMonday, 15), expected: AppointmentStatus.Requested),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(AppointmentWorkflow.BookedMeanwhileMessage);
+        appointment.StartUtc.Should().Be(At(NextMonday, 10));
+        appointment.StaffUserId.Should().Be(StaffUserId);
+        SaveTokens.Should().BeEmpty();
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ToBookButSomeoneElseBookedItWithAnotherStaffMember_ThrowsConflict()
+    {
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10)));
+
+        var act = () => _handler.Handle(
+            Command(appointment, staffUserId: OtherStaffUserId, expected: AppointmentStatus.Requested),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(AppointmentWorkflow.BookedMeanwhileMessage);
+        appointment.StaffUserId.Should().Be(StaffUserId);
+        SaveTokens.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ToMoveButItIsNotBooked_ThrowsConflict()
+    {
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested));
+
+        var act = () => _handler.Handle(Command(appointment, expected: AppointmentStatus.Booked), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(AppointmentWorkflow.ChangedMeanwhileMessage);
+        appointment.Status.Should().Be(AppointmentStatus.Requested);
+        SaveTokens.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ExpectedStatusInAnyCase_Books()
+    {
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested));
+
+        await _handler.Handle(Command(appointment) with { ExpectedStatus = "requested" }, CancellationToken.None);
+
+        appointment.Status.Should().Be(AppointmentStatus.Booked);
+    }
+
+    [Test]
+    public async Task Handle_SomeoneElseSavedItMeanwhile_PassesTheConflictOnAndNotifiesNobody()
+    {
+        // The row version: another request saved the appointment after this one loaded it.
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested));
+        Repository
+            .Setup(r => r.SaveAsync(It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ConflictException(AppointmentWorkflow.ChangedMeanwhileMessage));
+
+        var act = () => _handler.Handle(Command(appointment), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(AppointmentWorkflow.ChangedMeanwhileMessage);
         Sent.Should().BeEmpty();
     }
 
@@ -250,7 +328,7 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
         var start = DateTime.SpecifyKind(At(NextMonday, 14), DateTimeKind.Unspecified);
 
         await _handler.Handle(
-            new BookAppointmentCommand(appointment.Id, StaffUserId, start, start.AddMinutes(30), Colleague),
+            new BookAppointmentCommand(appointment.Id, StaffUserId, start, start.AddMinutes(30), Requested, Colleague),
             CancellationToken.None);
 
         appointment.StartUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);

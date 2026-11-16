@@ -7889,6 +7889,7 @@ export interface components {
             startUtc?: string;
             /** Format: date-time */
             endUtc?: string;
+            expectedStatus?: string | null;
         };
         CalendarBlockResponse: {
             /** Format: uuid */

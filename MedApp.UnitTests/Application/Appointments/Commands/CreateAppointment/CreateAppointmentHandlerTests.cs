@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -107,7 +108,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_StageAlreadyHasAnOpenVisit_ThrowsConflict()
+    public async Task Handle_StageAlreadyHasAVisitInNeedsBooking_ThrowsConflictPointingToIt()
     {
         var procedure = GivenProcedure();
         var stageId = procedure.StageAt(1).Id;
@@ -117,8 +118,83 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
 
         var act = () => _handler.Handle(Request(procedure.Id, stageId), cts.Token);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage(CreateAppointmentHandler.StageHasOpenVisit);
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This stage already has a visit in Needs booking. Book that one instead.");
         Added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_StageAlreadyHasABookedVisit_ThrowsConflictSayingWhenAndWithWhom()
+    {
+        var procedure = GivenProcedure();
+        var stageId = procedure.StageAt(1).Id;
+        using var cts = new CancellationTokenSource();
+        Repository.Setup(r => r.GetOpenForStageAsync(stageId, cts.Token))
+            .ReturnsAsync(CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 11), stageId: stageId));
+
+        var act = () => _handler.Handle(Booking(procedure.Id, stageId), cts.Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(
+            $"This stage already has a visit booked, on Monday 23 November at 11:00 with {StaffUsername}. Reschedule or cancel that one instead.");
+        Identity.Verify(i => i.GetUsernamesByIdAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == StaffUserId), cts.Token), Times.Once);
+        Lock.Locked.Should().BeEmpty();
+        Added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AnotherRequestAddsAVisitForTheStageFirst_ThrowsTheSameConflictPointingToIt()
+    {
+        // Both passed the check; the database's unique index refused this one's save.
+        var procedure = GivenProcedure();
+        var stageId = procedure.StageAt(1).Id;
+        var theirs = CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested, stageId: stageId);
+        using var cts = new CancellationTokenSource();
+        Repository.SetupSequence(r => r.GetOpenForStageAsync(stageId, cts.Token))
+            .ReturnsAsync((Appointment?)null)
+            .ReturnsAsync(theirs);
+        Repository
+            .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StageHasOpenAppointmentException(stageId));
+
+        var act = () => _handler.Handle(Request(procedure.Id, stageId), cts.Token);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This stage already has a visit in Needs booking. Book that one instead.");
+        Repository.Verify(r => r.GetOpenForStageAsync(stageId, cts.Token), Times.Exactly(2));
+    }
+
+    [Test]
+    public async Task Handle_BookingLosesTheRaceForTheStage_ThrowsTheConflictAndNotifiesNobody()
+    {
+        var procedure = GivenProcedure();
+        var stageId = procedure.StageAt(1).Id;
+        var theirs = CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 11), stageId: stageId);
+        Repository.SetupSequence(r => r.GetOpenForStageAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Appointment?)null)
+            .ReturnsAsync(theirs);
+        Repository
+            .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StageHasOpenAppointmentException(stageId));
+
+        var act = () => _handler.Handle(Booking(procedure.Id, stageId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This stage already has a visit booked, on Monday 23 November at 11:00*");
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_TheVisitThatWonTheRaceIsClosedByTheTimeItIsLookedFor_ThrowsAConflictSayingToTryAgain()
+    {
+        var procedure = GivenProcedure();
+        var stageId = procedure.StageAt(1).Id;
+        Repository
+            .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StageHasOpenAppointmentException(stageId));
+
+        var act = () => _handler.Handle(Request(procedure.Id, stageId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This stage already has a visit requested or booked. Reload it and try again.");
     }
 
     [Test]

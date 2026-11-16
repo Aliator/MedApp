@@ -53,4 +53,10 @@ public sealed class Appointment
     public Guid? OutcomeByUserId { get; set; }
 
     public DateTime LastUpdated { get; set; }
+
+    /// <summary>
+    /// The database's row version, a concurrency token: a save made from a copy read before someone else saved the
+    /// appointment is refused (409), so two people changing it at once can't silently overwrite each other.
+    /// </summary>
+    public byte[] RowVersion { get; set; } = [];
 }

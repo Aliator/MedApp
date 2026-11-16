@@ -121,6 +121,12 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid?>("ProcedureId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<Guid?>("StaffUserId")
                         .HasColumnType("uniqueidentifier");
 
@@ -144,6 +150,10 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("StaffUserId", "StartUtc");
 
                     b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex(new[] { "StageId" }, "IX_Appointments_StageId_Open")
+                        .IsUnique()
+                        .HasFilter("[StageId] IS NOT NULL AND [Status] IN (0, 1)");
 
                     b.ToTable("Appointments", (string)null);
                 });

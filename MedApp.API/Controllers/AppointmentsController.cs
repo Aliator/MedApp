@@ -84,6 +84,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.StaffUserId,
             request.StartUtc,
             request.EndUtc,
+            request.ExpectedStatus,
             User.ToProcedureActor()), ct));
 
     /// <summary>Records Attended or DidNotAttend, once the appointment has started (or corrects it).</summary>

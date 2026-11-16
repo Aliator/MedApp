@@ -192,8 +192,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   };
 
   const confirmMove = (move: PendingMove) => {
+    // A move of the appointment as the calendar showed it (Booked): if someone else changed it since, it's a 409.
     appointmentActions.book.mutate(
-      {id: move.appointment.id ?? '', staffUserId, startUtc: move.to.startUtc, endUtc: move.to.endUtc},
+      {id: move.appointment.id ?? '', staffUserId, startUtc: move.to.startUtc, endUtc: move.to.endUtc, expectedStatus: move.appointment.status},
       {
         onSuccess: () => {
           announce('Appointment moved');

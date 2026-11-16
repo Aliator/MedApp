@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
 using static MedApp.Domain.Appointments.AppointmentStatus;
 
@@ -57,6 +58,36 @@ public static partial class AppointmentWorkflow
             ? null
             : "Whether the patient attended can be recorded once the appointment has started.";
     }
+
+    /// <summary>A save refused because someone else saved the appointment first (its row version changed).</summary>
+    public const string ChangedMeanwhileMessage =
+        "Someone else changed this appointment just now. Reload it and try again.";
+
+    /// <summary>A procedure change refused because someone else saved one of its appointments first.</summary>
+    public const string ProcedureAppointmentChangedMeanwhileMessage =
+        "Someone else changed one of this procedure's appointments just now. Reload the procedure and try again.";
+
+    /// <summary>A booking of a Requested appointment that someone else booked first.</summary>
+    public const string BookedMeanwhileMessage =
+        "Someone else has already booked this appointment. Reload it to see when; reschedule it from there if it needs to move.";
+
+    /// <summary>A procedure change whose new visit lost a race with another one for the same stage.</summary>
+    public const string StageVisitAddedMeanwhileMessage =
+        "Someone else asked for a visit for this stage just now. Reload the procedure and try again.";
+
+    /// <summary>
+    /// Why a stage can't have another open appointment, pointing to the one it has (decision 18): when and with whom
+    /// it's booked, or that it's in Needs booking. <paramref name="open"/> is null if it was closed meanwhile.
+    /// </summary>
+    public static string StageHasOpenVisit(Appointment? open, string? staffUsername) => open switch
+    {
+        { Status: Booked, StartUtc: { } start } =>
+            $"This stage already has a visit booked, on {UkTime.Describe(start)}{(staffUsername is null ? "" : $" with {staffUsername}")}. " +
+            "Reschedule or cancel that one instead.",
+        { Status: Requested } =>
+            "This stage already has a visit in Needs booking. Book that one instead.",
+        _ => "This stage already has a visit requested or booked. Reload it and try again."
+    };
 
     /// <summary>A status in words, e.g. "did not attend".</summary>
     public static string Describe(AppointmentStatus status) =>

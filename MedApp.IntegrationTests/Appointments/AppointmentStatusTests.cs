@@ -73,7 +73,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         corrected.Should().BeEquivalentTo(new { Status = "DidNotAttend", OutcomeByUsername = _staff.Username });
 
         // A past appointment can't be moved.
-        await (await PostBookAsync(_staff.Client, requested.Id, _staff.UserId, NextBookableStart())).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await PostRescheduleAsync(_staff.Client, requested.Id, _staff.UserId, NextBookableStart())).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
 
     [Test]
@@ -103,7 +103,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         var cancelled = await (await PostCancelAsync(_staff.Client, appointment.Id, CancelReason)).ReadAsAsync<AppointmentResponse>();
         cancelled.Should().BeEquivalentTo(new { Status = "Cancelled", CancelReason, CanBook = false, CanCancel = false });
 
-        await (await PostBookAsync(_staff.Client, appointment.Id, _staff.UserId, NextBookableStart().AddHours(1)))
+        await (await PostRescheduleAsync(_staff.Client, appointment.Id, _staff.UserId, NextBookableStart().AddHours(1)))
             .ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         await (await PostCancelAsync(_staff.Client, appointment.Id, CancelReason)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         await (await PostOutcomeAsync(_staff.Client, appointment.Id, "Attended")).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
@@ -205,7 +205,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         var appointment = await BookNewAppointmentAsync(_admin, _patient.Id, _staff.UserId, start);
         (await NotificationsOfAsync(_staff.Client)).Items.Select(n => n.Kind).Should().Equal("AppointmentBooked");
 
-        await (await PostBookAsync(_admin, appointment.Id, _staff.UserId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await PostRescheduleAsync(_admin, appointment.Id, _staff.UserId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var afterMove = await NotificationsOfAsync(_staff.Client);
         afterMove.Items.Select(n => n.Kind).Should().Equal("AppointmentRescheduled", "AppointmentBooked");
@@ -219,7 +219,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         afterMove.Items.Should().AllSatisfy(n => n.Message.Should().NotContain(_patient.LastName));
 
         // Their own move: nothing new.
-        await (await PostBookAsync(_staff.Client, appointment.Id, _staff.UserId, start.AddHours(2))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await PostRescheduleAsync(_staff.Client, appointment.Id, _staff.UserId, start.AddHours(2))).ShouldHaveStatusAsync(HttpStatusCode.OK);
         (await NotificationsOfAsync(_staff.Client)).Items.Should().HaveCount(2);
         (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
     }
@@ -231,7 +231,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         var appointment = await BookNewAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, NextBookableStart());
         (await NotificationsOfAsync(_staff.Client)).Items.Should().BeEmpty();
 
-        await (await PostBookAsync(_admin, appointment.Id, other.UserId, NextBookableStart())).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await PostRescheduleAsync(_admin, appointment.Id, other.UserId, NextBookableStart())).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await PostCancelAsync(_admin, appointment.Id, CancelReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(_staff.Client)).Items.Select(n => n.Kind).Should().Equal("AppointmentCancelled");

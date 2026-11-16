@@ -110,7 +110,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await staff.Client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest { PatientId = patient.Id }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await PostBookAsync(staff.Client, booked.Id, staff.UserId, NextBookableStart().AddHours(3)))
+        (await PostRescheduleAsync(staff.Client, booked.Id, staff.UserId, NextBookableStart().AddHours(3)))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await staff.Client.PutAsJsonAsync($"{AppointmentUrl(booked.Id)}/notes", new UpdateAppointmentNotesRequest { Notes = "Changed" }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -336,7 +336,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
         // Booked with the staff member, then moved to the admin: the history keeps who it was with before.
         var start = NextBookableStart();
         var appointment = await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, start, procedureId: procedure.Id);
-        await (await PostBookAsync(_admin, appointment.Id, adminId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await PostRescheduleAsync(_admin, appointment.Id, adminId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var response = await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export");
         var json = await (await response.ShouldHaveStatusAsync(HttpStatusCode.OK)).Content.ReadAsStringAsync();

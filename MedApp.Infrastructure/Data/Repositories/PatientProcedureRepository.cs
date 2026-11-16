@@ -1,8 +1,11 @@
+using MedApp.Application.Appointments.Common;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Infrastructure.Data.Configurations.Appointments;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -19,14 +22,14 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
     {
         context.PatientProcedures.Add(procedure);
         context.PatientProcedureAuditEntries.AddRange(audit);
-        await context.SaveChangesAsync(ct);
+        await SaveChangesAsync(ct);
     }
 
     public async Task AddAsync(ProcedureChange change, CancellationToken ct)
     {
         context.PatientProcedures.Add(change.Procedure);
         AddChange(change);
-        await context.SaveChangesAsync(ct);
+        await SaveChangesAsync(ct);
     }
 
     public async Task<PatientProcedure?> GetByIdAsync(Guid id, CancellationToken ct) =>
@@ -48,13 +51,13 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
     public async Task SaveAsync(IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken ct)
     {
         context.PatientProcedureAuditEntries.AddRange(audit);
-        await context.SaveChangesAsync(ct);
+        await SaveChangesAsync(ct);
     }
 
     public async Task SaveAsync(ProcedureChange change, CancellationToken ct)
     {
         AddChange(change);
-        await context.SaveChangesAsync(ct);
+        await SaveChangesAsync(ct);
     }
 
     public async Task DeleteAsync(PatientProcedure procedure, IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken ct)
@@ -75,7 +78,7 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
         // Stages and assignments cascade; the audit entries have no foreign key, so they stay.
         context.PatientProcedures.Remove(procedure);
         context.PatientProcedureAuditEntries.AddRange(audit);
-        await context.SaveChangesAsync(ct);
+        await SaveChangesAsync(ct);
     }
 
     public async Task<PagedResult<PatientProcedure>> SearchAsync(SearchPatientProceduresQuery query, DateTime nowUtc, CancellationToken ct)
@@ -110,6 +113,24 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
         context.PatientProcedureAuditEntries.AddRange(change.AuditEntries);
         context.Appointments.AddRange(change.NewAppointments);
         context.AppointmentEvents.AddRange(change.AppointmentEvents);
+    }
+
+    /// <summary>
+    /// Saves. A procedure change can change its appointments too (cancelling a Requested visit, detaching them) or
+    /// ask for one, so: if someone else saved one of those appointments since it was loaded (its row version), or gave
+    /// the stage its open visit first (the one-open-per-stage index), nothing is saved and it's a 409. Trying again
+    /// starts from the appointments as they now are.
+    /// </summary>
+    private async Task SaveChangesAsync(CancellationToken ct)
+    {
+        try
+        {
+            await context.SaveChangesOrConflictAsync(AppointmentWorkflow.ProcedureAppointmentChangedMeanwhileMessage, ct);
+        }
+        catch (DbUpdateException e) when (e.IsViolationOf(AppointmentConfiguration.OpenPerStageIndex))
+        {
+            throw new ConflictException(AppointmentWorkflow.StageVisitAddedMeanwhileMessage);
+        }
     }
 
     private static IQueryable<PatientProcedure> WithDetails(IQueryable<PatientProcedure> procedures) =>

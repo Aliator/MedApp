@@ -8,4 +8,11 @@ public sealed class BookAppointmentRequest
     public DateTime StartUtc { get; set; }
 
     public DateTime EndUtc { get; set; }
+
+    /// <summary>
+    /// What the caller is doing, by the status it last saw: "Requested" to book it, "Booked" to move it. If the
+    /// appointment isn't in that status any more (someone else booked or changed it meanwhile), it's a 409, so a stale
+    /// "book" can't quietly move someone else's booking.
+    /// </summary>
+    public string ExpectedStatus { get; set; } = string.Empty;
 }

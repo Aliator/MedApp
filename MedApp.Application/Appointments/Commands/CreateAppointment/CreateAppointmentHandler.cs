@@ -27,8 +27,6 @@ public sealed class CreateAppointmentHandler(
     TimeProvider timeProvider)
     : IRequestHandler<CreateAppointmentCommand, AppointmentResponse>
 {
-    public const string StageHasOpenVisit = "This stage already has a visit requested or booked.";
-
     public async Task<AppointmentResponse> Handle(CreateAppointmentCommand request, CancellationToken cancellationToken)
     {
         var patient = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken)
@@ -55,13 +53,39 @@ public sealed class CreateAppointmentHandler(
                     throw new ConflictException(
                         $"A visit can't be booked for a stage of a procedure that's {ProcedureWorkflow.Describe(procedure.Status)}.");
 
-                // One open appointment per stage.
-                if (await repository.GetOpenForStageAsync(stageId, cancellationToken) is not null)
-                    throw new ConflictException(StageHasOpenVisit);
+                // One open appointment per stage (decision 18). The database enforces it too, for two requests at once.
+                if (await repository.GetOpenForStageAsync(stageId, cancellationToken) is { } open)
+                    throw await StageHasOpenVisitAsync(open, cancellationToken);
             }
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        Appointment appointment;
+
+        try
+        {
+            appointment = await AddAsync(request, procedure, stage, now, cancellationToken);
+        }
+        catch (StageHasOpenAppointmentException e)
+        {
+            // Another request gave the stage its open appointment after the check above: the same 409, pointing to it.
+            throw await StageHasOpenVisitAsync(
+                await repository.GetOpenForStageAsync(e.StageId, cancellationToken), cancellationToken);
+        }
+
+        // Read back with its patient, procedure and stage, for the response.
+        var saved = await repository.GetByIdAsync(appointment.Id, cancellationToken) ?? appointment;
+        return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken);
+    }
+
+    /// <summary>Adds the appointment: booked (under the member of staff's calendar lock) or Requested.</summary>
+    private async Task<Appointment> AddAsync(
+        CreateAppointmentCommand request,
+        PatientProcedure? procedure,
+        PatientProcedureStage? stage,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
         Appointment appointment;
 
         if (request.IsBooking)
@@ -98,9 +122,14 @@ public sealed class CreateAppointmentHandler(
             await repository.AddAsync(appointment, change.Events, cancellationToken);
         }
 
-        // Read back with its patient, procedure and stage, for the response.
-        var saved = await repository.GetByIdAsync(appointment.Id, cancellationToken) ?? appointment;
-        return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken);
+        return appointment;
+    }
+
+    /// <summary>The 409 for a stage that already has an open appointment, saying when and with whom (or that it's in Needs booking).</summary>
+    private async Task<ConflictException> StageHasOpenVisitAsync(Appointment? open, CancellationToken cancellationToken)
+    {
+        var staffUsername = open is null ? null : await identityReadService.GetStaffUsernameAsync(open, cancellationToken);
+        return new ConflictException(AppointmentWorkflow.StageHasOpenVisit(open, staffUsername));
     }
 
     private static Appointment New(CreateAppointmentCommand request, DateTime nowUtc) => new()

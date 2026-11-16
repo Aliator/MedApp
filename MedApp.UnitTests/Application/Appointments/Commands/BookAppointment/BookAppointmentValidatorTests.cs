@@ -14,7 +14,7 @@ public sealed class BookAppointmentValidatorTests
     private readonly BookAppointmentValidator _validator = new(new FixedTimeProvider(Now));
 
     private static BookAppointmentCommand Valid() =>
-        new(Guid.NewGuid(), StaffUserId, At(NextMonday, 10), At(NextMonday, 10, 30), Colleague);
+        new(Guid.NewGuid(), StaffUserId, At(NextMonday, 10), At(NextMonday, 10, 30), "Requested", Colleague);
 
     private IEnumerable<string> Errors(BookAppointmentCommand command) =>
         _validator.Validate(command).Errors.Select(e => e.ErrorMessage);
@@ -35,6 +35,26 @@ public sealed class BookAppointmentValidatorTests
     public void Validate_NoStaffMember_Fails()
     {
         Errors(Valid() with { StaffUserId = Guid.Empty }).Should().Equal("Member of staff is required.");
+    }
+
+    [TestCase("Requested")]
+    [TestCase("Booked")]
+    [TestCase("booked")]
+    public void Validate_ExpectedStatusOpen_Passes(string expected)
+    {
+        _validator.Validate(Valid() with { ExpectedStatus = expected }).IsValid.Should().BeTrue();
+    }
+
+    [TestCase("")]
+    [TestCase(" ")]
+    [TestCase(null)]
+    [TestCase("Attended")]
+    [TestCase("Cancelled")]
+    [TestCase("1")]
+    [TestCase("Rescheduled")]
+    public void Validate_ExpectedStatusNotRequestedOrBooked_Fails(string? expected)
+    {
+        Errors(Valid() with { ExpectedStatus = expected! }).Should().Equal(BookAppointmentValidator.ExpectedStatusMessage);
     }
 
     [Test]

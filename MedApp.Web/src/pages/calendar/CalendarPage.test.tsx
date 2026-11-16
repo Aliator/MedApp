@@ -248,6 +248,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
       staffUserId: STAFF_ME.userId,
       startUtc: '2026-11-24T10:00:00.000Z',
       endUtc: '2026-11-24T10:30:00.000Z',
+      // A move of the Booked appointment the calendar showed, so a change by someone else meanwhile is refused.
+      expectedStatus: 'Booked',
     });
   });
 

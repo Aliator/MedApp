@@ -110,7 +110,7 @@ public sealed class AppointmentsControllerTests
         var request = _fixture.Create<BookAppointmentRequest>();
 
         ExpectSentAndOk(
-            new BookAppointmentCommand(RecordId, request.StaffUserId, request.StartUtc, request.EndUtc, Actor),
+            new BookAppointmentCommand(RecordId, request.StaffUserId, request.StartUtc, request.EndUtc, request.ExpectedStatus, Actor),
             await Controller.BookAppointment(RecordId, request, _cts.Token));
     }
 

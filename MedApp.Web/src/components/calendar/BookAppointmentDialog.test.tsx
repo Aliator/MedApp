@@ -167,14 +167,39 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
       staffUserId: STAFF_OTHER.userId,
       startUtc: '2026-11-23T10:00:00.000Z',
       endUtc: '2026-11-23T10:30:00.000Z',
+      // Booking it, as the page saw it: if someone else booked it first, the API refuses rather than move theirs.
+      expectedStatus: 'Requested',
     });
+  });
+
+  it('says so, keeps the dialog open and refreshes the lists when someone else booked the appointment first', async () => {
+    atMondayMorning();
+    const requested = testRequested({id: 'req-1'});
+    const message = 'Someone else has already booked this appointment. Reload it to see when; reschedule it from there if it needs to move.';
+    const {user, fetch, onClose, queryClient} = renderDialog(
+      {appointment: requested},
+      {'POST /api/appointments/req-1/book': () => json({title: message}, 409)},
+    );
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    await user.click(await dialog().findByRole('button', {name: '10:00'}));
+    await user.click(dialog().getByRole('button', {name: 'Book'}));
+
+    expect(await dialog().findByText(message)).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/req-1/book')).toMatchObject({expectedStatus: 'Requested'});
+    expect(invalidate).toHaveBeenCalledWith({queryKey: ['appointments']});
+    expect(invalidate).toHaveBeenCalledWith({queryKey: ['calendar']});
+    // The time chosen is cleared: what's free is read again.
+    expect(dialog().getByText('Choose a time.')).toBeInTheDocument();
   });
 
   it('reschedules a Booked appointment, which may move within its own time', async () => {
     atMondayMorning();
     withAnnouncements();
     const booked = testAppointment({id: 'appt-1', date: MONDAY, start: '11:00', end: '11:30'});
-    const {user} = renderDialog(
+    const {user, fetch} = renderDialog(
       {appointment: booked},
       {
         'GET /api/calendar': (request) => calendarFor(request, {appointments: [booked]}),
@@ -188,6 +213,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('button', {name: 'Reschedule'}));
 
     await expectAnnounced('Appointment rescheduled');
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/book')).toMatchObject({expectedStatus: 'Booked'});
   });
 
   it('finds a patient by name, then one of their procedures and its stage', async () => {

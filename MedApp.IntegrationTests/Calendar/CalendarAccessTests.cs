@@ -78,7 +78,7 @@ public sealed class CalendarAccessTests : IntegrationTest
         var patient = await CreatePatientAsync(_staff.Client);
 
         var appointment = await BookNewAppointmentAsync(_staff.Client, patient.Id, _other.UserId, UkAt(_day, 9));
-        await (await PostBookAsync(_staff.Client, appointment.Id, _other.UserId, UkAt(_day, 11))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await PostRescheduleAsync(_staff.Client, appointment.Id, _other.UserId, UkAt(_day, 11))).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await PostCancelAsync(_staff.Client, appointment.Id, CancelReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         appointment.StaffUsername.Should().Be(_other.Username);
