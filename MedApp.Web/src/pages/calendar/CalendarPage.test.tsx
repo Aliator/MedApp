@@ -159,6 +159,27 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:00');
   });
 
+  it('opens the menu from the selected time, and gives the focus back to that time when it closes', async () => {
+    const {user} = renderPage();
+
+    await screen.findByRole('group', {name: /^My calendar,/});
+    select('Tuesday 24 November, 10:00, free');
+
+    // The held selection is the button the menu opens from (so it's placed beside it), and says the menu is open.
+    const selection = await screen.findByRole('button', {name: 'Selected time, 10:00 to 10:15'});
+    await waitFor(() => expect(selection).toHaveAttribute('aria-expanded', 'true'));
+    expect(selection).toHaveAttribute('tabindex', '-1');
+    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    select('Tuesday 24 November, 11:00, free');
+    expect(await screen.findByRole('button', {name: 'Book appointment'})).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Tuesday 24 November, 11:00, free'})).toHaveFocus());
+  });
+
   it("goes straight to booking on a calendar I can only book on", async () => {
     renderPage({search: {staff: STAFF_OTHER.userId}, calendar: {canEdit: false}});
 

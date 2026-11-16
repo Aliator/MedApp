@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Contracts.Calendar.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -101,6 +102,13 @@ public sealed class E2EApi(IAPIRequestContext request)
     /// <summary>Cancels an appointment (the app never deletes them). Only Requested and Booked ones can be.</summary>
     public async Task CancelAppointmentAsync(Guid id, string reason) =>
         await SendAsync<AppointmentResponse>("POST", $"/api/appointments/{id}/cancel", new { reason });
+
+    /// <summary>One person's calendar for one day: its blocks (stored and from templates) and appointments.</summary>
+    public async Task<CalendarResponse> CalendarAsync(Guid staffUserId, DateOnly date) =>
+        await SendAsync<CalendarResponse>("GET", $"/api/calendar?staffUserId={staffUserId}&from={date:yyyy-MM-dd}&to={date:yyyy-MM-dd}");
+
+    /// <summary>Deletes a stored block, if it's still there.</summary>
+    public Task DeleteBlockAsync(Guid id) => DeleteIfThereAsync($"/api/calendar/blocks/{id}");
 
     public async Task<WhoAmIResponse> WhoAmIAsync() => await SendAsync<WhoAmIResponse>("GET", "/api/auth/whoami");
 
