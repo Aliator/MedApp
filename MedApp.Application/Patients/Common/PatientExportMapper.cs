@@ -58,6 +58,7 @@ public static class PatientExportMapper
         LastName = patient.LastName,
         DateOfBirth = patient.DateOfBirth,
         Email = patient.Email,
+        NhsNumber = patient.NhsNumber,
         CreatedAt = patient.CreatedAt,
         LastUpdated = patient.LastUpdated,
         RestrictedAtUtc = patient.RestrictedAtUtc,

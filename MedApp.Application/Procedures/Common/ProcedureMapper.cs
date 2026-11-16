@@ -36,18 +36,22 @@ public static class ProcedureMapper
         PatientProcedure procedure,
         IReadOnlyDictionary<Guid, string> usernames,
         DateTime nowUtc,
-        string? patientName = null)
+        string? patientName = null,
+        Patient? patient = null)
     {
+        // The patient comes with the procedure when it was loaded with them, or separately for one just created.
+        patient ??= procedure.Patient;
         var current = ProcedureWorkflow.CurrentStage(procedure);
         // A restricted or anonymised patient's procedures can't change, so nothing on them is offered.
-        var readOnlyReason = PatientRules.WhyCantChange(procedure.Patient);
+        var readOnlyReason = PatientRules.WhyCantChange(patient);
         var canChange = readOnlyReason is null;
 
         return new PatientProcedureResponse
         {
             Id = procedure.Id,
             PatientId = procedure.PatientId,
-            PatientName = patientName ?? PatientName(procedure.Patient),
+            PatientName = patientName ?? PatientName(patient),
+            Patient = ToPatient(patient),
             TemplateId = procedure.TemplateId,
             TemplateName = procedure.TemplateName,
             Title = procedure.Title,
@@ -81,6 +85,8 @@ public static class ProcedureMapper
                     Name = s.Name,
                     Description = s.Description,
                     Instructions = s.Instructions,
+                    SnomedCode = s.SnomedCode,
+                    SnomedTerm = s.SnomedTerm,
                     Notes = s.Notes,
                     State = ProcedureWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,
@@ -108,6 +114,21 @@ public static class ProcedureMapper
                 .ToList()
         };
     }
+
+    /// <summary>Who a procedure is for, as the patient banner shows them; null when the patient isn't loaded.</summary>
+    public static ProcedurePatientResponse? ToPatient(Patient? patient) => patient is null
+        ? null
+        : new ProcedurePatientResponse
+        {
+            Id = patient.Id,
+            FirstName = patient.FirstName,
+            LastName = patient.LastName,
+            DateOfBirth = patient.DateOfBirth,
+            NhsNumber = patient.NhsNumber,
+            IsRestricted = patient.RestrictedAtUtc is not null,
+            IsDisputed = patient.DisputedAtUtc is not null,
+            IsAnonymised = patient.AnonymisedAtUtc is not null
+        };
 
     /// <summary>Table rows for procedures, looking up their assignees' usernames.</summary>
     public static async Task<List<PatientProcedureSummaryResponse>> ToSummariesAsync(

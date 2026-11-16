@@ -1,10 +1,12 @@
-﻿using MedApp.Application.Common.Paging;
+﻿using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Paging;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -15,8 +17,18 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     {
         context.Patients.Add(patient);
         context.ActivityEntries.Add(activity);
-        await context.SaveChangesAsync(cancellationToken);
+        await SaveAsync(cancellationToken);
     }
+
+    public async Task<bool> NhsNumberInUseAsync(string nhsNumber, Guid? exceptPatientId, CancellationToken cancellationToken) =>
+        await context.Patients.AnyAsync(
+            p => p.NhsNumber == nhsNumber && (exceptPatientId == null || p.Id != exceptPatientId),
+            cancellationToken);
+
+    public async Task<Patient?> GetByNhsNumberAsync(string nhsNumber, CancellationToken cancellationToken) =>
+        await context.Patients
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.NhsNumber == nhsNumber, cancellationToken);
 
     public async Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -86,8 +98,28 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     {
         context.Patients.Update(patient);
         context.ActivityEntries.Add(activity);
-        await context.SaveChangesAsync(cancellationToken);
+        await SaveAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// Saves, turning a clash on the NHS number's unique index (two saves racing past the handler's check) into the
+    /// same 409 the check gives.
+    /// </summary>
+    private async Task SaveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 } sql
+                                          && sql.Message.Contains(NhsNumberIndex, StringComparison.Ordinal))
+        {
+            throw new ConflictException(NhsNumberRules.InUse);
+        }
+    }
+
+    /// <summary>The unique index on the NHS number, named as EF names it.</summary>
+    private const string NhsNumberIndex = "IX_Patients_NhsNumber";
 
     public async Task DeleteAsync(Guid id, ActivityEntry activity, CancellationToken cancellationToken)
     {

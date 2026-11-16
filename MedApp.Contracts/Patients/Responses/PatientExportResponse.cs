@@ -38,6 +38,10 @@ public sealed class ExportedPatientResponse
     public string LastName { get; set; } = string.Empty;
     public DateOnly DateOfBirth { get; set; }
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>The NHS number, as its ten digits, or null when it isn't known.</summary>
+    public string? NhsNumber { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
     public DateTime? RestrictedAtUtc { get; set; }

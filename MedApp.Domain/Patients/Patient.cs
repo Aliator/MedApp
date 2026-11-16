@@ -7,6 +7,12 @@ public sealed class Patient
     public string LastName { get; set; } = string.Empty;
     public DateOnly DateOfBirth { get; set; }
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The patient's NHS number, as its ten digits (no spaces), or null when it isn't known. Optional, and unique
+    /// when present. Checked with its Modulus 11 check digit (<see cref="NhsNumbers"/>).
+    /// </summary>
+    public string? NhsNumber { get; set; }
     public DateTime CreatedAt { get; init; }
     public DateTime LastUpdated { get; set; }
 

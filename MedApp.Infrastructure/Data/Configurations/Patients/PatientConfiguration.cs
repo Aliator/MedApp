@@ -23,6 +23,15 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.Property(x => x.Email)
             .HasMaxLength(256);
 
+        // Ten digits, no spaces. Optional, and unique when present: a filtered index leaves out the patients without one.
+        builder.Property(x => x.NhsNumber)
+            .HasMaxLength(10)
+            .IsUnicode(false);
+
+        builder.HasIndex(x => x.NhsNumber)
+            .IsUnique()
+            .HasFilter("[NhsNumber] IS NOT NULL");
+
         builder.Property(x => x.DateOfBirth)
             .IsRequired()
             .HasConversion(

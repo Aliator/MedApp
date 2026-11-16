@@ -6,6 +6,10 @@ public sealed class PatientProcedureResponse
     public Guid Id { get; set; }
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
+
+    /// <summary>Who the procedure is for, as the patient banner shows them, or null if that isn't loaded.</summary>
+    public ProcedurePatientResponse? Patient { get; set; }
+
     public Guid? TemplateId { get; set; }
     public string TemplateName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;

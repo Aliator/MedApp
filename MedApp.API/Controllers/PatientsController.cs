@@ -25,6 +25,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request)
     {
@@ -32,7 +34,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.FirstName,
             request.LastName,
             request.DateOfBirth,
-            request.Email
+            request.Email,
+            request.NhsNumber
         );
 
         var patient = await mediator.Send(command);
@@ -81,7 +84,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.LastName,
             request.Email,
             request.DateOfBirthFrom,
-            request.DateOfBirthTo);
+            request.DateOfBirthTo,
+            request.NhsNumber);
 
         return Ok(await mediator.Send(query, cancellationToken));
     }
@@ -101,6 +105,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> UpdatePatient(
         Guid id,
@@ -111,7 +116,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.FirstName,
             request.LastName,
             request.DateOfBirth,
-            request.Email
+            request.Email,
+            request.NhsNumber
         );
 
         var patient = await mediator.Send(command);
