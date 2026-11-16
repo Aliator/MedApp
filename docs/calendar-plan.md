@@ -71,6 +71,18 @@ The owner was away and asked for every choice to be made for them. This document
 32. **Home** shows your **day calendar**: today, with Previous and Next day, your appointments and blocks. Clicking an appointment opens its procedure (or the patient, when it has none). A customisable widget home screen stays on the to-do list.
 33. **Narrow windows and half views:** the week view becomes the day view, the toolbar wraps, and dialogs fill the width.
 
+### Details settled while building
+34. **Applying a day template over booked appointments is allowed.** Like a template change (decision 6), it never moves or removes anything: the overlapping blocks show, flagged, and the person deals with the appointments. Only adding or moving a single block or appointment is refused for a clash.
+35. **A past Booked appointment can still be cancelled** (for example, it was arranged and never took place) instead of being given an outcome. Rescheduling it moves it to a future time.
+36. **Blocking a procedure leaves its Requested appointments alone;** they still need booking when it's unblocked. Only cancelling it cancels them.
+37. **Needs booking, by due date,** puts appointments not for a procedure after those that are; the default "start" sort puts Requested ones (no start) last, by when they were requested.
+38. **The patient timeline for staff** hides an appointment's entries recorded while it belonged to a procedure that has since been deleted (the entry keeps that procedure's ID). Entries recorded after it was detached have no procedure, so staff see them. Filtering the timeline by procedure leaves out appointments not for a procedure.
+39. **Deleting an account with upcoming Booked appointments** is a 400 with the code `HasUpcomingAppointments`, in the Auth slice's existing `IdentityResult` style. Past Booked appointments without an outcome don't block it; they show "Deleted user".
+40. **Moving an appointment to someone else** notifies the new person with `AppointmentBooked` and the old one with `AppointmentCancelled`. Booking an appointment straight away records only Booked in its history (not Requested then Booked); booking one to exactly where it already is changes nothing.
+41. **Finishing a Suggested stage without a visit** records `withoutVisit` (and a reason, if one was given); only a Required stage needs a reason, and only an admin can give it.
+42. **Notification kinds 1 to 9** are for calendar and appointment kinds; 10 and up are reserved for the admin monitoring branch.
+43. **Calendar blocks are kept for 12 months after their day** (proposed in `docs/governance/retention-schedule.md`, for the data protection officer to confirm); nothing deletes them yet.
+
 ## 2. The model
 
 ```
