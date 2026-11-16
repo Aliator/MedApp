@@ -27,6 +27,7 @@ Each document says what changed and why, how it works, the decisions and their t
 | [pr-54-project-handbook.md](pr-54-project-handbook.md) | The review of #54: the architecture handbook, its roadmap, and the record of choices | #54 | Merged | High (fixed in the review pass) |
 | [pr-55-my-tasks-favourite-tag.md](pr-55-my-tasks-favourite-tag.md) | The review of #55: no favourite name beside the star on My Tasks, and the plain-language format for review documents | #55 | Merged | Medium (a personal detail in the public `AGENTS.md`; fixed before merging) |
 | [pr-56-standard-review-format.md](pr-56-standard-review-format.md) | The review of #56: a standard, neutral format for review documents | #56 | Merged | Medium (nothing committed git-ignores the local file the format points to; the #55 review keeps the framing this PR removes) |
+| [pr-60-clinical-safety.md](pr-60-clinical-safety.md) | The review of #60: the draft clinical safety file (DCB0129 and DCB0160) and the medical device decision | #60 | Merged | Medium (the consequence scale isn't DCB0129's; My Tasks hides started work, and deleting a leaver orphans their procedures, weakening controls the hazard log relies on) |
 
 ## How the risks are graded
 
