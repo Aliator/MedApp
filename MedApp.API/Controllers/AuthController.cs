@@ -7,7 +7,9 @@ using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
+using MedApp.Application.Authentication.Sessions.Commands.ExtendSession;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
+using MedApp.Application.Authentication.Sessions.Queries.GetSession;
 using MedApp.Application.Authentication.Settings.Commands.SaveMySettings;
 using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Sessions.Commands.Logout;
@@ -62,23 +64,53 @@ public sealed class AuthController(
     [Tags("Login")]
     public async Task<IActionResult> Logout()
     {
-        Guid? sessionId = null;
-
-        if (Request.Cookies.TryGetValue(
-                SessionAuthenticationDefaults.CookieName,
-                out var rawSessionId)
-            && Guid.TryParse(rawSessionId, out var parsed))
-        {
-            sessionId = parsed;
-        }
-
         await mediator.Send(
-            new LogoutCommand(sessionId),
+            new LogoutCommand(CurrentSessionId()),
             HttpContext.RequestAborted);
 
         cookieService.DeleteSessionCookie(Response);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// When the signed-in session ends, for the warning before it times out. Reading it doesn't extend it. A
+    /// session that has ended is a 401, as for any other request.
+    /// </summary>
+    [HttpGet("session")]
+    [Authorize]
+    [Tags("Login")]
+    [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSession(CancellationToken ct)
+    {
+        if (CurrentSessionId() is not { } sessionId)
+            return Unauthorized();
+
+        NoStore();
+        return Ok(await mediator.Send(new GetSessionQuery(sessionId), ct));
+    }
+
+    /// <summary>
+    /// "Stay signed in": extends the signed-in session to a full session length from now (8 hours), but never past
+    /// 24 hours from sign-in, and sends its cookie again with the new expiry.
+    /// </summary>
+    [HttpPost("session/extend")]
+    [Authorize]
+    [Tags("Login")]
+    [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExtendSession(CancellationToken ct)
+    {
+        if (CurrentSessionId() is not { } sessionId)
+            return Unauthorized();
+
+        var session = await mediator.Send(new ExtendSessionCommand(sessionId), ct);
+
+        // The cookie expires with the session, so it's sent again with the new expiry, or the browser would drop it
+        // at the old one.
+        cookieService.AppendSessionCookie(Response, new LoginResult(sessionId, session.ExpiresAtUtc));
+
+        NoStore();
+        return Ok(session);
     }
 
 
@@ -348,7 +380,15 @@ public sealed class AuthController(
     }
 
     /// <summary>
-    /// Tells browsers and proxies not to keep this response: it carries a generated password, shown to the admin once.
+    /// Tells browsers and proxies not to keep this response: it carries a generated password, shown to the admin once,
+    /// or a session's expiry, which is only true for now.
     /// </summary>
     private void NoStore() => Response.Headers.CacheControl = "no-store";
+
+    /// <summary>The session in the request's cookie, or null when there's none, or it isn't a session ID.</summary>
+    private Guid? CurrentSessionId() =>
+        Request.Cookies.TryGetValue(SessionAuthenticationDefaults.CookieName, out var raw)
+        && Guid.TryParse(raw, out var sessionId)
+            ? sessionId
+            : null;
 }

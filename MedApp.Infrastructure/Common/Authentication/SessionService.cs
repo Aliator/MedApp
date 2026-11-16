@@ -12,8 +12,6 @@ public sealed class SessionService(
     UserManager<ApplicationUser> userManager)
     : ISessionService
 {
-    private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
-
     public async Task<LoginResult> CreateSessionAsync(
         Guid userId,
         string? ipAddress,
@@ -21,7 +19,7 @@ public sealed class SessionService(
         CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
-        var expiresAt = now.Add(SessionLifetime);
+        var expiresAt = now.Add(UserSession.Lifetime);
         var session = new UserSession(userId, now, expiresAt, ipAddress, userAgent);
 
         context.UserSessions.Add(session);
@@ -54,6 +52,35 @@ public sealed class SessionService(
             user.Id,
             user.UserName ?? string.Empty,
             roles.ToArray());
+    }
+
+    public async Task<UserSession?> GetActiveSessionAsync(
+        Guid sessionId,
+        DateTime utcNow,
+        CancellationToken ct = default)
+    {
+        var session = await context.UserSessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(candidate => candidate.Id == sessionId, ct);
+
+        return session is not null && session.IsActive(utcNow) ? session : null;
+    }
+
+    public async Task<UserSession?> ExtendSessionAsync(
+        Guid sessionId,
+        DateTime utcNow,
+        CancellationToken ct = default)
+    {
+        var session = await context.UserSessions
+            .FirstOrDefaultAsync(candidate => candidate.Id == sessionId, ct);
+
+        if (session is null || !session.IsActive(utcNow))
+            return null;
+
+        session.Extend(utcNow);
+        await context.SaveChangesAsync(ct);
+
+        return session;
     }
 
     public async Task RevokeSessionAsync(
