@@ -1,6 +1,10 @@
+using MedApp.E2ETests.Common;
 using Microsoft.Playwright;
 
-namespace MedApp.E2ETests.Common;
+// In the root namespace, so it runs once before every test in the assembly (a SetUpFixture covers only its own
+// namespace and those under it).
+// ReSharper disable once CheckNamespace
+namespace MedApp.E2ETests;
 
 /// <summary>
 /// Signs in once per test run, through the API the app uses, and saves the session cookie for every signed-in
@@ -32,5 +36,23 @@ public sealed class E2ESession
 
         Directory.CreateDirectory(Path.GetDirectoryName(E2ESettings.StorageStatePath)!);
         await request.StorageStateAsync(new APIRequestContextStorageStateOptions { Path = E2ESettings.StorageStatePath });
+    }
+
+    /// <summary>Signs the shared session out when the run ends, so runs don't leave sessions behind.</summary>
+    [OneTimeTearDown]
+    public async Task SignOutAsync()
+    {
+        if (!File.Exists(E2ESettings.StorageStatePath))
+            return;
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var request = await playwright.APIRequest.NewContextAsync(new APIRequestNewContextOptions
+        {
+            BaseURL = E2ESettings.BaseUrl,
+            IgnoreHTTPSErrors = true,
+            StorageStatePath = E2ESettings.StorageStatePath,
+        });
+        await request.PostAsync("/api/auth/logout");
+        File.Delete(E2ESettings.StorageStatePath);
     }
 }
