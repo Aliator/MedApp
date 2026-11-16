@@ -161,7 +161,7 @@ describe('EmailPage', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Remove Email Address'}));
     const dialog = within(openDialog()!);
-    expect(dialog.getByText(/Password reset links can't reach you without one/)).toBeInTheDocument();
+    expect(dialog.getByText(/^Remove test\.user@example\.org\? Password reset links can't reach you without an email address\./)).toBeInTheDocument();
     const password = dialog.getByLabelText(/your password/i);
     expect(password).toHaveFocus();
     expect(password).toHaveAttribute('autocomplete', 'current-password');
@@ -175,6 +175,37 @@ describe('EmailPage', () => {
     expect(openDialog()).toBeNull();
     expect(queryClient.getQueryData(myEmailQuery.queryKey)).toEqual({email: null, pendingEmail: null});
     expect(screen.getByText('None')).toBeInTheDocument();
+    await expectAnnounced('Email address removed');
+  });
+
+  it('says removing also cancels a change waiting for its link', async () => {
+    const {user} = renderPage({email: {email: 'test.user@example.org', pendingEmail: 'test.user.new@example.org'}});
+
+    await user.click(await screen.findByRole('button', {name: 'Remove Email Address'}));
+
+    expect(
+      within(openDialog()!).getByText(
+        /^Remove test\.user@example\.org\? This also cancels the change to test\.user\.new@example\.org, so the link we sent there stops working\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('removes an address that is only waiting for its link, saying what that means', async () => {
+    withAnnouncements();
+    const {user} = renderPage({
+      email: {email: null, pendingEmail: 'test.user.new@example.org'},
+      extra: {[REMOVE]: () => new Response(null, {status: 204})},
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Remove Email Address'}));
+    const dialog = within(openDialog()!);
+    // Nothing about reset links stopping: none can reach this account yet.
+    expect(dialog.getByText(/^Remove test\.user\.new@example\.org\? It's still waiting for you to open the link we sent/)).toBeInTheDocument();
+    expect(dialog.queryByText(/Password reset links/)).not.toBeInTheDocument();
+    await user.type(dialog.getByLabelText(/your password/i), PASSWORD);
+    await user.click(dialog.getByRole('button', {name: 'Remove'}));
+
+    expect(await screen.findByText('test.user.new@example.org has been removed, and the link we sent there no longer works.')).toBeInTheDocument();
     await expectAnnounced('Email address removed');
   });
 
@@ -236,6 +267,15 @@ describe('EmailPage', () => {
     expect(await screen.findByText(EMAIL_UNAVAILABLE)).toBeInTheDocument();
     expect(screen.queryByLabelText(/new email address/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Remove Email Address'})).toBeInTheDocument();
+    expect(screen.getByText('Change email address')).toBeInTheDocument();
+  });
+
+  it("names the unavailable card for adding when there's no address", async () => {
+    renderPage({canSendEmail: false, email: {}});
+
+    expect(await screen.findByText(EMAIL_UNAVAILABLE)).toBeInTheDocument();
+    expect(screen.getByText('Add an email address')).toBeInTheDocument();
+    expect(screen.queryByText('Change email address')).not.toBeInTheDocument();
   });
 
   it('says when the address could not be loaded', async () => {
