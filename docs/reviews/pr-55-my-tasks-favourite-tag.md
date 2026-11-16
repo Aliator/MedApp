@@ -14,7 +14,7 @@ My Tasks stops showing its filter twice, and `AGENTS.md` gets a fixed, plain-lan
 - **The fix, a switch on a shared component:** `ListFavourites` (the star and its menu) gets a new **prop** (a setting a page passes to a component), on by default. `ListFilterBar` (the search bar every list uses) passes it on. Only My Tasks turns it off. As reviewed it was `showsName` and hid every name. After finding 2 it's `namesQuickFilters`, and hides only the list's own quick filters; a saved search's name still shows.
 - **Screen readers still hear it:** the star's **accessible name** (what a screen reader reads out for the button) still says "Favourites (showing Not started)".
 - **Tests:** one new test for the star, and one new check in the My Tasks test.
-- **Docs:** `MedApp.Web/AGENTS.md` mentions the switch. The root `AGENTS.md` gets a "Review document format" section: eight fixed sections in plain language, so each review can be understood quickly and explained to someone else.
+- **Docs:** `MedApp.Web/AGENTS.md` mentions the switch. The root `AGENTS.md` gets a "Review document format" section: eight fixed sections in plain language, so each review can be understood quickly.
 
 ## Why this, not that
 
@@ -32,7 +32,7 @@ My Tasks stops showing its filter twice, and `AGENTS.md` gets a fixed, plain-lan
   - **Worse at:** sighted people can't see it. The star has no tooltip (Astryx's `IconButton` shows one only when given a `tooltip`), so its "showing …" is for screen readers only.
 - **One fixed review format, not free-form reviews:**
   - **Instead:** keep writing reviews like #51 to #54, long and engineering-first.
-  - **Chosen because:** quicker to take in and to explain, and the same shape every time.
+  - **Chosen because:** quicker to take in, and the same shape every time.
   - **Worse at:** less depth up front (it moves to the detail at the end), and new reviews will look different from the earlier ones in the same folder.
 
 ## How it was checked
@@ -57,8 +57,8 @@ Most severe first. None is high or critical.
 
 ### 1. A personal health detail is published in the public `AGENTS.md`
 
-- **Severity:** medium. **Confidence:** high that it's public; whether that was meant is for the owner to say.
-- **What could go wrong:** the new section's second sentence names a medical condition of the owner. The repository is public, and the same paragraph says recruiters may ask about the project. A recruiter or employer reading `AGENTS.md` learns something about the owner's health that people usually choose when, and whether, to share. Once merged, it's in `main`'s history for good.
+- **Severity:** medium. **Confidence:** high.
+- **What could go wrong:** the new section's second sentence included a personal detail that doesn't belong in a public repository. Once merged, it's in `main`'s history for good.
 - **Evidence:**
   - `AGENTS.md:308`, the second sentence
   - the GitHub API reports the repository as `public`
