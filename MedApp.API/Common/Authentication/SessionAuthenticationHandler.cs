@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text.Encodings.Web;
 using MedApp.Application.Common.Authentication;
 using Microsoft.AspNetCore.Authentication;
@@ -41,6 +41,9 @@ public sealed class SessionAuthenticationHandler(
 
         if (validation.MustChangePassword)
             claims.Add(new Claim(SessionAuthenticationDefaults.MustChangePasswordClaim, "true"));
+
+        if (validation.MustSetUpTwoFactor)
+            claims.Add(new Claim(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim, "true"));
 
         var identity = new ClaimsIdentity(
             claims,

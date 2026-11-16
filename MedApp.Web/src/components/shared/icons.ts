@@ -60,6 +60,7 @@ import {
   RiListCheck3,
   RiLockLine,
   RiLockUnlockLine,
+  RiLoginBoxLine,
   RiLogoutBoxRLine,
   RiMailLine,
   RiMenuLine,
@@ -72,7 +73,10 @@ import {
   RiPencilLine,
   RiRefreshLine,
   RiSaveLine,
+  RiSettings3Line,
   RiSearchLine,
+  RiShieldCheckLine,
+  RiShieldKeyholeLine,
   RiShieldLine,
   RiSortAsc,
   RiSortDesc,
@@ -135,6 +139,7 @@ export const AppIcon = {
   Home: remix(RiHomeLine),
   Patients: remix(RiUserHeartLine),
   Users: remix(RiTeamLine),
+  Login: remix(RiLoginBoxLine),
   Logout: remix(RiLogoutBoxRLine),
   SortAsc: remix(RiSortAsc),
   Shield: remix(RiShieldLine),
@@ -217,6 +222,10 @@ export const AppIcon = {
   FileWord: remix(RiFileWord2Line),
   FileText: remix(RiFileTextLine),
   File: remix(RiFileLine),
+  // Two-factor authentication, recovery codes and the admin's sign-in settings
+  TwoFactor: remix(RiShieldKeyholeLine),
+  TwoFactorOn: remix(RiShieldCheckLine),
+  Settings: remix(RiSettings3Line),
   // Looking a patient up by NHS number in the national demographics service
   LookUp: remix(RiUserSearchLine),
   // Monitoring (admin): rules for being told what staff do

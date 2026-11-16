@@ -150,6 +150,106 @@ describe('server rendering', () => {
     expect(response.headers.get('location')).toBe('/');
   });
 
+  it('offers "Forgot your password?" on the login page only when the server can send email', async () => {
+    api({'/api/auth/whoami': {isAuthenticated: false}, '/api/auth/features': {canSendEmail: true}});
+    expect(await (await page('/login')).text()).toContain('Forgot your password?');
+
+    api({'/api/auth/whoami': {isAuthenticated: false}, '/api/auth/features': {canSendEmail: false}});
+    expect(await (await page('/login')).text()).not.toContain('Forgot your password?');
+  });
+
+  it('renders the forgot-password page with whether email can be sent', async () => {
+    api({'/api/auth/features': {canSendEmail: true}});
+    expect(await (await page('/forgot-password')).text()).toContain('Send reset link');
+
+    api({'/api/auth/features': {canSendEmail: false}});
+    expect(await (await page('/forgot-password')).text()).toContain('Password reset by email isn&#x27;t available here.');
+  });
+
+  it.each([
+    ['/reset-password', 'Choose a new password'],
+    ['/confirm-email', 'Confirm your email address'],
+  ])("renders %s waiting to read the link, which the server never sees", async (path, title) => {
+    const requests = api({});
+
+    const response = await page(path);
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain(title);
+    expect(html).toContain('Reading the link');
+    expect(html).not.toContain('Change password');
+    expect(html).not.toContain('Confirm email address');
+    expect(requests).toEqual([]);
+  });
+
+  it('sends an admin who must set up two-factor to do that, without asking for what the API would refuse', async () => {
+    const requests = api({'/api/auth/whoami': {...signedIn, roles: ['Admin', 'User'], mustSetUpTwoFactor: true}});
+
+    const response = await page('/patients', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/set-up-two-factor');
+    expect(requests.map((r) => new URL(r.url).pathname)).toEqual(['/api/auth/whoami']);
+  });
+
+  it("renders the two-factor set-up page in the account's settings, making no key on the server", async () => {
+    const requests = api({
+      '/api/auth/whoami': {...signedIn, roles: ['Admin', 'User'], mustSetUpTwoFactor: true},
+      '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
+    });
+
+    const response = await page('/set-up-two-factor', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
+    expect(html).toContain('Set up two-factor authentication');
+    expect(requests.map((r) => new URL(r.url).pathname)).toEqual(['/api/auth/whoami', '/api/auth/me/settings']);
+  });
+
+  it('renders Account Settings, Security with its two-factor state', async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/auth/me/two-factor': {enabled: true, recoveryCodesLeft: 7, required: false},
+    });
+
+    const html = await (await page('/account/security', 'medapp_session=abc')).text();
+
+    expect(html).toContain('Recovery codes left');
+    expect(html).toContain('New Recovery Codes');
+  });
+
+  it('renders Account Settings, Email Address with the address', async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/auth/me/email': {email: 'test.user@example.org', pendingEmail: null},
+      '/api/auth/features': {canSendEmail: true},
+    });
+
+    const html = await (await page('/account/email', 'medapp_session=abc')).text();
+
+    expect(html).toContain('test.user@example.org');
+    expect(html).toContain('Send confirmation link');
+  });
+
+  it('renders Admin Settings for an admin with the settings', async () => {
+    api({
+      '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/auth/security-settings': {requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 3},
+    });
+
+    const html = await (await page('/admin/settings', 'medapp_session=abc')).text();
+
+    expect(html).toContain("3 admin accounts haven&#x27;t set it up; they&#x27;ll be asked to at their next request.");
+  });
+
   it("renders a signed-in page with its data, fetched as the user with their cookie, in the account's settings", async () => {
     const requests = api({
       '/api/auth/whoami': signedIn,

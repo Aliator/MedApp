@@ -2,8 +2,9 @@ namespace MedApp.IntegrationTests.Common;
 
 /// <summary>
 /// The API's clock in the integration tests: the real time plus an offset a test can move, so a test can let time
-/// pass (an appointment's start, a day becoming past) without waiting. It starts with no offset and is put back before
-/// every test. Sessions read the real clock, not this one, so moving it doesn't expire them.
+/// pass without waiting: an appointment's start or a day becoming past, a sign-in challenge expiring or the next
+/// authenticator code. It starts with no offset and is put back before every test. Only what reads
+/// <see cref="TimeProvider"/> sees it: sessions read the real clock, so moving it doesn't expire them.
 /// </summary>
 public sealed class TestClock : TimeProvider
 {

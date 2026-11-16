@@ -12,10 +12,25 @@ var sql = builder.AddSqlServer("sql", port: 14330)
 // Aspire creates the database if it's missing; migrations are still applied by hand (see AGENTS.md).
 var db = sql.AddDatabase("medapp", databaseName: "MedApp");
 
+// Mailpit catches every email the API sends (nothing leaves this machine) and shows them in a web inbox: the "Inbox"
+// link on the dashboard's mailpit resource. It keeps mail in memory, so a restart empties it. Pinned to a release.
+var mailpit = builder.AddContainer("mailpit", "axllent/mailpit", "v1.33.0")
+    .WithHttpEndpoint(targetPort: 8025, name: "inbox")
+    .WithEndpoint(targetPort: 1025, name: "smtp", scheme: "tcp")
+    .WithUrlForEndpoint("inbox", url => url.DisplayText = "Inbox");
+var smtp = mailpit.GetEndpoint("smtp");
+
 var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "https")
     .WithReference(db, connectionName: "DefaultConnection")
     .WaitFor(db)
-    .WithHttpHealthCheck("/health");
+    .WithHttpHealthCheck("/health")
+    // Email goes to Mailpit, unencrypted (it's local), with links to the Vite dev server where the app is opened.
+    .WithEnvironment("Email__Smtp__Host", smtp.Property(EndpointProperty.Host))
+    .WithEnvironment("Email__Smtp__Port", smtp.Property(EndpointProperty.Port))
+    .WithEnvironment("Email__Smtp__Security", "None")
+    .WithEnvironment("Email__FromAddress", "medapp@localhost")
+    .WithEnvironment("Email__LinkBaseUrl", "http://localhost:5173")
+    .WaitFor(mailpit);
 
 // Attached files' bytes: Azure Blob Storage, emulated by Azurite in Docker, kept in a volume and running between
 // AppHost runs, like SQL Server. The API gets its connection string as ConnectionStrings__Attachments and creates the

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Hosting;
+using MedApp.Application.Common.Email;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,10 +26,16 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
     /// <summary>A marker in the stub app's page, to recognise it in a response.</summary>
     public const string StubAppMarker = "medapp-integration-tests-stub-app";
 
-    /// <summary>The API's clock: the real time, until a test moves it. <see cref="IntegrationTest"/> resets it before each test.</summary>
-    public TestClock Clock { get; } = new();
+    /// <summary>Where emailed links point: the tests read the account and token from them, as the page does.</summary>
+    public const string LinkBaseUrl = "https://medapp.example.test";
 
     private readonly string _webRoot = Directory.CreateTempSubdirectory("medapp-it-wwwroot-").FullName;
+
+    /// <summary>Every email the API sent, kept instead of sent (<see cref="FakeEmailSender"/>).</summary>
+    public FakeEmailSender Emails { get; } = new();
+
+    /// <summary>The API's clock: the real time, until a test moves it (<see cref="TestClock"/>). <see cref="IntegrationTest"/> resets it before each test.</summary>
+    public TestClock Clock { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -44,16 +51,24 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
         builder.UseSetting("Ssr:Enabled", "false");
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft.EntityFrameworkCore", "Warning");
-        builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<TimeProvider>();
-            services.AddSingleton<TimeProvider>(Clock);
-        });
 
         // The tests sign in far more often than people do, all from one address (and the admin under one name), so
         // sign-in throttling is set out of reach here. LoginThrottlingTests puts it back to the real limits.
         builder.UseSetting("LoginThrottling:PerClientPermitLimit", "100000");
         builder.UseSetting("LoginThrottling:PerUsernamePermitLimit", "100000");
+        builder.UseSetting("LoginThrottling:ResetRequestsPerIdentifierPermitLimit", "100000");
+        builder.UseSetting("LoginThrottling:TwoFactorCodesPerAccountPermitLimit", "100000");
+        builder.UseSetting("LoginThrottling:EmailChangesPerAccountPermitLimit", "100000");
+        builder.UseSetting("Email:LinkBaseUrl", LinkBaseUrl);
+
+        // Emails are kept, not sent, and the clock can be moved on.
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(Emails);
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Clock);
+        });
     }
 
     /// <summary>A client with its own cookie jar (so its own session), that doesn't follow redirects.</summary>

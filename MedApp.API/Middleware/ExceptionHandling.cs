@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
@@ -42,6 +42,14 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status401Unauthorized, ex.Message);
         }
+        catch (InvalidTwoFactorCodeException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status401Unauthorized, ex.Message);
+        }
+        catch (SignInExpiredException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status401Unauthorized, ex.Message, SignInExpiredException.Code);
+        }
         catch (AccountLockedOutException ex)
         {
             await WriteProblem(context, StatusCodes.Status423Locked, ex.Message);
@@ -71,6 +79,11 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status503ServiceUnavailable, ex.Message);
         }
+        catch (TooManyAttemptsException ex)
+        {
+            context.Response.Headers.RetryAfter = ex.RetryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await WriteProblem(context, StatusCodes.Status429TooManyRequests, ex.Message);
+        }
     }
 
     private static async Task WriteValidationProblem(
@@ -91,13 +104,16 @@ public sealed class ExceptionHandling(RequestDelegate next)
     private static async Task WriteProblem(
         HttpContext context,
         int statusCode,
-        string title)
+        string title,
+        string? code = null)
     {
         var problemDetails = new ProblemDetails
         {
             Status = statusCode,
             Title = title
         };
+        if (code is not null)
+            problemDetails.Extensions["code"] = code;
 
         context.Response.StatusCode = statusCode;
         // Given to the write itself: it sets the content type, and would replace one set before it.

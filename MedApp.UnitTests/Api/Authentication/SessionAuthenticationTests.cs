@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text.Encodings.Web;
 using FluentAssertions;
 using MedApp.API.Common.Authentication;
@@ -114,6 +114,20 @@ public sealed class SessionAuthenticationHandlerTests
 
         result.Principal!.FindFirstValue(SessionAuthenticationDefaults.MustChangePasswordClaim).Should().Be("true");
         result.Principal!.MustChangePassword().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Authenticate_AdminMustSetUpTwoFactor_AddsTheClaim()
+    {
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(UserId, Username, ["Admin"], MustSetUpTwoFactor: true));
+
+        var result = await Authenticate(SessionId.ToString());
+
+        result.Principal!.FindFirstValue(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim).Should().Be("true");
+        result.Principal!.MustSetUpTwoFactor().Should().BeTrue();
+        result.Principal!.MustChangePassword().Should().BeFalse();
     }
 }
 

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Reflection;
 using AutoFixture;
 using FluentAssertions;
@@ -75,7 +75,7 @@ public sealed class AuthControllerTests
     public async Task Login_ValidCredentials_StartsASessionAndSetsItsCookie()
     {
         var session = new LoginResult(SessionId, ExpiresAtUtc);
-        var mediator = new RecordingMediator(_ => session);
+        var mediator = new RecordingMediator(_ => LoginOutcome.SignedIn(session));
         var controller = Controller(mediator, context =>
         {
             context.Connection.RemoteIpAddress = IPAddress.Parse(IpAddress);
@@ -87,6 +87,47 @@ public sealed class AuthControllerTests
         mediator.Request.Should().Be(new LoginCommand(Username, Password, IpAddress, UserAgent));
         _cookies.Verify(c => c.AppendSessionCookie(controller.Response, session), Times.Once);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(new LoginResponse(SessionId, ExpiresAtUtc));
+    }
+
+    [Test]
+    public async Task Login_TwoFactorAccount_ReturnsTheChallengeWithoutASessionOrCookie()
+    {
+        var mediator = new RecordingMediator(_ => LoginOutcome.TwoFactorRequired(TwoFactorChallenge, ExpiresAtUtc));
+        var controller = Controller(mediator);
+
+        var result = await controller.Login(new LoginRequest(Username, Password));
+
+        result.Should().BeOfType<AcceptedResult>().Which.Value.Should().Be(new TwoFactorChallengeResponse(TwoFactorChallenge, ExpiresAtUtc));
+        _cookies.Verify(c => c.AppendSessionCookie(It.IsAny<HttpResponse>(), It.IsAny<LoginResult>()), Times.Never);
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [Test]
+    public async Task CreateUser_WithAnEmail_SendsItOn()
+    {
+        var mediator = new RecordingMediator(_ => CreateUserResult.Created(Password));
+
+        await Controller(mediator, null, "Admin").CreateUser(new CreateUserRequest(Username, Email));
+
+        var command = mediator.Request.Should().BeOfType<CreateUserCommand>().Subject;
+        command.Should().BeEquivalentTo(new { Username, Email });
+        // The admin is recorded as who gave the address.
+        command.ActorUserId.Should().NotBeNull();
+        command.ActorUsername.Should().NotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void WhoAmI_AdminWhoMustSetUpTwoFactor_SaysSo()
+    {
+        var user = SignedIn("Admin");
+        ((System.Security.Claims.ClaimsIdentity)user.Identity!).AddClaim(
+            new System.Security.Claims.Claim(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim, "true"));
+        var controller = new AuthController(new RecordingMediator(), _cookies.Object).WithRequest(user);
+
+        var result = controller.WhoAmI();
+
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeOfType<WhoAmIResponse>()
+            .Which.MustSetUpTwoFactor.Should().BeTrue();
     }
 
     [Test]
@@ -199,7 +240,7 @@ public sealed class AuthControllerTests
 
         var result = await Controller(mediator).CreateUser(new CreateUserRequest(OtherUsername));
 
-        mediator.Request.Should().Be(new CreateUserCommand(OtherUsername));
+        mediator.Request.Should().BeOfType<CreateUserCommand>().Which.Should().BeEquivalentTo(new { Username = OtherUsername, Email = (string?)null });
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(new CreateUserResponse(OtherUsername, Password));
     }
 
@@ -602,7 +643,7 @@ public sealed class AuthControllerTests
     [Test]
     public async Task Login_NoClientAddress_SendsNone()
     {
-        var mediator = new RecordingMediator(_ => new LoginResult(SessionId, ExpiresAtUtc));
+        var mediator = new RecordingMediator(_ => LoginOutcome.SignedIn(new LoginResult(SessionId, ExpiresAtUtc)));
 
         await Controller(mediator).Login(new LoginRequest(Username, Password));
 

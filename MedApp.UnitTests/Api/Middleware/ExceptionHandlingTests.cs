@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
@@ -64,6 +64,7 @@ public sealed class ExceptionHandlingTests
         yield return new TestCaseData(new UnsupportedFileTypeException("Synthetic problem."), StatusCodes.Status415UnsupportedMediaType);
         yield return new TestCaseData(new MalwareDetectedException(), StatusCodes.Status422UnprocessableEntity);
         yield return new TestCaseData(new FileStorageUnavailableException(), StatusCodes.Status503ServiceUnavailable);
+        yield return new TestCaseData(new TooManyAttemptsException("Synthetic problem.", 90), StatusCodes.Status429TooManyRequests);
     }
 
     [Test]
@@ -83,6 +84,14 @@ public sealed class ExceptionHandlingTests
         await act.Should().ThrowAsync<BadHttpRequestException>();
     }
 
+    [Test]
+    public async Task InvokeAsync_TooManyAttempts_SaysWhenToRetry()
+    {
+        var (context, _) = await Run(new TooManyAttemptsException("Synthetic problem.", 90));
+
+        context.Response.Headers.RetryAfter.ToString().Should().Be("90");
+    }
+
     [TestCaseSource(nameof(KnownProblems))]
     public async Task InvokeAsync_KnownProblem_ReturnsItsStatusWithItsMessage(Exception exception, int status)
     {
@@ -100,5 +109,21 @@ public sealed class ExceptionHandlingTests
         var act = () => Run(new InvalidOperationException("Unexpected"));
 
         await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task InvokeAsync_SignInExpired_SaysSoInItsCode()
+    {
+        var (_, body) = await Run(new SignInExpiredException());
+
+        body.GetProperty("code").GetString().Should().Be(SignInExpiredException.Code);
+    }
+
+    [Test]
+    public async Task InvokeAsync_WrongCode_HasNoCode()
+    {
+        var (_, body) = await Run(new InvalidTwoFactorCodeException());
+
+        body.TryGetProperty("code", out _).Should().BeFalse();
     }
 }

@@ -1,0 +1,75 @@
+{{- /*
+The API's egress by name (networkPolicy.fqdnEgress): a CiliumNetworkPolicy, for Cilium with its DNS proxy (on AKS,
+Advanced Container Networking Services' security). The API's NetworkPolicy still allows DNS, the database, the
+backplane, Mailpit and networkPolicy.extraEgress, and leaves out its internet rules; this adds the services the API
+reaches by name, each on its port only. Cilium learns their addresses from the pod's own DNS lookups, which the first
+rule sends through its DNS proxy, and allows only those addresses, for as long as the answers last.
+
+Policies apply to a pod, not a container, so the page server may reach these names too. It has nothing to sign in to
+them with: the mail server's password is the API's alone, and the workload identity token never reaches the pages
+container (azure.workload.identity/skip-containers, api.yaml).
+*/}}
+{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.fqdnEgress.enabled }}
+{{- $smtpHost := include "medapp.externalSmtpHost" . | lower }}
+{{- if regexMatch "^[0-9.]+$|:" $smtpHost }}
+{{- fail (printf "networkPolicy.fqdnEgress allows the mail server by name, and email.smtp.host is an IP address (%s): use its name, or allow its address in networkPolicy.fqdnEgress.extraEgress (toCIDR)." $smtpHost) }}
+{{- end }}
+{{- $keyVaultHost := "" }}
+{{- with .Values.dataProtection.keyVaultKeyUri }}
+{{- $keyVaultHost = regexReplaceAll ":[0-9]+$" (urlParse .).host "" | lower }}
+{{- if not $keyVaultHost }}
+{{- fail (printf "networkPolicy.fqdnEgress needs Key Vault's host from dataProtection.keyVaultKeyUri, which has none (%s): use the key's full URI, https://<vault>.vault.azure.net/keys/<key>." .) }}
+{{- end }}
+{{- end }}
+# The API's connections by name: the mail server, Key Vault and Microsoft Entra ID, when they're set, on their ports
+# only (networkPolicy.fqdnEgress). Everything else it reaches is in its NetworkPolicy.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "medapp.fullname" . }}-api-by-name
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "api") | nindent 6 }}
+  # Egress only: requests to the API are the NetworkPolicy's.
+  egress:
+    # DNS, through Cilium's DNS proxy, which is how it learns the names' addresses. Any name may be looked up, as the
+    # NetworkPolicy allows: each lookup first tries the pod's search domains (<name>.medapp.svc.cluster.local and
+    # so on), and the database's private endpoint and the backplane are found by name too.
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    {{- if $smtpHost }}
+    # The mail server (email.smtp.host), on its port only.
+    - toFQDNs:
+        - matchName: {{ $smtpHost | quote }}
+      toPorts:
+        - ports:
+            - port: {{ .Values.email.smtp.port | int | toString | quote }}
+              protocol: TCP
+    {{- end }}
+    {{- if $keyVaultHost }}
+    # The data protection key (dataProtection.keyVaultKeyUri): its vault, and Microsoft Entra ID, where the API swaps
+    # its workload identity token for one for Key Vault (networkPolicy.fqdnEgress.authorityHost). Over https only.
+    - toFQDNs:
+        - matchName: {{ $keyVaultHost | quote }}
+        - matchName: {{ .Values.networkPolicy.fqdnEgress.authorityHost | lower | quote }}
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.fqdnEgress.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

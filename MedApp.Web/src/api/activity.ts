@@ -37,6 +37,18 @@ export const ACTIVITY_ACTIONS = [
   'SignedOutEverywhere',
   'AttachmentsViewed',
   'AttachmentDownloaded',
+  'TwoFactorChallenged',
+  'TwoFactorEnabled',
+  'TwoFactorDisabled',
+  'TwoFactorReset',
+  'RecoveryCodesRegenerated',
+  'RecoveryCodeUsed',
+  'PasswordResetRequested',
+  'PasswordResetByEmail',
+  'EmailChangeRequested',
+  'EmailConfirmed',
+  'EmailRemoved',
+  'TwoFactorRequirementChanged',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -69,6 +81,18 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   SignedOutEverywhere: 'Signed out everywhere',
   AttachmentsViewed: 'Files viewed',
   AttachmentDownloaded: 'File downloaded',
+  TwoFactorChallenged: 'Code asked for',
+  TwoFactorEnabled: 'Two-factor turned on',
+  TwoFactorDisabled: 'Two-factor turned off',
+  TwoFactorReset: 'Two-factor reset',
+  RecoveryCodesRegenerated: 'New recovery codes',
+  RecoveryCodeUsed: 'Recovery code used',
+  PasswordResetRequested: 'Password reset asked for',
+  PasswordResetByEmail: 'Password reset by email',
+  EmailChangeRequested: 'Email address change asked for',
+  EmailConfirmed: 'Email address confirmed',
+  EmailRemoved: 'Email address removed',
+  TwoFactorRequirementChanged: 'Two-factor requirement changed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -82,7 +106,7 @@ export const FILE_ACTIONS: ActivityAction[] = ['AttachmentsViewed', 'AttachmentD
 export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'ProcedureViewed', 'PatientExported', ...FILE_ACTIONS];
 
 /** The sign-in actions, for their quick filter. */
-export const SIGN_IN_ACTIONS: ActivityAction[] = ['SignedIn', 'SignInFailed', 'SignedOut'];
+export const SIGN_IN_ACTIONS: ActivityAction[] = ['SignedIn', 'TwoFactorChallenged', 'SignInFailed', 'SignedOut'];
 
 /** The account and role actions, for their quick filter. */
 export const ACCOUNT_ACTIONS: ActivityAction[] = [
@@ -94,6 +118,17 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'RoleCreated',
   'RoleDeleted',
   'SignedOutEverywhere',
+  'TwoFactorEnabled',
+  'TwoFactorDisabled',
+  'TwoFactorReset',
+  'RecoveryCodesRegenerated',
+  'RecoveryCodeUsed',
+  'PasswordResetRequested',
+  'PasswordResetByEmail',
+  'EmailChangeRequested',
+  'EmailConfirmed',
+  'EmailRemoved',
+  'TwoFactorRequirementChanged',
 ];
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -138,6 +173,18 @@ const FIELD_NAMES: Record<string, string> = {
   nhsNumber: 'NHS number',
 };
 
+/** Why a sign-in, or its second step, was refused. */
+const SIGN_IN_FAILURES: Record<string, string> = {
+  InvalidCredentials: 'Wrong username or password',
+  LockedOut: 'Account locked',
+  InvalidCode: 'Wrong authenticator code',
+  InvalidRecoveryCode: 'Wrong recovery code',
+  InvalidCodeLockedOut: 'Wrong authenticator code: account locked',
+  InvalidRecoveryCodeLockedOut: 'Wrong recovery code: account locked',
+  ChallengeExpired: 'Code step timed out',
+  TooManyCodes: 'Too many codes for the account',
+};
+
 const fieldNames = (value: unknown) =>
   Array.isArray(value) ? value.map((f) => FIELD_NAMES[String(f)] ?? String(f)).join(', ') : '';
 
@@ -168,7 +215,16 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
       // Whether the national demographics service found anyone; the number looked up is never recorded.
       return d.found === true ? 'Found' : d.found === false ? 'Nobody found' : '';
     case 'SignInFailed':
-      return d.reason === 'LockedOut' ? 'Account locked' : 'Wrong username or password';
+      return SIGN_IN_FAILURES[String(d.reason)] ?? 'Wrong username or password';
+    case 'SignedIn':
+      return d.secondStep === 'recoveryCode' ? 'With a recovery code' : d.secondStep === 'authenticator' ? 'With an authenticator code' : '';
+    case 'RecoveryCodeUsed':
+      return typeof d.codesLeft === 'number' ? `${d.codesLeft} left` : '';
+    case 'PasswordResetRequested':
+      // Never what was typed: only whether an account with a confirmed address matched.
+      return d.matched === true ? 'Link sent' : d.matched === false ? 'No account matched' : '';
+    case 'TwoFactorRequirementChanged':
+      return d.requireTwoFactorForAdmins === true ? 'Required for admins' : d.requireTwoFactorForAdmins === false ? 'Not required' : '';
     case 'RolesChanged':
       if (d.added) return `Added ${String(d.added)}`;
       if (d.removed) return `Removed ${String(d.removed)}`;

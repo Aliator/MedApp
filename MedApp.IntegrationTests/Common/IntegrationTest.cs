@@ -52,6 +52,7 @@ public abstract class IntegrationTest
     {
         Clock.Reset();
         await TestEnvironment.ResetDatabaseAsync();
+        Api.Emails.Clear();
 
         if (MakesFirstAdmin)
         {

@@ -29,6 +29,10 @@ spec:
       kind: Secret
     - group: ""
       kind: Service
+    # Only the API's, for Azure's workload identity (api.workloadIdentity). It gets no Kubernetes rights: the
+    # project allows no Role or RoleBinding.
+    - group: ""
+      kind: ServiceAccount
     - group: apps
       kind: Deployment
     - group: apps
@@ -39,6 +43,10 @@ spec:
       kind: Ingress
     - group: networking.k8s.io
       kind: NetworkPolicy
+    # Only with Azure's values: the API's egress by name (networkPolicy.fqdnEgress). Namespaced, so it can only
+    # change what pods in medapp may connect to, as a NetworkPolicy can.
+    - group: cilium.io
+      kind: CiliumNetworkPolicy
     - group: policy
       kind: PodDisruptionBudget
     - group: external-secrets.io

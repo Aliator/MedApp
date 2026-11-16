@@ -1,3 +1,4 @@
+using MedApp.Application.Authentication.TwoFactor.Repositories;
 using FluentAssertions;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
@@ -61,7 +62,7 @@ public sealed class CommonPasswordValidatorTests
         userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
         userManager.Setup(u => u.GeneratePasswordResetTokenAsync(user)).ReturnsAsync("synthetic-token");
         userManager.Setup(u => u.ResetPasswordAsync(user, "synthetic-token", Capture.In(generated))).ReturnsAsync(IdentityResult.Success);
-        var service = new IdentityUserService(userManager.Object, Options.Create(new IdentityOptions()));
+        var service = new IdentityUserService(userManager.Object, Options.Create(new IdentityOptions()), Mock.Of<IAccountLockoutRepository>(), TimeProvider.System);
 
         for (var i = 0; i < 500; i++)
             await service.ResetUserPasswordAsync(user.UserName!, CancellationToken.None);

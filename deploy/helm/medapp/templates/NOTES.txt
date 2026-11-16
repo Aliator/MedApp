@@ -9,7 +9,21 @@ No ingress is enabled. To try it from this machine:
 and open http://localhost:8080/
 {{- end }}
 
+{{- if .Values.mailpit.enabled }}
+
+Emails go to Mailpit, and never leave the cluster. Its inbox:
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "medapp.mailpitName" . }} 8025:8025
+and open http://localhost:8025/
+{{- end }}
+
 The app seeds no accounts. See deploy/helm/medapp/README.md for the first sign-in.
+{{- if not .Values.dataProtection.keyVaultKeyUri }}
+
+WARNING: the data protection keys (which seal password reset and email confirmation links) are stored in the database
+unwrapped (dataProtection.keyVaultKeyUri isn't set). Anyone with a copy of the database could make a reset link for any
+account. Fine for a cluster with synthetic data only; set a Key Vault key before holding real data. The API logs the
+same warning at startup.
+{{- end }}
 {{- if not (include "medapp.attachmentsStorage" .) }}
 
 Attachments have no file storage (attachments in values.yaml), so uploads and downloads answer 503.

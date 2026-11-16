@@ -132,7 +132,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 
 ## 6. Hazards and their risk
 
-From `hazard-log.md`, version 0.8. H-30 to H-36 are drafts whose ratings are left for the CSO; the figures shown for them are the log's draft estimates, in brackets. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
+From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are left for the CSO; the figures shown for them are the log's draft estimates, in brackets. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
@@ -264,4 +264,4 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | 0.4 | 16 November 2026 | File attachments: H-23 to H-28 in the summary, the hazard table and the outstanding hazards; their evidence in claims 2 and 5; their known defects; two new assumptions | AI coding agent, for review |
 | 0.5 | 16 November 2026 | Merged with admins' monitoring (PR #84): H-29 in the hazard table and the count. After the review of #85: H-28's defect (a 500 after minutes of retries) fixed | AI coding agent, for review |
 | 0.6 | 16 November 2026 | The privacy features (PR #68): H-22 and H-19's anonymisation control in the hazard summary. Made in `main` without a new version; recorded here when staff calendars merged it | AI coding agent, for review |
-| 0.7 | 16 November 2026 | Staff calendars and appointments: what's in the release, a claim for booking times, clashes and the visit rule, the draft hazards H-30 to H-36 (ratings left for the CSO), and the assumptions about calendar setup, visits and telling patients. On merging file attachments: H-23 to H-29 with the calendar hazards in the count and the tables | AI coding agent, for review |
+| 0.7 | 16 November 2026 | Staff calendars and appointments: what's in the release, a claim for booking times, clashes and the visit rule, the draft hazards H-30 to H-36 (ratings left for the CSO), and the assumptions about calendar setup, visits and telling patients. On merging file attachments: H-23 to H-29 with the calendar hazards in the count and the tables. On merging email and two-factor sign-in (#86): the hazard log's version 0.9 cited, with no change to the hazards or counts | AI coding agent, for review |

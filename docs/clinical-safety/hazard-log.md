@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.8, draft |
+| **Version** | 0.9, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
@@ -430,6 +430,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **One maintainer** (risk O1).
 - A failed deploy: every merge deploys (risk D1).
 - The organisation's own network or devices.
+- **For one member of staff (since `feature/email-2fa`): they can't sign in.** They've lost the phone with their authenticator app, or five wrong codes (or passwords) have locked their account for five minutes, or an admin who must use two-factor hasn't set it up and is held to doing so. A person locked out of a clinical system mid-shift can't record or look up work. **A new cause, for the clinical safety officer to assess.**
 - File storage alone can fail while the rest works: H-28.
 - **A hostile file uploaded as an attachment** (branch `feature/file-attachments`): an image whose header claims a huge size (a 1 MB progressive JPEG claiming 24,000 by 24,000 pixels needs over a gigabyte to decode for its thumbnail), a Word file whose table of contents lists hundreds of thousands of entries, or many such uploads at once, could take an API copy past its memory limit, so that the kernel kills it with every request it was serving. Two such uploads could take both copies down. Controlled since the review of #85 (existing controls).
 
@@ -442,6 +443,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - A failed migration stops the rollout and leaves the old version running (ADR-10).
 - Server rendering falls back to rendering in the browser if Node fails (`SsrPages`).
 - Rollback is a revert on `main` (`AGENTS.md`).
+- **For a member of staff locked out of their account** (`feature/email-2fa`): two-factor is optional, and off unless they turn it on; ten one-time recovery codes, shown at set-up with copy and download; an admin can reset someone's two-factor at once, from the Users page (recorded, and the owner is emailed); "Forgot your password?" works by email without an admin; a lockout lasts five minutes; requiring two-factor for admins can't be turned on by an admin who doesn't use it, and a held admin can set it up from the page they're sent to. Deploying organisations should make sure there's always an admin on duty who can reset another's two-factor, and that staff keep their recovery codes (a downtime procedure item, step 6).
 - **Hostile files are bounded:** the thumbnail generator reads the image's header first and makes no thumbnail (the upload still succeeds, without a preview) when the source is over 24 megapixels or over 10,000 pixels on either side (`SkiaThumbnailGenerator`); a `.docx` whose ZIP table of contents lists more than 5,000 entries is refused, the count read from the end-of-central-directory record before the archive is opened (`FileTypeSniffer`); at most two thumbnails or Word inspections run at a time per API copy (a `SemaphoreSlim(2)`); and a request is at most 20 MiB.
 
 **Initial risk:** Major, Medium: **3**.
@@ -709,7 +711,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Causes:**
 - **No idle timeout:** a session lasts 8 hours from sign-in, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
 - **A session can be extended (since #63):** five minutes before the end, a warning offers "Stay signed in", which extends the session to 8 hours from then, up to 24 hours from sign-in (`UserSession.Extend`). Whoever is at the screen can press it, so an unattended session can now be kept for up to 24 hours instead of 8. The warning is for the fixed limit (WCAG 2.2.1), not an idle timeout. **A change to this hazard's cause, for the clinical safety officer to assess.**
-- **Passwords only,** with no multi-factor authentication (risk S8), and shared or passed-on passwords.
+- **Passwords only for most accounts:** two-factor authentication is available but optional (since `feature/email-2fa`; admins can require it for admin accounts), so a shared or passed-on password is still enough for most (risk S8).
 - **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
 
 **Effect.** It's unclear who did a step, which matters when someone needs to ask about it or when something went wrong.
@@ -728,7 +730,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Further controls:**
 - **An idle timeout,** with a warning. Protective; **planned** (step 2); later. (The warning before the fixed limit, added in #63, is not this control.)
 - **End a user's other sessions** on a password change and a reset. Protective; **in place** (`feature/security-baseline`, #67). A role change applies to the next request without ending sessions.
-- **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
+- **Multi-factor authentication** and single sign-on. Protective; an authenticator app with recovery codes, optional, which admins can require for admin accounts, is **in place** (`feature/email-2fa`); compulsory for everyone, passkeys and single sign-on are **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
 
@@ -1418,4 +1420,5 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.5 | 16 November 2026 | The NHS integrations (PR #69): the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed. After the review of #69: the banner on every page about one patient, and the lookup's confirmation on Edit Patient | AI coding agent, for review |
 | 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Tasks on all open work; new hazard H-29 (relying on best-effort monitoring for clinical follow-up; H-29 because the attachments branch takes H-23 to H-28). No existing rating changed | AI coding agent, for review |
 | 0.7 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. H-23 has the built patient banner (PR #69) as a control, and the restriction guard and anonymisation (PR #68) are causes in H-22, H-23, H-24 and H-26. After the review of #85: hostile images and archives as a cause of H-10, with their bounds; the upload re-checked after staging (H-23); active content in Word and PDF files refused (H-25); storage failures bounded and a 503 (H-28, its defect fixed); anonymisation's file deletions audited (H-26). No earlier rating changed | AI coding agent, for review |
-| 0.8 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4). On merging 0.7 (file attachments): the calendar hazards keep H-30 to H-36, which now follow H-29 with no gap | AI coding agent, for review |
+| 0.8 | 16 November 2026 | `feature/email-2fa`: a new cause of H-10 (a member of staff locked out by two-factor or the lockout) with its controls (recovery codes, an admin reset, reset by email); optional two-factor added to H-18's controls. Ratings unchanged, for the CSO to assess | AI coding agent, for review |
+| 0.9 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4). On merging 0.7 (file attachments): the calendar hazards keep H-30 to H-36, which now follow H-29 with no gap. On merging 0.8 (email and two-factor sign-in): no new hazard, so the numbering stands | AI coding agent, for review |

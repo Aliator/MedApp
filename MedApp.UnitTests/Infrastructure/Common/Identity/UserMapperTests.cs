@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Infrastructure.Common.Identity;
 
@@ -21,5 +21,26 @@ public sealed class UserMapperTests
     public void ToResponse_UserWithNoName_HasAnEmptyName()
     {
         UserMapper.ToResponse(new ApplicationUser { Id = UserId }, []).Username.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ToResponse_ConfirmedAddressPendingOneAndTwoFactor_AreReturned()
+    {
+        var user = new ApplicationUser
+        {
+            Id = UserId, UserName = "test.staff", Email = "staff@example.test", EmailConfirmed = true,
+            PendingEmail = "new@example.test", TwoFactorEnabled = true,
+        };
+
+        UserMapper.ToResponse(user, []).Should().BeEquivalentTo(
+            new UserResponse(UserId, "test.staff", [], "staff@example.test", "new@example.test", true));
+    }
+
+    [Test]
+    public void ToResponse_UnconfirmedAddress_IsNotTheAccounts()
+    {
+        var user = new ApplicationUser { Id = UserId, UserName = "test.staff", Email = "staff@example.test" };
+
+        UserMapper.ToResponse(user, []).Email.Should().BeNull();
     }
 }

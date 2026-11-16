@@ -14,8 +14,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
-    const request = fetch.mock.calls[0][0] as Request;
-    expect(new URL(request.url).pathname).toBe('/api/auth/login');
+    const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => new URL(r.url).pathname === '/api/auth/login')!;
     expect(request.method).toBe('POST');
     expect(await request.json()).toEqual({username: 'test-admin', password: 'Synthetic-Passw0rd'});
   });
@@ -38,6 +37,71 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Username must not be empty.')).toBeInTheDocument();
     expect(screen.getByText('Password must not be empty.')).toBeInTheDocument();
     expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+  });
+
+  describe('coming back to a page after signing in', () => {
+    const session = {sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'};
+
+    async function signIn(whoami: unknown, redirectTo = '/confirm-email') {
+      mockApi({
+        'POST /api/auth/login': () => json(session),
+        'GET /api/auth/whoami': () => json(whoami),
+        'GET /api/auth/me/settings': () => json({settings: null}),
+      });
+      const result = renderWithApp(<LoginPage redirectTo={redirectTo} />, {path: '/login'});
+      await result.user.type(await screen.findByLabelText(/username/i), 'test-user');
+      await result.user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+      await result.user.click(screen.getByRole('button', {name: /sign in/i}));
+      return result;
+    }
+
+    it('goes back to the page that sent them, rather than the start page', async () => {
+      localStorage.setItem('medapp.startPage', 'procedures');
+      const {router} = await signIn({isAuthenticated: true, name: 'test-user', roles: ['User']});
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/confirm-email'));
+    });
+
+    it('keeps its query', async () => {
+      const {router} = await signIn({isAuthenticated: true, name: 'test-user', roles: ['User']}, '/patients?page=2');
+
+      await waitFor(() => expect(router.state.location.href).toBe('/patients?page=2'));
+    });
+
+    it.each([
+      ['must change their password', {mustChangePassword: true}],
+      ['must set up two-factor', {mustSetUpTwoFactor: true}],
+    ])('goes to the start page for someone who %s, whose hold comes first', async (_, hold) => {
+      const {router} = await signIn({isAuthenticated: true, name: 'test-user', roles: ['User'], ...hold});
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    });
+
+    it('reads a safe path from the URL, and drops one to another site', async () => {
+      expect(parseLoginSearch({redirect: '/confirm-email'})).toEqual({redirect: '/confirm-email'});
+      expect(parseLoginSearch({redirect: '//example.org/', expired: 'true'})).toEqual({expired: true});
+      expect(parseLoginSearch({redirect: 'https://example.org/'})).toEqual({});
+    });
+
+    it('signs in from the real route and comes back', async () => {
+      let signedIn = false;
+      mockApi({
+        'GET /api/auth/features': () => json({canSendEmail: true}),
+        'POST /api/auth/login': () => {
+          signedIn = true;
+          return json(session);
+        },
+        'GET /api/auth/whoami': () => json(signedIn ? {isAuthenticated: true, name: 'test-user', roles: ['User']} : {isAuthenticated: false}),
+        'GET /api/auth/me/settings': () => json({settings: null}),
+      });
+      const {user, router} = renderApp({path: '/login?redirect=%2Fconfirm-email'});
+
+      await user.type(await screen.findByLabelText(/username/i), 'test-user');
+      await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+      await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/confirm-email'));
+    });
   });
 
   it('goes to the start page chosen in Account Settings', async () => {
@@ -182,5 +246,29 @@ describe('after a session timed out', () => {
 
     await screen.findByRole('heading', {name: 'Sign in'});
     expect(screen.queryByText(TIMED_OUT)).not.toBeInTheDocument();
+  });
+});
+
+describe('Forgot your password?', () => {
+  it('links to the forgot-password page when the server can send email', async () => {
+    mockApi({'GET /api/auth/features': () => json({canSendEmail: true})});
+    const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.click(await screen.findByRole('link', {name: 'Forgot your password?'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/forgot-password'));
+  });
+
+  it.each([
+    ["says it can't", () => json({canSendEmail: false})],
+    ["can't say", () => json({title: 'Server error'}, 500)],
+  ])("isn't offered when the server %s send email", async (_, features) => {
+    const fetch = mockApi({'GET /api/auth/features': features});
+    renderWithApp(<LoginPage />, {path: '/login'});
+
+    await screen.findByRole('heading', {name: 'Sign in'});
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(screen.queryByRole('link', {name: /forgot/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /forgot/i})).not.toBeInTheDocument();
   });
 });

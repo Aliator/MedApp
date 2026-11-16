@@ -340,6 +340,43 @@ jobs:
       - name: Lint with Azure's values
         run: helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
 
+      # As deploy/azure/values.yaml will be once deploy.sh's outputs are filled in: workload identity, the data
+      # protection key and the sender address (placeholders).
+      - name: Lint with Azure's values, filled in
+        run: >-
+          helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
+          --set api.workloadIdentity.clientId=00000000-0000-0000-0000-000000000000
+          --set email.fromAddress=DoNotReply@example.azurecomm.net
+          --set dataProtection.keyVaultKeyUri=https://kv-medapp-ci.vault.azure.net/keys/medapp-data-protection
+
+      # Azure's values limit the API's egress by name (networkPolicy.fqdnEgress): the CiliumNetworkPolicy names the
+      # relay, the vault and Microsoft Entra ID, and the API's NetworkPolicy no longer opens the internet beside it.
+      - name: Render Azure's egress by name
+        run: |
+          helm template medapp deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci \
+            --set api.workloadIdentity.clientId=00000000-0000-0000-0000-000000000000 \
+            --set email.fromAddress=DoNotReply@example.azurecomm.net \
+            --set dataProtection.keyVaultKeyUri=https://kv-medapp-ci.vault.azure.net/keys/medapp-data-protection \
+            > azure.yaml
+          grep -q '^kind: CiliumNetworkPolicy$' azure.yaml
+          for name in smtp.azurecomm.net kv-medapp-ci.vault.azure.net login.microsoftonline.com; do
+            grep -q "matchName: \"$name\"" azure.yaml || { echo "No FQDN rule for $name."; exit 1; }
+          done
+          if grep -q '0\.0\.0\.0/0' azure.yaml; then
+            echo "The API's NetworkPolicy still allows the internet beside egress by name."; exit 1
+          fi
+          # Under the managed domain's quota of 10 emails an hour.
+          grep -A1 'name: Email__MaxPerHour' azure.yaml | grep -q 'value: "8"' || { echo "No hourly email cap under the quota."; exit 1; }
+
+      - name: Lint with Mailpit
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set mailpit.enabled=true
+
+      - name: Lint with an external mail server and its password from a Secret
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set email.smtp.host=smtp.example.com --set email.fromAddress=medapp@example.com
+          --set email.smtp.auth.enabled=true --set email.smtp.auth.existingSecret=medapp-email
+
       # The page server inside the API's container (the API starts Node), instead of in a container of its own.
       - name: Lint with the page server in the API's container
         run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set api.pageServer.enabled=false
