@@ -444,7 +444,7 @@ There are 53 handlers and 30 validators in four areas: Authentication (users, ro
 
 **Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender checks the person's choices for the kinds they can turn off (`NotificationPreferences`), stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
 
-**Monitoring.** Every procedure command also calls `IProcedureMonitor.NotifyAsync(change)` after saving. `ProcedureMonitor` reads what the change did from its audit entries, loads the switched-on rules for those events (one query, or none), matches them, leaves out rules whose admin made the change or is no longer an admin, and sends each remaining admin one notification. It's best effort and outside the change's transaction: a failure is logged and the change stands (`AGENTS.md`, Monitoring).
+**Monitoring.** Every procedure command also calls `IProcedureMonitor.NotifyAsync(change)` after saving. `ProcedureMonitor` reads what the change did from its audit entries, loads the switched-on rules for those events (one query when the change has something to watch, none otherwise), matches them, leaves out the admin who made the change (and, for an assignment, the person assigned), skips without deleting the rules of an owner who is no longer an admin (one more query, only when a rule matched), and sends each remaining admin one notification (one insert and one push each). It's best effort and outside the change's transaction: a failure is logged and the change stands (`AGENTS.md`, Monitoring).
 
 ### 5.5 The Infrastructure layer
 
@@ -551,7 +551,7 @@ stateDiagram-v2
 | Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures and the log's free text) |
 | Insights | `GET api/procedures/insights` | Admin |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read`; `GET` and `PUT api/notifications/preferences` | Staff |
-| Monitoring rules | `GET`, `POST api/monitoring/rules`; `PUT`, `DELETE api/monitoring/rules/{id}` (your own only) | Admin |
+| Monitoring rules | `GET`, `POST api/monitoring/rules`; `PUT`, `DELETE api/monitoring/rules/{id}`; `PUT api/monitoring/rules/{id}/enabled` (your own only) | Admin |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
 | FHIR (branch `feature/nhs-integrations`) | `GET api/fhir/Patient/{id}`; `GET api/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number\|{number}`. Read-only FHIR R4 in the UK Core shape, `application/fhir+json`, errors as OperationOutcomes | Staff |
 | Demographics (branch `feature/nhs-integrations`) | `GET api/demographics/status`; `POST api/demographics/lookup` (the NHS number in the body). Off unless `Pds:Mode` is set; only an offline stub exists | Staff |

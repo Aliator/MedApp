@@ -28,6 +28,12 @@ describe('NotificationSettings', () => {
     await expectAnnounced('Assignment notifications off');
   });
 
+  it('points to My Tasks with its filter on all open work', async () => {
+    renderSettings({[`GET ${PREFERENCES}`]: () => json({procedureAssigned: true})});
+
+    expect(await screen.findByText(/work from My Tasks, with its filter on all open work/)).toBeInTheDocument();
+  });
+
   it('shows a choice made before as off', async () => {
     renderSettings({[`GET ${PREFERENCES}`]: () => json({procedureAssigned: false})});
 

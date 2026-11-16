@@ -34,6 +34,12 @@ public abstract class MonitoringHandlerTestBase
             .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>
                 (IReadOnlyDictionary<Guid, string>)Usernames.Where(kv => ids.Contains(kv.Key)).ToDictionary());
 
+        // test.admin is an admin; the others aren't.
+        Identity
+            .Setup(i => i.GetRolesForUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string username, CancellationToken _) =>
+                username == Admin.Username ? ["Admin", "User"] : (IReadOnlyList<string>)["User"]);
+
         Stages
             .Setup(s => s.GetStageTemplateNamesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>

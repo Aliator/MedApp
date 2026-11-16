@@ -47,6 +47,7 @@ public sealed class AuthorisationTests : IntegrationTest
         yield return Case("GET", "/api/monitoring/rules");
         yield return Case("POST", "/api/monitoring/rules");
         yield return Case("PUT", $"/api/monitoring/rules/{AnyId}");
+        yield return Case("PUT", $"/api/monitoring/rules/{AnyId}/enabled");
         yield return Case("DELETE", $"/api/monitoring/rules/{AnyId}");
     }
 

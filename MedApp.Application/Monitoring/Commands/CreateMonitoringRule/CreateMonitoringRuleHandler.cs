@@ -22,7 +22,7 @@ public sealed class CreateMonitoringRuleHandler(
             throw new ConflictException(
                 $"You have {MonitoringRuleInput.MaxRulesPerAdmin} rules, the most allowed. Delete one you no longer need first.");
 
-        await MonitoringRuleInput.CheckNamedThingsExistAsync(request, identityReadService, stagesRepository, cancellationToken);
+        await MonitoringRuleInput.CheckAsync(request, existing: null, identityReadService, stagesRepository, cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var rule = new MonitoringRule

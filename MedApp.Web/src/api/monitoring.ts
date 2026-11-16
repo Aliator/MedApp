@@ -48,8 +48,11 @@ export const monitoringRulesQuery = queryOptions({
   queryFn: () => unwrap(api.GET(RULES)),
 });
 
+/** The most people the picker lists: the users search's largest page. A searchable picker is a to-do. */
+export const MAX_PEOPLE = 100;
+
 /** Everyone a rule can name: the first 100 accounts by username (the API's largest page). */
-export const monitoringPeopleQuery = userSearchQuery({PageSize: 100, Sort: 'username', Ascending: true});
+export const monitoringPeopleQuery = userSearchQuery({PageSize: MAX_PEOPLE, Sort: 'username', Ascending: true});
 
 /** Adds a rule (no `id`) or replaces one, switching it on or off too. */
 export function useSaveMonitoringRule() {
@@ -58,6 +61,20 @@ export function useSaveMonitoringRule() {
     mutationFn: ({id, ...body}: MonitoringRuleInput & {id?: string}) =>
       id ? unwrap(api.PUT(RULE, {params: {path: {id}}, body})) : unwrap(api.POST(RULES, {body})),
     onSuccess: () => queryClient.invalidateQueries({queryKey: monitoringKey}),
+  });
+}
+
+/**
+ * Switches a rule on or off, and nothing else (`PUT …/{id}/enabled`), so a rule naming something since deleted can still
+ * be switched. Call it with `mutateAsync` and handle each call's outcome there: TanStack Query runs a call's own
+ * callbacks only for the latest call, and two rules can be switched at once.
+ */
+export function useSetMonitoringRuleEnabled() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, isEnabled}: {id: string; isEnabled: boolean}) =>
+      unwrap(api.PUT('/api/monitoring/rules/{id}/enabled', {params: {path: {id}}, body: {isEnabled}})),
+    onSettled: () => queryClient.invalidateQueries({queryKey: monitoringKey}),
   });
 }
 

@@ -16,6 +16,10 @@ namespace MedApp.Application.Monitoring.Common;
 /// <param name="StageName">For a stage event, the stage's name (copied from its definition, which admins write).</param>
 /// <param name="DueDateFrom">For a due date change, the date before.</param>
 /// <param name="DueDateTo">For a due date change, the date after.</param>
+/// <param name="PriorityBefore">
+/// The procedure's priority before the change, when the same change lowered or raised it (a details edit); rules match the
+/// higher of it and the priority after, so lowering the priority in the same edit can't hide the change.
+/// </param>
 public sealed record MonitoredActivity(
     MonitoringEvent Event,
     string ActorUsername,
@@ -24,7 +28,8 @@ public sealed record MonitoredActivity(
     Guid? StageDefinitionId = null,
     string? StageName = null,
     DateOnly? DueDateFrom = null,
-    DateOnly? DueDateTo = null)
+    DateOnly? DueDateTo = null,
+    PatientProcedurePriority? PriorityBefore = null)
 {
     /// <summary>
     /// What these audit entries of one change to the procedure did that rules can watch for, in the order they happened.
@@ -65,8 +70,11 @@ public sealed record MonitoredActivity(
                 }
 
             case Action.DetailsUpdated:
-                return DueDateChange(entry) is { } dueDates
-                    ? ByActor(MonitoringEvent.DueDateChanged, entry) with { DueDateFrom = dueDates.From, DueDateTo = dueDates.To }
+                return DueDateChange(entry) is { } change
+                    ? ByActor(MonitoringEvent.DueDateChanged, entry) with
+                    {
+                        DueDateFrom = change.From, DueDateTo = change.To, PriorityBefore = change.PriorityBefore
+                    }
                     : null;
 
             default:
@@ -103,8 +111,9 @@ public sealed record MonitoredActivity(
             : null;
     }
 
-    // A details edit that includes the due date: {"changes":{"dueDate":{"from":"2026-06-22","to":"2026-06-29"}, …}}.
-    private static (DateOnly? From, DateOnly? To)? DueDateChange(PatientProcedureAuditEntry entry)
+    // A details edit that includes the due date: {"changes":{"dueDate":{"from":"2026-06-22","to":"2026-06-29"}, …}},
+    // and, if the same edit changed the priority, "priority":{"from":"Urgent","to":"Low"}.
+    private static (DateOnly? From, DateOnly? To, PatientProcedurePriority? PriorityBefore)? DueDateChange(PatientProcedureAuditEntry entry)
     {
         using var details = JsonDocument.Parse(entry.Details);
         if (!details.RootElement.TryGetProperty("changes", out var changes)
@@ -113,7 +122,15 @@ public sealed record MonitoredActivity(
             || dueDate.ValueKind != JsonValueKind.Object)
             return null;
 
-        return (Date(dueDate, "from"), Date(dueDate, "to"));
+        PatientProcedurePriority? priorityBefore = changes.TryGetProperty("priority", out var priority)
+                                                   && priority.ValueKind == JsonValueKind.Object
+                                                   && priority.TryGetProperty("from", out var from)
+                                                   && from.ValueKind == JsonValueKind.String
+                                                   && Enum.TryParse<PatientProcedurePriority>(from.GetString(), out var parsed)
+            ? parsed
+            : null;
+
+        return (Date(dueDate, "from"), Date(dueDate, "to"), priorityBefore);
     }
 
     private static DateOnly? Date(JsonElement element, string name) =>

@@ -15,6 +15,9 @@ public interface IMonitoringRuleRepository
     /// <summary>Every switched-on rule, of any admin, that watches for one of these events, read-only.</summary>
     Task<IReadOnlyList<MonitoringRule>> GetEnabledAsync(IReadOnlyCollection<MonitoringEvent> events, CancellationToken cancellationToken);
 
+    /// <summary>Which of these accounts have the Admin role now: one read-only query.</summary>
+    Task<IReadOnlySet<Guid>> GetAdminsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken);
+
     Task AddAsync(MonitoringRule rule, CancellationToken cancellationToken);
 
     Task UpdateAsync(MonitoringRule rule, CancellationToken cancellationToken);

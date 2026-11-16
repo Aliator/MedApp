@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Domain.Monitoring;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,22 @@ public sealed class MonitoringRuleRepository(MedAppDbContext context) : IMonitor
             .OrderBy(r => r.CreatedAtUtc)
             .ThenBy(r => r.Id)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlySet<Guid>> GetAdminsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new HashSet<Guid>();
+
+        var admin = AppRoles.Admin.ToUpperInvariant();
+        var admins = await (
+                from userRole in context.UserRoles.AsNoTracking()
+                join role in context.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                where role.NormalizedName == admin && ids.Contains(userRole.UserId)
+                select userRole.UserId)
+            .ToListAsync(cancellationToken);
+        return admins.ToHashSet();
     }
 
     public async Task AddAsync(MonitoringRule rule, CancellationToken cancellationToken)

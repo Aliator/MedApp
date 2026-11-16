@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Procedures.Common;
@@ -56,34 +57,63 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
 
 public static class MonitoringRuleInput
 {
-    /// <summary>The most rules one admin can have: plenty, and it keeps matching cheap.</summary>
+    /// <summary>
+    /// The most rules one admin can have: plenty, and it keeps matching cheap. It's a count then an insert, so two adds
+    /// at the same moment at 49 can make 51; accepted, as a rule or two over harms nothing.
+    /// </summary>
     public const int MaxRulesPerAdmin = 50;
 
     /// <summary>Whether a rule for this event can name a stage.</summary>
     public static bool HasStage(MonitoringEvent monitoringEvent) =>
         monitoringEvent is MonitoringEvent.StageFinished or MonitoringEvent.StageUnlocked;
 
+    /// <summary>The message when "Stage unlocked" names someone who isn't an admin.</summary>
+    public const string UnlockNeedsAdmin = "Only admins unlock stages, so choose an admin, or anyone.";
+
     /// <summary>
-    /// Checks that what the input names exists (404 otherwise): the person (any account; their role isn't checked,
-    /// since roles change), the template and the stage, archived or not.
+    /// Checks what the input newly names: every person, template and stage it names (all of them for a new rule; for an
+    /// edit, only those that differ from the stored rule's, so a rule may keep naming something since deleted) must
+    /// exist, archived or not (404 otherwise). And a person named for "Stage unlocked" must be an admin, as only admins
+    /// unlock (400 otherwise; checked again whenever the person or the event changes, as roles do).
     /// </summary>
-    public static async Task CheckNamedThingsExistAsync(
+    public static async Task CheckAsync(
         IMonitoringRuleInput input,
+        MonitoringRule? existing,
         IIdentityReadService identityReadService,
         IPatientProcedureStagesRepository stagesRepository,
         CancellationToken cancellationToken)
     {
-        if (input.SubjectUserId is { } userId
-            && !(await identityReadService.GetUsernamesByIdAsync([userId], cancellationToken)).ContainsKey(userId))
-            throw new NotFoundException($"User '{userId}' was not found.");
+        Guid? Newly(Guid? id, Guid? stored) => existing is not null && id == stored ? null : id;
+        var monitoringEvent = ProcedureEnums.Parse<MonitoringEvent>(input.Event);
 
-        if (input.TemplateId is { } templateId
+        if (Newly(input.SubjectUserId, existing?.SubjectUserId) is { } userId)
+        {
+            var usernames = await identityReadService.GetUsernamesByIdAsync([userId], cancellationToken);
+            if (!usernames.TryGetValue(userId, out var username))
+                throw new NotFoundException($"User '{userId}' was not found.");
+            if (monitoringEvent == MonitoringEvent.StageUnlocked)
+                await CheckIsAdminAsync(username, identityReadService, cancellationToken);
+        }
+        else if (input.SubjectUserId is { } sameUser
+                 && monitoringEvent == MonitoringEvent.StageUnlocked
+                 && existing?.Event != MonitoringEvent.StageUnlocked
+                 && (await identityReadService.GetUsernamesByIdAsync([sameUser], cancellationToken)).TryGetValue(sameUser, out var name))
+            await CheckIsAdminAsync(name, identityReadService, cancellationToken);
+
+        if (Newly(input.TemplateId, existing?.TemplateId) is { } templateId
             && !(await stagesRepository.GetStageTemplateNamesAsync([templateId], cancellationToken)).ContainsKey(templateId))
             throw new NotFoundException($"Template '{templateId}' was not found.");
 
-        if (input.StageDefinitionId is { } stageId
+        if (Newly(input.StageDefinitionId, existing?.StageDefinitionId) is { } stageId
             && await stagesRepository.GetStageDefinitionByIdAsync(stageId, cancellationToken) is null)
             throw new NotFoundException($"Stage '{stageId}' was not found.");
+    }
+
+    private static async Task CheckIsAdminAsync(string username, IIdentityReadService identityReadService, CancellationToken cancellationToken)
+    {
+        var roles = await identityReadService.GetRolesForUserAsync(username, cancellationToken);
+        if (!roles.Contains(AppRoles.Admin, StringComparer.OrdinalIgnoreCase))
+            throw new ValidationException([new ValidationFailure(nameof(IMonitoringRuleInput.SubjectUserId), UnlockNeedsAdmin)]);
     }
 
     /// <summary>Sets a rule's fields from validated input.</summary>

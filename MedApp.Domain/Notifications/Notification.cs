@@ -29,9 +29,15 @@ public sealed class Notification
     public DateTime? ReadAtUtc { get; set; }
 
     /// <summary>
+    /// Whether it's a monitoring notification: an admin told about what a member of staff did. It's about the staff,
+    /// not the patient, so a patient's export leaves it out.
+    /// </summary>
+    public static bool IsMonitoring(NotificationKind kind) =>
+        kind is >= NotificationKind.MonitoredProcedureCreated and <= NotificationKind.MonitoredDueDateChanged;
+
+    /// <summary>
     /// Whether notifications of this kind have a fixed title (the monitoring kinds' "Stage finished"), rather than the
     /// procedure's title, so anonymising a patient leaves it as it is.
     /// </summary>
-    public static bool HasFixedTitle(NotificationKind kind) =>
-        kind is >= NotificationKind.MonitoredProcedureCreated and <= NotificationKind.MonitoredDueDateChanged;
+    public static bool HasFixedTitle(NotificationKind kind) => IsMonitoring(kind);
 }

@@ -13,11 +13,13 @@ import {ApiError} from '../../api/errors';
 import {
   hasStage,
   inputOf,
+  MAX_PEOPLE,
   MONITORING_EVENTS,
   monitoringPeopleQuery,
   monitoringRulesQuery,
   useDeleteMonitoringRule,
   useSaveMonitoringRule,
+  useSetMonitoringRuleEnabled,
   type MonitoringEvent,
   type MonitoringRule,
   type MonitoringRuleInput,
@@ -56,12 +58,23 @@ const FIELDS = ['subjectUserId', 'event', 'minimumPriority', 'templateId', 'stag
 const fromAny = (value: string) => (value === ANY ? null : value);
 const sameId = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
-/** What a failed save or delete says: a 404 means the rule, or something it names, has gone since the page loaded. */
-function problemOf(error: unknown, action: 'save' | 'add' | 'delete'): SaveProblem {
+/**
+ * What a failed save, switch or delete says. A 404 means the rule has gone since the page loaded, or (for a save) a
+ * person, template or stage newly chosen for it has: what a rule already names may be deleted and stay.
+ */
+function problemOf(error: unknown, action: 'save' | 'add' | 'delete' | 'switch'): SaveProblem {
   if (error instanceof ApiError && error.status === 404)
-    return {validation: null, message: 'That rule, or something it names, no longer exists. Reload the page and try again.'};
-  return saveProblem(error, action, 'rule');
+    return {
+      validation: null,
+      message:
+        action === 'save' || action === 'add'
+          ? 'The rule, or something newly chosen for it, no longer exists. Reload the page and try again.'
+          : 'That rule no longer exists. Reload the page.',
+    };
+  return saveProblem(error, action === 'switch' ? 'save' : action, 'rule');
 }
+
+const isAdmin = (roles: readonly string[] | null | undefined) => roles?.some((r) => r.toLowerCase() === 'admin') ?? false;
 
 /**
  * Monitoring (admin): the signed-in admin's rules for being told what staff do to procedures, e.g. "Notify me when
@@ -78,7 +91,10 @@ export function MonitoringPage() {
   const templates = useQuery(allTemplatesQuery);
   const stages = useQuery(stageDefinitionsQuery);
   const save = useSaveMonitoringRule();
+  const setEnabled = useSetMonitoringRuleEnabled();
   const remove = useDeleteMonitoringRule();
+  // The rules being switched, and to what: each shows its new state, held still, until its own save is done.
+  const [switching, setSwitching] = useState<Record<string, boolean>>({});
   const announce = useAnnounce();
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<MonitoringRuleInput>(EMPTY);
@@ -111,15 +127,23 @@ export function MonitoringPage() {
       },
     );
 
-  const switchRule = (rule: MonitoringRule, isEnabled: boolean) => {
-    setError(null);
-    save.mutate(
-      {id: rule.id, ...inputOf(rule), isEnabled},
-      {
-        onSuccess: () => announce(isEnabled ? 'Rule switched on' : 'Rule switched off'),
-        onError: (e) => setError(problemOf(e, 'save').message ?? 'The rule could not be changed. Please try again.'),
-      },
-    );
+  // Each switch handles its own outcome (mutateAsync), so switching two rules at once loses neither's.
+  const switchRule = async (rule: MonitoringRule, isEnabled: boolean) => {
+    const id = rule.id ?? '';
+    // An earlier switch's error stays until the page is left or another action replaces it, so it isn't lost.
+    setSwitching((current) => ({...current, [id]: isEnabled}));
+    try {
+      await setEnabled.mutateAsync({id, isEnabled});
+      announce(isEnabled ? 'Rule switched on' : 'Rule switched off');
+    } catch (e) {
+      setError(problemOf(e, 'switch').message ?? 'The rule could not be changed. Please try again.');
+    } finally {
+      setSwitching((current) => {
+        const rest = {...current};
+        delete rest[id];
+        return rest;
+      });
+    }
   };
 
   const deleteRule = () =>
@@ -145,11 +169,24 @@ export function MonitoringPage() {
   // them), and a rule's own choice stays offered even when it's no longer in a list.
   const withChosen = (options: {value: string; label: string}[], id: string | null, label: string) =>
     id && !options.some((o) => sameId(o.value, id)) ? [...options, {value: id.toLowerCase(), label}] : options;
+  // Only admins unlock stages, so "Stage unlocked" offers only admins (the API refuses anyone else).
+  const onlyAdmins = form.event === 'StageUnlocked';
   const personOptions = withChosen(
-    [{value: ANY, label: 'Anyone'}, ...(people.data?.items ?? []).map((u) => ({value: u.userId?.toLowerCase() ?? '', label: u.username ?? ''}))],
+    [
+      {value: ANY, label: 'Anyone'},
+      ...(people.data?.items ?? [])
+        .filter((u) => !onlyAdmins || isAdmin(u.roles))
+        .map((u) => ({value: u.userId?.toLowerCase() ?? '', label: u.username ?? ''})),
+    ],
     form.subjectUserId,
     personName(form.subjectUserId) ?? 'Deleted user',
   );
+  const personHint = [
+    onlyAdmins ? 'Only admins unlock stages, so only admins are listed.' : 'For an assignment, the person assigned.',
+    (people.data?.totalCount ?? 0) > MAX_PEOPLE ? `Only the first ${MAX_PEOPLE} accounts by username are listed for now.` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
   const templateOptions = withChosen(
     [
       {value: ANY, label: 'Any template'},
@@ -191,12 +228,15 @@ export function MonitoringPage() {
       key: 'isEnabled',
       header: 'On',
       width: pixel(80),
+      // Named by its sentence, which stays put while the switch says on or off; held while its save runs.
       renderCell: (rule) => (
         <Switch
-          label={`${rule.isEnabled ? 'Switch off' : 'Switch on'}: ${sentenceText(describeRule({...rule, event: rule.event ?? ''}))}`}
+          label={sentenceText(describeRule({...rule, event: rule.event ?? ''}))}
           isLabelHidden
-          value={rule.isEnabled ?? false}
-          onChange={(isEnabled) => switchRule(rule, isEnabled)}
+          value={switching[rule.id ?? ''] ?? rule.isEnabled ?? false}
+          isDisabled={(rule.id ?? '') in switching}
+          isLoading={(rule.id ?? '') in switching}
+          onChange={(isEnabled) => void switchRule(rule, isEnabled)}
         />
       ),
     },
@@ -253,7 +293,7 @@ export function MonitoringPage() {
               {problem.message && <AlertMessage message={problem.message} />}
               <Selector
                 label="Staff member"
-                description="For an assignment, the person assigned."
+                description={personHint}
                 options={personOptions}
                 value={form.subjectUserId?.toLowerCase() ?? ANY}
                 onChange={(value: string) => set('subjectUserId', fromAny(value))}

@@ -100,13 +100,6 @@ public sealed class IdentityReadService(
             .ToDictionaryAsync(u => u.Id, u => u.UserName!, ct);
     }
 
-    public async Task<IReadOnlySet<Guid>> GetUserIdsInRoleAsync(string roleName, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        var users = await userManager.GetUsersInRoleAsync(roleName);
-        return users.Select(u => u.Id).ToHashSet();
-    }
-
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)
     {
         var users = await userManager.Users

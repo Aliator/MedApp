@@ -2,6 +2,7 @@ using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
 using MedApp.Application.Monitoring.Commands.DeleteMonitoringRule;
+using MedApp.Application.Monitoring.Commands.SetMonitoringRuleEnabled;
 using MedApp.Application.Monitoring.Commands.UpdateMonitoringRule;
 using MedApp.Application.Monitoring.Queries.GetMyMonitoringRules;
 using MedApp.Contracts.Monitoring.Requests;
@@ -71,6 +72,17 @@ public sealed class MonitoringControllerTests
         var result = await Controller(mediator).Update(RecordId, Request, CancellationToken.None);
 
         mediator.Request.Should().Be(new UpdateMonitoringRuleCommand(RecordId, UserId, SubjectId, "StageFinished", "High", TemplateId, StageId, false));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(Rule);
+    }
+
+    [Test]
+    public async Task SetEnabled_SwitchesTheSignedInAdminsRule()
+    {
+        var mediator = new RecordingMediator(_ => Rule);
+
+        var result = await Controller(mediator).SetEnabled(RecordId, new SetMonitoringRuleEnabledRequest { IsEnabled = false }, CancellationToken.None);
+
+        mediator.Request.Should().Be(new SetMonitoringRuleEnabledCommand(RecordId, UserId, false));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(Rule);
     }
 

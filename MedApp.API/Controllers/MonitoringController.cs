@@ -1,6 +1,7 @@
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
 using MedApp.Application.Monitoring.Commands.DeleteMonitoringRule;
+using MedApp.Application.Monitoring.Commands.SetMonitoringRuleEnabled;
 using MedApp.Application.Monitoring.Commands.UpdateMonitoringRule;
 using MedApp.Application.Monitoring.Queries.GetMyMonitoringRules;
 using MedApp.Contracts.Monitoring.Requests;
@@ -60,6 +61,13 @@ public sealed class MonitoringController(IMediator mediator) : ControllerBase
             request.TemplateId,
             request.StageDefinitionId,
             request.IsEnabled), ct));
+
+    /// <summary>Switches one of your rules on or off, changing nothing else (so one naming something since deleted can be switched too).</summary>
+    [HttpPut("{id:guid}/enabled")]
+    [ProducesResponseType(typeof(MonitoringRuleResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetEnabled(Guid id, [FromBody] SetMonitoringRuleEnabledRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetMonitoringRuleEnabledCommand(id, User.GetUserId(), request.IsEnabled), ct));
 
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

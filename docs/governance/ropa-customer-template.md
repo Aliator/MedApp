@@ -63,11 +63,11 @@
 
 | Item | Detail |
 |---|---|
-| **Purpose** | Giving your staff secure access; knowing who did what; telling staff when they are assigned work. |
+| **Purpose** | Giving your staff secure access; knowing who did what; telling staff when they are assigned work (unless they switch it off); supervising work, by telling admins about the staff actions their monitoring rules name. |
 | **Data subjects** | Your staff with MedApp accounts |
-| **Personal data** | Username, password hash, roles, lockout state; sign-in sessions with IP address and browser; account settings, including saved searches; notifications. |
+| **Personal data** | Username, password hash, roles, lockout state; sign-in sessions with IP address and browser; account settings, including saved searches; notification choices; notifications; admins' monitoring rules (which admin watches which member of staff, for which actions) and the monitoring notifications they send. |
 | **Special category data** | None |
-| **Article 6 basis** | [NHS bodies: 6(1)(e), and 6(1)(c) for security records. Private providers: 6(1)(b) for the account; 6(1)(f) for sessions and security.] |
+| **Article 6 basis** | [NHS bodies: 6(1)(e), and 6(1)(c) for security records. Private providers: 6(1)(b) for the account; 6(1)(f) for sessions, security and monitoring rules.] |
 | **Recipients** | Your MedApp admins; your processor |
-| **Retention** | Accounts: while the person needs access, then removed [within your joiners, movers and leavers process]. Sessions: 12 months. Notifications: 6 months ([retention-schedule.md](retention-schedule.md)). **Not applied automatically yet.** |
+| **Retention** | Accounts: while the person needs access, then removed [within your joiners, movers and leavers process]. Sessions: 12 months. Notifications: 6 months. Monitoring rules: until the admin deletes them [review them under your monitoring policy] ([retention-schedule.md](retention-schedule.md)). **Not applied automatically yet.** |
 | **Privacy information** | [Your staff privacy notice; see [privacy-notice-staff-template.md](privacy-notice-staff-template.md)] |

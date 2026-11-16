@@ -1,5 +1,6 @@
 using AutoFixture;
 using FluentAssertions;
+using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Monitoring.Commands.CreateMonitoringRule;
 using MedApp.Application.Monitoring.Common;
@@ -78,6 +79,25 @@ public sealed class CreateMonitoringRuleHandlerTests : MonitoringHandlerTestBase
         var act = () => Handler.Handle(Command(subject: Guid.NewGuid()), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage("User*");
+    }
+
+    [Test]
+    public async Task Handle_StageUnlockedForSomeoneNotAnAdmin_ThrowsValidation()
+    {
+        var act = () => Handler.Handle(new CreateMonitoringRuleCommand(OwnerId, Staff.UserId, "StageUnlocked", null, null, null, true), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle()
+            .Which.PropertyName.Should().Be("SubjectUserId");
+        Rules.Verify(r => r.AddAsync(It.IsAny<MonitoringRule>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_StageUnlockedForAnAdminOrAnyone_Adds()
+    {
+        await Handler.Handle(new CreateMonitoringRuleCommand(OwnerId, Admin.UserId, "StageUnlocked", null, null, null, true), CancellationToken.None);
+        await Handler.Handle(new CreateMonitoringRuleCommand(OwnerId, null, "StageUnlocked", null, null, null, true), CancellationToken.None);
+
+        Rules.Verify(r => r.AddAsync(It.IsAny<MonitoringRule>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Test]

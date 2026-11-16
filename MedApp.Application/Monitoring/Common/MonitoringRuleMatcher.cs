@@ -11,20 +11,28 @@ public static class MonitoringRuleMatcher
 {
     /// <summary>
     /// Whether the rule matches this activity on this procedure: it's on, watches for this event, and every condition
-    /// it has holds (the person, a priority at least its minimum, the template, the stage's definition). The priority
-    /// and template are the procedure's after the change.
+    /// it has holds (the person, a priority at least its minimum, the template, the stage's definition). The template is
+    /// the procedure's after the change; the priority is the higher of before and after (<see cref="PriorityOf"/>).
     /// </summary>
     public static bool Matches(MonitoringRule rule, MonitoredActivity activity, PatientProcedure procedure) =>
         rule.IsEnabled
         && rule.Event == activity.Event
         && (rule.SubjectUserId is null || rule.SubjectUserId == activity.SubjectUserId)
-        && (rule.MinimumPriority is null || procedure.Priority >= rule.MinimumPriority)
+        && (rule.MinimumPriority is null || PriorityOf(activity, procedure) >= rule.MinimumPriority)
         && (rule.TemplateId is null || rule.TemplateId == procedure.TemplateId)
         && (rule.StageDefinitionId is null || rule.StageDefinitionId == activity.StageDefinitionId);
 
     /// <summary>
+    /// The priority a rule matches on: the procedure's after the change, or before it if that was higher, so an edit
+    /// that moves an Urgent procedure's due date and lowers it to Low in one save still counts as Urgent.
+    /// </summary>
+    public static PatientProcedurePriority PriorityOf(MonitoredActivity activity, PatientProcedure procedure) =>
+        activity.PriorityBefore is { } before && before > procedure.Priority ? before : procedure.Priority;
+
+    /// <summary>
     /// The admins to notify about one change, each once however many of their rules match (de-duplicated), about the
-    /// first activity of the change that one of their rules matched. Nobody is told about their own change.
+    /// first activity of the change that one of their rules matched. Nobody is told about their own change, nor told
+    /// they were assigned twice: the person assigned already gets the assignment notification.
     /// </summary>
     public static IReadOnlyList<MonitoringMatch> Match(
         IEnumerable<MonitoringRule> rules,
@@ -39,7 +47,8 @@ public static class MonitoringRuleMatcher
         foreach (var activity in activities)
         foreach (var rule in candidates)
         {
-            if (!notified.Contains(rule.OwnerUserId) && Matches(rule, activity, procedure))
+            var isTheAssignee = activity.Event == MonitoringEvent.ProcedureAssigned && rule.OwnerUserId == activity.SubjectUserId;
+            if (!isTheAssignee && !notified.Contains(rule.OwnerUserId) && Matches(rule, activity, procedure))
             {
                 notified.Add(rule.OwnerUserId);
                 matches.Add(new MonitoringMatch(rule.OwnerUserId, activity));

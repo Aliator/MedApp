@@ -1,6 +1,5 @@
 using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notifications.Common;
@@ -21,7 +20,6 @@ namespace MedApp.UnitTests.Application.Monitoring.Common;
 public sealed class ProcedureMonitorTests
 {
     private Mock<IMonitoringRuleRepository> _rules = null!;
-    private Mock<IIdentityReadService> _identity = null!;
     private Mock<INotificationSender> _sender = null!;
     private Mock<ILogger<ProcedureMonitor>> _logger = null!;
     private List<Notification> _sent = null!;
@@ -32,7 +30,6 @@ public sealed class ProcedureMonitorTests
     {
         var fixture = AutoFixtureFactory.Create();
         _rules = new Mock<IMonitoringRuleRepository>();
-        _identity = new Mock<IIdentityReadService>();
         _sender = new Mock<INotificationSender>();
         _logger = new Mock<ILogger<ProcedureMonitor>>();
         _sent = [];
@@ -44,16 +41,15 @@ public sealed class ProcedureMonitorTests
         GivenAdmins(OwnerId, OtherOwnerId, Admin.UserId);
 
         fixture.Inject(_rules.Object);
-        fixture.Inject(_identity.Object);
         fixture.Inject(_sender.Object);
         fixture.Inject(_logger.Object);
         _monitor = fixture.Create<ProcedureMonitor>();
     }
 
     private void GivenAdmins(params Guid[] ids) =>
-        _identity
-            .Setup(i => i.GetUserIdsInRoleAsync(AppRoles.Admin, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ids.ToHashSet());
+        _rules
+            .Setup(r => r.GetAdminsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> asked, CancellationToken _) => asked.Where(ids.Contains).ToHashSet());
 
     private void GivenRules(params MonitoringRule[] rules) =>
         _rules
@@ -89,6 +85,8 @@ public sealed class ProcedureMonitorTests
         });
         _rules.Verify(r => r.GetEnabledAsync(
             It.Is<IReadOnlyCollection<MonitoringEvent>>(e => e.SequenceEqual(new[] { MonitoringEvent.StageFinished })), cts.Token), Times.Once);
+        _rules.Verify(r => r.GetAdminsAsync(
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { OwnerId })), cts.Token), Times.Once);
         _sender.Verify(s => s.SendAsync(It.IsAny<Notification>(), cts.Token), Times.Once);
     }
 
@@ -102,7 +100,6 @@ public sealed class ProcedureMonitorTests
         await _monitor.NotifyAsync(change, CancellationToken.None);
 
         _rules.VerifyNoOtherCalls();
-        _identity.VerifyNoOtherCalls();
         _sent.Should().BeEmpty();
     }
 
@@ -113,7 +110,7 @@ public sealed class ProcedureMonitorTests
 
         await _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);
 
-        _identity.VerifyNoOtherCalls();
+        _rules.Verify(r => r.GetAdminsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
         _sent.Should().BeEmpty();
     }
 
@@ -184,28 +181,61 @@ public sealed class ProcedureMonitorTests
     }
 
     [Test]
-    public async Task NotifyAsync_Cancelled_Throws()
+    public async Task NotifyAsync_RequestCancelled_Throws()
     {
+        using var cts = new CancellationTokenSource();
         _rules
             .Setup(r => r.GetEnabledAsync(It.IsAny<IReadOnlyCollection<MonitoringEvent>>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
             .ThrowsAsync(new OperationCanceledException());
 
-        var act = () => _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);
+        var act = () => _monitor.NotifyAsync(StaffFinishesFirstStage(), cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Test]
-    public async Task NotifyAsync_CancelledWhileSending_Throws()
+    public async Task NotifyAsync_RequestCancelledWhileSending_Throws()
     {
+        using var cts = new CancellationTokenSource();
         GivenRules(CreateRule(MonitoringEvent.StageFinished));
         _sender
             .Setup(s => s.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
             .ThrowsAsync(new OperationCanceledException());
 
-        var act = () => _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);
+        var act = () => _monitor.NotifyAsync(StaffFinishesFirstStage(), cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task NotifyAsync_TimeoutWhileTheRequestGoesOn_LogsAndCarriesOn()
+    {
+        // An OperationCanceledException of its own (a command timeout), not the request's: the change stands.
+        GivenRules(CreateRule(MonitoringEvent.StageFinished), CreateRule(MonitoringEvent.StageFinished, ownerId: OtherOwnerId));
+        _sender
+            .Setup(s => s.SendAsync(It.Is<Notification>(n => n.UserId == OwnerId), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        await _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);
+
+        _sent.Should().ContainSingle().Which.UserId.Should().Be(OtherOwnerId);
+        VerifyWarningLogged(Times.Once());
+    }
+
+    [Test]
+    public async Task NotifyAsync_AdminsCantBeRead_LogsAndCarriesOn()
+    {
+        GivenRules(CreateRule(MonitoringEvent.StageFinished));
+        _rules
+            .Setup(r => r.GetAdminsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        await _monitor.NotifyAsync(StaffFinishesFirstStage(), CancellationToken.None);
+
+        _sent.Should().BeEmpty();
+        VerifyWarningLogged(Times.Once());
     }
 
     private void VerifyWarningLogged(Times times) =>

@@ -20,7 +20,8 @@ public sealed class UpdateMonitoringRuleHandler(
         var rule = await repository.GetAsync(request.Id, request.OwnerUserId, cancellationToken)
                    ?? throw new NotFoundException($"Monitoring rule '{request.Id}' was not found.");
 
-        await MonitoringRuleInput.CheckNamedThingsExistAsync(request, identityReadService, stagesRepository, cancellationToken);
+        // Only what this edit newly names has to exist: a rule may keep naming something since deleted.
+        await MonitoringRuleInput.CheckAsync(request, rule, identityReadService, stagesRepository, cancellationToken);
 
         MonitoringRuleInput.Apply(rule, request, timeProvider.GetUtcNow().UtcDateTime);
         await repository.UpdateAsync(rule, cancellationToken);

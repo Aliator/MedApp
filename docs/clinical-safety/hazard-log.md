@@ -55,6 +55,7 @@
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 | [H-22](#h-22-care-under-way-is-delayed-because-the-patients-record-is-restricted) | Care under way is delayed because the patient's record is restricted | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later (a local procedure before first live use) | Open |
+| [H-23](#h-23-an-admin-relies-on-a-monitoring-rule-to-follow-up-clinical-work) | An admin relies on a monitoring rule to follow up clinical work | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Information before first live use; an outbox later | Open |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -370,13 +371,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No email:** notifications are in-app only. Someone who isn't signed in learns of it only at their next sign-in.
 - **My Tasks hides it if it's already under way.** My Tasks opens on "Not started" (H-04), so a procedure handed over part-way through, for example from a colleague who's off sick, doesn't show there by default. The colleague who opens My Tasks sees "Nothing waiting to be started".
 - **Nothing tells someone they've been unassigned,** and nothing tells anyone about a procedure assigned to someone who's away.
+- **The person has switched assignment notifications off** (Account Settings, Notifications; `NotificationPreferences`). Then nothing is stored or pushed, and with My Tasks on its default filter, work handed over part-way through shows nowhere.
 
 **Effect.** Work waits until the person next opens MedApp and finds it, or longer.
 
 **Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
-- Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`).
+- Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`), **unless the person has switched assignment notifications off**, when none is stored.
+- The switch's own help text says to work from My Tasks with its filter on all open work, so work already under way shows (`NotificationSettings.tsx`).
 - My Tasks lists every open procedure assigned to you once its filter is set to "Started" or to all (`MyTasksPage.tsx`); by default it shows only those not yet started.
 - With two copies of the API, notifications reach browsers on either, through the Valkey backplane (`SignalRBackplane`; 8 of 8 delivered in testing, `docs/architecture.md`, section 6.4).
 - When the connection comes back, the list is refreshed (`connection.onreconnected`).
@@ -848,6 +851,39 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
+## H-23: An admin relies on a monitoring rule to follow up clinical work
+
+**Description.** An admin sets a monitoring rule (Administration, Monitoring) to be told when something happens, for example "anyone blocks an Urgent procedure", and relies on it to follow the work up, but isn't told.
+
+**Causes:**
+- **Monitoring is best effort.** Notifications are sent after the change is saved, outside its transaction: a failure is only logged, and a crash between the save and the send loses the notification for good (`ProcedureMonitor`).
+- **A rule stops silently** when its owner loses the Admin role, when it's switched off, or when the account, template or stage it names is deleted (it then matches nothing).
+- **Only eight actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires.
+- **Live delivery** has H-09's causes: pushes are best effort, the browser stops reconnecting after a while, and there's no email.
+
+**Effect.** A blocked, cancelled or re-dated Urgent procedure isn't followed up by the person who expected to hear of it.
+
+**Possible harm.** Delayed care for one patient. Considerable.
+
+**Existing controls:**
+- **The intended purpose says it:** monitoring rules are supervision of work, not clinical alerting, and "must not be relied on to make sure anything clinical happens" (`intended-purpose-and-device-decision.md`).
+- **The work is visible anyway:** the procedures list, My Tasks, the overdue badge and the patient's timeline show every blocked, cancelled and re-dated procedure, whatever the rules.
+- The notifications that are sent are stored, so they show at the next page load.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Information:** in training and the instructions for use, monitoring is described as a supervision aid, never as the way clinical follow-up is assured; follow-up is through the lists, My Tasks and local procedures. Information; **proposed**; before first live use (it costs nothing); transferred.
+- **An outbox,** so a notification can't be lost between the save and the send. Protective; **proposed**; later.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
@@ -866,3 +902,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
 | 0.4 | 16 November 2026 | The privacy features (PR #68): H-03 and H-19's new controls and causes (anonymisation, the retention review's adult and children periods only), and new hazard H-22 (restricting a record delays care under way), after the review of #68 | AI coding agent, for review |
 | 0.5 | 16 November 2026 | The NHS integrations (PR #69): the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed. After the review of #69: the banner on every page about one patient, and the lookup's confirmation on Edit Patient | AI coding agent, for review |
+| 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Tasks on all open work; new hazard H-23 (relying on best-effort monitoring for clinical follow-up). No existing rating changed. For the CSO to review | AI coding agent, for review |

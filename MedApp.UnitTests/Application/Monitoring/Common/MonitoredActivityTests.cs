@@ -111,6 +111,24 @@ public sealed class MonitoredActivityTests
     }
 
     [Test]
+    public void From_DueDateMovedAndPriorityChangedInOneEdit_CarriesThePriorityBefore()
+    {
+        var procedure = CreateProcedure(priority: PatientProcedurePriority.Low);
+        var change = new ProcedureChange(procedure, Staff, Now);
+        change.Audit(PatientProcedureAuditAction.DetailsUpdated, new
+        {
+            changes = new Dictionary<string, object>
+            {
+                ["dueDate"] = new { from = new DateOnly(2026, 6, 22), to = new DateOnly(2026, 7, 22) },
+                ["priority"] = new { from = "Urgent", to = "Low" },
+            }
+        });
+
+        MonitoredActivity.From(procedure, change.AuditEntries).Should().ContainSingle()
+            .Which.PriorityBefore.Should().Be(PatientProcedurePriority.Urgent);
+    }
+
+    [Test]
     public void From_DetailsEditedWithoutTheDueDate_IsNothing()
     {
         var procedure = CreateProcedure();

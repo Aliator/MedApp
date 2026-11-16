@@ -160,18 +160,98 @@ public sealed class MonitoringTests : IntegrationTest
     }
 
     [Test]
+    public async Task AdminUnlocksAWatchedStage_NotifiesAnotherAdmin()
+    {
+        var other = await CreateStaffAsync(AdminRole, UserRole);
+        var adminId = await GetUserIdAsync(_admin, AdminUsername);
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = adminId, Event = "StageUnlocked", StageDefinitionId = _bloods.Id });
+        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id);
+        await (await FinishStageAsync(_staff.Client, procedure.Id, procedure.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        await (await _admin.PostAsync($"{StageUrl(procedure.Id, procedure.Stages[0].Id)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var told = (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Subject;
+        told.Kind.Should().Be("MonitoredStageUnlocked");
+        told.Message.Should().Be($"{AdminUsername} unlocked the {_bloods.Name} stage on a Medium priority {_template.Name} procedure.");
+    }
+
+    [Test]
+    public async Task DueDateMovedWhileThePriorityIsLowered_StillMatchesAnUrgentRule()
+    {
+        await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "DueDateChanged", MinimumPriority = "Urgent" });
+        var procedure = await CreateProcedureAsync(_staff.Client, _patient.Id, _template.Id, priority: "Urgent");
+        var from = procedure.DueDate;
+        var to = from.AddDays(30);
+
+        await (await _staff.Client.PatchAsJsonAsync(ProcedureUrl(procedure.Id), new UpdatePatientProcedureRequest { DueDate = to, Priority = "Low" }))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var told = (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle().Subject;
+        told.Kind.Should().Be("MonitoredDueDateChanged");
+        told.Message.Should().StartWith($"{_staff.Username} moved the due date of a Low priority {_template.Name} procedure from ");
+    }
+
+    [Test]
+    public async Task RuleNamingADeletedAccount_CanStillBeSwitchedOffAndEdited()
+    {
+        var leaver = await CreateStaffAsync(UserRole);
+        var rule = await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest
+        {
+            SubjectUserId = leaver.UserId, Event = "StageFinished", StageDefinitionId = _bloods.Id, TemplateId = _template.Id,
+        });
+        await (await _admin.DeleteAsJsonAsync($"/api/auth/users/{leaver.Username}", new DeleteUserRequest(AdminPassword)))
+            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+
+        var switched = await (await _admin.PutAsJsonAsync($"{RulesUrl}/{rule.Id}/enabled", new SetMonitoringRuleEnabledRequest { IsEnabled = false }))
+            .ReadAsAsync<MonitoringRuleResponse>();
+        var edited = await (await _admin.PutAsJsonAsync($"{RulesUrl}/{rule.Id}", new SaveMonitoringRuleRequest
+            {
+                SubjectUserId = leaver.UserId, Event = "StageFinished", StageDefinitionId = _bloods.Id, TemplateId = _template.Id,
+                MinimumPriority = "High", IsEnabled = false,
+            }))
+            .ReadAsAsync<MonitoringRuleResponse>();
+
+        switched.Should().BeEquivalentTo(new { IsEnabled = false, SubjectUserId = (Guid?)leaver.UserId, SubjectUsername = (string?)null });
+        edited.MinimumPriority.Should().Be("High");
+        // Naming a deleted account afresh is still refused.
+        await (await _admin.PutAsJsonAsync($"{RulesUrl}/{rule.Id}", new SaveMonitoringRuleRequest { SubjectUserId = Guid.NewGuid(), Event = "StageFinished" }))
+            .ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        await (await _admin.PutAsJsonAsync($"{RulesUrl}/{Guid.NewGuid()}/enabled", new SetMonitoringRuleEnabledRequest { IsEnabled = true }))
+            .ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task StageUnlockedRule_ForSomeoneNotAnAdmin_Returns400()
+    {
+        await (await _admin.PostAsJsonAsync(RulesUrl, new SaveMonitoringRuleRequest { SubjectUserId = _staff.UserId, Event = "StageUnlocked" }))
+            .ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task AdminWatchingAssignments_IsAssigned_GetsOnlyTheAssignmentNotification()
+    {
+        var other = await CreateStaffAsync(AdminRole, UserRole);
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "ProcedureAssigned" });
+        var procedure = await CreateProcedureAsync(_admin, _patient.Id, _template.Id);
+
+        await (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{other.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Which.Kind.Should().Be("ProcedureAssigned");
+    }
+
+    [Test]
     public async Task Rules_AreEachAdminsOwn()
     {
         var other = await CreateStaffAsync(AdminRole, UserRole);
         var mine = await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest
         {
-            SubjectUserId = _staff.UserId, Event = "StageUnlocked", StageDefinitionId = _review.Id, TemplateId = _template.Id,
+            SubjectUserId = _staff.UserId, Event = "StageFinished", StageDefinitionId = _review.Id, TemplateId = _template.Id,
         });
 
         var listed = await (await _admin.GetAsync(RulesUrl)).ReadAsAsync<List<MonitoringRuleResponse>>();
         listed.Should().ContainSingle().Which.Should().BeEquivalentTo(new
         {
-            mine.Id, SubjectUsername = _staff.Username, Event = "StageUnlocked", StageName = _review.Name, TemplateName = _template.Name,
+            mine.Id, SubjectUsername = _staff.Username, Event = "StageFinished", StageName = _review.Name, TemplateName = _template.Name,
         });
         (await (await other.Client.GetAsync(RulesUrl)).ReadAsAsync<List<MonitoringRuleResponse>>()).Should().BeEmpty();
         await (await other.Client.PutAsJsonAsync($"{RulesUrl}/{mine.Id}", new SaveMonitoringRuleRequest { Event = "ProcedureCreated" }))

@@ -65,6 +65,38 @@ public sealed class MonitoringRuleMatcherTests
     }
 
     [Test]
+    public void Matches_PriorityLoweredInTheSameEdit_MatchesOnThePriorityBefore()
+    {
+        _procedure.Priority = Priority.Low;
+        var moved = new MonitoredActivity(MonitoringEvent.DueDateChanged, Staff.Username, Staff.UserId, Staff.Username,
+            PriorityBefore: Priority.Urgent);
+
+        MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.DueDateChanged, minimumPriority: Priority.Urgent), moved, _procedure)
+            .Should().BeTrue();
+        MonitoringRuleMatcher.PriorityOf(moved, _procedure).Should().Be(Priority.Urgent);
+    }
+
+    [Test]
+    public void PriorityOf_PriorityRaised_IsTheOneAfter()
+    {
+        var moved = new MonitoredActivity(MonitoringEvent.DueDateChanged, Staff.Username, Staff.UserId, Staff.Username,
+            PriorityBefore: Priority.Low);
+
+        MonitoringRuleMatcher.PriorityOf(moved, _procedure).Should().Be(Priority.High);
+    }
+
+    [Test]
+    public void Match_AdminWatchingAssignmentsIsAssigned_IsToldOnceByTheAssignmentNotification()
+    {
+        var assigned = new MonitoredActivity(MonitoringEvent.ProcedureAssigned, Admin.Username, OwnerId, "test.owner");
+        var rules = new[] { CreateRule(MonitoringEvent.ProcedureAssigned), CreateRule(MonitoringEvent.ProcedureAssigned, ownerId: OtherOwnerId) };
+
+        var matches = MonitoringRuleMatcher.Match(rules, [assigned], _procedure, Admin.UserId);
+
+        matches.Should().ContainSingle().Which.OwnerUserId.Should().Be(OtherOwnerId);
+    }
+
+    [Test]
     public void Matches_Template_MatchesOnlyProceduresFromIt()
     {
         MonitoringRuleMatcher.Matches(CreateRule(MonitoringEvent.StageFinished, templateId: TemplateId), StaffFinishedConsultation, _procedure)

@@ -37,7 +37,6 @@ public sealed class AssignPatientProcedureHandler(
         change.Assign(request.UserId, username);
 
         await repository.SaveAsync(change.AuditEntries, cancellationToken);
-        await procedureMonitor.NotifyAsync(change, cancellationToken);
 
         // Tell them, unless they assigned themselves (they know already).
         if (request.UserId != request.Actor.UserId)
@@ -53,6 +52,9 @@ public sealed class AssignPatientProcedureHandler(
                 CreatedAtUtc = now
             }, cancellationToken);
         }
+
+        // Then the admins watching, after the person it's about.
+        await procedureMonitor.NotifyAsync(change, cancellationToken);
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }

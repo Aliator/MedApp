@@ -46,27 +46,6 @@ public sealed class IdentityReadServiceAsyncTests
     }
 
     [Test]
-    public async Task GetUserIdsInRoleAsync_ReturnsTheIdsOfThoseWithTheRole()
-    {
-        _userManager.Setup(u => u.GetUsersInRoleAsync("Admin")).ReturnsAsync([First, Second]);
-
-        var result = await _service.GetUserIdsInRoleAsync("Admin", CancellationToken.None);
-
-        result.Should().BeEquivalentTo([First.Id, Second.Id]);
-    }
-
-    [Test]
-    public async Task GetUserIdsInRoleAsync_Cancelled_Throws()
-    {
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-
-        var act = () => _service.GetUserIdsInRoleAsync("Admin", cts.Token);
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
-    }
-
-    [Test]
     public async Task GetUsersAsync_ReturnsEachUserWithTheirRoles_SkippingAnyGoneSinceTheList()
     {
         _userManager.Setup(u => u.FindByIdAsync(First.Id.ToString())).ReturnsAsync(First);

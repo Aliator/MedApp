@@ -1,4 +1,3 @@
-using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Procedures.Common;
@@ -8,8 +7,9 @@ namespace MedApp.Application.Monitoring.Common;
 
 /// <summary>
 /// Reads what a saved change did from its audit entries, loads the switched-on rules for those events (one query, and
-/// none when the change did nothing a rule can watch for), and sends each admin whose rules match one notification.
-/// Rules of someone who is no longer an admin are skipped, and nobody is told about their own change.
+/// none when the change did nothing a rule can watch for), and sends each admin whose rules match one notification
+/// (one more query, for which owners are admins now, then an insert and a push for each admin told). Rules of someone
+/// who is no longer an admin are skipped, not deleted, and nobody is told about their own change.
 /// <para>
 /// It runs after the change is saved, not in the same transaction (no outbox): a failure is logged and the change
 /// stands, so at worst an admin misses a notification. Monitoring is administrative, not a safety net.
@@ -17,7 +17,6 @@ namespace MedApp.Application.Monitoring.Common;
 /// </summary>
 public sealed class ProcedureMonitor(
     IMonitoringRuleRepository rules,
-    IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     ILogger<ProcedureMonitor> logger)
     : IProcedureMonitor
@@ -29,7 +28,7 @@ public sealed class ProcedureMonitor(
         {
             matches = await FindMatchesAsync(change, cancellationToken);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(exception, "Monitoring rules couldn't be checked for procedure {ProcedureId}.", change.Procedure.Id);
             return;
@@ -43,7 +42,7 @@ public sealed class ProcedureMonitor(
                     MonitoringNotifications.Create(match.OwnerUserId, match.Activity, change.Procedure, change.NowUtc),
                     cancellationToken);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(exception, "A monitoring notification for procedure {ProcedureId} couldn't be sent to user {UserId}.",
                     change.Procedure.Id, match.OwnerUserId);
@@ -63,8 +62,9 @@ public sealed class ProcedureMonitor(
         if (matches.Count == 0)
             return [];
 
-        // A rule only counts while its owner is an admin: someone whose Admin role was removed stops being told.
-        var admins = await identityReadService.GetUserIdsInRoleAsync(AppRoles.Admin, cancellationToken);
+        // A rule only counts while its owner is an admin: someone whose Admin role was removed stops being told (their
+        // rules stay, and count again if they're made an admin again).
+        var admins = await rules.GetAdminsAsync(matches.Select(m => m.OwnerUserId).ToList(), cancellationToken);
         return matches.Where(m => admins.Contains(m.OwnerUserId)).ToList();
     }
 }

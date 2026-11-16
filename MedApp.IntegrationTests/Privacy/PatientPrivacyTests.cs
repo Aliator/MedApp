@@ -189,7 +189,9 @@ public sealed class PatientPrivacyTests : IntegrationTest
             (await body.Content.ReadAsStringAsync()).Should().NotContainEquivalentOf(Canary, url);
         }
 
-        // The monitoring notification never held free text, and keeps its fixed title.
+        // The monitoring notification never held free text, keeps its fixed title, and isn't in the patient's export.
+        (await (await _admin.GetAsync($"{PatientUrl(patient.Id)}/export")).Content.ReadAsStringAsync())
+            .Should().NotContain("MonitoredProcedureCancelled").And.NotContain(watcher.Username);
         var watched = await (await watcher.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
         watched.Items.Should().ContainSingle().Which.Title.Should().Be("Procedure cancelled");
 

@@ -29,7 +29,7 @@ export function NotificationSettings() {
           )}
           <Switch
             label="When I'm assigned to a procedure"
-            description="Tells you in the bell when someone assigns you to a procedure. Work from My Tasks either way: notifications are a convenience."
+            description="Tells you in the bell when someone assigns you to a procedure. Notifications are a convenience: work from My Tasks, with its filter on all open work, so you see work handed to you that's already under way."
             value={procedureAssigned}
             isDisabled={preferences.isPending || save.isPending}
             onChange={(isOn) =>

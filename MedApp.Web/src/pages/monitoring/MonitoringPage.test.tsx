@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, expectAnnounced, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, withAnnouncements} from '../../test/render';
+import {adminUser, descriptionOf, expectAnnounced, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, withAnnouncements} from '../../test/render';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {MonitoringPage} from './MonitoringPage';
 
@@ -142,22 +142,56 @@ describe('MonitoringPage', () => {
     expect(within(openDialog()!).getByRole('combobox', {name: /Stage/})).toHaveTextContent('Deleted stage');
   });
 
-  it('switches a rule off and on from the list', async () => {
+  it('switches a rule off with its own request, named by its sentence, held still while it saves', async () => {
     withAnnouncements();
-    const {user, fetch} = renderPage({[`PUT ${RULES}/r1`]: () => json({...rules[0], isEnabled: false})});
+    let finish: (response: Response) => void = () => {};
+    const {user, fetch} = renderPage({[`PUT ${RULES}/r1/enabled`]: () => new Promise<Response>((resolve) => (finish = resolve))});
 
-    await user.click(within(await rowOf('Bloods')).getByRole('switch', {name: /Switch off: Notify me when sam.staff finishes Bloods/}));
+    const toggle = within(await rowOf('Bloods')).getByRole('switch', {name: 'Notify me when sam.staff finishes Bloods on a High or Urgent priority procedure'});
+    await user.click(toggle);
 
-    expect(await sent(fetch, 'PUT')).toMatchObject({event: 'StageFinished', isEnabled: false, stageDefinitionId: BLOODS});
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-disabled', 'true'));
+    expect(toggle).not.toBeChecked();
+    expect(await sent(fetch, 'PUT')).toEqual({isEnabled: false});
+    finish(json({...rules[0], isEnabled: false}));
     await expectAnnounced('Rule switched off');
+    await waitFor(() => expect(toggle).not.toHaveAttribute('aria-disabled'));
   });
 
-  it('says when switching fails', async () => {
-    const {user} = renderPage({[`PUT ${RULES}/r2`]: () => json({title: 'Monitoring rule not found.'}, 404)});
+  it('switches two rules at once, and reports each', async () => {
+    withAnnouncements();
+    const {user} = renderPage({
+      [`PUT ${RULES}/r1/enabled`]: () => json({title: 'Server error'}, 500),
+      [`PUT ${RULES}/r2/enabled`]: () => json({...rules[1], isEnabled: true}),
+    });
+
+    await user.click(within(await rowOf('Bloods')).getByRole('switch'));
+    await user.click(within(await rowOf('Knee review')).getByRole('switch'));
+
+    await expectAnnounced('Rule switched on');
+    await findAlert('A server error occurred');
+  });
+
+  it('says when the rule to switch has gone', async () => {
+    const {user} = renderPage({[`PUT ${RULES}/r2/enabled`]: () => json({title: 'Monitoring rule not found.'}, 404)});
 
     await user.click(within(await rowOf('Knee review')).getByRole('switch'));
 
-    await findAlert('That rule, or something it names, no longer exists');
+    await findAlert('That rule no longer exists');
+  });
+
+  it('offers only admins for "Unlocks a stage", and says when the list is cut short', async () => {
+    const admins = [{userId: KIM, username: 'kim.admin', roles: ['Admin', 'User']}, {userId: SAM, username: 'sam.staff', roles: ['User']}];
+    const {user} = renderPage({'GET /api/auth/users/search': () => json(pageOf(admins, 140))});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
+    const person = () => within(openDialog()!).getByRole('combobox', {name: /Staff member/});
+    expect(descriptionOf(person())).toContain('Only the first 100 accounts by username are listed for now.');
+    await pick(user, /Does this/, 'Unlocks a stage (admins only)');
+    expect(descriptionOf(person())).toContain('Only admins unlock stages, so only admins are listed.');
+    await user.click(person());
+
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Anyone', 'kim.admin']);
   });
 
   it('deletes a rule after a confirmation', async () => {
@@ -180,6 +214,15 @@ describe('MonitoringPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Rule'}));
 
     await findAlert('A server error occurred');
+  });
+
+  it('says when something newly chosen has gone', async () => {
+    const {user} = renderPage({[`POST ${RULES}`]: () => json({title: "User 'x' was not found."}, 404)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Rule'}));
+
+    await findAlert('The rule, or something newly chosen for it, no longer exists');
   });
 
   it("shows the API's errors in the form", async () => {
