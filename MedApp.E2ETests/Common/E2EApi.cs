@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
@@ -37,12 +38,15 @@ public sealed class E2EApi(IAPIRequestContext request)
 
     public Task DeletePatientAsync(Guid id) => DeleteIfThereAsync($"/api/patients/{id}");
 
-    public async Task<PatientProcedureStageDefinitionResponse> CreateStageDefinitionAsync(string name, string instructions) =>
+    /// <summary>A stage definition; <paramref name="visitRequirement"/> is None, Suggested or Required.</summary>
+    public async Task<PatientProcedureStageDefinitionResponse> CreateStageDefinitionAsync(
+        string name, string instructions, string visitRequirement = "None") =>
         await SendAsync<PatientProcedureStageDefinitionResponse>("POST", $"{Stages}/definitions", new
         {
             name,
             description = $"{name}: a synthetic stage for the end-to-end tests.",
             instructions,
+            visitRequirement,
         });
 
     public Task DeleteStageDefinitionAsync(Guid id) => DeleteIfThereAsync($"{Stages}/definitions/{id}");
@@ -89,6 +93,14 @@ public sealed class E2EApi(IAPIRequestContext request)
             await SendAsync<PatientProcedureResponse>("POST", $"{Procedures}/{id}/status", new { status = "Cancelled", reason = "End-to-end test clean-up." });
         await DeleteIfThereAsync($"{Procedures}/{id}");
     }
+
+    /// <summary>All of a patient's appointments, whatever their status.</summary>
+    public async Task<IReadOnlyList<AppointmentResponse>> AppointmentsOfPatientAsync(Guid patientId) =>
+        (await SendAsync<PagedResponse<AppointmentResponse>>("GET", $"/api/appointments/search?patientId={patientId}&pageSize=100")).Items;
+
+    /// <summary>Cancels an appointment (the app never deletes them). Only Requested and Booked ones can be.</summary>
+    public async Task CancelAppointmentAsync(Guid id, string reason) =>
+        await SendAsync<AppointmentResponse>("POST", $"/api/appointments/{id}/cancel", new { reason });
 
     public async Task<WhoAmIResponse> WhoAmIAsync() => await SendAsync<WhoAmIResponse>("GET", "/api/auth/whoami");
 
