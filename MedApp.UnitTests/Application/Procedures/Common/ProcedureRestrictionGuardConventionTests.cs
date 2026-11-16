@@ -1,5 +1,8 @@
 using System.Reflection;
 using FluentAssertions;
+using MedApp.Application.Appointments.Commands.CreateAppointment;
+using MedApp.Application.Appointments.Common;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Attachments.Commands.DeleteAttachment;
 using MedApp.Application.Attachments.Commands.DownloadAttachment;
 using MedApp.Application.Attachments.Commands.UploadAttachment;
@@ -16,7 +19,9 @@ namespace MedApp.UnitTests.Application.Procedures.Common;
 /// <see cref="ProcedureRepositoryExtensions.GetForUpdateOrThrowAsync"/> (or, only to block or cancel it,
 /// <see cref="ProcedureRepositoryExtensions.GetForPauseOrThrowAsync"/>), which check the patient. These tests read the
 /// compiled Application assembly's IL, so a new handler that loads a procedure for update some other way, and so
-/// would skip the check, fails here.
+/// would skip the check, fails here. Appointments are guarded the same way
+/// (<see cref="AppointmentRepositoryExtensions.GetForUpdateOrThrowAsync"/>, or, only to cancel one,
+/// <see cref="AppointmentRepositoryExtensions.GetForCancelOrThrowAsync"/>).
 /// </summary>
 [TestFixture]
 public sealed class ProcedureRestrictionGuardConventionTests
@@ -42,10 +47,17 @@ public sealed class ProcedureRestrictionGuardConventionTests
 
     /// <summary>
     /// Commands that read the procedure (or patient) rather than loading it for update, and check the patient's record
-    /// themselves with <see cref="PatientRules.EnsureCanChange"/>: creating a procedure, and attaching or deleting a file.
+    /// themselves with <see cref="PatientRules.EnsureCanChange"/>: creating a procedure or an appointment, and attaching
+    /// or deleting a file.
     /// </summary>
     private static readonly Type[] CheckTheirOwnPatient =
-        [typeof(CreatePatientProcedureHandler), typeof(UploadAttachmentHandler), typeof(DeleteAttachmentHandler)];
+    [
+        typeof(CreatePatientProcedureHandler), typeof(CreateAppointmentHandler), typeof(UploadAttachmentHandler),
+        typeof(DeleteAttachmentHandler),
+    ];
+
+    private static readonly MethodInfo GetAppointmentForUpdate =
+        typeof(IAppointmentRepository).GetMethod(nameof(IAppointmentRepository.GetForUpdateAsync))!;
 
     [Test]
     public void GetForUpdateAsync_IsCalledOnlyByTheGuards()
@@ -77,6 +89,42 @@ public sealed class ProcedureRestrictionGuardConventionTests
                             || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)))
                             || ReadOnlyCommands.Contains(handler);
             isGuarded.Should().BeTrue($"{handler.Name} changes a procedure, so it must load it through a guard that checks the patient");
+        }
+    }
+
+    [Test]
+    public void AppointmentGetForUpdateAsync_IsCalledOnlyByTheGuards()
+    {
+        var callers = Application.GetTypes()
+            .Where(type => CallsMadeBy(type, includeNested: false).Any(m => Same(m, GetAppointmentForUpdate)))
+            .Select(TopLevel)
+            .Distinct()
+            .ToList();
+
+        callers.Should().Equal([typeof(AppointmentRepositoryExtensions)],
+            "an appointment loaded for update anywhere else would skip the restricted and anonymised check");
+    }
+
+    [Test]
+    public void EveryAppointmentCommandHandler_ThatChangesOne_LoadsItThroughAGuard()
+    {
+        var guards = new[]
+        {
+            typeof(AppointmentRepositoryExtensions).GetMethod(nameof(AppointmentRepositoryExtensions.GetForUpdateOrThrowAsync))!,
+            typeof(AppointmentRepositoryExtensions).GetMethod(nameof(AppointmentRepositoryExtensions.GetForCancelOrThrowAsync))!,
+        };
+        var handlers = Application.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false })
+            .Where(type => RequestTypes(type).Any(request => request.Namespace?.StartsWith("MedApp.Application.Appointments.Commands") == true))
+            .ToList();
+
+        handlers.Should().HaveCountGreaterThanOrEqualTo(5, "the scan must find the appointment commands");
+        foreach (var handler in handlers)
+        {
+            var calls = CallsMadeBy(handler, includeNested: true).ToList();
+            var isGuarded = calls.Any(m => guards.Any(g => Same(m, g)))
+                            || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)));
+            isGuarded.Should().BeTrue($"{handler.Name} changes an appointment, so it must check the patient's record first");
         }
     }
 

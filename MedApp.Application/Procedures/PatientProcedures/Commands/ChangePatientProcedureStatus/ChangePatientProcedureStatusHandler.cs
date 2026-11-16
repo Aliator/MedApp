@@ -1,3 +1,4 @@
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
@@ -12,6 +13,7 @@ namespace MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatient
 
 public sealed class ChangePatientProcedureStatusHandler(
     IPatientProcedureRepository repository,
+    IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
     IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
@@ -36,7 +38,15 @@ public sealed class ChangePatientProcedureStatusHandler(
         var change = new ProcedureChange(procedure, request.Actor, now);
         change.ChangeStatus(to, string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim());
 
-        await repository.SaveAsync(change.AuditEntries, cancellationToken);
+        // A cancelled procedure's visits no longer need booking. Booked ones stay: someone may need to tell the patient.
+        if (to == PatientProcedureStatus.Cancelled)
+        {
+            var requested = await appointmentRepository.GetRequestedForProcedureForUpdateAsync(procedure.Id, cancellationToken);
+            foreach (var appointment in requested)
+                change.CancelRequestedVisit(appointment, ProcedureChange.ProcedureCancelledReason);
+        }
+
+        await repository.SaveAsync(change, cancellationToken);
         await procedureMonitor.NotifyAsync(change, cancellationToken);
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);

@@ -14,6 +14,7 @@ import {useAnnounce} from '../../app/announcements';
 import {ApiError, fieldStatus} from '../../api/errors';
 import type {ProcedureTemplate} from '../../api/procedures';
 import {stageDefinitionsQuery, templateQuery, useSaveTemplate, type StageDefinition} from '../../api/procedureSetup';
+import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -160,6 +161,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
               description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
               endContent={
                 <HStack gap={2} vAlign="center">
+                  <VisitRequirementToken requirement={definition?.visitRequirement} />
                   {definition?.isArchived && <Token size="sm" label="Archived" color="gray" />}
                   <IconButton
                     label={`Remove ${definition?.name ?? 'stage'} (stage ${i + 1})`}
@@ -186,15 +188,18 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
           label={definition.name ?? ''}
           description={stageDescription(definition.description, {code: definition.snomedCode, term: definition.snomedTerm})}
           endContent={
-            <IconButton
-              label={`Add ${definition.name}`}
-              tooltip="Add to the end"
-              icon={<Icon icon={AppIcon.Add} />}
-              variant="ghost"
-              size="sm"
-              isDisabled={save.isPending}
-              onClick={() => add(definition.id ?? '')}
-            />
+            <HStack gap={2} vAlign="center">
+              <VisitRequirementToken requirement={definition.visitRequirement} />
+              <IconButton
+                label={`Add ${definition.name}`}
+                tooltip="Add to the end"
+                icon={<Icon icon={AppIcon.Add} />}
+                variant="ghost"
+                size="sm"
+                isDisabled={save.isPending}
+                onClick={() => add(definition.id ?? '')}
+              />
+            </HStack>
           }
         />
       ))}

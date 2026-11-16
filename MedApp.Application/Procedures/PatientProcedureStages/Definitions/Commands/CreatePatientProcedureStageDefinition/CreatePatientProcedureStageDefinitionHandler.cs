@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -22,7 +23,8 @@ public sealed class CreatePatientProcedureStageDefinitionHandler(IPatientProcedu
             Id = Guid.NewGuid(),
             Name = name,
             Description = request.Description,
-            Instructions = request.Instructions
+            Instructions = request.Instructions,
+            VisitRequirement = ProcedureEnums.Parse<VisitRequirement>(request.VisitRequirement)
         };
         (definition.SnomedCode, definition.SnomedTerm) = SnomedRules.Normalise(request.SnomedCode, request.SnomedTerm);
 

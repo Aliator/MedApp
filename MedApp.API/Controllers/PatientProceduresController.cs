@@ -18,6 +18,7 @@ using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace MedApp.API.Controllers;
 
@@ -174,13 +175,28 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     public async Task<IActionResult> UpdateProcedureStageNotes(Guid id, Guid stageId, [FromBody] UpdateProcedureStageNotesRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateProcedureStageNotesCommand(id, stageId, request.Notes, User.ToProcedureActor()), ct));
 
+    /// <summary>
+    /// Finishes a stage. A stage whose visit is required needs an attended appointment first (409), unless an admin
+    /// sends <c>{ withoutVisit: true, reason }</c>. No body works as before.
+    /// </summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/finish")]
     [ProducesResponseType(typeof(PatientProcedureResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Policy = AuthPolicies.Staff)]
-    public async Task<IActionResult> FinishProcedureStage(Guid id, Guid stageId, CancellationToken ct) =>
-        Ok(await mediator.Send(new FinishProcedureStageCommand(id, stageId, User.ToProcedureActor()), ct));
+    public async Task<IActionResult> FinishProcedureStage(
+        Guid id,
+        Guid stageId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] FinishProcedureStageRequest? request,
+        CancellationToken ct) =>
+        Ok(await mediator.Send(new FinishProcedureStageCommand(
+            id,
+            stageId,
+            User.ToProcedureActor(),
+            request?.WithoutVisit ?? false,
+            request?.Reason,
+            User.IsInRole("Admin")), ct));
 
     /// <summary>Reopens a finished stage for editing.</summary>
     [HttpPost("{id:guid}/stages/{stageId:guid}/unlock")]

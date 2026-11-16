@@ -28,8 +28,14 @@ public interface IPatientRepository
     /// <summary>How many procedures the patient has, in any status.</summary>
     Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken);
 
+    /// <summary>How many appointments the patient has, in any status.</summary>
+    Task<int> CountAppointmentsAsync(Guid patientId, CancellationToken cancellationToken);
+
     /// <summary>How many of the patient's procedures are under way: not completed, cancelled or archived (blocked counts).</summary>
     Task<int> CountProceduresUnderWayAsync(Guid patientId, CancellationToken cancellationToken);
+
+    /// <summary>How many of the patient's appointments are open: Requested (needing booking) or Booked.</summary>
+    Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken);
 
     /// <summary>One page of patients matching the query's filters, in its sort order, and the total that match.</summary>
     Task<PagedResult<Patient>> SearchAsync(SearchPatientsQuery query, CancellationToken cancellationToken);

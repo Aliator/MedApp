@@ -13,6 +13,9 @@ public sealed class PatientProcedureStageDefinitionResponse
     /// <summary>Its display term, or null.</summary>
     public string? SnomedTerm { get; set; }
 
+    /// <summary>Whether the stage involves a visit: None, Suggested or Required.</summary>
+    public string VisitRequirement { get; set; } = string.Empty;
+
     public bool IsArchived { get; set; }
 
     /// <summary>How many templates use it. A definition in use by a template or procedure can only be archived.</summary>

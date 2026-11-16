@@ -23,8 +23,8 @@ public sealed class FirstAdminSetup(
 {
     public const string Command = "create-first-admin";
     public const string Section = "FirstAdmin";
-    public const string AdminRole = "Admin";
-    public static readonly IReadOnlyList<string> Roles = [AdminRole, "User"];
+    public const string AdminRole = AppRoles.Admin;
+    public static readonly IReadOnlyList<string> Roles = AppRoles.Staff;
 
     /// <summary>
     /// The command: reads the <c>FirstAdmin</c> settings and runs the setup. Returns the process's exit code:

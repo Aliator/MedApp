@@ -27,4 +27,7 @@ public sealed class PatientProcedureTemplateStageResponse
     public string? SnomedTerm { get; set; }
 
     public bool IsArchived { get; set; }
+
+    /// <summary>The stage definition's: None, Suggested or Required.</summary>
+    public string VisitRequirement { get; set; } = string.Empty;
 }

@@ -36,6 +36,9 @@ public sealed class PatientProcedureStageDefinitionConfiguration : IEntityTypeCo
         builder.Property(x => x.IsArchived)
             .HasDefaultValue(false);
 
+        builder.Property(x => x.VisitRequirement)
+            .HasDefaultValue(VisitRequirement.None);
+
         builder.HasIndex(x => x.Name)
             .IsUnique();
         

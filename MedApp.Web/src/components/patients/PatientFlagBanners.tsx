@@ -15,9 +15,10 @@ export const hasPatientFlags = (patient: PatientFlags) => Boolean(patient.isRest
 
 /**
  * The banners a patient's record carries, for everyone who sees it: restricted (Article 18, nothing can be changed
- * but blocking or cancelling a procedure), disputed by the patient (Article 16), and anonymised. Use it in a page's
- * `message`, on every page about the patient: the patient's page, Edit Patient, the patient's procedures and each
- * procedure's page (from the procedure's `patientFlags`). Shows nothing when the record has no flags.
+ * but blocking or cancelling a procedure, or cancelling an appointment), disputed by the patient (Article 16), and
+ * anonymised. Use it in a page's `message`, on every page about the patient: the patient's page, Edit Patient, the
+ * patient's procedures and each procedure's page (from the procedure's `patientFlags`); and in the appointment
+ * dialogs, under the patient. Shows nothing when the record has no flags.
  */
 export function PatientFlagBanners({patient}: {patient: PatientFlags}) {
   if (!hasPatientFlags(patient)) return null;
@@ -34,7 +35,7 @@ export function PatientFlagBanners({patient}: {patient: PatientFlags}) {
       {patient.isRestricted && (
         <AlertMessage
           status="warning"
-          message="Restricted record: nothing about this patient or their procedures can be changed until an admin lifts the restriction, except that a procedure can be blocked or cancelled, with a reason."
+          message="Restricted record: nothing about this patient, their procedures or their appointments can be changed until an admin lifts the restriction, except that a procedure can be blocked or cancelled, with a reason, and an appointment cancelled."
           details={[patient.restrictionReason ? `Reason: ${patient.restrictionReason}` : null, since(patient.restrictedAtUtc)].filter(
             (d): d is string => d !== null,
           )}

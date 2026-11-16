@@ -1,7 +1,9 @@
 ﻿using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Common.Identity;
+using MedApp.Contracts.Authentication.Responses;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
@@ -14,6 +16,8 @@ public sealed class DeleteUserHandlerTests
 {
     private IFixture _fixture = null!;
     private Mock<IIdentityUserService> _service = null!;
+    private Mock<IIdentityReadService> _reader = null!;
+    private Mock<IAppointmentRepository> _appointments = null!;
     private DeleteUserHandler _handler = null!;
 
     [SetUp]
@@ -23,6 +27,13 @@ public sealed class DeleteUserHandlerTests
 
         _service = new Mock<IIdentityUserService>();
         _fixture.Inject<IIdentityUserService>(_service.Object);
+
+        // The user has no upcoming appointments unless a test says otherwise.
+        _reader = new Mock<IIdentityReadService>();
+        _appointments = new Mock<IAppointmentRepository>();
+        _fixture.Inject(_reader.Object);
+        _fixture.Inject(_appointments.Object);
+        _fixture.Inject<TimeProvider>(new FixedTimeProvider(AuthTestConstants.SessionStartedAtUtc));
 
         _handler = _fixture.Create<DeleteUserHandler>();
 
@@ -125,6 +136,74 @@ public sealed class DeleteUserHandlerTests
             s => s.DeleteUserAsync(
                 command.Username,
                 cts.Token),
+            Times.Once);
+    }
+
+    /// <summary>The user being deleted exists, with this many upcoming appointments.</summary>
+    private void GivenUpcomingAppointments(int count)
+    {
+        _reader
+            .Setup(r => r.GetUserAsync(AuthTestConstants.Usernames[0], It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserResponse(AuthTestConstants.SettingsUserId, AuthTestConstants.Usernames[0], [AuthTestConstants.Roles[1]]));
+        _appointments
+            .Setup(r => r.CountUpcomingForStaffAsync(AuthTestConstants.SettingsUserId, AuthTestConstants.SessionStartedAtUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(count);
+    }
+
+    [TestCase(1, "username has 1 upcoming appointment. Move or cancel them first.")]
+    [TestCase(2, "username has 2 upcoming appointments. Move or cancel them first.")]
+    public async Task Handle_UserHasUpcomingAppointments_ReturnsTheFailureWithoutDeleting(int count, string description)
+    {
+        GivenUpcomingAppointments(count);
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        var error = result.Errors.Should().ContainSingle().Subject;
+        error.Code.Should().Be(IdentityErrors.HasUpcomingAppointmentsCode);
+        error.Description.Should().Be(description);
+        _service.Verify(s => s.DeleteUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_UserHasNoUpcomingAppointments_DeletesThem()
+    {
+        GivenUpcomingAppointments(0);
+        _service
+            .Setup(s => s.DeleteUserAsync(AuthTestConstants.Usernames[0], It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Success);
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        _service.Verify(s => s.DeleteUserAsync(AuthTestConstants.Usernames[0], It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_WrongPassword_DoesNotLookForAppointments()
+    {
+        _service
+            .Setup(s => s.VerifyPasswordAsync(AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.PasswordIncorrect));
+
+        await _handler.Handle(Command(), CancellationToken.None);
+
+        _appointments.Verify(
+            r => r.CountUpcomingForStaffAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_UserWithAppointments_PassesTheCancellationTokenToTheLookups()
+    {
+        GivenUpcomingAppointments(1);
+        using var cts = new CancellationTokenSource();
+
+        await _handler.Handle(Command(), cts.Token);
+
+        _reader.Verify(r => r.GetUserAsync(AuthTestConstants.Usernames[0], cts.Token), Times.Once);
+        _appointments.Verify(
+            r => r.CountUpcomingForStaffAsync(AuthTestConstants.SettingsUserId, AuthTestConstants.SessionStartedAtUtc, cts.Token),
             Times.Once);
     }
 }

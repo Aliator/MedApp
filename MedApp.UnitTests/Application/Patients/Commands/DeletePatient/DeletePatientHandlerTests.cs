@@ -181,4 +181,55 @@ public sealed class DeletePatientHandlerTests
             Times.Once);
         _attachments.Verify(a => a.CountForPatientAsync(patient.Id, cts.Token), Times.Once);
     }
+
+    [TestCase(1, "This patient has 1 appointment, so they can't be deleted.")]
+    [TestCase(3, "This patient has 3 appointments, so they can't be deleted.")]
+    public async Task Handle_PatientHasAppointments_ThrowsConflictAndKeepsThePatient(int count, string message)
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        _repository
+            .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+        _repository
+            .Setup(r => r.CountAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(count);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(message);
+        _repository.Verify(r => r.DeleteAsync(It.IsAny<Guid>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_PatientHasProceduresAndAppointments_NamesTheProceduresFirst()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        _repository
+            .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+        _repository
+            .Setup(r => r.CountProceduresAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+        _repository
+            .Setup(r => r.CountAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This patient has 1 procedure*");
+    }
+
+    [Test]
+    public async Task Handle_PassesCancellationToken_ToTheAppointmentCount()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        _repository
+            .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+        using var cts = new CancellationTokenSource();
+
+        await _handler.Handle(new DeletePatientCommand(patient.Id), cts.Token);
+
+        _repository.Verify(r => r.CountAppointmentsAsync(patient.Id, cts.Token), Times.Once);
+    }
 }

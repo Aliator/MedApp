@@ -14,6 +14,9 @@ namespace MedApp.IntegrationTests.Common;
 /// It has a web root of its own holding a stub <c>index.html</c>, as the image's holds the built React app, so a page
 /// path gets "the app" and a test can tell that apart from an <c>/api</c> path's 404.
 /// </para>
+/// <para>
+/// Its clock is <see cref="Clock"/>, the real time unless a test moves it, in place of the app's <see cref="TimeProvider"/>.
+/// </para>
 /// </summary>
 public sealed class MedAppApiFactory(string connectionString, string? attachmentsConnectionString = null) : WebApplicationFactory<Program>
 {
@@ -31,7 +34,7 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
     /// <summary>Every email the API sent, kept instead of sent (<see cref="FakeEmailSender"/>).</summary>
     public FakeEmailSender Emails { get; } = new();
 
-    /// <summary>The API's clock, which a test can move forward (<see cref="TestClock"/>).</summary>
+    /// <summary>The API's clock: the real time, until a test moves it (<see cref="TestClock"/>). <see cref="IntegrationTest"/> resets it before each test.</summary>
     public TestClock Clock { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -48,6 +51,7 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
         builder.UseSetting("Ssr:Enabled", "false");
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft.EntityFrameworkCore", "Warning");
+
         // The tests sign in far more often than people do, all from one address (and the admin under one name), so
         // sign-in throttling is set out of reach here. LoginThrottlingTests puts it back to the real limits.
         builder.UseSetting("LoginThrottling:PerClientPermitLimit", "100000");

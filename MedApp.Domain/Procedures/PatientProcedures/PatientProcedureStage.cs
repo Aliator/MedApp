@@ -24,6 +24,8 @@ public sealed class PatientProcedureStage
     /// <summary>The definition's SNOMED CT code and term, copied with its name when the procedure was created.</summary>
     public string? SnomedCode { get; set; }
     public string? SnomedTerm { get; set; }
+    /// <summary>Copied from the stage definition: whether the stage involves a visit (an appointment).</summary>
+    public VisitRequirement VisitRequirement { get; set; }
 
     /// <summary>The staff member's notes for this stage, editable until it's finished (or while an admin has it unlocked).</summary>
     public string Notes { get; set; } = string.Empty;

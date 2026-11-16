@@ -135,6 +135,13 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     }
     case 'Deleted':
       return d.status ? `Was ${words(d.status)}` : '';
+    case 'StageFinished': {
+      // Finished without an attended visit: an admin's bypass of a required one (with a reason), or a suggested one.
+      if (d.withoutVisit !== true) return '';
+      const requirement = typeof d.visitRequirement === 'string' && d.visitRequirement ? ` (${words(d.visitRequirement)})` : '';
+      const reason = typeof d.reason === 'string' && d.reason.trim() ? `: ${d.reason.trim()}` : '';
+      return `Finished without a visit${requirement}${reason}`;
+    }
     case 'AttachmentAdded':
     case 'AttachmentDeleted':
     case 'AttachmentDownloaded':

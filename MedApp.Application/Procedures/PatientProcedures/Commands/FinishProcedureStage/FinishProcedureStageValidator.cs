@@ -8,5 +8,9 @@ public sealed class FinishProcedureStageValidator : AbstractValidator<FinishProc
     {
         RuleFor(x => x.ProcedureId).NotEmpty().WithMessage("Procedure id is required.");
         RuleFor(x => x.StageId).NotEmpty().WithMessage("Stage id is required.");
+
+        RuleFor(x => x.Reason)
+            .MaximumLength(500)
+            .WithMessage("Reason must not exceed 500 characters.");
     }
 }

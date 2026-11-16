@@ -234,4 +234,33 @@ public sealed class ClaimsPrincipalExtensionsTests
 
         user.ToProcedureActor().Username.Should().BeEmpty();
     }
+
+    [TestCase("User", false)]
+    [TestCase("Admin", true)]
+    [TestCase("User", true, "Admin")]
+    public void ToCalendarActor_SignedIn_ReadsTheirIdNameAndWhetherTheyAreAnAdmin(string role, bool isAdmin, params string[] moreRoles)
+    {
+        var user = SignedIn([role, .. moreRoles]);
+
+        user.ToCalendarActor().Should().Be(new MedApp.Application.Calendar.Common.CalendarActor(UserId, Username, isAdmin));
+    }
+
+    [Test]
+    public void ToCalendarActor_NoName_UsesAnEmptyName()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, UserId.ToString())]));
+
+        var actor = user.ToCalendarActor();
+
+        actor.Username.Should().BeEmpty();
+        actor.IsAdmin.Should().BeFalse();
+    }
+
+    [Test]
+    public void ToCalendarActor_NoIdClaim_Throws()
+    {
+        var act = () => new ClaimsPrincipal(new ClaimsIdentity()).ToCalendarActor();
+
+        act.Should().Throw<InvalidOperationException>();
+    }
 }

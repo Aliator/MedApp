@@ -4,7 +4,8 @@ import {adminUser, staffUser, calls, findAlert, isDisabled, json, mockApi, openD
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
-import {PatientView, ViewPatientPage} from './ViewPatientPage';
+import {PatientView, splitAppointments, ViewPatientPage} from './ViewPatientPage';
+import {testAppointment, testRequested} from '../../test/calendar';
 
 const id = 'f184a7b8-2585-4437-bcd4-e1700be38287';
 const freya = {id, firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', email: 'freya.ahmed18@example.com'};
@@ -106,6 +107,106 @@ describe('ViewPatientPage', () => {
     await user.click(screen.getByRole('button', {name: 'Show timeline'}));
     expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('link', {name: 'Edit Patient'})).toHaveAttribute('href', `/patients/${id}/edit`);
+  });
+});
+
+describe('ViewPatientPage: appointments', () => {
+  const APPOINTMENTS = '/api/appointments/search';
+  // In winter, UK time is UTC.
+  const soon = testAppointment({id: 'soon', date: '2026-11-23', start: '10:00', end: '10:30', patientId: id});
+  const later = testAppointment({id: 'later', date: '2026-11-30', start: '09:00', end: '09:30', patientId: id, procedureId: null, procedureTitle: null, stageName: null});
+  const waiting = testRequested({id: 'waiting', patientId: id});
+  const past = (n: number, status = 'Attended') => testAppointment({id: `past-${n}`, status, date: `2026-10-0${n}`, patientId: id});
+
+  function renderPatient(appointments: unknown[] | Response | undefined) {
+    const fetch = mockApi({
+      [`GET /api/patients/${id}`]: () => json(freya),
+      [`GET ${APPOINTMENTS}`]: () =>
+        appointments === undefined
+          ? new Promise<Response>(() => {})
+          : appointments instanceof Response
+            ? appointments
+            : json(pageOf(appointments)),
+      ...timeline,
+    });
+    return {fetch, ...renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser})};
+  }
+
+  it('lists what is still to happen, soonest first, then the last few that are over', async () => {
+    const {fetch} = renderPatient([past(1), waiting, later, past(2, 'DidNotAttend'), soon, past(3, 'Cancelled'), past(4)]);
+
+    const upcoming = within(await screen.findByRole('list', {name: 'Upcoming appointments'}));
+    expect(upcoming.getAllByRole('link').map((l) => l.textContent)).toEqual([
+      'Mon 23 Nov 2026, 10:00 to 10:30 with test-user',
+      'Mon 30 Nov 2026, 09:00 to 09:30 with test-user',
+      'Not booked yet',
+    ]);
+    expect(upcoming.getAllByText('Knee review, Assessment')).toHaveLength(2);
+    const earlier = within(screen.getByRole('list', {name: 'Past and cancelled appointments'}));
+    expect(earlier.getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual([
+      '/calendar?appointment=past-4',
+      '/calendar?appointment=past-3',
+      '/calendar?appointment=past-2',
+    ]);
+    expect(screen.getByText('And 1 more: the timeline has them all.')).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET ${APPOINTMENTS}?PatientId=${id}&PageSize=100`);
+  });
+
+  it('says when there are none', async () => {
+    renderPatient([]);
+    expect(await screen.findByText('No appointments yet.')).toBeInTheDocument();
+  });
+
+  it('says when nothing is still to happen', async () => {
+    renderPatient([past(1)]);
+    expect(await screen.findByText('Nothing booked or waiting to be booked.')).toBeInTheDocument();
+  });
+
+  it('says when they could not be loaded', async () => {
+    renderPatient(json({title: 'Down'}, 500));
+    expect(await findAlert('The appointments could not be loaded. Please try again.')).toBeInTheDocument();
+  });
+
+  it('books an appointment for the patient from the footer', async () => {
+    const {user} = renderPatient([]);
+
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
+
+    expect(within(openDialog()!).getByText('Book Appointment')).toBeInTheDocument();
+    // The patient's banner heads it, from the page's copy of the patient (no picker).
+    expect(within(openDialog()!).getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expect(within(openDialog()!).queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
+  });
+
+  it("doesn't offer booking while the record is restricted or anonymised", async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, isRestricted: true}), [`GET ${APPOINTMENTS}`]: () => json(pageOf([])), ...timeline});
+    renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser});
+
+    expect(await screen.findByText(/Restricted record/)).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Procedures'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
+  });
+
+  it('books from the footer in a narrow window too, and closes the booking', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya), [`GET ${APPOINTMENTS}`]: () => json(pageOf([])), ...timeline});
+    const {user} = renderWithApp(<PatientView id={id} isNarrow />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('says while the appointments load', async () => {
+    renderPatient(undefined);
+    expect(await screen.findByText('Loading appointments...')).toBeInTheDocument();
+  });
+
+  it('orders past ones without a time by when they last changed', () => {
+    const cancelledRequest = {...waiting, id: 'c', status: 'Cancelled', lastUpdated: '2026-11-01T10:00:00Z'};
+    const noDate = {...waiting, id: 'n', status: 'Cancelled', lastUpdated: undefined};
+    expect(splitAppointments([past(1), noDate, cancelledRequest]).past.map((a) => a.id)).toEqual(['c', 'past-1', 'n']);
   });
 });
 

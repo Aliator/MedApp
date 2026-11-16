@@ -11,11 +11,15 @@ public static class ProcedureEnums
 
     public static string AuditActionNames => string.Join(", ", Enum.GetNames<PatientProcedureAuditAction>());
 
+    public static string VisitRequirementNames => string.Join(", ", Enum.GetNames<VisitRequirement>());
+
     public static bool IsPriority(string? value) => TryParse<PatientProcedurePriority>(value, out _);
 
     public static bool IsStatus(string? value) => TryParse<PatientProcedureStatus>(value, out _);
 
     public static bool IsAuditAction(string? value) => TryParse<PatientProcedureAuditAction>(value, out _);
+
+    public static bool IsVisitRequirement(string? value) => TryParse<VisitRequirement>(value, out _);
 
     /// <summary>Parses an enum by name only (not by number), ignoring case.</summary>
     public static bool TryParse<TEnum>(string? value, out TEnum result) where TEnum : struct, Enum

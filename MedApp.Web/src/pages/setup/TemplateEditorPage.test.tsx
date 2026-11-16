@@ -8,7 +8,7 @@ const BASE = '/api/procedures/patient-procedure-stage';
 const definitions = [
   {id: 'd1', name: 'Consultation', description: 'Seen by the clinician.', isArchived: false},
   // A real SNOMED CT concept ID, used only as a code: 71388002 is Procedure.
-  {id: 'd2', name: 'Scan', description: 'Imaging done.', snomedCode: '71388002', snomedTerm: 'Procedure', isArchived: false},
+  {id: 'd2', name: 'Scan', description: 'Imaging done.', snomedCode: '71388002', snomedTerm: 'Procedure', isArchived: false, visitRequirement: 'Suggested'},
   {id: 'd3', name: 'Old triage', description: '', isArchived: true},
 ];
 
@@ -39,10 +39,13 @@ describe('TemplateEditorPage', () => {
     await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Scan pathway');
     const addable = within(screen.getByRole('list', {name: 'Stages to add'}));
     expect(addable.queryByText('Old triage')).not.toBeInTheDocument();
+    // Whether each involves a visit shows on it, here and once added.
+    expect(addable.getAllByText('Visit suggested')).toHaveLength(1);
     await user.click(addable.getByRole('button', {name: 'Add Consultation'}));
     await user.click(addable.getByRole('button', {name: 'Add Scan'}));
     await user.click(addable.getByRole('button', {name: 'Add Consultation'}));
     expect(stageNames()).toEqual(['1. Consultation', '2. Scan', '3. Consultation']);
+    expect(within(screen.getByRole('list', {name: 'Stages in order'})).getAllByText('Visit suggested')).toHaveLength(1);
 
     await user.click(screen.getByRole('button', {name: 'Remove Scan (stage 2)'}));
     expect(stageNames()).toEqual(['1. Consultation', '2. Consultation']);

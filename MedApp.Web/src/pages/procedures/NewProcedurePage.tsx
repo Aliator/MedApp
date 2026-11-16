@@ -1,5 +1,5 @@
 import {Selector} from '@astryxdesign/core/Selector';
-import {VStack} from '@astryxdesign/core/Stack';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
@@ -8,6 +8,7 @@ import {useAnnounce} from '../../app/announcements';
 import {fieldStatus} from '../../api/errors';
 import {patientQuery} from '../../api/patients';
 import {procedureTemplatesQuery, useCreateProcedure, type ProcedureDetailsInput, type ProcedureTemplate} from '../../api/procedures';
+import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -189,7 +190,7 @@ export function NewProcedurePage({patientId}: NewProcedurePageProps) {
   );
 }
 
-/** The stages a template gives a procedure, in order, read-only. */
+/** The stages a template gives a procedure, in order, read-only, each saying whether it involves a visit. */
 function TemplateStages({template}: {template: ProcedureTemplate}) {
   const stages = [...(template.stages ?? [])].sort((a, b) => (a.stageOrder ?? 0) - (b.stageOrder ?? 0));
   return (
@@ -199,7 +200,10 @@ function TemplateStages({template}: {template: ProcedureTemplate}) {
       </Text>
       {stages.map((stage) => (
         <VStack key={stage.stageOrder} gap={0}>
-          <Text type="body">{`${stage.stageOrder}. ${stage.name}`}</Text>
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            <Text type="body">{`${stage.stageOrder}. ${stage.name}`}</Text>
+            <VisitRequirementToken requirement={stage.visitRequirement} />
+          </HStack>
           {stage.description && (
             <Text type="supporting" color="secondary">
               {stage.description}

@@ -7,9 +7,11 @@ import {Section} from '@astryxdesign/core/Section';
 import {ProgressBar} from '@astryxdesign/core/ProgressBar';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import {TextArea} from '@astryxdesign/core/TextArea';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
+import {procedureAppointmentsQuery, useAppointmentActions, type Appointment} from '../../api/appointments';
 import {ApiError, problemMessage} from '../../api/errors';
 import {
   canDeleteProcedure,
@@ -22,6 +24,7 @@ import {
 import {userSearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
+import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {Attachments} from '../../components/attachments/Attachments';
 import {AttachmentsFold} from '../../components/attachments/AttachmentsFold';
 import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
@@ -30,10 +33,12 @@ import {SelectionDialog} from '../../components/modals/SelectionDialog';
 import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
+import {AppointmentList} from '../../components/procedures/AppointmentList';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
 import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../components/procedures/ProcedureCells';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/procedures/StageList';
+import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/procedures/StageVisit';
 import {StageWork} from '../../components/procedures/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/procedures/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
@@ -49,6 +54,7 @@ import {RichText} from '../../components/shared/RichText';
 type Dialog =
   | {kind: 'status'; to: string}
   | {kind: 'finish'; stage: ProcedureStage; notes: string}
+  | {kind: 'finishWithoutVisit'; stage: ProcedureStage; notes: string}
   | {kind: 'unlock'; stage: ProcedureStage}
   | {kind: 'assign'}
   | {kind: 'unassign'; userId: string; username: string}
@@ -63,6 +69,18 @@ export function finishedMessage(stage: ProcedureStage, procedure: Procedure): st
 
 /** The wording of decision 18 in docs/procedures-ui-plan.md. */
 export const NOT_ASSIGNED_MESSAGE = 'This procedure is not assigned to you, are you sure you want to make these changes?';
+
+/** Why staff can't finish a stage that requires a visit until one is marked Attended (an admin can, with a reason). */
+export const NEEDS_VISIT_MESSAGE = 'Needs an attended visit first';
+
+/** Procedures that are closed for good: nothing more is booked for them. */
+const CLOSED_FOR_BOOKING = ['Cancelled', 'Archived'];
+
+/** What booking from the page is for: a stage's visit (its Requested or Booked appointment, if any), or the procedure. */
+interface Booking {
+  stage?: ProcedureStage;
+  appointment?: Appointment;
+}
 
 /**
  * One procedure, and the place it's worked on: its details, who is assigned and the current stage on the left,
@@ -93,6 +111,11 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const {data: procedure, error, isPending} = useQuery(procedureQuery(id));
   const actions = useProcedureActions(id);
   const remove = useDeleteProcedure(id);
+  const appointmentsQuery = useQuery(procedureAppointmentsQuery(id));
+  const appointments = appointmentsQuery.data?.items ?? [];
+  const appointmentActions = useAppointmentActions();
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [withoutVisitReason, setWithoutVisitReason] = useState('');
   const navigate = useNavigate();
   const announce = useAnnounce();
   // Files on their way, held here so they carry on when the window switches between one card and two.
@@ -114,6 +137,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     stages: false,
     patientInfo: true,
     assignedStaff: !isNarrow,
+    appointments: true,
   }));
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const [openStageIds, setOpenStageIds] = useState<string[]>([]);
@@ -134,7 +158,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const isMissing = error instanceof ApiError && error.status === 404;
   const currentStage = procedure?.stages?.find((s) => s.id === procedure.currentStageId);
   const isMine = procedure?.assignments?.some((a) => a.username === user.username) ?? false;
-  const isBusy = Object.values(actions).some((action) => action.isPending) || remove.isPending;
+  const isBusy = Object.values(actions).some((action) => action.isPending) || remove.isPending || appointmentActions.recordOutcome.isPending;
 
   /**
    * Runs a change to the procedure, first asking (once per visit) if it isn't assigned to you. Admins aren't asked:
@@ -161,13 +185,25 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         {onSuccess: () => announce('Notes saved'), onError: failed('The notes could not be saved.')},
       ),
     );
-  const finishStage = (stage: ProcedureStage, notes: string) => checked(() => setDialog({kind: 'finish', stage, notes}));
+  /**
+   * Finishing asks first: as it always has, or, for a stage that involves a visit with none marked Attended, whether
+   * to finish it without one (an admin giving a reason for a required one; staff can't, as Finish says).
+   */
+  const finishStage = (stage: ProcedureStage, notes: string) =>
+    checked(() => {
+      setWithoutVisitReason('');
+      setDialog({kind: finishesWithoutVisit(stage, stageVisit(stage.id, appointments)) ? 'finishWithoutVisit' : 'finish', stage, notes});
+    });
 
-  /** Saves notes typed but not saved, then finishes the stage. */
-  const confirmFinish = async (stage: ProcedureStage, notes: string) => {
+  /** Saves notes typed but not saved, then finishes the stage (without its visit, when that's what was confirmed). */
+  const confirmFinish = async (stage: ProcedureStage, notes: string, withoutVisit = false) => {
     try {
       if (notes !== (stage.notes ?? '')) await actions.saveNotes.mutateAsync({stageId: stage.id ?? '', notes});
-      const updated = await actions.finishStage.mutateAsync(stage.id ?? '');
+      const updated = await actions.finishStage.mutateAsync(
+        withoutVisit
+          ? {stageId: stage.id ?? '', withoutVisit, ...(stage.visitRequirement === 'Required' ? {reason: withoutVisitReason.trim()} : {})}
+          : (stage.id ?? ''),
+      );
       announce(finishedMessage(stage, updated));
       close();
     } catch (e) {
@@ -204,8 +240,43 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         setActionError(null);
         setDialog({kind: 'unlock', stage});
       }}
+      visit={involvesVisit(stage) && visitFor(stage)}
+      finishDisabledReason={
+        !user.isAdmin && stage.visitRequirement === 'Required' && finishesWithoutVisit(stage, stageVisit(stage.id, appointments))
+          ? NEEDS_VISIT_MESSAGE
+          : undefined
+      }
     />
   );
+
+  /** A stage's Visit part: where its visit stands, and booking it, moving it or recording whether the patient came. */
+  const visitFor = (stage: ProcedureStage) =>
+    appointmentsQuery.isError ? (
+      <AlertMessage message="The stage's visit could not be loaded. Please try again." />
+    ) : (
+      <StageVisit
+        stage={stage}
+        appointments={appointments}
+        isBusy={isBusy || appointmentsQuery.isPending}
+        onBook={(requested) => setBooking({stage, appointment: requested})}
+        onReschedule={(booked) => setBooking({stage, appointment: booked})}
+        onOutcome={(appointment, outcome) => {
+          setActionError(null);
+          appointmentActions.recordOutcome.mutate(
+            {id: appointment.id ?? '', outcome},
+            {
+              onSuccess: () => announce(outcome === 'Attended' ? 'Visit marked Attended' : 'Visit marked Did not attend'),
+              onError: failed('The visit could not be updated.'),
+            },
+          );
+        }}
+      />
+    );
+
+  /** The procedure's only assignee, whom booking suggests (decision 30); none when there are several, or nobody. */
+  const onlyAssignee = procedure?.assignments?.length === 1 ? (procedure.assignments[0].userId ?? undefined) : undefined;
+  const withoutVisit = dialog?.kind === 'finishWithoutVisit' ? dialog.stage : null;
+  const withoutVisitState = withoutVisit ? stageVisit(withoutVisit.id, appointments) : null;
 
   /** A stage's files, folded under its notes: they can change while its notes can. */
   const filesFor = (stage: ProcedureStage) => (
@@ -319,6 +390,50 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             onConfirm={() => dialog?.kind === 'finish' && void confirmFinish(dialog.stage, dialog.notes)}
             onCancel={close}
           />
+          <ConfirmDialog
+            isOpen={withoutVisit !== null}
+            title="Finish without a visit?"
+            message={
+              withoutVisit?.visitRequirement === 'Required'
+                ? `${withoutVisit.name} requires a visit, and none is marked Attended. As an admin, you can finish it without one: say why. The reason is kept in the audit log.`
+                : `${withoutVisit?.name ?? 'This stage'} suggests a visit, and none is marked Attended. Finish it anyway?`
+            }
+            icon={AppIcon.Warning}
+            intent="warning"
+            confirmText="Finish Without Visit"
+            confirmDisabled={withoutVisit?.visitRequirement === 'Required' && !withoutVisitReason.trim()}
+            isProcessing={actions.saveNotes.isPending || actions.finishStage.isPending}
+            onConfirm={() => dialog?.kind === 'finishWithoutVisit' && void confirmFinish(dialog.stage, dialog.notes, true)}
+            onCancel={close}>
+            <VStack gap={3}>
+              {withoutVisitState?.status === 'Booked' && withoutVisitState.appointment && (
+                <Text type="body">
+                  {`Its visit, ${appointmentWhen(withoutVisitState.appointment)}, stays booked: cancel it on the calendar if it's no longer needed.`}
+                </Text>
+              )}
+              {withoutVisitState?.status === 'Requested' && <Text type="body">Its visit comes off Needs booking.</Text>}
+              {withoutVisit?.visitRequirement === 'Required' && (
+                <TextArea
+                  label="Reason"
+                  value={withoutVisitReason}
+                  onChange={setWithoutVisitReason}
+                  placeholder="e.g. Seen at another clinic"
+                  isRequired
+                />
+              )}
+            </VStack>
+          </ConfirmDialog>
+          {procedure && (
+            <BookAppointmentDialog
+              isOpen={booking !== null}
+              onClose={() => setBooking(null)}
+              patient={{...procedure.patient, ...procedure.patientFlags, id: procedure.patientId ?? ''}}
+              procedure={{id: procedure.id ?? '', title: procedure.title ?? ''}}
+              stage={booking?.stage && {id: booking.stage.id ?? '', name: booking.stage.name ?? ''}}
+              appointment={booking?.appointment}
+              suggestedStaffUserId={onlyAssignee}
+            />
+          )}
           <ConfirmDialog
             isOpen={dialog?.kind === 'unlock'}
             title={dialog?.kind === 'unlock' ? `Unlock ${dialog.stage.name}?` : 'Unlock Stage?'}
@@ -438,6 +553,26 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             </ViewSection>
           )}
         </DetailPart>
+        <DetailPart title="Appointments" isOpen={open.appointments} onToggle={() => toggle('appointments')}>
+          {/* Booking sits with the appointments, not in the footer, which has no room for another button. */}
+          <VStack gap={3}>
+            {appointmentsList(procedure)}
+            {!CLOSED_FOR_BOOKING.includes(procedure.status ?? '') && (
+              <HStack>
+                <Button
+                  label="Book Appointment"
+                  variant="secondary"
+                  icon={<Icon icon={AppIcon.Book} />}
+                  onClick={() => {
+                    setActionError(null);
+                    setBooking({});
+                  }}
+                  isDisabled={isBusy}
+                />
+              </HStack>
+            )}
+          </VStack>
+        </DetailPart>
         <DetailPart title="Assigned staff" isOpen={open.assignedStaff} onToggle={() => toggle('assignedStaff')}>
           <AssigneeList
             isTitled={false}
@@ -454,11 +589,42 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     );
   }
 
+  /**
+   * Every appointment for the procedure, each opening on the Calendar. Booked ones of a cancelled procedure are never
+   * cancelled by the app (someone may need to tell the patient), so they're pointed out.
+   */
+  function appointmentsList(procedure: Procedure) {
+    if (appointmentsQuery.isError) return <AlertMessage message="The appointments could not be loaded. Please try again." />;
+    if (appointmentsQuery.isPending)
+      return (
+        <Text type="body" color="secondary">
+          Loading appointments...
+        </Text>
+      );
+    if (appointments.length === 0)
+      return (
+        <Text type="body" color="secondary">
+          No appointments yet.
+        </Text>
+      );
+    const stillBooked = appointments.filter((a) => a.status === 'Booked').length;
+    return (
+      <VStack gap={2}>
+        {procedure.status === 'Cancelled' && stillBooked > 0 && (
+          <Text type="body">
+            {`The procedure is cancelled, but ${stillBooked === 1 ? 'an appointment is' : `${stillBooked} appointments are`} still booked. Tell the patient, then cancel ${stillBooked === 1 ? 'it' : 'them'} on the calendar.`}
+          </Text>
+        )}
+        <AppointmentList appointments={appointments} label="Appointments" />
+      </VStack>
+    );
+  }
+
   function canAssign(procedure: Procedure) {
     return user.isAdmin && (procedure.canChangeAssignments ?? false);
   }
 
-  /** Edit Details, View Patient, and for admins Assign Staff and the procedure's Audit Log. */
+  /** Edit Details, View Patient, and for admins Assign Staff and the procedure's Audit Log. Book Appointment is under Appointments. */
   function footer(procedure: Procedure) {
     return (
       <>
@@ -512,6 +678,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           work={currentStage && workFor(currentStage, true)}
           files={currentStage && filesFor(currentStage)}
           instructions={instructions}
+          // Its Visit part says where the visit stands while it's worked on; otherwise the title does.
+          visit={currentStage && !currentStage.canEdit && <StageVisitTokens stage={currentStage} appointments={appointments} />}
         />
       </Section>
     );
@@ -532,6 +700,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         renderWork={(stage) => (stage.isCurrent && open.currentStage ? undefined : workFor(stage))}
         renderFiles={filesFor}
         instructions={instructions}
+        renderVisit={(stage) => <StageVisitTokens stage={stage} appointments={appointments} />}
       />
     );
   }
@@ -647,14 +816,16 @@ interface CurrentStageProps {
   /** The stage's files, under its notes. */
   files: ReactNode;
   instructions: InstructionsFolding;
+  /** The stage's visit, after its title. */
+  visit?: ReactNode;
 }
 
-function CurrentStage({procedure, stage, work, files, instructions}: CurrentStageProps) {
+function CurrentStage({procedure, stage, work, files, instructions, visit}: CurrentStageProps) {
   return (
     <VStack gap={4}>
       {stage ? (
         <VStack gap={3}>
-          <StageTitle stage={stage} />
+          <StageTitle stage={stage} extra={visit} />
           {!procedure.canWorkOnStages && (
             <Text type="body" color="secondary">
               {`Stages can't be worked on while the procedure is ${statusLabel(procedure.status ?? '').toLowerCase()}.`}

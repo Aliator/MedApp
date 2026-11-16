@@ -56,4 +56,14 @@ public sealed class StageDefinitionMapperTests
         response.TemplateCount.Should().Be(0);
         response.CanBeDeleted.Should().BeTrue();
     }
+
+    [TestCase(VisitRequirement.None, "None")]
+    [TestCase(VisitRequirement.Suggested, "Suggested")]
+    [TestCase(VisitRequirement.Required, "Required")]
+    public void ToResponse_Definition_GivesItsVisitRequirementByName(VisitRequirement requirement, string expected)
+    {
+        var definition = CreateDefinition(ConsultationStage).WithVisit(requirement);
+
+        StageDefinitionMapper.ToResponse(definition, StageDefinitionUsage.None).VisitRequirement.Should().Be(expected);
+    }
 }

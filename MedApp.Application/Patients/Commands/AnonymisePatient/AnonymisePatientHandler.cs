@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -15,8 +16,9 @@ namespace MedApp.Application.Patients.Commands.AnonymisePatient;
 /// <summary>
 /// Anonymises a patient's record across every table in one save, with an activity log entry giving the reason (one of
 /// <see cref="AnonymisationReason"/>, so it holds no patient details) and an optional note
-/// (<see cref="PatientAnonymiser"/>). Refused (409) while any of their procedures is under way, while the record is
-/// restricted, or if it's already anonymised; and (400) unless the confirmation is the patient's full name.
+/// (<see cref="PatientAnonymiser"/>). Refused (409) while any of their procedures is under way, while any of their
+/// appointments is open (Requested or Booked), while the record is restricted, or if it's already anonymised; and (400)
+/// unless the confirmation is the patient's full name.
 /// </summary>
 public sealed partial class AnonymisePatientHandler(
     IPatientRecordRepository repository,
@@ -41,6 +43,13 @@ public sealed partial class AnonymisePatientHandler(
             throw new ConflictException(
                 $"This patient has {underWay} procedure{(underWay == 1 ? "" : "s")} under way, so their record can't be anonymised " +
                 "until they're completed, cancelled or archived.");
+
+        var openAppointments = record.Appointments.Count(a => AppointmentWorkflow.IsOpen(a.Status));
+        if (openAppointments > 0)
+            throw new ConflictException(
+                $"This patient has {openAppointments} open appointment{(openAppointments == 1 ? "" : "s")} (needing booking or " +
+                $"booked), so their record can't be anonymised. Cancel {(openAppointments == 1 ? "it" : "them")}, or record " +
+                $"{(openAppointments == 1 ? "its" : "their")} outcome, first.");
 
         if (!SameName(request.Confirmation, PatientMapper.FullName(patient)))
             throw new ValidationException(

@@ -1,6 +1,7 @@
 using System.Buffers.Text;
 using System.Globalization;
 using System.Text;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Procedures.Timeline.Common;
@@ -15,6 +16,9 @@ public sealed record TimelineCursor(DateTime AtUtc, Guid Id)
 
     /// <summary>The cursor for the page after this entry.</summary>
     public static TimelineCursor After(PatientProcedureAuditEntry entry) => new(entry.AtUtc, entry.Id);
+
+    /// <summary>The cursor for the page after this appointment history entry.</summary>
+    public static TimelineCursor After(AppointmentEvent entry) => new(entry.AtUtc, entry.Id);
 
     public string Encode() =>
         Base64Url.EncodeToString(Encoding.UTF8.GetBytes($"{AtUtc.Ticks.ToString(CultureInfo.InvariantCulture)}.{Id:N}"));
