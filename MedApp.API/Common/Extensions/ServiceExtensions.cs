@@ -66,20 +66,9 @@ public static class ServiceExtensions
         {
             options.AddPolicy(AuthPolicies.Staff, policy => policy.RequireRole("Admin", "User"));
 
-            options.AddPolicy("SelfUserOnly", policy =>
+            options.AddPolicy(AuthPolicies.SelfUserOnly, policy =>
                 policy.RequireAssertion(context =>
-                {
-                    var routeUsername =
-                        context.Resource is HttpContext http
-                            ? http.Request.RouteValues["username"]?.ToString()
-                            : null;
-
-                    var userName = context.User.Identity?.Name;
-
-                    return routeUsername is not null
-                           && userName is not null
-                           && routeUsername == userName;
-                }));
+                    context.Resource is HttpContext http && AuthPolicies.IsOwnUsername(http, context.User)));
         });
 
         return services;

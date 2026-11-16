@@ -67,6 +67,8 @@ public sealed class FirstAdminSetup(
                 return IdentityResult.Success;
             }
 
+            // Not made to change its password (MustChangePassword stays false), unlike accounts an admin creates: this
+            // password isn't generated and handed on, but chosen by whoever deploys and kept in the secret store.
             var admin = new ApplicationUser
             {
                 UserName = username,
