@@ -1,6 +1,6 @@
 import {screen, waitFor} from '@testing-library/react';
-import {json, mockFetch, renderWithApp} from '../../test/render';
-import {LoginPage} from './LoginPage';
+import {json, mockFetch, renderApp, renderWithApp} from '../../test/render';
+import {LoginPage, parseLoginSearch} from './LoginPage';
 
 describe('LoginPage', () => {
   it('signs in with the entered credentials and goes to the welcome page', async () => {
@@ -90,5 +90,39 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     expect(await screen.findByText('This account is locked. Try again later.')).toBeInTheDocument();
+  });
+});
+
+describe('after a session timed out', () => {
+  const TIMED_OUT = 'Your session timed out, so you were signed out. Sign in again to carry on.';
+
+  it('says so, until a sign-in is tried', async () => {
+    mockFetch(() => new Response(null, {status: 401}));
+    const {user} = renderWithApp(<LoginPage isExpired />, {path: '/login'});
+
+    expect(await screen.findByText(TIMED_OUT)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'wrong');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+    expect(screen.queryByText(TIMED_OUT)).not.toBeInTheDocument();
+  });
+
+  it('reads it from the URL, and nothing else', async () => {
+    expect(parseLoginSearch({expired: true})).toEqual({expired: true});
+    expect(parseLoginSearch({expired: 'true'})).toEqual({expired: true});
+    expect(parseLoginSearch({expired: 'yes', other: 1})).toEqual({});
+
+    mockFetch(() => json({isAuthenticated: false, roles: []}));
+    renderApp({path: '/login?expired=true'});
+    expect(await screen.findByText(TIMED_OUT)).toBeInTheDocument();
+  });
+
+  it('says nothing of it on a plain visit', async () => {
+    renderWithApp(<LoginPage />, {path: '/login'});
+
+    await screen.findByRole('heading', {name: 'Sign in'});
+    expect(screen.queryByText(TIMED_OUT)).not.toBeInTheDocument();
   });
 });

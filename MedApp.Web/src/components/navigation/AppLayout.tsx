@@ -11,6 +11,7 @@ import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
 import {AppSideNav} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
+import {SessionTimeout} from './SessionTimeout';
 
 const STORAGE_KEY = 'medapp.halfView';
 
@@ -127,6 +128,8 @@ function MainLayout() {
         <KeyboardShortcuts />
         {/* New notifications, as they happen (the bell is in the side nav). */}
         <LiveNotifications />
+        {/* The warning before the session times out, and the way back to the login page when it has. */}
+        <SessionTimeout />
         <AppShell
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
