@@ -72,7 +72,7 @@ flowchart LR
     staff(["Customer's staff, in a browser, or a tool using their session (the FHIR API)"])
     subgraph uk["Microsoft Azure, UK South"]
       ingress["Traefik ingress: TLS ends here"]
-      api["MedApp API pods, with the Node page server inside"]
+      api["MedApp API pods: the API, and the Node page server in a container of its own"]
       valkey["Valkey: messages in transit only"]
       sql[("Azure SQL: private endpoint, encrypted at rest")]
       backups[("Azure SQL backups")]
