@@ -65,7 +65,7 @@ The PR adds `docs/governance/`: 22 draft documents that UK data protection law, 
 
 ## Findings
 
-Most severe first. None is high or critical. None was fixed in the PR at the time of this review.
+Most severe first. None is high or critical. None was fixed in the PR at the time of this review; all 15 were fixed afterwards in `76455c2`, before merging, as each finding's last line says.
 
 ### 1. The go-live gate leaves the wrong-patient risk high, but the summary says every risk ends low or medium
 
@@ -78,7 +78,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `docs/governance/dpia.md:351` and `docs/governance/README.md:79`: the gate is steps 2, 4, 5 and 7
   - `docs/architecture.md:1436`: "After step 7, MedApp is ready for a first paying pilot"
 - **Fix:** either bring the patient banner (name, date of birth and a check before writing notes) forward into the gate, as a "before go-live" measure under risk 8, or say in the summary that risk 8 stays high until step 6 and that the gate therefore includes step 6's banner, or consultation. Then make `README.md:79` match.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). The owner chose to bring the patient banner into the gate: `dpia.md`'s summary now says the gate is steps 2, 4, 5 and 7 plus step 6's patient banner, because risk 8 stays high without it; risk 8's banner is a "before go-live" measure; the sign-off row, `README.md` and the handbook's step 3 status line say the same.
 
 ### 2. Confidentiality clauses and the supplier's MFA are described as in place, but they're to-dos
 
@@ -90,7 +90,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `docs/governance/ropa.md:82`: "(all planned)"; `docs/governance/README.md:107`: "Put confidentiality clauses in every contract"
   - `docs/governance/ropa.md:94-103`: "Company accounts with MFA" for each activity; `docs/governance/dspt-readiness.md:73`: "Supplier accounts: policy now"
 - **Fix:** move both items in `dpa-template.md:175` to the Planned column with a date, and write the security column in `ropa.md` part B as "MFA on company accounts [to confirm before approval]" until it's true.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). Confidentiality clauses and supplier MFA moved to Planned with a target date in `dpa-template.md` Schedule 2, `support-access-policy.md` and `security-policies.md`; MFA is marked "to confirm", including in every row of `ropa.md` part B; the support access policy stays in place as a draft to approve before signing.
 
 ### 3. The patient notice says data never leaves the UK and only the customer's staff see it; the pack itself says otherwise
 
@@ -102,7 +102,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `docs/governance/support-access-policy.md:35`: the supplier's people may look at records on instruction
   - `docs/governance/ropa-customer-template.md:41` and `docs/governance/ropa.md:61`
 - **Fix:** say what the pack says. For example: "Your information is stored in the UK. [Company name], which runs MedApp for us, and its hosting provider, Microsoft, can reach it only to run and support the system, under contracts that bind them to our instructions and to confidentiality. In rare cases Microsoft's support engineers may do so from outside the UK, under the safeguards UK law requires." Use the same sense at `international-transfers.md:60`.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). The patient notice now uses the review's wording: data is stored in the UK; the supplier and Microsoft reach it only to run and support the system; the supplier's support staff only when the customer asks, under a written policy; Microsoft's engineers in rare cases from outside the UK under UK safeguards. The same sense is in `international-transfers.md` (its customer wording and its opening line), `ropa.md` A4 and `ropa-customer-template.md`.
 
 ### 4. The contract promises things a supplier with one engineer and no out-of-hours cover can't reliably keep
 
@@ -125,7 +125,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - 8.1: allow the supplier's own employees emergency access from outside the UK on company-managed devices, logged and reported to the customer within 24 hours, and keep the prior-approval rule for anyone else. Reword `support-access-policy.md:45` so it doesn't call an employee's access a restricted transfer.
   - 9.3: "within 5 working days, or as agreed", charged as the Main Agreement says, and write the export queries before the first customer.
   - 5.3: "will use reasonable endeavours to put it in place by the date shown".
-- **What happened to it:** open; for the solicitor's review the pack already plans.
+- **What happened to it:** **fixed** (`76455c2`), as the review suggested. Clause 6.1 is 48 hours (by email, by phone in working hours, with a named deputy), moving to 24 hours once out-of-hours cover exists; clause 8.2 adds a logged emergency exception for the supplier's own employees abroad, reported within 24 hours; the support access policy and the transfers document now say, under the ICO's test, that an employee's access isn't a restricted transfer (a contractor's is); clause 9.3 is "within 5 working days, or as agreed", charged as the Main Agreement says, and the export queries are due before the first customer; clause 5.3 is "reasonable endeavours". The breach procedure, the README, the DSPT map and the NHS context follow the 48 hours. Still for the solicitor's review.
 
 ### 5. The breach procedure's "take the service offline" is undone within seconds by Argo CD
 
@@ -136,7 +136,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `deploy/argocd/medapp-azure.yaml:27-30` and `deploy/argocd/medapp-kind.yaml:37-39`: `automated`, `prune: true`, `selfHeal: true`
   - `deploy/helm/medapp/templates/api.yaml:30`: `replicas: {{ .Values.api.replicas }}`, so the count is part of what Argo CD compares
 - **Fix:** make the step "turn off automatic sync first, then scale the API to zero", with the commands (Detail), and the reverse at recovery. Put it in the step 5 runbook for a suspected breach, and practise it in the tabletop exercise.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). `breach-response.md` step 2 now turns off Argo CD's automated sync before scaling down, with the review's commands in a new section 3a; step 9 turns it back on during recovery; the section says to put the commands in the step 5 runbook and practise them in the tabletop exercise.
 
 ### 6. Browser history isn't in the inventory, and patient search terms land there
 
@@ -148,7 +148,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `docs/governance/dpia.md:113`, `:239` and `:242`: risk 10's sources, its fix (clear `localStorage`) and "after **low**"
   - `docs/governance/cookies-and-storage.md:43`
 - **Fix:** add a "browser history" row to the inventory and to DPIA risk 10, and a line to the staff rules. In step 7, keep identifying filters (name, email, date of birth) out of the URL, in session storage or the router's state, while page, sort and status stay in it.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). A browser history row in `data-inventory.md`; risk 10 in `dpia.md` names history as a source, with a "before go-live" step 7 measure to keep identifying filters out of the URL and a staff rule; the same in the README's step 7 build list, the staff notice's rules and the cookies statement.
 
 ### 7. Nothing makes the next change update the pack
 
@@ -160,7 +160,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `docs/todo.md:23` on `main` (the timeline); `docs/reviews/pr-57-todo-features.md`, finding 3, on `main`
   - `docs/governance/dpia.md:176`
 - **Fix:** add a step to `AGENTS.md`'s checklist: "If the change adds or changes personal data, a purpose, a recipient, a sub-processor or a hosting region, update `docs/governance/data-inventory.md` and `docs/governance/dpia.md` in the same PR." Add "the governance documents still true" to what a review looks for.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). `AGENTS.md` gains step 8 in "To add a feature end to end": a change that alters what personal data is held, who can see it, where it goes or how long it's kept updates `docs/governance/` (at least the inventory and the DPIA) in the same PR; the merge flow's step 3 "What to look for" checks that the governance documents are still true. `README.md` and `security-policies.md` point to it.
 
 ### 8. On Azure, any pod in the cluster can reach the database, not only the API and the migrations Job
 
@@ -171,7 +171,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - `deploy/helm/medapp/templates/networkpolicy.yaml:16`, `:60`, `:81` and `:109`: each policy selects one of MedApp's pods; the database's own policy exists only when `sql.enabled` (`:99`)
   - `deploy/azure/values.yaml:32-42`: Azure SQL is reached by an egress rule to `10.40.4.0/24`
 - **Fix:** reword the claim for Azure ("MedApp's own pods reach only what they need; on Azure other pods in the cluster aren't restricted yet"), and add a step 5 measure: a cluster-wide Cilium policy that denies traffic to the private endpoint subnet from every pod except MedApp's API and migrations Job.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). `dpia.md` risk 12 now says MedApp's own pods are limited, but on Azure other pods can reach the private endpoint, and adds a step 5, "before go-live" measure: a cluster-wide Cilium policy allowing only the API and the migrations Job. The DSPT map's network segmentation is "Partly", with the gap; the README's step 5 list includes the policy.
 
 ### 9. A few legal statements are looser than the law
 
@@ -183,7 +183,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - **"Article 22 (as amended by the DUAA)"** (medium): the DUAA replaced Article 22 with Articles 22A to 22D.
 - **Evidence:** `docs/governance/roles-and-lawful-bases.md:70` against `:105`; `:64` and `:87`; `:80`; `:73` (and `docs/governance/data-subject-rights.md:11` and `:43`).
 - **Fix:** "Paragraph 2 doesn't need one"; cite the Public Records Act 1958 for NHS records, or drop 6(1)(c) where 6(1)(e) applies; "applies to access by staff involved in the patient's care"; "Articles 22A to 22D".
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). `roles-and-lawful-bases.md`: paragraph 2 needs no appropriate policy document, though paragraph 1 does; public task covers the Code's record keeping, with the Public Records Act 1958 as the NHS legal duty, and 6(1)(c) only for duties in law (also for the DSPT on the staff row); implied consent covers access by staff involved in the patient's care; Articles 22A to 22D, also in `data-subject-rights.md`.
 
 ### 10. The DPIA scores the same likelihood and severity two ways
 
@@ -191,7 +191,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
 - **What could go wrong:** risk 18 (remote, severe) is scored low; risk 20 (remote, severe) is scored medium. An assessor comparing rows can't tell which rule the DPIA uses, and a customer copying it may apply the lower score to its own remote-but-severe risks.
 - **Evidence:** `docs/governance/dpia.md:121` and `:123`.
 - **Fix:** add the matrix under "Scoring" (`dpia.md:95-98`) and rescore one of the two, or give the reason for the exception.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). The matrix is under "Scoring" in `dpia.md` (remote and severe is medium, so risk 20 stays medium); risk 18 is the stated exception, low because it can't happen yet, to rescore at step 8.
 
 ### 11. The handbook still says there's no DPIA, ROPA or contract
 
@@ -199,7 +199,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
 - **What could go wrong:** the PR adds a status line to step 3, but the handbook's risk table and compliance map still say "None" or "Nothing written" for each document this PR adds. A buyer reading section 11 or the compliance map concludes there's no paperwork at all; one reading step 3 sees drafts.
 - **Evidence:** `docs/architecture.md:1276` (S4: "no DPIA, retention policy, subject access or erasure process"); `:1418` (red flags, a dated snapshot); the compliance map at `:2142`, `:2147`, `:2151-2154` and `:2156`.
 - **Fix:** S4 and the map's rows to "Drafts in `docs/governance/`, not approved" (the step stays 3), and leave the dated red flags list as it is.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). S4 and the compliance map's rows (lawful basis and notices, storage limitation, the ROPA, Article 28, breaches, the DPIA, the DPO, transfers, complaints, PECR, the Records Management Code) now say "Drafts in `docs/governance/`, not approved"; the dated red flags list is unchanged.
 
 ### 12. The staff notice states retention periods MedApp doesn't apply yet
 
@@ -207,7 +207,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
 - **What could go wrong:** the staff notice template tells staff their sign-in records are kept 12 months and notifications 6 months. Today both are kept for ever. The template holds back the access-audit sentence until step 7, with an italic note, but not this one. A customer that publishes the notice before step 7 tells its staff something untrue. The go-live gate makes that unlikely, which is why this is low.
 - **Evidence:** `docs/governance/privacy-notice-staff-template.md:36` against `:22`; `docs/governance/data-inventory.md:29` ("Rows are never deleted today").
 - **Fix:** put the periods in brackets with the same italic note as line 22.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). The staff notice's periods are in brackets, with an italic note to include them only once step 7 deletes on schedule.
 
 ### 13. If a customer doesn't answer at the end of the contract, the agreement deletes its health records
 
@@ -215,7 +215,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
 - **What could go wrong:** clause 11.3 deletes all of a customer's data 30 days after the 30-day window if the customer doesn't answer. A clinic that closes or goes into administration misses the emails, and records it must keep for 8 to 25 years are destroyed, with patients unable to get them. Article 28(3)(g) allows deletion as the default, but for health records it's the worse default.
 - **Evidence:** `docs/governance/dpa-template.md:102-106`.
 - **Fix:** on no answer, send reminders, then return an export to the last named contact by the agreed secure route, and delete only after confirmation or a longer period [to agree].
-- **What happened to it:** open; for the solicitor's review.
+- **What happened to it:** **fixed** (`76455c2`). New clause 11.3A: no deletion when the customer doesn't answer; two reminders, then an export to the last named contact, and deletion only after confirmation or [6 months]. Schedule 4, `retention-schedule.md` section 5 and the README match. Still for the solicitor's review.
 
 ### 14. The review and approval claims read stronger than they are
 
@@ -223,7 +223,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
 - **What could go wrong:** the secure development policy lists "an independent review of every change" as in place, and the DSPT map says "every merge has a written adversarial review". The review is by a separate AI agent that isn't given the PR's own conclusions; there's no second human reviewer, as the next row of the policy admits. And per-PR reviews exist from #51 onwards, not for #1 to #50. An assessor reads "independent" as a second person, and "every merge" as the whole history.
 - **Evidence:** `docs/governance/security-policies.md:53` and `:57`; `docs/governance/dspt-readiness.md:84`; `AGENTS.md`, "Effort for each stage of a change"; `docs/reviews/README.md` (per-PR reviews from #51).
 - **Fix:** "a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions; no second human reviewer yet".
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). `security-policies.md`, `dspt-readiness.md` and `ropa.md` now say a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions, not yet approved by a human.
 
 ### 15. Smaller statements that don't match the code or each other
 
@@ -236,7 +236,7 @@ Most severe first. None is high or critical. None was fixed in the PR at the tim
   - **"Another branch":** two documents say another branch is building privacy features now. It isn't named, can't be checked from the repository, and will be wrong once it merges. (`README.md:83`, `retention-schedule.md:103`.)
   - **"Push-only":** the GitHub identity has `AcrPush`, which can pull too; the point that matters (it can't reach the database or Key Vault) holds. (`data-inventory.md:82`, `sub-processors.md:38`; `main.bicep`, `githubAcrPush`.)
 - **Fix:** correct each sentence as above; name the other work by its PR once there is one, or drop the sentence.
-- **What happened to it:** open.
+- **What happened to it:** **fixed** (`76455c2`). The audit can be filtered by patient in the API but not on screen (`dpia.md` risk 6, `data-subject-rights.md`); sign-in, sign-out and `whoami` are named as the endpoints without a session (`dpia.md`, `ropa.md`, `security-policies.md`, `dspt-readiness.md`, Schedule 2); A3.7 is listed as special category; the reply to a requester no longer confirms the customer holds a record; "another branch" is now "the privacy features work on roadmap step 7" (`README.md`, `retention-schedule.md`); the GitHub identity is described as limited to the registry (`AcrPush`, which can push and pull).
 
 ## Remaining risks
 
