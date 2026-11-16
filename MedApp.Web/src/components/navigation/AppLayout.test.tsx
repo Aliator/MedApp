@@ -1,6 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
+import {STABLE_SCROLLBAR} from './AppLayout';
 
 /** Every list is empty: enough for the pages to render their headers. */
 /** No data anywhere: empty lists (an empty page from the search endpoints, which the rest are). */
@@ -29,6 +30,35 @@ async function railRow(user: ReturnType<typeof userEvent.setup>, item: string) {
   await waitFor(() => expect(nav.getAllByRole('link', {name: item})).toHaveLength(2), {timeout: 3000});
   return nav.getAllByRole('link', {name: item})[1];
 }
+
+describe('AppLayout scrollbar room', {timeout: 15_000}, () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it('keeps room for a scrollbar in the main area, so pages that scroll line up with pages that do not', async () => {
+    emptyApi();
+    renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    expect(document.querySelector('style[data-medapp-layout]')?.textContent).toBe(STABLE_SCROLLBAR);
+    expect(STABLE_SCROLLBAR).toContain('[role="main"]');
+    expect(STABLE_SCROLLBAR).toContain('scrollbar-gutter: stable');
+    // No half view: nothing for the rule to leave out.
+    expect(document.querySelector('[data-half-views]')).toBeNull();
+  });
+
+  it('leaves the main area to the halves in a half view, each keeping its own room', async () => {
+    sessionStorage.setItem('medapp.halfView', '/admin/audit');
+    emptyApi();
+    renderApp({path: '/patients', user: adminUser});
+
+    await heading('Audit Log');
+    // The rule skips a main area holding the halves, which scroll, and keep the room, themselves.
+    const halves = document.querySelector('[data-half-views]');
+    expect(halves).not.toBeNull();
+    expect(within(halves as HTMLElement).getByRole('heading', {name: 'Patients', level: 1})).toBeInTheDocument();
+    expect(STABLE_SCROLLBAR).toContain(':not(:has([data-half-views]))');
+  });
+});
 
 // The whole app renders, and the first test loads its routes: more than the default 5s on a slow machine.
 describe('AppLayout half views', {timeout: 15_000}, () => {

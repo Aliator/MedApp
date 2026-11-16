@@ -201,7 +201,7 @@ export function EmailPage() {
                 value={password}
                 onChange={setPassword}
                 autoComplete="current-password"
-                description="To check it's you before where your reset links go changes."
+                description="We ask for this to check it's you, as password reset links will go to the new address."
                 isRequired
                 status={fieldStatus(validation, 'password')}
               />

@@ -15,8 +15,19 @@ import {SessionTimeout} from './SessionTimeout';
 
 const STORAGE_KEY = 'medapp.halfView';
 
-/** A half of a half view scrolls up and down only. */
-const HALF = {overflowX: 'hidden'} as const;
+/**
+ * A half of a half view scrolls up and down only, and keeps room for its scrollbar whether or not its page scrolls, so
+ * its page doesn't move sideways when it starts to (see `STABLE_SCROLLBAR`).
+ */
+const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable'} as const;
+
+/**
+ * The window's main area keeps room for a scrollbar whether or not its page scrolls. Where scrollbars take up space
+ * (Windows), the page is centred in what's left, so without this a page that scrolls (Account Settings, the
+ * accessibility statement) sat a few pixels left of one that doesn't. AppShell has no prop for it, so it's a rule on
+ * its main area (`role="main"`). In a half view the halves scroll instead, and keep their own room (`HALF`).
+ */
+export const STABLE_SCROLLBAR = '[role="main"]:not(:has([data-half-views])) { scrollbar-gutter: stable; }';
 
 /** The half view's page, kept for the browser tab so a reload keeps it (storage may be unavailable). */
 function storedPath(): string | null {
@@ -130,6 +141,7 @@ function MainLayout() {
         <LiveNotifications />
         {/* The warning before the session times out, and the way back to the login page when it has. */}
         <SessionTimeout />
+        <style data-medapp-layout="">{STABLE_SCROLLBAR}</style>
         <AppShell
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
@@ -150,7 +162,7 @@ function MainLayout() {
             // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
             // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
             // fits its half exactly (it would otherwise reach out over the shell's padding, and overflow its half).
-            <HStack gap={0} height="100%">
+            <HStack gap={0} height="100%" data-half-views="">
               <StackItem size="fill" isScrollable aria-label="Left half" style={HALF}>
                 <HalfViewContext.Provider value={mainHalf}>
                   <Outlet />
