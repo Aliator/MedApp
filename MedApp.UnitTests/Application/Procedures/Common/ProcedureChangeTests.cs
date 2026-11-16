@@ -30,6 +30,24 @@ public sealed class ProcedureChangeTests
     }
 
     [Test]
+    public void UpdateStageNotes_FirstNotes_RecordsEachEntryATickAfterTheLastSoTheySortInOrder()
+    {
+        var procedure = CreateProcedure(Status.Assigned);
+        var change = ChangeOf(procedure);
+
+        change.UpdateStageNotes(procedure.StageAt(1), "Synthetic notes.");
+
+        change.AuditEntries.Select(e => (e.Action, e.AtUtc)).Should().Equal(
+            (PatientProcedureAuditAction.StageStarted, Now),
+            (PatientProcedureAuditAction.StatusChanged, Now.AddTicks(1)),
+            (PatientProcedureAuditAction.StageNotesUpdated, Now.AddTicks(2)));
+        // Newest first, as the timeline reads them, whatever their random IDs.
+        change.AuditEntries.OrderByDescending(e => e.AtUtc).Select(e => e.Action).Should().Equal(
+            PatientProcedureAuditAction.StageNotesUpdated, PatientProcedureAuditAction.StatusChanged, PatientProcedureAuditAction.StageStarted);
+        procedure.LastUpdated.Should().Be(Now);
+    }
+
+    [Test]
     public void StartStage_AlreadyStarted_ChangesNothing()
     {
         var procedure = CreateProcedure(Status.InProgress);

@@ -56,7 +56,7 @@
 | **Special category data** | Health data (the notes text) |
 | **Article 6 basis** | [As entry 1; also 6(1)(c) where a legal duty to keep the record applies] |
 | **Article 9 condition** | 9(2)(h), with Schedule 1, Part 1, paragraph 2 |
-| **Recipients** | Your MedApp admins (only admins can read the audit log) |
+| **Recipients** | Your MedApp admins: the full audit trail is admin-only, and they can see a patient's whole history on screen. Your staff see a per-patient timeline without its free text: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text; no notes text, titles or reasons, and nothing about deleted procedures. |
 | **Retention** | The same as the record it relates to |
 
 ## Entry 3: staff accounts, sessions and notifications

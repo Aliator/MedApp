@@ -34,7 +34,8 @@ public sealed class PatientProcedureAuditEntryConfiguration : IEntityTypeConfigu
             .IsRequired();
 
         builder.HasIndex(x => new { x.PatientProcedureId, x.AtUtc });
-        builder.HasIndex(x => x.PatientId);
+        // A patient's timeline: their entries, newest first.
+        builder.HasIndex(x => new { x.PatientId, x.AtUtc });
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.AtUtc);
     }

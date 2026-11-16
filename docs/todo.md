@@ -17,12 +17,6 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - the time spent in each stage, to show the bottlenecks (the audit log already records when each stage starts and finishes)
   - created against completed over time
 - **Appointments and booking.** Book appointments for patients with staff. Each member of staff gets a calendar (day and week) showing their appointments with their procedures' due dates. Appointments tie into the workflow: booking the next stage, or a follow-up when a procedure finishes.
-- **A patient timeline tab.** On the patient page: one feed, grouped by day, of everything that happened to that patient across their procedures:
-  - what's shown: procedures started, stages finished, notes, assignments, blocks and unlocks
-  - filters by type and by procedure
-  - what's coming up, at the top
-
-  Built from the audit log. Staff see only what they can see today (no old field values, and no deleted procedures); the audit log stays admin-only.
 - **Notification settings for each person.** Admins choose which events notify each member of staff (for example, a procedure finished, a stage unlocked, something overdue or blocked), separately for each person. Only "assigned to a procedure" exists today, so it needs those new notification kinds too, and a per-user setting checked before each one is sent. Overdue notifications need a scheduled job that runs once across both API copies. Store the admins' choices apart from each person's own settings, so nobody can undo them.
 - **Emails, and resetting your own password.** Send emails (notifications, a welcome email for a new account), and let people reset a forgotten password by an emailed link instead of asking an admin. It needs an email service and single-use, expiring reset links. ASP.NET Identity's password reset tokens fit. Staff accounts have no email address yet, so add one. Reset links need data protection keys shared by every API copy (roadmap step 2). Emails must never carry free text that may hold clinical information (a notification's title is a procedure's title), and a welcome email never carries the password. Roadmap step 4 plans the reset.
 - **File attachments.** Attach files (scans, photos, results, letters) to a patient, a procedure or a stage, by dragging them in, with a preview and a download. Adding or removing a file is audited. It needs file storage (Azure Blob Storage when deployed) and limits on file types and sizes. Serve files safely: download by default, a strict content type and `nosniff`, and never render an uploaded SVG or HTML inline on the app's own origin. Scan for malware, audit downloads too, and offer a button as well as dragging (WCAG 2.5.7). Roadmap step 9 has a version.
@@ -49,6 +43,10 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **Pinning actions and images by digest,** with Dependabot keeping them current.
   - **Repository settings:** `web`, `helm`, `unit-tests` and `image` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
 - **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).
+
+## Testing
+
+- **Run the patient timeline's query on SQL Server,** once `MedApp.IntegrationTests` has a database (#65): page through entries that share a time (SQL Server orders `uniqueidentifier`s its own way, and the cursor must agree), and filter by kind (its `LIKE` markers ignore case there). Today it's only proven to translate (`PatientTimelineTranslationTests`) and run in memory (PR #64 review, finding 6).
 
 ## Long term
 

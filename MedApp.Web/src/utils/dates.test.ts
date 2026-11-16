@@ -1,4 +1,4 @@
-import {formatDateTime, ageOn, formatDate, formatShortDate, parseUtc, timeAgo, todayIso} from './dates';
+import {formatDateTime, ageOn, formatDate, formatDayHeading, formatShortDate, formatTime, parseUtc, timeAgo, todayIso, ukDay} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -117,5 +117,26 @@ describe('formatDateTime', () => {
   it('gives back what it cannot read, and counts from now by default', () => {
     expect(timeAgo('not a date')).toBe('not a date');
     expect(timeAgo(new Date().toISOString())).toBe('Just now');
+  });
+});
+
+describe('ukDay, formatDayHeading and formatTime', () => {
+  it('reads a moment in UK time, in summer (BST) and winter (GMT)', () => {
+    // 23:30 UTC in June is 00:30 the next day in the UK; in January, the same day.
+    expect(ukDay('2026-06-15T23:30:00Z')).toBe('2026-06-16');
+    expect(formatDayHeading('2026-06-15T23:30:00Z')).toBe('Tuesday 16 June 2026');
+    expect(formatTime('2026-06-15T23:30:00Z')).toBe('00:30');
+    expect(ukDay('2026-01-15T23:30:00Z')).toBe('2026-01-15');
+    expect(formatTime('2026-01-15T23:30:00Z')).toBe('23:30');
+  });
+
+  it('takes a moment without a zone as UTC, as the API may send it', () => {
+    expect(formatTime('2026-06-15T09:05:00')).toBe('10:05');
+  });
+
+  it('gives back what it cannot read', () => {
+    expect(ukDay('soon')).toBe('soon');
+    expect(formatDayHeading('soon')).toBe('soon');
+    expect(formatTime('soon')).toBe('soon');
   });
 });
