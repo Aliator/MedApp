@@ -368,7 +368,7 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     isSelecting.current = false;
     if (!pending) return;
     // Just after the browser has finished with this press: a menu opened from the selection (the Calendar page's Book
-    // or Block) would otherwise take the release, and the click after it, as a press outside it, and close at once.
+    // or Block) would otherwise take the release itself as a press outside it, and close at once.
     const selected = pending;
     window.setTimeout(() => commit(selected), 0);
   };
@@ -573,16 +573,29 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                     );
                   })
                 )}
-                {shownSelection && (
-                  <span
-                    ref={!pending ? (selectionRef as Ref<HTMLSpanElement>) : undefined}
-                    className="mc-selection"
-                    style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
-                    <Text type="supporting" weight="semibold" maxLines={1}>
-                      {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
-                    </Text>
-                  </span>
-                )}
+                {shownSelection &&
+                  (pending ? (
+                    // Being dragged out: just the highlight.
+                    <span className="mc-selection" style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
+                      <Text type="supporting" weight="semibold" maxLines={1}>
+                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
+                      </Text>
+                    </span>
+                  ) : (
+                    // Held: a button, as a menu opened from it (the Calendar page's Book or Block) is anchored to a button,
+                    // which says it's open (`aria-expanded`). It isn't a tab stop, and presses go through it to the slots.
+                    <button
+                      ref={selectionRef as Ref<HTMLButtonElement>}
+                      type="button"
+                      tabIndex={-1}
+                      className="mc-selection"
+                      aria-label={`Selected time, ${formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}`}
+                      style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
+                      <Text type="supporting" weight="semibold" maxLines={1}>
+                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
+                      </Text>
+                    </button>
+                  ))}
                 {/* The time now: a line behind the items (before them, and under them in the CSS), so it never runs through their
                     text, and a dot at the column's edge over everything. */}
                 {nowTop !== null && (
@@ -784,6 +797,7 @@ const GRID_CSS = `
 .medapp-calendar button.mc-slot:focus-visible { position: relative; z-index: 4; outline: var(--focus-outline-width) var(--focus-outline-style) var(--focus-outline-color); outline-offset: calc(-1 * var(--focus-outline-width)); }
 .medapp-calendar .mc-selection, .medapp-calendar .mc-ghost { position: absolute; inset-inline: var(--spacing-0-5); z-index: 3; box-sizing: border-box; padding-inline: var(--spacing-1-5); overflow: hidden; pointer-events: none; border-radius: var(--radius-inner); }
 .medapp-calendar .mc-selection { background: var(--color-accent-muted); border: 1px solid var(--color-accent); }
+.medapp-calendar button.mc-selection { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; margin: 0; padding-block: 0; font: inherit; color: inherit; text-align: start; appearance: none; }
 .medapp-calendar .mc-ghost { background: var(--color-background-popover); border: 2px dashed var(--color-accent); box-shadow: var(--shadow-med, none); }
 .medapp-calendar .mc-item-short { font-size: var(--font-size-xs); line-height: 1; padding-block-start: var(--spacing-0-5); }
 .medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 0; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }

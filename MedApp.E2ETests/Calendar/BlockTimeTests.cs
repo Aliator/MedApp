@@ -7,41 +7,60 @@ namespace MedApp.E2ETests.Calendar;
 
 /// <summary>
 /// Dragging over free time on the Calendar with the mouse: the menu that opens stays open (it used to close at once,
-/// taking the release as a press outside it), Block time blocks the time dragged over, and the block can be removed.
+/// taking the release as a press outside it) beside the selection, Block time blocks the time dragged over, and the
+/// block can be removed.
 /// </summary>
 [TestFixture]
 public sealed class BlockTimeTests : E2ETest
 {
     private static readonly CultureInfo UkEnglish = CultureInfo.GetCultureInfo("en-GB");
+    private static readonly TimeZoneInfo London = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+
+    /// <summary>The hours tried, in order, for one that's free from start to end.</summary>
+    private static readonly int[] Hours = [14, 10, 15, 11, 16, 9];
 
     [Test]
-    public async Task BlockTime_DraggedOverFreeTime_OpensTheMenuAndBlocksThatTime()
+    public async Task BlockTime_DraggedOverFreeTime_OpensTheMenuBesideItAndBlocksThatTime()
     {
-        // A weekday three weeks ahead, clear of the other journeys' bookings and of time that has passed.
-        var day = UkToday.AddDays(21);
-        while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-            day = day.AddDays(1);
-        await OpenAsync($"/calendar?date={day:yyyy-MM-dd}&view=day");
+        var myId = await Api.UserIdOfAsync((await Api.WhoAmIAsync()).Name!);
+        var (day, hour) = await FreeHourAsync(myId);
+        var startUtc = Utc(day, hour);
+        var endUtc = Utc(day, hour + 1);
 
+        // Deletes the block however the test ends, if it was made (the test deletes it itself too).
+        Data.OnCleanUp("the blocked hour", async () =>
+        {
+            var calendar = await Api.CalendarAsync(myId, day);
+            foreach (var block in calendar.Blocks.Where(b => !b.IsFromTemplate && b.StartUtc == startUtc && b.EndUtc == endUtc))
+                await Api.DeleteBlockAsync(block.BlockId!.Value);
+        });
+
+        await OpenAsync($"/calendar?date={day:yyyy-MM-dd}&view=day");
         var dayName = day.ToString("dddd d MMMM", UkEnglish);
-        var first = Main.GetByRole(AriaRole.Button, new() { Name = $"{dayName}, 14:00, free", Exact = true });
-        var last = Main.GetByRole(AriaRole.Button, new() { Name = $"{dayName}, 14:45, free", Exact = true });
+        var first = Main.GetByRole(AriaRole.Button, new() { Name = $"{dayName}, {hour:00}:00, free", Exact = true });
+        var last = Main.GetByRole(AriaRole.Button, new() { Name = $"{dayName}, {hour:00}:45, free", Exact = true });
         await last.ScrollIntoViewIfNeededAsync();
         var from = (await first.BoundingBoxAsync())!;
         var to = (await last.BoundingBoxAsync())!;
 
-        // Press on 14:00, drag down to 14:45, and let go: an hour, to 15:00.
+        // Press on the hour, drag down to its last quarter, and let go: the whole hour.
         await Page.Mouse.MoveAsync(from.X + 10, from.Y + from.Height / 2);
         await Page.Mouse.DownAsync();
         await Page.Mouse.MoveAsync(to.X + 10, to.Y + to.Height / 2, new() { Steps = 6 });
         await Page.Mouse.UpAsync();
 
-        // The menu opens for the hour selected, and stays open.
+        // The menu opens for the hour selected, stays open, and sits beside the selection (not in the window's corner).
+        var range = $"{hour:00}:00 to {hour + 1:00}:00";
         var menu = Page.GetByRole(AriaRole.Dialog, new() { Name = "Selected time" });
+        var selection = Main.GetByRole(AriaRole.Button, new() { Name = $"Selected time, {range}" });
         await Expect(menu).ToBeVisibleAsync();
-        await Expect(Main).ToContainTextAsync("14:00 to 15:00");
+        await Expect(selection).ToHaveAttributeAsync("aria-expanded", "true");
         await Page.WaitForTimeoutAsync(500);
         await Expect(menu).ToBeVisibleAsync();
+        var menuBox = (await menu.BoundingBoxAsync())!;
+        var selectionBox = (await selection.BoundingBoxAsync())!;
+        Assert.That(menuBox.Y, Is.InRange(selectionBox.Y - menuBox.Height, selectionBox.Y + selectionBox.Height),
+            "The menu should open beside the selection, level with it.");
         await menu.GetByRole(AriaRole.Button, new() { Name = "Block time" }).ClickAsync();
 
         // Block Time, for that hour, with the first activity.
@@ -51,7 +70,7 @@ public sealed class BlockTimeTests : E2ETest
         await Expect(dialog).ToBeHiddenAsync();
 
         // It's on the calendar for that hour. Open it and delete it, leaving the calendar as it was.
-        var block = Main.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("14:00 to 15:00") });
+        var block = Main.GetByRole(AriaRole.Button, new() { NameRegex = new Regex(Regex.Escape(range)) });
         await Expect(block).ToBeVisibleAsync();
         // A clickable card: its button is for the keyboard and screen readers, and the card itself takes the click.
         await block.Locator("xpath=..").ClickAsync();
@@ -60,4 +79,34 @@ public sealed class BlockTimeTests : E2ETest
         await Expect(change).ToBeHiddenAsync();
         await Expect(block).ToBeHiddenAsync();
     }
+
+    /// <summary>
+    /// A working day three to six weeks ahead (clear of the other journeys' bookings and of time that has passed) and an
+    /// hour on it with nothing on the calendar: no block (stored or from a template) and no appointment.
+    /// </summary>
+    private async Task<(DateOnly Day, int Hour)> FreeHourAsync(Guid staffUserId)
+    {
+        for (var day = UkToday.AddDays(21); day <= UkToday.AddDays(42); day = day.AddDays(1))
+        {
+            var calendar = await Api.CalendarAsync(staffUserId, day);
+            if (calendar.Days.SingleOrDefault() is not { IsWorkingDay: true, IsPast: false })
+                continue;
+
+            foreach (var hour in Hours)
+            {
+                var start = Utc(day, hour);
+                var end = Utc(day, hour + 1);
+                var taken = calendar.Blocks.Any(b => b.StartUtc < end && start < b.EndUtc)
+                            || calendar.Appointments.Any(a => a.StartUtc < end && start < a.EndUtc);
+                if (!taken)
+                    return (day, hour);
+            }
+        }
+
+        Assert.Fail("No free hour on the calendar three to six weeks ahead.");
+        return default;
+    }
+
+    private static DateTime Utc(DateOnly day, int hour) =>
+        TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(new TimeOnly(hour, 0)), London);
 }

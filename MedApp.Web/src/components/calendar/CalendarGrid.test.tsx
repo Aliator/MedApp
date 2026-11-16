@@ -405,6 +405,8 @@ describe('CalendarGrid', () => {
     fireEvent.pointerMove(monday, {pointerId: 2, clientX: 50, clientY: 300});
     fireEvent.pointerCancel(monday, {pointerId: 2});
     fireEvent.pointerMove(monday, {pointerId: 2, clientX: 50, clientY: 300});
+    // A pointer selection is reported just after its press ends, so wait past that before saying none was.
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(onSelectRange).not.toHaveBeenCalled();
 
     fireEvent.pointerDown(card, {button: 2, pointerId: 3});
