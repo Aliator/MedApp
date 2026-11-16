@@ -1,5 +1,6 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, mockApi, mockFetch, mustChangePasswordUser, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, mockApi, mockFetch, mustChangePasswordUser, mustSetUpTwoFactorUser, renderApp, signedOutUser, staffUser} from '../test/render';
+import {authenticatorSetup} from '../test/twoFactor';
 import {insights, templates} from '../test/insights';
 
 describe('route guards', () => {
@@ -87,6 +88,78 @@ describe('route guards', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await screen.findByRole('heading', {name: `Welcome, ${staffUser.username}`})).toBeInTheDocument();
+  });
+
+  it('sends an admin who must set up two-factor to do that, before loading anything the API would refuse', async () => {
+    const fetch = mockApi({
+      'GET /api/auth/me/settings': () => json({settings: null}),
+      'POST /api/auth/me/two-factor/authenticator': () => json(authenticatorSetup),
+    });
+    const {router} = renderApp({path: '/patients', user: mustSetUpTwoFactorUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/set-up-two-factor'));
+    expect(await screen.findByRole('heading', {name: 'Set up two-factor authentication'})).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    // Only what the hold allows: their settings, and a key for the app.
+    await screen.findByRole('img', {name: 'QR code for your authenticator app'});
+    expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).toEqual([
+      '/api/auth/me/settings',
+      '/api/auth/me/two-factor/authenticator',
+    ]);
+  });
+
+  it('sends someone who must change their password there first, even if they must set up two-factor too', async () => {
+    mockApi({'GET /api/auth/me/settings': () => json({settings: null})});
+    const {router} = renderApp({path: '/patients', user: {...mustSetUpTwoFactorUser, mustChangePassword: true}});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/change-password'));
+  });
+
+  it.each([
+    ['someone signed out to sign in', signedOutUser, '/login'],
+    ['someone who must change their password there first', {...mustSetUpTwoFactorUser, mustChangePassword: true}, '/change-password'],
+    ["anyone who needn't set it up home", adminUser, '/'],
+  ])('sends %s from the two-factor set-up page', async (_, user, path) => {
+    mockApi({'GET /api/auth/me/settings': () => json({settings: null})});
+    const {router} = renderApp({path: '/set-up-two-factor', user});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(path));
+  });
+
+  it('sends a non-admin away from Admin Settings', async () => {
+    const {router} = renderApp({path: '/admin/settings', user: staffUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('lets an admin into Admin Settings', async () => {
+    mockApi({'GET /api/auth/security-settings': () => json({requireTwoFactorForAdmins: false, adminsWithoutTwoFactor: 0})});
+    renderApp({path: '/admin/settings', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Admin Settings', level: 1})).toBeInTheDocument();
+  });
+
+  it.each([
+    ['/account/email', 'Email Address', {'GET /api/auth/me/email': () => json({email: null}), 'GET /api/auth/features': () => json({canSendEmail: true})}],
+    ['/account/security', 'Security', {'GET /api/auth/me/two-factor': () => json({enabled: false})}],
+  ])('opens %s from Account Settings', async (path, title, handlers) => {
+    mockApi(handlers);
+    renderApp({path, user: staffUser});
+
+    expect(await screen.findByRole('heading', {name: title, level: 1})).toBeInTheDocument();
+  });
+
+  it.each([
+    ['/forgot-password', 'Reset your password'],
+    ['/reset-password', 'Choose a new password'],
+    ['/confirm-email', 'Confirm your email address'],
+  ])('opens %s for anyone, outside the signed-in layout', async (path, title) => {
+    mockApi({'GET /api/auth/features': () => json({canSendEmail: true})});
+    renderApp({path, user: signedOutUser});
+
+    // The heading is there from the start, through the page's loading and link-reading states.
+    await waitFor(() => expect(screen.getByRole('heading', {name: title, level: 1})).toBeInTheDocument());
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
   it('shows the not-found page for an unknown address', async () => {

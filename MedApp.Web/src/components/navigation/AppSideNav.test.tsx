@@ -26,6 +26,7 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: /templates/i})).toHaveAttribute('href', '/admin/templates');
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
+    expect(screen.getByRole('link', {name: 'Admin Settings'})).toHaveAttribute('href', '/admin/settings');
     expect(screen.getByText('test-admin')).toBeInTheDocument();
     expect(screen.getByText('Administrator')).toBeInTheDocument();
   });
@@ -36,6 +37,7 @@ describe('AppSideNav', () => {
     expect(await screen.findByRole('link', {name: /patients/i})).toHaveAttribute('href', '/patients');
     expect(screen.queryByRole('link', {name: /^users$/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /audit log/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Admin Settings'})).not.toBeInTheDocument();
     expect(screen.getByText('User')).toBeInTheDocument();
   });
 

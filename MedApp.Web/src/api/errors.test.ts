@@ -1,4 +1,4 @@
-import {ApiError, ApiValidationError, allMessages, fieldStatus, parseValidationErrors, problemCode, problemMessage, problemTitle} from './errors';
+import {ApiError, ApiValidationError, allMessages, fieldStatus, parseValidationErrors, problemCode, problemMessage, problemTitle, soleFieldStatus} from './errors';
 
 describe('parseValidationErrors', () => {
   it('maps ValidationProblemDetails errors onto camelCase fields', () => {
@@ -48,6 +48,21 @@ describe('parseValidationErrors', () => {
 
     expect(errors.fields).toEqual({});
     expect(errors.general).toEqual(['Passwords must be at least 8 characters.', 'Passwords must have at least one digit.']);
+  });
+
+  it('keeps each Identity error with its code, so a page can tell them apart', () => {
+    const errors = parseValidationErrors([
+      {code: 'InvalidToken', description: 'This link has expired or has already been used.'},
+      {description: 'No code.'},
+      {code: 'Ignored'},
+    ]);
+
+    expect(errors.identity).toEqual([
+      {code: 'InvalidToken', description: 'This link has expired or has already been used.'},
+      {code: '', description: 'No code.'},
+    ]);
+    expect(errors.general).toEqual(['This link has expired or has already been used.', 'No code.']);
+    expect(parseValidationErrors({errors: {}}).identity).toBeUndefined();
   });
 
   it.each([null, undefined, 'Bad Request', 42])('returns an empty result with the default title for %s', (body) => {
@@ -137,5 +152,19 @@ describe('problemMessage', () => {
   it('falls back for anything else', () => {
     expect(problemMessage(new ApiError(500, undefined, 'Server error'), 'Failed.')).toBe('Failed.');
     expect(problemMessage(new TypeError('offline'), 'Failed.')).toBe('Failed.');
+  });
+});
+
+describe('soleFieldStatus', () => {
+  it("gives the field its own messages, or else every message, so a one-field form shows all the API said", () => {
+    const own = parseValidationErrors({errors: {Code: ['That code is not right.'], Challenge: ['Ignored here.']}});
+    const other = parseValidationErrors({errors: {Challenge: ['The sign-in is missing.']}});
+    const identity = parseValidationErrors([{code: 'OwnTwoFactor', description: 'Not your own.'}]);
+
+    expect(soleFieldStatus(own, 'code')).toEqual({type: 'error', message: 'That code is not right.'});
+    expect(soleFieldStatus(other, 'code')).toEqual({type: 'error', message: 'The sign-in is missing.'});
+    expect(soleFieldStatus(identity, 'code')).toEqual({type: 'error', message: 'Not your own.'});
+    expect(soleFieldStatus(parseValidationErrors({}), 'code')).toBeUndefined();
+    expect(soleFieldStatus(null, 'code')).toBeUndefined();
   });
 });

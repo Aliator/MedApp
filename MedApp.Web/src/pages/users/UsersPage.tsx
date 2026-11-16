@@ -4,17 +4,20 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import type {InputStatus} from '@astryxdesign/core/Field';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
-import {ApiValidationError, allMessages} from '../../api/errors';
+import {featuresQuery} from '../../api/account';
+import {ApiValidationError, allMessages, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {userSearchQuery, type UserPage} from '../../api/search';
 import {
   rolesQuery,
   useCreateUser,
   useDeleteUser,
   useResetPassword,
+  useResetTwoFactor,
   useSetRoles,
   useSignOutEverywhere,
   type CreatedUser,
@@ -30,6 +33,7 @@ import {AvatarCell} from '../../components/tables/AvatarCell';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
+import {TextCell} from '../../components/tables/TextCell';
 import {hasUserFilters, type UsersListSearch, choiceValues} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
 
@@ -47,13 +51,45 @@ const PASSWORD_DONE_HOLD_MS = 1000;
 
 type DialogState =
   | {kind: 'create'}
-  | {kind: 'roles' | 'reset' | 'signOut' | 'delete'; username: string; roles: string[]}
+  | {kind: 'roles' | 'reset' | 'resetTwoFactor' | 'signOut' | 'delete'; username: string; roles: string[]}
   | null;
 
 /** The role to ask the API for: the one chosen, or none when the choice covers every role (or none at all). */
 function oneRole(role: string | undefined, roles: readonly string[]) {
   const chosen = choiceValues(role, roles);
   return chosen?.length === 1 ? chosen[0] : undefined;
+}
+
+/**
+ * The username field's messages from a failed create: its own, and those that belong to no field (Identity's, such as
+ * a name already taken). The email field shows its own; anything else (or nothing at all) shows here too.
+ */
+function usernameProblems(errors: ValidationErrors): InputStatus | undefined {
+  if (errors.fields.email) {
+    const own = [...(errors.fields.username ?? []), ...errors.general];
+    return own.length ? {type: 'error', message: own.join(' ')} : undefined;
+  }
+  return {type: 'error', message: allMessages(errors).join(' ') || errors.title};
+}
+
+/**
+ * A user's email address, on one line (rows are a fixed height): the confirmed one, or one waiting for its link to be
+ * opened, marked Unconfirmed. With both, the confirmed one, and the one it's changing to, unconfirmed.
+ */
+function EmailCell({email, pendingEmail}: {email?: string | null; pendingEmail?: string | null}) {
+  if (!email && !pendingEmail) {
+    return (
+      <Text type="supporting" color="secondary">
+        None
+      </Text>
+    );
+  }
+  return (
+    <HStack gap={2} vAlign="center">
+      <TextCell text={email ?? pendingEmail} />
+      {pendingEmail && <Token label={email ? `Changing to ${pendingEmail} (unconfirmed)` : 'Unconfirmed'} size="sm" color="yellow" />}
+    </HStack>
+  );
 }
 
 export interface UsersPageProps {
@@ -63,9 +99,11 @@ export interface UsersPageProps {
 
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
- * dialogs to create users (the server generates the first password, shown once), edit their roles (every role
- * listed, theirs ticked), reset passwords, sign users out everywhere (every session they have ends) and delete users
- * (confirmed with the admin's own password). Admins can't change their own account here, as in Blazor.
+ * dialogs to create users (the server generates the first password, shown once; an email address is optional, and
+ * asked for only when the server can send email), edit their roles (every role listed, theirs ticked), reset passwords,
+ * reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
+ * have ends) and delete users (confirmed with the admin's own password). Each user's email address shows, one waiting
+ * to be confirmed marked so, and whether they use two-factor authentication. Admins can't change their own account here, as in Blazor.
  */
 /** The list's page of users, for its search and page size, given every role (the route's loader fetches it too). */
 export function usersListQuery(search: UsersListSearch, pageSize: number, allRoles: readonly string[]) {
@@ -87,6 +125,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const isFiltered = hasUserFilters(search);
   const {pageSize} = useListSettings();
   const {data: allRoles = []} = useQuery(rolesQuery);
+  // Without a way to send email, an address couldn't be confirmed, so none is asked for.
+  const canSendEmail = useQuery(featuresQuery).data?.canSendEmail === true;
 
   const {data, isPending, isError} = useQuery(usersListQuery(search, pageSize, allRoles));
   const total = data?.totalCount ?? 0;
@@ -97,10 +137,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const reset = useResetPassword();
   const remove = useDeleteUser();
   const signOut = useSignOutEverywhere();
+  const resetTwoFactor = useResetTwoFactor();
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [newUsername, setNewUsername] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState<string | null>(null);
   // The account just created, with its generated first password: shown once, then cleared when the dialog closes.
   const [created, setCreated] = useState<CreatedUser | null>(null);
@@ -115,6 +157,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     // Edit roles starts from the user's current roles, ticked.
     setSelectedRoles(next && next.kind !== 'create' ? next.roles : []);
     setNewUsername('');
+    setNewEmail('');
     setNewPassword(null);
     setCreated(null);
     setDeletePassword('');
@@ -160,6 +203,16 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
         ),
     },
     {
+      key: 'email',
+      header: 'Email',
+      renderCell: (u) => <EmailCell email={u.email} pendingEmail={u.pendingEmail} />,
+    },
+    {
+      key: 'twoFactor',
+      header: 'Two-factor',
+      renderCell: (u) => <Token label={u.twoFactorEnabled ? 'On' : 'Off'} size="sm" color={u.twoFactorEnabled ? 'green' : 'default'} />,
+    },
+    {
       key: 'actions',
       header: 'Actions',
       align: 'end',
@@ -173,6 +226,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             actions={[
               {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
               {label: 'Reset password', icon: AppIcon.Lock, isDisabled: isMe, onClick: () => open({kind: 'reset', ...target})},
+              {
+                label: 'Reset two-factor',
+                icon: AppIcon.TwoFactor,
+                isDisabled: isMe || !u.twoFactorEnabled,
+                onClick: () => open({kind: 'resetTwoFactor', ...target}),
+              },
               {label: 'Sign out everywhere', icon: AppIcon.Logout, isDisabled: isMe, onClick: () => open({kind: 'signOut', ...target})},
               {label: 'Delete user', icon: AppIcon.Delete, isDisabled: isMe, isDestructive: true, onClick: () => open({kind: 'delete', ...target})},
             ]}
@@ -206,13 +265,23 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'create'}
             title="Create New User"
-            message={created ? `Account created for ${created.username}.` : 'Enter a username for the new user.'}
+            message={
+              created
+                ? `Account created for ${created.username}.`
+                : canSendEmail
+                  ? 'Enter a username for the new user, and their email address if you have it.'
+                  : 'Enter a username for the new user.'
+            }
             icon={AppIcon.Add}
             confirmText={created ? 'Done' : 'Create User'}
             confirmHoldMs={created ? PASSWORD_DONE_HOLD_MS : undefined}
             isProcessing={create.isPending}
             confirmDisabled={!created && !newUsername.trim()}
-            onConfirm={() => (created ? close() : create.mutate(newUsername.trim(), {onSuccess: setCreated}))}
+            onConfirm={() =>
+              created
+                ? close()
+                : create.mutate({username: newUsername.trim(), email: canSendEmail ? newEmail.trim() : undefined}, {onSuccess: setCreated})
+            }
             onCancel={close}>
             {created ? (
               <OneTimePassword
@@ -224,24 +293,40 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             ) : (
               // Only while it's open, so its autofocus can't act in a closing dialog.
               dialog?.kind === 'create' && (
-                <TextInput
-                  label="Username"
-                  value={newUsername}
-                  onChange={setNewUsername}
-                  placeholder="Enter username"
-                  // A new account's name: never a saved login.
-                  autoComplete="off"
-                  description="A password is generated for the account and shown to you once."
-                  isRequired
-                  hasAutoFocus
-                  status={
-                    createErrors
-                      ? {type: 'error', message: allMessages(createErrors).join(' ')}
-                      : create.isError
-                        ? {type: 'error', message: 'The user could not be created. Please try again.'}
-                        : undefined
-                  }
-                />
+                <VStack gap={4} hAlign="stretch">
+                  <TextInput
+                    label="Username"
+                    value={newUsername}
+                    onChange={setNewUsername}
+                    placeholder="Enter username"
+                    // A new account's name: never a saved login.
+                    autoComplete="off"
+                    description="A password is generated for the account and shown to you once."
+                    isRequired
+                    hasAutoFocus
+                    status={
+                      createErrors
+                        ? usernameProblems(createErrors)
+                        : create.isError
+                          ? {type: 'error', message: 'The user could not be created. Please try again.'}
+                          : undefined
+                    }
+                  />
+                  {canSendEmail && (
+                    <TextInput
+                      label="Email address"
+                      type="email"
+                      value={newEmail}
+                      onChange={setNewEmail}
+                      placeholder="name@example.org"
+                      // Someone else's address: never one saved for this admin.
+                      autoComplete="off"
+                      description="We'll email a link to confirm it. The password is never emailed."
+                      isOptional
+                      status={fieldStatus(createErrors, 'email')}
+                    />
+                  )}
+                </VStack>
               )
             )}
           </ConfirmDialog>
@@ -290,6 +375,27 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               />
             )}
           </ConfirmDialog>
+
+          <ConfirmDialog
+            isOpen={dialog?.kind === 'resetTwoFactor'}
+            title="Reset Two-Factor"
+            message={`Reset two-factor authentication for ${target?.username}? It turns off their two-factor authentication (their authenticator app and recovery codes stop working) and signs them out everywhere. They sign in with their password alone until they set it up again, or are asked to set it up at once if it's required for them.`}
+            icon={AppIcon.TwoFactor}
+            intent="warning"
+            confirmText="Reset Two-Factor"
+            isProcessing={resetTwoFactor.isPending}
+            onConfirm={() =>
+              target &&
+              resetTwoFactor.mutate(target.username, {
+                onSuccess: () => {
+                  close();
+                  setNotice(`Two-factor authentication has been reset for ${target.username}, and they've been signed out everywhere.`);
+                },
+                onError: (e) => failed(problemMessage(e, `Two-factor authentication could not be reset for ${target.username}.`))(),
+              })
+            }
+            onCancel={close}
+          />
 
           <ConfirmDialog
             isOpen={dialog?.kind === 'signOut'}

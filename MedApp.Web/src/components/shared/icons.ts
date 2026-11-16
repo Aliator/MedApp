@@ -30,6 +30,7 @@ import {
   RiCornerDownRightLine,
   RiFileCopyLine,
   RiDeleteBinLine,
+  RiDownloadLine,
   RiErrorWarningLine,
   RiEyeLine,
   RiFileList3Line,
@@ -56,7 +57,10 @@ import {
   RiPencilLine,
   RiRefreshLine,
   RiSaveLine,
+  RiSettings3Line,
   RiSearchLine,
+  RiShieldCheckLine,
+  RiShieldKeyholeLine,
   RiShieldLine,
   RiSortAsc,
   RiSortDesc,
@@ -175,4 +179,9 @@ export const AppIcon = {
   Unlock: remix(RiLockUnlockLine),
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),
+  // Two-factor authentication, recovery codes and the admin's sign-in settings
+  TwoFactor: remix(RiShieldKeyholeLine),
+  TwoFactorOn: remix(RiShieldCheckLine),
+  Download: remix(RiDownloadLine),
+  Settings: remix(RiSettings3Line),
 } as const satisfies Record<string, IconType>;

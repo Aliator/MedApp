@@ -32,10 +32,19 @@ export interface CreatedUser {
   password: string;
 }
 
-/** Creates an account. The server generates its first password and returns it, this once, to be passed on. */
+/** A new account: its username, and (optionally) an email address, to which the API sends a link to confirm it. */
+export interface NewUser {
+  username: string;
+  email?: string;
+}
+
+/**
+ * Creates an account. The server generates its first password and returns it, this once, to be passed on (it's never
+ * emailed). With an email address, the API emails it a link to confirm it.
+ */
 export function useCreateUser() {
-  return useUserMutation(async (username: string): Promise<CreatedUser> => {
-    const body = await unwrap(api.POST('/api/auth/users', {body: {username}}));
+  return useUserMutation(async ({username, email}: NewUser): Promise<CreatedUser> => {
+    const body = await unwrap(api.POST('/api/auth/users', {body: {username, ...(email ? {email} : {})}}));
     if (!body?.password) throw new ApiError(500, 'The API did not return a password for the new user.');
     return {username, password: body.password};
   }, {carriesPassword: true});
@@ -84,6 +93,16 @@ export function parsePasswordBody(body: unknown): string | null {
 export function useSignOutEverywhere() {
   return useUserMutation((username: string) =>
     unwrap(api.POST('/api/auth/users/{username}/sign-out-everywhere', {params: {path: {username}}})),
+  );
+}
+
+/**
+ * Turns off a user's two-factor authentication (their authenticator key and recovery codes go too) and signs them out
+ * everywhere, for someone who has lost their authenticator app. Admins can't reset their own (the API refuses).
+ */
+export function useResetTwoFactor() {
+  return useUserMutation((username: string) =>
+    unwrap(api.POST('/api/auth/users/{username}/reset-two-factor', {params: {path: {username}}})),
   );
 }
 

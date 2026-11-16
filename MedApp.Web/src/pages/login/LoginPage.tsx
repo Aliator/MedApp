@@ -1,21 +1,16 @@
 import {Banner} from '@astryxdesign/core/Banner';
 import {Button} from '@astryxdesign/core/Button';
-import {Card} from '@astryxdesign/core/Card';
-import {Center} from '@astryxdesign/core/Center';
-import {Icon} from '@astryxdesign/core/Icon';
-import {VStack} from '@astryxdesign/core/Stack';
-import {Heading, Text} from '@astryxdesign/core/Text';
+import {Link} from '@astryxdesign/core/Link';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {TextInput} from '@astryxdesign/core/TextInput';
-import {useState, type CSSProperties, type FormEvent} from 'react';
+import {useQuery} from '@tanstack/react-query';
+import {useState, type FormEvent} from 'react';
+import {featuresQuery} from '../../api/account';
 import {ApiError, ApiValidationError, fieldStatus} from '../../api/errors';
+import {useAnnounce} from '../../app/announcements';
 import {useLogin} from '../../auth/auth';
-import {AppIcon} from '../../components/shared/icons';
-import {ForgotPasswordDialog} from './ForgotPasswordDialog';
-
-// The login page has no AppShell, so it paints the body background itself (from Astryx's `login` template).
-const pageStyle: CSSProperties = {minHeight: '100dvh', backgroundColor: 'var(--color-background-body)'};
-// Stack has no maxWidth prop, so the column's cap is set here.
-const columnStyle: CSSProperties = {width: '100%', maxWidth: 400};
+import {StandalonePage} from '../../components/pages/StandalonePage';
+import {TwoFactorStep} from './TwoFactorStep';
 
 export interface LoginSearch {
   /** Came here because the session timed out (`SessionTimeout`). */
@@ -27,18 +22,29 @@ export function parseLoginSearch(search: Record<string, unknown>): LoginSearch {
   return search.expired === true || search.expired === 'true' ? {expired: true} : {};
 }
 
+/** Said to screen readers as the code step replaces the password, which they wouldn't otherwise hear about. */
+export const CODE_STEP_ANNOUNCEMENT = 'Password accepted. Enter the code from your authenticator app.';
+
 /**
  * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields. An account locked after too
  * many wrong passwords (a 423) says so, and for how long, in the API's words. So do too many attempts in a short time
  * (a 429, from the API's sign-in throttling), with how long to wait. Any other failure (a 401 for a wrong username or
  * password, or a server error) shows "Invalid credentials", as Blazor does. After a session timed out (`isExpired`),
  * it says so until a sign-in is tried.
+ *
+ * An account with two-factor authentication answers the password with a challenge (a 202): the password form gives
+ * way to `TwoFactorStep`, for a code from the authenticator app or a recovery code. If that sign-in runs out, it comes
+ * back here, saying why. "Forgot your password?" shows only when the server can send email.
  */
 export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [challenge, setChallenge] = useState<string | null>(null);
+  // Why the code step sent them back here (it ran out, or had too many wrong codes), in the API's words.
+  const [restartReason, setRestartReason] = useState<string | null>(null);
   const login = useLogin();
+  const announce = useAnnounce();
+  const {data: features} = useQuery(featuresQuery);
 
   const validation = login.error instanceof ApiValidationError ? login.error.errors : null;
   const hasFieldErrors = validation !== null && Object.keys(validation.fields).length > 0;
@@ -53,65 +59,78 @@ export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    login.mutate({username, password});
+    setRestartReason(null);
+    login.mutate(
+      {username, password},
+      {
+        onSuccess: (result) => {
+          if (result.kind !== 'twoFactor') return;
+          setChallenge(result.challenge);
+          announce(CODE_STEP_ANNOUNCEMENT);
+        },
+      },
+    );
+  };
+
+  /** Back to the password, to start again: with `reason` when the code step ran out. */
+  const restart = (reason?: string) => {
+    setChallenge(null);
+    setPassword('');
+    login.reset();
+    setRestartReason(reason ?? null);
   };
 
   return (
-    <Center axis="both" padding={6} style={pageStyle}>
-      <VStack gap={4} hAlign="center" style={columnStyle}>
-        <VStack gap={2} hAlign="center">
-          <Icon icon={AppIcon.Shield} size="lg" color="accent" />
-          <Text type="body" weight="bold" size="lg">
-            MedApp
-          </Text>
-        </VStack>
-
-        <Card padding={8} width="100%">
-          <form onSubmit={handleSubmit} noValidate>
-            <VStack gap={4} hAlign="stretch">
-              <Heading level={1}>Sign in</Heading>
-
-              {showBanner && <Banner status="error" title={bannerTitle} container="card" role="alert" />}
-              {isExpired && !login.isError && (
-                <Banner
-                  status="info"
-                  title="Your session timed out, so you were signed out. Sign in again to carry on."
-                  container="card"
-                  // An alert, so it's read out as it appears: a live region that arrives already filled often isn't.
-                  role="alert"
-                />
-              )}
-
-              <TextInput
-                label="Username"
-                value={username}
-                onChange={setUsername}
-                placeholder="Enter your username"
-                autoComplete="username"
-                isRequired
-                status={fieldStatus(validation, 'username')}
-                size="lg"
+    <StandalonePage title="Sign in" maxWidth={400}>
+      {challenge !== null ? (
+        <TwoFactorStep challenge={challenge} onRestart={restart} />
+      ) : (
+        <form onSubmit={handleSubmit} noValidate>
+          <VStack gap={4} hAlign="stretch">
+            {showBanner && <Banner status="error" title={bannerTitle} container="card" role="alert" />}
+            {restartReason && !login.isError && <Banner status="warning" title={restartReason} container="card" role="alert" />}
+            {isExpired && !login.isError && !restartReason && (
+              <Banner
+                status="info"
+                title="Your session timed out, so you were signed out. Sign in again to carry on."
+                container="card"
+                // An alert, so it's read out as it appears: a live region that arrives already filled often isn't.
+                role="alert"
               />
+            )}
 
-              <TextInput
-                label="Password"
-                type="password"
-                value={password}
-                onChange={setPassword}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                isRequired
-                status={fieldStatus(validation, 'password')}
-                size="lg"
-              />
+            <TextInput
+              label="Username"
+              value={username}
+              onChange={setUsername}
+              placeholder="Enter your username"
+              autoComplete="username"
+              isRequired
+              status={fieldStatus(validation, 'username')}
+              size="lg"
+            />
 
-              <Button type="submit" label="Sign in" variant="primary" size="lg" isLoading={login.isPending} />
-              <Button label="Forgot password?" variant="ghost" size="lg" onClick={() => setIsForgotOpen(true)} />
-            </VStack>
-          </form>
-        </Card>
-      </VStack>
-      <ForgotPasswordDialog isOpen={isForgotOpen} onClose={() => setIsForgotOpen(false)} />
-    </Center>
+            <TextInput
+              label="Password"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              isRequired
+              status={fieldStatus(validation, 'password')}
+              size="lg"
+            />
+
+            <Button type="submit" label="Sign in" variant="primary" size="lg" isLoading={login.isPending} />
+            {features?.canSendEmail && (
+              <HStack hAlign="center">
+                <Link href="/forgot-password">Forgot your password?</Link>
+              </HStack>
+            )}
+          </VStack>
+        </form>
+      )}
+    </StandalonePage>
   );
 }

@@ -11,15 +11,22 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
+import { Route as AppAccountEmailRouteImport } from './routes/_app/account/email'
 import { Route as AppAccountPasswordRouteImport } from './routes/_app/account/password'
+import { Route as AppAccountSecurityRouteImport } from './routes/_app/account/security'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
+import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
@@ -44,9 +51,29 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetUpTwoFactorRoute = SetUpTwoFactorRouteImport.update({
+  id: '/set-up-two-factor',
+  path: '/set-up-two-factor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -74,9 +101,19 @@ const AppAccountColoursRoute = AppAccountColoursRouteImport.update({
   path: '/account/colours',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountEmailRoute = AppAccountEmailRouteImport.update({
+  id: '/account/email',
+  path: '/account/email',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountPasswordRoute = AppAccountPasswordRouteImport.update({
   id: '/account/password',
   path: '/account/password',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
+  id: '/account/security',
+  path: '/account/security',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
@@ -87,6 +124,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
 const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
   id: '/admin/insights',
   path: '/admin/insights',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
@@ -163,13 +205,20 @@ const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
+  '/confirm-email': typeof ConfirmEmailRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
+  '/account/email': typeof AppAccountEmailRoute
   '/account/password': typeof AppAccountPasswordRoute
+  '/account/security': typeof AppAccountSecurityRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
@@ -188,14 +237,21 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
+  '/confirm-email': typeof ConfirmEmailRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
+  '/account/email': typeof AppAccountEmailRoute
   '/account/password': typeof AppAccountPasswordRoute
+  '/account/security': typeof AppAccountSecurityRoute
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/patients/add': typeof AppPatientsAddRoute
@@ -216,14 +272,21 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/confirm-email': typeof ConfirmEmailRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
+  '/_app/account/email': typeof AppAccountEmailRoute
   '/_app/account/password': typeof AppAccountPasswordRoute
+  '/_app/account/security': typeof AppAccountSecurityRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/insights': typeof AppAdminInsightsRoute
+  '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
@@ -245,13 +308,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/change-password'
+    | '/confirm-email'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
+    | '/set-up-two-factor'
     | '/accessibility'
     | '/tasks'
     | '/account/colours'
+    | '/account/email'
     | '/account/password'
+    | '/account/security'
     | '/admin/audit'
     | '/admin/insights'
+    | '/admin/settings'
     | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
@@ -270,14 +340,21 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
+    | '/confirm-email'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
+    | '/set-up-two-factor'
     | '/accessibility'
     | '/tasks'
     | '/'
     | '/account/colours'
+    | '/account/email'
     | '/account/password'
+    | '/account/security'
     | '/admin/audit'
     | '/admin/insights'
+    | '/admin/settings'
     | '/admin/stages'
     | '/admin/users'
     | '/patients/add'
@@ -297,14 +374,21 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/change-password'
+    | '/confirm-email'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
+    | '/set-up-two-factor'
     | '/_app/accessibility'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
+    | '/_app/account/email'
     | '/_app/account/password'
+    | '/_app/account/security'
     | '/_app/admin/audit'
     | '/_app/admin/insights'
+    | '/_app/admin/settings'
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/patients/add'
@@ -325,7 +409,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
+  ConfirmEmailRoute: typeof ConfirmEmailRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  SetUpTwoFactorRoute: typeof SetUpTwoFactorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -344,11 +432,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/set-up-two-factor': {
+      id: '/set-up-two-factor'
+      path: '/set-up-two-factor'
+      fullPath: '/set-up-two-factor'
+      preLoaderRoute: typeof SetUpTwoFactorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -386,11 +502,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountColoursRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account/email': {
+      id: '/_app/account/email'
+      path: '/account/email'
+      fullPath: '/account/email'
+      preLoaderRoute: typeof AppAccountEmailRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/account/password': {
       id: '/_app/account/password'
       path: '/account/password'
       fullPath: '/account/password'
       preLoaderRoute: typeof AppAccountPasswordRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account/security': {
+      id: '/_app/account/security'
+      path: '/account/security'
+      fullPath: '/account/security'
+      preLoaderRoute: typeof AppAccountSecurityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/audit': {
@@ -405,6 +535,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/insights'
       fullPath: '/admin/insights'
       preLoaderRoute: typeof AppAdminInsightsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/settings': {
+      id: '/_app/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AppAdminSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/stages': {
@@ -513,9 +650,12 @@ interface AppRouteChildren {
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
+  AppAccountEmailRoute: typeof AppAccountEmailRoute
   AppAccountPasswordRoute: typeof AppAccountPasswordRoute
+  AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminInsightsRoute: typeof AppAdminInsightsRoute
+  AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
@@ -538,9 +678,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,
+  AppAccountEmailRoute: AppAccountEmailRoute,
   AppAccountPasswordRoute: AppAccountPasswordRoute,
+  AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminInsightsRoute: AppAdminInsightsRoute,
+  AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
@@ -563,7 +706,11 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
+  ConfirmEmailRoute: ConfirmEmailRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  SetUpTwoFactorRoute: SetUpTwoFactorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -46,8 +46,17 @@ api.use({
  */
 export const PASSWORD_CHANGE_REQUIRED = 'password_change_required';
 
-/** Where the forced change happens (`src/routes/change-password.tsx`). */
-const CHANGE_PASSWORD_PATH = '/change-password';
+/**
+ * The 403's `code` when the signed-in admin must set up two-factor authentication before anything else (the API's
+ * `TwoFactorSetupRequired`, while Admin Settings requires it for admins).
+ */
+export const TWO_FACTOR_SETUP_REQUIRED = 'two_factor_setup_required';
+
+/** Where each hold is dealt with (`src/routes/change-password.tsx`, `src/routes/set-up-two-factor.tsx`), by its code. */
+const HOLD_PAGES = new Map([
+  [PASSWORD_CHANGE_REQUIRED, '/change-password'],
+  [TWO_FACTOR_SETUP_REQUIRED, '/set-up-two-factor'],
+]);
 
 /** Leaves this page for another with a full load. Its own object, so tests can stand in for the browser's. */
 export const pageNavigation = {
@@ -55,22 +64,21 @@ export const pageNavigation = {
 };
 
 /**
- * A page that's already open when its user's password is reset (or whose user must otherwise change it) caches who
- * they are, so its guard keeps passing. Its next API call then gets a 403 `password_change_required`: send it to the
- * change-password page with a full load, so the server renders that with a fresh whoami, and this page's live
- * connection closes with it. In the browser only: on the server, the guards read whoami afresh for each page.
+ * A page that's already open when its user is put on hold (their password was reset, or admins were just required to
+ * use two-factor authentication) caches who they are, so its guard keeps passing. Its next API call then gets a 403
+ * with the hold's code: send it to the page that deals with that, with a full load, so the server renders that with a
+ * fresh whoami, and this page's live connection closes with it. In the browser only: on the server, the guards read
+ * whoami afresh for each page.
  */
 api.use({
   async onResponse({response}) {
     if (typeof window === 'undefined' || response.status !== 403) return;
-    if (window.location.pathname === CHANGE_PASSWORD_PATH) return;
     const body: unknown = await response
       .clone()
       .json()
       .catch(() => null);
-    if (problemCode(body) === PASSWORD_CHANGE_REQUIRED) {
-      pageNavigation.assign(CHANGE_PASSWORD_PATH);
-    }
+    const page = HOLD_PAGES.get(problemCode(body) ?? '');
+    if (page && window.location.pathname !== page) pageNavigation.assign(page);
   },
 });
 

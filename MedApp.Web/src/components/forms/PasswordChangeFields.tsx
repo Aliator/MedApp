@@ -1,3 +1,4 @@
+import type {InputStatus} from '@astryxdesign/core/Field';
 import {TextInput, type TextInputSize} from '@astryxdesign/core/TextInput';
 import {useState, type FormEvent} from 'react';
 import {ApiError, ApiValidationError, fieldStatus, type ValidationErrors} from '../../api/errors';
@@ -122,22 +123,52 @@ export function PasswordChangeFields({
         status={fieldStatus(validation, 'oldPassword')}
         size={size}
       />
+      <NewPasswordFields
+        next={fields.next}
+        confirm={fields.confirm}
+        onNextChange={set('next')}
+        onConfirmChange={set('confirm')}
+        nextStatus={fieldStatus(validation, 'newPassword')}
+        size={size}
+      />
+    </>
+  );
+}
+
+export interface NewPasswordFieldsProps {
+  next: string;
+  confirm: string;
+  onNextChange: (value: string) => void;
+  onConfirmChange: (value: string) => void;
+  /** The server's reasons for refusing the new password (too short, too common, the same as before). */
+  nextStatus?: InputStatus;
+  size?: TextInputSize;
+}
+
+/**
+ * A new password and its confirmation, as password managers expect them (`new-password`). `PasswordChangeFields` uses
+ * them after the current password; on their own, they choose a new password without the old one (an emailed reset
+ * link, `/reset-password`). Checking the two match is the page's: the API only sees the first.
+ */
+export function NewPasswordFields({next, confirm, onNextChange, onConfirmChange, nextStatus, size}: NewPasswordFieldsProps) {
+  return (
+    <>
       <TextInput
         label="New password"
         type="password"
-        value={fields.next}
-        onChange={set('next')}
+        value={next}
+        onChange={onNextChange}
         placeholder="Enter a new password"
         autoComplete="new-password"
         isRequired
-        status={fieldStatus(validation, 'newPassword')}
+        status={nextStatus}
         size={size}
       />
       <TextInput
         label="Confirm new password"
         type="password"
-        value={fields.confirm}
-        onChange={set('confirm')}
+        value={confirm}
+        onChange={onConfirmChange}
         placeholder="Confirm your new password"
         autoComplete="new-password"
         isRequired

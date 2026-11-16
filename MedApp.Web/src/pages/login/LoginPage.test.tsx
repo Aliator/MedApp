@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {json, mockFetch, renderApp, renderWithApp} from '../../test/render';
+import {json, mockApi, mockFetch, renderApp, renderWithApp} from '../../test/render';
 import {LoginPage, parseLoginSearch} from './LoginPage';
 
 describe('LoginPage', () => {
@@ -14,8 +14,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
-    const request = fetch.mock.calls[0][0] as Request;
-    expect(new URL(request.url).pathname).toBe('/api/auth/login');
+    const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => new URL(r.url).pathname === '/api/auth/login')!;
     expect(request.method).toBe('POST');
     expect(await request.json()).toEqual({username: 'test-admin', password: 'Synthetic-Passw0rd'});
   });
@@ -151,5 +150,29 @@ describe('after a session timed out', () => {
 
     await screen.findByRole('heading', {name: 'Sign in'});
     expect(screen.queryByText(TIMED_OUT)).not.toBeInTheDocument();
+  });
+});
+
+describe('Forgot your password?', () => {
+  it('links to the forgot-password page when the server can send email', async () => {
+    mockApi({'GET /api/auth/features': () => json({canSendEmail: true})});
+    const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.click(await screen.findByRole('link', {name: 'Forgot your password?'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/forgot-password'));
+  });
+
+  it.each([
+    ["says it can't", () => json({canSendEmail: false})],
+    ["can't say", () => json({title: 'Server error'}, 500)],
+  ])("isn't offered when the server %s send email", async (_, features) => {
+    const fetch = mockApi({'GET /api/auth/features': features});
+    renderWithApp(<LoginPage />, {path: '/login'});
+
+    await screen.findByRole('heading', {name: 'Sign in'});
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(screen.queryByRole('link', {name: /forgot/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /forgot/i})).not.toBeInTheDocument();
   });
 });

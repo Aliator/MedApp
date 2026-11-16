@@ -11,6 +11,17 @@ export interface ValidationErrors {
   fields: Record<string, string[]>;
   /** Messages that don't belong to a field. */
   general: string[];
+  /**
+   * For a list of Identity errors, each with its `code` (e.g. `InvalidToken` for a reset link that has expired or been
+   * used, `PasswordTooShort`), so a page can tell them apart. Their descriptions are in `general` too.
+   */
+  identity?: IdentityProblem[];
+}
+
+/** One ASP.NET Identity error from a 400: what went wrong (`code`) and, in words for the user, why. */
+export interface IdentityProblem {
+  code: string;
+  description: string;
 }
 
 const DEFAULT_TITLE = 'One or more validation errors occurred.';
@@ -76,8 +87,11 @@ export function parseValidationErrors(body: unknown): ValidationErrors {
   const result: ValidationErrors = {title: DEFAULT_TITLE, fields: {}, general: []};
 
   if (Array.isArray(body)) {
+    result.identity = [];
     for (const item of body) {
-      if (isRecord(item) && typeof item.description === 'string') result.general.push(item.description);
+      if (!isRecord(item) || typeof item.description !== 'string') continue;
+      result.general.push(item.description);
+      result.identity.push({code: typeof item.code === 'string' ? item.code : '', description: item.description});
     }
     return result;
   }
@@ -101,6 +115,16 @@ export function parseValidationErrors(body: unknown): ValidationErrors {
 export function fieldStatus(errors: ValidationErrors | null | undefined, field: string): InputStatus | undefined {
   const messages = errors?.fields[field];
   return messages?.length ? {type: 'error', message: messages.join(' ')} : undefined;
+}
+
+/**
+ * The error `status` for a form's one field (a code, say): its own messages, or else every message (an Identity error,
+ * or one about a part of the request the person can't see), so nothing the API said goes unshown.
+ */
+export function soleFieldStatus(errors: ValidationErrors | null | undefined, field: string): InputStatus | undefined {
+  if (!errors) return undefined;
+  const messages = allMessages(errors);
+  return fieldStatus(errors, field) ?? (messages.length ? {type: 'error', message: messages.join(' ')} : undefined);
 }
 
 /** Every message, for a summary banner: field messages first, then general ones. */

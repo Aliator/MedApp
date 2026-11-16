@@ -44,6 +44,30 @@ export const screens: Screen[] = [
       await waitVisible(page, ALERT);
     },
   },
+  {
+    name: 'forgot-password',
+    title: 'Forgot your password: a reset link by email (or, without email, who to ask)',
+    path: '/forgot-password',
+    signedOut: true,
+  },
+  {
+    name: 'reset-password-no-link',
+    title: 'Choose a new password, opened without its emailed link',
+    path: '/reset-password',
+    signedOut: true,
+    prepare: async (page) => {
+      await waitVisible(page, ALERT);
+    },
+  },
+  {
+    name: 'confirm-email-no-link',
+    title: 'Confirm your email address, opened without its emailed link',
+    path: '/confirm-email',
+    signedOut: true,
+    prepare: async (page) => {
+      await waitVisible(page, ALERT);
+    },
+  },
   { name: 'home', title: 'Home: a welcome (the MedApp heading leads here)', path: '/' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
@@ -239,7 +263,7 @@ export const screens: Screen[] = [
     title: 'Reset password confirmation (not confirmed)',
     path: '/admin/users',
     prepare: async (page) => {
-      await rowAction(page, /reset/i).click();
+      await rowAction(page, /reset password/i).click();
       await waitVisible(page, DIALOG);
     },
   },
@@ -333,6 +357,9 @@ export const screens: Screen[] = [
     },
   },
   { name: 'account-password', title: 'Change your password (from Account Settings)', path: '/account/password' },
+  { name: 'account-email', title: 'Your email address (from Account Settings)', path: '/account/email' },
+  { name: 'account-security', title: 'Security: two-factor authentication (from Account Settings)', path: '/account/security' },
+  { name: 'admin-settings', title: 'Admin Settings: require two-factor for admins', path: '/admin/settings' },
   { name: 'account-colours', title: 'Colours: a colour theme for each mode, or Custom', path: '/account/colours' },
   {
     name: 'account-colours-custom',

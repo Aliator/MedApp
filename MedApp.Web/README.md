@@ -42,8 +42,10 @@ src/
   components/   ports of MedApp.Client's Components/, built only from Astryx:
                   pages/ (Page, PageHeader), forms/ (FormCard, FormSection, date-of-birth inputs, PatientSummary),
                   tables/ (DataTable, TableActions, AvatarCell), modals/ (ConfirmDialog, SelectionDialog, SearchDialog),
-                  views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage)
-  pages/        one folder per page: patients/ (list, view, add, edit), users/, account/, login/, home/ (the welcome page), tasks/ (My Tasks);
+                  views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage),
+                  account/ (TwoFactorSetup, RecoveryCodes)
+  pages/        one folder per page: patients/ (list, view, add, edit), users/, account/ (settings, email, security, the hold pages),
+                  login/ (sign in, forgot and reset password), admin/ (Admin Settings), home/ (the welcome page), tasks/ (My Tasks);
                   listSearch.ts parses the list pages' URL state
   routes/       TanStack Router file routes (src/routeTree.gen.ts is generated from them)
   themes/       the medapp theme: source (medappTheme.ts, icons.ts) and its built output
@@ -55,7 +57,8 @@ src/
 
 - **API calls** go to `/api/...` on the app's own origin. In development, Vite proxies them to the API (the AppHost passes in its URL), so the HttpOnly session cookie is first-party and CORS isn't involved. Types come from the API's Swagger document, so after changing a DTO or endpoint, run `npm run gen:api`.
 - **Errors:** `unwrap()` throws `ApiValidationError` for a 400. `fieldStatus(errors, 'firstName')` gives a field its error, and `allMessages()` gives the list for a summary `Banner`.
-- **Auth:** `whoamiQuery` caches who is signed in. The `_app` layout route's `beforeLoad` sends signed-out visitors to `/login`, and anyone who must change a password an admin gave them to `/change-password` (outside the layout, like `/login`), and admin routes check the `Admin` role.
+- **Auth:** `whoamiQuery` caches who is signed in. The `_app` layout route's `beforeLoad` sends signed-out visitors to `/login`, anyone who must change a password an admin gave them to `/change-password`, and an admin who must set up two-factor authentication to `/set-up-two-factor` (both outside the layout, like `/login`), and admin routes check the `Admin` role. An account with two-factor authentication signs in in two steps: the password, then a code (`TwoFactorStep`).
+- **Pages outside the signed-in layout:** `/login`, `/forgot-password` (asks for a reset link by email), `/reset-password` and `/confirm-email` (where emailed links open; the token is in the address's fragment), and the hold pages `/change-password` and `/set-up-two-factor`. Account Settings has Email Address (`/account/email`) and Security (`/account/security`: two-factor authentication), and admins have Admin Settings (`/admin/settings`: whether admins must use two-factor).
 - **Theme:** `src/themes/medapp/medappTheme.ts` extends Astryx's stone theme with MedApp's blues, radii, system fonts and Remix icons. It's built ahead of time (`npm run theme:build`) and the output is checked in. Dark mode is the default; the toggle is in the side navigation's footer.
 - **Icons:** use `AppIcon` from `src/components/shared/icons.ts` (Blazor's `IconType` names, mapped to Remix Icon).
 
