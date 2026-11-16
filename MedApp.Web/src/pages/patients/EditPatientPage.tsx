@@ -1,6 +1,7 @@
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {ApiError} from '../../api/errors';
 import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
 import {patientProcedureCountQuery} from '../../api/procedures';
@@ -55,6 +56,7 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
   const navigate = useNavigate();
   const update = useUpdatePatient(id);
   const remove = useDeletePatient(id);
+  const announce = useAnnounce();
   const [form, setForm] = useState<PatientInput>(() => toInput(patient));
   const [dialog, setDialog] = useState<'save' | 'delete' | null>(null);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
@@ -66,7 +68,10 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
 
   const save = () =>
     update.mutate(form, {
-      onSuccess: backToPatient,
+      onSuccess: () => {
+        announce('Patient saved');
+        backToPatient();
+      },
       onError: (e) => {
         setProblem(saveProblem(e, 'save'));
         setDialog(null);
@@ -75,7 +80,10 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
 
   const deletePatient = () =>
     remove.mutate(undefined, {
-      onSuccess: () => void navigate({to: '/patients'}),
+      onSuccess: () => {
+        announce('Patient deleted');
+        void navigate({to: '/patients'});
+      },
       onError: (e) => {
         setProblem(saveProblem(e, 'delete'));
         setDialog(null);

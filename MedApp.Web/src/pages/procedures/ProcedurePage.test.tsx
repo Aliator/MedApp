@@ -1,7 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
-import {NOT_ASSIGNED_MESSAGE, ProcedurePage, ProcedureView} from './ProcedurePage';
+import {adminUser, calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {NOT_ASSIGNED_MESSAGE, ProcedurePage, ProcedureView, finishedMessage} from './ProcedurePage';
 import {richText, typeRichText} from '../../test/richText';
 
 const id = 'proc-1';
@@ -131,6 +131,7 @@ const bodyOf = async (fetch: ReturnType<typeof mockApi>, call: string) => {
 
 describe('ProcedurePage: working on it', () => {
   it('saves the current stage notes and shows the saved procedure', async () => {
+    withAnnouncements();
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
       [`PUT ${PATH}/stages/s2/notes`]: () => json(working({lastUpdated: '2026-11-05T09:00:00Z'})),
@@ -144,9 +145,11 @@ describe('ProcedurePage: working on it', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`PUT ${PATH}/stages/s2/notes`));
     expect(await bodyOf(fetch, `PUT ${PATH}/stages/s2/notes`)).toEqual({notes: 'Prep done. Consent signed.'});
     expect(openDialog()).toBeNull();
+    await expectAnnounced('Notes saved');
   });
 
   it('finishes the current stage after confirming, saving unsaved notes first', async () => {
+    withAnnouncements();
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
       [`PUT ${PATH}/stages/s2/notes`]: () => json(working()),
@@ -161,6 +164,7 @@ describe('ProcedurePage: working on it', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
     const writes = calls(fetch).filter((c) => !c.startsWith('GET'));
     expect(writes).toEqual([`PUT ${PATH}/stages/s2/notes`, `POST ${PATH}/stages/s2/finish`]);
+    await expectAnnounced(/finished\. Next stage: /);
   });
 
   it('blocks the procedure with a reason', async () => {
@@ -543,5 +547,15 @@ describe('ProcedurePage details and deleting', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Procedure'}));
 
     expect(await findAlert('Only cancelled or archived procedures can be deleted.')).toBeInTheDocument();
+  });
+});
+
+describe('finishedMessage', () => {
+  const consent = {id: 's1', name: 'Consent'};
+  it('names the stage finished, then the next one or that every stage is', () => {
+    expect(finishedMessage(consent, {currentStageId: 's2', stages: [consent, {id: 's2', name: 'Assessment'}]})).toBe(
+      'Consent finished. Next stage: Assessment',
+    );
+    expect(finishedMessage(consent, {currentStageId: null, stages: [consent]})).toBe('Consent finished. Every stage is finished');
   });
 });

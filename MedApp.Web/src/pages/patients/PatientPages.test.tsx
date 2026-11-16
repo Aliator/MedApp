@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {NO_DATE} from '../../api/patients';
-import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
@@ -48,6 +48,7 @@ describe('ViewPatientPage', () => {
 
 describe('AddPatientPage', () => {
   it('adds the patient after confirming, then goes back to the list', async () => {
+    withAnnouncements();
     const fetch = mockApi({'POST /api/patients': () => json(freya, 201)});
     const {user, router} = renderWithApp(<AddPatientPage />, {path: '/patients/add', user: adminUser});
 
@@ -64,6 +65,7 @@ describe('AddPatientPage', () => {
       dateOfBirth: NO_DATE, // no date chosen: the API's "not provided" default, as Blazor sent
       email: 'freya.ahmed18@example.com',
     });
+    await expectAnnounced('Patient added');
   });
 
   it("shows the API's validation errors on the fields and in a summary", async () => {
@@ -123,6 +125,7 @@ describe('AddPatientPage', () => {
 
 describe('EditPatientPage', () => {
   it('saves changes after confirming, then shows the patient', async () => {
+    withAnnouncements();
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
       [`PATCH /api/patients/${id}`]: () => json({...freya, firstName: 'Fran'}),
@@ -139,9 +142,11 @@ describe('EditPatientPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/patients/${id}`));
     expect(calls(fetch)).toContain(`PATCH /api/patients/${id}`);
     expect(await bodyOf(fetch, 1)).toEqual({...freya, id: undefined, firstName: 'Fran'});
+    await expectAnnounced('Patient saved');
   });
 
   it('deletes the patient after confirming, then goes to the list', async () => {
+    withAnnouncements();
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),
       'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
@@ -159,6 +164,7 @@ describe('EditPatientPage', () => {
       `GET /api/procedures/patient-procedures/search?PatientId=${id}&IncludeClosed=true&PageSize=1`,
     );
     expect(calls(fetch)).toContain(`DELETE /api/patients/${id}`);
+    await expectAnnounced('Patient deleted');
   });
 
   it('does not offer to delete a patient who has procedures', async () => {

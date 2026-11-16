@@ -1,6 +1,7 @@
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useState, type FormEvent} from 'react';
 import {ApiError, ApiValidationError, fieldStatus, type ValidationErrors} from '../../api/errors';
+import {useAnnounce} from '../../app/announcements';
 import {useChangePassword} from '../../api/users';
 import {useCurrentUser} from '../../auth/auth';
 import {FormCard} from '../../components/forms/FormCard';
@@ -32,6 +33,7 @@ function changeError(error: unknown): string {
 export function ChangePasswordPage() {
   const me = useCurrentUser();
   const change = useChangePassword();
+  const announce = useAnnounce();
   const [fields, setFields] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [validation, setValidation] = useState<ValidationErrors | null>(null);
@@ -53,6 +55,8 @@ export function ChangePasswordPage() {
       {username: me.username, oldPassword: fields.current, newPassword: fields.next},
       {
         onSuccess: () => {
+          // Its success banner isn't a live region (only errors are), so it's said here.
+          announce('Password updated');
           setIsUpdated(true);
           setFields(EMPTY);
         },
