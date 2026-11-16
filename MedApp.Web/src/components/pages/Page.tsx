@@ -24,7 +24,9 @@ export interface PageProps extends PageHeaderProps {
   fill?: boolean;
   /**
    * Who the page is about, between the header and the content (a `PatientBanner` on every page about one patient).
-   * It's always in view: it stays above the content, outside the cards that fold and scroll.
+   * It sits outside the cards that fold and scroll, so on a `fill` page, where only the cards scroll, it's always in
+   * view: give a banner to `fill` pages, with a form in a `FormCard` with `fill`. The one exception is the record
+   * export, a long printable document that scrolls as a whole, where the banner heads it and scrolls with it.
    */
   banner?: ReactNode;
   /** Dialogs the page opens. They render outside the content, so they stay available while it loads. */

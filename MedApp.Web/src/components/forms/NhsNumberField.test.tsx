@@ -31,6 +31,13 @@ describe('nhsNumberProblem', () => {
     expect(nhsNumberProblem('9990000140', false)).toBe(NHS_NUMBER_MESSAGES.notValid);
   });
 
+  it('says a placeholder is one, and not just invalid', () => {
+    expect(nhsNumberProblem('0000000000', false)).toBe(NHS_NUMBER_MESSAGES.placeholder);
+    expect(nhsNumberProblem('111 111 1111', false)).toBe(NHS_NUMBER_MESSAGES.placeholder);
+    expect(nhsNumberProblem('0123456789', false)).toBe(NHS_NUMBER_MESSAGES.placeholder);
+    expect(nhsNumberProblem('9876543210', false)).toBe(NHS_NUMBER_MESSAGES.placeholder);
+  });
+
   it('says a number is too short only once the field has been left', () => {
     expect(nhsNumberProblem('999 000', false)).toBeNull();
     expect(nhsNumberProblem('999 000', true)).toBe(NHS_NUMBER_MESSAGES.wrongLength);
@@ -54,6 +61,15 @@ describe('NhsNumberField', () => {
     await user.type(await screen.findByRole('textbox', {name: /NHS Number/}), WRONG_CHECK_DIGIT);
 
     expect(input()).toHaveAccessibleDescription(new RegExp(NHS_NUMBER_MESSAGES.notValid.replace('.', '\\.')));
+  });
+
+  it('says a placeholder is one, and offers no look-up for it', async () => {
+    renderWithApp(<Field initial="000 000 0000" onLookUp={() => {}} />);
+
+    expect(await screen.findByRole('textbox', {name: /NHS Number/})).toHaveAccessibleDescription(
+      expect.stringContaining(NHS_NUMBER_MESSAGES.placeholder),
+    );
+    expect(isDisabled(screen.getByRole('button', {name: 'Look up'}))).toBe(true);
   });
 
   it('says a short number is too short on leaving the field, and not while typing again', async () => {

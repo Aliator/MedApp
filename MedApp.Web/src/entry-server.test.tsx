@@ -231,8 +231,10 @@ describe('server rendering', () => {
 
     const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
 
-    expect(html).toContain('aria-label="Patient"');
-    expect(html).toContain('PATIENT, Test');
+    // Named for the patient, by its hidden "Patient:" and the name, whose family name is in capitals by CSS only.
+    expect(html).toMatch(/role="region" aria-labelledby="[^"]+ [^"]+"/);
+    expect(html).toContain('>Patient:<');
+    expect(html).toMatch(/text-transform:uppercase[^>]*>Patient<\/span>, Test/);
     expect(html).toMatch(/NHS No\. (<!-- -->)?999 000 0018/);
   });
 

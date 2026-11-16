@@ -460,6 +460,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fhir/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirCapabilityStatement"];
+                    };
+                };
+                /** @description Not Acceptable */
+                406: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirOperationOutcome"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fhir/Patient/{id}": {
         parameters: {
             query?: never;
@@ -3719,6 +3763,39 @@ export interface components {
             relation?: string | null;
             url?: string | null;
         };
+        FhirCapabilityInteraction: {
+            code?: string | null;
+        };
+        FhirCapabilityResource: {
+            type?: string | null;
+            profile?: string | null;
+            interaction?: components["schemas"]["FhirCapabilityInteraction"][] | null;
+            searchParam?: components["schemas"]["FhirCapabilitySearchParam"][] | null;
+        };
+        FhirCapabilityRest: {
+            mode?: string | null;
+            resource?: components["schemas"]["FhirCapabilityResource"][] | null;
+        };
+        FhirCapabilitySearchParam: {
+            name?: string | null;
+            type?: string | null;
+            documentation?: string | null;
+        };
+        FhirCapabilitySoftware: {
+            name?: string | null;
+        };
+        FhirCapabilityStatement: {
+            readonly resourceType?: string | null;
+            id?: string | null;
+            meta?: components["schemas"]["FhirMeta"];
+            status?: string | null;
+            date?: string | null;
+            kind?: string | null;
+            software?: components["schemas"]["FhirCapabilitySoftware"];
+            fhirVersion?: string | null;
+            format?: string[] | null;
+            rest?: components["schemas"]["FhirCapabilityRest"][] | null;
+        };
         FhirCodeableConcept: {
             coding?: components["schemas"]["FhirCoding"][] | null;
         };
@@ -3737,6 +3814,7 @@ export interface components {
         };
         FhirHumanName: {
             use?: string | null;
+            text?: string | null;
             family?: string | null;
             given?: string[] | null;
         };
@@ -3748,6 +3826,7 @@ export interface components {
         FhirMeta: {
             lastUpdated?: string | null;
             profile?: string[] | null;
+            tag?: components["schemas"]["FhirCoding"][] | null;
         };
         FhirOperationOutcome: {
             readonly resourceType?: string | null;
@@ -3766,6 +3845,7 @@ export interface components {
             id?: string | null;
             meta?: components["schemas"]["FhirMeta"];
             identifier?: components["schemas"]["FhirIdentifier"][] | null;
+            active?: boolean | null;
             name?: components["schemas"]["FhirHumanName"][] | null;
             telecom?: components["schemas"]["FhirContactPoint"][] | null;
             birthDate?: string | null;

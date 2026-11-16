@@ -39,6 +39,32 @@ public sealed class NhsNumbersTests
         NhsNumbers.IsValid(stem + "0").Should().BeTrue();
     }
 
+    [TestCase("0000000000")]
+    [TestCase("1111111111")]
+    [TestCase("2222222222")]
+    [TestCase("3333333333")]
+    [TestCase("4444444444")]
+    [TestCase("5555555555")]
+    [TestCase("6666666666")]
+    [TestCase("7777777777")]
+    [TestCase("8888888888")]
+    [TestCase("9999999999")]
+    [TestCase("0123456789")]
+    [TestCase("9876543210")]
+    [TestCase("012 345 6789")]
+    public void IsPlaceholder_PlaceholdersThatPassTheCheck_AreCaught(string number)
+    {
+        NhsNumbers.IsValid(number).Should().BeTrue("each passes the Modulus 11 check, which is why it needs its own");
+        NhsNumbers.IsPlaceholder(number).Should().BeTrue();
+    }
+
+    [TestCase(NhsNumber)]
+    [TestCase("1234567890")]
+    [TestCase("111111111")]
+    [TestCase("111111111a")]
+    [TestCase(null)]
+    public void IsPlaceholder_AnythingElse_IsFalse(string? number) => NhsNumbers.IsPlaceholder(number).Should().BeFalse();
+
     [Test]
     public void CheckDigit_FirstNineDigits_IsTheModulus11Digit()
     {

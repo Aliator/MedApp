@@ -50,8 +50,7 @@ describe('ViewPatientPage', () => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, nhsNumber: '9990000042'}), ...timeline});
     renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
 
-    const banner = await screen.findByRole('region', {name: 'Patient'});
-    expect(within(banner).getByText('AHMED, Freya')).toBeInTheDocument();
+    const banner = await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'});
     expect(within(banner).getByText('NHS No. 999 000 0042')).toBeInTheDocument();
     // And in the details, under Personal Information.
     expect(screen.getAllByText('999 000 0042')).toHaveLength(1);
@@ -493,5 +492,187 @@ describe('Patient forms, NHS number', () => {
     await user.click(await screen.findByRole('button', {name: 'Delete Patient'}));
 
     expect(within(openDialog()!).getByText('999 000 0077')).toBeInTheDocument();
+  });
+});
+
+describe('Patient forms, NHS number look-up and identity', () => {
+  // Synthetic people and test NHS numbers only (the 999 range is never issued to real patients).
+  const lookUpAvailable = {'GET /api/demographics/status': () => json({isAvailable: true, source: 'Offline test data'})};
+  const ada = {nhsNumber: '9990000018', firstName: 'Ada', lastName: 'Synthetic', dateOfBirth: '1980-05-17', source: 'Offline test data'};
+  const nhsField = () => screen.findByRole('textbox', {name: /NHS Number/});
+  const held = /The name and date of birth were filled in from 999 000 0018\. Look the new number up again, or check the details\./;
+
+  /** Add Patient with Ada looked up and filled in, and an email so the form can be saved. */
+  async function addWithAdaFilledIn(extra: Parameters<typeof mockApi>[0] = {}) {
+    const fetch = mockApi({...lookUpAvailable, 'POST /api/demographics/lookup': () => json(ada), ...extra});
+    const result = renderWithApp(<AddPatientPage />, {path: '/patients/add', user: adminUser});
+    await result.user.type(await nhsField(), '9990000018');
+    await result.user.click(await screen.findByRole('button', {name: 'Look up'}));
+    await waitFor(() => expect(screen.getByLabelText(/^first name/i)).toHaveValue('Ada'));
+    await result.user.type(screen.getByLabelText(/^email address/i), 'ada.synthetic@example.com');
+    return {fetch, ...result};
+  }
+
+  it("holds the save when the number is changed after a look-up filled someone else's details", async () => {
+    const {user, fetch} = await addWithAdaFilledIn();
+
+    const field = await nhsField();
+    await user.clear(field);
+    await user.type(field, '9990000026');
+    expect(field).toHaveAccessibleDescription(held);
+
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    expect(await findAlert(/Not saved: the name and date of birth were filled in from NHS number 999 000 0018/)).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+    expect(calls(fetch)).not.toContain('POST /api/patients');
+  });
+
+  it('lets the save go ahead once the details are changed by hand', async () => {
+    const {user, fetch} = await addWithAdaFilledIn({'POST /api/patients': () => json(freya, 201)});
+
+    const field = await nhsField();
+    await user.clear(field);
+    await user.type(field, '9990000026');
+    await user.type(screen.getByLabelText(/^first name/i), 'line');
+    expect(field).not.toHaveAccessibleDescription(held);
+
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/patients'));
+  });
+
+  it('lets the save go ahead once the new number is looked up, and needs no hold for no number', async () => {
+    let answer = ada;
+    const {user} = await addWithAdaFilledIn({'POST /api/demographics/lookup': () => json(answer)});
+
+    const field = await nhsField();
+    await user.clear(field);
+    // With no number, the details claim no number, so nothing is held.
+    expect(field).not.toHaveAccessibleDescription(held);
+    await user.type(field, '9990000026');
+    expect(field).toHaveAccessibleDescription(held);
+
+    answer = {...ada, nhsNumber: '9990000026', firstName: 'Ben', lastName: 'Synthetic', dateOfBirth: '1990-01-02'};
+    await user.click(screen.getByRole('button', {name: 'Look up'}));
+    await waitFor(() => expect(screen.getByLabelText(/^first name/i)).toHaveValue('Ben'));
+    expect(field).not.toHaveAccessibleDescription(held);
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    expect(openDialog()).not.toBeNull();
+  });
+
+  it('announces nothing when the number changed while it was being looked up', async () => {
+    withAnnouncements();
+    let answer: (response: Response) => void = () => {};
+    mockApi({...lookUpAvailable, 'POST /api/demographics/lookup': () => new Promise<Response>((resolve) => (answer = resolve))});
+    const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
+
+    const field = await nhsField();
+    await user.type(field, '9990000018');
+    await user.click(await screen.findByRole('button', {name: 'Look up'}));
+    await user.type(field, '{Backspace}');
+    answer(json(ada));
+
+    await waitFor(() => expect(isDisabled(screen.getByRole('button', {name: 'Look up'}))).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByTestId('announcer')).not.toHaveTextContent(/Found|filled in/);
+    expect(screen.getByLabelText(/^first name/i)).toHaveValue('');
+  });
+
+  it("on Edit Patient, shows who a look-up found beside the record's details, and fills them only when asked", async () => {
+    withAnnouncements();
+    mockApi({...lookUpAvailable, [`GET /api/patients/${id}`]: () => json(freya), 'POST /api/demographics/lookup': () => json(ada)});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    await user.type(await nhsField(), '9990000018');
+    await user.click(await screen.findByRole('button', {name: 'Look up'}));
+
+    expect(await screen.findByText('Found from Offline test data: Ada Synthetic, born 17 May 1980')).toBeInTheDocument();
+    expect(screen.getByText('This record now: Freya Ahmed, born 1 December 1976')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^first name/i)).toHaveValue('Freya');
+    await expectAnnounced(/Found Ada Synthetic, born 17 May 1980/);
+    expect(screen.getByTestId('announcer')).not.toHaveTextContent(/filled in/);
+
+    await user.click(screen.getByRole('button', {name: 'Use These Details'}));
+    expect(screen.getByLabelText(/^first name/i)).toHaveValue('Ada');
+    expect(screen.getByLabelText(/^last name/i)).toHaveValue('Synthetic');
+    expect(screen.queryByRole('button', {name: 'Use These Details'})).not.toBeInTheDocument();
+    await expectAnnounced(/name and date of birth filled in from Offline test data/);
+  });
+
+  it('on Edit Patient, keeps the current details when asked', async () => {
+    mockApi({...lookUpAvailable, [`GET /api/patients/${id}`]: () => json(freya), 'POST /api/demographics/lookup': () => json(ada)});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    await user.type(await nhsField(), '9990000018');
+    await user.click(await screen.findByRole('button', {name: 'Look up'}));
+    await user.click(await screen.findByRole('button', {name: 'Keep Current Details'}));
+
+    expect(screen.queryByText(/Found from Offline test data/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^first name/i)).toHaveValue('Freya');
+  });
+
+  it('shows the saved record in the banner on Edit Patient while the fields change', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, nhsNumber: '9990000042'})});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    const banner = await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'});
+    await user.clear(screen.getByLabelText(/^first name/i));
+    await user.type(screen.getByLabelText(/^first name/i), 'Fran');
+
+    expect(banner).toHaveAccessibleName('Patient: Ahmed, Freya');
+    expect(within(banner).getByText('NHS No. 999 000 0042')).toBeInTheDocument();
+  });
+
+  it("shows the old and new value of each detail that says who the patient is, in the save's confirmation", async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, nhsNumber: '9990000042'})});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    const first = await screen.findByLabelText(/^first name/i);
+    await user.clear(first);
+    await user.type(first, 'Fran');
+    await user.clear(await nhsField());
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText("This changes who the record identifies. Check it's the right patient before saving.")).toBeInTheDocument();
+    const first_ = dialog.getByText('First Name').closest('div')!.parentElement!;
+    expect(first_).toHaveTextContent(/Freya.*changes to.*Fran/);
+    expect(dialog.getByText('999 000 0042')).toBeInTheDocument();
+    expect(dialog.getAllByText('Not given').length).toBeGreaterThan(0);
+    expect(dialog.queryByText('Last Name')).not.toBeInTheDocument();
+  });
+
+  it('asks plainly when nothing that says who the patient is changes', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya)});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    const email = await screen.findByLabelText(/^email address/i);
+    await user.type(email, 'x');
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText('Are you sure you want to save these changes?')).toBeInTheDocument();
+    expect(dialog.queryByText('Changes to who this record identifies')).not.toBeInTheDocument();
+  });
+
+  it('holds the save on Edit Patient too, after using found details and changing the number', async () => {
+    const fetch = mockApi({
+      ...lookUpAvailable,
+      [`GET /api/patients/${id}`]: () => json(freya),
+      'POST /api/demographics/lookup': () => json(ada),
+    });
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    const field = await nhsField();
+    await user.type(field, '9990000018');
+    await user.click(await screen.findByRole('button', {name: 'Look up'}));
+    await user.click(await screen.findByRole('button', {name: 'Use These Details'}));
+    await user.clear(field);
+    await user.type(field, '9990000026');
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+
+    expect(await findAlert(/Not saved/)).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+    expect(calls(fetch)).not.toContain(`PATCH /api/patients/${id}`);
   });
 });

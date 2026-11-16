@@ -13,6 +13,7 @@ using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
@@ -63,6 +64,30 @@ public sealed class NhsNumberTests : IntegrationTest
         var problem = await (await PostPatientAsync("999 000 0019")).ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
 
         problem.Errors.Should().ContainKey("NhsNumber").WhoseValue.Should().Equal(NhsNumberRules.WrongCheckDigit);
+    }
+
+    [Test]
+    public async Task CreatePatient_Placeholder_Returns400WithItsOwnMessage()
+    {
+        var problem = await (await PostPatientAsync("111 111 1111")).ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+
+        problem.Errors.Should().ContainKey("NhsNumber").WhoseValue.Should().Equal(NhsNumberRules.Placeholder);
+    }
+
+    [Test]
+    public void Database_FailedSavesAndCommands_AreLoggedAtDebug_SoAValueInTheirMessageStaysOutOfTheLog()
+    {
+        // The NHS number's unique index puts the number in SQL Server's message; EF Core's own failure logs carry it.
+        using var scope = Api.Services.CreateScope();
+        var warnings = scope.ServiceProvider.GetRequiredService<MedApp.Infrastructure.Data.MedAppDbContext>()
+            .GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
+            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
+            .WarningsConfiguration;
+
+        warnings.GetLevel(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.SaveChangesFailed)
+            .Should().Be(Microsoft.Extensions.Logging.LogLevel.Debug);
+        warnings.GetLevel(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.CommandError)
+            .Should().Be(Microsoft.Extensions.Logging.LogLevel.Debug);
     }
 
     [Test]

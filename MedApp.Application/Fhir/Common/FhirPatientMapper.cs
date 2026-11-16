@@ -6,7 +6,8 @@ namespace MedApp.Application.Fhir.Common;
 
 /// <summary>
 /// Patients as FHIR R4 resources in the UK Core Patient profile's shape: the NHS number as an identifier with its
-/// verification status, the name, the email and the date of birth. Only what MedApp holds; nothing is made up.
+/// verification status, the name, the email and the date of birth. Only what MedApp holds, and an anonymised record's
+/// placeholders are never passed off as a patient's details.
 /// </summary>
 public static class FhirPatientMapper
 {
@@ -30,56 +31,95 @@ public static class FhirPatientMapper
 
     public const string NotTracedDisplay = "Number present but not traced";
 
-    public static FhirPatient ToResource(Patient patient) => new()
+    /// <summary>
+    /// MedApp's own code system for flags on a record (<c>meta.tag</c>): <see cref="RestrictedCode"/> and
+    /// <see cref="DisputedCode"/>. A local URN until MedApp publishes a canonical URL for it.
+    /// </summary>
+    public const string RecordFlagSystem = "urn:medapp:fhir:CodeSystem:record-flag";
+
+    public const string RestrictedCode = "restricted";
+    public const string RestrictedDisplay = "Processing restricted (UK GDPR Article 18): the record can't be changed";
+    public const string DisputedCode = "disputed";
+    public const string DisputedDisplay = "Accuracy disputed by the patient (UK GDPR Article 16)";
+
+    /// <summary>What an anonymised record's name says, as FHIR's "anonymous" name.</summary>
+    public const string AnonymisedName = "Anonymised";
+
+    /// <summary>
+    /// The patient's resource. An anonymised record says so in FHIR's own terms, rather than passing its placeholders off
+    /// as details: <c>active</c> false, an "anonymous" name, the year of birth alone (the day and month the anonymiser
+    /// set aren't real), and no email. A restricted or disputed record carries a <c>meta.tag</c> saying so.
+    /// </summary>
+    public static FhirPatient ToResource(Patient patient) =>
+        patient.AnonymisedAtUtc is not null ? ToAnonymisedResource(patient) : new()
+        {
+            Id = patient.Id.ToString(),
+            Meta = Meta(patient),
+            Identifier = patient.NhsNumber is { } nhsNumber ? [NhsNumberIdentifier(nhsNumber)] : null,
+            Active = true,
+            Name =
+            [
+                new FhirHumanName
+                {
+                    Use = "official",
+                    Family = NullIfEmpty(patient.LastName),
+                    Given = string.IsNullOrWhiteSpace(patient.FirstName) ? null : [patient.FirstName]
+                }
+            ],
+            Telecom = string.IsNullOrWhiteSpace(patient.Email)
+                ? null
+                : [new FhirContactPoint { System = "email", Value = patient.Email }],
+            BirthDate = patient.DateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        };
+
+    private static FhirPatient ToAnonymisedResource(Patient patient) => new()
     {
         Id = patient.Id.ToString(),
-        Meta = new FhirMeta
+        Meta = Meta(patient),
+        Active = false,
+        Name = [new FhirHumanName { Use = "anonymous", Text = AnonymisedName }],
+        BirthDate = patient.DateOfBirth.Year.ToString("0000", CultureInfo.InvariantCulture)
+    };
+
+    private static FhirMeta Meta(Patient patient)
+    {
+        var tags = new List<FhirCoding>();
+        if (patient.RestrictedAtUtc is not null)
+            tags.Add(new FhirCoding { System = RecordFlagSystem, Code = RestrictedCode, Display = RestrictedDisplay });
+        if (patient.DisputedAtUtc is not null)
+            tags.Add(new FhirCoding { System = RecordFlagSystem, Code = DisputedCode, Display = DisputedDisplay });
+
+        return new FhirMeta
         {
             LastUpdated = Instant(patient.LastUpdated),
-            Profile = [UkCorePatientProfile]
-        },
-        Identifier = patient.NhsNumber is { } nhsNumber
-            ?
-            [
-                new FhirIdentifier
-                {
-                    Extension =
-                    [
-                        new FhirExtension
-                        {
-                            Url = NhsNumberVerificationStatusExtension,
-                            ValueCodeableConcept = new FhirCodeableConcept
-                            {
-                                Coding =
-                                [
-                                    new FhirCoding
-                                    {
-                                        System = NhsNumberVerificationStatusSystem,
-                                        Code = NotTracedCode,
-                                        Display = NotTracedDisplay
-                                    }
-                                ]
-                            }
-                        }
-                    ],
-                    System = NhsNumberSystem,
-                    Value = nhsNumber
-                }
-            ]
-            : null,
-        Name =
+            Profile = [UkCorePatientProfile],
+            Tag = tags.Count > 0 ? tags : null
+        };
+    }
+
+    private static FhirIdentifier NhsNumberIdentifier(string nhsNumber) => new()
+    {
+        Extension =
         [
-            new FhirHumanName
+            new FhirExtension
             {
-                Use = "official",
-                Family = NullIfEmpty(patient.LastName),
-                Given = string.IsNullOrWhiteSpace(patient.FirstName) ? null : [patient.FirstName]
+                Url = NhsNumberVerificationStatusExtension,
+                ValueCodeableConcept = new FhirCodeableConcept
+                {
+                    Coding =
+                    [
+                        new FhirCoding
+                        {
+                            System = NhsNumberVerificationStatusSystem,
+                            Code = NotTracedCode,
+                            Display = NotTracedDisplay
+                        }
+                    ]
+                }
             }
         ],
-        Telecom = string.IsNullOrWhiteSpace(patient.Email)
-            ? null
-            : [new FhirContactPoint { System = "email", Value = patient.Email }],
-        BirthDate = patient.DateOfBirth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        System = NhsNumberSystem,
+        Value = nhsNumber
     };
 
     /// <summary>A searchset Bundle of the patients found, each with its absolute address under <paramref name="baseUrl"/>.</summary>

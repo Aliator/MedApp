@@ -4,7 +4,7 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useState} from 'react';
-import {isValidNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
+import {isPlaceholderNhsNumber, isValidNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
 import {AppIcon} from '../shared/icons';
 import {FIELD_STATUS_LINE_HEIGHT} from './fieldSpace';
 
@@ -14,19 +14,23 @@ export const NHS_NUMBER_MESSAGES = {
   notDigits: 'An NHS number is 10 digits, with no letters or other characters.',
   wrongLength: 'An NHS number is 10 digits long.',
   notValid: "This isn't a valid NHS number. Check it's typed correctly.",
+  placeholder: "This looks like a placeholder, not an NHS number. Leave it empty if it isn't known.",
 } as const;
 
 /**
- * What's wrong with a typed NHS number, if anything, as the field shows it: letters or symbols, or more than 10
- * digits, or 10 digits that fail the check digit, at once; too few digits only once the person has left the field
- * (`hasLeft`), so it doesn't complain while they're still typing. Blank is fine: the number is optional.
+ * What's wrong with a typed NHS number, if anything, as the field shows it: letters or symbols, more than 10 digits,
+ * a placeholder (e.g. 0000000000) or 10 digits that fail the check digit, at once; too few digits only once the person
+ * has left the field (`hasLeft`), so it doesn't complain while they're still typing. Blank is fine: it's optional.
  */
 export function nhsNumberProblem(value: string, hasLeft: boolean): string | null {
   const digits = normaliseNhsNumber(value);
   if (!digits) return null;
   if (!/^\d+$/.test(digits)) return NHS_NUMBER_MESSAGES.notDigits;
   if (digits.length > 10) return NHS_NUMBER_MESSAGES.wrongLength;
-  if (digits.length === 10) return isValidNhsNumber(digits) ? null : NHS_NUMBER_MESSAGES.notValid;
+  if (digits.length === 10) {
+    if (isPlaceholderNhsNumber(digits)) return NHS_NUMBER_MESSAGES.placeholder;
+    return isValidNhsNumber(digits) ? null : NHS_NUMBER_MESSAGES.notValid;
+  }
   return hasLeft ? NHS_NUMBER_MESSAGES.wrongLength : null;
 }
 

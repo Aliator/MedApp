@@ -6,6 +6,7 @@ using MedApp.API.Controllers;
 using MedApp.API.Fhir;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Fhir.Common;
+using MedApp.Application.Fhir.Queries.GetFhirCapabilityStatement;
 using MedApp.Application.Fhir.Queries.GetFhirPatient;
 using MedApp.Application.Fhir.Queries.SearchFhirPatients;
 using MedApp.Contracts.Fhir;
@@ -210,4 +211,116 @@ public sealed class FhirApiTests
     [Test]
     public void Instant_IsUtcToTheMillisecondWithAZ() =>
         FhirPatientMapper.Instant(ActivityTestConstants.Now).Should().Be("2026-11-16T09:30:00.000Z");
+
+    [Test]
+    public async Task Metadata_ReturnsTheCapabilityStatement()
+    {
+        var statement = new FhirCapabilityStatement();
+        var mediator = new RecordingMediator(_ => statement);
+
+        var result = await new FhirController(mediator).WithRequest().Metadata(CancellationToken.None);
+
+        mediator.Request.Should().Be(new GetFhirCapabilityStatementQuery());
+        result.Should().BeOfType<FhirResult<FhirCapabilityStatement>>().Which.Resource.Should().BeSameAs(statement);
+    }
+
+    [Test]
+    public async Task CapabilityHandler_IsDatedNow()
+    {
+        var statement = await new GetFhirCapabilityStatementHandler(new FixedTimeProvider(ActivityTestConstants.Now))
+            .Handle(new GetFhirCapabilityStatementQuery(), CancellationToken.None);
+
+        statement.Date.Should().Be("2026-11-16T09:30:00.000Z");
+    }
+
+    [Test]
+    public async Task NotFound_UnknownFhirPath_Is404OperationOutcome()
+    {
+        var context = NewContext();
+        context.Request.Method = "GET";
+        context.Request.Path = "/api/fhir/Observation";
+
+        await FhirJson.NotFoundAsync(context);
+
+        context.Response.StatusCode.Should().Be(404);
+        var issue = Body(context).GetProperty("issue")[0];
+        issue.GetProperty("code").GetString().Should().Be("not-supported");
+        issue.GetProperty("diagnostics").GetString().Should().Contain("GET /api/fhir/Observation");
+    }
+
+    private static HttpRequest Request(string? accept = null, string? format = null)
+    {
+        var context = new DefaultHttpContext();
+        if (accept is not null)
+            context.Request.Headers.Accept = accept;
+        if (format is not null)
+            context.Request.QueryString = QueryString.Create("_format", format);
+        return context.Request;
+    }
+
+    [TestCase(null)]
+    [TestCase("application/fhir+json")]
+    [TestCase("application/json")]
+    [TestCase("*/*")]
+    [TestCase("application/*")]
+    [TestCase("application/fhir+xml, application/fhir+json;q=0.5")]
+    [TestCase("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")]
+    public void FormatFilter_AcceptAllowingJson_IsFine(string? accept) =>
+        FhirFormatFilter.WhyNotAcceptable(Request(accept)).Should().BeNull();
+
+    [TestCase("application/fhir+xml")]
+    [TestCase("application/xml, text/html")]
+    [TestCase("application/fhir+json;q=0")]
+    public void FormatFilter_AcceptWithoutJson_IsRefused(string accept) =>
+        FhirFormatFilter.WhyNotAcceptable(Request(accept)).Should().Contain("JSON only");
+
+    [TestCase("json")]
+    [TestCase("JSON")]
+    [TestCase("application/fhir+json")]
+    [TestCase("application/fhir+json;fhirVersion=4.0")]
+    [TestCase("application/json")]
+    public void FormatFilter_JsonFormat_IsFine_WhateverTheAcceptHeader(string format) =>
+        FhirFormatFilter.WhyNotAcceptable(Request("application/fhir+xml", format)).Should().BeNull();
+
+    [TestCase("xml")]
+    [TestCase("application/fhir+xml")]
+    [TestCase("ttl")]
+    public void FormatFilter_OtherFormat_IsRefused(string format) =>
+        FhirFormatFilter.WhyNotAcceptable(Request(format: format)).Should().Contain($"'{format}'");
+
+    [Test]
+    public async Task FormatFilter_Refused_Is406OperationOutcome_AndGoesNoFurther()
+    {
+        var http = NewContext();
+        http.Request.Headers.Accept = "application/fhir+xml";
+        var context = new ResourceExecutingContext(
+            new ActionContext(http, new RouteData(), new ActionDescriptor()), [], []);
+        var called = false;
+
+        await new FhirFormatFilter().OnResourceExecutionAsync(context, () =>
+        {
+            called = true;
+            return Task.FromResult<ResourceExecutedContext>(null!);
+        });
+
+        called.Should().BeFalse();
+        http.Response.StatusCode.Should().Be(406);
+        Body(http).GetProperty("issue")[0].GetProperty("code").GetString().Should().Be("not-supported");
+    }
+
+    [Test]
+    public async Task FormatFilter_Acceptable_GoesOn()
+    {
+        var context = new ResourceExecutingContext(
+            new ActionContext(NewContext(), new RouteData(), new ActionDescriptor()), [], []);
+        var called = false;
+
+        await new FhirFormatFilter().OnResourceExecutionAsync(context, () =>
+        {
+            called = true;
+            return Task.FromResult<ResourceExecutedContext>(null!);
+        });
+
+        called.Should().BeTrue();
+    }
 }

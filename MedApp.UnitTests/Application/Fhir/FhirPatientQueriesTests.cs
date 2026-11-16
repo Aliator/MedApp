@@ -94,20 +94,24 @@ public sealed class FhirPatientQueriesTests
         _activity.Recorded.Single().Details.Should().Contain("\"resultCount\":0");
     }
 
-    [Test]
-    public async Task Search_AnotherSystem_MatchesNothing_WithoutLookingItUp()
+    [TestCase("https://example.org/mrn|123")]
+    [TestCase("MRN123")]
+    [TestCase("9990000019")]
+    public async Task Search_NotAnNhsNumber_MatchesNothing_WithoutLookingItUp_AndIsLoggedAsAnIdentifier(string identifier)
     {
-        var bundle = await Search().Handle(new SearchFhirPatientsQuery("https://example.org/mrn|123", BaseUrl), CancellationToken.None);
+        var bundle = await Search().Handle(new SearchFhirPatientsQuery(identifier, BaseUrl), CancellationToken.None);
 
         bundle.Total.Should().Be(0);
         _repository.Verify(r => r.GetByNhsNumberAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _activity.Recorded.Single().Details.Should().Contain("\"identifier\"").And.NotContain("nhsNumber");
     }
 
     [TestCase(null, SearchFhirPatientsValidator.IdentifierRequired)]
     [TestCase(" ", SearchFhirPatientsValidator.IdentifierRequired)]
     [TestCase("https://fhir.nhs.uk/Id/nhs-number|", SearchFhirPatientsValidator.IdentifierRequired)]
     [TestCase("https://fhir.nhs.uk/Id/nhs-number|9990000019", NhsNumberRules.WrongCheckDigit)]
-    [TestCase("12345", NhsNumberRules.NotTenDigits)]
+    [TestCase("https://fhir.nhs.uk/Id/nhs-number|12345", NhsNumberRules.NotTenDigits)]
+    [TestCase("https://fhir.nhs.uk/Id/nhs-number|1111111111", NhsNumberRules.Placeholder)]
     public void Validate_MissingOrInvalidIdentifier_FailsOnIdentifier(string? identifier, string message)
     {
         var result = new SearchFhirPatientsValidator().Validate(new SearchFhirPatientsQuery(identifier, BaseUrl));
@@ -119,6 +123,8 @@ public sealed class FhirPatientQueriesTests
     [TestCase(NhsIdentifier)]
     [TestCase(NhsNumber)]
     [TestCase("https://example.org/mrn|not-checked")]
+    [TestCase("MRN123")]
+    [TestCase("12345")]
     public void Validate_NhsNumberOrAnotherSystem_Passes(string identifier) =>
         new SearchFhirPatientsValidator().Validate(new SearchFhirPatientsQuery(identifier, BaseUrl)).IsValid.Should().BeTrue();
 }

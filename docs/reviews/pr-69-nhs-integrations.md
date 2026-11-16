@@ -76,7 +76,7 @@ The PR starts roadmap step 9: an optional NHS number on patients (checked, uniqu
 
 ## Findings
 
-Most severe first. None is high or critical. None was fixed at the time of this review.
+Most severe first. None is high or critical. None was fixed at the time of this review; all eight were fixed afterwards in the PR, as each finding's last line says.
 
 ### 1. Edit Patient has no patient banner, though it's the page where a patient's identity changes
 
@@ -89,7 +89,10 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.Web/src/components/pages/Page.tsx:26`, `MedApp.Web/src/components/patients/PatientBanner.tsx:41`: "on every page about one patient"
   - `MedApp.Web/src/pages/patients/PatientFormFields.tsx:122`: the Look up button is offered on the edit form too
 - **Fix:** pass `banner={<PatientBanner patient={patient} />}` on Edit Patient (the saved record, so it stays put while the fields change), and on the export page from `data.patient`. In Edit Patient's confirmation, show the old and new value for the name, date of birth and NHS number when they changed. Add a page test for each. A test that renders every route under `/patients/$id` and `/procedures/$id` and asserts a `Patient` region would stop a future page missing it.
-- **What happened to it:** not fixed; recorded for a decision.
+- **What happened to it:** fixed in the PR, by the owner's decision.
+  - Edit Patient shows the banner from the saved record, so it stays put while the fields change, and is now a `fill` page whose form scrolls under it. Its save confirmation lists the first name, last name, date of birth and NHS number as "Old → New" when they change, and warns that this changes who the record identifies.
+  - The export page shows the banner, its flags worked out from the export's dates.
+  - `MedApp.Web/src/app/patientBanners.test.tsx` renders all seven pages about one patient through the real router and checks for the patient's region, and fails if a route is added under `/patients/$id` or `/procedures/` without being added to it.
 
 ### 2. When two saves race on the same NHS number, EF Core writes the number into the error log
 
@@ -101,7 +104,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `docs/governance/data-inventory.md:56`: the logs row; `docs/governance/data-inventory.md:37-44`: where the number is held, without logs
   - The excerpt is in Detail.
 - **Fix:** log EF Core's `CoreEventId.SaveChangesFailed` at Debug in `AddDatabase` (`options.ConfigureWarnings(w => w.Log((CoreEventId.SaveChangesFailed, LogLevel.Debug)))`); an unhandled save failure is still logged by the server as an unhandled exception, and the handled 409 then logs nothing with the number. Or filter `Microsoft.EntityFrameworkCore.Update` to `Critical` in `appsettings.json`. Either way, say in the data inventory which events can carry patient values.
-- **What happened to it:** not fixed; recorded.
+- **What happened to it:** fixed in the PR. `AddDatabase` logs EF Core's `CoreEventId.SaveChangesFailed` and `RelationalEventId.CommandError` at Debug, which the app doesn't write (`LogFailedSavesAtDebug`, `MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs`); the command error's entry carries the same exception, so both are needed. An unhandled failure still reaches the error log as the server's unhandled exception. An integration test checks the configured levels (`NhsNumberTests.Database_FailedSavesAndCommands_AreLoggedAtDebug_…`). The data inventory's NHS number list and logs row, the DPIA's risk 21 and `AGENTS.md` say which events can carry patient values.
 
 ### 3. The lookup's filled details aren't tied to the number, and on Edit Patient it replaces the patient's identity
 
@@ -116,7 +119,11 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `:122`: offered on both the add and the edit forms
   - `docs/clinical-safety/hazard-log.md:97`: the planned control (show who was found and ask before filling) is due only "before the real PDS is connected"
 - **Fix:** remember what a lookup filled; if the number then changes while those values are still in the fields, show a warning on the NHS number ("The name and date of birth were filled in from 999 000 0018") and refuse the save until the lookup is repeated or the details are confirmed. On Edit Patient, show the found details beside the current ones and fill only on an explicit "Use these details". Announce "filled in" only when it was. Add tests for each.
-- **What happened to it:** not fixed; recorded. Due before the real PDS is connected, with the hazard log's own planned control.
+- **What happened to it:** fixed in the PR, by the owner's decision (`usePatientLookUp` in `MedApp.Web/src/pages/patients/PatientFormFields.tsx`).
+  - It remembers what a lookup filled and from which number. If the number then changes (to another number) while those details are unchanged, the field warns, and Save, Ctrl+S included, shows "Not saved: the name and date of birth were filled in from NHS number …" and sends nothing, until the new number is looked up or a filled field is changed by hand. Clearing the number to empty doesn't hold the save: the details then claim no number.
+  - On Edit Patient a lookup never overwrites: it shows what it found beside the record's details, with "Use These Details" and "Keep Current Details". Add Patient still fills at once.
+  - "Filled in" is announced only when something was filled; an answer that arrives after the number changed is ignored.
+  - 11 page tests cover these. The hazard log's H-01 records the confirmation as built on Edit Patient; Add Patient should confirm too before the real PDS is connected.
 
 ### 4. The Modulus 11 check accepts the usual placeholder numbers
 
@@ -127,7 +134,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.Application/Patients/Common/NhsNumberRules.cs:12`: the 409's message
   - Neither test file tries a placeholder (`MedApp.UnitTests/Domain/Patients/NhsNumbersTests.cs`, `MedApp.Web/src/utils/nhsNumber.test.ts`)
 - **Fix:** refuse ten identical digits and the two runs on both sides, with their own message ("This looks like a placeholder, not an NHS number. Leave it empty if it isn't known."), and test them. Checking the issued ranges is possible too, but would refuse some numbers from the rest of the UK, so it's better as a later option.
-- **What happened to it:** not fixed; recorded.
+- **What happened to it:** fixed in the PR. `NhsNumbers.IsPlaceholder` catches ten identical digits and the runs `0123456789` and `9876543210`; `NhsNumberRules` refuses them with "This looks like a placeholder, not an NHS number. Leave it empty if it isn't known.", so do the create, update and lookup validators and a FHIR search that names the NHS number's system; a system-less FHIR search value that's a placeholder matches nothing. The web form gives the same message (`src/utils/nhsNumber.ts`). Tested on both sides, and through the API (`NhsNumberTests.CreatePatient_Placeholder_…`). Checking the issued ranges is on `docs/todo.md` as an option.
 
 ### 5. An anonymised, restricted or disputed record comes out of the FHIR API looking like any other patient
 
@@ -138,7 +145,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.Application/Patients/Common/PatientAnonymiser.cs:21-23`, `:41`
   - `MedApp.UnitTests/Application/Fhir/FhirPatientMapperTests.cs`: no anonymised, restricted or disputed case
 - **Fix:** for an anonymised patient, use FHIR's own means: `name.use` `anonymous` (or no name), `birthDate` as the year alone (`"1980"` is a valid FHIR date), no `telecom`, and `active: false`; or answer 404. Mark restricted and disputed records with a `meta.tag` from a small MedApp code system, documented. Test all three. Do it before any system client (OAuth) is added.
-- **What happened to it:** not fixed; recorded.
+- **What happened to it:** fixed in the PR. `FhirPatientMapper` sends an anonymised record as `active: false`, `name: [{use: anonymous, text: "Anonymised"}]`, the year of birth alone, and no `telecom` or identifier; other records are `active: true`. A restricted or disputed record carries a `meta.tag` from MedApp's record-flag code system (`urn:medapp:fhir:CodeSystem:record-flag`, codes `restricted` and `disputed`; a local URN until a canonical URL is published, `docs/todo.md`). Unit tests cover all three, and an integration test disputes then anonymises a patient and reads it through FHIR (`FhirPatientApiTests.ReadPatient_AnonymisedOrFlagged_SaysSo`).
 
 ### 6. The FHIR API misses some of FHIR's basics
 
@@ -155,7 +162,13 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.Application/Fhir/Queries/SearchFhirPatients/SearchFhirPatientsHandler.cs:30`
   - `AGENTS.md:189`; `docs/todo.md:50`
 - **Fix:** a minimal CapabilityStatement at `GET api/fhir/metadata` (Patient: `read`, `search-type` on `identifier`); map unmatched `/api/fhir/{**path}` to a 404 `not-supported` OperationOutcome before the generic `/api` 404; return 406 when neither `Accept` nor `_format` allows JSON; validate a system-less value as an NHS number only when it's ten digits, otherwise match nothing; log `filters: ["identifier"]` for another system. Run the HL7 validator in CI, as `docs/todo.md:48` plans.
-- **What happened to it:** not fixed; recorded.
+- **What happened to it:** fixed in the PR.
+  - `GET api/fhir/metadata` returns a minimal CapabilityStatement (FHIR 4.0.1, JSON, Patient `read` and `search-type` on `identifier`, the UK Core profile). It's open to anyone, as FHIR expects, and says nothing about any patient.
+  - An unmatched `/api/fhir/{**path}` is a 404 `not-supported` OperationOutcome (`FhirJson.NotFoundAsync`, mapped before the generic `/api` 404, which is unchanged).
+  - `FhirFormatFilter` answers a `_format` other than JSON, or an `Accept` that allows no JSON, with a 406 `not-supported` OperationOutcome.
+  - A value with no system is looked up as an NHS number only when it's a valid one (`FhirIdentifierSearch.NhsNumberToMatch`); anything else matches nothing, with no 400. Only a value with the NHS number's system is validated as one.
+  - The log records `filters: ["identifier"]` when the search couldn't match an NHS number.
+  - Unit and integration tests for each. The HL7 validator in CI stays on `docs/todo.md`.
 
 ### 7. The banner falls short of the NHS banner guidance and of "always in view" in small ways
 
@@ -171,7 +184,13 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.Web/src/pages/procedures/EditProcedurePage.tsx:93-97`: no `fill`
   - `MedApp.Web/src/components/pages/Page.tsx:27`: "It's always in view"
 - **Fix:** name the region by the patient (`aria-labelledby` the name); upper-case the surname with CSS, keeping its own case in the text; give ages under two in months and weeks, under four weeks in days; make Edit Procedure a `fill` page, or make the banner sticky. List the remaining gaps against the guidance for the CSO's verification.
-- **What happened to it:** not fixed; recorded.
+- **What happened to it:** fixed in the PR, by the owner's decision.
+  - Each banner is a region named for its patient ("Patient: Ahmed, Freya", through `aria-labelledby` and `useId`).
+  - The surname is upper-cased by CSS (`textTransform`), its text in its own case. Chrome may still pass the capitals to screen readers; that needs a check with a real screen reader.
+  - `ageDescription` (`src/utils/dates.ts`) gives days under 4 weeks, weeks under 3 months and months under 2 years, tested at each boundary.
+  - Edit Procedure and Edit Patient are `fill` pages, with the form scrolling in its card under the banner, as New Procedure was. A sticky banner wasn't used: on pages that aren't `fill`, the layout's scroll container doesn't scroll, so it wouldn't stick. The export page, a long printable document, is the one page whose banner scrolls away; `Page`'s comment and the docs say so.
+  - Sex and gender are on `docs/todo.md`, for the banner and the FHIR Patient once MedApp holds them.
+  - None of it was checked in a browser.
 
 ### 8. Docs that don't match the code
 
@@ -182,7 +201,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - The logs row (finding 2), and "every page about one patient" and "always in view" (findings 1 and 7).
 - **Evidence:** `docs/governance/data-inventory.md:31`, `:37-44`, `:49`, `:56-57`; `MedApp.Web/src/app/favourites.ts:20-21`; `docs/todo.md:38`.
 - **Fix:** correct line 57; add saved searches to the NHS number's list and to the `UserSettings` and `localStorage` rows; note in the DPIA's risk 21 that saved searches can hold the number until they're removed on anonymisation.
-- **What happened to it:** not fixed; recorded.
+- **What happened to it:** fixed in the PR. `data-inventory.md` no longer says the lookup's URL carries the number; saved searches are listed as holding NHS numbers (the NHS number note, the `UserSettings` row and the `localStorage` row), and as not cleared by anonymisation; the logs row says which EF Core events are at Debug and why. The DPIA's risk 21 has the saved-search gap, the placeholder check, the log filter and the FHIR handling of flagged records. `docs/todo.md`'s saved-search item now names NHS numbers as an anonymisation gap. The banner's pages and "always in view" are corrected with findings 1 and 7.
 
 ## Remaining risks
 

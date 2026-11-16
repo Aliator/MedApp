@@ -83,16 +83,98 @@ public sealed class FhirPatientMapperTests
         bundle.Entry.Should().BeNull("FHIR JSON never has an empty list");
     }
 
-    [TestCase("https://fhir.nhs.uk/Id/nhs-number|9990000018", "https://fhir.nhs.uk/Id/nhs-number", "9990000018", true)]
-    [TestCase("9990000018", null, "9990000018", true)]
-    [TestCase(" https://example.org/mrn | 123 ", "https://example.org/mrn", "123", false)]
-    [TestCase("|9990000018", "", "9990000018", false)]
-    public void FhirIdentifierSearch_Parse_SplitsSystemAndValue(string token, string? system, string value, bool isNhs)
+    [TestCase("https://fhir.nhs.uk/Id/nhs-number|9990000018", "https://fhir.nhs.uk/Id/nhs-number", "9990000018", "9990000018")]
+    [TestCase("https://fhir.nhs.uk/Id/nhs-number|999 000 0018", "https://fhir.nhs.uk/Id/nhs-number", "999 000 0018", "9990000018")]
+    [TestCase("9990000018", null, "9990000018", "9990000018")]
+    [TestCase("MRN123", null, "MRN123", null)]
+    [TestCase("9990000019", null, "9990000019", null)]
+    [TestCase("1111111111", null, "1111111111", null)]
+    [TestCase(" https://example.org/mrn | 123 ", "https://example.org/mrn", "123", null)]
+    [TestCase("|9990000018", "", "9990000018", null)]
+    public void FhirIdentifierSearch_Parse_SplitsSystemAndValue_AndSaysWhichNhsNumberToMatch(
+        string token, string? system, string value, string? nhsNumber)
     {
         var search = FhirIdentifierSearch.Parse(token);
 
         search.System.Should().Be(system);
         search.Value.Should().Be(value);
-        search.IsForNhsNumber.Should().Be(isNhs);
+        search.NhsNumberToMatch.Should().Be(nhsNumber);
+        search.NamesNhsNumberSystem.Should().Be(system == FhirPatientMapper.NhsNumberSystem);
+    }
+
+    [Test]
+    public void ToResource_AnonymisedPatient_SaysSoInFhirsTerms_WithoutItsPlaceholders()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.FirstName = "Anonymised";
+        patient.LastName = "Patient";
+        patient.Email = "anonymised@anonymised.invalid";
+        patient.DateOfBirth = new DateOnly(1980, 1, 1);
+        patient.AnonymisedAtUtc = ActivityTestConstants.Now;
+
+        var resource = FhirPatientMapper.ToResource(patient);
+
+        resource.Active.Should().BeFalse();
+        resource.Name.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            Use = "anonymous",
+            Text = "Anonymised",
+            Family = (string?)null,
+            Given = (List<string>?)null
+        });
+        resource.BirthDate.Should().Be("1980");
+        resource.Telecom.Should().BeNull();
+        resource.Identifier.Should().BeNull();
+        resource.Meta!.Profile.Should().Equal(FhirPatientMapper.UkCorePatientProfile);
+    }
+
+    [Test]
+    public void ToResource_ActivePatient_IsActive_WithoutTags()
+    {
+        var resource = FhirPatientMapper.ToResource(PatientsTestConstants.CreateValidPatient());
+
+        resource.Active.Should().BeTrue();
+        resource.Meta!.Tag.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResource_RestrictedAndDisputed_AreTagged()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.RestrictedAtUtc = ActivityTestConstants.Now;
+        patient.DisputedAtUtc = ActivityTestConstants.Now;
+
+        var tags = FhirPatientMapper.ToResource(patient).Meta!.Tag;
+
+        tags.Should().BeEquivalentTo(new[]
+        {
+            new { System = FhirPatientMapper.RecordFlagSystem, Code = "restricted", Display = FhirPatientMapper.RestrictedDisplay },
+            new { System = FhirPatientMapper.RecordFlagSystem, Code = "disputed", Display = FhirPatientMapper.DisputedDisplay }
+        });
+    }
+
+    [Test]
+    public void ToResource_DisputedOnly_HasOneTag()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.DisputedAtUtc = ActivityTestConstants.Now;
+
+        FhirPatientMapper.ToResource(patient).Meta!.Tag.Should().ContainSingle().Which.Code.Should().Be("disputed");
+    }
+
+    [Test]
+    public void Capability_Statement_IsPatientReadAndSearchByIdentifier_InJson()
+    {
+        var statement = FhirCapability.Statement(ActivityTestConstants.Now);
+
+        statement.ResourceType.Should().Be("CapabilityStatement");
+        statement.FhirVersion.Should().Be("4.0.1");
+        statement.Format.Should().Equal("json");
+        statement.Date.Should().Be("2026-11-16T09:30:00.000Z");
+        var patient = statement.Rest.Single().Resource.Single();
+        patient.Type.Should().Be("Patient");
+        patient.Profile.Should().Be(FhirPatientMapper.UkCorePatientProfile);
+        patient.Interaction.Select(i => i.Code).Should().Equal("read", "search-type");
+        patient.SearchParam!.Single().Should().BeEquivalentTo(new { Name = "identifier", Type = "token" });
     }
 }

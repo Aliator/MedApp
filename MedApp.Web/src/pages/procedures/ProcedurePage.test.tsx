@@ -42,8 +42,7 @@ describe('ProcedurePage', () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, patient})});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
-    const banner = await screen.findByRole('region', {name: 'Patient'});
-    expect(within(banner).getByText('PATIENT, Test')).toBeInTheDocument();
+    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('NHS No. 999 000 0026')).toBeInTheDocument();
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
   });
@@ -53,7 +52,7 @@ describe('ProcedurePage', () => {
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
 
     await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
-    expect(screen.queryByRole('region', {name: 'Patient'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
   });
 
   it("says why nothing can be changed while the patient's record is restricted", async () => {

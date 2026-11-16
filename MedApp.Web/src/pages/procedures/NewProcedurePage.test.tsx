@@ -35,8 +35,7 @@ describe('NewProcedurePage', () => {
   it("shows the patient's banner", async () => {
     renderNew({'GET /api/patients/patient-1': () => json({id: 'patient-1', firstName: 'Test', lastName: 'Patient', nhsNumber: '9990000034'})});
 
-    const banner = await screen.findByRole('region', {name: 'Patient'});
-    expect(within(banner).getByText('PATIENT, Test')).toBeInTheDocument();
+    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('NHS No. 999 000 0034')).toBeInTheDocument();
   });
 

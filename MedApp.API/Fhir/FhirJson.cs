@@ -27,6 +27,16 @@ public static class FhirJson
         await response.WriteAsJsonAsync(resource, Options, $"{ContentType}; charset=utf-8");
     }
 
+    /// <summary>
+    /// The answer to a path under <c>/api/fhir</c> that matches nothing: a 404 OperationOutcome, where the rest of
+    /// <c>/api</c> gets an empty 404.
+    /// </summary>
+    public static Task NotFoundAsync(HttpContext context) =>
+        WriteAsync(
+            context.Response,
+            Outcome("not-supported", $"MedApp's FHIR API has no {context.Request.Method} {context.Request.Path}."),
+            StatusCodes.Status404NotFound);
+
     /// <summary>An OperationOutcome with one error issue.</summary>
     public static FhirOperationOutcome Outcome(string code, string diagnostics, IEnumerable<string>? expression = null) => new()
     {

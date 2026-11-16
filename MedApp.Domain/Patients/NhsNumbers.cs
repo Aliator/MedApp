@@ -9,7 +9,7 @@ namespace MedApp.Domain.Patients;
 /// becomes 0, and 10 means the number isn't valid (no NHS number is issued with it).
 /// </para>
 /// Numbers starting 999 are never issued to real people, and are kept for testing; MedApp's tests and demo data use
-/// only those.
+/// only those. Placeholders that pass the check (<see cref="IsPlaceholder"/>) are refused separately.
 /// </summary>
 public static class NhsNumbers
 {
@@ -36,6 +36,18 @@ public static class NhsNumbers
 
         return CheckDigit(digits) is { } check && check == digits[9] - '0';
     }
+
+    /// <summary>
+    /// The numbers people type when a form insists on one they don't have: ten of one digit (every one of which passes
+    /// the check, since the weights add up to 54), and the runs <c>0123456789</c> and <c>9876543210</c>, which pass too.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Runs = ["0123456789", "9876543210"];
+
+    /// <summary>Whether the text, spaces left out, is a placeholder rather than an NHS number (<see cref="Runs"/>).</summary>
+    public static bool IsPlaceholder(string? input) =>
+        Normalise(input) is { Length: Length } digits
+        && digits.All(char.IsAsciiDigit)
+        && (digits.All(c => c == digits[0]) || Runs.Contains(digits));
 
     /// <summary>Whether the text, spaces left out, is ten digits (whatever the check digit).</summary>
     public static bool IsTenDigits(string? input) =>

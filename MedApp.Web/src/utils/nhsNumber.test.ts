@@ -1,4 +1,4 @@
-import {formatNhsNumber, isValidNhsNumber, normaliseNhsNumber, spokenNhsNumber} from './nhsNumber';
+import {formatNhsNumber, isPlaceholderNhsNumber, isValidNhsNumber, normaliseNhsNumber, spokenNhsNumber} from './nhsNumber';
 
 // Synthetic test numbers only (the 999 range is never issued to real patients).
 const VALID = ['9990000018', '9990000026', '9990000034', '9990000042', '9990000050', '9990000069', '9990000077'];
@@ -36,6 +36,22 @@ describe('isValidNhsNumber', () => {
     expect(isValidNhsNumber('99900000188')).toBe(false);
     expect(isValidNhsNumber('999-000-0018')).toBe(false);
     expect(isValidNhsNumber('99900000a8')).toBe(false);
+  });
+});
+
+describe('isPlaceholderNhsNumber', () => {
+  const PLACEHOLDERS = [...'0123456789'].map((d) => d.repeat(10)).concat(['0123456789', '9876543210']);
+
+  it.each(PLACEHOLDERS)('treats %s as a placeholder, which the check digit alone would let through', (number) => {
+    expect(isPlaceholderNhsNumber(number)).toBe(true);
+    expect(isPlaceholderNhsNumber(formatNhsNumber(number))).toBe(true);
+    expect(isValidNhsNumber(number)).toBe(false);
+  });
+
+  it('passes real-looking numbers', () => {
+    for (const number of VALID) expect(isPlaceholderNhsNumber(number)).toBe(false);
+    expect(isPlaceholderNhsNumber('1111111112')).toBe(false);
+    expect(isPlaceholderNhsNumber('')).toBe(false);
   });
 });
 

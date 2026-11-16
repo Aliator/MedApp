@@ -160,4 +160,72 @@ public sealed class FhirPatientApiTests : IntegrationTest
         searches.Should().ContainSingle(e => e.Details.Contains("\"via\":\"fhir\""))
             .Which.Details.Should().Contain("\"resultCount\":1").And.NotContain(NhsNumber);
     }
+
+    [Test]
+    public async Task Metadata_IsACapabilityStatement_OpenToAnyone()
+    {
+        var json = await FhirJsonAsync(await NewClient().GetAsync("/api/fhir/metadata"), HttpStatusCode.OK);
+
+        json.GetProperty("resourceType").GetString().Should().Be("CapabilityStatement");
+        json.GetProperty("fhirVersion").GetString().Should().Be("4.0.1");
+        json.GetProperty("rest")[0].GetProperty("resource")[0].GetProperty("type").GetString().Should().Be("Patient");
+    }
+
+    [Test]
+    public async Task UnknownFhirPath_Returns404OperationOutcome_WhileTheRestOfTheApiStaysEmpty()
+    {
+        var json = await FhirJsonAsync(await _staff.GetAsync("/api/fhir/Observation"), HttpStatusCode.NotFound);
+        var other = await _staff.GetAsync("/api/nothing-here");
+
+        json.GetProperty("issue")[0].GetProperty("code").GetString().Should().Be("not-supported");
+        await other.ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        (await other.Content.ReadAsStringAsync()).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task AnotherFormat_ByAcceptOrFormat_Returns406OperationOutcome()
+    {
+        using var xml = new HttpRequestMessage(HttpMethod.Get, $"/api/fhir/Patient/{_patient.Id}");
+        xml.Headers.Accept.ParseAdd("application/fhir+xml");
+
+        var byAccept = await FhirJsonAsync(await _staff.SendAsync(xml), HttpStatusCode.NotAcceptable);
+        var byFormat = await FhirJsonAsync(await _staff.GetAsync($"/api/fhir/Patient/{_patient.Id}?_format=xml"), HttpStatusCode.NotAcceptable);
+        await FhirJsonAsync(await _staff.GetAsync($"/api/fhir/Patient/{_patient.Id}?_format=json"), HttpStatusCode.OK);
+
+        byAccept.GetProperty("issue")[0].GetProperty("code").GetString().Should().Be("not-supported");
+        byFormat.GetProperty("issue")[0].GetProperty("code").GetString().Should().Be("not-supported");
+    }
+
+    [Test]
+    public async Task SearchPatients_ValueWithoutASystemThatIsntAnNhsNumber_ReturnsAnEmptyBundle()
+    {
+        var json = await FhirJsonAsync(await _staff.GetAsync("/api/fhir/Patient?identifier=MRN123"), HttpStatusCode.OK);
+
+        json.GetProperty("total").GetInt32().Should().Be(0);
+    }
+
+    [Test]
+    public async Task ReadPatient_AnonymisedOrFlagged_SaysSo()
+    {
+        var admin = await SignInAsAdminAsync();
+        var url = $"/api/patients/{_patient.Id}";
+        (await admin.PutAsJsonAsync($"{url}/dispute", new SetPatientFlagRequest { Set = true, Reason = "Synthetic dispute" }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var disputed = await FhirJsonAsync(await _staff.GetAsync($"/api/fhir/Patient/{_patient.Id}"), HttpStatusCode.OK);
+        disputed.GetProperty("meta").GetProperty("tag")[0].GetProperty("code").GetString().Should().Be("disputed");
+
+        (await admin.PostAsJsonAsync($"{url}/anonymise", new AnonymisePatientRequest
+        {
+            Reason = "Synthetic: past its retention period",
+            Confirmation = $"{_patient.FirstName} {_patient.LastName}",
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var anonymised = await FhirJsonAsync(await _staff.GetAsync($"/api/fhir/Patient/{_patient.Id}"), HttpStatusCode.OK);
+        anonymised.GetProperty("active").GetBoolean().Should().BeFalse();
+        anonymised.GetProperty("name")[0].GetProperty("use").GetString().Should().Be("anonymous");
+        anonymised.GetProperty("birthDate").GetString().Should().Be(DateOfBirth.Year.ToString());
+        anonymised.TryGetProperty("telecom", out _).Should().BeFalse();
+        anonymised.TryGetProperty("identifier", out _).Should().BeFalse();
+    }
 }

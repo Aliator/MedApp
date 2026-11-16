@@ -6,14 +6,27 @@
 /** The number as typed with its spaces (and any other whitespace) taken out: "999 000 0018" → "9990000018". */
 export const normaliseNhsNumber = (value: string) => value.replace(/\s+/g, '');
 
+/** A digit ten times over (`0000000000` to `9999999999`). */
+const ONE_DIGIT_REPEATED = /^(\d)\1{9}$/;
+
 /**
- * Whether a value (spaces allowed) is a valid NHS number: ten digits whose check digit is right. The first nine
- * digits are weighted 10 down to 2 and summed; the check digit is 11 minus the sum's remainder mod 11, with 11
- * meaning 0, and 10 never valid.
+ * Whether a value (spaces allowed) is one of the numbers people type when a form insists on one they don't have: a
+ * digit ten times over (`0000000000` to `9999999999`), `0123456789` or `9876543210`. They all pass the check digit,
+ * so they're refused separately. The API refuses the same ones.
+ */
+export function isPlaceholderNhsNumber(value: string): boolean {
+  const digits = normaliseNhsNumber(value);
+  return ONE_DIGIT_REPEATED.test(digits) || digits === '0123456789' || digits === '9876543210';
+}
+
+/**
+ * Whether a value (spaces allowed) is a valid NHS number: ten digits whose check digit is right, and not a
+ * placeholder (`isPlaceholderNhsNumber`). The first nine digits are weighted 10 down to 2 and summed; the check digit
+ * is 11 minus the sum's remainder mod 11, with 11 meaning 0, and 10 never valid.
  */
 export function isValidNhsNumber(value: string): boolean {
   const digits = normaliseNhsNumber(value);
-  if (!/^\d{10}$/.test(digits)) return false;
+  if (!/^\d{10}$/.test(digits) || isPlaceholderNhsNumber(digits)) return false;
   let sum = 0;
   for (let i = 0; i < 9; i++) sum += Number(digits[i]) * (10 - i);
   const check = 11 - (sum % 11);

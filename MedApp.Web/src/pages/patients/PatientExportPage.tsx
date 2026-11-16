@@ -14,6 +14,7 @@ import {ApiError} from '../../api/errors';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/procedures/ProcedureCells';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
@@ -80,6 +81,19 @@ export function PatientExportPage({id}: {id: string}) {
       subtitle={data ? `Exported ${when(data.exportedAtUtc)} by ${data.exportedBy}` : undefined}
       backHref={`/patients/${id}`}
       backLabel="Back to patient"
+      banner={
+        data?.patient && (
+          // The export says when a flag was set rather than whether it is, as its details below do.
+          <PatientBanner
+            patient={{
+              ...data.patient,
+              isRestricted: Boolean(data.patient.restrictedAtUtc),
+              isDisputed: Boolean(data.patient.disputedAtUtc),
+              isAnonymised: Boolean(data.patient.anonymisedAtUtc),
+            }}
+          />
+        )
+      }
       isLoading={isPending}
       loadingMessage="Gathering everything held about this patient..."
       message={

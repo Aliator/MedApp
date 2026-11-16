@@ -2017,7 +2017,7 @@ Not built yet: note versions, the ledger table and streaming the log, unusual-ac
 
 **Status:** the first part is built (branch `feature/nhs-integrations`, 16 November 2026), ahead of steps 6 and 8, with `docs/governance/` and `docs/clinical-safety/` updated for it:
 - **The NHS number** on a patient: optional, checked with its Modulus 11 check digit on the server and in the form, unique when present (across the deployment until step 8), shown as `XXX XXX XXXX`, searchable, in the export and removed by anonymisation. Logged as a field and filter name, never the number.
-- **The patient banner** (step 6's control for hazards H-01 and H-02): the name, date of birth with age, and NHS number, always visible, on the patient, procedure, Edit Procedure and New Procedure pages. Built, not yet verified by a CSO.
+- **The patient banner** (step 6's control for hazards H-01 and H-02): the name, date of birth with age, and NHS number, on every page about one patient (the patient's page, Edit Patient, the export, their procedures, a procedure, Edit Procedure and New Procedure), in view on all but the printable export. Built, not yet verified by a CSO.
 - **A read-only FHIR R4 API in the UK Core shape:** `Patient` by ID, and by NHS number as a searchset Bundle, for signed-in staff, logged like the pages. Hand-built resources, not the Firely SDK.
 - **SNOMED CT codes on stage definitions,** with the admin's display term, copied onto procedures' stages. Format checked only.
 - **A demographics lookup** behind `IPersonalDemographicsService`, off by default, with only an offline stub of synthetic 999 numbers; the forms offer Look up when it's on.

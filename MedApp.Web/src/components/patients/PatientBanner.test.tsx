@@ -1,53 +1,79 @@
 import {screen, within} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
 import {HalfViewContext} from '../pages/halfView';
-import {ageText, bannerName, PatientBanner} from './PatientBanner';
+import {bannerName, PatientBanner} from './PatientBanner';
 
-// Synthetic patient and NHS number (the 999 range is never issued to real patients).
+// Synthetic patients and NHS numbers (the 999 range is never issued to real patients).
 const freya = {firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', nhsNumber: '9990000018'};
+const oriel = {firstName: 'Oriel', lastName: 'Penhallow', dateOfBirth: '1951-03-14', nhsNumber: '9990000026'};
 
 describe('bannerName', () => {
-  it('puts the family name first, in capitals', () => {
-    expect(bannerName({firstName: ' Freya ', lastName: "o'neill"})).toBe("O'NEILL, Freya");
+  it('puts the family name first, keeping its own case', () => {
+    expect(bannerName({firstName: ' Freya ', lastName: "o'Neill"})).toBe("o'Neill, Freya");
   });
 
   it('copes with a missing part', () => {
     expect(bannerName({firstName: 'Freya', lastName: null})).toBe('Freya');
-    expect(bannerName({firstName: undefined, lastName: 'Ahmed'})).toBe('AHMED');
+    expect(bannerName({firstName: undefined, lastName: 'Ahmed'})).toBe('Ahmed');
     expect(bannerName({})).toBe('Unknown patient');
   });
 });
 
-describe('ageText', () => {
+describe('PatientBanner', () => {
   beforeEach(() => {
     vi.useFakeTimers({toFake: ['Date']});
     vi.setSystemTime(new Date('2026-11-16T12:00:00Z'));
   });
-  afterEach(() => vi.useRealTimers());
 
-  it('gives the age in years, or under 1 year', () => {
-    expect(ageText('1976-12-01')).toBe('49 years');
-    expect(ageText('2025-11-01')).toBe('1 year');
-    expect(ageText('2026-06-01')).toBe('under 1 year');
-  });
-
-  it('gives nothing for a date it cannot read, or one in the future', () => {
-    expect(ageText('not a date')).toBeNull();
-    expect(ageText('2027-01-01')).toBeNull();
-  });
-});
-
-describe('PatientBanner', () => {
-  it('shows the name, date of birth with age, and NHS number, as a Patient region', async () => {
+  it('shows the name, date of birth with age, and NHS number, in a region named for the patient', async () => {
     renderWithApp(<PatientBanner patient={freya} />);
 
-    const region = await screen.findByRole('region', {name: 'Patient'});
-    expect(within(region).getByText('AHMED, Freya')).toBeInTheDocument();
-    expect(within(region).getByText(`Born 1 December 1976 (${ageText('1976-12-01')})`)).toBeInTheDocument();
+    const region = await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'});
+    // The family name in capitals by CSS; its text, which screen readers read, in its own case.
+    const family = within(region).getByText('Ahmed');
+    expect(family).toHaveStyle({textTransform: 'uppercase'});
+    expect(family.parentElement).toHaveTextContent(/^Ahmed, Freya$/);
+    expect(within(region).getByText('Born 1 December 1976 (49 years)')).toBeInTheDocument();
     // Seen grouped, heard a digit at a time.
     expect(within(region).getByText('NHS No. 999 000 0018')).toHaveAttribute('aria-hidden', 'true');
     expect(within(region).getByText('NHS number 9 9 9, 0 0 0, 0 0 1 8')).toBeInTheDocument();
     expect(within(region).queryByText('Restricted')).not.toBeInTheDocument();
+  });
+
+  it('names two banners apart, as in two half views', async () => {
+    renderWithApp(
+      <>
+        <PatientBanner patient={freya} />
+        <PatientBanner patient={oriel} />
+      </>,
+    );
+
+    expect(await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expect(screen.getByRole('region', {name: 'Patient: Penhallow, Oriel'})).toBeInTheDocument();
+  });
+
+  it('names a patient with only one name, or none', async () => {
+    renderWithApp(
+      <>
+        <PatientBanner patient={{firstName: 'Freya'}} />
+        <PatientBanner patient={{lastName: 'Ahmed'}} />
+        <PatientBanner patient={{}} />
+      </>,
+    );
+
+    expect(await screen.findByRole('region', {name: 'Patient: Freya'})).toBeInTheDocument();
+    expect(screen.getByRole('region', {name: 'Patient: Ahmed'})).toBeInTheDocument();
+    expect(screen.getByRole('region', {name: 'Patient: Unknown patient'})).toBeInTheDocument();
+  });
+
+  it.each([
+    ['2026-11-10', '6 days'],
+    ['2026-09-07', '10 weeks'],
+    ['2025-09-16', '14 months'],
+  ])('gives a young child born %s as %s, as the guidance does', async (dateOfBirth, age) => {
+    renderWithApp(<PatientBanner patient={{...freya, dateOfBirth}} />);
+
+    expect(await screen.findByText(new RegExp(`\\(${age}\\)$`))).toBeInTheDocument();
   });
 
   it('says when there is no NHS number or date of birth', async () => {
@@ -66,7 +92,7 @@ describe('PatientBanner', () => {
   it('marks a restricted, disputed or anonymised record', async () => {
     renderWithApp(<PatientBanner patient={{...freya, isRestricted: true, isDisputed: true, isAnonymised: true}} />);
 
-    const region = await screen.findByRole('region', {name: 'Patient'});
+    const region = await screen.findByRole('region', {name: /^Patient: /});
     expect(within(region).getByText('Restricted')).toBeInTheDocument();
     expect(within(region).getByText('Disputed')).toBeInTheDocument();
     expect(within(region).getByText('Anonymised')).toBeInTheDocument();
@@ -79,7 +105,7 @@ describe('PatientBanner', () => {
       </HalfViewContext.Provider>,
     );
 
-    expect(await screen.findByText('AHMED, Freya')).toBeInTheDocument();
+    expect(await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(screen.getByText('NHS No. 999 000 0018')).toBeInTheDocument();
   });
 });

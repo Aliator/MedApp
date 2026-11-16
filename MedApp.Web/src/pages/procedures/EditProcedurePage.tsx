@@ -95,6 +95,8 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
       subtitle={procedure.patientName ? `For ${procedure.patientName}` : undefined}
       onBack={backToProcedure}
       banner={banner}
+      // The form scrolls inside its card, so the banner above it stays in view.
+      fill
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PROCEDURE_DETAILS_FIELDS} />
@@ -122,7 +124,8 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
           setIsConfirming(true);
         }}
         onCancel={backToProcedure}
-        isProcessing={update.isPending}>
+        isProcessing={update.isPending}
+        fill>
         <ProcedureDetailsFields value={form} onChange={setForm} errors={problem.validation} isDisabled={update.isPending} />
       </FormCard>
     </Page>

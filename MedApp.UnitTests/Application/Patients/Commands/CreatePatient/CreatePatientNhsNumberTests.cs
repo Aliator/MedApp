@@ -51,6 +51,9 @@ public sealed class CreatePatientNhsNumberTests
     [TestCase("99900000ab", NhsNumberRules.NotTenDigits)]
     [TestCase(WrongCheckDigit, NhsNumberRules.WrongCheckDigit)]
     [TestCase(CheckDigitTen, NhsNumberRules.WrongCheckDigit)]
+    [TestCase("1111111111", NhsNumberRules.Placeholder)]
+    [TestCase("0123456789", NhsNumberRules.Placeholder)]
+    [TestCase("987 654 3210", NhsNumberRules.Placeholder)]
     public void Validate_InvalidNumber_FailsOnceOnTheField(string nhsNumber, string message)
     {
         var result = new CreatePatientValidator().Validate(Command(nhsNumber));

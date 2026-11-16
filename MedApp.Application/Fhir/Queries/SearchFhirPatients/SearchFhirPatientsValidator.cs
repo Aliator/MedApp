@@ -1,7 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Fhir.Common;
 using MedApp.Application.Patients.Common;
-using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Fhir.Queries.SearchFhirPatients;
 
@@ -17,14 +16,12 @@ public sealed class SearchFhirPatientsValidator : AbstractValidator<SearchFhirPa
             .WithMessage(IdentifierRequired)
             .OverridePropertyName("identifier");
 
-        // A number in another system can't match anything, so only an NHS number search is checked as one.
-        RuleFor(x => x.Identifier)
-            .Must(identifier => NhsNumbers.IsValid(FhirIdentifierSearch.Parse(identifier!).Value))
-            .WithMessage(identifier => NhsNumbers.IsTenDigits(FhirIdentifierSearch.Parse(identifier.Identifier!).Value)
-                ? NhsNumberRules.WrongCheckDigit
-                : NhsNumberRules.NotTenDigits)
+        // Only a search that names the NHS number's system is checked as an NHS number. A value with no system matches in
+        // any system (FHIR's token search), so one that isn't an NHS number just matches nothing.
+        RuleFor(x => FhirIdentifierSearch.Parse(x.Identifier ?? string.Empty).Value)
+            .NhsNumber()
             .When(x => !string.IsNullOrWhiteSpace(x.Identifier)
-                       && FhirIdentifierSearch.Parse(x.Identifier) is { Value.Length: > 0, IsForNhsNumber: true })
+                       && FhirIdentifierSearch.Parse(x.Identifier) is { Value.Length: > 0, NamesNhsNumberSystem: true })
             .OverridePropertyName("identifier");
     }
 }

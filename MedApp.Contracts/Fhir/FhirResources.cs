@@ -27,6 +27,9 @@ public sealed class FhirMeta
 
     /// <summary>The profiles it claims to meet, e.g. UK Core Patient.</summary>
     public List<string>? Profile { get; set; }
+
+    /// <summary>Tags about the record, e.g. that it's restricted or disputed (MedApp's record-flag code system).</summary>
+    public List<FhirCoding>? Tag { get; set; }
 }
 
 /// <summary>
@@ -37,11 +40,14 @@ public sealed class FhirPatient() : FhirResource("Patient")
 {
     public List<FhirIdentifier>? Identifier { get; set; }
 
+    /// <summary>Whether the record is in active use: false once it's anonymised.</summary>
+    public bool? Active { get; set; }
+
     public List<FhirHumanName>? Name { get; set; }
 
     public List<FhirContactPoint>? Telecom { get; set; }
 
-    /// <summary>The date of birth, as a FHIR date (yyyy-MM-dd).</summary>
+    /// <summary>The date of birth, as a FHIR date: yyyy-MM-dd, or the year alone (yyyy) when that's all that's known.</summary>
     public string? BirthDate { get; set; }
 }
 
@@ -72,8 +78,11 @@ public sealed class FhirCoding
 
 public sealed class FhirHumanName
 {
-    /// <summary>"official" for the name the patient is registered under.</summary>
+    /// <summary>"official" for the name the patient is registered under; "anonymous" for an anonymised record's.</summary>
     public string? Use { get; set; }
+
+    /// <summary>The whole name as text, e.g. "Anonymised".</summary>
+    public string? Text { get; set; }
 
     public string? Family { get; set; }
     public List<string>? Given { get; set; }
@@ -150,4 +159,71 @@ public sealed class FhirOperationOutcomeIssue
 
     /// <summary>Where, as FHIRPath or a parameter name, e.g. "identifier".</summary>
     public List<string>? Expression { get; set; }
+}
+
+/// <summary>
+/// What the FHIR API can do (<c>GET api/fhir/metadata</c>), which FHIR clients read first. Only the parts MedApp's
+/// small API needs.
+/// </summary>
+public sealed class FhirCapabilityStatement() : FhirResource("CapabilityStatement")
+{
+    /// <summary>"active".</summary>
+    public string Status { get; set; } = "active";
+
+    /// <summary>When it was published, as a FHIR dateTime.</summary>
+    public string? Date { get; set; }
+
+    /// <summary>"instance": this server, as deployed.</summary>
+    public string Kind { get; set; } = "instance";
+
+    public FhirCapabilitySoftware? Software { get; set; }
+
+    /// <summary>"4.0.1" (FHIR R4).</summary>
+    public string FhirVersion { get; set; } = "4.0.1";
+
+    /// <summary>The formats it answers in: JSON only.</summary>
+    public List<string> Format { get; set; } = [];
+
+    public List<FhirCapabilityRest> Rest { get; set; } = [];
+}
+
+public sealed class FhirCapabilitySoftware
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+public sealed class FhirCapabilityRest
+{
+    /// <summary>"server".</summary>
+    public string Mode { get; set; } = "server";
+
+    public List<FhirCapabilityResource> Resource { get; set; } = [];
+}
+
+public sealed class FhirCapabilityResource
+{
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>The profile its resources follow.</summary>
+    public string? Profile { get; set; }
+
+    public List<FhirCapabilityInteraction> Interaction { get; set; } = [];
+
+    public List<FhirCapabilitySearchParam>? SearchParam { get; set; }
+}
+
+public sealed class FhirCapabilityInteraction
+{
+    /// <summary>"read", "search-type" and so on.</summary>
+    public string Code { get; set; } = string.Empty;
+}
+
+public sealed class FhirCapabilitySearchParam
+{
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>"token" and so on.</summary>
+    public string Type { get; set; } = string.Empty;
+
+    public string? Documentation { get; set; }
 }

@@ -14,8 +14,10 @@ using MedApp.Infrastructure.Demographics;
 using MedApp.Infrastructure.Data.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace MedApp.Infrastructure.Common.Extensions;
@@ -41,16 +43,29 @@ public static class ServiceExtensions
         // Retries what SQL Server reports as transient: Azure SQL serverless waking from a pause (about a minute),
         // failovers and dropped connections. A transaction the app starts itself must run inside the execution
         // strategy (CreateExecutionStrategy), as IdentityTransactions does, or EF refuses it.
-        services.AddDbContext<MedAppDbContext>(options =>
-            options.UseSqlServer(
+        services.AddDbContext<MedAppDbContext>(options => options
+            .UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection"),
                 sql => sql.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
-                    errorNumbersToAdd: null)));
+                    errorNumbersToAdd: null))
+            .ConfigureWarnings(LogFailedSavesAtDebug));
 
         return services;
     }
+
+    /// <summary>
+    /// A failed save's or command's log carries SQL Server's message, which can hold a value: a duplicate NHS number,
+    /// from the unique index. So EF Core logs those at Debug, which the app doesn't write. A failure that isn't handled
+    /// still reaches the log, as the server's unhandled exception; a handled one, like the NHS number's 409, logs no
+    /// patient data. The events: <c>Microsoft.EntityFrameworkCore.Update</c>'s failed save, and
+    /// <c>Microsoft.EntityFrameworkCore.Database.Command</c>'s failed command.
+    /// </summary>
+    public static void LogFailedSavesAtDebug(WarningsConfigurationBuilder warnings) =>
+        warnings.Log(
+            (CoreEventId.SaveChangesFailed, LogLevel.Debug),
+            (RelationalEventId.CommandError, LogLevel.Debug));
 
     private static IServiceCollection AddRepositories(
         this IServiceCollection services)
