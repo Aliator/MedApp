@@ -51,11 +51,12 @@ public sealed class AccountTools
         await roles.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
 
     [McpServerTool(Name = "create_user")]
-    [Description("Creates a local dev account and gives it the listed roles. If no password is given, the app generates one (as it does for accounts created in the UI), and it's returned. Use synthetic usernames only (e.g. dev-admin, dev-clinician).")]
+    [Description("Creates a local dev account and gives it the listed roles. If no password is given, the app generates one (as it does for accounts created in the UI), and it's returned. Either way the account can sign in with it straight away: unlike an account an admin creates in the app, it isn't made to change its password first. All or nothing: if any step fails, no account is left behind. Use synthetic usernames only (e.g. dev-admin, dev-clinician).")]
     public static async Task<object> CreateUser(
         IMediator mediator,
         UserManager<ApplicationUser> users,
         RoleManager<IdentityRole<Guid>> roleManager,
+        IIdentityTransactions transactions,
         [Description("Username for the new account.")] string username,
         [Description("Roles to give it, e.g. [\"Admin\"] or [\"User\"]. Must already exist.")] string[]? roles = null,
         [Description("Password to set. Omit to generate one (returned in the result).")] string? password = null,
@@ -66,32 +67,77 @@ public sealed class AccountTools
             if (!await roleManager.RoleExistsAsync(role))
                 throw new McpException($"Role '{role}' does not exist. Use list_roles.");
 
-        // A chosen password is checked against the password rules first, so a weak one doesn't leave an account behind.
+        // A chosen password is checked against the password rules first, for a clear error before anything is made.
         if (password is not null)
             Guards.Check(await Passwords.Validate(users, username, password), "Check password");
 
-        // The app's command generates the first password; a chosen one then replaces it.
-        var created = await Guards.Validated(() => mediator.Send(new CreateUserCommand(username), ct));
-        Guards.Check(created.Result, "Create user");
-        if (password is null)
+        var created = await CreateAccount(mediator, users, transactions, username, roles, password, ct);
+        return new { username, roles, password = created.Password };
+    }
+
+    /// <summary>A dev account <see cref="CreateAccount"/> made, with the password it signs in with.</summary>
+    internal sealed record CreatedAccount(Guid Id, string Password);
+
+    /// <summary>
+    /// Makes a dev account through the app's own commands (the password rules, the username rules, the roles), with
+    /// the given password or the one the app generates, and the roles. The app makes an account it creates change its
+    /// generated password at first sign-in; a dev account isn't, so it can sign in at once with the password returned.
+    /// It all runs in one transaction: if any step fails or throws (a database error, a cancellation), the transaction
+    /// is rolled back, so no half-made account is left behind. The work loads everything it changes itself, so a retry
+    /// after a transient error starts clean.
+    /// </summary>
+    internal static async Task<CreatedAccount> CreateAccount(
+        IMediator mediator,
+        UserManager<ApplicationUser> users,
+        IIdentityTransactions transactions,
+        string username,
+        IReadOnlyCollection<string> roles,
+        string? password,
+        CancellationToken ct)
+    {
+        CreatedAccount? account = null;
+        var result = await transactions.RunAsync(async () =>
         {
-            password = created.GeneratedPassword!;
-        }
-        else
-        {
+            // The app's command generates the first password; a chosen one then replaces it.
+            var created = await Guards.Validated(() => mediator.Send(new CreateUserCommand(username), ct));
+            if (!created.Result.Succeeded)
+                return created.Result;
+
             var user = await users.FindByNameAsync(username) ?? throw new McpException($"{username} was not created.");
-            var token = await users.GeneratePasswordResetTokenAsync(user);
-            Guards.Check(await users.ResetPasswordAsync(user, token, password), "Set password");
-        }
+            // Saved by the update below, with the chosen password if there is one.
+            user.MustChangePassword = false;
 
-        foreach (var role in roles)
-            await Guards.Validated(() => mediator.Send(new AssignRoleCommand(username, role), ct));
+            IdentityResult saved;
+            if (password is null)
+            {
+                saved = await users.UpdateAsync(user);
+            }
+            else
+            {
+                var token = await users.GeneratePasswordResetTokenAsync(user);
+                saved = await users.ResetPasswordAsync(user, token, password);
+            }
 
-        return new { username, roles, password };
+            if (!saved.Succeeded)
+                return saved;
+
+            foreach (var role in roles)
+            {
+                var assigned = await Guards.Validated(() => mediator.Send(new AssignRoleCommand(username, role), ct));
+                if (assigned is null)
+                    return IdentityResult.Failed(new IdentityError { Description = $"Couldn't give {username} the role {role}." });
+            }
+
+            account = new CreatedAccount(user.Id, password ?? created.GeneratedPassword!);
+            return IdentityResult.Success;
+        }, ct);
+
+        Guards.Check(result, $"Create {username}");
+        return account!;
     }
 
     [McpServerTool(Name = "set_password")]
-    [Description("Sets a new password for an account and clears any lockout. If no password is given, a random one is generated and returned. Refuses protected accounts.")]
+    [Description("Sets a new password for an account and clears any lockout. If no password is given, a random one is generated and returned. The account can sign in with it straight away: it isn't made to change it, even if an admin's reset had asked it to. Refuses protected accounts.")]
     public static async Task<object> SetPassword(
         UserManager<ApplicationUser> users,
         DevMcpOptions options,
@@ -102,6 +148,8 @@ public sealed class AccountTools
         var user = await users.FindByNameAsync(username) ?? throw new McpException($"No account named '{username}'.");
 
         password ??= Passwords.Generate();
+        // Saved with the new password: the password is chosen here, not handed on by an admin, so no change is needed.
+        user.MustChangePassword = false;
         var token = await users.GeneratePasswordResetTokenAsync(user);
         Guards.Check(await users.ResetPasswordAsync(user, token, password), "Set password");
         await users.SetLockoutEndDateAsync(user, null);

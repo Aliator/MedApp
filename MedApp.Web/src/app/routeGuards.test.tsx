@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, mockFetch, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, mockFetch, mustChangePasswordUser, renderApp, signedOutUser, staffUser} from '../test/render';
 
 describe('route guards', () => {
   it('sends a signed-out visitor to the login page', async () => {
@@ -31,6 +31,32 @@ describe('route guards', () => {
     renderApp({path: '/admin/users', user: adminUser});
 
     expect(await screen.findByRole('heading', {name: /user management/i})).toBeInTheDocument();
+  });
+
+  it('sends someone who must change their password to do that, before loading anything the API would refuse', async () => {
+    const fetch = mockFetch((request) =>
+      new URL(request.url).pathname === '/api/auth/me/settings' ? json({settings: null}) : json({title: 'Password change required'}, 403),
+    );
+    const {router} = renderApp({path: '/patients', user: mustChangePasswordUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/change-password'));
+    expect(await screen.findByRole('heading', {name: 'Choose your password'})).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    // Only its own settings: no notifications, no patients.
+    expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).toEqual(['/api/auth/me/settings']);
+  });
+
+  it('sends someone signed out from the change-password page to sign in', async () => {
+    const {router} = renderApp({path: '/change-password', user: signedOutUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+  });
+
+  it('sends someone who needn\'t change their password from the change-password page home', async () => {
+    const {router} = renderApp({path: '/change-password', user: staffUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(await screen.findByRole('heading', {name: `Welcome, ${staffUser.username}`})).toBeInTheDocument();
   });
 
   it('shows the not-found page for an unknown address', async () => {

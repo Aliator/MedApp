@@ -10,6 +10,13 @@ public static class ClaimsPrincipalExtensions
         Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)
                    ?? throw new InvalidOperationException("The user has no ID claim."));
 
+    /// <summary>
+    /// Whether the signed-in user must change the password an admin gave them before doing anything else (their
+    /// session's <see cref="SessionAuthenticationDefaults.MustChangePasswordClaim"/>).
+    /// </summary>
+    public static bool MustChangePassword(this ClaimsPrincipal user) =>
+        user.HasClaim(SessionAuthenticationDefaults.MustChangePasswordClaim, "true");
+
     /// <summary>The signed-in user, as procedure changes record them.</summary>
     public static ProcedureActor ToProcedureActor(this ClaimsPrincipal user) =>
         new(user.GetUserId(), user.Identity?.Name ?? string.Empty);

@@ -24,4 +24,13 @@ public static class ApiTestConstants
                 .. roles.Select(role => new Claim(ClaimTypes.Role, role)),
             ],
             "Session"));
+
+    /// <summary>A signed-in user who must change the password an admin gave them before doing anything else.</summary>
+    public static ClaimsPrincipal MustChangePassword(params string[] roles)
+    {
+        var user = SignedIn(roles);
+        ((ClaimsIdentity)user.Identity!).AddClaim(
+            new Claim(MedApp.API.Common.Authentication.SessionAuthenticationDefaults.MustChangePasswordClaim, "true"));
+        return user;
+    }
 }

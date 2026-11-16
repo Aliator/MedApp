@@ -86,7 +86,9 @@ public sealed class FirstAdminSetupTests
         _userManager.Verify(u => u.CreateAsync(
             It.Is<ApplicationUser>(x =>
                 x.UserName == AuthTestConstants.FirstAdminUsername
-                && x.CreatedAt == AuthTestConstants.FirstAdminCreatedAtUtc),
+                && x.CreatedAt == AuthTestConstants.FirstAdminCreatedAtUtc
+                // Its password was chosen by whoever deploys, not generated and handed on, so it needn't change it.
+                && !x.MustChangePassword),
             AuthTestConstants.ValidPassword), Times.Once);
         // User too, or the admin couldn't change their own password.
         _userManager.Verify(u => u.AddToRolesAsync(
