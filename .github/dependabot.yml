@@ -1,7 +1,11 @@
 # Dependabot: weekly pull requests that update dependencies, one ecosystem at a time. Minor and patch updates are
 # grouped into one pull request per ecosystem; a major update gets a pull request of its own, since it may need code
 # changes. Security updates (for a known advisory) are separate: they come as soon as there's an advisory, without
-# waiting for the schedule or the cooldown.
+# waiting for the schedule or the cooldown. They, Dependabot alerts and dependency review (main.yml) need the
+# repository's dependency graph, Dependabot alerts and Dependabot security updates on (Settings, Advanced Security),
+# which they are since #67 (docs/todo.md, Repository settings). They, Dependabot alerts and dependency review (main.yml) need the
+# repository's dependency graph, Dependabot alerts and Dependabot security updates on (Settings, Advanced Security),
+# which they are since #67 (docs/todo.md, Repository settings).
 #
 # cooldown: a new version is only proposed once it has been out for a week. A hijacked release (like Trivy's, in March
 # 2026) is usually found and pulled within days, so this keeps one from arriving here in a routine update.
