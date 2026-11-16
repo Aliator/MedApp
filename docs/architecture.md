@@ -114,7 +114,7 @@ Read this before anything else if you're assessing the product.
 | **.NET 10** | `global.json` asks for SDK 10.0.100 or a later 10.x (`rollForward: latestMinor`). Every project targets `net10.0`, the current long-term support release. .NET 8 support ended on 10 November 2026 (`docs/react-migration-plan.md`, Q1b). |
 | **SQL Server** | The data model, migrations and EF Core provider are SQL Server's: SQL Server 2022 in development and in kind, Azure SQL on Azure. |
 | **React 19 and Astryx** | The UI is built only from Astryx, Meta's open-source React design system. Astryx needs React 19. It's in beta (0.7.x), so every `@astryxdesign/*` package is pinned to an exact version (0.7.15) and upgraded deliberately. |
-| **Node.js for server rendering** | Pages are rendered by a Node process the API starts. The image carries Node 22's binary. Without Node, pages still work, rendered in the browser. |
+| **Node.js for server rendering** | Pages are rendered by a Node page server: in Kubernetes a container of its own beside the API, elsewhere a process the API starts. The image carries Node 22's binary. Without Node, pages still work, rendered in the browser. |
 | **Same origin** | The React app, the API (`/api`) and the live notifications WebSocket share one origin. The session cookie depends on it, and there is no CORS (cross-origin resource sharing) configuration. |
 | **Linux on amd64** | The image is built for `linux/amd64` only. The migrations bundle inside it is architecture-specific. |
 | **Kubernetes** | Deployed environments run on Kubernetes with the Helm chart in `deploy/helm/medapp`. The chart expects an ingress controller, a network plugin that enforces NetworkPolicies, cert-manager and External Secrets Operator. |
@@ -197,7 +197,7 @@ flowchart LR
 | Channel | Protocol | Notes |
 |---|---|---|
 | Browser to MedApp | HTTPS (TLS ends at the ingress, Traefik), then plain HTTP to the API on port 8080 | Pages, static files, `/api` JSON, and the SignalR WebSocket at `/api/notifications/hub`. |
-| API to its Node page server | HTTP on `127.0.0.1`, a random port, inside the pod | Page requests one way, `/api` calls back with the user's cookie and a per-process key. |
+| API to its Node page server | HTTP on `127.0.0.1` inside the pod: port 8082 to the `pages` container in Kubernetes, a random port when the API starts Node | Page requests one way, `/api` calls back with the user's cookie (and a per-process key, when the API started Node). |
 | API to the database | TDS (SQL Server's protocol) on 1433 | In-cluster SQL Server on kind; Azure SQL through a private endpoint on Azure, encrypted (`Encrypt=True`). |
 | API to Valkey | Redis protocol on 6379, password, not encrypted | The SignalR backplane, inside the cluster. |
 | Kubernetes to the API | HTTP on 8081 | Health probes only; neither the Service nor the ingress exposes this port. |
@@ -237,7 +237,7 @@ These are outside the system today, and nothing in the code integrates with them
 
 ### 4.2 The shape of the system
 
-MedApp is a **modular monolith**: one deployable unit, the API, which serves the UI, the API and the live connection. Inside, it's layered by Clean Architecture and sliced by use case. The only other process is the Node page server, which runs inside the same container and only ever talks to the API. State lives in SQL Server; Valkey only relays messages and stores nothing.
+MedApp is a **modular monolith**: one deployable unit, the API, which serves the UI, the API and the live connection. Inside, it's layered by Clean Architecture and sliced by use case. The only other process is the Node page server, which only ever talks to the API: in Kubernetes from a container of its own in the API's pod, elsewhere inside the API's container. State lives in SQL Server; Valkey only relays messages and stores nothing.
 
 ### 4.3 Technology inventory
 
@@ -329,7 +329,7 @@ flowchart LR
     subgraph ns["Namespace medapp"]
       subgraph pod["API pod, two copies"]
         api["MedApp.API: ASP.NET Core, app on 8080, health on 8081"]
-        pagesrv["Node page server on 127.0.0.1"]
+        pagesrv["pages container: Node page server on 127.0.0.1:8082"]
       end
       valkey["Valkey: SignalR backplane"]
       sql[("SQL Server, on kind")]
@@ -349,7 +349,7 @@ flowchart LR
 | Building block | Where | Responsibility |
 |---|---|---|
 | **API** | `MedApp.API` and the projects it references | Everything server-side: the JSON API, sign-in and sessions, the live notifications hub, serving the React app's files, and forwarding page requests to the Node page server. |
-| **Node page server** | `MedApp.Web/server/server.mjs`, built to `wwwroot/ssr/` | Renders pages to HTML with their data. Started and supervised by the API, reachable only on loopback inside the pod. |
+| **Node page server** | `MedApp.Web/server/server.mjs`, built to `dist/ssr/`, in the image at `/app/ssr/` (outside `wwwroot`) | Renders pages to HTML with their data. In Kubernetes, the `pages` container in the API's pod, from the same image, supervised by Kubernetes; elsewhere started by the API. Reachable only on loopback inside the pod. |
 | **React app** | `MedApp.Web/src`, built to `wwwroot/` | The UI, in the browser. |
 | **Database** | SQL Server 2022, or Azure SQL | All durable state: patients, procedures, audit, notifications, users, sessions, settings. |
 | **Valkey** | `deploy/helm/medapp/templates/valkey.yaml` | Relays SignalR messages between API copies. Stores nothing. |
@@ -407,8 +407,8 @@ The pipeline, in order (`MedApp.ServiceDefaults/Extensions.cs`, `MedApp.API/Comm
 | 1 | Forwarded headers | Added by the host when `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` (the Helm chart sets it), so the API sees the client's scheme and address from Traefik. |
 | 2 | Health checks | `/health` and `/alive`, only on the port in `HealthChecks:Port` (8081 in Kubernetes), or on the app's port in Development, otherwise not at all. |
 | 3 | Swagger, or HSTS | Swagger UI in Development; HTTP Strict Transport Security everywhere else (`ApplicationBuilderExtensions.cs:19`). |
-| 4 | HTTPS redirect | Skipped only for the Node page server's own calls: from loopback, carrying its key (`SsrServer.IsFromRenderer`). |
-| 5 | Blocked paths | `/ssr`, `/.vite`, and any path containing `//` get a 404 (`PageServerFiles.IsBlocked`). |
+| 4 | HTTPS redirect | Skipped only for the Node page server's own calls when the API started it: from loopback, carrying its key (`SsrServer.IsFromRenderer`). Behind the ingress there's no https port, so nothing is redirected. |
+| 5 | Blocked paths | Any path containing `//` gets a 404, and so, as defence in depth, do `/ssr` and `/.vite`, though the page server is no longer in `wwwroot` (`PageServerFiles.IsBlocked`). |
 | 6 | Static files | The built React app in `wwwroot`. |
 | 7 | Exception handling | `ExceptionHandling` turns known exceptions into problem responses ([8.3](#83-validation-and-errors)). |
 | 8 | Authentication, password change, authorisation | The session cookie scheme; then `PasswordChangeRequired`, which refuses a user who must change a password an admin gave them everything under `/api` but its allowlist (who am I, sign in, sign out, their own settings, their own password change) with a 403 `password_change_required`; then policies and roles. |
@@ -600,15 +600,17 @@ stateDiagram-v2
 
 `MedApp.Web/server/server.mjs` (232 lines) is a small Node HTTP server with two modes:
 - **Development (`--dev`)**, run by `npm run dev` and the AppHost on http://localhost:5173. It hosts Vite as middleware (source with hot reload), proxies `/api` and `/swagger` to the API, forwards `/api` WebSockets itself (Vite's proxy doesn't in middleware mode, #43), and renders each page from the source.
-- **Production**, started by the API. It loads the built server entry (`dist/ssr/entry-server.js`, which bundles its packages, so no `node_modules`) and the client build's manifest for the page's scripts and styles.
+- **Production**, as the chart's `pages` container or started by the API. It loads the built server entry (`entry-server.js` beside it, which bundles its packages, so no `node_modules`) and the client build's manifest for the page's scripts and styles (`client-manifest.json`, copied beside it by the build). With `HEALTH_PORT` set (the chart sets 8083), a second listener answers `GET /alive` for Kubernetes' probes. On `SIGTERM` it stops taking requests, finishes the pages it's sending and exits.
 
 It answers only GET and HEAD (others get 405). It builds the page's URL from `X-Forwarded-Proto` and `X-Forwarded-Host`, so links and redirects use the address the browser used. It streams the HTML as it renders, and answers 500 with "The page could not be rendered." if rendering throws. If a page fails part-way through streaming, only that response is cut short; before #51, a stream error crashed the whole Node process.
 
 **The API's side** (`MedApp.API/ServerRendering`):
-- `SsrServer`, a hosted service, starts `node wwwroot/ssr/server.mjs` once the API is listening, on a free loopback port. It passes the API's own address (http preferred), a random 256-bit key (`X-MedApp-Ssr-Key`), and only an allowlist of environment variables, so the API's connection strings aren't in Node's environment (`SsrServer.StartInfo`, #51). That stops accidental leaks, not a determined attacker: Node runs as the same user in the same container, so code running in it could still read the API's environment from `/proc`. It counts Node as ready when Node prints `MedApp pages:`.
+- `SsrServer`, a hosted service, finds the page server one of two ways:
+  - **A page server of its own** (`Ssr:ServerUrl`, which the chart sets to `http://127.0.0.1:8082`): that's its address, and nothing is started. It's the chart's `pages` container: the same image with `node /app/ssr/server.mjs`, as user 1655, read-only, with no capabilities, its own resource limits and probes, and only `HOST`, `PORT`, `HEALTH_PORT`, `MEDAPP_API_URL` and `NODE_ENV` in its environment. None of the API's secrets reach it, and it can't see the API's process. Kubernetes restarts it if it stops answering.
+  - **Otherwise** (`docker run`, CI's `e2e` job), it starts `node ssr/server.mjs` from the content root (`/app`) once the API is listening, on a free loopback port. It passes the API's own address (http preferred), a random 256-bit key (`X-MedApp-Ssr-Key`), and only an allowlist of environment variables, so the API's connection strings aren't in Node's environment (`SsrServer.StartInfo`, #51). That stops accidental leaks, not a determined attacker: Node runs as the same user in the same container, so code running in it could still read the API's environment from `/proc`. It counts Node as ready when Node prints `MedApp pages:`, and doesn't restart it.
 - `SsrPages` forwards GET and HEAD page requests to Node ([6.2](#62-a-server-rendered-page-request)).
-- `SsrOptions` (the `Ssr` section): `Enabled`, `NodePath`, `ScriptPath`, `RenderTimeout` (15 s).
-- If Node is missing, fails to start, or exits, pages are rendered in the browser instead. Node is not restarted ([11.2](#112-reliability-and-operations)).
+- `SsrOptions` (the `Ssr` section): `Enabled`, `ServerUrl`, `NodePath`, `ScriptPath`, `RenderTimeout` (15 s). A `ServerUrl` that isn't an http or https address of a server alone stops startup.
+- If Node is missing, not ready, fails to start, or exits, pages are rendered in the browser instead ([11.2](#112-reliability-and-operations)).
 
 ### 5.10 Development tools
 
@@ -670,9 +672,9 @@ sequenceDiagram
     participant N as Node page server
     B->>A: GET /patients with the session cookie
     A->>A: not blocked, not a file, not /api, so SsrPages.Handle
-    alt the Node server is running
+    alt the Node server is running (the pages container, or one the API started)
         A->>N: GET /patients, path and query only, with the cookie
-        N->>A: GET whoami, settings, notifications and the page's data, with the cookie and the key
+        N->>A: GET whoami, settings, notifications and the page's data, with the cookie (and the key, if the API started Node)
         A-->>N: JSON
         alt it renders
             N-->>A: 200 HTML stream, or a redirect to /login
@@ -686,9 +688,9 @@ sequenceDiagram
     B->>B: hydrate the page, or render it from scratch
 ```
 
-1. **Routing.** A path that isn't a file, isn't under `/api`, and isn't blocked (`/ssr`, `/.vite`, or anything with `//`) reaches the fallback endpoint, `SsrPages.Handle` (`MedApp.API/ServerRendering/SsrPages.cs`).
-2. **Forwarding** (only GET and HEAD, and only while Node is running). The target URL is built from the Node server's scheme, host and port plus **only the request's path and query**, then checked against Node's address before anything is sent (#51). That closed an open proxy: before #51, a path like `//evil.example/x` made the API fetch another host with the visitor's cookie. Four request headers go with it (`Cookie`, `Accept`, `Accept-Language`, `User-Agent`), plus `X-Forwarded-Proto` and `X-Forwarded-Host`. The client follows no redirects and keeps no cookies of its own.
-3. **Rendering.** Node runs the route's `beforeLoad` and `loader`: `_app` checks sign-in and loads the account's settings and notifications, and the page's loader preloads its data. Each API call goes straight to the API with the visitor's cookie and the key, and is authorised exactly as the browser's would be. There's no service identity.
+1. **Routing.** A path that isn't a file, isn't under `/api`, and isn't blocked (anything with `//`, or `/ssr` and `/.vite`) reaches the fallback endpoint, `SsrPages.Handle` (`MedApp.API/ServerRendering/SsrPages.cs`).
+2. **Forwarding** (only GET and HEAD, and only while Node is running). The target URL is built from the Node server's scheme, host and port plus **only the request's path and query**, then checked against Node's address before anything is sent (#51). That closed an open proxy: before #51, a path like `//evil.example/x` made the API fetch another host with the visitor's cookie. Four request headers go with it (`Cookie`, `Accept`, `Accept-Language`, `User-Agent`), plus `X-Forwarded-Proto`, `X-Forwarded-Host` and the page's CSP nonce (`X-MedApp-Csp-Nonce`). The client follows no redirects and keeps no cookies of its own.
+3. **Rendering.** Node runs the route's `beforeLoad` and `loader`: `_app` checks sign-in and loads the account's settings and notifications, and the page's loader preloads its data. Each API call goes straight to the API, on loopback, with the visitor's cookie (and the key, if the API started Node), and is authorised exactly as the browser's would be. There's no service identity.
 4. **The answer.** A 2xx, 3xx or 4xx from Node is passed back as it is, streamed, with `Cache-Control: no-store`, because the HTML carries the user's data (#51).
 5. **The fallback.** If Node isn't running, answers with a 5xx, or fails in any way before anything has been sent (a connection error, or no response headers within `Ssr:RenderTimeout`, 15 s), the browser gets `index.html` and renders the page itself. The fallback keeps the headers the pipeline had already set, such as HSTS, and drops only Node's. A render is never retried: the `ssr` HTTP client has no resilience handler (#51). If a page fails after it has started streaming, the connection is cut short, since it can't be replaced by another page then. Nothing times out a page that's still streaming: one that stalls part-way holds the request until the browser gives up.
 6. **In the browser.** `entry-client.tsx` hydrates the server's HTML, starting from the data the server put in the page, or renders from scratch on `index.html`. After hydration, the app navigates on the client, and loaders only start fetches.
@@ -791,7 +793,7 @@ The app seeds no users, and never runs migrations at startup. A new database get
 | **Status** | In daily use | In use; the only cluster MedApp has run on | Written and checked in CI; **never deployed** |
 | **Started by** | `dotnet run --project MedApp.AppHost` | `deploy/kind/up.sh` (Helm) or `up.sh --argocd` (GitOps) | `deploy/azure/deploy.sh`, then `bootstrap.sh`; then every merge |
 | **App** | API from source on https://localhost:7038; React on Vite's dev server at http://localhost:5173 | The production image, two API copies, at http://localhost:8080 and https://localhost:8443 | The production image from ACR, two copies, behind a public IP and your domain |
-| **Server rendering** | The Vite dev server renders pages | Node inside each API pod | Node inside each API pod |
+| **Server rendering** | The Vite dev server renders pages | A `pages` container beside the API in each pod | A `pages` container beside the API in each pod |
 | **Database** | SQL Server 2022 container on `127.0.0.1:14330` | SQL Server 2022 in the cluster (StatefulSet, 5 GiB volume) | Azure SQL serverless, private endpoint |
 | **Backplane** | None (one copy) | Valkey | Valkey |
 | **Secrets** | Aspire's generated `sa` password in the AppHost's user secrets | External Secrets from a stand-in store (`medapp-vault`) | External Secrets from Key Vault |
@@ -813,12 +815,12 @@ The Aspire dashboard shows each resource's logs, traces and health. Migrations a
 
 | Stage | Base | Does |
 |---|---|---|
-| `web` | `node:22-bookworm-slim` | `npm ci`, then `npm run build`: type check, the client build into `dist/`, the server entry into `dist/ssr/` with every package bundled in, and a copy of `server.mjs` |
+| `web` | `node:22-bookworm-slim` | `npm ci`, then `npm run build`: type check, the client build into `dist/`, the server entry into `dist/ssr/` with every package bundled in, and copies of `server.mjs` and the client manifest there. Then split: `dist/ssr` to `/out/ssr`, the rest (without `dist/.vite`) to `/out/wwwroot` |
 | `api` | `mcr.microsoft.com/dotnet/sdk:10.0` | Restores from the six project files first (cached until they change), publishes the API for Release, installs `dotnet-ef` 10.0.15 and builds the migrations bundle `/app/efbundle` |
-| `final` | `mcr.microsoft.com/dotnet/aspnet:10.0` | Node's binary from the `web` stage (`/usr/local/bin/node`), the published API and bundle in `/app`, the React build in `/app/wwwroot` |
+| `final` | `mcr.microsoft.com/dotnet/aspnet:10.0` | Node's binary from the `web` stage (`/usr/local/bin/node`), the published API and bundle in `/app`, the React build in `/app/wwwroot`, the page server in `/app/ssr` (outside the web root) |
 
 - It runs as the image's own **non-root** user (`$APP_UID`, 1654), on port 8080, with no TLS: TLS ends at the ingress.
-- **One image, three jobs:** the API, the Node page server it starts, and the migrations bundle the Job runs. They always come from the same commit.
+- **One image, three jobs:** the API, the Node page server (the chart's `pages` container, or started by the API), and the migrations bundle the Job runs. They always come from the same commit.
 - **What it quietly relies on:** Node's binary, built for Debian bookworm, finding its libraries in the `aspnet` image; and the image having a shell (`sh`) for the Job's command. Moving to a "chiseled" or Alpine runtime would break both.
 - **`.dockerignore`** keeps Windows `node_modules`, build output, `.env` files, tools, docs, deploy files, tests and Dockerfiles out of the build context.
 - **Tags:** the commit SHA from Publish; `local-<image ID>` from `up.sh`. Never `latest`: the chart refuses to render without `image.tag`.
@@ -830,7 +832,7 @@ The Aspire dashboard shows each resource's logs, traces and health. Migrations a
 
 | Template | What it makes |
 |---|---|
-| `api.yaml` | The API's Service (port 80 to 8080 only), Deployment, and, above one copy, a PodDisruptionBudget (`minAvailable: 1`) and a preferred spread across nodes. Fails to render with more than one copy and no backplane. |
+| `api.yaml` | The API's Service (port 80 to 8080 only), Deployment (the `api` container and, with `api.pageServer.enabled`, the `pages` container), and, above one copy, a PodDisruptionBudget (`minAvailable: 1`) and a preferred spread across nodes. Fails to render with more than one copy and no backplane. |
 | `sql.yaml` | SQL Server 2022 (Developer edition) as a one-pod StatefulSet on a 5 GiB volume (`sql.enabled`, on by default; off on Azure). |
 | `valkey.yaml` | Valkey with a password, saving nothing to disk, no volume. |
 | `migrations-job.yaml` | The migrations bundle and `create-first-admin`, as a Helm hook and an Argo CD sync hook. |
@@ -839,7 +841,7 @@ The Aspire dashboard shows each resource's logs, traces and health. Migrations a
 | `networkpolicy.yaml` | Default-deny policies for every MedApp pod ([8.1](#81-security)). |
 | `_helpers.tpl` | Names, labels, and the shared pod and container security settings. |
 
-**API pod settings** (`api.yaml`): the connection strings from Secrets; `ASPNETCORE_HTTP_PORTS=8080;8081` and `HealthChecks__Port=8081`; `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`. Probes on port 8081: start-up and liveness on `/alive`, readiness on `/health`. Requests of 250m CPU and 256 MiB, a 1 GiB memory limit shared by .NET and Node, no CPU limit. A 256 MiB `emptyDir` at `/tmp`.
+**API pod settings** (`api.yaml`): `enableServiceLinks: false`. The `api` container: the connection strings from Secrets; `ASPNETCORE_HTTP_PORTS=8080;8081` and `HealthChecks__Port=8081`; `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`; `Ssr__ServerUrl=http://127.0.0.1:8082`. Probes on port 8081: start-up and liveness on `/alive`, readiness on `/health`. Requests of 250m CPU and 256 MiB, a 1 GiB memory limit, no CPU limit. A 256 MiB `emptyDir` at `/tmp`. The `pages` container: `node /app/ssr/server.mjs` as user 1655, with only `HOST=127.0.0.1`, `PORT=8082`, `HEALTH_PORT=8083`, `MEDAPP_API_URL=http://127.0.0.1:8080` and `NODE_ENV`; probes on `/alive` on 8083; requests of 100m CPU and 128 MiB, a 512 MiB memory limit; no volumes. Both wait 5 seconds before stopping.
 
 **Values files:** the chart's defaults (`values.yaml`), kind's (`deploy/kind/values.yaml`), Azure's (`deploy/azure/values.yaml`), and the image file each environment branch adds (`deploy/argocd/kind-image.yaml`, `azure-image.yaml`).
 
@@ -1044,11 +1046,11 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 | Protection | How |
 |---|---|
-| Node is unreachable from outside | It listens on `127.0.0.1` only, on a random port, inside the API's container. |
-| The renderer's key does very little | A random 256-bit key per process, compared in constant time. It only lets Node's calls from loopback skip the https redirect. Node's calls still need the user's session. |
+| Node is unreachable from outside | Its pages listen on `127.0.0.1` only, inside the pod (port 8082 in the `pages` container; a random port when the API starts it). Its health listener (8083) answers only `/alive`, and the network policy lets nothing but the kubelet reach it. |
+| The renderer's key does very little | A random 256-bit key per process, compared in constant time, given only to a Node the API starts. It only lets Node's calls from loopback skip the https redirect. Node's calls still need the user's session. The `pages` container has no key. |
 | No open proxy | The target URL is built from Node's address plus only the request's path and query, and checked before sending. Any path containing `//` is a 404. |
-| Node's own files aren't served | `/ssr` and `/.vite` are a 404 (`PageServerFiles.IsBlocked`). That's a string check, which holds on Linux, where the image runs; on a Windows host, `\`, trailing-dot and 8.3 short-name forms of those paths still reach the files. |
-| Node's environment holds no secrets | It's an allowlist (`SsrServer.StartInfo`): no connection strings, so they can't leak from Node by accident, into its logs for example. It isn't isolation: Node runs as the API's user, in the API's container, and could read the API's environment from `/proc`. |
+| Node's own files aren't served | The page server and the client manifest are in `/app/ssr/`, outside the web root, so no static file path reaches them on any host. `/ssr` and `/.vite` are still a 404 (`PageServerFiles.IsBlocked`), as defence in depth. |
+| Node can't reach the API's secrets | In Kubernetes it runs in a container of its own (`pages`), as another user, with none of the API's secrets or settings, and can't see the API's process. When the API starts it (`docker run`), its environment is an allowlist (`SsrServer.StartInfo`) without connection strings, so they can't leak by accident; that isn't isolation, since Node then runs as the API's user and could read the API's environment from `/proc`. |
 | A failed render loses nothing else | The fallback restores the pipeline's own headers (HSTS) and drops only Node's. |
 | No caching of personal data | Rendered pages carry `Cache-Control: no-store`. |
 | No data shared between requests | A new router and query cache per request; the request's cookie travels through `AsyncLocalStorage`. |
@@ -1068,8 +1070,8 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
   | Migrations Job | DNS; SQL Server or the private endpoint subnet | 53; 1433 |
   | Anything else | MedApp's pods | refused |
 
-  The kubelet's probes on 8081 aren't affected by policies, and Node's calls stay inside the pod on loopback.
-- **The `restricted` Pod Security Standard,** enforced on the namespace: non-root users (1654 for the API and Job, 10001 for SQL Server, 999 for Valkey), the `RuntimeDefault` seccomp profile, no privilege escalation, every Linux capability dropped (SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs).
+  The kubelet's probes on 8081 and 8083 aren't affected by policies, and the API and the page server talk inside the pod on loopback. Policies apply per pod, so the page server could open the API's connections too, though it holds none of their credentials.
+- **The `restricted` Pod Security Standard,** enforced on the namespace: non-root users (1654 for the API and Job, 1655 for the page server, 10001 for SQL Server, 999 for Valkey), the `RuntimeDefault` seccomp profile, no privilege escalation, every Linux capability dropped (SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs).
 - **No Kubernetes API tokens** mounted in any pod, since none calls the Kubernetes API.
 - **Read-only root filesystems,** with a small `emptyDir` at `/tmp`; SQL Server writes only to its volume.
 - **Health checks on a private port** (8081), which neither the Service nor the ingress exposes.
@@ -1174,12 +1176,13 @@ This describes what the code does today. It isn't a compliance statement; [secti
 | `ConnectionStrings:DefaultConnection` | AppHost (development); a Secret (Kubernetes) | Never in `appsettings*.json`. |
 | `ConnectionStrings:SignalRBackplane` | A Secret | Empty means no backplane, one copy. |
 | `Identity:*` | `appsettings.json` | Password and lockout rules. |
-| `Ssr:Enabled`, `NodePath`, `ScriptPath`, `RenderTimeout` | Defaults in `SsrOptions` | On by default; only starts if `wwwroot/ssr/server.mjs` exists. |
+| `Ssr:Enabled`, `ServerUrl`, `NodePath`, `ScriptPath`, `RenderTimeout` | Defaults in `SsrOptions`; the chart sets `ServerUrl` | On by default. With `ServerUrl`, pages go to that page server; without it, the API starts Node only if `ssr/server.mjs` exists under its content root. |
 | `HealthChecks:Port` | The chart (8081) | Without it, health checks exist only in Development. |
 | `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | The image (8080) and the chart (`8080;8081`, `true`) | |
 | `FirstAdmin:Username`, `FirstAdmin:Password` | A Secret, for the migrations Job only | |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | The AppHost | Unset in Kubernetes. |
-| Node's `PORT`, `HOST`, `MEDAPP_API_URL`, `MEDAPP_SSR_KEY`, `NODE_ENV`, `NODE_OPTIONS` | Set by `SsrServer` | Plus the allowlisted system variables. |
+| Node's `PORT`, `HOST`, `MEDAPP_API_URL`, `MEDAPP_SSR_KEY`, `NODE_ENV`, `NODE_OPTIONS` | Set by `SsrServer` when it starts Node | Plus the allowlisted system variables. |
+| Node's `HOST`, `PORT`, `HEALTH_PORT`, `MEDAPP_API_URL`, `NODE_ENV` | Set by the chart's `pages` container | Nothing of the API's. |
 | The `sa` password for development | The AppHost's user secrets (`Parameters:sql-password`) | Generated by Aspire on the first run. |
 | Per-environment deployment | `deploy/kind/values.yaml`, `deploy/azure/values.yaml`, `deploy/azure/main.bicepparam`, `deploy/versions.sh` | |
 | Azure for Publish | Repository variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_ACR_NAME` | Identifiers, not secrets. |
@@ -1225,7 +1228,7 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | ADR-6 | **Lists are filtered, sorted and paged by the API** (phase 4, revising Q10) | Blazor loaded every row and paged in the browser. | Paging in the browser. | Scales; list state lives in the URL; the same LINQ runs in SQL and in tests; ordering always ends on a unique key. |
 | ADR-7 | **Procedures copy their template's stages, keep their rules in two classes, and save audit entries with each change; the audit table has no foreign keys** (procedures-ui-plan; #30) | Finished work must never change when a definition is edited, and every change must be traceable. | Stages pointing at live definitions (the old model); auditing by database triggers or a separate service (inferred). | History is stable; definitions and templates in use are archived, not deleted; audit entries outlive deletes, but the database can't enforce their links; every new procedure command must go through `ProcedureChange`. |
 | ADR-8 | **Hand-written static mappers, no mapping library** (#44) | Handlers built responses inline in several styles, and two endpoints returned the Domain `Patient`. | AutoMapper, Mapster. | Mapping is visible, cheap and tested per mapper; more boilerplate, and a new field can be forgotten (the tests guard that). |
-| ADR-9 | **Server-side rendering, with the API starting and fronting a Node page server, falling back to browser rendering** (#42, hardened in #51) | Faster first paint with the data in it; every page sits behind sign-in, with per-user data, and the app was static files in the API. | Node in front of the API (for example TanStack Start, which the to-do item suggested); a sidecar container; no SSR. The PR doesn't say why Start wasn't used (inferred: it expects to own the server and the build). | One image and one origin; Node on loopback only. But the API is now Node's supervisor, without restarts, health checks or memory isolation; and the first version had an open proxy and a broken fallback, fixed in #51. |
+| ADR-9 | **Server-side rendering, with the API starting and fronting a Node page server, falling back to browser rendering** (#42, hardened in #51) | Faster first paint with the data in it; every page sits behind sign-in, with per-user data, and the app was static files in the API. | Node in front of the API (for example TanStack Start, which the to-do item suggested); a sidecar container; no SSR. The PR doesn't say why Start wasn't used (inferred: it expects to own the server and the build). | One image and one origin; Node on loopback only. But the API became Node's supervisor, without restarts, health checks or memory isolation; and the first version had an open proxy and a broken fallback, fixed in #51. Since then, in Kubernetes, the page server runs as a container of its own beside the API (from the same image), which brings restarts, probes, its own memory limit and separation from the API's secrets; the API supervises Node only when run on its own. |
 | ADR-10 | **One image holding the API, the React app, Node and the EF migrations bundle; migrations as a Kubernetes Job, never at startup** (#45, #47) | The schema must always match the code, and a failed migration must stop a rollout. | Migrating at startup; a separate migrations image; a separate web server image. | The Job can't apply a different schema; a failed migration leaves the old API running. Migrations and the app share one database credential. Changes must follow expand-then-contract. |
 | ADR-11 | **The first admin is created by a command, from a secret, only on an empty database** (#48, both roles since #51) | A deployed database starts empty; the app seeds no users. | A seeded account in a migration (a known login in every database); an anonymous first-run sign-up (a race). | No default credentials anywhere but local development; safe to run on every deploy. The name is always `admin`, so anyone can lock it out for 5 minutes. |
 | ADR-12 | **Kubernetes with a Helm chart, proven on a local kind cluster before any cloud** (#46 to #48) | Step by step towards Azure (`docs/todo.md`). | kustomize (#46 started with it; replaced in #47 because the chart has real options); Azure Container Apps or App Service, which the review says would cost a fraction (`flaws-review.md`, judgement). The documents don't say why AKS was preferred (inferred: portability, and room for more services). | The same chart and the same delivery everywhere; production can be tried locally for free. Many moving parts for a one-maintainer app, and about £150 a month on Azure before the database. |
@@ -1257,13 +1260,13 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | **Maintainability** | A new feature follows the slice pattern and comes with tests. | `AGENTS.md`, mappers, the review stage. | CI: build, lint, type check, tests, web coverage at 99% of lines. | .NET coverage isn't a gate. |
 | **Deployability** | A merge reaches kind with no manual step. | Publish and Argo CD. | Publish runs on every merge; Argo CD syncs (checked on #49 and #50). | Azure never run; no promotion gate. |
 | | A rollout serves every request. | Two copies, `preStop`, a PodDisruptionBudget. | 180 requests over three rollouts, all 200 (#47). | |
-| **Graceful degradation** | With Node gone, pages still load. | The fallback to `index.html`. | By hand (#42); `SsrPagesTests`; `SsrClientTests` proves one render attempt only. | Node isn't restarted, and nothing reports it. |
+| **Graceful degradation** | With Node gone, pages still load. | The fallback to `index.html`; in Kubernetes, the `pages` container's probes and restarts. | By hand (#42, and on kind for the sidecar); `SsrPagesTests`; `SsrClientTests` proves one render attempt only; `PageServerTests` (integration) with the page server down. | Run on its own, Node isn't restarted, and nothing reports it. |
 | | With two API copies, every live notification arrives. | The Valkey backplane, WebSocket-only connections. | 8 of 8 with the backplane, 4 of 8 without (#50). | No reconnects after about 42 seconds. |
 | **Performance** | A page arrives with its data on the first paint. | SSR. | Seen by hand. | No load tests, and no measured page or API timings. |
 
 ### 10.2 What's not measured at all
 
-- **Load and capacity.** Nothing has been load-tested: not the API, not .NET and Node together under the 1 GiB limit, not the database.
+- **Load and capacity.** Nothing has been load-tested: not the API under its 1 GiB limit, not Node under its 512 MiB one, not the database.
 - **Availability.** No uptime figures; no environment has run long enough to have any.
 - **Recovery.** No backup has been restored; no disaster recovery has been tried.
 
@@ -1293,22 +1296,22 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S14 | Valkey traffic isn't encrypted, and carries procedure titles. | Low | `docs/reviews/signalr-backplane.md` |
 | S15 | Port 8081 serves the whole app, not just health checks. | Low | F21 |
 | S16 | The first admin is always called `admin`, so anyone can lock it out for 5 minutes. | Low | `docs/reviews/app-changes.md` |
-| S17 | **Node's environment allowlist isn't isolation.** Code running in Node (a rendering flaw, a compromised npm package) could read the API's connection strings from `/proc`, because both run as one user in one container. Real separation needs the page server in a sidecar container. | Low to medium | `pr-51-ssr-security-fixes.md` 3.5 |
-| S18 | On a Windows host, `/ssr` and `/.vite` can still be fetched through `\`, trailing-dot or 8.3 short-name paths. The Linux image isn't affected; moving the page server out of `wwwroot` is on the to-do list. | Low | `pr-51-ssr-security-fixes.md` 3.2 |
+| S17 | **Node's environment allowlist isn't isolation,** where the API starts Node. **Resolved in Kubernetes:** the page server runs in a container of its own (`pages`), as another user, with none of the API's secrets. It still applies to the image run on its own (`docker run`, CI's `e2e` job), where code in Node could read the API's connection strings from `/proc`. | Low (outside Kubernetes only) | `pr-51-ssr-security-fixes.md` 3.5 |
+| S18 | ~~On a Windows host, `/ssr` and `/.vite` can still be fetched through `\`, trailing-dot or 8.3 short-name paths.~~ **Resolved:** the page server and the manifest are in `/app/ssr/`, outside the web root; the path check stays as defence in depth. | None | `pr-51-ssr-security-fixes.md` 3.2 |
 
 ### 11.2 Reliability and operations
 
 | ID | Risk | Severity | Source |
 |---|---|---|---|
 | R1 | **No monitoring or alerting** in any deployed environment: no exported telemetry, no log store, no alerts. The silent failures below would go unnoticed. | High before production | `flaws-review.md`, judgement; `deploy/azure/README.md` |
-| R2 | **Node is never restarted.** If the page server exits (a crash, or running out of memory), that pod serves browser-rendered pages until it restarts, and nothing reports it. A stream error no longer kills it (#51). | Medium | F12 |
-| R3 | **Readiness checks only the process,** not the database, Valkey or Node. | Medium | F21 |
+| R2 | **Node is never restarted when the API starts it** (`docker run`). If it exits, pages are browser-rendered until the API restarts, and nothing reports it. **Resolved in Kubernetes:** the `pages` container has liveness and readiness probes and is restarted. A stream error no longer kills it (#51). | Low | F12 |
+| R3 | **Readiness checks only the process,** not the database or Valkey (the pod is ready only while the page server is). | Medium | F21 |
 | R4 | **A changed password breaks the app until pods restart.** Bicep sets the secrets on every run; there's no reloader. The README now says how to restart. | Medium | F5 (documented, not fixed) |
 | R5 | **Backups:** 7 days of locally redundant point-in-time restore on Azure, never tested; none on kind. | Medium | `docs/reviews/azure.md` |
 | R6 | **Azure has never run.** Expect first-run problems. Still unverified: whether what-if prints the secret values, whether EF's retries outlast a paused database waking up, whether `azure/login` needs `allow-no-subscriptions`, and whether a second `deploy.sh` run objects to a node count the autoscaler has changed. | Medium | `pr-52-azure.md`, "Not verified" |
 | R7 | **MediatR's licence** is needed for production use. | Medium (legal) | `docs/todo.md` |
 | R8 | **No optimistic concurrency:** the last of two simultaneous edits wins. | Low to medium | (handbook) |
-| R9 | .NET and Node share one 1 GiB limit with no heap caps. | Low | F23 |
+| R9 | No heap caps: .NET under its 1 GiB limit and Node under its 512 MiB one (separate in Kubernetes). | Low | F23 |
 | R10 | One Traefik pod and one Valkey pod, without disruption budgets, and AKS upgrades with no maintenance window. | Low | F22 (the API spread is fixed) |
 | R11 | Live notifications stop reconnecting after about 42 seconds. | Low | F25 |
 | R12 | `create-first-admin` doesn't dispose the host, so its last log line can be lost. | Low | F28 |
@@ -1370,7 +1373,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | 9 | No EF retries against serverless Azure SQL | Medium | **Fixed** (#52) |
 | 10 | Node inherited the API's connection strings | Medium | **Fixed** (#51) |
 | 11 | Scripts committed without the executable bit | Medium | **Fixed** (#52) |
-| 12 | Node never restarted; failures silent | Medium | **Partly fixed** (#51): a stream error no longer kills Node; no restart or health check yet |
+| 12 | Node never restarted; failures silent | Medium | **Fixed in Kubernetes:** a stream error no longer kills Node (#51), and the page server's own container has probes and is restarted. Still not restarted when the API starts it (`docker run`) |
 | 13 | CI didn't build what Publish ships | Medium | **Fixed** (#52): `image` job, full web build; Node versions still differ |
 | 14 | Floating tags for actions and images | Medium | Open |
 | 15 | App signs in as SQL admin; open ClusterSecretStore | Medium | **Half fixed** (#52): store limited to `medapp`; admin login open |
@@ -1391,7 +1394,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | 30 | `up.sh --argocd --revision` left the image pinned | Low | **Fixed** (#52) |
 | 31 | Docs that disagreed with the code | Low | **Partly fixed**; see [Appendix A](#appendix-a-where-the-docs-and-the-code-disagree) |
 
-`docs/todo.md` carries the open deployment items: deploy to Azure for real; passwordless SQL, a least-privilege user, private endpoints and monitoring; the MediatR licence; readiness checks and restarting Node; restarting pods when passwords change; pinning by digest; the remaining repository setting (a deploy-only GitHub App as the only pusher to `env/*`); and moving the page server out of `wwwroot`. Its features list carries what #53 left: finding the accounts that may still have `DefaultPassword1`. (Forcing a password change at first sign-in, and making `medapp-dev`'s `create_user` all-or-nothing, are done.)
+`docs/todo.md` carries the open deployment items: deploy to Azure for real; passwordless SQL, a least-privilege user, private endpoints and monitoring; the MediatR licence; readiness checks; restarting pods when passwords change; pinning by digest; and the remaining repository setting (a deploy-only GitHub App as the only pusher to `env/*`). (Moving the page server out of `wwwroot`, and restarting it, are done: it's in `/app/ssr/`, and runs as a container of its own in Kubernetes.) Its features list carries what #53 left: finding the accounts that may still have `DefaultPassword1`. (Forcing a password change at first sign-in, and making `medapp-dev`'s `create_user` all-or-nothing, are done.)
 
 ---
 
@@ -1551,8 +1554,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - live notifications that give up after about 42 seconds offline (`MedApp.Web/src/app/LiveNotifications.tsx:33`)
   - forwarded headers trusted from any source (`deploy/helm/medapp/templates/api.yaml`)
   - secrets in process arguments (`migrations-job.yaml`, `valkey.yaml`)
-  - readiness that ignores the database and Valkey, and a Node renderer that's never restarted (`SsrServer`)
-  - the page server still in `wwwroot`, and in the API's container, where it could read the API's environment (PR #51 review, findings 3.2 and 3.5). Move it out of `wwwroot` and into a sidecar container.
+  - readiness that ignores the database and Valkey
+  - **Done:** the page server is out of `wwwroot` (`/app/ssr/`), and in Kubernetes runs in a container of its own beside the API, with none of its secrets, restarted by its probes (PR #51 review, findings 3.2 and 3.5).
 - **Security headers** (`MedApp.API/Common/Extensions/ApplicationBuilderExtensions.cs`), cited by ASVS requirement ([V3](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x12-V3-Web-Frontend-Security.md), [V14](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x23-V14-Data-Protection.md)):
   - a Content Security Policy (CSP) with a per-request nonce for the router's hydration scripts, `object-src 'none'` and `base-uri 'none'` (V3.4.3)
   - `frame-ancestors 'none'` (V3.4.6), `nosniff` (V3.4.4) and a `Referrer-Policy` (V3.4.5)
@@ -1802,7 +1805,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - The API already emits OpenTelemetry (`MedApp.ServiceDefaults`) once `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Send it to Application Insights, with Container Insights, in a UK Log Analytics workspace with a set retention ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable)).
   - Alert on availability, the 5xx rate, latency, SSR fallbacks, sign-in failures and lockouts, database health, backup failures, certificate expiry and Argo CD sync failures.
   - Set EF (Entity Framework) Core's command logging to Warning outside development, and check that no log line carries patient data.
-- **Health:** readiness that checks the database and Valkey (reported as degraded, not failed, during a first install), and Node restarted with backoff (`docs/todo.md`).
+- **Health:** readiness that checks the database and Valkey (reported as degraded, not failed, during a first install) (`docs/todo.md`). Node is already restarted with Kubernetes' backoff, as the `pages` container.
 - **Service levels:** publish targets and measure them: for example 99.9% availability a month, a recovery point objective (RPO) of 15 minutes and a recovery time objective (RTO) of 4 hours. Start the availability record DTAC asks for.
 - **Incident response:**
   - runbooks in `docs/runbooks/`: restore the database, rebuild in UK West, rotate a secret, roll back, Node down, a certificate expiring, a suspected breach

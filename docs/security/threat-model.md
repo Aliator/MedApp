@@ -40,9 +40,9 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 ```
  Browser ──TLS──▶ Traefik (ingress) ──http──▶ API pod ─────────────────────────────┐
    ▲    ◀── WebSocket (SignalR) ──┘           │  Kestrel :8080 (app), :8081 (health) │
-   │                                           │    │  loopback, with the SSR key      │
+   │                                           │    │  loopback (127.0.0.1:8082)       │
    │                                           │    ▼                                  │
-   │                                           │  Node page server (127.0.0.1:random) │
+   │                                           │  pages container: Node page server   │
    │                                           └───────┬──────────────┬──────────────┘
    │                                                   │ SQL (1433)   │ RESP (6379)
    │                                                   ▼              ▼
@@ -57,7 +57,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 **Trust boundaries** (where data crosses from less trusted to more trusted):
 - **B1 Internet to ingress:** everything from the browser is untrusted until the API has authenticated and validated it.
 - **B2 Ingress to API:** the API trusts Traefik's `X-Forwarded-For` and `X-Forwarded-Proto` (`ASPNETCORE_FORWARDEDHEADERS_ENABLED`), which only holds because the network policy lets nothing else reach the API's port.
-- **B3 API to Node, inside one container:** Node gets page requests with the user's cookie, and calls the API back on loopback with a per-process key. Same user, same container: not a strong boundary (S17).
+- **B3 API to Node, inside one pod:** in Kubernetes, the page server is a container of its own in the API's pod (`pages`), as its own user, with none of the API's secrets or settings. It gets page requests with the user's cookie on loopback, and calls the API back there with that cookie, and no key. The containers share the pod's network, but not processes, users or environment. Run on its own (`docker run`), the API starts Node inside its own container, with a per-process key: same user, same container, not a strong boundary (S17).
 - **B4 API to data stores:** SQL Server and Valkey, behind network policies and passwords.
 - **B5 Build to runtime:** what GitHub Actions builds and records on `env/*` is what Argo CD runs.
 - **B6 Secret store to pods.**
@@ -68,7 +68,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 |---|---|---|---|
 | DF1 | Browser to API: sign in (`POST api/auth/login`) | Username and password; back, the session cookie | TLS to Traefik; plain http inside the cluster |
 | DF2 | Browser to API: page requests | The session cookie; back, the server-rendered page with the user's data | As DF1 |
-| DF3 | API to Node to API: server rendering | The page request (path, query, cookie, Accept headers, the CSP nonce); Node's API calls with the cookie and the SSR key | Loopback only |
+| DF3 | API to Node to API: server rendering | The page request (path, query, cookie, Accept headers, the CSP nonce); Node's API calls with the cookie (and, only when the API started Node, the SSR key) | Loopback only, inside the pod |
 | DF4 | Browser to API: `/api` calls | JSON commands and queries; back, JSON with patient data | As DF1 |
 | DF5 | Browser to API: live notifications (`/api/notifications/hub`) | A WebSocket authenticated by the session cookie; notifications (procedure titles) | As DF1 |
 | DF6 | API to SQL Server | Every read and write | Azure SQL: encrypted. kind: plain, `TrustServerCertificate=True` |
@@ -104,13 +104,13 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 
 | ID | STRIDE | Threat | In place | Left, and rating |
 |---|---|---|---|---|
-| T-20 | S | **A request pretending to be Node** to skip the https redirect. | Node's calls must come from loopback with a random 256-bit key, compared in constant time (`SsrServer.IsFromRenderer`). The key only skips the redirect; the user's session is still needed. | None. |
+| T-20 | S | **A request pretending to be Node** to skip the https redirect. | Node's calls must come from loopback with a random 256-bit key, compared in constant time (`SsrServer.IsFromRenderer`). The key only skips the redirect; the user's session is still needed. The page server in its own container has no key at all, and needs none (the API has no https port behind the ingress). | None. |
 | T-21 | I | **The API as an open proxy** sending the user's cookie elsewhere (fixed in #51). | Only the path and query reach Node; any `//` path is a 404. | None. |
-| T-22 | I | **Node's own files** (`/ssr`, `/.vite`) served as static files. | `PageServerFiles` refuses them on Linux. | On a Windows host, `\`, trailing-dot and 8.3 forms get through (S18; to-do: move the page server out of `wwwroot`). **Low.** |
-| T-23 | I, E | **Code in Node** (a compromised npm package, a rendering flaw) reading the API's secrets. | Node's environment is an allowlist without connection strings. | Same user and container: it could read `/proc` (S17; sidecar planned, step 2). **Medium.** |
-| T-24 | T | **A forged CSP nonce** sent to Node. | Node is reachable only on loopback; it accepts a nonce only in base64 form, and React and the router escape it when writing it. A browser in development that sends its own nonce only affects its own page. | None. |
+| T-22 | I | **Node's own files** (the page server, the build's manifest) served as static files. | They're in `/app/ssr/`, outside the web root, so no static file path reaches them on any host; `wwwroot` holds only the app's own files. `PageServerFiles` still refuses `/ssr` and `/.vite`, as defence in depth. | None (S18 resolved). |
+| T-23 | I, E | **Code in Node** (a compromised npm package, a rendering flaw) reading the API's secrets. | In Kubernetes, Node runs in a container of its own (`pages`), as another user (1655), with none of the API's secrets or settings and no service links; it can't see the API's process. Checked on kind: no process it can see has a connection string in its environment. Run on its own, the API gives Node an environment allowlist without connection strings. | Network policies apply per pod, so Node could reach the database and Valkey, but has no credentials for them. Run on its own (`docker run`), Node shares the API's user and could read `/proc` (S17). **Low.** |
+| T-24 | T | **A forged CSP nonce** sent to Node. | Node's pages listen only on loopback, inside the pod (its health listener answers nothing but `/alive`); it accepts a nonce only in base64 form, and React and the router escape it when writing it. A browser in development that sends its own nonce only affects its own page. | None. |
 | T-25 | I | **One user's data in another's rendered page.** | A new router and query cache for every request; the cookie travels in `AsyncLocalStorage`. | None. |
-| T-26 | D | **A stalled render** holding requests. | `Ssr:RenderTimeout` for the start of a page; a failed render falls back to the client-rendered app. | A page that stalls part-way isn't timed out; Node isn't restarted if it exits. **Low.** |
+| T-26 | D | **A stalled render** holding requests. | `Ssr:RenderTimeout` for the start of a page; a failed render falls back to the client-rendered app. In Kubernetes, the page server has its own memory limit and liveness probe, and is restarted if it exits or stops answering. | A page that stalls part-way isn't timed out; run on its own, Node isn't restarted if it exits. **Low.** |
 
 ### 5.3 The data stores (DF6, DF7, DF11)
 
@@ -130,7 +130,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | T-41 | T | **A vulnerable or malicious dependency** (npm, NuGet). | **New:** Dependabot (actions, NuGet, npm, Docker); dependency review on pull requests (high and critical fail); `npm audit --audit-level=high` in CI; NuGet audit NU1903 and NU1904 fail the build; CodeQL on C#, TypeScript and the workflows. Lock files; exact versions for Astryx and Lexical. | Moderate advisories only warn. No licence allow-list yet (step 1). **Medium.** |
 | T-42 | T | **A vulnerable base image or OS package.** | **New:** Trivy scans the built image on every pull request and fails on a critical vulnerability that has a fix; results go to code scanning. Trivy itself runs from an image pinned by digest. | Base images are pinned by tag, not digest, and Dependabot can't read the Dockerfile's `ARG` tags. Highs only report. **Medium.** |
 | T-43 | T, R | **An image that didn't come from this repository's build** deployed in its place. | **New:** each published image has a build provenance attestation and an SBOM attestation (Sigstore, through GitHub), pushed to GHCR beside it. `env/*` is moved only by Publish. | Nothing checks the attestation before deploy (Argo CD or an admission policy; step 2, later). The copy to Azure's registry doesn't carry the attestations. **Medium.** |
-| T-44 | I | **Secrets in the wrong place.** | Never in git; External Secrets from Key Vault or `medapp-vault`; Node's environment allowlist. | Two secrets on process command lines (S13). **Low.** |
+| T-44 | I | **Secrets in the wrong place.** | Never in git; External Secrets from Key Vault or `medapp-vault`; none in the page server's container. | Two secrets on process command lines (S13). **Low.** |
 | T-45 | E | **Something on `env/*` that creates cluster-wide resources.** | Argo CD's `medapp` project allows only the chart's kinds, in the `medapp` namespace. | Anyone with push rights to `env/*` could still change MedApp's own resources (to-do: a deploy-only GitHub App). **Low.** |
 | T-46 | S | **Traffic from inside the cluster pretending to be Traefik** (spoofed `X-Forwarded-For`, to dodge sign-in throttling or fake the scheme). | Network policies let only the ingress namespace reach the API's port; Traefik replaces untrusted forwarded headers, and ASP.NET Core takes only the last address. | The API trusts forwarded headers from any source (S12). **Low.** |
 
@@ -149,6 +149,6 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 2. **The database login on Azure (T-33)** is the server admin (step 5).
 3. **Passwords only (T-01, T-03):** no MFA or SSO (step 4).
 4. **Sessions (T-03, T-31, T-14):** no idle timeout, IDs not hashed at rest, the ID repeated in the login body, and live connections not closed on revocation (step 2, later).
-5. **Node in the API's container (T-23)** (step 2, later).
+5. **Node can reach the database's network (T-23):** the page server is in a container of its own, without secrets, but network policies can't tell it from the API.
 6. **Untested authorisation (T-13)** and the two return-everything endpoints (step 2, later).
 7. **Deploys don't verify provenance (T-43),** and images aren't pinned by digest (T-42).

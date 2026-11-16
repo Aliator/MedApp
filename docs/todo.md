@@ -33,14 +33,13 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **A low-cost Azure demo deployment,** alongside the full one, to show every feature as cheaply as possible. It's never sold, so it can drop the production extras: one small node (or Azure Container Apps) instead of a multi-node AKS cluster, the cheapest Azure SQL tier, no private networking, and single copies. The full setup stays for local development (kind) and for a real deployment.
   - **Passwordless Azure SQL**, a least-privilege database user, private endpoints for the registry and Key Vault, and monitoring. See `deploy/azure/README.md`, "Not yet".
   - **A MediatR licence** before running in production: MediatR 14 logs a licence warning at startup.
-  - **Readiness that checks the database and Valkey,** and **restarting Node** when the page server exits (the chart's `README.md`, "Not yet").
+  - **Readiness that checks the database and Valkey** (the chart's `README.md`, "Not yet").
   - **Restarting the API and Valkey when a password changes,** for example with a reloader. Until then it's by hand (`deploy/azure/README.md`, Passwords).
   - **Pinning images by digest** (the Dockerfile's base images, SQL Server and Valkey), with Dependabot keeping them current. Actions are pinned by commit SHA. Write the Dockerfile's base image tags out (not as `ARG`s), so Dependabot can read them.
   - **Verify the image's provenance attestation before deploying it** (an admission policy, or a check in the deploy job), and copy the attestations to Azure's registry with the image.
   - **Move the PR workflow's `pull-requests: write`** from the whole workflow to the jobs that comment.
   - **Repository settings:** `web`, `helm`, `unit-tests` and `image` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
 - **An audit index for Insights' stage times.** Add an index on the audit log's `(PatientProcedureId, Action, AtUtc)`, including `StageId`, in a migration of its own (#66 left it out while two other branches were adding migrations). Each stage's first finish is a `TOP(1)` over its procedure's entries; today that seeks `(PatientProcedureId, AtUtc)` and looks up every entry to check its action. Measured on LocalDB with 20,000 procedures and 342,627 audit entries (the second of two runs), the whole Insights query took 239 ms, 495 ms and 1,025 ms for 4, 12 and 26 weeks; with the index, 189 ms, 209 ms and 516 ms. Stage times are most of it, and grow with the stages finished in the period (PR #66 review, finding 4).
-- **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).
 
 ## Security (roadmap step 2, after `feature/security-baseline`)
 
