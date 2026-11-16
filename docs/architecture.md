@@ -453,7 +453,7 @@ The procedure repository is the exception, by design: handlers load a **tracked*
 **Identity.** ASP.NET Core Identity (`AddIdentityCore<ApplicationUser>().AddRoles<IdentityRole<Guid>>()`), with password and lockout rules from the `Identity` section of `appsettings.json`: at least 8 characters with a digit, a lower-case and an upper-case letter; 5 failed attempts lock the account for 5 minutes. Behind Application's interfaces:
 - `IdentityAuthenticationService`: checks a password, counts failures, honours lockout (#38).
 - `IdentityUserService`, `IdentityRoleService`, `IdentityReadService`: users, roles, and username lookups for responses. `IdentityUserService` generates the password for every new account and every admin reset: at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (#53).
-- `IdentityTransactions`: runs several Identity changes in one transaction, inside EF's execution strategy so a retry repeats the whole transaction, clearing the change tracker first (#52).
+- `IdentityTransactions`: runs several Identity changes in one transaction, inside EF's execution strategy so a retry repeats the whole transaction, clearing the change tracker first (#52). So the work loads everything it changes itself, inside the retried delegate, never using entities loaded before it.
 
 **Sessions.** `SessionService` creates a `UserSession` row on sign-in (8-hour lifetime), validates it on every request (the session, then the user and their roles), and revokes it on sign-out. See [6.1](#61-signing-in-and-the-session-check).
 
@@ -1307,7 +1307,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | R12 | `create-first-admin` doesn't dispose the host, so its last log line can be lost. | Low | F28 |
 | R13 | EF Core logs every SQL command at Information level: cost and noise. | Low | `flaws-review.md`, judgement |
 | R14 | Nothing times out a server-rendered page once it has started streaming: one that stalls part-way holds the request until the browser gives up. | Low | `pr-51-ssr-security-fixes.md` 3.6 |
-| R15 | A retry inside `IdentityTransactions` (after a failover, say) can fail a role change with a misleading concurrency error, because the user is loaded outside the retried work. | Low | `pr-52-azure.md`, finding 5 (documented in the Azure README, "Not yet") |
+| R15 | **Fixed:** a retry inside `IdentityTransactions` (after a failover, say) could fail a role change with a misleading concurrency error, because the user was loaded outside the retried work. `SetRolesAsync` now loads the user and roles inside it. Still open: a commit whose acknowledgement is lost is retried as if it had failed. | Was low | `pr-52-azure.md`, finding 5 |
 
 ### 11.3 Delivery and supply chain
 
