@@ -104,6 +104,55 @@ describe('UsersPage email addresses and two-factor', () => {
     expect(await findAlert('Two-factor authentication could not be reset for a.hartwell.')).toBeInTheDocument();
   });
 
+  it("offers to remove an email address only for someone else who has one, confirmed or waiting", async () => {
+    renderUsers();
+
+    const action = async (username: string) => within(await rowOf(username)).getByRole('button', {name: 'Remove email address'});
+    expect(isDisabled(await action('a.hartwell'))).toBe(false);
+    expect(isDisabled(await action('l.northcott'))).toBe(false);
+    expect(isDisabled(await action('m.ferrand'))).toBe(false);
+    expect(isDisabled(await action(adminUser.username))).toBe(true);
+  });
+
+  it('removes an email address once the admin confirms what it does, says so, and refreshes the list', async () => {
+    const {user, fetch} = renderUsers({extra: {'DELETE /api/auth/users/*': () => new Response(null, {status: 204})}});
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Remove email address'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('heading', {name: 'Remove Email Address'})).toBeInTheDocument();
+    expect(dialog.getByText(/Remove a\.hartwell's email address \(a\.hartwell@example\.org\), and any waiting to be confirmed\?/)).toBeInTheDocument();
+    expect(dialog.getByText(/Password reset links can't be sent to it any more/)).toBeInTheDocument();
+    expect(dialog.getByText(/A confirmed address is emailed to say so/)).toBeInTheDocument();
+    expect(calls(fetch)).not.toContain('DELETE /api/auth/users/a.hartwell/email');
+    await user.click(dialog.getByRole('button', {name: 'Remove Email Address'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('DELETE /api/auth/users/a.hartwell/email'));
+    expect(await screen.findByText("a.hartwell's email address has been removed.")).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+    await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('GET /api/auth/users/search')).length).toBe(2));
+  });
+
+  it('names the address waiting to be confirmed when there is no confirmed one', async () => {
+    const {user} = renderUsers();
+
+    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Remove email address'}));
+
+    expect(within(openDialog()!).getByText(/Remove l\.northcott's email address \(l\.northcott@example\.org\)/)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['in its words for an unknown user', () => json({title: 'User not found.', status: 404}, 404), 'User not found.'],
+    ['for another reason', () => json({title: 'Server error'}, 500), 'The email address could not be removed for a.hartwell.'],
+  ])('says when an email address could not be removed, %s', async (_, respond, message) => {
+    const {user} = renderUsers({extra: {'DELETE /api/auth/users/*': respond}});
+
+    await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Remove email address'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Remove Email Address'}));
+
+    expect(await findAlert(message)).toBeInTheDocument();
+    expect(openDialog()).toBeNull();
+  });
+
   it('creates a user with an email address, saying the password is never emailed', async () => {
     const {user, fetch} = renderUsers({extra: {'POST /api/auth/users': () => json({username: 'new.user', password: 'Synth3ticFirst'})}});
 

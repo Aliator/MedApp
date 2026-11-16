@@ -50,6 +50,7 @@ describe('describeActivity', () => {
     expect(describe_('SignInFailed', {reason: 'InvalidCredentials'})).toBe('Wrong username or password');
     expect(describe_('SignInFailed', {reason: 'InvalidCode', secondStep: true})).toBe('Wrong authenticator code');
     expect(describe_('SignInFailed', {reason: 'ChallengeExpired'})).toBe('Code step timed out');
+    expect(describe_('SignInFailed', {reason: 'TooManyCodes', secondStep: true})).toBe('Too many codes for the account');
     expect(describe_('SignedIn', {secondStep: 'recoveryCode'})).toBe('With a recovery code');
     expect(describe_('SignedIn', {secondStep: 'authenticator'})).toBe('With an authenticator code');
     expect(describe_('SignedIn', {})).toBe('');

@@ -29,7 +29,8 @@ describe('RequiredTwoFactorSetupPage', () => {
       'GET /api/auth/whoami': () => json({isAuthenticated: true, name: mustSetUpTwoFactorUser.username, roles: ['Admin', 'User']}),
     });
 
-    await user.type(await screen.findByLabelText(/code from your authenticator app/i), '123456');
+    await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
     await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     // Signing out now would lose the codes before they're saved: Continue is the way on.

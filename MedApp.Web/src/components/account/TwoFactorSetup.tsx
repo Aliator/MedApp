@@ -6,9 +6,10 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import {TextInput} from '@astryxdesign/core/TextInput';
 import {useEffect, useRef, useState, type FormEvent} from 'react';
 import {useBeginAuthenticatorSetup, useEnableTwoFactor, type AuthenticatorSetup} from '../../api/account';
-import {ApiError, ApiValidationError, soleFieldStatus} from '../../api/errors';
+import {ApiValidationError, fieldStatus, otherMessages, refusalMessage} from '../../api/errors';
 import {OneTimeCodeField} from '../forms/OneTimeCodeField';
 import {AppIcon} from '../shared/icons';
 import {RecoveryCodes} from './RecoveryCodes';
@@ -59,7 +60,7 @@ function SharedKey({sharedKey}: {sharedKey: string}) {
 }
 
 export interface TwoFactorSetupProps {
-  /** Whose account it is, named in the recovery codes' file. */
+  /** Whose account it is: named in the recovery codes' file, and given to password managers beside the password. */
   username: string;
   /** After the recovery codes have been shown, the button that carries on (e.g. "Continue" or "Done"). */
   doneLabel: string;
@@ -70,20 +71,21 @@ export interface TwoFactorSetupProps {
   onEnabled?: () => void;
 }
 
-/** Why something failed, in words: the API's own for a 409 (two-factor is already on), otherwise `fallback`. */
-function failure(error: unknown, fallback: string) {
-  return error instanceof ApiError && error.status === 409 && error.title ? error.title : fallback;
-}
+/** The fields turning it on asks for, whose 400 messages show on them. */
+const PASSWORD_AND_CODE = ['password', 'code'];
 
 /**
  * Setting up two-factor authentication with an authenticator app, from start to finish: it asks the API for a new key
- * as it opens, shows it as a QR code to scan and as text to type, then turns two-factor on with a code from the app,
- * and shows the recovery codes (`RecoveryCodes`) once, until `onDone`. Used by Account Settings' Security page and by
- * `/set-up-two-factor`, where an admin is held until they've set it up. Put it in a card; it lays out its own steps.
+ * as it opens, shows it as a QR code to scan and as text to type, then turns two-factor on with the account's password
+ * (so a session alone can't) and a code from the app, and shows the recovery codes (`RecoveryCodes`) once, until
+ * `onDone`. A 400 shows on its field; a 409 (already on), a locked account (423) or too many tries (429) shows in the
+ * API's words. Used by Account Settings' Security page and by `/set-up-two-factor`, where an admin is held until
+ * they've set it up. Put it in a card; it lays out its own steps.
  */
 export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled}: TwoFactorSetupProps) {
   const begin = useBeginAuthenticatorSetup();
   const enable = useEnableTwoFactor();
+  const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [codes, setCodes] = useState<string[] | null>(null);
   const [setup, setSetup] = useState<AuthenticatorSetup | null>(null);
@@ -101,15 +103,19 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
 
   const turnOn = (event: FormEvent) => {
     event.preventDefault();
-    enable.mutate(code, {
-      onSuccess: (recoveryCodes) => {
-        setCode('');
-        // The key is no longer needed: from here, only the codes show.
-        setSetup(null);
-        setCodes(recoveryCodes);
-        onEnabled?.();
+    enable.mutate(
+      {password, code},
+      {
+        onSuccess: (recoveryCodes) => {
+          setPassword('');
+          setCode('');
+          // The key is no longer needed: from here, only the codes show.
+          setSetup(null);
+          setCodes(recoveryCodes);
+          onEnabled?.();
+        },
       },
-    });
+    );
   };
 
   if (codes) {
@@ -130,7 +136,7 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
           status="error"
           container="card"
           role="alert"
-          title={failure(begin.error, 'A key for your authenticator app could not be made. Please try again.')}
+          title={refusalMessage(begin.error, 'A key for your authenticator app could not be made. Please try again.')}
         />
         <HStack gap={2} hAlign="end">
           {onCancel && <Button label="Cancel" variant="secondary" onClick={onCancel} />}
@@ -149,8 +155,12 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
   }
 
   const validation = enable.error instanceof ApiValidationError ? enable.error.errors : null;
-  const codeStatus = soleFieldStatus(validation, 'code');
-  const enableProblem = enable.isError && !validation ? failure(enable.error, 'Two-factor authentication could not be turned on. Please try again.') : null;
+  const other = otherMessages(validation, PASSWORD_AND_CODE);
+  const enableProblem = enable.isError && !validation
+    ? refusalMessage(enable.error, 'Two-factor authentication could not be turned on. Please try again.')
+    : other.length > 0
+      ? other.join(' ')
+      : null;
 
   return (
     <form onSubmit={turnOn} noValidate>
@@ -162,9 +172,23 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
           <QrCode path={setup.qrCodePath} size={setup.qrCodeSize} />
           <SharedKey sharedKey={setup.sharedKey} />
         </VStack>
-        <Text type="body">2. Enter the 6-digit code the app shows for MedApp, to check it&apos;s set up and turn two-factor on.</Text>
+        <Text type="body">
+          2. Enter your password and the 6-digit code the app shows for MedApp, to check it&apos;s set up and turn
+          two-factor on.
+        </Text>
         {enableProblem && <Banner status="error" container="card" role="alert" title={enableProblem} />}
-        <OneTimeCodeField value={code} onChange={setCode} status={codeStatus} />
+        {/* The account's name, hidden, so a password manager pairs the password with that. */}
+        <input type="text" name="username" autoComplete="username" value={username} readOnly hidden />
+        <TextInput
+          label="Your password"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+          isRequired
+          status={fieldStatus(validation, 'password')}
+        />
+        <OneTimeCodeField value={code} onChange={setCode} status={fieldStatus(validation, 'code')} />
         <HStack gap={2} hAlign="end">
           {onCancel && <Button label="Cancel" variant="secondary" isDisabled={enable.isPending} onClick={onCancel} />}
           <Button

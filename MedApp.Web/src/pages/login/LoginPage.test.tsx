@@ -39,6 +39,71 @@ describe('LoginPage', () => {
     expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
   });
 
+  describe('coming back to a page after signing in', () => {
+    const session = {sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'};
+
+    async function signIn(whoami: unknown, redirectTo = '/confirm-email') {
+      mockApi({
+        'POST /api/auth/login': () => json(session),
+        'GET /api/auth/whoami': () => json(whoami),
+        'GET /api/auth/me/settings': () => json({settings: null}),
+      });
+      const result = renderWithApp(<LoginPage redirectTo={redirectTo} />, {path: '/login'});
+      await result.user.type(await screen.findByLabelText(/username/i), 'test-user');
+      await result.user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+      await result.user.click(screen.getByRole('button', {name: /sign in/i}));
+      return result;
+    }
+
+    it('goes back to the page that sent them, rather than the start page', async () => {
+      localStorage.setItem('medapp.startPage', 'procedures');
+      const {router} = await signIn({isAuthenticated: true, name: 'test-user', roles: ['User']});
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/confirm-email'));
+    });
+
+    it('keeps its query', async () => {
+      const {router} = await signIn({isAuthenticated: true, name: 'test-user', roles: ['User']}, '/patients?page=2');
+
+      await waitFor(() => expect(router.state.location.href).toBe('/patients?page=2'));
+    });
+
+    it.each([
+      ['must change their password', {mustChangePassword: true}],
+      ['must set up two-factor', {mustSetUpTwoFactor: true}],
+    ])('goes to the start page for someone who %s, whose hold comes first', async (_, hold) => {
+      const {router} = await signIn({isAuthenticated: true, name: 'test-user', roles: ['User'], ...hold});
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    });
+
+    it('reads a safe path from the URL, and drops one to another site', async () => {
+      expect(parseLoginSearch({redirect: '/confirm-email'})).toEqual({redirect: '/confirm-email'});
+      expect(parseLoginSearch({redirect: '//example.org/', expired: 'true'})).toEqual({expired: true});
+      expect(parseLoginSearch({redirect: 'https://example.org/'})).toEqual({});
+    });
+
+    it('signs in from the real route and comes back', async () => {
+      let signedIn = false;
+      mockApi({
+        'GET /api/auth/features': () => json({canSendEmail: true}),
+        'POST /api/auth/login': () => {
+          signedIn = true;
+          return json(session);
+        },
+        'GET /api/auth/whoami': () => json(signedIn ? {isAuthenticated: true, name: 'test-user', roles: ['User']} : {isAuthenticated: false}),
+        'GET /api/auth/me/settings': () => json({settings: null}),
+      });
+      const {user, router} = renderApp({path: '/login?redirect=%2Fconfirm-email'});
+
+      await user.type(await screen.findByLabelText(/username/i), 'test-user');
+      await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+      await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/confirm-email'));
+    });
+  });
+
   it('goes to the start page chosen in Account Settings', async () => {
     localStorage.setItem('medapp.startPage', 'procedures');
     mockFetch(() => json({sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'}));

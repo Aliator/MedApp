@@ -1,4 +1,16 @@
-import {ApiError, ApiValidationError, allMessages, fieldStatus, parseValidationErrors, problemCode, problemMessage, problemTitle, soleFieldStatus} from './errors';
+import {
+  ApiError,
+  ApiValidationError,
+  allMessages,
+  fieldStatus,
+  otherMessages,
+  parseValidationErrors,
+  problemCode,
+  problemMessage,
+  problemTitle,
+  refusalMessage,
+  soleFieldStatus,
+} from './errors';
 
 describe('parseValidationErrors', () => {
   it('maps ValidationProblemDetails errors onto camelCase fields', () => {
@@ -166,5 +178,26 @@ describe('soleFieldStatus', () => {
     expect(soleFieldStatus(identity, 'code')).toEqual({type: 'error', message: 'Not your own.'});
     expect(soleFieldStatus(parseValidationErrors({}), 'code')).toBeUndefined();
     expect(soleFieldStatus(null, 'code')).toBeUndefined();
+  });
+});
+
+describe('refusalMessage', () => {
+  it.each([409, 423, 429])("gives the API's words for a %s", (status) => {
+    expect(refusalMessage(new ApiError(status, undefined, 'Try again in 5 minutes.'), 'Failed.')).toBe('Try again in 5 minutes.');
+  });
+
+  it('falls back for one without a title, another status, or anything else', () => {
+    expect(refusalMessage(new ApiError(429), 'Failed.')).toBe('Failed.');
+    expect(refusalMessage(new ApiError(500, undefined, 'Server error'), 'Failed.')).toBe('Failed.');
+    expect(refusalMessage(new TypeError('offline'), 'Failed.')).toBe('Failed.');
+  });
+});
+
+describe('otherMessages', () => {
+  it("lists the messages that aren't on the given fields, then the general ones", () => {
+    const errors = parseValidationErrors({errors: {Password: ['Wrong.'], Challenge: ['Missing.'], '': ['Something else.']}});
+
+    expect(otherMessages(errors, ['password', 'code'])).toEqual(['Missing.', 'Something else.']);
+    expect(otherMessages(null, ['password'])).toEqual([]);
   });
 });

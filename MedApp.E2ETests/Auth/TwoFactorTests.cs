@@ -35,6 +35,8 @@ public sealed class TwoFactorTests : E2ETest
         await Expect(page.GetByRole(AriaRole.Img, new() { Name = "QR code for your authenticator app" })).ToBeVisibleAsync();
         var key = (await page.GetByText(new Regex("^[a-z2-7]{4}( [a-z2-7]{1,4}){3,}$")).TextContentAsync())!.Trim();
         await page.GetByRole(AriaRole.Textbox, new() { Name = "Code from your authenticator app" }).FillAsync(CodeFor(key));
+        // Turning it on needs the password again, so a session left open can't do it.
+        await page.GetByLabel("Your password").FillAsync(ChosenPassword);
         await page.GetByRole(AriaRole.Button, new() { Name = "Turn on two-factor" }).ClickAsync();
 
         // The recovery codes are shown once.

@@ -9,7 +9,7 @@ import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {twoFactorStatusQuery, useDisableTwoFactor, useRegenerateRecoveryCodes} from '../../api/account';
-import {ApiError, ApiValidationError, fieldStatus, soleFieldStatus, type ValidationErrors} from '../../api/errors';
+import {ApiValidationError, fieldStatus, otherMessages, refusalMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {RecoveryCodes} from '../../components/account/RecoveryCodes';
@@ -36,21 +36,15 @@ const CODES_DONE_HOLD_MS = 1000;
 
 type Dialog = 'disable' | 'codes' | null;
 
-/** A refusal in the API's words (a 409 or a 423, which explain themselves), or `fallback`. */
-function refusal(error: unknown, fallback: string) {
-  return error instanceof ApiError && (error.status === 409 || error.status === 423) && error.title ? error.title : fallback;
-}
-
-/** A 400's messages that aren't on one of `fields`, for the dialog's banner. */
-function otherMessages(errors: ValidationErrors | null, fields: readonly string[]) {
-  if (!errors) return [];
-  return [...Object.entries(errors.fields).flatMap(([field, messages]) => (fields.includes(field) ? [] : messages)), ...errors.general];
-}
+/** The fields both dialogs ask for, whose 400 messages show on them. */
+const PASSWORD_AND_CODE = ['password', 'code'];
 
 /**
  * The signed-in user's sign-in security (Account Settings, Security): two-factor authentication on or off, setting it
- * up with an authenticator app (`TwoFactorSetup`), turning it off (with the password and a code; not while the account
- * must use it), and getting a new set of recovery codes (with a code), with how many are left.
+ * up with an authenticator app (`TwoFactorSetup`, which asks for the password too), turning it off (with the password
+ * and a code; not while the account must use it), and getting a new set of recovery codes (with the password and an
+ * authenticator code), with how many are left. Each asks for the password, so a session alone can't change them. A
+ * 400 shows on its field; a 409, a locked account (423) or too many codes (429) shows in the API's words.
  */
 export function SecurityPage() {
   const me = useCurrentUser();
@@ -95,13 +89,17 @@ export function SecurityPage() {
       },
     );
 
-  const getNewCodes = () => regenerate.mutate(code, {onSuccess: setNewCodes});
+  const canGetNewCodes = password !== '' && code.trim() !== '';
+  const getNewCodes = () => regenerate.mutate({password, code}, {onSuccess: setNewCodes});
 
   const disableErrors = disable.error instanceof ApiValidationError ? disable.error.errors : null;
-  const disableOther = otherMessages(disableErrors, ['password', 'code']);
-  const disableProblem = disable.isError && !disableErrors ? refusal(disable.error, 'Two-factor authentication could not be turned off. Please try again.') : null;
+  const disableOther = otherMessages(disableErrors, PASSWORD_AND_CODE);
+  const disableProblem =
+    disable.isError && !disableErrors ? refusalMessage(disable.error, 'Two-factor authentication could not be turned off. Please try again.') : null;
   const codesErrors = regenerate.error instanceof ApiValidationError ? regenerate.error.errors : null;
-  const codesProblem = regenerate.isError && !codesErrors ? refusal(regenerate.error, 'New recovery codes could not be made. Please try again.') : null;
+  const codesOther = otherMessages(codesErrors, PASSWORD_AND_CODE);
+  const codesProblem =
+    regenerate.isError && !codesErrors ? refusalMessage(regenerate.error, 'New recovery codes could not be made. Please try again.') : null;
 
   const enabled = status?.enabled === true;
   const required = status?.required === true;
@@ -162,28 +160,39 @@ export function SecurityPage() {
             message={
               newCodes
                 ? undefined
-                : 'Your current recovery codes stop working, and a new set is shown once. Enter a code from your authenticator app to get them.'
+                : 'Your current recovery codes stop working, and a new set is shown once. Enter your password and a code from your authenticator app to get them.'
             }
             icon={AppIcon.Password}
             intent="warning"
             confirmText={newCodes ? 'Done' : 'Get New Codes'}
             confirmHoldMs={newCodes ? CODES_DONE_HOLD_MS : undefined}
-            confirmDisabled={!newCodes && !code.trim()}
+            confirmDisabled={!newCodes && !canGetNewCodes}
             isProcessing={regenerate.isPending}
             onConfirm={newCodes ? close : getNewCodes}
             onCancel={close}>
             {newCodes ? (
               <RecoveryCodes codes={newCodes} username={me.username} announcement="New recovery codes made." />
             ) : (
+              // Only while it's open, as Turn Off's, with the signed-in user's name for a password manager.
               dialog === 'codes' && (
                 <VStack gap={4} hAlign="stretch">
-                  {codesProblem && <AlertMessage message={codesProblem} />}
+                  {(codesProblem || codesOther.length > 0) && <AlertMessage message={codesProblem ?? codesOther.join(' ')} />}
+                  <input type="text" name="username" autoComplete="username" value={me.username} readOnly hidden />
+                  <TextInput
+                    label="Your password"
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    autoComplete="current-password"
+                    isRequired
+                    hasAutoFocus
+                    status={fieldStatus(codesErrors, 'password')}
+                  />
                   <OneTimeCodeField
                     value={code}
                     onChange={setCode}
-                    status={soleFieldStatus(codesErrors, 'code')}
-                    hasAutoFocus
-                    onEnter={() => code.trim() && getNewCodes()}
+                    status={fieldStatus(codesErrors, 'code')}
+                    onEnter={() => canGetNewCodes && !regenerate.isPending && getNewCodes()}
                   />
                 </VStack>
               )

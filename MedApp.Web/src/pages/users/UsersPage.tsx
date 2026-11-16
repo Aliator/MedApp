@@ -16,6 +16,7 @@ import {
   rolesQuery,
   useCreateUser,
   useDeleteUser,
+  useRemoveUserEmail,
   useResetPassword,
   useResetTwoFactor,
   useSetRoles,
@@ -51,7 +52,7 @@ const PASSWORD_DONE_HOLD_MS = 1000;
 
 type DialogState =
   | {kind: 'create'}
-  | {kind: 'roles' | 'reset' | 'resetTwoFactor' | 'signOut' | 'delete'; username: string; roles: string[]}
+  | {kind: 'roles' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete'; username: string; roles: string[]; email: string | null}
   | null;
 
 /** The role to ask the API for: the one chosen, or none when the choice covers every role (or none at all). */
@@ -102,8 +103,10 @@ export interface UsersPageProps {
  * dialogs to create users (the server generates the first password, shown once; an email address is optional, and
  * asked for only when the server can send email), edit their roles (every role listed, theirs ticked), reset passwords,
  * reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
- * have ends) and delete users (confirmed with the admin's own password). Each user's email address shows, one waiting
- * to be confirmed marked so, and whether they use two-factor authentication. Admins can't change their own account here, as in Blazor.
+ * have ends), remove a user's email address (so reset links can't go to an address that isn't theirs any more) and
+ * delete users (confirmed with the admin's own password). Each user's email address shows, one waiting to be confirmed
+ * marked so, and whether they use two-factor authentication. Admins can't change their own account here, as in Blazor:
+ * their own email address is on Account Settings' Email Address page, which asks for their password.
  */
 /** The list's page of users, for its search and page size, given every role (the route's loader fetches it too). */
 export function usersListQuery(search: UsersListSearch, pageSize: number, allRoles: readonly string[]) {
@@ -138,6 +141,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const remove = useDeleteUser();
   const signOut = useSignOutEverywhere();
   const resetTwoFactor = useResetTwoFactor();
+  const removeEmail = useRemoveUserEmail();
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -220,7 +224,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
         const username = u.username ?? '';
         const roles = [...(u.roles ?? [])];
         const isMe = username.toLowerCase() === me.username.toLowerCase();
-        const target = {username, roles};
+        const target = {username, roles, email: u.email ?? u.pendingEmail ?? null};
         return (
           <TableActions
             actions={[
@@ -233,6 +237,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
                 onClick: () => open({kind: 'resetTwoFactor', ...target}),
               },
               {label: 'Sign out everywhere', icon: AppIcon.Logout, isDisabled: isMe, onClick: () => open({kind: 'signOut', ...target})},
+              {
+                label: 'Remove email address',
+                icon: AppIcon.Email,
+                isDisabled: isMe || target.email === null,
+                onClick: () => open({kind: 'removeEmail', ...target}),
+              },
               {label: 'Delete user', icon: AppIcon.Delete, isDisabled: isMe, isDestructive: true, onClick: () => open({kind: 'delete', ...target})},
             ]}
           />
@@ -413,6 +423,27 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
                   setNotice(`${target.username} has been signed out everywhere.`);
                 },
                 onError: failed(`${target.username} could not be signed out.`),
+              })
+            }
+            onCancel={close}
+          />
+
+          <ConfirmDialog
+            isOpen={dialog?.kind === 'removeEmail'}
+            title="Remove Email Address"
+            message={`Remove ${target?.username}'s email address${target?.email ? ` (${target.email})` : ''}, and any waiting to be confirmed? Password reset links can't be sent to it any more, so use this when the address isn't theirs or may be in the wrong hands. A confirmed address is emailed to say so. They can add one again in Account Settings.`}
+            icon={AppIcon.Email}
+            isDanger
+            confirmText="Remove Email Address"
+            isProcessing={removeEmail.isPending}
+            onConfirm={() =>
+              target &&
+              removeEmail.mutate(target.username, {
+                onSuccess: () => {
+                  close();
+                  setNotice(`${target.username}'s email address has been removed.`);
+                },
+                onError: (e) => failed(problemMessage(e, `The email address could not be removed for ${target.username}.`))(),
               })
             }
             onCancel={close}

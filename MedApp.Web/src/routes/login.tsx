@@ -11,6 +11,6 @@ export const Route = createFileRoute('/login')({
 });
 
 function LoginRoute() {
-  const {expired} = Route.useSearch();
-  return <LoginPage isExpired={expired} />;
+  const {expired, redirect} = Route.useSearch();
+  return <LoginPage isExpired={expired} redirectTo={redirect} />;
 }

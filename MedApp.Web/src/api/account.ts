@@ -36,7 +36,10 @@ export function useResetPasswordWithLink() {
   });
 }
 
-/** Confirms an email address with an emailed link (`POST api/auth/email/confirm`); anyone holding the link can. */
+/**
+ * Confirms an email address with an emailed link (`POST api/auth/email/confirm`). It needs the link's own account
+ * signed in: a 401 when signed out, and a 400 Identity error `WrongAccount` when someone else is signed in.
+ */
 export function useConfirmEmail() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -64,22 +67,28 @@ export const myEmailQuery = queryOptions({
 });
 
 /**
- * Changes (or sets) the signed-in user's email address (`PUT api/auth/me/email`): the API emails a link to the new
- * one, and the old one stays in use until it's opened. The answer is the address as it now stands.
+ * Changes (or sets) the signed-in user's email address (`PUT api/auth/me/email`), given their password, so a session
+ * someone else got hold of can't change where reset links go: the API emails a link to the new one, and the old one
+ * stays in use until it's opened. The answer is the address as it now stands. A 400 may be on `email` or `password`;
+ * a 423 (locked), a 429 (too many changes) or a 409 (the email couldn't be sent) explains itself in its title.
  */
 export function useChangeMyEmail() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (email: string) => toMyEmail(await unwrap(api.PUT('/api/auth/me/email', {body: {email}}))),
+    mutationFn: async ({email, password}: {email: string; password: string}) =>
+      toMyEmail(await unwrap(api.PUT('/api/auth/me/email', {body: {email, password}}))),
     onSuccess: (email) => queryClient.setQueryData(myEmailQuery.queryKey, email),
   });
 }
 
-/** Removes the signed-in user's email address, and any waiting to be confirmed (`DELETE api/auth/me/email`). */
+/**
+ * Removes the signed-in user's email address, and any waiting to be confirmed (`DELETE api/auth/me/email`), given
+ * their password (a wrong one is a 400 on `password`; a 423 when the account is locked).
+ */
 export function useRemoveMyEmail() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => unwrap(api.DELETE('/api/auth/me/email')),
+    mutationFn: (password: string) => unwrap(api.DELETE('/api/auth/me/email', {body: {password}})),
     onSuccess: () => queryClient.setQueryData(myEmailQuery.queryKey, {email: null, pendingEmail: null}),
   });
 }
@@ -123,6 +132,12 @@ export function useBeginAuthenticatorSetup() {
   });
 }
 
+/** The account's password with a two-factor code: what changing two-factor asks for, so a session alone can't. */
+export interface PasswordAndCode {
+  password: string;
+  code: string;
+}
+
 /** Recovery codes from the API, shown once: each signs in once without the authenticator app. */
 const recoveryCodes = (body: Schemas['RecoveryCodesResponse'] | undefined) => [...(body?.recoveryCodes ?? [])];
 
@@ -140,29 +155,33 @@ function useTwoFactorMutation<TInput, TResult>(mutationFn: (input: TInput) => Pr
 }
 
 /**
- * Turns two-factor on with a code from the app just set up (`POST api/auth/me/two-factor/enable`), returning the
- * recovery codes, once. A wrong code is a 400 on `code`. The account's other sessions end.
+ * Turns two-factor on with the password and a code from the app just set up (`POST api/auth/me/two-factor/enable`),
+ * returning the recovery codes, once. A wrong password or code is a 400 on `password` or `code`; a 423 when the
+ * account is locked. The account's other sessions end.
  */
 export function useEnableTwoFactor() {
-  return useTwoFactorMutation(async (code: string) =>
-    recoveryCodes(await unwrap(api.POST('/api/auth/me/two-factor/enable', {body: {code}}))),
+  return useTwoFactorMutation(async ({password, code}: PasswordAndCode) =>
+    recoveryCodes(await unwrap(api.POST('/api/auth/me/two-factor/enable', {body: {password, code}}))),
   );
 }
 
 /**
  * Turns two-factor off (`POST api/auth/me/two-factor/disable`), given the password and a current code. A 409 when the
- * account must use it; the account's other sessions end.
+ * account must use it, a 423 when it's locked, a 429 after too many codes; the account's other sessions end.
  */
 export function useDisableTwoFactor() {
-  return useTwoFactorMutation(({password, code}: {password: string; code: string}) =>
+  return useTwoFactorMutation(({password, code}: PasswordAndCode) =>
     unwrap(api.POST('/api/auth/me/two-factor/disable', {body: {password, code}})),
   );
 }
 
-/** Replaces the recovery codes with a new set, given a current code (`POST api/auth/me/two-factor/recovery-codes`). */
+/**
+ * Replaces the recovery codes with a new set (`POST api/auth/me/two-factor/recovery-codes`), given the password and a
+ * current authenticator code. A 400 on either; a 423 when the account is locked, a 429 after too many codes.
+ */
 export function useRegenerateRecoveryCodes() {
-  return useTwoFactorMutation(async (code: string) =>
-    recoveryCodes(await unwrap(api.POST('/api/auth/me/two-factor/recovery-codes', {body: {code}}))),
+  return useTwoFactorMutation(async ({password, code}: PasswordAndCode) =>
+    recoveryCodes(await unwrap(api.POST('/api/auth/me/two-factor/recovery-codes', {body: {password, code}}))),
   );
 }
 
@@ -171,6 +190,8 @@ export interface SecuritySettings {
   requireTwoFactorForAdmins: boolean;
   /** Admin accounts that haven't set up two-factor authentication. */
   adminsWithoutTwoFactor: number;
+  /** Their usernames. */
+  adminsWithoutTwoFactorUsernames: string[];
   updatedAtUtc: string | null;
   updatedBy: string | null;
 }
@@ -178,6 +199,7 @@ export interface SecuritySettings {
 const toSecuritySettings = (body: Schemas['SecuritySettingsResponse'] | undefined): SecuritySettings => ({
   requireTwoFactorForAdmins: body?.requireTwoFactorForAdmins === true,
   adminsWithoutTwoFactor: body?.adminsWithoutTwoFactor ?? 0,
+  adminsWithoutTwoFactorUsernames: [...(body?.adminsWithoutTwoFactorUsernames ?? [])],
   updatedAtUtc: body?.updatedAtUtc ?? null,
   updatedBy: body?.updatedBy ?? null,
 });

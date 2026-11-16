@@ -87,6 +87,33 @@ describe('TwoFactorStep', () => {
     expect(router.state.location.pathname).toBe('/login');
   });
 
+  it('goes back to the page that sent them to sign in, after the code', async () => {
+    mockApi({
+      'POST /api/auth/login': () => json({challenge: CHALLENGE, expiresAtUtc: '2030-01-01T00:05:00Z'}, 202),
+      'POST /api/auth/login/two-factor': () => json(session),
+      'GET /api/auth/whoami': () => json({isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']}),
+      'GET /api/auth/me/settings': () => json({settings: null}),
+    });
+    const {user, router} = renderWithApp(<LoginPage redirectTo="/confirm-email" />, {path: '/login'});
+
+    await user.type(await enterPassword(user), '123456');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/confirm-email'));
+  });
+
+  it('stays on the code when the account has had too many codes, saying when to try again', async () => {
+    const tooMany = 'Too many codes for this account. Try again in 12 minutes.';
+    const {user, router} = renderLogin(() => json({title: tooMany, status: 429}, 429));
+
+    await user.type(await enterPassword(user), '000000');
+    await user.click(screen.getByRole('button', {name: 'Sign in'}));
+
+    expect(await findAlert(tooMany)).toBeInTheDocument();
+    expect(screen.getByLabelText(/code from your authenticator app/i)).toHaveValue('000000');
+    expect(router.state.location.pathname).toBe('/login');
+  });
+
   it.each([
     [401, "That code isn't right. Check your authenticator app and try again."],
     [423, 'This account is locked. Try again later.'],

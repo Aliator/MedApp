@@ -131,6 +131,28 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Locked */
+                423: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         post?: never;
@@ -141,7 +163,13 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RemoveEmailRequest"];
+                    "text/json": components["schemas"]["RemoveEmailRequest"];
+                    "application/*+json": components["schemas"]["RemoveEmailRequest"];
+                };
+            };
             responses: {
                 /** @description No Content */
                 204: {
@@ -149,6 +177,28 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Locked */
+                423: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
                 };
             };
         };
@@ -583,6 +633,52 @@ export interface paths {
         };
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/users/{username}/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    username: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -5029,6 +5125,7 @@ export interface components {
         };
         ChangeEmailRequest: {
             email?: string | null;
+            password?: string | null;
         };
         ChangePatientProcedureStatusRequest: {
             status?: string | null;
@@ -5733,6 +5830,9 @@ export interface components {
         RecoveryCodesResponse: {
             recoveryCodes?: string[] | null;
         };
+        RemoveEmailRequest: {
+            password?: string | null;
+        };
         ResetPasswordRequest: {
             /** Format: uuid */
             userId?: string;
@@ -5794,6 +5894,7 @@ export interface components {
             /** Format: date-time */
             updatedAtUtc?: string | null;
             updatedBy?: string | null;
+            adminsWithoutTwoFactorUsernames?: string[] | null;
         };
         SessionResponse: {
             /** Format: date-time */
@@ -5836,6 +5937,7 @@ export interface components {
             expiresAtUtc?: string;
         };
         TwoFactorCodeRequest: {
+            password?: string | null;
             code?: string | null;
         };
         TwoFactorStatusResponse: {

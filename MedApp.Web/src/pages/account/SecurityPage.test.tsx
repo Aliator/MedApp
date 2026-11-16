@@ -34,9 +34,10 @@ async function turnOff(user: User, password = 'Synthetic-Passw0rd', code = '1234
   return dialog;
 }
 
-async function getNewCodes(user: User, code = '123456') {
+async function getNewCodes(user: User, code = '123456', password = 'Synthetic-Passw0rd') {
   await user.click(await screen.findByRole('button', {name: 'New Recovery Codes'}));
   const dialog = within(openDialog()!);
+  await user.type(dialog.getByLabelText(/your password/i), password);
   await user.type(dialog.getByLabelText(/code from your authenticator app/i), code);
   await user.click(dialog.getByRole('button', {name: 'Get New Codes'}));
   return dialog;
@@ -84,7 +85,8 @@ describe('SecurityPage', () => {
 
     expect(await screen.findByText('Off')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Set Up Two-Factor'}));
-    await user.type(await screen.findByLabelText(/code from your authenticator app/i), '123456');
+    await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
+    await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
     await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Done'}));
@@ -150,6 +152,7 @@ describe('SecurityPage', () => {
   it.each([
     [409, 'Admin accounts must use two-factor authentication here, so you can’t turn it off.'],
     [423, 'This account is locked. Try again in 5 minutes.'],
+    [429, 'Too many codes for this account. Try again in 12 minutes.'],
   ])("says why a %s refused turning it off, in the API's words", async (status, title) => {
     const {user} = renderPage(on, {[DISABLE]: () => json({title, status}, status)});
 
@@ -166,44 +169,75 @@ describe('SecurityPage', () => {
     expect(await dialog.findByText('Two-factor authentication could not be turned off. Please try again.')).toBeInTheDocument();
   });
 
-  it('gets new recovery codes with a code, shows them once, and forgets them on Done', async () => {
+  it('gets new recovery codes with the password and a code, shows them once, and forgets them on Done', async () => {
     vi.useFakeTimers({shouldAdvanceTime: true});
     const {user, fetch} = renderPage(on, {[CODES]: () => json({recoveryCodes})});
 
     const dialog = await getNewCodes(user);
 
     expect(await dialog.findByText(recoveryCodes[0])).toBeInTheDocument();
-    expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/recovery-codes')).toEqual({code: '123456'});
+    expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/recovery-codes')).toEqual({password: 'Synthetic-Passw0rd', code: '123456'});
     await act(() => vi.advanceTimersByTimeAsync(1000));
     await user.click(dialog.getByRole('button', {name: 'Done'}));
     expect(openDialog()).toBeNull();
     await waitFor(() => expect(document.body.textContent).not.toContain(recoveryCodes[0]));
   });
 
-  it('gets them with Enter in the code', async () => {
-    const {user} = renderPage(on, {[CODES]: () => json({recoveryCodes})});
+  it('asks for new codes with the password, focused first, with the username beside it for password managers', async () => {
+    const {user} = renderPage();
 
     await user.click(await screen.findByRole('button', {name: 'New Recovery Codes'}));
     const dialog = within(openDialog()!);
+
+    const password = dialog.getByLabelText(/your password/i);
+    expect(password).toHaveAttribute('autocomplete', 'current-password');
+    expect(password).toHaveFocus();
+    expect(document.querySelector('input[name="username"]')).toHaveValue(adminUser.username);
+    expect(isDisabled(dialog.getByRole('button', {name: 'Get New Codes'}))).toBe(true);
+    await user.type(dialog.getByLabelText(/code from your authenticator app/i), '123456');
+    // A code alone isn't enough.
+    expect(isDisabled(dialog.getByRole('button', {name: 'Get New Codes'}))).toBe(true);
+  });
+
+  it('gets them with Enter in the code, once both are given', async () => {
+    const {user, fetch} = renderPage(on, {[CODES]: () => json({recoveryCodes})});
+
+    await user.click(await screen.findByRole('button', {name: 'New Recovery Codes'}));
+    const dialog = within(openDialog()!);
+    await user.type(dialog.getByLabelText(/code from your authenticator app/i), '123456{Enter}');
+    expect(calls(fetch)).not.toContain(CODES);
+    await user.clear(dialog.getByLabelText(/code from your authenticator app/i));
+    await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.type(dialog.getByLabelText(/code from your authenticator app/i), '{Enter}');
-    expect(dialog.queryByText(recoveryCodes[0])).not.toBeInTheDocument();
+    expect(calls(fetch)).not.toContain(CODES);
     await user.type(dialog.getByLabelText(/code from your authenticator app/i), '123456{Enter}');
 
     expect(await dialog.findByText(recoveryCodes[0])).toBeInTheDocument();
   });
 
-  it('shows a wrong code on its field', async () => {
+  it("shows a wrong password and a wrong code on their fields, and anything else above them", async () => {
     const {user} = renderPage(on, {
-      [CODES]: () => json({title: 'One or more validation errors occurred.', errors: {Code: ["That code isn't right."]}}, 400),
+      [CODES]: () =>
+        json(
+          {
+            title: 'One or more validation errors occurred.',
+            errors: {Password: ['Your password is incorrect.'], Code: ["That code isn't right."], '': ['Something else.']},
+          },
+          400,
+        ),
     });
 
     const dialog = await getNewCodes(user, '000000');
 
     expect((await dialog.findAllByText("That code isn't right.")).length).toBeGreaterThan(0);
+    expect(dialog.getAllByText('Your password is incorrect.').length).toBeGreaterThan(0);
+    expect(dialog.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true');
+    expect(dialog.getByText('Something else.')).toBeInTheDocument();
   });
 
   it.each([
     [423, () => json({title: 'This account is locked. Try again in 5 minutes.', status: 423}, 423), 'This account is locked. Try again in 5 minutes.'],
+    [429, () => json({title: 'Too many codes for this account. Try again in 12 minutes.', status: 429}, 429), 'Too many codes for this account. Try again in 12 minutes.'],
     [500, () => json({title: 'Server error'}, 500), 'New recovery codes could not be made. Please try again.'],
   ])('says when new codes could not be made (%s)', async (_, respond, message) => {
     const {user} = renderPage(on, {[CODES]: respond});

@@ -68,6 +68,15 @@ export const screens: Screen[] = [
       await waitVisible(page, ALERT);
     },
   },
+  {
+    name: 'confirm-email-sign-in',
+    title: 'Confirm your email address, opened from a (synthetic) link while signed out: asks to sign in first',
+    path: '/confirm-email#user=00000000-0000-0000-0000-000000000000&token=synthetic',
+    signedOut: true,
+    prepare: async (page) => {
+      await page.getByText('Sign in to confirm your email address').waitFor();
+    },
+  },
   { name: 'home', title: 'Home: a welcome (the MedApp heading leads here)', path: '/' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {

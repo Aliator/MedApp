@@ -1,3 +1,4 @@
+import {List, ListItem} from '@astryxdesign/core/List';
 import {Switch} from '@astryxdesign/core/Switch';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
@@ -13,8 +14,11 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {formatDateTime} from '../../utils/dates';
 
 /** How many admin accounts don't use two-factor, and what happens to them, in words. */
-export function adminsWithoutTwoFactorText({adminsWithoutTwoFactor: count, requireTwoFactorForAdmins}: SecuritySettings): string {
-  if (count === 0) return 'Every admin account uses two-factor authentication.';
+export function adminsWithoutTwoFactorText({
+  adminsWithoutTwoFactor: count,
+  requireTwoFactorForAdmins,
+}: Pick<SecuritySettings, 'adminsWithoutTwoFactor' | 'requireTwoFactorForAdmins'>): string {
+  if (count === 0) return 'Every admin account uses it.';
   const accounts = count === 1 ? '1 admin account hasn\'t' : `${count} admin accounts haven't`;
   return requireTwoFactorForAdmins
     ? `${accounts} set it up; they'll be asked to at their next request.`
@@ -29,8 +33,8 @@ function lastChangedText({updatedAtUtc, updatedBy}: SecuritySettings): string {
 
 /**
  * Admin Settings (`/admin/settings`, admin only): the sign-in rules for everyone. So far one: whether admin accounts
- * must use two-factor authentication. Turned on, an admin who hasn't set it up is held to doing so at their next
- * request (`/set-up-two-factor`). The API refuses it (a 409, shown in its words) until the admin saving it uses
+ * must use two-factor authentication, with how many admins haven't set it up, and who. Turned on, an admin who hasn't
+ * set it up is held to doing so at their next request (`/set-up-two-factor`). The API refuses it (a 409, shown in its words) until the admin saving it uses
  * two-factor themselves, so they can't lock themselves out.
  */
 export function AdminSettingsPage() {
@@ -85,6 +89,21 @@ export function AdminSettingsPage() {
                 }}
               />
               <Text type="body">{adminsWithoutTwoFactorText(settings)}</Text>
+              {settings.adminsWithoutTwoFactorUsernames.length > 0 && (
+                <List
+                  listStyle="disc"
+                  edge="flush"
+                  density="compact"
+                  header={
+                    <Text type="supporting" color="secondary">
+                      Admin accounts without two-factor authentication
+                    </Text>
+                  }>
+                  {settings.adminsWithoutTwoFactorUsernames.map((username) => (
+                    <ListItem key={username} label={username} />
+                  ))}
+                </List>
+              )}
               <Text type="supporting" color="secondary">
                 {lastChangedText(settings)}
               </Text>

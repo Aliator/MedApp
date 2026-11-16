@@ -1,10 +1,16 @@
-import {screen, waitFor} from '@testing-library/react';
+import {screen, waitFor, within} from '@testing-library/react';
 import {adminUser, calls, expectAnnounced, findAlert, json, mockApi, renderWithApp, withAnnouncements} from '../../test/render';
 import {AdminSettingsPage, adminsWithoutTwoFactorText} from './AdminSettingsPage';
 
 const SETTINGS = '/api/auth/security-settings';
 
-const saved = {requireTwoFactorForAdmins: false, adminsWithoutTwoFactor: 2, updatedAtUtc: '2026-06-15T09:30:00Z', updatedBy: 'test-admin'};
+const saved = {
+  requireTwoFactorForAdmins: false,
+  adminsWithoutTwoFactor: 2,
+  adminsWithoutTwoFactorUsernames: ['a.hartwell', 'l.northcott'],
+  updatedAtUtc: '2026-06-15T09:30:00Z',
+  updatedBy: 'test-admin',
+};
 
 function renderPage(settings: unknown = saved, put: Parameters<typeof mockApi>[0][string] = () => json({...saved, requireTwoFactorForAdmins: true})) {
   const fetch = mockApi({[`GET ${SETTINGS}`]: () => json(settings), [`PUT ${SETTINGS}`]: put});
@@ -20,6 +26,8 @@ describe('AdminSettingsPage', () => {
     expect(await requireSwitch()).not.toBeChecked();
     expect(screen.getByRole('heading', {name: 'Admin Settings', level: 1})).toBeInTheDocument();
     expect(screen.getByText("2 admin accounts haven't set it up.")).toBeInTheDocument();
+    const who = screen.getByRole('list', {name: 'Admin accounts without two-factor authentication'});
+    expect(within(who).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['a.hartwell', 'l.northcott']);
     // 09:30 UTC is 10:30 in the UK in June.
     expect(screen.getByText(/^Last changed by test-admin on .*10:30/)).toBeInTheDocument();
   });
@@ -74,10 +82,11 @@ describe('AdminSettingsPage', () => {
   });
 
   it('says when the settings were never changed', async () => {
-    renderPage({requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 0});
+    renderPage({requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 0, adminsWithoutTwoFactorUsernames: []});
 
     expect(await screen.findByText('Not changed yet.')).toBeInTheDocument();
-    expect(screen.getByText('Every admin account uses two-factor authentication.')).toBeInTheDocument();
+    expect(screen.getByText('Every admin account uses it.')).toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
   it('says when the settings could not be loaded', async () => {

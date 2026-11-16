@@ -139,3 +139,14 @@ export function useChangePassword() {
       ),
   });
 }
+
+/**
+ * Removes a user's email address, and any waiting to be confirmed (`DELETE api/auth/users/{username}/email`), so
+ * password reset links can't go to an address that isn't theirs any more. The API tells the confirmed address it was
+ * removed. A 404 for an unknown user.
+ */
+export function useRemoveUserEmail() {
+  return useUserMutation((username: string) =>
+    unwrap(api.DELETE('/api/auth/users/{username}/email', {params: {path: {username}}})),
+  );
+}

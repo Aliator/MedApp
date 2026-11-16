@@ -17,17 +17,20 @@ export interface TwoFactorStepProps {
   challenge: string;
   /** Back to the password step: with the reason when this sign-in can't go on, without when they chose to. */
   onRestart: (reason?: string) => void;
+  /** Where to go once signed in, instead of the start page (the login page's `redirect`). */
+  redirectTo?: string;
 }
 
 /**
  * Signing in's second step, for an account with two-factor authentication: a code from the authenticator app, or a
  * recovery code instead. A right one signs in as a password alone does for other accounts. A wrong one stays here,
- * saying so; a sign-in that has run out (or had too many wrong codes) goes back to the password, saying why.
+ * saying so, as do a locked account and too many codes for the account (a 429, saying when to try again); a sign-in
+ * that has run out (or had too many wrong codes) goes back to the password, saying why.
  */
-export function TwoFactorStep({challenge, onRestart}: TwoFactorStepProps) {
+export function TwoFactorStep({challenge, onRestart, redirectTo}: TwoFactorStepProps) {
   const [isRecovery, setIsRecovery] = useState(false);
   const [code, setCode] = useState('');
-  const login = useLoginTwoFactor();
+  const login = useLoginTwoFactor(redirectTo);
 
   const validation = login.error instanceof ApiValidationError ? login.error.errors : null;
   const failure = login.error instanceof ApiError ? login.error : null;

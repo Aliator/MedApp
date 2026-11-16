@@ -27,8 +27,9 @@ function renderSetup(handlers: Parameters<typeof mockApi>[0] = {}, props: Partia
 
 type User = ReturnType<typeof renderSetup>['user'];
 
-async function turnOn(user: User, code = '123456') {
-  await user.type(await screen.findByLabelText(/code from your authenticator app/i), code);
+async function turnOn(user: User, code = '123456', password = 'Synthetic-Passw0rd') {
+  await user.type(await screen.findByLabelText(/your password/i), password);
+  await user.type(screen.getByLabelText(/code from your authenticator app/i), code);
   await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
 }
 
@@ -63,7 +64,16 @@ describe('TwoFactorSetup', () => {
     expect(code).toHaveAttribute('inputmode', 'numeric');
   });
 
-  it('turns two-factor on with the code, then shows the recovery codes once, until Continue', async () => {
+  it('asks for the password beside the code, with the username hidden beside it for password managers', async () => {
+    renderSetup();
+
+    const password = await screen.findByLabelText(/your password/i);
+    expect(password).toHaveAttribute('type', 'password');
+    expect(password).toHaveAttribute('autocomplete', 'current-password');
+    expect(document.querySelector('input[name="username"]')).toHaveValue('test-admin');
+  });
+
+  it('turns two-factor on with the password and code, then shows the recovery codes once, until Continue', async () => {
     withAnnouncements();
     const {user, fetch, onDone, onEnabled, queryClient} = renderSetup();
     queryClient.setQueryData(twoFactorStatusQuery.queryKey, {enabled: false, recoveryCodesLeft: 0, required: true});
@@ -72,7 +82,7 @@ describe('TwoFactorSetup', () => {
 
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     expect(screen.queryByRole('img', {name: /QR code/})).not.toBeInTheDocument();
-    expect(await (fetch.mock.calls[1][0] as Request).json()).toEqual({code: '123456'});
+    expect(await (fetch.mock.calls[1][0] as Request).json()).toEqual({password: 'Synthetic-Passw0rd', code: '123456'});
     expect(onEnabled).toHaveBeenCalledOnce();
     expect(queryClient.getQueryState(twoFactorStatusQuery.queryKey)?.isInvalidated).toBe(true);
     await expectAnnounced(/Two-factor authentication is on\./);
@@ -94,8 +104,23 @@ describe('TwoFactorSetup', () => {
     expect(screen.getByRole('img', {name: /QR code/})).toBeInTheDocument();
   });
 
+  it('shows a wrong password on its field, and anything not about a field above them', async () => {
+    const {user} = renderSetup({
+      [ENABLE]: () =>
+        json({title: 'One or more validation errors occurred.', errors: {Password: ['Your password is incorrect.'], '': ['Something else.']}}, 400),
+    });
+
+    await turnOn(user);
+
+    expect(await screen.findByText('Your password is incorrect.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText(/code from your authenticator app/i)).not.toHaveAttribute('aria-invalid', 'true');
+    expect(await findAlert('Something else.')).toBeInTheDocument();
+  });
+
   it.each([
     ['already on', () => json({title: 'Two-factor authentication is already on for this account.', status: 409}, 409), 'Two-factor authentication is already on for this account.'],
+    ['locked', () => json({title: 'This account is locked. Try again in 5 minutes.', status: 423}, 423), 'This account is locked. Try again in 5 minutes.'],
     ['a server error', () => json({title: 'Server error'}, 500), 'Two-factor authentication could not be turned on. Please try again.'],
   ])('says when it could not be turned on: %s', async (_, respond, message) => {
     const {user} = renderSetup({[ENABLE]: respond});

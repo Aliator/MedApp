@@ -1,5 +1,5 @@
 import {renderHook, waitFor} from '@testing-library/react';
-import {linkFragment, parseEmailLink, useEmailLink} from './emailLink';
+import {linkFragment, parseEmailLink, PENDING_CONFIRMATION_KEY, pendingEmailConfirmation, useEmailLink} from './emailLink';
 
 const USER = '0000000e-0000-0000-0000-000000000001';
 
@@ -40,6 +40,36 @@ describe('useEmailLink', () => {
     expect(clear).not.toHaveBeenCalled();
   });
 
+  describe('with a kept link', () => {
+    afterEach(() => sessionStorage.clear());
+
+    it('uses the kept link when the address holds none', async () => {
+      window.history.replaceState(null, '', '/confirm-email');
+      pendingEmailConfirmation.save({userId: USER, token: 'kept'});
+
+      const {result} = renderHook(() => useEmailLink(pendingEmailConfirmation.read));
+
+      await waitFor(() => expect(result.current).toEqual({status: 'found', userId: USER, token: 'kept'}));
+    });
+
+    it("prefers the address's link to a kept one", async () => {
+      window.history.replaceState(null, '', `/confirm-email#user=${USER}&token=fresh`);
+      pendingEmailConfirmation.save({userId: USER, token: 'kept'});
+
+      const {result} = renderHook(() => useEmailLink(pendingEmailConfirmation.read));
+
+      await waitFor(() => expect(result.current).toEqual({status: 'found', userId: USER, token: 'fresh'}));
+    });
+
+    it('says it is missing when neither has one', async () => {
+      window.history.replaceState(null, '', '/confirm-email');
+
+      const {result} = renderHook(() => useEmailLink(pendingEmailConfirmation.read));
+
+      await waitFor(() => expect(result.current).toEqual({status: 'missing'}));
+    });
+  });
+
   it('says a partial link is missing, and still clears it', async () => {
     window.history.replaceState(null, '', `/confirm-email#user=${USER}`);
 
@@ -47,5 +77,49 @@ describe('useEmailLink', () => {
 
     await waitFor(() => expect(result.current).toEqual({status: 'missing'}));
     expect(window.location.hash).toBe('');
+  });
+});
+
+describe('pendingEmailConfirmation', () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps a link in this tab only, under a medapp. key, until cleared', () => {
+    pendingEmailConfirmation.save({userId: USER, token: 'abc'});
+
+    expect(PENDING_CONFIRMATION_KEY.startsWith('medapp.')).toBe(true);
+    expect(JSON.parse(sessionStorage.getItem(PENDING_CONFIRMATION_KEY)!)).toEqual({userId: USER, token: 'abc'});
+    expect(localStorage.length).toBe(0);
+    expect(pendingEmailConfirmation.read()).toEqual({userId: USER, token: 'abc'});
+    pendingEmailConfirmation.clear();
+    expect(pendingEmailConfirmation.read()).toBeNull();
+  });
+
+  it.each([
+    'not json',
+    'null',
+    '"text"',
+    JSON.stringify({userId: USER}),
+    JSON.stringify({userId: '', token: 'abc'}),
+    JSON.stringify({userId: USER, token: 1}),
+  ])('reads nothing from %s', (stored) => {
+    sessionStorage.setItem(PENDING_CONFIRMATION_KEY, stored);
+
+    expect(pendingEmailConfirmation.read()).toBeNull();
+  });
+
+  it('keeps nothing, without failing, when storage is blocked', () => {
+    const blocked = () => {
+      throw new Error('blocked');
+    };
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(blocked);
+
+    expect(() => pendingEmailConfirmation.save({userId: USER, token: 'abc'})).not.toThrow();
+    expect(() => pendingEmailConfirmation.clear()).not.toThrow();
+    expect(pendingEmailConfirmation.read()).toBeNull();
   });
 });

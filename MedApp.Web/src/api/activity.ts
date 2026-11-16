@@ -175,6 +175,7 @@ const SIGN_IN_FAILURES: Record<string, string> = {
   InvalidCodeLockedOut: 'Wrong authenticator code: account locked',
   InvalidRecoveryCodeLockedOut: 'Wrong recovery code: account locked',
   ChallengeExpired: 'Code step timed out',
+  TooManyCodes: 'Too many codes for the account',
 };
 
 const fieldNames = (value: unknown) =>

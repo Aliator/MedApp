@@ -141,3 +141,22 @@ export function problemMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError && error.title && (error.status === 404 || error.status === 409)) return error.title;
   return fallback;
 }
+
+/**
+ * What to tell the user about a refusal that explains itself in its title: a conflict (409), a locked account (423)
+ * or too many tries (429, saying when to try again). The API's own words for one of those, otherwise `fallback`.
+ */
+export function refusalMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError && (error.status === 409 || error.status === 423 || error.status === 429) && error.title
+    ? error.title
+    : fallback;
+}
+
+/**
+ * A 400's messages that aren't on one of `fields` (each field shows its own with `fieldStatus`), for a banner above
+ * a form or a dialog's fields. Nothing for no errors.
+ */
+export function otherMessages(errors: ValidationErrors | null | undefined, fields: readonly string[]): string[] {
+  if (!errors) return [];
+  return [...Object.entries(errors.fields).flatMap(([field, messages]) => (fields.includes(field) ? [] : messages)), ...errors.general];
+}

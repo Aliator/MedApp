@@ -9,17 +9,27 @@ import {featuresQuery} from '../../api/account';
 import {ApiError, ApiValidationError, fieldStatus} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {useLogin} from '../../auth/auth';
+import {safeRedirectPath} from '../../auth/redirect';
 import {StandalonePage} from '../../components/pages/StandalonePage';
 import {TwoFactorStep} from './TwoFactorStep';
 
 export interface LoginSearch {
   /** Came here because the session timed out (`SessionTimeout`). */
   expired?: true;
+  /** Where to go once signed in, instead of the start page: a path in this app (`safeRedirectPath`). */
+  redirect?: string;
 }
 
-/** The login page's URL search: `?expired=true` after a session timed out. Anything else is ignored. */
+/**
+ * The login page's URL search: `?expired=true` after a session timed out, and `?redirect=/path` to come back to a
+ * page after signing in (`/confirm-email` does), kept only if it's a safe path in this app. Anything else is ignored.
+ */
 export function parseLoginSearch(search: Record<string, unknown>): LoginSearch {
-  return search.expired === true || search.expired === 'true' ? {expired: true} : {};
+  const redirect = safeRedirectPath(search.redirect);
+  return {
+    ...(search.expired === true || search.expired === 'true' ? {expired: true as const} : {}),
+    ...(redirect ? {redirect} : {}),
+  };
 }
 
 /** Said to screen readers as the code step replaces the password, which they wouldn't otherwise hear about. */
@@ -34,15 +44,16 @@ export const CODE_STEP_ANNOUNCEMENT = 'Password accepted. Enter the code from yo
  *
  * An account with two-factor authentication answers the password with a challenge (a 202): the password form gives
  * way to `TwoFactorStep`, for a code from the authenticator app or a recovery code. If that sign-in runs out, it comes
- * back here, saying why. "Forgot your password?" shows only when the server can send email.
+ * back here, saying why. "Forgot your password?" shows only when the server can send email. Signed in, it goes to the
+ * start page, or to `redirectTo` (already checked by `parseLoginSearch`).
  */
-export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
+export function LoginPage({isExpired = false, redirectTo}: {isExpired?: boolean; redirectTo?: string}) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<string | null>(null);
   // Why the code step sent them back here (it ran out, or had too many wrong codes), in the API's words.
   const [restartReason, setRestartReason] = useState<string | null>(null);
-  const login = useLogin();
+  const login = useLogin(redirectTo);
   const announce = useAnnounce();
   const {data: features} = useQuery(featuresQuery);
 
@@ -83,7 +94,7 @@ export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
   return (
     <StandalonePage title="Sign in" maxWidth={400}>
       {challenge !== null ? (
-        <TwoFactorStep challenge={challenge} onRestart={restart} />
+        <TwoFactorStep challenge={challenge} onRestart={restart} redirectTo={redirectTo} />
       ) : (
         <form onSubmit={handleSubmit} noValidate>
           <VStack gap={4} hAlign="stretch">
