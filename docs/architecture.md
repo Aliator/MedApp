@@ -999,7 +999,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 #### Authentication
 
 - **Accounts are local.** Usernames and passwords, hashed by ASP.NET Core Identity's password hasher. There's no single sign-on and no multi-factor authentication.
-- **Password rules** (`appsettings.json`, `Identity` section): at least 8 characters, with a digit, a lower-case and an upper-case letter.
+- **Password rules** (`appsettings.json`, `Identity` section): at least 8 characters, with a digit, a lower-case and an upper-case letter. On `feature/security-baseline`, a new password also mustn't be one of the 10,000 most common (`CommonPasswordValidator`), and sign-in is throttled per address and per username before the lockout (`LoginThrottling`).
 - **Lockout:** 5 wrong passwords lock the account for 5 minutes. A locked account gets 423 with the time left, even with the right password (#38).
 - **Sensitive actions re-check:** changing your own password needs the old one; deleting a user needs the deleting admin's own password.
 - **The server generates every first password and every reset** (#53): at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (`IdentityUserService.GeneratePassword`). There's no default password. `POST api/auth/users` takes only a username and returns the new password once, with `Cache-Control: no-store`. The Users page shows it once, with a copy button, and forgets it when the dialog closes. The response records print `***` in place of the password, so logging one can't leak it.
@@ -1019,13 +1019,14 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 | Property | Value | Where |
 |---|---|---|
-| Cookie name | `medapp.session` | `SessionAuthenticationDefaults.cs` |
+| Cookie name | `__Host-medapp.session` outside Development (needs `Secure`, `Path=/` and no `Domain`); `medapp.session` in Development | `SessionAuthenticationDefaults.cs`, `SessionCookieService.cs` |
 | Value | The session's ID (a GUID), looked up in `UserSessions` | `SessionService` |
 | `HttpOnly` | Yes | `SessionCookieService.cs` |
 | `SameSite` | `Lax`: not sent on cross-site POSTs | `SessionCookieService.cs` |
 | `Secure` | Outside Development | `SessionCookieService.cs` |
 | Lifetime | 8 hours from sign-in, fixed; no idle timeout | `SessionService.cs` |
-| Revocation | On sign-out; or when the user is deleted (validation fails) | `SessionService.cs` |
+| Revocation | On sign-out; when the user is deleted (validation fails); the user's other sessions when they change their password; all of them on an admin's reset, a change of roles, or "Sign out everywhere" | `SessionService.cs`, the password and role handlers |
+| Sign-in throttling | 30 attempts a minute per client address, 5 per username; then a 429 with `Retry-After` | `MedApp.API/Common/RateLimiting` |
 
 **Cross-site request forgery (CSRF).** There are no antiforgery tokens. The defence is `SameSite=Lax`, which keeps the cookie off cross-site POSTs, PUTs, PATCHes and DELETEs, together with JSON request bodies. There's no CORS policy, so no other origin is allowed to read responses.
 
@@ -1095,7 +1096,7 @@ No cloud secret is stored anywhere: GitHub signs in with OIDC, External Secrets 
 
 - **Pinned:** `@astryxdesign/*` and Lexical exactly; ReportGenerator's action by commit SHA; `dotnet-ef` by version.
 - **Floating:** the other GitHub Actions by major tag (`@v4`, `@v3`), the base images (`node:22-bookworm-slim`, `dotnet/aspnet:10.0`, `dotnet/sdk:10.0`), `mssql/server:2022-latest` and `valkey:8.1-alpine`, and caret ranges in `package.json` (the lock file fixes what's installed).
-- **Missing:** Dependabot or Renovate, image vulnerability scanning, an SBOM (software bill of materials) and image signing.
+- **Missing,** before `feature/security-baseline`: Dependabot or Renovate, image vulnerability scanning, an SBOM (software bill of materials) and image signing. That branch pins every action by commit SHA and adds Dependabot, CodeQL, dependency review, `npm audit`, NuGet audit as errors, a Trivy scan of the image, and SBOM and build provenance attestations on the published image (`AGENTS.md`, CI). Base images are still pinned by tag.
 
 ### 8.2 Data protection and privacy, as they stand
 
@@ -1275,8 +1276,8 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S2 | **Patient records and account administration aren't audited, and reads aren't logged at all.** Any staff member can delete a patient who has no procedures, and nothing records it. For health data, who viewed and changed what is usually required. | High | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
 | S4 | **No regulatory groundwork:** no DPIA, retention policy, subject access or erasure process ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
-| S5 | **Sessions:** a fixed 8 hours with no idle timeout; not ended by a password change, a reset or a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. | Medium | (handbook) |
-| S6 | **No security headers** on pages: no Content Security Policy, `X-Content-Type-Options`, `frame-ancestors` or `X-Frame-Options`, or `Referrer-Policy`. | Medium | F24 (the `Cache-Control` half is fixed) |
+| S5 | **Sessions:** a fixed 8 hours with no idle timeout; not ended by a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. **`feature/security-baseline`** ends a user's sessions when their password or roles change, lets an admin sign a user out everywhere, and throttles sign-in. | Medium | (handbook) |
+| S6 | **Fixed on `feature/security-baseline`:** security headers on every response, `no-store` on every `/api` response, and a nonce-based Content Security Policy on pages (`SecurityHeaders`). Left: styles allow `'unsafe-inline'`, and nothing collects violation reports. | Was medium. Now low | F24 |
 | S7 | **Authorisation is barely tested.** Endpoint roles and policies are attributes, and only the own-password and create-user endpoints' are checked by a test. Nothing tests the assembled pipeline (HSTS, blocked paths, the health port, the order of middleware). | Medium | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
 | S8 | **No multi-factor authentication or single sign-on,** and "Forgot password?" tells users a link was sent when nothing was. | Medium | (handbook) |
 | S9 | **Public endpoints on Azure:** the AKS API server, Key Vault and the registry are reachable from the internet, behind Entra ID. | Medium | `docs/reviews/azure.md` |
@@ -1526,6 +1527,10 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 - A public repository weakens any claim that the code is a confidential asset.
 
 ### Step 2: Close the remaining review findings and set an ASVS Level 2 baseline
+
+**Status:** a first, scoped part is built on `feature/security-baseline` (16 November 2026, from `ea827ef`; not merged yet), without changing who may do what, the login's answers or the session lifetime, and without a migration:
+- **Done:** the security headers and Content Security Policies, with a per-request nonce for the router's scripts (`SecurityHeaders`); `Cache-Control: no-store` on every `/api` response; the `__Host-` session cookie outside Development; sign-in throttling per address and per username (`LoginThrottling`); ending a user's sessions when their password or roles change, and an admin action to sign a user out everywhere; a deny list of the 10,000 most common passwords (`CommonPasswordValidator`); actions pinned by SHA, Dependabot, CodeQL, dependency review, `npm audit`, NuGet audit as errors, a Trivy image scan, and SBOM and provenance attestations on the published image; the STRIDE threat model (`docs/security/threat-model.md`) and the ASVS 5.0 Level 2 checklist (`docs/security/asvs.md`).
+- **Still to do in this step:** the idle timeout and the timeout warning, hashed session tokens, the same answer for a locked account, a per-session rate limit, a breached-password check and a longer minimum without composition rules, data protection keys, removing the two return-everything endpoints and admin-only patient deletion, the authorisation matrix and integration tests, ZAP, OpenSSF Scorecard, images by digest, verifying attestations before deploy, a deploy gate, and the open review items (live notifications, forwarded headers, secrets on command lines, readiness, Node in a sidecar). The checklist lists them requirement by requirement.
 
 **Goal:** Close what the reviews left open, add the web security controls MedApp lacks, harden the build pipeline, and record the result against the OWASP (Open Worldwide Application Security Project) Application Security Verification Standard (ASVS) 5.0 at Level 2.
 

@@ -681,7 +681,9 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Existing controls:**
 - Each change is recorded with the signed-in user's ID and a snapshot of their username (`ProcedureActor`, `ProcedureAudit`).
 - Sessions are revoked on sign-out, and a session whose user no longer exists is refused, so deleting a user ends their sessions (`SessionService`, `MedApp.Infrastructure/Common/Authentication/SessionService.cs`).
-- Five wrong passwords lock an account for five minutes.
+- Five wrong passwords lock an account for five minutes. Sign-in is also throttled: 5 attempts a minute per username and 30 per address (`LoginThrottling`; `feature/security-baseline`, not yet merged).
+- Ending sessions when the account changes: changing a password ends the user's other sessions, an admin's reset or a change of roles ends all of them, and an admin can sign a user out everywhere, for example when a password may have been shared (`UpdateUserPasswordHandler`, `ResetUserPasswordHandler`, `SetUserRolesHandler`, `SignOutEverywhereHandler`; same branch).
+- The 10,000 most common passwords are refused when a password is set (`CommonPasswordValidator`; same branch).
 
 **Initial risk:** Significant, Medium: **2**.
 

@@ -49,9 +49,23 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **A MediatR licence** before running in production: MediatR 14 logs a licence warning at startup.
   - **Readiness that checks the database and Valkey,** and **restarting Node** when the page server exits (the chart's `README.md`, "Not yet").
   - **Restarting the API and Valkey when a password changes,** for example with a reloader. Until then it's by hand (`deploy/azure/README.md`, Passwords).
-  - **Pinning actions and images by digest,** with Dependabot keeping them current.
+  - **Pinning images by digest** (the Dockerfile's base images, SQL Server and Valkey), with Dependabot keeping them current. Actions are pinned by commit SHA. Write the Dockerfile's base image tags out (not as `ARG`s), so Dependabot can read them.
+  - **Verify the image's provenance attestation before deploying it** (an admission policy, or a check in the deploy job), and copy the attestations to Azure's registry with the image.
+  - **Move the PR workflow's `pull-requests: write`** from the whole workflow to the jobs that comment.
   - **Repository settings:** `web`, `helm`, `unit-tests` and `image` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
 - **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).
+
+## Security (roadmap step 2, after `feature/security-baseline`)
+
+What that branch left, so the app would work exactly as before (`docs/security/asvs.md` has the rest, requirement by requirement):
+- **An idle timeout** (30 minutes as a start, configurable) beside the fixed 8 hours, with the warning under Accessibility.
+- **Store a hash of a random 256-bit session token** instead of the row's ID (needs a migration), and stop repeating the session ID in the login response's body.
+- **The same answer for a locked account** as for a wrong password (today a 423 confirms the account exists).
+- **Close a user's live-notifications connections when their sessions end** (a password change, a reset, a role change or "Sign out everywhere"): today an open page keeps receiving notifications until it reloads.
+- **Share the sign-in throttling counts between API copies** (Valkey), and add a per-session limit on everything else.
+- **Passwords:** a breached-password check (Have I Been Pwned's k-anonymity range API, or an offline list), a 15-character minimum without composition rules (ASVS V6.2.1), and context words (the username, "medapp") on the deny list.
+- **Tighten the page policy:** move style attributes to classes so `style-src` can drop `'unsafe-inline'`, and collect violation reports (`report-to`).
+- **Audit the new session actions** (sign-out everywhere, and the sessions a change ends) with the rest of account administration (step 7).
 
 ## Long term
 
