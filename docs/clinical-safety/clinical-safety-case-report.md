@@ -35,7 +35,7 @@
 | | |
 |---|---|
 | **Version** | [Release], built from commit [SHA]; this draft: `88dc1fa` |
-| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications; the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1) |
+| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications (each person can turn them off) and admins' monitoring notifications; the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1) |
 | **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] |
 | **Where it runs** | [Customer deployment, or the manufacturer's hosted service on Azure UK South.] Today it has run only in development and on a local test cluster. |
 | **Who uses it** | Trained clinical and administrative staff of the deploying organisation, and its administrators |

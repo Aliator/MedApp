@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-04, intended purpose and qualification as a medical device |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` (the merge of #56) |
 | **Manufacturer** | [Manufacturer name] |
@@ -32,7 +32,7 @@ The MHRA's guidance on intended purpose asks for four things: the product's stru
 >
 > Staff record a patient's identifying details, and start a procedure for that patient from a template of stages that the organisation's administrators have written. They work through the stages in a fixed order, record free-text notes at each stage, and mark each stage finished. Administrators assign procedures to staff, who see them on their task lists, with the due dates that staff have set and whether a procedure is past its due date. MedApp keeps an audit trail of every change to a procedure.
 >
-> MedApp does not interpret clinical data. It does not calculate, score, prioritise, triage, diagnose or recommend. What a procedure involves, its stages, its priority and its due date are all decided by the organisation's staff, using their own knowledge and the organisation's clinical systems. MedApp is not a scheduling, clinical alerting or patient monitoring system, though it may remind staff about workflow dates they have set. It is not the organisation's record of who the patient is.
+> MedApp does not interpret clinical data. It does not calculate, score, prioritise, triage, diagnose or recommend. What a procedure involves, its stages, its priority and its due date are all decided by the organisation's staff, using their own knowledge and the organisation's clinical systems. MedApp is not a scheduling, clinical alerting or patient monitoring system, though it may remind staff about workflow dates they have set, and may tell administrators when staff take workflow actions they have asked to hear about. It is not the organisation's record of who the patient is.
 
 ### Its parts
 
@@ -40,7 +40,7 @@ The MHRA's guidance on intended purpose asks for four things: the product's stru
 |---|---|
 | **Function: inputs** | Patient details typed by staff (first and last name, date of birth, email). Templates and stage definitions written by administrators (names, descriptions, instructions). For each procedure: a template, a title, notes, a due date (a whole day) and a priority, all chosen by staff; then stage notes, and the actions start, finish, assign, unassign, block, cancel, complete, archive and unlock. |
 | **Function: processing** | It copies the template's stages onto the procedure; enforces the order of stages and the locks; moves the status as stages are started and finished; compares the due date with today's date; and records each change in the audit log. None of this uses the content of clinical data. |
-| **Function: outputs** | Lists and pages showing patients, procedures, stages, notes, who did what and when, status, due date and an "overdue" badge; task lists; in-app notifications about the workflow (today, only when someone is assigned a procedure; reminders about due dates staff set are planned); the audit log. |
+| **Function: outputs** | Lists and pages showing patients, procedures, stages, notes, who did what and when, status, due date and an "overdue" badge; task lists; in-app notifications about the workflow (when someone is assigned a procedure, which each person can turn off; and, for administrators, when a staff action matches one of their monitoring rules; reminders about due dates staff set are planned); the audit log. |
 | **Where it sits in the care pathway** | Alongside the organisation's own clinical systems, as a shared checklist and task list for the administrative and clinical steps of a procedure. It doesn't replace the electronic patient record, the patient administration system, scheduling or clinical decision-making. |
 | **Intended users** | Trained staff of health and care organisations: clinical and administrative staff (role `User`), and administrators (role `Admin`) who manage accounts, templates and assignments. Not patients or the public. |
 | **Intended population** | The organisation's patients, of any age. MedApp makes no decision about any patient, so it has no clinical population restriction. |
@@ -52,7 +52,7 @@ These go in the instructions for use and the contract, so the intended purpose c
 - **Not for decisions:** it must not be used to decide whether, when or how to treat a patient. Stage instructions are the organisation's own text, displayed as written.
 - **Not the identity record:** patients must be identified at the point of care by the organisation's own positive identification process, not by MedApp alone. MedApp has no NHS number yet.
 - **Not for time-critical work:** a procedure becomes overdue only after the end of its due day, UK time, and any reminder about it is best effort.
-- **Not a clinical alerting or monitoring system:** notifications are about the workflow (who is assigned, and dates staff set), never about clinical values. Today they're in-app only, for assignments only, and best effort.
+- **Not a clinical alerting or monitoring system:** notifications are about the workflow (who is assigned, who did what, and dates staff set), never about clinical values. Today they're in-app only, best effort, and of two kinds: being assigned a procedure, and administrators' monitoring rules. Monitoring rules watch **staff actions** (a procedure created, a stage finished, a status chosen, an assignment, an unlock, a due date changed), optionally only for a staff-chosen priority, a template or a stage; they're supervision of work, not monitoring of patients, and must not be relied on to make sure anything clinical happens.
 - **Not for medicines:** no doses, prescriptions or administration records.
 
 ### Claims the manufacturer must not make
@@ -100,6 +100,7 @@ They can say that it records and coordinates procedure workflow, keeps an audit 
 | **Due date and the overdue badge** | `DueDates`, `ProcedureWorkflow.IsOverdue` | No, with care | A date set by staff compared with today. It's a reminder, like a calendar, not a red flag derived from clinical data. It would become borderline if MedApp set or changed due dates from clinical data (see below). |
 | **Priority** (low, medium, high, urgent) | `PatientProcedurePriority`, `UpdatePatientProcedureHandler` | No, with care | A label chosen by staff. MedApp never sets it. Lists sort by due date unless the user picks another column (`ProcedureSearch.Sort`). |
 | **Assignment, task lists and notifications** | `AssignPatientProcedureHandler`, `MyTasksPage.tsx`, `NotificationSender` | No | Work allocation by administrators, and a message that it happened. |
+| **Monitoring rules** (an admin is told when a staff member, or anyone, takes a workflow action, optionally only for a priority, template or stage) | `ProcedureMonitor`, `MonitoringRuleMatcher`, `MonitoredActivity` | No | Administrative supervision. It matches who did which audited action against the admin's choices; the priority is the label staff chose, compared by its order only, and the template and stage by identity. It never reads notes or any clinical value, and decides nothing about a patient. |
 | **Audit log** | `ProcedureChange.Audit`, `PatientProcedureAuditEntry` | No | Record keeping. |
 | **Search, sort, filters and saved searches** | `ProcedureSearch`, `PatientSearch` | No | Simple search on fields staff entered, with user-chosen order. |
 
@@ -147,6 +148,7 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | **SNOMED CT and OPCS-4 codes on templates** | They label the procedure. | Codes are chosen by the software from clinical data. |
 | **Reporting and dashboards** | They count workflow (open work, time in stage, overdue work). | They predict or rank patients by clinical risk. |
 | **Overdue, blocked and unlocked notifications, email and escalation** | They're about the workflow and dates staff set. | They're triggered by clinical values. |
+| **Monitoring rules** (built) | They match staff actions and labels staff chose (priority, template, stage). | A rule can match on a clinical value (a structured stage field, a result), or the software sets the priority it matches on. |
 | **Waiting-list tracking (RTT clocks, breaches)** | Clocks and breach dates follow the national rules, and priority stays clinician-assigned. | The software sets or suggests clinical priority. |
 | **Digital consent and documents** | They store and display forms. | They assess capacity, risk or suitability. |
 | **Patient questionnaires and a portal** | Answers are stored and shown to staff. | Answers are scored, triaged or trigger clinical advice. |
@@ -172,4 +174,5 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft, for `main` at `88dc1fa` | AI coding agent, for review |
+| 0.3 | 16 November 2026 | Admins' monitoring rules (notifications of staff actions) and each person's switch for assignment notifications: assessed as administrative supervision, not a device function; the intended purpose and outputs say so | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: the intended purpose allows workflow reminders about dates staff set, so planned overdue notifications don't contradict it; all eight statuses listed; the change-control rule is in `AGENTS.md` | AI coding agent, for review |

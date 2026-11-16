@@ -48,7 +48,8 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
 | **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
 | **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
-| **Notifications** | Being assigned a procedure (by someone else) sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
+| **Notifications** | Being assigned a procedure (by someone else) sends a notification, which each person can turn off in Account Settings. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
+| **Monitoring** | Admins set rules for being told what staff do to procedures (Administration, Monitoring), e.g. "Notify me when **sam** finishes **Bloods** on a **High or Urgent** priority procedure": a person or anyone, one of eight events, and optional priority, template and stage conditions. A matching change sends the admin one notification, never about their own changes, with no free text or patient details. Each admin sees only their own rules. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
 | **Accessibility** | The target is WCAG 2.2 level AA (the Web Content Accessibility Guidelines). There's an accessibility statement at `/accessibility`, keyboard shortcuts, screen reader announcements, and an automated audit. |
@@ -441,7 +442,9 @@ There are 53 handlers and 30 validators in four areas: Authentication (users, ro
 - `DueDates`: due dates as the end of a UK day, stored in UTC.
 - `ProcedureAudit`, `ProcedureMapper`, `ProcedureActor` (the signed-in user, from the claims).
 
-**Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
+**Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender checks the person's choices for the kinds they can turn off (`NotificationPreferences`), stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
+
+**Monitoring.** Every procedure command also calls `IProcedureMonitor.NotifyAsync(change)` after saving. `ProcedureMonitor` reads what the change did from its audit entries, loads the switched-on rules for those events (one query, or none), matches them, leaves out rules whose admin made the change or is no longer an admin, and sends each remaining admin one notification. It's best effort and outside the change's transaction: a failure is logged and the change stands (`AGENTS.md`, Monitoring).
 
 ### 5.5 The Infrastructure layer
 
@@ -489,11 +492,13 @@ erDiagram
 | `PatientProcedureStageTemplate` and `…TemplateMap` | name, `IsArchived`; ordered definitions | A definition may appear more than once (for example a consultation before and after). |
 | `PatientProcedureAuditEntry` | procedure ID and title, patient ID, stage ID and name, action, user ID and username, `AtUtc`, details (JSON) | No foreign keys, so the history outlives deletes. |
 | `Notification` | user, kind, title, message, procedure ID, created, read at | No foreign keys, like the audit log. |
+| `NotificationPreferences` | user, whether to be told of being assigned | One row per person who has chosen; none means everything. |
+| `MonitoringRule` | owner (an admin), person watched (or anyone), event, minimum priority, template, stage definition, on or off | No foreign keys: one naming something deleted matches nothing. |
 | `UserSession` | user, created, expires, revoked, IP address, user agent | The session cookie holds its ID. |
 | `UserSettings` | user, one JSON document, updated at | The account's settings, as the React app stores them. |
 | `ApplicationUser` | Identity's user (in Infrastructure) | Roles `Admin` and `User`. |
 
-**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction` and `NotificationKind` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30).
+**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction`, `NotificationKind` and `MonitoringEvent` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30). `NotificationKind` keeps 1 to 9 for the calendar; the monitoring kinds are 10 to 17.
 
 **The status workflow** (`ProcedureWorkflow`, `docs/procedures-ui-plan.md` section 4):
 
@@ -545,7 +550,8 @@ stateDiagram-v2
 | Audit log | `GET api/procedures/audit/search` | Admin |
 | Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures and the log's free text) |
 | Insights | `GET api/procedures/insights` | Admin |
-| Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
+| Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read`; `GET` and `PUT api/notifications/preferences` | Staff |
+| Monitoring rules | `GET`, `POST api/monitoring/rules`; `PUT`, `DELETE api/monitoring/rules/{id}` (your own only) | Admin |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
 
 `GET api/patients` and `GET api/auth/users` return every row. Only the deprecated Blazor client uses them, and the UI parity tool's sign-in step uses `GET api/patients`; the React app uses the search endpoints. Swagger is served only in Development.
