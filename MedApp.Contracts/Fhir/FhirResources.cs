@@ -1,0 +1,153 @@
+using System.Text.Json.Serialization;
+
+namespace MedApp.Contracts.Fhir;
+
+// The few FHIR R4 resources and data types MedApp's read-only FHIR API returns, hand-built rather than taken from a FHIR
+// library, as the API needs only these. They follow the FHIR R4 JSON format (https://hl7.org/fhir/R4/json.html): send
+// them with FhirJson's options, which leave out nulls, since FHIR JSON never holds a null or an empty list. Lists are
+// therefore null rather than empty when there's nothing in them.
+
+/// <summary>A FHIR resource: what every resource's JSON starts with.</summary>
+public abstract class FhirResource(string resourceType)
+{
+    /// <summary>The resource's type, e.g. "Patient". First in the JSON, as FHIR expects.</summary>
+    [JsonPropertyOrder(-2)]
+    public string ResourceType { get; } = resourceType;
+
+    [JsonPropertyOrder(-1)]
+    public string? Id { get; set; }
+
+    public FhirMeta? Meta { get; set; }
+}
+
+public sealed class FhirMeta
+{
+    /// <summary>When the resource last changed, as a FHIR instant (UTC, with a Z).</summary>
+    public string? LastUpdated { get; set; }
+
+    /// <summary>The profiles it claims to meet, e.g. UK Core Patient.</summary>
+    public List<string>? Profile { get; set; }
+}
+
+/// <summary>
+/// A patient, in the shape of the UK Core Patient profile
+/// (<c>https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient</c>).
+/// </summary>
+public sealed class FhirPatient() : FhirResource("Patient")
+{
+    public List<FhirIdentifier>? Identifier { get; set; }
+
+    public List<FhirHumanName>? Name { get; set; }
+
+    public List<FhirContactPoint>? Telecom { get; set; }
+
+    /// <summary>The date of birth, as a FHIR date (yyyy-MM-dd).</summary>
+    public string? BirthDate { get; set; }
+}
+
+public sealed class FhirIdentifier
+{
+    public List<FhirExtension>? Extension { get; set; }
+    public string? System { get; set; }
+    public string? Value { get; set; }
+}
+
+public sealed class FhirExtension
+{
+    public string Url { get; set; } = string.Empty;
+    public FhirCodeableConcept? ValueCodeableConcept { get; set; }
+}
+
+public sealed class FhirCodeableConcept
+{
+    public List<FhirCoding>? Coding { get; set; }
+}
+
+public sealed class FhirCoding
+{
+    public string? System { get; set; }
+    public string? Code { get; set; }
+    public string? Display { get; set; }
+}
+
+public sealed class FhirHumanName
+{
+    /// <summary>"official" for the name the patient is registered under.</summary>
+    public string? Use { get; set; }
+
+    public string? Family { get; set; }
+    public List<string>? Given { get; set; }
+}
+
+public sealed class FhirContactPoint
+{
+    /// <summary>"email", "phone" and so on.</summary>
+    public string? System { get; set; }
+
+    public string? Value { get; set; }
+}
+
+/// <summary>A searchset Bundle: a search's results.</summary>
+public sealed class FhirBundle() : FhirResource("Bundle")
+{
+    /// <summary>"searchset" for a search's results.</summary>
+    public string Type { get; set; } = "searchset";
+
+    /// <summary>When the bundle was made, as a FHIR instant.</summary>
+    public string? Timestamp { get; set; }
+
+    /// <summary>How many resources matched.</summary>
+    public int Total { get; set; }
+
+    public List<FhirBundleLink>? Link { get; set; }
+
+    public List<FhirBundleEntry>? Entry { get; set; }
+}
+
+public sealed class FhirBundleLink
+{
+    /// <summary>"self" for the search that made the bundle.</summary>
+    public string Relation { get; set; } = string.Empty;
+
+    public string Url { get; set; } = string.Empty;
+}
+
+public sealed class FhirBundleEntry
+{
+    /// <summary>The resource's absolute address.</summary>
+    public string? FullUrl { get; set; }
+
+    public FhirPatient? Resource { get; set; }
+
+    public FhirBundleEntrySearch? Search { get; set; }
+}
+
+public sealed class FhirBundleEntrySearch
+{
+    /// <summary>"match" for a resource that matched the search.</summary>
+    public string Mode { get; set; } = "match";
+}
+
+/// <summary>What went wrong with a FHIR request: FHIR's error response, in place of ProblemDetails.</summary>
+public sealed class FhirOperationOutcome() : FhirResource("OperationOutcome")
+{
+    public List<FhirOperationOutcomeIssue> Issue { get; set; } = [];
+}
+
+public sealed class FhirOperationOutcomeIssue
+{
+    /// <summary>"fatal", "error", "warning" or "information".</summary>
+    public string Severity { get; set; } = "error";
+
+    /// <summary>
+    /// The FHIR issue type, e.g. "not-found", "invalid", "required", "login", "forbidden" or "exception"
+    /// (<c>http://hl7.org/fhir/issue-type</c>).
+    /// </summary>
+    public string Code { get; set; } = string.Empty;
+
+    /// <summary>What went wrong, in words.</summary>
+    public string? Diagnostics { get; set; }
+
+    /// <summary>Where, as FHIRPath or a parameter name, e.g. "identifier".</summary>
+    public List<string>? Expression { get; set; }
+}
