@@ -19,13 +19,15 @@ import {AppIcon} from '../../components/shared/icons';
 import {CardSection} from '../../components/views/CardSection';
 import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
+import {NotificationSettings} from './NotificationSettings';
 
 /**
  * The signed-in user's Account Settings, as cards: the account (who they are, and Change Password, a page of its
- * own); how the app looks (light or dark mode, and Change Colours, a page of its own); navigation (the page sign-in
+ * own); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
+ * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
  * opens on, and what the side nav does while a half view is open); lists (rows per page, and where procedure lists
  * start); and accessibility (the text size, how long the folded nav waits on hover, and the switches in
- * `ACCESSIBILITY_SETTINGS`, with a link to the accessibility statement). All but the account are kept in this
+ * `ACCESSIBILITY_SETTINGS`, with a link to the accessibility statement). All but the account and notifications are kept in this
  * browser and with the account.
  */
 export function AccountPage() {
@@ -87,6 +89,7 @@ export function AccountPage() {
             />
           </CardSection>
         </ViewCard>
+        <NotificationSettings />
         <ViewCard showFooter={false}>
           <CardSection title="Navigation">
             <VStack gap={5}>

@@ -42,6 +42,7 @@ const ADMIN_PAGES = [
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},
   {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention'},
+  {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring'},
 ];
 
 /** Is `path` the current page or one under it? Home only matches itself (Blazor's NavLinkMatch.All). */

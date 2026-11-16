@@ -21,7 +21,8 @@
 > - **Your sign-ins:** each time you sign in, the time, your device's IP address, and your browser and operating system. MedApp also counts failed sign-ins, and locks an account for 5 minutes after 5 failures.
 > - **What you do:** every change you make to a procedure is recorded with your name and the time: for example starting or finishing a stage, the notes you write (old and new text), and status changes. MedApp also records which patient records, timelines and procedures you open, the patients your patient and procedure lists show you and which search fields you used (not what you typed), including through MedApp's FHIR interface, when you look up an NHS number (not the number), changes to patients' details, and when you sign in and out (and failed attempts), with your computer's network address. The names of the patients you've pinned in the side menu aren't recorded each time they're shown.
 > - **Your settings:** your display preferences, accessibility settings and saved searches. They're stored with your account so they follow you between computers, and in your browser.
-> - **Your notifications:** for example when someone assigns you a procedure.
+> - **Your notifications:** for example when someone assigns you a procedure. You can turn that one off in Account Settings.
+> - **If you're an admin, your monitoring rules:** what you've asked to be told about, and about whom.
 >
 > **Why.** To give you secure access to the records you need for your work; to keep an accurate, accountable record of patients' care; to protect patients' information by detecting and investigating misuse; and to keep the system secure.
 >
@@ -29,7 +30,7 @@
 > - *NHS bodies:* our public task of providing health care (UK GDPR Article 6(1)(e)), and our legal obligations to keep records and keep information secure (Article 6(1)(c)).
 > - *Private providers:* our contract with you (Article 6(1)(b)) for your account, and our legitimate interests in keeping patients' information secure and our records accurate (Article 6(1)(f)) for sign-in records and the audit trail.
 >
-> **Monitoring.** We use the audit trail to check that patients' records are used properly, and to investigate concerns and complaints. Look only at the records you need for your work. Inappropriate access to records may lead to disciplinary action, and can be a criminal offence under the Data Protection Act 2018 (section 170). [Describe how and how often you review access.]
+> **Monitoring.** We use the audit trail to check that patients' records are used properly, and to investigate concerns and complaints. Our MedApp admins can also ask to be told, as it happens, when a particular member of staff, or anyone, does certain things to a procedure: creating one, finishing a stage, completing, blocking or cancelling one, being assigned one, unlocking a stage, or changing a due date, sometimes only for urgent work or particular procedures. They use it to [supervise and support work, for example reviewing urgent procedures promptly]. It tells them only what the audit trail already records, never what you read or search for. [Describe your monitoring policy: who may set these rules, why, and how to ask which rules name you.] Look only at the records you need for your work. Inappropriate access to records may lead to disciplinary action, and can be a criminal offence under the Data Protection Act 2018 (section 170). [Describe how and how often you review access.]
 >
 > **Who can see it.** Our MedApp admins can see accounts and roles, and read the audit trail. Other staff see your username, and what you did and when, on the timeline of the patients whose procedures you worked on. [Company name] can see it only to run and support the system, under its contract with us.
 >
@@ -50,4 +51,5 @@ Give these to every member of staff with a MedApp account. They support the DPIA
 - **Don't save searches by patient name** on a shared computer.
 - **Patient searches stay in the browser's history** (the search terms are part of the page address, so lists can be shared as links). On a shared computer, use your own browser profile, or clear the history when you finish. Signing out removes your saved searches and pins from the browser.
 - **Don't copy patient information** out of MedApp into email, messages, documents or AI tools.
+- **Admins: monitor for a reason.** Set monitoring rules about a named member of staff only for a reason your monitoring policy allows (supervising or supporting their work), and delete them when it no longer applies.
 - **Report** anything that looks wrong (records you shouldn't see, changes you didn't make) to [contact] at once.

@@ -1,5 +1,6 @@
 using MedApp.Application.Procedures.Common;
 using MedApp.Contracts.Patients.Responses;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Common;
@@ -7,13 +8,19 @@ namespace MedApp.Application.Patients.Common;
 /// <summary>
 /// A patient's whole record (<see cref="PatientRecord"/>) as a subject access export. Staff appear by username only:
 /// their account IDs, network addresses and when they read a notification are the staff's data, so they're left out.
+/// So are admins' monitoring notifications (<see cref="Notification.IsMonitoring"/>): which admin watches which member
+/// of staff is about the staff, and what they did is in the procedures' history already.
 /// </summary>
 public static class PatientExportMapper
 {
+    /// <summary>The record's notifications that belong in the patient's export.</summary>
+    public static IEnumerable<Notification> ExportedNotifications(PatientRecord record) =>
+        record.Notifications.Where(n => !Notification.IsMonitoring(n.Kind));
+
     /// <summary>Every user the export names: on procedures (assignees, assigners, stage workers) and as notification recipients.</summary>
     public static IEnumerable<Guid> UserIds(PatientRecord record) =>
         record.Procedures.SelectMany(ProcedureMapper.UserIds)
-            .Concat(record.Notifications.Select(n => n.UserId))
+            .Concat(ExportedNotifications(record).Select(n => n.UserId))
             .Distinct();
 
     public static PatientExportResponse ToResponse(
@@ -82,7 +89,7 @@ public static class PatientExportMapper
                     Details = e.Details
                 })
                 .ToList(),
-            Notifications = record.Notifications
+            Notifications = ExportedNotifications(record)
                 .Select(n => new ExportedNotificationResponse
                 {
                     CreatedAtUtc = n.CreatedAtUtc,
