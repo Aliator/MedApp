@@ -67,6 +67,14 @@ describe('ListFavourites', () => {
     expect(screen.queryAllByText('The Bennetts').filter((el) => !el.closest('[role="menu"]'))).toHaveLength(1);
   });
 
+  it('names a saved search that has the same filters as a quick filter by its saved name, beside the star and to screen readers', async () => {
+    localStorage.setItem(KEY, JSON.stringify({patients: {saved: [{id: 'f1', name: 'My older patients', values: {dobTo: '1961-11-15'}}]}}));
+    renderFavourites({quick: [{label: 'Over 65', values: {dobTo: '1961-11-15'}}], current: {dobTo: '1961-11-15'}, namesQuickFilters: false});
+
+    expect(await screen.findByRole('button', {name: 'Favourites (showing My older patients)'})).toBeInTheDocument();
+    expect(screen.queryAllByText('My older patients').filter((el) => !el.closest('[role="menu"]'))).toHaveLength(1);
+  });
+
   it('takes its starting search when the list opens with no filters', async () => {
     localStorage.setItem(KEY, JSON.stringify({patients: {saved: [{id: 'f1', name: 'Mine', values: {first: 'fr'}}], startId: 'f1'}}));
     const {onApply} = renderFavourites({isUnfiltered: true});
