@@ -38,7 +38,7 @@
 | **Source of the data** | The patient; referrers; [other sources] |
 | **Recipients** | Your staff with MedApp accounts. Your processor, [Company name], and its sub-processors ([sub-processors.md](sub-processors.md)). [Others you share with, outside MedApp.] |
 | **Processor** | [Company name], under the data processing agreement signed [date] |
-| **Transfers outside the UK** | None by your processor ([international-transfers.md](international-transfers.md)) |
+| **Transfers outside the UK** | None by your processor: data is stored in the UK. Its sub-processor Microsoft may, in rare cases, access data from outside the UK for support, under Microsoft's data protection terms and the safeguards they contain ([international-transfers.md](international-transfers.md)) |
 | **Retention** | [Your schedule.] The supplier's default follows the NHS Records Management Code of Practice: adult records 8 years after the conclusion of treatment; children's records until the 25th birthday, or the 26th if the patient was 17 at the conclusion of treatment ([retention-schedule.md](retention-schedule.md)). **MedApp doesn't apply retention automatically yet.** |
 | **Security measures** | See the processor's description ([ropa.md](ropa.md), A6) and your own: [who can have an account, how accounts are reviewed, device and network controls]. |
 | **DPIA** | [Reference to your DPIA, adapted from [dpia.md](dpia.md)] |

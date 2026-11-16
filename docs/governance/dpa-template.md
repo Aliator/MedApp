@@ -57,11 +57,11 @@ It forms part of the agreement for the MedApp service dated [date] (the **Main A
 
 5.2. The Processor keeps Schedule 2 accurate. It may change the measures, but not so as to reduce the overall level of security. It tells the Controller of any material change.
 
-5.3. Where Schedule 2 lists a measure as **planned**, the Processor will put it in place by the date shown, and tells the Controller if a date will slip.
+5.3. Where Schedule 2 lists a measure as **planned**, the Processor will use reasonable endeavours to put it in place by the date shown, and tells the Controller if a date will slip.
 
 ## 6. Personal data breaches (Article 33(2))
 
-6.1. The Processor tells the Controller of a personal data breach affecting Customer Personal Data **without undue delay, and in any case within 24 hours of becoming aware of it**, by phone and by email to the Controller's breach contact in Schedule 1.
+6.1. The Processor tells the Controller of a personal data breach affecting Customer Personal Data **without undue delay, and in any case within [48] hours of becoming aware of it**, by email to the Controller's breach contact in Schedule 1, and by phone in working hours. The limit becomes 24 hours from the date the Processor has out-of-hours cover, a planned measure in Schedule 2. The Processor names a deputy for breach notices in Schedule 1.
 
 6.2. The first notice includes what is known at the time. The Processor then provides, as soon as they're known: the nature of the breach, the categories and approximate numbers of data subjects and records concerned, the likely consequences, the measures taken or proposed, and the name of a contact. It sends updates at least every 24 hours until the breach is contained, or at intervals the Controller agrees.
 
@@ -81,9 +81,11 @@ It forms part of the agreement for the MedApp service dated [date] (the **Main A
 
 ## 8. Transfers outside the UK
 
-8.1. The Processor stores and processes Customer Personal Data **only in the United Kingdom**, and does not transfer it outside the UK, or allow access to it from outside the UK, without the Controller's prior written authorisation.
+8.1. The Processor stores and processes Customer Personal Data **only in the United Kingdom**, and does not transfer it outside the UK, or allow access to it from outside the UK, without the Controller's prior written authorisation, except as clause 8.2 allows.
 
-8.2. Schedule 3 records any limited access by a sub-processor from outside the UK that the Controller authorises, and the safeguard that applies (Article 46 or adequacy regulations).
+8.2. **Emergency access by the Processor's own employees.** If an incident needs urgent action to protect the service or the data, an employee of the Processor (not a contractor or sub-processor) who is temporarily outside the UK may access the service to contain or recover from it, using a company-managed device. The access is recorded in the support access log, limited to what the incident needs, and reported to the Controller within 24 hours. The data stays stored in the UK. Because the employee is part of the Processor, this isn't a restricted transfer under UK GDPR Chapter V.
+
+8.3. Schedule 3 records any limited access by a sub-processor from outside the UK that the Controller authorises, and the safeguard that applies (Article 46 or adequacy regulations).
 
 ## 9. Data subject rights (Article 28(3)(e))
 
@@ -91,7 +93,7 @@ It forms part of the agreement for the MedApp service dated [date] (the **Main A
 
 9.2. If a data subject contacts the Processor directly, the Processor passes the request to the Controller **within 2 working days**, and does not respond to it except to say it has been passed on, unless the Controller instructs otherwise.
 
-9.3. Until MedApp's self-service export and rights features are available (Schedule 2), the Processor carries out exports, corrections and erasures on the Controller's written instruction **within 5 working days**, under the procedure in [data-subject-rights.md](data-subject-rights.md), [at no extra charge].
+9.3. Until MedApp's self-service export and rights features are available (Schedule 2), the Processor carries out exports, corrections and erasures on the Controller's written instruction **within 5 working days, or as agreed**, under the procedure in [data-subject-rights.md](data-subject-rights.md), [charged as the Main Agreement says].
 
 ## 10. Other assistance (Article 28(3)(f))
 
@@ -103,7 +105,9 @@ The Processor helps the Controller, taking into account the nature of the proces
 
 11.2. **Return:** the Processor provides a complete export in a structured, commonly used, machine-readable format (JSON, with a readable summary), by a secure transfer method agreed with the Controller, within 30 days of the request.
 
-11.3. **Deletion:** the Processor deletes Customer Personal Data from the live service within **30 days** after the return is confirmed, or after the Controller asks for deletion, or, if the Controller doesn't answer, 30 days after the period in 11.1 ends. Copies in backups are deleted as the backups expire, within the period in Schedule 4, and are not restored in the meantime except for disaster recovery, after which the deletion is applied again.
+11.3. **Deletion:** the Processor deletes Customer Personal Data from the live service within **30 days** after the return is confirmed, or after the Controller asks for deletion.
+
+11.3A. **If the Controller doesn't answer** within the period in 11.1, the Processor doesn't delete. Because the data includes health records the Controller must keep for years, it sends at least two reminders, 14 days apart, to every contact in Schedule 1. If there's still no answer, it returns a complete export, as in 11.2, to the last named contact by the agreed secure route, and deletes the live data only after that contact confirms receipt, or [6 months] after the export is sent, whichever is sooner. Copies in backups are deleted as the backups expire, within the period in Schedule 4, and are not restored in the meantime except for disaster recovery, after which the deletion is applied again.
 
 11.4. The Processor confirms deletion in writing.
 
@@ -152,7 +156,7 @@ The Processor helps the Controller, taking into account the nature of the proces
 | **Data subjects** | The Controller's patients, including children [if applicable]; the Controller's staff who use MedApp. |
 | **Personal data** | Patients: first name, last name, date of birth, email; procedures (title, notes, due date, priority, status); stage notes; the audit trail of changes. Staff: username, password hash, roles, sessions with IP address and browser, settings including saved searches, notifications, and their actions in the audit trail. Detail: [data-inventory.md](data-inventory.md). |
 | **Special category data** | Health data about patients, and anything else staff write in free text. |
-| **The Controller's contacts** | Instructions: [name, email]. Breaches (24 hours): [name, phone, email]. Data protection officer: [name, email]. |
+| **The Controller's contacts** | Instructions: [name, email]. Breaches: [name, phone, email], and a second contact: [name, phone, email]. Data protection officer: [name, email]. |
 | **The Processor's contacts** | Service: [support email]. Breaches: [phone, email]. DPO: [DPO contact]. |
 
 ## Schedule 2: security measures
@@ -165,20 +169,20 @@ The measures in place, and those planned with the date they'll be in place. The 
 |---|---|---|
 | **Hosting** | Microsoft Azure UK South; managed Kubernetes (AKS) with Entra ID-only access; Azure SQL with public access off and a private endpoint | An Azure Policy allowing only UK regions; private endpoints for Key Vault and the registry; a restricted cluster API ([date]) |
 | **Encryption** | TLS for all traffic from users; HSTS; TLS to the database (1.2 minimum); encryption at rest with Microsoft-managed keys | A customer-managed encryption key; encrypted traffic to the message relay ([date]) |
-| **Access control** | Individual accounts; salted password hashes; server-generated first passwords; lockout after 5 failures; two roles checked on every request; admin-only user management and audit log; server-side sessions with an 8-hour lifetime, in a protected cookie | MFA, compulsory for admins; single sign-on; sign-in throttling; an idle timeout; sessions ended on password change ([date]) |
+| **Access control** | Individual accounts; salted password hashes; server-generated first passwords; lockout after 5 failures; two roles checked on every request to patient and account data; admin-only user management and audit log; server-side sessions with an 8-hour lifetime, in a protected cookie | MFA, compulsory for admins; single sign-on; sign-in throttling; an idle timeout; sessions ended on password change ([date]) |
 | **Audit** | Every change to a procedure recorded with who, when and what, kept after deletes | Every read and change of patient data, sign-ins, and account changes recorded; access reports; tamper-evident storage ([date]) |
 | **Application security** | Output escaping; no raw HTML in notes; one origin; no caching of pages with personal data; required automated tests and reviews of every change | Security headers; an ASVS Level 2 review; dependency and image scanning; a penetration test ([date]) |
 | **Platform security** | Default-deny network policies; the `restricted` Pod Security Standard; non-root, read-only containers; secrets in Key Vault, never in source code; no stored cloud credentials | A passwordless, least-privilege database identity; Defender for Cloud ([date]) |
 | **Resilience** | Two copies of the application; point-in-time database restore for 7 days | 35-day restore and geo-redundant backups within the UK; tested restores every quarter; RPO 15 minutes and RTO 4 hours ([date]) |
-| **Monitoring** | Built-in telemetry, not yet exported | Central logs in the UK; alerts; out-of-hours cover ([date]) |
+| **Monitoring** | Built-in telemetry, not yet exported | Central logs in the UK; alerts; out-of-hours cover, which moves the breach notice in clause 6.1 to 24 hours ([date]) |
 | **Data management** | Synthetic data only in development and testing | Retention enforcement; a subject access export; archiving and erasure workflows ([date]) |
-| **People** | Confidentiality clauses; a support access policy | Annual training; pre-engagement checks; Cyber Essentials; the DSPT ([date]) |
+| **People** | A support access policy (draft, to approve before signing) | Confidentiality clauses in every employee's and contractor's contract; MFA on every company account [to confirm]; annual training; pre-engagement checks; Cyber Essentials; the DSPT ([date]) |
 
 ## Schedule 3: approved sub-processors
 
 | Sub-processor | Service | Location | Safeguard for any access from outside the UK |
 |---|---|---|---|
-| Microsoft ([contracting entity]) | Azure hosting, database, backups, secrets, monitoring | UK South; backups in UK South (UK West once geo-redundant) | Microsoft's Data Protection Addendum [version]; Customer Lockbox (planned) |
+| Microsoft ([contracting entity]) | Azure hosting, database, backups, secrets, monitoring | UK South; backups in UK South (UK West once geo-redundant). Microsoft's support engineers may, in rare cases, access data from outside the UK under its terms | Microsoft's Data Protection Addendum [version], with the UK transfer safeguards it contains [to confirm]; Customer Lockbox (planned) |
 
 The current list is published at [URL] ([sub-processors.md](sub-processors.md)).
 
@@ -188,4 +192,4 @@ The current list is published at [URL] ([sub-processors.md](sub-processors.md)).
 |---|---|
 | **Retention during the agreement** | The Controller's retention schedule, which defaults to [retention-schedule.md](retention-schedule.md). The Processor applies it as the Controller configures it once MedApp's retention features are available ([date]); until then, it deletes records on the Controller's instruction. |
 | **Backups** | Point-in-time backups kept for [7, rising to 35] days; long-term backups kept for [12 months] once enabled. |
-| **At exit** | Return within 30 days of the request; deletion from the live service within 30 days after; backups expire within [12 months]; written confirmation. |
+| **At exit** | Return within 30 days of the request; deletion from the live service within 30 days after; with no answer, reminders and an export to the last named contact before any deletion (clause 11.3A); backups expire within [12 months]; written confirmation. |

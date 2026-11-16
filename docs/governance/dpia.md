@@ -16,7 +16,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 - **A DPIA is mandatory.** MedApp is designed for processing health data, a special category, and across customers it's large scale (Article 35(3)(b)).
 - **Today's high risks:** any staff member can see any patient, and reads aren't recorded; sign-in is by password only; patient records can be deleted without trace; nothing is ever deleted on a schedule; there's no monitoring to notice a breach; backups have never been restored; and on Azure the app would use the database administrator's login.
-- **Conclusion: MedApp must not hold real patient data until the measures marked "before go-live" in section 6 are in place.** That's roadmap steps 2, 4, 5 and 7, which together make it ready for a first pilot. With them, every risk in this assessment is reduced to low or medium, so **prior consultation with the ICO (Article 36) isn't expected to be needed.** If any high residual risk remains at go-live, the processing must not start without consulting the ICO.
+- **Conclusion: MedApp must not hold real patient data until the measures marked "before go-live" in section 6 are in place.** That's roadmap steps 2, 4, 5 and 7, **plus the patient banner from step 6**, which together make it ready for a first pilot. The banner is in the gate because risk 8 (notes written on the wrong patient's record) stays high until it's built; the rest of step 6 isn't needed for the gate. With these measures, every risk in this assessment is reduced to low or medium, so **prior consultation with the ICO (Article 36) isn't expected to be needed.** If any high residual risk remains at go-live, including risk 8 if the banner isn't built, the processing must not start without consulting the ICO.
 
 ## Step 1: The need for a DPIA
 
@@ -95,7 +95,15 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 **Scoring,** as in the ICO's template:
 - **Likelihood of harm:** remote, possible or probable.
 - **Severity of harm:** minimal, significant or severe.
-- **Overall risk:** low, medium or high, from the two together.
+- **Overall risk:** low, medium or high, from the two together, by this matrix:
+
+| Likelihood | Minimal | Significant | Severe |
+|---|---|---|---|
+| **Remote** | Low | Low | Medium |
+| **Possible** | Low | Medium | High |
+| **Probable** | Medium | High | High |
+
+The one exception is risk 18, scored low today because it can't happen while each customer has its own deployment; it's rescored at step 8.
 
 Likelihood is judged for MedApp **as it is today**, if it held real patient data.
 
@@ -106,11 +114,11 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 3 | **Oversharing in free text:** notes, titles and block or cancel reasons hold more than needed (other people's details, unrelated conditions), and spread to the audit, notifications and logs. | Free text is unlimited; procedure titles appear in notifications and travel through Valkey. | Probable | Significant | **High** |
 | 4 | **Copies of clinical text that can't be managed:** correcting, erasing or expiring a note leaves its old text in the audit trail. | `StageNotesUpdated` and `DetailsUpdated` audit entries copy the old and new text into `Details` (`MedApp.Application/Procedures/Common/ProcedureChange.cs`, `UpdatePatientProcedureHandler.cs`). | Probable | Significant | **High** |
 | 5 | **Kept for ever:** records, sessions with IP addresses, notifications and audit entries are never deleted, so a later breach exposes far more than needed. | No retention is implemented; nothing is purged. | Probable | Significant | **High** |
-| 6 | **Rights can't be met fully or on time:** a subject access request is answered late or incompletely. | No export; the data is spread over several tables; the audit trail can be searched by procedure, not by patient. | Probable | Significant | **High** |
+| 6 | **Rights can't be met fully or on time:** a subject access request is answered late or incompletely. | No export; the data is spread over several tables; the audit log's screen filters by procedure, not by patient (the API can filter by patient, `PatientId` in `SearchProcedureAuditRequest`, but no screen offers it). | Probable | Significant | **High** |
 | 7 | **A patient's record is lost or changed without trace:** a staff member deletes or edits a patient, by mistake or deliberately, and nothing records it. | Any staff user can permanently delete a patient with no procedures; patient creates, edits and deletes aren't audited; account and role changes aren't audited. | Possible | Severe | **High** |
 | 8 | **Wrong patient:** notes are written on the wrong patient's record, leading to a disclosure or a clinical error. | Patients are identified by name, date of birth and email only; no NHS number; no duplicate check; no patient banner. | Possible | Severe | **High** |
 | 9 | **A lost update:** two staff save the same notes, and one silently overwrites the other. | No optimistic concurrency. The audit keeps both texts, but nobody is warned. | Possible | Significant | **Medium** |
-| 10 | **Exposure on a shared or unattended computer:** someone else sees a patient's record on a ward or clinic workstation, or in browser storage. | 8-hour sessions with no idle timeout; saved searches (which can be patient names) stay in `localStorage` after sign-out. Rendered pages aren't cached. | Probable | Significant | **High** |
+| 10 | **Exposure on a shared or unattended computer:** someone else sees a patient's record on a ward or clinic workstation, or in browser storage or history. | 8-hour sessions with no idle timeout; saved searches (which can be patient names) stay in `localStorage` after sign-out; list pages keep their filters in the URL, so a patient search (first name, last name, email, date of birth range: `MedApp.Web/src/pages/listSearch.ts`) lands in the browser's history and address bar suggestions, which signing out doesn't clear. Rendered pages aren't cached. | Probable | Significant | **High** |
 | 11 | **Web attacks:** a flaw lets an attacker run script in a staff member's browser, or frame the app. | No Content Security Policy or other security headers; no antiforgery tokens (`SameSite=Lax` is the defence). Output is escaped, and rich text never runs raw HTML. | Possible | Severe | **High** |
 | 12 | **Infrastructure compromise:** an attacker or a flaw reaches the database or its credentials. | On Azure the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login; the AKS API server, Key Vault and the registry have public endpoints (behind Entra ID); session IDs are stored unhashed; Node runs in the API's container and could read its environment. | Possible | Severe | **High** |
 | 13 | **Undetected breach:** a breach goes unnoticed, so it isn't contained or reported in time. | No monitoring, alerting or exported logs in any deployed environment; no read audit. | Probable | Severe | **High** |
@@ -118,7 +126,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 15 | **Supply chain:** malicious code reaches production through a dependency or the build pipeline, and exfiltrates data. | Actions and images pinned by tag, not digest; no image scanning, SBOM or signing; every merge deploys with no approval step; the repository and image are public. | Possible | Severe | **High** |
 | 16 | **Supplier staff access:** someone at the supplier views or copies patient data without a need, or data ends up in support tickets, laptops or AI tools. | Cluster admins can reach everything; no just-in-time access or access log; one maintainer. | Possible | Severe | **High** |
 | 17 | **Sub-processor and transfer:** Microsoft accesses or discloses the data, or it's processed outside the UK. | Azure hosting; Microsoft's service operations. | Remote | Significant | **Low** |
-| 18 | **Mixing customers' data:** one customer sees another's patients. | Not possible today (one deployment per customer). Becomes a risk with multi-tenancy (step 8). | Remote today | Severe | **Low today; to reassess at step 8** |
+| 18 | **Mixing customers' data:** one customer sees another's patients. | Not possible today (one deployment per customer). Becomes a risk with multi-tenancy (step 8). | Not possible today | Severe | **Low today** (the matrix's one exception, because it can't happen yet); **to rescore at step 8** |
 | 19 | **Lack of transparency:** patients don't know MedApp is used or who runs it. | Depends on the customer's privacy notice. | Possible | Minimal | **Low** |
 | 20 | **Real data in development or testing:** patient data copied into a developer's database, a screenshot, a test, or an AI tool. | Convention only (`AGENTS.md`: synthetic data only); `medapp-dev` refuses anything but a local database. | Remote | Severe | **Medium** |
 
@@ -135,7 +143,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 | Measure | Status | Where |
 |---|---|---|
-| Every API endpoint requires a signed-in session and a role (`Staff` or `Admin`); the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
+| Every API endpoint that reaches patient or account data requires a signed-in session and a role (`Staff` or `Admin`); only sign-in, sign-out and `whoami` don't; the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
 | Only admins can read the audit log | In place | `MedApp.API/Controllers/ProcedureAuditController.cs` |
 | Every change to a procedure is recorded with who and when | In place | `MedApp.Application/Procedures/Common/ProcedureChange.cs` |
 | **Record every read of patient data** (patient viewed, searched with the terms, procedure viewed, exported) | Planned, step 7. **Before go-live** | |
@@ -215,10 +223,11 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | Patient name and date of birth shown on procedure pages | In place | |
-| A patient banner on every patient and procedure page; NHS number and duplicate checks | Planned, steps 6 and 9 | |
+| A patient banner (name and date of birth) on every patient and procedure page, so staff can check the patient before writing notes | Planned, step 6. **Before go-live** | |
+| NHS number and duplicate checks | Planned, step 9 | |
 | Clinical safety hazard log | Planned, step 6 | |
 
-**Residual risk:** now **high**; after step 6 **medium**; after step 9 **low**.
+**Residual risk:** now **high**; after step 6's banner (in the go-live gate) **medium**; after step 9 **low**.
 
 ### Risk 9: lost updates
 
@@ -237,9 +246,11 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Signing out clears the query cache; the session cookie is HttpOnly and expires after 8 hours | In place | `MedApp.Web/src/auth/auth.ts` |
 | An idle timeout (30 minutes to start) with a warning | Planned, step 2. **Before go-live** | |
 | Clear `localStorage` at sign-out | Planned, step 7. **Before go-live** | |
-| Customer measures: screen locks, no shared logins | The customer's | |
+| Keep identifying filters (name, email, date of birth) out of the URL, in session storage or the router's state, while page, sort and status stay in it | Planned, step 7. **Before go-live** | `MedApp.Web/src/pages/listSearch.ts` |
+| Staff rules: sign out and lock the screen; don't search by patient name on a shared computer where others use the same browser profile | Template | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
+| Customer measures: screen locks, no shared logins, separate browser profiles or history cleared on shared computers | The customer's | |
 
-**Residual risk:** now **high**; after **low**.
+**Residual risk:** now **high**; after **low**. History already recorded before step 7 stays in browsers until it's cleared or expires.
 
 ### Risk 11: web attacks
 
@@ -259,7 +270,8 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | Azure SQL with public access off, a private endpoint, TLS 1.2 minimum, encryption at rest (TDE with Microsoft's keys), and a delete lock | In place in design | `deploy/azure/main.bicep` |
-| Default-deny network policies: only the ingress reaches the API; only the API and the migrations Job reach the database | In place | `deploy/helm/medapp/templates/networkpolicy.yaml` |
+| Default-deny network policies for MedApp's own pods: only the ingress reaches the API, and MedApp's pods reach only what they need. On kind, only the API and the migrations Job reach the in-cluster database. **On Azure, other pods in the cluster (Traefik, Argo CD, cert-manager, External Secrets) aren't restricted yet, and can open a connection to the database's private endpoint** (they'd still need the password) | In place, with the Azure gap | `deploy/helm/medapp/templates/networkpolicy.yaml`; `deploy/azure/values.yaml` |
+| A cluster-wide Cilium policy that denies traffic to the private endpoint subnet from every pod except MedApp's API and migrations Job | Planned, step 5. **Before go-live** | |
 | The `restricted` Pod Security Standard, non-root containers, read-only filesystems, no Kubernetes API tokens | In place | `deploy/helm/medapp/templates/_helpers.tpl` |
 | Secrets from Key Vault through External Secrets, never in git; Entra ID-only cluster access; OIDC and workload identity, no stored cloud secrets | In place in design | `deploy/helm/medapp/templates/externalsecrets.yaml`; `deploy/azure/` |
 | A passwordless, least-privilege database identity for the app, a separate one for migrations, then Entra-only authentication | Planned, step 5. **Before go-live** | `deploy/azure/README.md`, "Not yet" |
@@ -348,7 +360,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 | Item | Name and date | Notes |
 |---|---|---|
-| **Measures approved by** | [Name, role, date] | Integrate the "before go-live" measures into the delivery plan (roadmap steps 2, 4, 5 and 7). |
+| **Measures approved by** | [Name, role, date] | Integrate the "before go-live" measures into the delivery plan (roadmap steps 2, 4, 5 and 7, and step 6's patient banner). |
 | **Residual risks approved by** | [SIRO name, date] | If any high residual risk remains at go-live, consult the ICO before processing. |
 | **DPO advice provided** | [DPO name, date] | |
 | **Summary of DPO advice** | [To complete] | |

@@ -61,30 +61,30 @@ MedApp holds **special category data**: health data about patients (UK GDPR Arti
 
 | Customer | Article 6 basis | Article 9 condition | DPA 2018 condition |
 |---|---|---|---|
-| **NHS bodies** (trusts, foundation trusts, integrated care boards, GP practices delivering NHS services) | **6(1)(e) public task:** providing health care is a function set out in law (the NHS Act 2006 and the Health and Social Care Act 2012). Use **6(1)(c) legal obligation** for anything done to meet a specific legal duty, such as keeping records under the Records Management Code. | **9(2)(h)** health or social care | Section 10(1)(c) and **Schedule 1, Part 1, paragraph 2** (health or social care purposes) |
+| **NHS bodies** (trusts, foundation trusts, integrated care boards, GP practices delivering NHS services) | **6(1)(e) public task:** providing health care is a function set out in law (the NHS Act 2006 and the Health and Social Care Act 2012). Public task also covers keeping the records the Records Management Code of Practice sets out (the Code is guidance; for NHS bodies the legal duty to keep records is the Public Records Act 1958). Use **6(1)(c) legal obligation** only for a duty laid down in law. | **9(2)(h)** health or social care | Section 10(1)(c) and **Schedule 1, Part 1, paragraph 2** (health or social care purposes) |
 | **Private clinics and hospitals** treating self-paying or insured patients | **6(1)(b) contract** where the patient has a contract with the clinic for their treatment. Otherwise **6(1)(f) legitimate interests**, with a written legitimate interests assessment. | **9(2)(h)** | **Schedule 1, Part 1, paragraph 2** |
 | **Independent providers delivering NHS-funded care** under an NHS contract | Take advice. NHS England's guidance for shared care records treats such providers as able to rely on **6(1)(e)** for NHS-funded care ([NHS England](https://digital.nhs.uk/data-and-information/information-governance/guidance/information-governance-framework-shared-care-records/requirements)). Use **6(1)(b) or (f)** for private patients. | **9(2)(h)** | **Schedule 1, Part 1, paragraph 2** |
 
 **Points that apply to every customer:**
 - **Not consent.** Customers should not rely on consent (Article 6(1)(a) or 9(2)(a)) for recording care. A patient can't freely refuse a record of their own treatment, and consent can be withdrawn at any time, which a care record can't follow. Consent to treatment, and the common law duty of confidentiality, are separate matters (below).
-- **No appropriate policy document is needed** for Schedule 1, Part 1, paragraph 2. Part 1 conditions don't need one ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/)).
+- **No appropriate policy document is needed** for Schedule 1, Part 1, paragraph 2. Paragraph 2 doesn't need one, although some other Schedule 1 conditions do, including paragraph 1 (employment), below ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/)).
 - **Professional secrecy.** Article 9(2)(h) applies only when the data is processed by or under the responsibility of a health professional, or another person who owes a duty of confidentiality (Article 9(3), and DPA 2018 section 11). Customers meet this through their clinicians' professional duties and their staff's contracts. The supplier meets it for its own people through confidentiality clauses ([support-access-policy.md](support-access-policy.md)).
 - **Children.** Patients may be children. The bases are the same. Privacy information should be written so a child, or the person with parental responsibility, can understand it ([privacy-notice-patients-template.md](privacy-notice-patients-template.md)).
-- **No automated decision-making.** MedApp makes no decisions about patients by automated means, and doesn't profile them. Article 22 (as amended by the DUAA) doesn't apply. That must stay true; see the device rule in roadmap step 6.
+- **No automated decision-making.** MedApp makes no decisions about patients by automated means, and doesn't profile them. Articles 22A to 22D (which the DUAA put in place of Article 22) don't apply. That must stay true; see the device rule in roadmap step 6.
 - **Other conditions that may apply** for particular records: 9(2)(f) for the establishment, exercise or defence of legal claims (for example keeping a record after a complaint); 9(2)(i) public health, with Schedule 1, Part 1, paragraph 3, if a customer uses MedApp for a public health purpose. Neither is needed for ordinary use.
 
 ### The common law duty of confidentiality
 
 UK GDPR isn't the only law. Patient information given in confidence is protected by the common law duty of confidentiality.
 - **For direct care,** a patient's **implied consent** covers sharing among the care team, as long as the patient has been told how their information is used (Caldicott Principle 8; [nhs-context.md](nhs-context.md)).
-- **MedApp is a tool for direct care,** so implied consent applies to its use by the customer's staff.
+- **MedApp is a tool for direct care,** so implied consent applies to access by the customer's staff involved in the patient's care. It doesn't cover staff looking at records of patients they aren't caring for, which MedApp doesn't yet prevent ([dpia.md](dpia.md), risk 1).
 - **The supplier** processes the information as the customer's processor, under a contract with a duty of confidentiality. It isn't a disclosure to a third party.
 
 ### The customer's staff
 
 | Customer | Article 6 basis | Notes |
 |---|---|---|
-| **NHS bodies** | **6(1)(e) public task** for running the service; **6(1)(c) legal obligation** for the security and audit records that Article 32 and the DSPT require | Staff data isn't special category data in MedApp. MedApp holds no health or other special category data about staff. |
+| **NHS bodies** | **6(1)(e) public task** for running the service; **6(1)(c) legal obligation** for the security and audit records that Article 32 requires (the DSPT is a contractual requirement, covered by public task) | Staff data isn't special category data in MedApp. MedApp holds no health or other special category data about staff. |
 | **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail and the access monitoring that roadmap step 7 adds. |
 
 ## 3. Lawful bases for the supplier's own processing

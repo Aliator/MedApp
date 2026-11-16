@@ -38,6 +38,7 @@ Every place MedApp stores or sends personal data, field by field, from the code.
 | **The session cookie** `medapp.session` | The session's ID | Pseudonymous identifier for a staff user | Until the session ends (8 hours at most) |
 | **Browser `localStorage`** (`medapp.*` keys, `MedApp.Web/src/app`) | The account's settings (colour mode, colours, text size, list settings, accessibility), saved searches (`medapp.favourites`), and pinned patients and procedures as IDs (`medapp.pinnedPatients.<username>`, `MedApp.Web/src/components/navigation/pins.ts`) | Saved search terms can be patient names; pinned items are IDs; the pin keys contain the username | Until cleared. **Signing out doesn't clear it today** (roadmap step 7). Full list: [cookies-and-storage.md](cookies-and-storage.md). |
 | **Browser `sessionStorage`** (`medapp.halfView`) | The page open in the half view | Can include a patient or procedure ID | Until the tab closes |
+| **Browser history and address bar suggestions** | Every page URL visited. List pages keep their filters in the URL (`MedApp.Web/src/pages/listSearch.ts`), and the patient list's filters are first name, last name, email and a date of birth range, so a search becomes a URL like `/patients?last=…&dobFrom=…` | Patient names, emails and dates of birth searched for, and record IDs; on a shared computer, the next user can see who was searched for | Until the browser's history is cleared or expires. **Signing out doesn't clear it.** Planned (step 7): keep identifying filters out of the URL ([dpia.md](dpia.md), risk 10) |
 | **The browser's memory** (TanStack Query cache) | Data of the pages viewed | Patients, procedures | Until sign-out, which clears it, or the tab closes |
 | **Server-rendered pages** | HTML with the page's data | Patients, procedures | Not kept: sent with `Cache-Control: no-store` (`MedApp.API/ServerRendering/SsrPages.cs`) |
 | **The Node page server** | Renders each page in memory, with a new router and cache per request | Transient | Not kept |
@@ -79,7 +80,7 @@ flowchart LR
 | API to Azure SQL | All stored data | TLS (`Encrypt=True`), private endpoint, public access off | Built in Bicep; never deployed |
 | API to Valkey | Notifications | Password, not encrypted; network policy | Built |
 | API to logs | Logs | Inside Azure | Logging built; export planned (step 5) |
-| GitHub to Azure | Container images | OIDC federation, push-only identity | Built |
+| GitHub to Azure | Container images | OIDC federation; an identity limited to the registry (`AcrPush`, which can push and pull images), with no access to the database or Key Vault | Built |
 | Customer to supplier support | Support requests | Email (planned helpdesk); **no patient data in tickets** ([support-access-policy.md](support-access-policy.md)) | Policy only |
 | Supplier to customer at exit | Full export | Planned: an encrypted export (roadmap steps 7 and 8) | Planned |
 

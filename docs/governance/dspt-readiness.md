@@ -66,11 +66,11 @@ Every organisation with access to NHS patient data and systems must complete the
 | Evidence | Status | Evidence, or the gap |
 |---|---|---|
 | Individual accounts, no shared logins | Have | MedApp: individual Identity accounts. Azure: Entra ID only, no local cluster accounts (`deploy/azure/main.bicep`) |
-| Role-based access | Have | Two roles enforced on every endpoint (`MedApp.API/Common/Authentication/AuthPolicies.cs`) |
+| Role-based access | Have | Two roles enforced on every endpoint except sign-in, sign-out and `whoami` (`MedApp.API/Common/Authentication/AuthPolicies.cs`) |
 | Admin accounts limited and reviewed | Partly | Admin-only functions in MedApp; Azure admin group. Gap: just-in-time admin access (step 5); periodic access review (step 7) |
 | All access attributable | **Gap (step 7)** | Changes to procedures are attributed; **reads, patient changes and account changes aren't** |
 | Access removed when no longer needed | Partly | Admins can delete accounts, which ends sessions. Gap: deactivation, last sign-in, review report (steps 4 and 7) |
-| MFA for remote and privileged access | **Gap** | Supplier accounts: policy now. MedApp users: step 4 (the 2026-27 toolkit asks suppliers about MFA or identity federation, with plans due by 30 June 2027) |
+| MFA for remote and privileged access | **Gap** | Supplier accounts: planned before the first customer ([target date]), current state to confirm. MedApp users: step 4 (the 2026-27 toolkit asks suppliers about MFA or identity federation, with plans due by 30 June 2027) |
 | Password policy | Have (partly) | Identity rules and lockout (`MedApp.API/appsettings.json`); generated first passwords. Gap: NCSC-style rules and a breached-password check (step 2) |
 | Logs that are tamper-proof | Gap (steps 5 and 7) | Ledger tables and a separate log workspace |
 
@@ -81,7 +81,7 @@ Every organisation with access to NHS patient data and systems must complete the
 | Evidence | Status | Evidence, or the gap |
 |---|---|---|
 | Reviews of incidents and near misses | Draft | [breach-response.md](breach-response.md), step 12 |
-| Reviews of security findings | Have | Every merge has a written adversarial review with graded findings (`docs/reviews/`), and open findings are tracked ([architecture handbook, section 11](../architecture.md#11-risks-and-technical-debt)) |
+| Reviews of security findings | Have (partly) | Every merge since #51 has a written review with graded findings (`docs/reviews/`), by a separate AI agent not given the PR's own conclusions, not yet approved by a human; and open findings are tracked ([architecture handbook, section 11](../architecture.md#11-risks-and-technical-debt)) |
 | An annual review of policies | Draft | Each document in this pack has a review date |
 
 ### Standard 6: responding to incidents
@@ -90,7 +90,7 @@ Every organisation with access to NHS patient data and systems must complete the
 
 | Evidence | Status | Evidence, or the gap |
 |---|---|---|
-| An incident and breach procedure | Draft | [breach-response.md](breach-response.md): assessment within 12 hours, customer told within 24 |
+| An incident and breach procedure | Draft | [breach-response.md](breach-response.md): assessment within 12 hours, customer told within 48 hours (24 once out-of-hours cover exists) |
 | A breach log | Draft | [breach-response.md](breach-response.md), section 6 |
 | A tested response (exercise) | Gap (step 3) | A tabletop exercise before go-live |
 | Detection: monitoring and alerting | **Gap (step 5)** | No monitoring in any deployed environment today |
@@ -128,7 +128,7 @@ Every organisation with access to NHS patient data and systems must complete the
 |---|---|---|
 | Cyber Essentials | Gap (step 3) | Plus in step 10 |
 | Encryption in transit and at rest | Have (in design) | TLS to the ingress and to Azure SQL; TDE (`deploy/azure/main.bicep`). Gap: Valkey traffic (step 2 or 5) |
-| Network segmentation | Have | Default-deny network policies (`deploy/helm/medapp/templates/networkpolicy.yaml`); private Azure SQL |
+| Network segmentation | Partly | Default-deny network policies for MedApp's own pods (`deploy/helm/medapp/templates/networkpolicy.yaml`); private Azure SQL. Gap: on Azure, other pods in the cluster can reach the database's private endpoint until a cluster-wide Cilium policy limits it (step 5) |
 | Hardened platform | Have | The `restricted` Pod Security Standard, non-root, read-only filesystems (`deploy/helm/medapp/templates/_helpers.tpl`) |
 | Secure configuration of web security headers | Gap (step 2) | CSP and other headers |
 | Vulnerability scanning and a penetration test | Gap (steps 2, 7 and 10) | |

@@ -40,9 +40,10 @@ The settings are also stored with the account on the server (`UserSettings`), so
 >
 > MedApp uses no tracking, analytics or advertising cookies.
 >
-> **On a shared computer,** your saved searches and pins stay in the browser after you sign out [until MedApp clears them at sign-out]. Don't save searches by patient name on a shared computer. *Delete the words in brackets once roadmap step 7 makes MedApp clear its storage at sign-out.*
+> **On a shared computer,** your saved searches and pins stay in the browser after you sign out [until MedApp clears them at sign-out]. Don't save searches by patient name on a shared computer. [Patient searches are also part of the page address, so they stay in the browser's history; use your own browser profile on a shared computer, or clear the history when you finish.] *Delete the words in brackets once roadmap step 7 makes MedApp clear its storage at sign-out and keep identifying search terms out of the address.*
 
 ## 4. Gaps
 
+- **Browser history** isn't storage MedApp sets, but list pages put their filters in the URL, so patient search terms (names, email, date of birth) land in the history and address bar suggestions. Planned in roadmap step 7: keep identifying filters out of the URL ([dpia.md](dpia.md), risk 10).
 - **Sign-out doesn't clear `localStorage`** (saved searches, pins, settings). It's planned in roadmap step 7 (ASVS V14.3.1), and is part of DPIA risk 10.
 - **The cookie name** will gain the `__Host-` prefix outside development (roadmap step 2), which keeps it to MedApp's own host. That doesn't change this statement.

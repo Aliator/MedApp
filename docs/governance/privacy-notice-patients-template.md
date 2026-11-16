@@ -20,9 +20,11 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > We use a system called MedApp to record your details and to organise the steps of procedures you have with us, such as [pre-assessment, the procedure itself and follow-up]. Our staff record notes at each step, and the system keeps a record of who made each change and when.
 >
-> MedApp is provided by [Company name], which runs it for us on secure servers in the United Kingdom. [Company name] acts only on our instructions. It can't use your information for its own purposes, and it's bound by a contract and a duty of confidentiality. Your information isn't sent outside the UK.
+> MedApp is provided by [Company name], which runs it for us. [Company name] acts only on our instructions. It can't use your information for its own purposes, and it's bound by a contract and a duty of confidentiality.
 >
-> Only our staff who have an account can see your record in MedApp. [We record who looks at your record, and we check these records regularly.] *Include the sentence in brackets only once MedApp records access to records (roadmap step 7).*
+> Your information is stored in the UK. [Company name] and its hosting provider, Microsoft, can reach it only to run and support the system, under contracts that bind them to our instructions and to confidentiality. [Company name]'s support staff look at records only when we ask them to, under a written policy. In rare cases Microsoft's support engineers may do so from outside the UK, under the safeguards UK law requires.
+>
+> In our organisation, our staff who have a MedApp account can see your record. [We record who looks at your record, and we check these records regularly.] *Include the sentence in brackets only once MedApp records access to records (roadmap step 7).*
 
 ## Section B: a full notice
 
@@ -43,9 +45,9 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > Everyone who sees your information is a health professional or has a duty to keep it confidential.
 >
-> **Who we share it with.** Our staff caring for you. Our suppliers who run our systems for us, including [Company name] (MedApp) and its hosting provider, Microsoft, under contracts that only let them use it for us. [Others: your GP, other services caring for you, your insurer, as you'd expect.] We don't sell your information, and we don't use it for marketing.
+> **Who we share it with.** Our staff caring for you. Our suppliers who run our systems for us, including [Company name] (MedApp) and its hosting provider, Microsoft, who can reach it only to run and support the system, under contracts that only let them use it for us. [Others: your GP, other services caring for you, your insurer, as you'd expect.] We don't sell your information, and we don't use it for marketing.
 >
-> **Where it's kept.** In the United Kingdom.
+> **Where it's kept.** Stored in the United Kingdom. In rare cases Microsoft's support engineers may reach it from outside the UK to support the system, under the safeguards UK law requires.
 >
 > **How long we keep it.** We keep health records for the periods in the NHS Records Management Code of Practice: usually 8 years after your treatment ends, and for children until their 25th birthday (or 26th if they were 17 when treatment ended). [Other periods for mental health, maternity or cancer care, if they apply.] After that, we review the record and securely destroy it if it's no longer needed. Copies in our backups are deleted within [12 months] after that.
 >

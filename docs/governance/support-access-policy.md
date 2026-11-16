@@ -20,10 +20,10 @@ How and when the supplier's people may access customers' personal data in MedApp
 ## Who may have access
 
 **Authorised people** are listed in [the access register], kept by the SIRO. To be on it, a person must:
-- have a contract with a **confidentiality clause** that survives the end of the contract, covering patient information (the duty of confidentiality that UK GDPR Article 9(3) and DPA 2018 section 11 require)
+- have a contract with a **confidentiality clause** that survives the end of the contract, covering patient information (the duty of confidentiality that UK GDPR Article 9(3) and DPA 2018 section 11 require). **Planned:** the clauses are still to be written into contracts, before the first customer goes live ([target date])
 - have completed **data security awareness training** in the last 12 months ([security-policies.md](security-policies.md), training)
 - have passed **pre-engagement checks**: identity, right to work, references, and a basic criminal record check (Disclosure and Barring Service, basic level)
-- use a **company-managed device** that meets Cyber Essentials, with MFA on every account
+- use a **company-managed device** that meets Cyber Essentials, with MFA on every account (**planned**, before the first customer goes live ([target date]); whether MFA is already on every company account is to confirm)
 
 Access is removed on the day someone leaves or no longer needs it, and the register is reviewed every 3 months.
 
@@ -42,7 +42,7 @@ Access is removed on the day someone leaves or no longer needs it, and the regis
 - **In place:** never copy customer data out of Azure: not to a laptop, a support ticket, email, chat, a screenshot, a spreadsheet, a test database or a developer's machine.
 - **No AI tools on customer data.** The supplier's AI coding assistants work only with code, documentation and synthetic data. Customer data, logs containing it, and support tickets that might contain it must never be pasted into, uploaded to, or made reachable by an AI tool.
 - **No customer data in development.** Development and testing use synthetic data only (`AGENTS.md`). A restored backup used for a recovery drill stays in Azure UK, is reached only by authorised people, and is deleted when the drill ends.
-- **UK only.** Access from outside the UK is a restricted transfer and needs the customer's written approval first ([international-transfers.md](international-transfers.md)).
+- **UK only, with one emergency exception.** Access from outside the UK needs the customer's written approval first. The exception: an **employee** of the supplier who is temporarily abroad may take emergency (break-glass) action on a company-managed device, recorded in the access log and reported to the customer within 24 hours ([dpa-template.md](dpa-template.md), clause 8.2). An employee's access from abroad isn't a restricted transfer, because the employee is part of the supplier, not a separate legal entity; the UK-only rule is the supplier's contractual choice. Access by a **contractor** from abroad is a restricted transfer, and needs the customer's approval and a transfer safeguard ([international-transfers.md](international-transfers.md)).
 - **Record it.** Every access to records, restore or break-glass use goes in [the support access log]: who, when, which customer, what was accessed, why, and the instruction or approval. The log is kept for 6 years.
 - **Tell the customer.** The customer is told of every access to its records (through the ticket), and of every emergency access within 24 hours.
 
@@ -57,7 +57,7 @@ Access is removed on the day someone leaves or no longer needs it, and the regis
 |---|---|
 | Cluster access through Entra ID only, with no local accounts; Azure role-based access control | In place in design (`deploy/azure/main.bicep`) |
 | The database reachable only from inside the virtual network (private endpoint) | In place in design |
-| MFA on every supplier account (Azure, GitHub, email) | Policy; required for Cyber Essentials v3.3 |
+| MFA on every supplier account (Azure, GitHub, email) | Planned, before the first customer goes live ([target date]); required for Cyber Essentials v3.3. Current state to confirm |
 | Just-in-time admin access with Entra ID Privileged Identity Management, time-limited and approved; break-glass accounts monitored | Planned, step 5 |
 | A read-only database role for investigations; the app's own least-privilege identity | Planned, step 5 |
 | Azure activity and sign-in logs, and database audit, streamed to a log workspace the support person can't change | Planned, step 5 |

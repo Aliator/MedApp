@@ -26,11 +26,11 @@ Other policies in this folder: [support-access-policy.md](support-access-policy.
 
 - **Least privilege:** people and programs get only the access their job needs.
 - **Individual accounts:** no shared accounts, for people or for programs. Every account has an owner.
-- **MFA on every account** that reaches company or customer systems: Azure (Entra ID), GitHub, email, the password manager, the domain registrar. Cyber Essentials v3.3 requires MFA for cloud services.
+- **MFA on every account** that reaches company or customer systems: Azure (Entra ID), GitHub, email, the password manager, the domain registrar. Cyber Essentials v3.3 requires MFA for cloud services. **Status: planned** before the first customer goes live ([target date]); whether it's already on for every account is to confirm.
 - **Admin access is separate and time-limited:** admin roles are used only when needed. Planned: Entra ID Privileged Identity Management (step 5).
 - **Joiners, movers and leavers:** access is granted on approval by the SIRO, reviewed every 3 months, and removed on the day someone leaves.
 - **Programs:** use managed identities and federation, not stored secrets. MedApp already does: GitHub signs in to Azure with OIDC, External Secrets with workload identity (`deploy/azure/main.bicep`). Still to do: the app's own database identity (step 5).
-- **In MedApp:** two roles enforced by the API on every endpoint; admin-only user management and audit. MFA, SSO and an `Auditor` role are planned (step 4).
+- **In MedApp:** two roles enforced by the API on every endpoint except sign-in, sign-out and `whoami`; admin-only user management and audit. MFA, SSO and an `Auditor` role are planned (step 4).
 - **Customer data:** only under [support-access-policy.md](support-access-policy.md).
 
 ## 3. Acceptable use
@@ -50,7 +50,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | Requirement | Status |
 |---|---|
 | **Every change through a pull request** to `main`, with required CI checks (`web`, `image`, `helm`, `unit-tests`) | In place (repository ruleset) |
-| **Planning, implementation and an independent review** of every change, with a written review document per merge; a high or critical finding blocks the merge | In place (`AGENTS.md`, "Effort for each stage of a change" and the merge flow) |
+| **Planning, implementation and a separate review** of every change: a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions, and not yet approved by a human; a high or critical finding blocks the merge | In place since #51 (`AGENTS.md`, "Effort for each stage of a change" and the merge flow; `docs/reviews/`). No second human reviewer yet (next row) |
 | **Tests** for all new behaviour, with coverage gates for the web app | In place (`.github/workflows/main.yml`) |
 | **Synthetic data only** in code, tests, seeds, fixtures and screenshots | In place (convention, `AGENTS.md`) |
 | **Secrets never in git;** generated or chosen and kept in a secret store | In place |
@@ -59,7 +59,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | **Static analysis** (CodeQL), dependency review, image scanning, a ZAP scan | Planned (step 2) |
 | **Actions and images pinned by digest,** and provenance attestations | Planned (step 2) |
 | **A threat model** and an **ASVS Level 2** checklist | Planned (step 2) |
-| **Privacy by design:** any change that adds personal data, a purpose, a recipient or a sub-processor updates [data-inventory.md](data-inventory.md) and the DPIA first | From now on |
+| **Privacy by design:** any change that alters what personal data is held, who can see it, where it goes or how long it's kept updates `docs/governance/` (at least [data-inventory.md](data-inventory.md) and the DPIA) in the same pull request | In place: a step in `AGENTS.md`'s feature checklist, and a check in every merge review |
 | **Clinical safety review** of changes to clinical workflow | Planned (step 6) |
 
 ## 5. Supplier management

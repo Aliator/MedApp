@@ -80,6 +80,7 @@ To add a feature end to end:
 5. In the controller action, map the request into a command, call `mediator.Send(...)` and return the result. Keep business logic out of controllers.
 6. If the schema changed, add an EF migration and review it (see [Migrations](#migrations)). Migrations are **not** applied at startup.
 7. Add unit tests for the handler and the validator.
+8. If the change alters what personal data is held, who can see it, where it goes (a recipient, a sub-processor, a region) or how long it's kept, update `docs/governance/` in the same PR: at least `data-inventory.md` and `dpia.md`, and any other document it makes untrue (see `docs/governance/README.md`).
 
 ### Validation and errors
 
@@ -293,7 +294,7 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
 3. **Review the PR at xhigh**, with a subagent (`effort: "xhigh"`), and write it up as a review document:
    - **What to review:** the PR's whole diff against `main` (`git diff main...HEAD`), its description, and the code around the changes. Give the reviewer the PR and the files, not your own conclusions, so its view isn't anchored on yours.
-   - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), consistency between docs and code, and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence, and a suggested fix.
+   - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), consistency between docs and code, whether the governance documents in `docs/governance/` are still true (a change to what personal data is held, who can see it, where it goes or how long it's kept must update them in the same PR), and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence, and a suggested fix.
    - **The document:** `docs/reviews/pr-<number>-<short-name>.md`. Commit it to the branch and push, so it's merged with the PR. Write it in the format below (see [Review document format](#review-document-format)).
    - **If it finds anything high or critical, stop.** Don't merge. Check those findings yourself against the code, then report them to the user with the fixes you propose, and wait. Medium and low findings are recorded in the document and don't block. Mention them when you report the merge.
 4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (the one with the review document) to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.

@@ -50,4 +50,4 @@ The eight Caldicott Principles guide the use of confidential information in heal
 
 ## 4. Incident reporting for NHS customers
 
-NHS customers report personal data breaches and cyber incidents through the DSPT's incident reporting tool, which also notifies the ICO where needed ([DSPT](https://www.dsptoolkit.nhs.uk/Help/incident-reporting)). The supplier's job is to tell them within 24 hours, with the facts they need for it ([breach-response.md](breach-response.md)).
+NHS customers report personal data breaches and cyber incidents through the DSPT's incident reporting tool, which also notifies the ICO where needed ([DSPT](https://www.dsptoolkit.nhs.uk/Help/incident-reporting)). The supplier's job is to tell them within 48 hours (24 once out-of-hours cover exists, step 5), with the facts they need for it ([breach-response.md](breach-response.md)).

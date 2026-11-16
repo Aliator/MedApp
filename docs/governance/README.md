@@ -43,7 +43,7 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 
 | Document | What it covers | For |
 |---|---|---|
-| [breach-response.md](breach-response.md) | Breach response: the customer told within 24 hours, the ICO within 72 hours for the supplier's own data; grading; the notice template; the breach log | Supplier |
+| [breach-response.md](breach-response.md) | Breach response: the customer told within 48 hours (24 once out-of-hours cover exists), the ICO within 72 hours for the supplier's own data; grading; the notice template; the breach log | Supplier |
 | [data-subject-rights.md](data-subject-rights.md) | Each right, what MedApp supports today, what's planned, and the interim manual procedure | Supplier, customers |
 | [complaints.md](complaints.md) | The DUAA complaints duty for the supplier's own processing | Supplier, public |
 
@@ -72,15 +72,16 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 - **DPO:** the supplier appoints one (an external service), because hosting health records for many customers is large-scale processing of special category data.
 - **Hosting:** UK only, Azure UK South, with backups and recovery in UK West.
 - **Retention:** clinical records follow the Records Management Code (adults 8 years, children to the 25th or 26th birthday, mental health 20 years, and longer classes per template), reviewed rather than deleted automatically; sessions and sign-in events 12 months; notifications 6 months; logs 90 days; point-in-time backups 35 days and long-term backups 12 months.
-- **Breach notice to customers:** within 24 hours of the supplier becoming aware.
-- **Rights requests reaching the supplier:** passed to the customer within 2 working days; help with exports within 5 working days.
+- **Breach notice to customers:** within 48 hours of the supplier becoming aware, aiming for 24, moving to a firm 24 hours once out-of-hours cover exists (step 5).
+- **Rights requests reaching the supplier:** passed to the customer within 2 working days; help with exports within 5 working days, or as agreed.
 - **Sub-processor changes:** 30 days' notice with a right to object.
-- **Exit:** return within 30 days, live deletion within 30 days after, backups expire within 12 months.
-- **Go-live gate:** no real patient data until roadmap steps 2, 4, 5 and 7's "before go-live" measures are in place.
+- **Access from abroad:** customer data is reached only from the UK, except a logged emergency exception for the supplier's own employees, reported to the customer within 24 hours.
+- **Exit:** the customer chooses return or deletion within 30 days; return within 30 days of the request; with no answer, reminders, then an export to the last named contact, and deletion only after confirmation or a longer agreed period; backups expire within 12 months.
+- **Go-live gate:** no real patient data until the "before go-live" measures from roadmap steps 2, 4, 5 and 7 **and step 6's patient banner** are in place. The banner is in the gate because the wrong-patient risk (DPIA risk 8) stays high without it.
 
 ## What MedApp must build for these documents to be true
 
-Collected from the DPIA, the retention schedule and the rights procedure. Roadmap step 7 covers most of it; another branch is building privacy features now, and should be checked against this list.
+Collected from the DPIA, the retention schedule and the rights procedure. Roadmap step 7 covers most of it. The privacy features work on roadmap step 7 should be checked against this list.
 
 | Need | Step | Documents that depend on it |
 |---|---|---|
@@ -91,11 +92,12 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 | A retention engine: classes per template, the conclusion of treatment date, a due-for-review list, destroy or anonymise, a destruction log, legal hold | 7 | Retention schedule |
 | Automatic deletion of sessions (12 months), notifications (6 months) and deactivated accounts (12 months) | 7 | Retention schedule |
 | Clear browser storage at sign-out | 7 | DPIA risk 10; cookies statement |
+| Keep identifying filters (name, email, date of birth) out of the URL, so they don't land in browser history; page, sort and status stay in it | 7 | DPIA risk 10; data inventory |
 | No patient identifiers in notifications | 7 | DPIA risk 3 |
 | MFA, SSO, account deactivation, a chosen first admin name | 4 | DPIA risk 2; DSPT standard 4 |
 | An idle timeout; sessions ended on password change; hashed session tokens; security headers; throttling; patient deletion admin-only | 2 | DPIA risks 2, 10, 11 and 7 |
-| A least-privilege, passwordless database identity; monitoring and alerts; 35-day and long-term backups, geo-redundant in the UK; restore drills; an Azure Policy allowing only UK regions; Customer Lockbox; just-in-time admin access | 5 | DPIA risks 12 to 17; transfers; support access |
-| Optimistic concurrency; a patient banner | 6 | DPIA risks 8 and 9 |
+| A least-privilege, passwordless database identity; monitoring and alerts; 35-day and long-term backups, geo-redundant in the UK; restore drills; an Azure Policy allowing only UK regions; a cluster-wide Cilium policy so only the API and the migrations Job reach the database's private endpoint; Customer Lockbox; just-in-time admin access; out-of-hours cover | 5 | DPIA risks 12 to 17; transfers; support access |
+| A patient banner (in the go-live gate); optimistic concurrency | 6 | DPIA risks 8 and 9 |
 | A deceased flag | 9 | Retention periods after death |
 | Export and deletion of a whole customer at exit | 7, 8 | DPA clause 11 |
 
@@ -103,12 +105,13 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 
 - Pay the ICO fee; appoint the DPO and name the SIRO.
 - Have a solicitor review the data processing agreement; record Microsoft's current data protection terms.
-- Put confidentiality clauses in every contract; run pre-engagement checks and annual training.
+- Put confidentiality clauses in every contract; turn on and confirm MFA on every company account; run pre-engagement checks and annual training.
+- Write the export queries for the interim rights procedure before the first customer.
 - Certify Cyber Essentials; register for the DSPT and start the 2026-27 assessment (due 30 June 2027).
 - Run a breach tabletop exercise and write it up.
 - Approve, date and publish these documents, and keep their review dates.
 
 ## Keeping it current
 
-- **Any change** that adds personal data, a purpose, a recipient, a sub-processor or a region updates [data-inventory.md](data-inventory.md) and [dpia.md](dpia.md) **before** it's merged ([security-policies.md](security-policies.md), secure development).
+- **Any change** that adds personal data, a purpose, a recipient, a sub-processor or a region updates [data-inventory.md](data-inventory.md) and [dpia.md](dpia.md) in the same pull request ([security-policies.md](security-policies.md), secure development). `AGENTS.md` makes this a step of every feature, and a check in every merge review.
 - **Each document** has a version, an owner and a review date at the top. Approved versions are tagged in git, and superseded ones are kept for 6 years.

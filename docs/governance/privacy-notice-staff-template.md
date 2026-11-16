@@ -33,7 +33,7 @@
 >
 > **Who can see it.** Our MedApp admins can see accounts and roles, and read the audit trail. [Company name] can see it only to run and support the system, under its contract with us.
 >
-> **How long we keep it.** Sign-in records: 12 months. Notifications: 6 months. Your account: until you no longer need access [then removed within 12 months]. Your name in the audit trail is kept as long as the patient record it's about, because it's part of that record.
+> **How long we keep it.** [Sign-in records: 12 months. Notifications: 6 months.] Your account: until you no longer need access [then removed within 12 months]. Your name in the audit trail is kept as long as the patient record it's about, because it's part of that record. *Include the periods in brackets only once MedApp deletes sign-in records and notifications on schedule (roadmap step 7); until then they're kept until deleted by hand, so say that instead.*
 >
 > **Your rights.** You can ask for a copy of your information, and ask us to correct it. Some rights are limited for the audit trail, because we need an accurate record of who did what. Contact [contact].
 >
@@ -48,5 +48,6 @@ Give these to every member of staff with a MedApp account. They support the DPIA
 - **Write only what's needed** in notes, titles and reasons: no unnecessary details about other people, and no identifying details in procedure titles beyond what's needed.
 - **Sign out** when you leave a shared computer, and lock your screen when you step away.
 - **Don't save searches by patient name** on a shared computer.
+- **Patient searches stay in the browser's history** (the search terms are part of the page address) until MedApp keeps them out of it (roadmap step 7). On a shared computer, use your own browser profile, or clear the history when you finish. *Delete this rule once step 7 is done.*
 - **Don't copy patient information** out of MedApp into email, messages, documents or AI tools.
 - **Report** anything that looks wrong (records you shouldn't see, changes you didn't make) to [contact] at once.

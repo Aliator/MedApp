@@ -93,6 +93,7 @@ Data deleted from the live service stays in backups until they expire: at most 3
 | The customer chooses return or deletion | Within 30 days of the end |
 | The supplier returns a full export | Within 30 days of the request |
 | The supplier deletes the customer's data from the live service | Within 30 days after the return is confirmed |
+| If the customer doesn't answer | No deletion. Two reminders, 14 days apart; then an export to the last named contact; deletion only after they confirm receipt, or [6 months] after the export is sent |
 | Backups expire | Within 12 months |
 | The supplier confirms deletion in writing | When the live data is deleted, with the date the backups expire |
 
@@ -100,7 +101,7 @@ These are the terms of the data processing agreement ([dpa-template.md](dpa-temp
 
 ## 6. What MedApp must build to enforce this
 
-Roadmap step 7 builds these. Another branch is building privacy features at the same time; these are the requirements that work must meet, and anything it doesn't cover stays open here.
+Roadmap step 7 builds these. The privacy features work on roadmap step 7 must meet these requirements, and anything it doesn't cover stays open here.
 
 | # | Feature | Detail |
 |---|---|---|

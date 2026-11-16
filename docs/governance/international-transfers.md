@@ -10,12 +10,13 @@
 
 ## The decision: UK only
 
-**All customer personal data is stored and processed in the UK.**
+**All customer personal data is stored and processed in the UK.** The one exception is Microsoft's own support access, below, which may in rare cases come from outside the UK.
 - **Primary region:** Microsoft Azure **UK South**. `deploy/azure/deploy.sh` creates the resource group there by default, and `main.bicep` puts every resource in the resource group's region.
 - **Backups:** Azure SQL's backups stay in UK South today (locally redundant, `deploy/azure/main.bicep`). Step 5 makes them geo-redundant, which copies them to Azure's paired region, **UK West**, so they stay in the UK.
 - **Disaster recovery:** a rebuild goes to UK West.
 - **Logs and monitoring** (step 5): a Log Analytics workspace in UK South.
-- **Support:** the supplier's staff access customer data only from the UK ([support-access-policy.md](support-access-policy.md)). Remote access from another country is a transfer, so it needs the customer's written approval first.
+- **Support:** the supplier's staff access customer data only from the UK ([support-access-policy.md](support-access-policy.md)), with one exception: an employee who is temporarily abroad may act in an emergency, on a company-managed device, logged and reported to the customer within 24 hours ([dpa-template.md](dpa-template.md), clause 8.2).
+- **Which access is a transfer:** under the ICO's test, a restricted transfer needs a receiver that is a separate legal entity ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/international-transfers/a-brief-guide-to-international-transfers/)). So the supplier's own employee working abroad isn't one; a contractor or another company (including Microsoft) is. The UK-only rule for employees is a contractual choice, stricter than the law; access by anyone else from abroad needs the customer's prior written approval and a transfer safeguard.
 
 **Why UK only:**
 - NHS guidance allows the UK, the European Economic Area, or a country with UK adequacy regulations ([NHS England](https://digital.nhs.uk/data-and-information/looking-after-information/data-security-and-information-governance/nhs-and-social-care-data-off-shoring-and-the-use-of-public-cloud-services/guidance)).
@@ -57,4 +58,4 @@ If a restricted transfer is ever proposed (a new sub-processor, support from abr
 
 For a privacy notice or a procurement questionnaire:
 
-> Your information is stored on servers in the United Kingdom, run by [Company name] on Microsoft Azure. It isn't sent outside the UK.
+> Your information is stored on servers in the United Kingdom, run by [Company name] on Microsoft Azure. [Company name] and Microsoft can reach it only to run and support the system, under contracts that bind them to our instructions and to confidentiality. In rare cases Microsoft's support engineers may do so from outside the UK, under the safeguards UK law requires.
