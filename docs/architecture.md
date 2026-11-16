@@ -542,6 +542,7 @@ stateDiagram-v2
 | Stage definitions and templates | reads under `api/procedures/patient-procedure-stage/definitions` and `/templates` | Staff |
 | | create, update, archive, restore, delete | Admin |
 | Audit log | `GET api/procedures/audit/search` | Admin |
+| Insights | `GET api/procedures/insights` | Admin |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
 
@@ -572,7 +573,7 @@ stateDiagram-v2
 | `/procedures`, `/procedures/new`, `/procedures/$id`, `/procedures/$id/edit` | Procedures | Staff |
 | `/account`, `/account/colours`, `/account/password` | Account settings | Staff |
 | `/accessibility` | Accessibility statement | Anyone signed in |
-| `/admin/users`, `/admin/stages`, `/admin/templates` (and `new`, `$id`), `/admin/audit` | Administration | Admin |
+| `/admin/users`, `/admin/stages`, `/admin/templates` (and `new`, `$id`), `/admin/audit`, `/admin/insights` | Administration | Admin |
 
 **Data.** TanStack Query holds server state. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Every call goes through `api` and `unwrap` (`src/api/client.ts`). A 400 becomes an `ApiValidationError`, and `fieldStatus(errors, field)` puts each message on its field. The server's FluentValidation rules are the only rules; the client doesn't repeat them.
 

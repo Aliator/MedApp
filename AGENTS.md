@@ -101,7 +101,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`
-  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`
+  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `ProcedureInsightsMapper` (from totals, not entities)
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
 - **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a generated password, the signed-in user's claims) may be built where they're made.
@@ -134,6 +134,15 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - `GET api/notifications` returns the newest and the unread count. `POST api/notifications/read` marks them all read, and `POST api/notifications/{id}/read` marks one.
 - Being assigned a procedure is the only kind so far (not when you assign yourself). Kind numbers are stored, so never renumber `NotificationKind`. Notifications have no foreign keys, like the audit log.
 
+### Insights
+
+Admins' overview of the work (`/admin/insights`, `GET api/procedures/insights`): headline counts against the same point last week, overdue work by assignee and by priority, procedures created and completed each week, and the average time at each stage of each template.
+- **Aggregated in SQL:** the LINQ is in `ProcedureInsightsQueries` (`Application/Procedures/Insights/Common`), each query ending in a `GroupBy` or `Count`; `ProcedureInsightsRepository` runs it, and the unit tests run the same LINQ in memory. `ProcedureInsightsSqlTests` checks that each query translates to SQL Server's SQL (`ToQueryString`, no database).
+- **SQL-only functions** go in `InsightsFunctions`, with a C# body for the tests, mapped to SQL in `InsightsDbFunctions` (`SecondsBetween` is `DATEDIFF_BIG`). They're not in the model snapshot, so they need no migration.
+- **Past statuses come from the audit log:** a procedure's status at a moment is the `"to"` of its last `StatusChanged` entry before it (`{"from":"…","to":"…"}`, as `ProcedureAudit` writes it), or Unassigned. So keep that details format. Completions are `StatusChanged` entries to Completed, and creations are `Created` entries.
+- **Weeks are UK weeks,** Monday to Sunday (`InsightsPeriod`), and "last week" is the same point in last week as now is in this one. Hourly counts from SQL are summed into weeks in C#, since the UK's offset changes are on the hour.
+- **Stage times** run from a stage being reached (the stage before it first finished, or the procedure created) to it being started (waiting), then to its first finish (working). The first finish is from the audit log, because unlocking and finishing a stage again moves its own `CompletedAtUtc`.
+
 ### Migrations
 
 - Migrations live in `MedApp.Infrastructure/Migrations/` with `MedAppDbContextModelSnapshot.cs`. They are a single linear history starting at `InitialCreate`. Always add a new migration on top, and never edit or delete one that has been applied to a database.
@@ -147,7 +156,7 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, and Insights (`GET api/procedures/insights`). There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
