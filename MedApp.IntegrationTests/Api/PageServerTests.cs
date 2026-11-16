@@ -117,4 +117,46 @@ public sealed class PageServerTests : IntegrationTest
 
         _requests.Should().BeEmpty();
     }
+
+    /// <summary>
+    /// The page server's own calls for a page's data come over http to 127.0.0.1, with no key. With an https port set
+    /// (as <c>ASPNETCORE_HTTPS_PORT</c> would in <c>api.env</c>), they mustn't be redirected, or every page would fall
+    /// back; a request that reached the API from anywhere else still is.
+    /// </summary>
+    [TestCase("127.0.0.1", false)]
+    [TestCase("::1", false)]
+    [TestCase("::ffff:127.0.0.1", false)]
+    [TestCase("10.244.0.12", true)]
+    public async Task ApiCall_HttpsPortSet_IsRedirectedOnlyIfNotReceivedOnLoopback(string localAddress, bool redirected)
+    {
+        var api = Api.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Ssr:Enabled", "true");
+            builder.UseSetting("Ssr:ServerUrl", _pageServer.Urls.Single());
+            builder.UseSetting("https_port", "443");
+        });
+        await using var _ = api;
+        var address = IPAddress.Parse(localAddress);
+
+        var context = await api.Server.SendAsync(request =>
+        {
+            request.Request.Method = HttpMethods.Get;
+            request.Request.Scheme = "http";
+            request.Request.Host = new HostString("127.0.0.1:8080");
+            request.Request.Path = "/api/auth/whoami";
+            request.Connection.LocalIpAddress = address;
+            request.Connection.RemoteIpAddress = address;
+        });
+
+        if (redirected)
+        {
+            context.Response.StatusCode.Should().Be(StatusCodes.Status307TemporaryRedirect);
+            context.Response.Headers.Location.ToString().Should().StartWith("https://127.0.0.1/api/auth/whoami");
+        }
+        else
+        {
+            context.Response.StatusCode.Should().NotBe(StatusCodes.Status307TemporaryRedirect);
+            context.Response.Headers.Location.ToString().Should().BeEmpty();
+        }
+    }
 }

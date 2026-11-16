@@ -75,10 +75,13 @@ Pages are rendered on the server by Node (`MedApp.Web/server/server.mjs`). With 
 - **The same image,** with its own command: `node /app/ssr/server.mjs`. The image keeps the page server in `/app/ssr`, outside the API's `wwwroot`.
 - **None of the API's secrets or settings.** Its environment is only where it listens (`HOST=127.0.0.1`, `PORT=8082`), its health port (`HEALTH_PORT=8083`) and the API's address (`MEDAPP_API_URL=http://127.0.0.1:8080`), besides what the image and Kubernetes always set. The pod has `enableServiceLinks: false`, so it doesn't get every Service's address either. It runs as its own user (1655, not the API's 1654), in its own container, so code running in Node can't see the API's process or read its connection strings.
 - **Talking to the API:** the API forwards page requests to `http://127.0.0.1:8082` (`Ssr:ServerUrl`), with the page's CSP nonce in `X-MedApp-Csp-Nonce`. The page server calls the API back on `http://127.0.0.1:8080` with the visitor's cookie, so each call is authorised as the visitor's own. Pages listen on loopback only, so nothing outside the pod reaches them.
-- **Probes:** `GET /alive` on 8083 for the startup, readiness and liveness probes. Kubernetes restarts the container if it stops answering. The pod is ready only while both containers are, and a page that reaches the API while the page server is down is rendered in the browser instead.
+- **Failures don't take the API out of service.** The container's first process is a supervisor: it runs the page server in a worker process, and starts a new one (after 1 s, doubling up to 30 s while it keeps failing soon after starting) whenever the worker crashes, is killed for running out of memory, or misses its heartbeat for 15 s. The container keeps running, so the pod stays ready, and pages are rendered in the browser until the worker is back.
+- **Probes:** only liveness, `GET /alive` on 8083, answered by the supervisor: Kubernetes restarts the container if the supervisor itself stops answering (5 s timeout, then 5 s to stop). There's deliberately no readiness or startup probe, because Kubernetes counts a pod as ready only while every container in it is, and either would take the API out of service whenever the page server is.
+- **Logs:** the API pod's default container is `api` (`kubectl.kubernetes.io/default-container`), so the page server's own log, with its render errors, is `kubectl logs deploy/medapp-api -c pages`. The API's log says only which page fell back.
 - **Stopping:** like the API, it waits 5 seconds (`preStop`), then finishes the pages it's sending and exits.
-- **Its own limits:** `api.pageServer.resources` (128 MiB requested, a 512 MiB limit; about 75 MiB in use on kind).
+- **Its own limits:** `api.pageServer.resources` (128 MiB requested, a 512 MiB limit for both its processes; about 76 MiB in use on kind, supervisor and worker together).
 - **Network policies** apply to the whole pod, so the page server could make the API's connections too (DNS, the database, the backplane), though it has none of their passwords.
+- **No workload identity:** the pod is annotated `azure.workload.identity/skip-containers: pages`, so if the API is ever given a federated identity (passwordless Azure SQL), Azure's webhook won't put its token into the page server.
 
 With `api.pageServer.enabled=false`, the API starts Node inside its own container instead, as it does outside Kubernetes. Node then gets an allowlist of the API's environment, but runs as the same user, so it could read the API's secrets from `/proc`; and if it stops, it isn't restarted until the pod is.
 
@@ -91,7 +94,7 @@ With `api.pageServer.enabled=false`, the API starts Node inside its own containe
   - The API and the Job reach only DNS and the database, plus anything in `networkPolicy.extraEgress`. Use that for an external database, which the policies otherwise block.
 - **Health checks** are on their own ports, which neither the Service nor the ingress exposes, so only the kubelet's probes reach them:
   - The API's, on 8081: `/alive` for the startup and liveness probes, and `/health` for readiness.
-  - The page server's, on 8083: `/alive` for all three.
+  - The page server's, on 8083: `/alive` for liveness only.
 - **Pods:**
   - The page server runs in a container of its own, as its own user, with none of the API's secrets ([The page server](#the-page-server)).
   - Every pod meets the `restricted` Pod Security Standard: non-root users, the default seccomp profile, no privilege escalation, and all capabilities dropped. SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs to start.

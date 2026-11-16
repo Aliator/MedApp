@@ -1,7 +1,10 @@
 {{- $name := printf "%s-api" (include "medapp.fullname" .) }}
+{{- /* The API's ports: the app (the Service's target, and the page server's way back), and its health checks. */}}
+{{- $apiPort := 8080 }}
+{{- $apiHealthPort := 8081 }}
 {{- /*
 The page server (api.pageServer): a second container in the API's pod, which shares its network, so the two talk on
-127.0.0.1. Pages on one port, on loopback only; its health on another, for the kubelet's probes.
+127.0.0.1. Pages on one port, on loopback only; its health on another, for the kubelet's liveness probe.
 */}}
 {{- $pagesPort := 8082 }}
 {{- $pagesHealthPort := 8083 }}
@@ -42,6 +45,15 @@ spec:
       labels:
         {{- include "medapp.labels" . | nindent 8 }}
         app.kubernetes.io/component: api
+      annotations:
+        # kubectl logs and exec mean the API unless -c pages says otherwise.
+        kubectl.kubernetes.io/default-container: api
+        {{- if .Values.api.pageServer.enabled }}
+        # If the API is ever given a workload identity (passwordless Azure SQL, deploy/azure/README.md), Azure's
+        # webhook would put its token into every container: never into the page server's, which must hold no secrets.
+        # Harmless until then.
+        azure.workload.identity/skip-containers: pages
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -83,11 +95,11 @@ spec:
                   name: {{ include "medapp.backplaneSecretName" . }}
                   key: connection-string
             {{- end }}
-            # The app on 8080, and /health and /alive on 8081 only (MedApp.ServiceDefaults).
+            # The app on one port, and /health and /alive on the other only (MedApp.ServiceDefaults).
             - name: ASPNETCORE_HTTP_PORTS
-              value: "8080;8081"
+              value: "{{ $apiPort }};{{ $apiHealthPort }}"
             - name: HealthChecks__Port
-              value: "8081"
+              value: "{{ $apiHealthPort }}"
             # Behind the ingress: take the client's scheme and address from its X-Forwarded-* headers.
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"
@@ -101,9 +113,9 @@ spec:
             {{- end }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: {{ $apiPort }}
             - name: health
-              containerPort: 8081
+              containerPort: {{ $apiHealthPort }}
           lifecycle:
             # Keep serving for a moment after being told to stop, while the ingress stops sending requests here.
             # Without it, a rollout fails the odd request sent to the old pod as it shuts down.
@@ -153,12 +165,13 @@ spec:
               value: "127.0.0.1"
             - name: PORT
               value: "{{ $pagesPort }}"
-            # GET /alive on every interface, for the probes below (the network policy lets no one else reach it).
+            # Run as a service of its own: a supervisor that keeps the page server running in a worker process, and
+            # answers GET /alive on every interface for the probe below (the network policy lets no one else reach it).
             - name: HEALTH_PORT
               value: "{{ $pagesHealthPort }}"
             # The API, for a page's data: the app's port, in this pod.
             - name: MEDAPP_API_URL
-              value: "http://127.0.0.1:8080"
+              value: "http://127.0.0.1:{{ $apiPort }}"
             - name: NODE_ENV
               value: production
           ports:
@@ -170,25 +183,18 @@ spec:
             preStop:
               sleep:
                 seconds: 5
-          # Ready once it's loaded and serving pages, and restarted if it stops answering. The pod is ready only while
-          # both containers are, so the ingress sends requests to another copy meanwhile; a page that reaches this
-          # API while the page server is down still works, rendered in the browser.
-          startupProbe:
-            httpGet:
-              path: /alive
-              port: pages-health
-            periodSeconds: 2
-            failureThreshold: 30
-          readinessProbe:
-            httpGet:
-              path: /alive
-              port: pages-health
-            periodSeconds: 10
+          # No readiness or startup probe: either would make the API's pod unready, and so out of service, whenever
+          # the page server is, where the API can carry on with pages rendered in the browser. The page server
+          # restarts its own worker if it stops or gets stuck (server.mjs, supervise), so the container keeps running;
+          # the liveness probe restarts it only if the supervisor itself stops answering.
           livenessProbe:
             httpGet:
               path: /alive
               port: pages-health
             periodSeconds: 20
+            timeoutSeconds: 5
+            # A stuck event loop can't run the SIGTERM handler: don't wait the pod's 30 seconds for it.
+            terminationGracePeriodSeconds: 5
           resources:
             {{- toYaml .Values.api.pageServer.resources | nindent 12 }}
         {{- end }}

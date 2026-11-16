@@ -11,9 +11,10 @@
 //
 // Settings, from the environment:
 // - PORT: where it listens (5173 by default). HOST: the interface (localhost by default).
-// - HEALTH_PORT: if set, a second listener on every interface, answering GET /alive with 200 once the renderer is
-//   loaded and pages are being served, for Kubernetes' probes. Only the kubelet reaches it (the chart's network
-//   policy); pages stay on HOST:PORT.
+// - HEALTH_PORT: if set (the Helm chart's pages container), it runs as a service of its own: this process supervises
+//   a worker that serves the pages, restarting it if it stops or gets stuck (see `supervise`), and answers GET /alive
+//   on HEALTH_PORT, on every interface, for Kubernetes' liveness probe. Only the kubelet reaches it (the chart's
+//   network policy); pages stay on HOST:PORT.
 // - MEDAPP_API_URL: where it reaches the API for a page's data. In development, by default, this server itself:
 //   its /api proxy (vite.config.ts) passes the calls on to the API, as it does the browser's, and accepts the API's
 //   development certificate, which Node wouldn't.
@@ -23,6 +24,7 @@
 // with, which the router puts on the scripts it writes (see `cspNonce`).
 // - In development, the API itself (for /api WebSockets, see `proxyWebSocket`): API_HTTPS or the AppHost's
 //   services__api__https__0, as vite.config.ts uses.
+import cluster from 'node:cluster';
 import {existsSync, readFileSync} from 'node:fs';
 import {createServer, request as httpRequest} from 'node:http';
 import {request as httpsRequest} from 'node:https';
@@ -190,27 +192,6 @@ async function send(response, res) {
   });
 }
 
-const renderer = isDev ? await createDevRenderer() : await createProdRenderer();
-
-server.on('request', (req, res) => {
-  const renderPage = async () => {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(405, {Allow: 'GET, HEAD'}).end();
-      return;
-    }
-    try {
-      await send(await renderer.render(toRequest(req)), res);
-    } catch (error) {
-      renderer.fixError(error);
-      console.error(error);
-      if (!res.headersSent) res.writeHead(500, {'Content-Type': 'text/plain; charset=utf-8'});
-      res.end('The page could not be rendered.');
-    }
-  };
-  if (renderer.middlewares) renderer.middlewares(req, res, renderPage);
-  else void renderPage();
-});
-
 /**
  * In development, passes an /api WebSocket (the live notifications hub) on to the API. Vite's proxy does this only
  * when Vite owns the server; hosted as middleware here, it doesn't, so the hub's socket would open and never connect.
@@ -241,37 +222,116 @@ function proxyWebSocket(req, socket, head) {
   upstream.end();
 }
 
-if (isDev) {
-  server.on('upgrade', (req, socket, head) => {
-    if (req.url?.startsWith('/api/')) proxyWebSocket(req, socket, head);
+/** Serves pages: in this process, or (supervised) in the worker the supervisor runs. */
+async function serve() {
+  // Supervised: answer the supervisor's heartbeat, which shows this process's event loop isn't stuck.
+  if (cluster.isWorker) process.on('message', (message) => message === 'ping' && process.send('pong'));
+
+  const renderer = isDev ? await createDevRenderer() : await createProdRenderer();
+
+  server.on('request', (req, res) => {
+    const renderPage = async () => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.writeHead(405, {Allow: 'GET, HEAD'}).end();
+        return;
+      }
+      try {
+        await send(await renderer.render(toRequest(req)), res);
+      } catch (error) {
+        renderer.fixError(error);
+        console.error(error);
+        if (!res.headersSent) res.writeHead(500, {'Content-Type': 'text/plain; charset=utf-8'});
+        res.end('The page could not be rendered.');
+      }
+    };
+    if (renderer.middlewares) renderer.middlewares(req, res, renderPage);
+    else void renderPage();
   });
+
+  if (isDev) {
+    server.on('upgrade', (req, socket, head) => {
+      if (req.url?.startsWith('/api/')) proxyWebSocket(req, socket, head);
+    });
+  }
+
+  server.listen(port, host, () => {
+    console.log(`MedApp pages: http://${host}:${port}/ (${isDev ? 'development' : 'production'}, API at ${apiUrl})`);
+  });
+
+  // Run on its own as a container's first process, Node ignores SIGTERM unless it says otherwise: stop taking
+  // requests, finish the pages being sent, then exit. (Supervised, the supervisor stops it; started by the API, it's
+  // stopped with the API; in development, Vite handles stopping.)
+  if (!isDev && !cluster.isWorker) {
+    process.once('SIGTERM', () => server.close(() => process.exit(0)));
+  }
 }
 
 /**
- * For Kubernetes' probes (HEALTH_PORT): answers GET /alive while this process serves pages. Started once the page
- * listener is up, so it's also the readiness signal; and it shares the page server's event loop, so a server that's
- * stuck stops answering it too.
+ * Run as a service of its own (HEALTH_PORT: the Helm chart's pages container), this first process only supervises.
+ * It runs the page server in a worker process, and starts a new one whenever that exits (a crash, or killed for
+ * running out of memory) or stops answering its heartbeat (a stuck event loop), waiting longer each time one fails
+ * soon after starting. Meanwhile the API sends the client-rendered app. The container itself keeps running, so
+ * Kubernetes never counts it, or the API's pod, as not ready because the renderer failed. It answers GET /alive on
+ * HEALTH_PORT (on every interface, for the kubelet's liveness probe), which shows that this process is working.
  */
-function startHealth() {
+function supervise() {
+  const heartbeatEvery = 5_000;
+  const missedHeartbeatsAllowed = 3;
+  const longestWait = 30_000;
+  let stopping = false;
+  let worker;
+  let quickFailures = 0;
+
+  const start = () => {
+    const startedAt = Date.now();
+    let missed = 0;
+    worker = cluster.fork();
+    const current = worker;
+    const heartbeat = setInterval(() => {
+      if (missed >= missedHeartbeatsAllowed) {
+        console.error(`The page server hasn't answered for ${(missed * heartbeatEvery) / 1000} s: restarting it.`);
+        current.process.kill('SIGKILL');
+        return;
+      }
+      missed += 1;
+      try {
+        current.send('ping');
+      } catch {
+        // Its channel is closing: the exit below follows.
+      }
+    }, heartbeatEvery);
+    current.on('message', (message) => {
+      if (message === 'pong') missed = 0;
+    });
+    current.on('exit', (code, signal) => {
+      clearInterval(heartbeat);
+      if (stopping) {
+        process.exit(0);
+        return;
+      }
+      quickFailures = Date.now() - startedAt < 60_000 ? quickFailures + 1 : 0;
+      const wait = Math.min(longestWait, 1_000 * 2 ** Math.max(0, quickFailures - 1));
+      console.error(`The page server stopped (${signal ?? `exit code ${code}`}): starting it again in ${wait / 1000} s.`);
+      setTimeout(start, wait);
+    });
+  };
+
   const health = createServer((req, res) => {
     const alive = req.method === 'GET' && req.url === '/alive';
     res.writeHead(alive ? 200 : 404, {'Content-Type': 'text/plain; charset=utf-8'}).end(alive ? 'alive' : '');
   });
   health.listen(healthPort);
-  return health;
+
+  // As the container's first process: stop the worker gracefully (it finishes the pages being sent), then exit.
+  process.once('SIGTERM', () => {
+    stopping = true;
+    health.close();
+    if (worker && !worker.isDead()) worker.disconnect();
+    else process.exit(0);
+  });
+
+  start();
 }
 
-server.listen(port, host, () => {
-  console.log(`MedApp pages: http://${host}:${port}/ (${isDev ? 'development' : 'production'}, API at ${apiUrl})`);
-  const health = healthPort ? startHealth() : undefined;
-
-  // In a container of its own, Node is the container's first process, which ignores SIGTERM unless it says
-  // otherwise: stop taking requests, finish the pages being sent, then exit. (Started by the API, it's stopped with
-  // the API instead; in development, Vite handles stopping.)
-  if (!isDev) {
-    process.once('SIGTERM', () => {
-      health?.close();
-      server.close(() => process.exit(0));
-    });
-  }
-});
+if (!isDev && healthPort && cluster.isPrimary) supervise();
+else await serve();

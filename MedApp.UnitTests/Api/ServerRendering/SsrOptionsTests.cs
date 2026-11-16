@@ -9,7 +9,6 @@ public sealed class SsrOptionsTests
     [TestCase("http://127.0.0.1:8082", "http://127.0.0.1:8082/")]
     [TestCase("http://127.0.0.1:8082/", "http://127.0.0.1:8082/")]
     [TestCase("http://localhost:8082", "http://localhost:8082/")]
-    [TestCase("https://pages.medapp.test", "https://pages.medapp.test/")]
     [TestCase("http://[::1]:8082", "http://[::1]:8082/")]
     public void ExternalServer_ServerAddress_ReturnsItEndingInASlash(string url, string expected)
     {
@@ -34,6 +33,7 @@ public sealed class SsrOptionsTests
     [TestCase("not an address")]
     [TestCase("/pages")]
     [TestCase("ftp://127.0.0.1:8082")]
+    [TestCase("https://127.0.0.1:8082")]
     [TestCase("file:///app/ssr/server.mjs")]
     [TestCase("http://127.0.0.1:8082/pages")]
     [TestCase("http://127.0.0.1:8082/?x=1")]

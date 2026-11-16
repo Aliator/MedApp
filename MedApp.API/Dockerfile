@@ -23,7 +23,16 @@ WORKDIR /web
 COPY MedApp.Web/package.json MedApp.Web/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY MedApp.Web/ ./
-RUN npm run build     && mkdir /out     && mv dist/ssr /out/ssr     && rm -r dist/.vite     && mv dist /out/wwwroot
+# Everything left in /out/wwwroot is public: the guard at the end fails the build if the page server or the manifests
+# ever end up there.
+RUN npm run build \
+    && mkdir /out \
+    && mv dist/ssr /out/ssr \
+    && rm -r dist/.vite \
+    && mv dist /out/wwwroot \
+    && test ! -e /out/wwwroot/ssr \
+    && test ! -e /out/wwwroot/.vite \
+    && test ! -e /out/wwwroot/server.mjs
 
 # 2. The API, published for Release. The project files come first, so the restore is cached until they change.
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS api

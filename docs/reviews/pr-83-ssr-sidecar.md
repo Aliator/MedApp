@@ -101,7 +101,7 @@ The PR moves the Node page server (the program that renders MedApp's pages on th
 
 ## Findings
 
-Most severe first. None is high or critical. All seven were open when this review was written.
+Most severe first. None is high or critical. All seven were open when this review was written; all seven were then fixed on the branch (each one's outcome is below).
 
 ### 1. A page server that stops now takes its copy of the API out of service, instead of the pages falling back
 
@@ -124,7 +124,14 @@ Most severe first. None is high or critical. All seven were open when this revie
   - Give liveness `timeoutSeconds: 5` and a probe-level `terminationGracePeriodSeconds: 5`, so a stuck Node is replaced in about 70 seconds rather than about 95. The diff is under Detail.
   - Say it in `values.yaml`, the chart's README and the graceful degradation row: with one copy, a page server restart is a short outage of the whole app, and two copies avoid it.
   - If the API must stay up whatever Node does, run the page server as its own Deployment. That would need a way to keep it on the API's build during a rollout.
-- **What happened to it:** open.
+- **What happened to it:** fixed, further than the suggested fix. Dropping the readiness probe alone wasn't enough: a container that isn't running is never ready, so each crash, out-of-memory kill or liveness restart would still have taken the pod out, for minutes in a crash loop.
+  - **`server.mjs`:** run as a service of its own (`HEALTH_PORT`), its first process now only supervises (`supervise`, with `node:cluster`). It runs the page server in a worker and starts a new one whenever the worker exits or misses its heartbeat for 15 s, after 1 s, doubling up to 30 s while it keeps failing soon after starting. It answers `/alive` itself. So the container keeps running while the renderer fails.
+  - **The chart:** the `pages` container has no readiness or startup probe (a startup probe also gates readiness), and liveness has `timeoutSeconds: 5` and `terminationGracePeriodSeconds: 5`, as suggested. `values.yaml`, the chart's README and `docs/architecture.md` (graceful degradation, R2, R3) say so.
+  - **Proved on kind,** in a throwaway namespace with the chart's defaults (one copy), sampling each second:
+    - **The worker killed 6 times, 3 s apart:** the pod Ready and its endpoint ready throughout, `pages` never restarted, `/api/auth/whoami` 200 every time, and pages back to server rendering after each restart (backoff 1, 1, 2, 4, 8 s).
+    - **The worker frozen with SIGSTOP:** replaced after 15 s of missed heartbeats. Signing in during the freeze answered 200, and a page asked for then waited 8.6 s and got the client-rendered app.
+    - **The supervisor itself stopped:** the container restarted, and the pod was not ready for about 0.3 s. That's what's left, and only a supervisor that stops answering triggers it.
+    - The namespace, its volumes and the image were removed afterwards.
 
 ### 2. The threat model rates code in Node as low, but leaves out what Node still holds
 
@@ -143,7 +150,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - Keep T-23 at medium. Add to it that a compromised page server can act as anyone who opens a page while it's compromised, admins included, and can send data out over DNS.
   - Name the controls that bear on it: the lockfile, `npm audit` in CI and Dependabot.
   - In section 7, item 5, say what would contain it further: a page server with no route out, such as a Deployment of its own whose policy allows only the API, or a DNS policy (Cilium can filter names).
-- **What happened to it:** open.
+- **What happened to it:** fixed. T-23 is **Medium** again. It now says what Node still holds: every visitor's session, so it can act on the API on loopback as anyone who opens a page while it's compromised, admins included, logged from `127.0.0.1`; and DNS, the database and Valkey on the pod's network, without credentials. It names the controls against a compromised package (the lockfile, `npm audit`, Dependabot, dependency review). B3 and section 7, item 5 say the same, with what would contain it further (a page server with no route out, or a DNS policy).
 
 ### 3. An https port on the API would quietly switch server rendering off in Kubernetes
 
@@ -162,7 +169,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - Don't redirect a request the API received on a loopback address: add `!IPAddress.IsLoopback(context.Connection.LocalIpAddress)` beside the key check. Only something inside the pod or container can connect to 127.0.0.1, and forwarded headers don't change the local address. The alternative is to fail start-up when `Ssr:ServerUrl` and an https port are both set.
   - Accept only `http` in `ServerUrl` until the page server serves https.
   - Add an integration test: with `HTTPS_PORT` and `Ssr:ServerUrl` set, a loopback call to `/api/auth/whoami` isn't redirected.
-- **What happened to it:** open.
+- **What happened to it:** fixed, both ways. The API doesn't apply the https redirect to a request it received on a loopback address (`ApplicationBuilderExtensions.UseApi`, IPv4-mapped addresses included), and `Ssr:ServerUrl` accepts only `http` (`SsrOptions.ExternalServer`). New integration tests (`PageServerTests.ApiCall_HttpsPortSet_IsRedirectedOnlyIfNotReceivedOnLoopback`): with `https_port` and `Ssr:ServerUrl` set, `/api/auth/whoami` received on `127.0.0.1`, `::1` or `::ffff:127.0.0.1` isn't redirected, and received on a pod address it is (307). `SsrOptionsTests` refuses `https`. The renderer's key now only duplicates the loopback rule for a Node the API starts; it was kept.
 
 ### 4. Nothing in CI runs the page server the way the chart does
 
@@ -184,7 +191,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - In the `e2e` job, after the current run, run the pair the way the chart does: the image as `pages` (`--user 1655:1655 --read-only --cap-drop ALL`, `node /app/ssr/server.mjs` and the chart's four variables), and the API with `Ssr__ServerUrl=http://127.0.0.1:8082`, both on the host network.
   - Check `/alive` on 8083, then run `ContentSecurityPolicyTests` again. They fail on a fallback, because `index.html` has no nonce.
   - At the least, add a `node:test` for `server.mjs`'s health listener and SIGTERM.
-- **What happened to it:** open.
+- **What happened to it:** fixed. After its first run, CI's `e2e` job runs the image as the chart does: the API with `Ssr__ServerUrl=http://127.0.0.1:8082`, and `pages` with `--network container:medapp-api`, user `1655:1655`, read-only, no capabilities and the chart's variables. It waits for `/alive` on 8083 and a server-rendered `/login`, then runs `ContentSecurityPolicyTests` again, which fail on a fallback. Run the same way locally, the whole E2E suite passed (18 of 18). The chart now types the API's ports once (`$apiPort`, `$apiHealthPort`), for `ASPNETCORE_HTTP_PORTS`, the container ports and `MEDAPP_API_URL`. No `node:test` was added: the CI run covers the health listener, and the supervisor was proved on kind.
 
 ### 5. The DPIA and the roadmap still say the page server is in the API's container, and the sidecar is planned
 
@@ -202,7 +209,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - **DPIA, risk 12:** in Kubernetes Node no longer sees the API's environment; run on its own, it still could.
   - **DPIA, actions:** mark the sidecar done in Kubernetes, and keep hashing session tokens as planned.
   - **Roadmap:** take "Node in a sidecar" off step 2's list.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The DPIA's line 39 and risk 12 say the page server is a container of its own in Kubernetes (and inside the API's container only when the image runs on its own), and that Node sees every visitor's session. Its actions mark the sidecar done in Kubernetes, with hashing session tokens still planned. The roadmap drops "Node in a sidecar" from step 2, and the data inventory's diagram says the page server is a container of its own.
 
 ### 6. Node's log moved to the `pages` container, and nothing says where to find it
 
@@ -215,7 +222,7 @@ Most severe first. None is high or critical. All seven were open when this revie
 - **Fix:**
   - Add the `kubectl.kubernetes.io/default-container: api` annotation to the pod template.
   - Add a line to the chart's README: Node's own log is `kubectl logs deploy/medapp-api -c pages`.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The pod template has `kubectl.kubernetes.io/default-container: api`, and the chart's README says the page server's log is `kubectl logs deploy/medapp-api -c pages`. AGENTS.md says it too. The pod also has `azure.workload.identity/skip-containers: pages` now (from the remaining risks below), harmless until the API has a workload identity.
 
 ### 7. The Dockerfile's split lost its line breaks, and nothing checks what's left in `wwwroot`
 
@@ -228,13 +235,13 @@ Most severe first. None is high or critical. All seven were open when this revie
   - Put back the `\` continuations, one command per line.
   - End the step with a guard such as `test ! -e /out/wwwroot/ssr && test ! -e /out/wwwroot/.vite`.
   - Add a comment that everything in `/out/wwwroot` is public.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The step is one command per line again, with a comment that everything in `/out/wwwroot` is public, and it ends with a guard: `test ! -e` for `/out/wwwroot/ssr`, `/out/wwwroot/.vite` and `/out/wwwroot/server.mjs`. The image was rebuilt with it.
 
 ## Remaining risks
 
 - **Network policies can't tell the two containers apart.** The page server can open connections to SQL Server, Valkey and, on Azure, the SQL private endpoint, though it has no credentials for them (documented).
 - **One network namespace.** Node can listen on any free port on the pod's address. If it were compromised, it could grab 8080 or 8081 while the API container restarts, so the API couldn't start again. That's a denial of service, not interception: Kestrel would exit, and the pod would stay unready.
-- **Workload identity would undo the isolation on Azure.** The planned passwordless Azure SQL (`deploy/azure/README.md:127`) gives the API a federated identity. Azure's webhook puts that token into every container in the pod unless the pod is annotated `azure.workload.identity/skip-containers: pages`. Without that, the step that removes the password would hand Node the database identity.
+- **Workload identity would undo the isolation on Azure** (now prevented: the pod is annotated `azure.workload.identity/skip-containers: pages`). The planned passwordless Azure SQL (`deploy/azure/README.md:127`) gives the API a federated identity. Azure's webhook puts that token into every container in the pod unless the pod is annotated `azure.workload.identity/skip-containers: pages`. Without that, the step that removes the password would hand Node the database identity.
 - **Run on its own** (`docker run`, CI's `e2e` job), Node is still in the API's container as the same user (S17), and isn't restarted (R2).
 - **Readiness still ignores the database and Valkey** (R3).
 - **A page that stalls part-way still isn't timed out.**

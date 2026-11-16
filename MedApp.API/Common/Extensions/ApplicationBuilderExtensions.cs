@@ -24,11 +24,14 @@ public static class ApplicationBuilderExtensions
             app.UseHsts();
         }
 
-        // The page-rendering server's own calls to the API may come over http on this machine, when the API started it
-        // (SsrServer). A page server in a container of its own has no key, and needs none: behind the ingress the API
-        // has no https port to redirect to.
+        // No https redirect for requests the API received on a loopback address: only something on this machine (in
+        // Kubernetes, in this pod) can connect there, such as the page server calling for a page's data over http, and
+        // forwarded headers don't change the local address. So an https port can't silently break server rendering.
+        // A page server the API started also carries its key (SsrServer.IsFromRenderer).
         var ssr = app.Services.GetRequiredService<ISsrServer>();
-        app.UseWhen(context => !ssr.IsFromRenderer(context), branch => branch.UseHttpsRedirection());
+        app.UseWhen(
+            context => !ssr.IsFromRenderer(context) && !IsLoopback(context.Connection.LocalIpAddress),
+            branch => branch.UseHttpsRedirection());
 
         // Paths no page or file of the app has (PageServerFiles): any path with an empty segment (//), and, as defence
         // in depth, /ssr and /.vite, where the page server and the build's manifest used to sit in wwwroot.
@@ -68,4 +71,7 @@ public static class ApplicationBuilderExtensions
 
         return app;
     }
+
+    private static bool IsLoopback(System.Net.IPAddress? address) =>
+        address is not null && System.Net.IPAddress.IsLoopback(address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address);
 }
