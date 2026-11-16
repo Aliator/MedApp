@@ -1,6 +1,6 @@
 import {screen} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
-import {ChartCard} from './ChartCard';
+import {CHART_CARD_HEIGHT, ChartCard} from './ChartCard';
 
 describe('ChartCard', () => {
   it('shows its title, summary and content, and switches between chart and table', async () => {
@@ -30,5 +30,25 @@ describe('ChartCard', () => {
     await user.click(await screen.findByRole('button', {name: 'Show Chart of Throughput'}));
 
     expect(onViewChange).toHaveBeenCalledWith('chart');
+  });
+
+  it('keeps one height whichever it shows, so a long table scrolls inside the card rather than lengthening the page', async () => {
+    renderWithApp(
+      <>
+        <ChartCard title="As a chart" summary="Busy." view="chart" onViewChange={() => {}}>
+          <p>The chart</p>
+        </ChartCard>
+        <ChartCard title="As a table" summary="Busy." view="table" onViewChange={() => {}}>
+          {Array.from({length: 40}, (_, i) => (
+            <p key={i}>Row {i}</p>
+          ))}
+        </ChartCard>
+      </>,
+    );
+
+    const heightOf = async (title: string) =>
+      ((await screen.findByRole('heading', {name: title})).closest(`[style*="height: ${CHART_CARD_HEIGHT}px"]`) as HTMLElement | null)?.style.height;
+    expect(await heightOf('As a chart')).toBe(`${CHART_CARD_HEIGHT}px`);
+    expect(await heightOf('As a table')).toBe(`${CHART_CARD_HEIGHT}px`);
   });
 });
