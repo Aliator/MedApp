@@ -44,6 +44,25 @@ const AXIS_BAND = 32;
 const COLUMNS_HEIGHT = 240;
 const NAME_WIDTH = 128;
 const NAME_CHARACTERS = 18;
+/** The value axis beside columns, and the space after the last one. */
+const VALUE_AXIS_WIDTH = 40;
+const COLUMNS_END = 8;
+
+/** The usual spacing: a quarter of each category's space on either side of its bars, and 4 px between a group's bars. */
+const SPACING = {categoryGap: '25%', barGap: 4};
+/** Many columns side by side (26 weeks in half a page): closer together, so each stays wide enough to see. */
+const TIGHT_SPACING = {categoryGap: '10%', barGap: 1};
+/** Columns narrower than this with the usual spacing get the tight spacing, and lose their outline. */
+const THIN_COLUMN = 8;
+
+/**
+ * How wide each column would be with the usual spacing, as Recharts works it out: each category's share of the plot,
+ * less a quarter on either side and the gaps between its bars, shared between them.
+ */
+function usualColumnWidth(chartWidth: number, categories: number, barsPerCategory: number) {
+  const share = Math.max(0, chartWidth - VALUE_AXIS_WIDTH - COLUMNS_END) / Math.max(1, categories);
+  return (share / 2 - (barsPerCategory - 1) * SPACING.barGap) / barsPerCategory;
+}
 
 const ink = {fill: CHART_INK.axisText, fontSize: CHART_INK.fontSize};
 
@@ -118,7 +137,7 @@ export function ChartLegend({series}: {series: readonly ChartSeries[]}) {
 /**
  * A bar chart (Recharts) in the app's look: the theme's tokens for its colours, so it follows the light and dark
  * modes and the colour themes; thin bars with rounded ends and a gap between neighbours; recessive axes; a tooltip
- * under the pointer; and a legend for two series or more. It fills its container's width.
+ * under the pointer; and, for two series or more, a key above the bars. It fills its container's width.
  *
  * Use it inside a `ChartCard`, which gives every chart its title, a summary in words, and a table of its numbers for
  * anyone who can't see or point at the chart. Screen readers read the chart as one image named by `description`.
@@ -137,6 +156,10 @@ export function BarChart<T extends object>({
   const [ref, width] = useWidth();
   const isRows = layout === 'rows';
   const height = isRows ? data.length * ROW_HEIGHT + AXIS_BAND : COLUMNS_HEIGHT;
+  // Rows get taller with more bars, so only columns can get too thin: then they move closer together, and the outline
+  // (the gap between neighbours) would cover most of them, so it goes. A pair's two colours still have 1 px between.
+  const isThin = !isRows && usualColumnWidth(width, data.length, isStacked ? 1 : series.length) < THIN_COLUMN;
+  const spacing = isThin ? TIGHT_SPACING : SPACING;
   // A bar's free end is rounded: the right in rows, the top in columns; stacked, only the last series' end.
   const end: [number, number, number, number] = isRows ? [0, 4, 4, 0] : [4, 4, 0, 0];
   const valueAxis = {type: 'number' as const, tick: ink, tickFormatter: formatValue, axisLine: false, tickLine: false, allowDecimals: false};
@@ -151,6 +174,8 @@ export function BarChart<T extends object>({
 
   return (
     <VStack gap={3}>
+      {/* The key goes above the bars, so a card too short for the whole chart never cuts it off. */}
+      {series.length > 1 && <ChartLegend series={series} />}
       <StackItem ref={ref} role="img" aria-label={description} style={{blockSize: height}}>
         {width > 0 && (
           <Chart
@@ -158,8 +183,9 @@ export function BarChart<T extends object>({
             height={height}
             data={data as T[]}
             layout={isRows ? 'vertical' : 'horizontal'}
-            margin={{top: 4, right: isRows ? 32 : 8, bottom: 0, left: 0}}
-            barCategoryGap="25%"
+            margin={{top: 4, right: isRows ? 32 : COLUMNS_END, bottom: 0, left: 0}}
+            barCategoryGap={spacing.categoryGap}
+            barGap={spacing.barGap}
             // The chart is one image to screen readers; its numbers are in the card's table, with its links.
             accessibilityLayer={false}>
             <CartesianGrid stroke={CHART_INK.grid} horizontal={!isRows} vertical={isRows} />
@@ -171,7 +197,7 @@ export function BarChart<T extends object>({
             ) : (
               <>
                 <XAxis {...nameAxis} interval="preserveStartEnd" />
-                <YAxis {...valueAxis} width={40} />
+                <YAxis {...valueAxis} width={VALUE_AXIS_WIDTH} />
               </>
             )}
             <Tooltip
@@ -187,8 +213,8 @@ export function BarChart<T extends object>({
                 fill={s.colour}
                 stackId={isStacked ? 'stack' : undefined}
                 radius={!isStacked || index === series.length - 1 ? end : 0}
-                stroke={CHART_INK.gap}
-                strokeWidth={2}
+                stroke={isThin ? undefined : CHART_INK.gap}
+                strokeWidth={isThin ? 0 : 2}
                 maxBarSize={24}
                 isAnimationActive={false}
                 cursor={onSelect ? 'pointer' : undefined}
@@ -202,7 +228,6 @@ export function BarChart<T extends object>({
           </Chart>
         )}
       </StackItem>
-      {series.length > 1 && <ChartLegend series={series} />}
     </VStack>
   );
 }
