@@ -6,7 +6,7 @@ import {useState} from 'react';
 import {Token} from '@astryxdesign/core/Token';
 import {Text} from '@astryxdesign/core/Text';
 import {useColorMode, type ColorMode} from '../../app/colorMode';
-import {COLOUR_THEMES, themeOf, useColours, type ColourPart, type ModeColours} from '../../app/colours';
+import {COLOUR_THEMES, readabilityWarning, themeOf, useColours, type ColourPart, type ModeColours} from '../../app/colours';
 import {ColourField, ColourSwatches} from '../../components/forms/ColourField';
 import {Page} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
@@ -34,7 +34,8 @@ const chosen = (isChosen: boolean) => (
  * theme (Standard is the app's own), or Custom to pick the page, card and side nav colours yourself. Clicking a
  * card's header switches the app to that mode. Custom folds the themes away and
  * shows its colour pickers; choosing it again folds them and shows the themes. The app recolours at once, and the
- * choice is kept in this browser.
+ * choice is kept in this browser. A custom colour that leaves text hard to read (under 4.5:1) is warned about on its
+ * field.
  */
 export function ColoursPage() {
   const {colours} = useColours();
@@ -150,6 +151,7 @@ function ModeColoursPicker({mode, isCustomOpen, onCustomOpenChange}: ModeColours
             label={label}
             description={description}
             value={current[part]}
+            warning={readabilityWarning(mode, part, current[part])}
             onChange={(colour) => {
               setMode(mode);
               set(mode, part, colour);
