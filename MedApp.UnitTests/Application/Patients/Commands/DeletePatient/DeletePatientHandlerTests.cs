@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using MedApp.Domain.Activity;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Commands.DeletePatient;
@@ -49,6 +50,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 It.IsAny<Guid>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -75,6 +77,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 patient.Id,
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -98,6 +101,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 It.IsAny<Guid>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -122,6 +126,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 It.IsAny<Guid>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -148,6 +153,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 patient.Id,
+                It.IsAny<ActivityEntry>(),
                 cts.Token),
             Times.Once);
     }

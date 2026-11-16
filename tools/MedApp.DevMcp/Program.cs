@@ -1,6 +1,4 @@
-using MedApp.Application.Common.Extensions;
 using MedApp.DevMcp;
-using MedApp.Infrastructure.Common.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,9 +45,7 @@ builder.Services.AddSingleton(new DevMcpOptions(
     Path.Combine(repoRoot, "tools", "MedApp.DevMcp", ".backups"),
     builder.Configuration["DevMcp:SqlContainer:BackupDirectory"]));
 
-builder.Services.AddDataProtection(); // the API's web host provides this; Identity's token providers need it
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddDevMcpCore(builder.Configuration);
 
 builder.Services
     .AddMcpServer(o => o.ServerInfo = new() { Name = "medapp-dev", Version = "1.0.0" })

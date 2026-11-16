@@ -33,7 +33,7 @@ Scored for MedApp **holding real patient data as it is today**, and after the pl
 | IR8 | Supplier staff misuse access, or customer data reaches tickets, laptops or AI tools | 16, 20 | 2 | 5 | **10** | Support access policy, PIM, access log, training | 3, 5 | [SIRO] | 4 |
 | IR9 | The only maintainer is unavailable (key person) | | 3 | 5 | **15** | Runbooks, a second engineer, contracted support, escrow | 5, 10 | [SIRO] | 8 |
 | IR10 | Records are kept beyond retention, increasing breach impact and breaching storage limitation | 5 | 5 | 3 | **15** | Retention engine | 7 | [DPO] | 4 |
-| IR11 | A rights request can't be answered in time | 6 | 4 | 3 | **12** | Manual procedure now, export in step 7 | 3, 7 | [DPO] | 3 |
+| IR11 | A rights request can't be answered in time | 6 | 4 | 3 | **12** | Export, flags and anonymisation in MedApp (step 7); manual procedure for staff users | 3, 7 | [DPO] | 3 |
 | IR12 | Unlicensed commercial dependencies in production (MediatR, FluentAssertions 8) | | 4 | 3 | **12** | Replace or license | 1 | [SIRO] | 2 |
 | IR13 | The public repository and image expose the code and its known weaknesses | | 4 | 3 | **12** | Make them private | 1 | [SIRO] | 2 |
 | IR14 | Every merge deploys to production with no human approval | 15 | 3 | 4 | **12** | A GitHub environment with a required reviewer | 2, 5 | [Lead developer] | 4 |

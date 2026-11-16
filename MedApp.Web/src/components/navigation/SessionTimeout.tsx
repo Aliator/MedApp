@@ -5,6 +5,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
 import {isUnauthorized, sessionQuery, useExtendSession} from '../../api/session';
+import {clearStorageAtSignOut} from '../../app/settingsStore';
 import {useLogout} from '../../auth/auth';
 import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage} from '../shared/AlertMessage';
@@ -93,10 +94,14 @@ export function SessionTimeout() {
     return () => document.removeEventListener('visibilitychange', onShow);
   }, [refetch]);
 
-  // Ended: to the login page, which says why. The cache is cleared after leaving, as signing out does.
+  // Ended: to the login page, which says why. The cache and the app's browser storage are cleared after leaving, as
+  // signing out does, so nothing of the user's stays on a shared computer.
   useEffect(() => {
     if (!isOver) return;
-    void navigate({to: '/login', search: {expired: true}}).then(() => queryClient.clear());
+    void navigate({to: '/login', search: {expired: true}}).then(() => {
+      queryClient.clear();
+      clearStorageAtSignOut();
+    });
   }, [isOver, navigate, queryClient]);
 
   if (endsAt === undefined || now === 0) return null;
