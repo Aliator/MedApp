@@ -1,6 +1,6 @@
 # MedApp threat model
 
-**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`), on branch `feature/security-baseline`, from `main` at `ea827ef` plus that branch's changes. It describes MedApp as built, not as planned: where a control is only planned, it says which roadmap step. Review it whenever a data flow, a trust boundary or a deployment changes, and at least once a year.
+**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`), on branch `feature/security-baseline`: `main` up to #64 (`f083ec3`, merged in) plus that branch's changes. It describes MedApp as built, not as planned: where a control is only planned, it says which roadmap step. Review it whenever a data flow, a trust boundary or a deployment changes, and at least once a year.
 
 **Method:** STRIDE, applied to each element of the data flows below:
 - **S**poofing: pretending to be someone or something else.
@@ -19,7 +19,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | **Patient records** (name, date of birth, email) and **procedures** (titles, notes, stage notes, due dates) | Special category health data under UK GDPR. Disclosure harms patients; tampering can harm their care. |
 | **The procedure audit log** | The record of who did what. Losing or changing it loses accountability (hazard H-18). |
 | **Accounts:** usernames, password hashes, roles, the must-change-password flag | Whoever controls an account acts as that person. An admin account controls everyone's. |
-| **Sessions** (`UserSessions` rows, and their IDs in the session cookie) | A session ID is as good as a password for up to 8 hours. |
+| **Sessions** (`UserSessions` rows, and their IDs in the session cookie) | A session ID is as good as a password for up to 8 hours, or 24 if extended ("Stay signed in"). |
 | **Generated passwords** (first passwords and resets) | Shown once to an admin, to pass on; work until changed. |
 | **Secrets:** database and Valkey passwords, the first admin's password, Azure identities | Each opens a whole store. |
 | **The build and deploy pipeline:** GitHub Actions, GHCR images, the `env/*` branches, Argo CD | Whoever controls them controls the code that runs. |
@@ -117,7 +117,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | ID | STRIDE | Threat | In place | Left, and rating |
 |---|---|---|---|---|
 | T-30 | T, I | **SQL injection.** | EF Core with parameters everywhere; search filters in LINQ. | None found. |
-| T-31 | I | **Someone with the database** (a backup, a read replica) replaying live sessions. | Sessions expire after 8 hours; revoked ones are refused. | Session IDs are stored as they are, not hashed (S5; step 2, later, needs a migration). **Medium.** |
+| T-31 | I | **Someone with the database** (a backup, a read replica) replaying live sessions. | Sessions expire after 8 hours (24 at most if extended); revoked ones are refused. | Session IDs are stored as they are, not hashed (S5; step 2, later, needs a migration). **Medium.** |
 | T-32 | I | **Password hashes** taken from the database. | Identity's PBKDF2 hashes (salted, iterated). **New:** common passwords refused, so offline guessing of new passwords is harder. | Existing weak passwords stay until changed. **Low.** |
 | T-33 | E | **The app's database login** doing more than the app needs. | Network policies: only the API and the migrations Job reach SQL Server. | On Azure the app signs in as the server admin (S3, step 5). **High** before real data. |
 | T-34 | I, T | **Valkey traffic** read or forged inside the cluster. | Only the API reaches Valkey; it needs a password. | Plain text (S14). **Low.** |
