@@ -27,6 +27,7 @@ Each document says what changed and why, how it works, the decisions and their t
 | [pr-54-project-handbook.md](pr-54-project-handbook.md) | The review of #54: the architecture handbook, its roadmap, and the record of choices | #54 | Merged | High (fixed in the review pass) |
 | [pr-55-my-tasks-favourite-tag.md](pr-55-my-tasks-favourite-tag.md) | The review of #55: no favourite name beside the star on My Tasks, and the plain-language format for review documents | #55 | Merged | Medium (a personal detail in the public `AGENTS.md`; fixed before merging) |
 | [pr-56-standard-review-format.md](pr-56-standard-review-format.md) | The review of #56: a standard, neutral format for review documents | #56 | Merged | Medium (nothing committed git-ignores the local file the format points to; the #55 review keeps the framing this PR removes) |
+| [pr-58-duplicate-favourite-labels.md](pr-58-duplicate-favourite-labels.md) | The review of #58: no duplicate quick filter label beside the star on Stage definitions, Templates and the procedures lists | #58 | Merged | Low (the setup lists' "All" repeats no token; a saved search matching a quick filter is named differently on screen and to screen readers; the documented rule doesn't match which lists opt in) |
 
 ## How the risks are graded
 
