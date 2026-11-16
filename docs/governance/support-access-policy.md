@@ -56,7 +56,8 @@ Access is removed on the day someone leaves or no longer needs it, and the regis
 | Control | Status |
 |---|---|
 | Cluster access through Entra ID only, with no local accounts; Azure role-based access control | In place in design (`deploy/azure/main.bicep`) |
-| The database reachable only from inside the virtual network (private endpoint) | In place in design |
+| The database, and the storage account that holds attached files, reachable only from inside the virtual network (private endpoints) | In place in design |
+| Passwordless access to the files' storage, with the account key turned off. Until then the app uses the account key from Key Vault, so anyone who can read that secret can read every file | Planned, step 5 |
 | MFA on every supplier account (Azure, GitHub, email) | Planned, before the first customer goes live ([target date]); required for Cyber Essentials v3.3. Current state to confirm |
 | Just-in-time admin access with Entra ID Privileged Identity Management, time-limited and approved; break-glass accounts monitored | Planned, step 5 |
 | A read-only database role for investigations; the app's own least-privilege identity | Planned, step 5 |

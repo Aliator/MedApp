@@ -48,6 +48,7 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
 | **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
 | **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
+| **Attached files** | Staff attach scans, photos, results and letters to a patient, a procedure or a stage: PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain text, up to 20 MB, with the type found from the file's contents. Files are stored in blob storage and only ever downloaded, never shown in the page; photos get a small thumbnail made by the server. Adding, deleting and downloading a file are audited. Staff delete their own files and admins any; deleting hides a file but keeps it. Files aren't scanned for malware yet: each shows "Not scanned" (step 9 of the [roadmap](#step-9-the-features-buyers-expect)). |
 | **Notifications** | Being assigned a procedure (by someone else) sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
@@ -212,7 +213,7 @@ These are outside the system today, and nothing in the code integrates with them
 - **No clinical integrations:** no HL7 or FHIR, no electronic health record, no lab or imaging systems, no NHS number lookup.
 - **No scheduling, billing or patient portal.**
 - **No structured clinical data.** Notes are free text (Markdown).
-- **No file uploads.**
+- **No document management beyond attaching files:** attached files are stored and downloaded as they are, with no previews of PDFs, no versions, no malware scanning yet, and no exchange with other systems ([step 9](#step-9-the-features-buyers-expect)).
 
 ---
 
@@ -1426,7 +1427,7 @@ This roadmap takes MedApp from a well-built app for one organisation to a produc
 - **Product:**
   - one organisation per deployment
   - a patient record of name, date of birth and email, with no NHS number
-  - no integrations, documents, reporting or email
+  - no integrations, reporting or email, and documents only in a first version (attached files, with no malware scanning yet)
 - **People:** one developer.
 
 ### How to read the steps
@@ -1822,7 +1823,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
-**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`).
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 27 hazards (H-22 to H-27 for file attachments), a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and fourteen are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`).
 
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 
@@ -2050,6 +2051,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 4. **Documents:**
    - attach consent forms, referral letters and images to a procedure or stage
    - store them in Azure Blob Storage with a private endpoint and a customer-managed key, scanned for malware by Defender for Storage ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/defender-for-cloud/introduction-malware-scanning)), with type and size limits and audited downloads
+
+   **A first version is built** (file attachments): files on a patient, a procedure or a stage; six types found from their contents, up to 20 MB; Azure Blob Storage in UK South behind a private endpoint (Azurite on kind and in development); downloads only through the API, never shown inline, with thumbnails of photos made by the server; adding, deleting and downloading audited; soft deletion. Still missing against this step: **malware scanning** by Defender for Storage (every file shows "Not scanned", and the DPIA and hazard log bring scanning forward to before go-live), a **customer-managed key**, passwordless access to the storage account, the **purge job** that removes deleted files' contents after a retention window (until it exists they're kept), backups of the files beyond 7 days' soft delete, PDF and HEIC previews, and attachments as FHIR **DocumentReference**s (item 3).
 5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default. Insights (`/admin/insights`, #66) is a first version for one organisation: open, in progress, overdue and completed against last week, overdue work by assignee and priority, time at each stage per template, and weekly throughput. No exports yet.
 6. **Communications and escalation:**
    - the notification kinds in `docs/todo.md` (overdue, blocked, stage unlocked), by email, with no patient identifiers in the message

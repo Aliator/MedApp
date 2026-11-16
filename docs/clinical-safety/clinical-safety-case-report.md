@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-03, clinical safety case report (DCB0129) |
-| **Version** | 0.3, draft |
+| **Version** | 0.4, draft |
 | **Date** | 16 November 2026 |
-| **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56). |
+| **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56), with file attachments (branch `feature/file-attachments`) added in version 0.4. |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer. Not yet reviewed by a person. |
 | **Approved by** | [Clinical Safety Officer], [accountable owner] (see [sign-off](#10-sign-off)) |
@@ -20,11 +20,11 @@
 
 ## 1. Summary
 
-- **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
+- **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates, attached documents and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
 - **The safety position at `88dc1fa`:**
-  - 21 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
+  - 27 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects. H-22 to H-27 came with file attachments.
   - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
-  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21).
+  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-22) and malware in a file (H-24).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
   - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
 - **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, and the CSO has to justify accepting H-07, H-10 and H-13 at 3 (the go-live rule, `clinical-risk-management-plan.md` section 4.4). MedApp has never been used with real patients, so there is no live use to stop.
@@ -35,7 +35,7 @@
 | | |
 |---|---|
 | **Version** | [Release], built from commit [SHA]; this draft: `88dc1fa` |
-| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications; the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1) |
+| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications; files attached to patients, procedures and stages (download only, not yet scanned for malware); the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1) |
 | **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] |
 | **Where it runs** | [Customer deployment, or the manufacturer's hosted service on Azure UK South.] Today it has run only in development and on a local test cluster. |
 | **Who uses it** | Trained clinical and administrative staff of the deploying organisation, and its administrators |
@@ -77,6 +77,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Every procedure change writes audit entries, saved in the same transaction as the change | `ProcedureChange.Audit`, `PatientProcedureRepository.SaveAsync` |
 | Notes changes keep the old and new text | `ProcedureChange.UpdateStageNotes` |
 | Audit entries outlive deletion of the procedure (no foreign keys), and keep the username and title as they were | `PatientProcedureAuditEntry`; ADR-7 in `docs/architecture.md` |
+| Every file attached, deleted or downloaded is audited with who, when and which file; a deleted file's details stay, marked deleted, with who deleted it | `AttachmentAudit`; `Attachment`; `DeleteAttachmentHandler` |
 | Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
 
 **Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
@@ -107,16 +108,17 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | If server rendering fails, the browser renders the page | `SsrPages`, `SsrPagesTests`, `SsrClientTests` |
 | Notifications are stored before they're pushed, so a failed push shows at the next page load | `NotificationSender` |
 | A failed migration stops the rollout and leaves the old version running | ADR-10 |
+| Without file storage, the rest of MedApp works, and uploads and downloads are refused with a clear message | `UnconfiguredFileStore`; `ExceptionHandling` (503) |
 
-**Limits:** there's no monitoring, so failures go unnoticed (H-10); the live connection stops retrying after about 42 seconds (H-09).
+**Limits:** there's no monitoring, so failures go unnoticed (H-10); the live connection stops retrying after about 42 seconds (H-09). Storage that is set up but failing gives a general server error, not a clear message, and nothing checks it (H-27).
 
 ### Claim 6: The residual risk of the release is acceptable
 
-**Not yet supported.** Today one hazard is at 4 and twelve at 3; at first live use, three would stay at 3. See [section 7](#7-outstanding-hazards-and-defects).
+**Not yet supported.** Today one hazard is at 4 and fourteen at 3 (thirteen once H-12's fix is verified); at first live use, three would stay at 3. See [section 7](#7-outstanding-hazards-and-defects).
 
 ## 6. Hazards and their risk
 
-From `hazard-log.md`, version 0.2. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
+From `hazard-log.md`, version 0.4. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
@@ -141,6 +143,12 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 | H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | None |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
+| H-22 | A file is attached to the wrong patient, procedure or stage | 3 | 2 | 2 | Patient banner; the patient and target named before files are sent |
+| H-23 | A document or result is missing, and nobody knows | 2 | 2 | 2 | None |
+| H-24 | An attached file carries malware | 3 | 2 | 2 | Malware scanning on upload (brought forward from step 9), or no file storage |
+| H-25 | A file is deleted by mistake | 2 | 2 | 2 | None |
+| H-26 | An out-of-date or duplicate document is relied on | 2 | 2 | 2 | None |
+| H-27 | File storage is unavailable | 2 | 2 | 2 | Monitoring that includes storage; downtime procedure covers documents |
 
 [CSO: confirm or change each rating, and record the reasons for any change.]
 
@@ -165,6 +173,8 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | H-15 | 3 | 2 | | | |
 | H-20 | 3 | 2 | | | |
 | H-21 | 3 | 2 | | | |
+| H-22 | 3 | 2 | | | |
+| H-24 | 3 | 2 (with scanning) | [Controls verified / not verified] | | |
 
 ### Known defects with a clinical impact
 
@@ -176,6 +186,10 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
 | Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. |
+| Attached files aren't scanned for malware; every file shows "Not scanned" | H-24 | Known (`docs/todo.md`). Planned, step 9; proposed before first live use. |
+| A deleted file can't be restored, or downloaded, from MedApp | H-25 | Known. Restore planned with the purge job (`docs/todo.md`). |
+| Failing (as opposed to absent) file storage gives a general server error | H-27 | Known. Proposed: report it as storage unavailable (503). |
+| Nothing warns before closing a tab with files still being sent | H-23 | Known. Proposed. |
 | Patient changes and deletions aren't audited | H-03 | Known (risk S2). Planned, step 7. |
 
 [For each release: list the open defects from the issue tracker that have a clinical impact.]
@@ -190,7 +204,8 @@ This report holds only if each deploying organisation:
 - **reassigns a leaver's open procedures** before their account is removed;
 - **reviews overdue, unassigned and blocked procedures** on a set schedule;
 - **has a downtime procedure,** with printed task lists, and a way to enter work done during downtime afterwards;
-- **keeps the clinical record** of what was done in its own clinical systems, using MedApp to coordinate the steps;
+- **keeps the clinical record** of what was done in its own clinical systems, using MedApp to coordinate the steps, and keeps the master copy of each document attached in MedApp (results, letters, images) in its own systems too;
+- **checks a document's own identifiers** against the patient before acting on it, and has up-to-date anti-malware and software on every computer that opens attached files;
 - **runs DCB0160:** its own CSO, hazard log and safety case for the deployment, and reports incidents to the manufacturer;
 - **uses MedApp within its intended purpose,** and not for time-critical or emergency care.
 
@@ -215,3 +230,4 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | 0.1 | 16 November 2026 | Template, filled in for `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: ratings on DCB0129's consequence table, a rating at first live use and the go-live rule on it, H-21, My Tasks' default view, H-12's fix in PR #62 | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62 | AI coding agent, for review |
+| 0.4 | 16 November 2026 | File attachments: H-22 to H-27 in the summary, the hazard table and the outstanding hazards; their evidence in claims 2 and 5; their known defects; two new assumptions | AI coding agent, for review |

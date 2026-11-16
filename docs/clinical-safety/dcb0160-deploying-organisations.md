@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
@@ -39,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 21 hazards: `hazard-log.md` |
+| The hazard log | Draft, 27 hazards: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |
@@ -60,6 +60,7 @@ The manufacturer's safety case holds only if you:
 - **review overdue, unassigned and blocked procedures** on a set schedule;
 - **have a downtime procedure;**
 - **keep the clinical record** of what was done in your clinical systems; MedApp coordinates the steps;
+- **keep the master copy of every document** attached in MedApp (results, letters, images) in your own systems, check a document's own identifiers against the patient before acting on it, and protect every computer that opens attached files with up-to-date anti-malware and software;
 - **use MedApp within its intended purpose:** not for emergency or time-critical care, not for decisions, not for medicines.
 
 If one of these doesn't hold for you, tell the manufacturer: it changes the hazard ratings.
@@ -81,6 +82,12 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-17 Stage instructions aren't read | Write anything essential as its own stage, not only in instructions |
 | H-18 A change is recorded under the wrong person's name | No shared accounts; lock screens when away |
 | H-21 Work assigned to a deleted account drops off every task list | A leaver process: reassign a leaver's open procedures, then remove the account |
+| H-22 A file is attached to the wrong patient, procedure or stage | Positive patient identification; train staff to check the patient before attaching a file, to check a document's own identifiers before acting on it, and to delete and report a file attached in error |
+| H-23 A document or result is missing, and nobody knows | Master copies of documents in your own systems; train staff to check a file is listed after attaching it, and to look in the source system before concluding a result doesn't exist |
+| H-24 An attached file carries malware | Up-to-date anti-malware, PDF readers and Office, with macros off, on every computer that opens attached files; tell staff what "Not scanned" means and how to report a suspicious file |
+| H-25 A file is deleted by mistake | A local rule: delete a file only if it was attached in error |
+| H-26 An out-of-date or duplicate document is relied on | A local rule for naming files (what it is and the document's date), and deleting superseded copies attached in error |
+| H-27 File storage is unavailable | Your downtime procedure says where to find documents when MedApp's files can't be opened |
 
 ## Configuring MedApp safely
 
@@ -92,6 +99,7 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 - **Roles:** admins can manage users, templates, assignments and the audit log. Give the role to few people, but at least two. Remove it when someone changes job.
 - **Accounts:** one account per person; no shared accounts. Reassign a leaver's open procedures, then remove the account. Deleting an account doesn't reassign its work, which then shows as assigned to "Deleted user" and is on nobody's task list (H-21).
 - **Due dates:** decide locally what a due date means for each kind of procedure, and tell staff. In MedApp, a procedure is due by the end of its day, UK time.
+- **Attached files:** decide what may be attached (for example referral letters, results, consent forms, wound photos), where the master copy lives, and how files are named. Files aren't scanned for malware yet: each shows "Not scanned" (H-24). Any member of staff can open any patient's files, and each download is recorded.
 
 ## Training
 
@@ -102,6 +110,8 @@ Before anyone uses MedApp with patients, they need to know:
 - what "overdue" means, and that, today, nothing alerts them when work becomes overdue;
 - that blocked procedures don't show as overdue, and need reviewing;
 - that notifications are a convenience, and My Tasks is the list to work from, with its filter set to all open work: it opens on "Not started", which hides work already under way, including overdue and blocked work;
+- how to attach a file to the right patient, procedure or stage, and what to do if it goes to the wrong one (H-22);
+- that files are only downloaded, never shown in the page, what "Not scanned" means, and to delete downloaded copies when finished;
 - what to do when MedApp is unavailable;
 - how to report a problem or a safety incident.
 
@@ -111,7 +121,7 @@ Admins also need template governance, assignment and unlocking.
 
 Plan for MedApp being unavailable, whether for minutes or a day:
 - **Before:** print the task lists and summaries of open procedures at a set time each day. MedApp can't print them yet: the printable task list is a control the manufacturer needs before first live use (H-10), so don't go live without it.
-- **During:** work from paper; record what was done, by whom and when.
+- **During:** work from paper; record what was done, by whom and when. If only MedApp's files can't be opened (H-27), use the master copies in your own systems.
 - **After:** enter the work into MedApp, saying in the notes that it was done during downtime and when; check for work that was done twice or missed.
 - **After a restore** from backup: the manufacturer will tell you the restore point. Re-enter work done since then from your downtime records.
 
@@ -131,6 +141,7 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | D-08 | MedApp used outside its intended purpose | Used for time-critical or emergency work | Communicate the intended purpose; audit use |
 | D-09 | Accounts shared, or leavers not removed | Busy wards; no leaver process | One account per person; a leaver checklist that reassigns the leaver's open procedures, then removes the account |
 | D-10 | Unsuitable devices or browsers | Phones, shared or old devices | Supported devices and browsers listed; desktop use |
+| D-11 | Attached documents taken or kept outside managed systems | Photos taken on personal phones; downloaded files left on shared computers | Only organisation devices for clinical photos; downloads cleared on shared computers |
 
 ## Reporting incidents
 
@@ -150,3 +161,4 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: a sign-off, My Tasks' default view, the leaver process (H-21) | AI coding agent, for review |
+| 0.3 | 16 November 2026 | File attachments: the controls H-22 to H-27 transfer to you, an assumption, configuration, training, downtime and a starter hazard (D-11) | AI coding agent, for review |

@@ -30,7 +30,7 @@ Other policies in this folder: [support-access-policy.md](support-access-policy.
 - **Admin access is separate and time-limited:** admin roles are used only when needed. Planned: Entra ID Privileged Identity Management (step 5).
 - **Joiners, movers and leavers:** access is granted on approval by the SIRO, reviewed every 3 months, and removed on the day someone leaves.
 - **Programs:** use managed identities and federation, not stored secrets. MedApp already does: GitHub signs in to Azure with OIDC, External Secrets with workload identity (`deploy/azure/main.bicep`). Still to do: the app's own database identity (step 5).
-- **In MedApp:** two roles enforced by the API on every endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text (who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text). MFA, SSO and an `Auditor` role are planned (step 4).
+- **In MedApp:** two roles enforced by the API on every endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text (who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text). Any staff member can upload, list and download any patient's attached files, as with the rest of the record; staff delete their own files and admins any; downloads are audited. MFA, SSO and an `Auditor` role are planned (step 4).
 - **Customer data:** only under [support-access-policy.md](support-access-policy.md).
 
 ## 3. Acceptable use
@@ -76,7 +76,8 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | **Critical and high** vulnerabilities in MedApp's code, its dependencies, its image or its platform | Fixed or mitigated **within 14 days** of a fix being available (the DSPT's expectation for suppliers), sooner if exploited |
 | **Medium** | Within 30 days |
 | **Low** | At the next planned change, or accepted in the risk register |
-| **Base images and the runtime** (.NET, Node, SQL Server, Valkey) | Rebuilt at least monthly, and at once for a critical fix |
+| **Base images and the runtime** (.NET, Node, SQL Server, Valkey, Azurite) | Rebuilt at least monthly, and at once for a critical fix |
+| **Code that parses uploaded files** (SkiaSharp's native image library, which decodes photos to make thumbnails) | Treated as exposed to attackers: a critical or high vulnerability in it is fixed within the 14 days above; with no fix available, thumbnail-making is taken out (a code change) until there is one |
 | **AKS** | Patch upgrades and node images automatic (`deploy/azure/main.bicep`); a maintenance window to be set (step 5) |
 | **Company devices** | Automatic updates; operating systems and apps on supported versions only (Cyber Essentials) |
 | **How vulnerabilities are found** | Today: NuGet and npm audit warnings, and reviews. Planned: Dependabot, CodeQL, image scanning (step 2); a yearly penetration test (steps 7 and 10) |
@@ -89,7 +90,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | **Availability** | 99.9% a month | Target only; nothing measured yet (step 5) |
 | **Recovery point objective (RPO)** | 15 minutes of data at most | Azure SQL's point-in-time restore supports it; never tested |
 | **Recovery time objective (RTO)** | 4 hours | Not tested |
-| **Backups** | Point-in-time restore for 35 days; monthly long-term backups for 12 months; geo-redundant within the UK | 7 days, locally redundant, today (step 5) |
+| **Backups** | Point-in-time restore for 35 days; monthly long-term backups for 12 months; geo-redundant within the UK. Attached files backed up to match, so a restore brings back files and their details together | 7 days, locally redundant, today (step 5). Files: zone-redundant, 7 days' soft delete, no backup |
 | **Restore drills** | Every quarter, recorded with timings | Not started (step 5) |
 | **Rebuild** | The whole environment rebuilt from Bicep and Argo CD in UK West, at least once a year | Not started (step 5) |
 | **Runbooks** | Restore, rebuild, rotate a secret, roll back, Node down, certificate expiry, suspected breach, in `docs/runbooks/` | Not started (step 5) |

@@ -18,7 +18,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 
 > **The systems we use to coordinate your care**
 >
-> We use a system called MedApp to record your details and to organise the steps of procedures you have with us, such as [pre-assessment, the procedure itself and follow-up]. Our staff record notes at each step, and the system keeps a record of who made each change and when.
+> We use a system called MedApp to record your details and to organise the steps of procedures you have with us, such as [pre-assessment, the procedure itself and follow-up]. Our staff record notes at each step, and may keep copies of documents about your care in it, such as letters, test results, scans and photos. The system keeps a record of who made each change, and who opened each document, and when.
 >
 > MedApp is provided by [Company name], which runs it for us. [Company name] acts only on our instructions. It can't use your information for its own purposes, and it's bound by a contract and a duty of confidentiality.
 >
@@ -32,7 +32,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > **Who we are.** [Customer name], [address], is responsible for your information (the "controller"). Our data protection officer is [DPO name], [DPO contact]. [Our Caldicott Guardian is [name].]
 >
-> **What we hold about you.** Your name, date of birth and email address; the procedures you are having with us, and their dates and progress; and notes our staff write about your care. [Add anything else you hold in other systems.]
+> **What we hold about you.** Your name, date of birth and email address; the procedures you are having with us, and their dates and progress; notes our staff write about your care; and copies of documents about your care, such as letters, test results, scans and photos [of the area being treated]. [Add anything else you hold in other systems.]
 >
 > **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you].
 >

@@ -47,9 +47,12 @@ A customer may set a **longer** period for any class. A **shorter** period than 
 Everything about the patient, kept and destroyed together:
 - the `Patient` row
 - their procedures, stages, stage notes and assignments
+- their **attached files** (on the patient, a procedure or a stage): each file and its thumbnail in blob storage, and its `Attachment` row, including files already deleted but not yet purged (section 3)
 - the audit entries about them (`PatientProcedureAuditEntry`, matched by `PatientId`), including entries for procedures already deleted
 - note versions and access audit entries, once step 7 adds them
 - notifications about their procedures (already gone under section 3, which is shorter)
+
+**Attached files follow the record.** Scans, photos, results and letters attached in MedApp are part of the clinical record, so they have no period of their own: they're kept, reviewed and destroyed with the patient's record, never deleted automatically. A customer who keeps the master copy of a document in another system (its EPR or document store) may still treat the MedApp copy as part of the record; its schedule should say which.
 
 ### At the end of the period
 
@@ -68,6 +71,8 @@ Everything about the patient, kept and destroyed together:
 | **Sessions** (`UserSession`: IP address, browser, times) | **12 months** after the session was created | Deleted automatically | Long enough to investigate account misuse reported late; sessions last 8 hours (24 at most, if extended), so nothing operational needs them after that. |
 | **Sign-in and security events** (step 7: sign-ins, failures, refused requests, MFA changes) | **12 months** | Deleted automatically | As sessions. |
 | **Access audit** (step 7: who viewed or searched which patient) | **As the patient's record** (section 2) | With the record | It's the record's audit trail, and the evidence for "who has seen my record" questions. Search terms that match no single patient are kept **12 months**. |
+| **Deleted attached files** (a file staff or an admin deleted: hidden at once, its contents kept until purged) | **Proposed: the contents purged 30 days after deletion,** for the DPO to decide. The file's `Attachment` row (name, type, size, who uploaded and deleted it) is kept with the record, like its audit entries | Contents and thumbnail deleted automatically by a purge job (to be built); on Azure they then stay in blob soft delete for 7 more days | Most files are deleted because they were attached to the wrong record, or twice; keeping them longer keeps another patient's data on the wrong record. 30 days gives time to notice a mistaken delete and restore it (restoring is planned too) and to investigate an incident. A file that is part of the record shouldn't be deleted this way at all: removing it is destruction, through the review in section 2. **Today no purge job exists, so deleted files are kept indefinitely.** |
+| **Uploads being checked** (a temporary copy in the API pod's `/tmp`) | Seconds | Deleted as soon as the file is checked | Only while the API finds its type, hashes it and (once built) scans it. |
 | **Notifications** | **6 months** after creation, read or not | Deleted automatically | A notification is a pointer to work; the procedure and its audit are the record. Titles can be sensitive. |
 | **Staff accounts** | While the customer keeps the account. Once deactivated (step 4), **12 months**, then deleted | Deleted automatically, with the account's settings | Usernames in audit entries are copies, kept with the audit (section 2), so deleting the account doesn't break the trail. |
 | **Account settings** (`UserSettings`, including saved searches) | With the account | Deleted with it | Saved searches can hold patient names; see section 6. |
@@ -83,6 +88,8 @@ Everything about the patient, kept and destroyed together:
 | **Azure SQL point-in-time restore** | **35 days** | 7 days today (Azure's default, `deploy/azure/main.bicep`); 35 planned in step 5 |
 | **Azure SQL long-term retention** | **Monthly backups kept 12 months**; no yearly backups | Planned in step 5 |
 | **Backups made for a recovery drill** | Deleted when the drill ends | Policy ([support-access-policy.md](support-access-policy.md)) |
+| **Attached files: blob soft delete** | **7 days** after a file is purged or the container deleted | In place in design (`deploy/azure/main.bicep`) |
+| **Attached files: backups** | **35 days,** to match the database, so a restore brings back files and their details together | **None today:** the files have soft delete only (`deploy/azure/README.md`, "Not yet"); planned in step 5 (Azure Backup's vaulted blob backups) |
 
 Data deleted from the live service stays in backups until they expire: at most 35 days for point-in-time backups, and 12 months for long-term ones. Backups are kept "beyond use": restored only for disaster recovery or on the customer's instruction, and the destruction log is applied again after any restore. Customers' privacy notices say so ([privacy-notice-patients-template.md](privacy-notice-patients-template.md)).
 
@@ -109,15 +116,15 @@ Roadmap step 7 builds these. The privacy features work on roadmap step 7 must me
 | 2 | **A retention class on each template** | Adult general by default; children worked out from the date of birth. |
 | 3 | **The conclusion of treatment date** | Worked out per patient as in section 2, and shown on the patient's page. |
 | 4 | **A due-for-review list and decisions** | Destroy, anonymise or keep (with a reason and a review date), approved by a named person. |
-| 5 | **Destruction across every table** | Patient, procedures, stages, assignments, audit entries (by `PatientId`, including those of deleted procedures), note versions, access audit, and notifications that refer to the patient's procedures. Saved searches whose terms match the patient's name are removed. |
-| 6 | **Anonymisation** | Removes names, date of birth, email and every free-text field, and unlinks the audit, so the remaining data can't identify anyone. |
+| 5 | **Destruction across every table** | Patient, procedures, stages, assignments, audit entries (by `PatientId`, including those of deleted procedures), note versions, access audit, and notifications that refer to the patient's procedures; the patient's attached files, live and deleted, with their thumbnails in blob storage and their `Attachment` rows. Saved searches whose terms match the patient's name are removed. |
+| 6 | **Anonymisation** | Removes names, date of birth, email and every free-text field, including file names in `Attachment` rows and in audit entries, deletes the attached files themselves, and unlinks the audit, so the remaining data can't identify anyone. |
 | 7 | **A destruction log** | As section 2, step 3; kept for as long as the customer uses MedApp, and included in the export at exit. |
 | 8 | **Legal hold** | Per patient and for the whole customer; suspends destruction and shows on the due-for-review list. |
-| 9 | **Automatic jobs** for operational data | Sessions and security events at 12 months, notifications at 6 months, deactivated accounts at 12 months. A scheduled job that runs once across several API copies (a lease, or a Kubernetes CronJob), and logs what it deleted (counts, not content). |
+| 9 | **Automatic jobs** for operational data | Sessions and security events at 12 months, notifications at 6 months, deactivated accounts at 12 months, deleted files' contents at the purge window (section 3; also in `docs/todo.md`). A scheduled job that runs once across several API copies (a lease, or a Kubernetes CronJob), and logs what it deleted (counts, not content). |
 | 10 | **Note versions instead of copies in the audit** | So destroying or correcting a note doesn't leave its text in `Details` ([dpia.md](dpia.md), risk 4). |
 | 11 | **Clear `localStorage` at sign-out** | Already in step 7's scope. |
 | 12 | **Archiving in place of deletion** | Staff can't hard-delete a patient; erasure goes through an approved workflow ([data-subject-rights.md](data-subject-rights.md)). |
-| 13 | **Backups set to section 4** | Step 5: point-in-time restore of 35 days and long-term retention of 12 months in `deploy/azure/main.bicep`; a runbook step to re-apply the destruction log after a restore. |
+| 13 | **Backups set to section 4** | Step 5: point-in-time restore of 35 days and long-term retention of 12 months in `deploy/azure/main.bicep`, and backups of the attached files to match; a runbook step to re-apply the destruction log, and the purges of deleted files, after a restore. |
 | 14 | **Log retention** | Step 5: the Log Analytics workspace set to 90 days. |
 | 15 | **A deceased flag** | Step 9, so the periods after death can apply. |
 

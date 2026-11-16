@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.3, draft |
+| **Version** | 0.4, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62 |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-22 to H-27 added for file attachments (branch `feature/file-attachments`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -54,8 +54,16 @@
 | [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-22](#h-22-a-file-is-attached-to-the-wrong-patient-procedure-or-stage) | A file is attached to the wrong patient, procedure or stage | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-23](#h-23-a-document-or-result-is-missing-and-nobody-knows) | A document or result is missing, and nobody knows | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-24](#h-24-an-attached-file-carries-malware) | An attached file carries malware | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-25](#h-25-a-file-is-deleted-by-mistake) | A file is deleted by mistake | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-26](#h-26-an-out-of-date-or-duplicate-document-is-relied-on) | An out-of-date or duplicate document is relied on | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-27](#h-27-file-storage-is-unavailable) | File storage is unavailable | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Operational, before first live use | Open |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
+
+**File attachments** (version 0.4) add six hazards, rated with the controls on the `feature/file-attachments` branch: two at 3, a file on the wrong record (H-22) and malware in a file (H-24), and four at 2 (H-23, H-25, H-26 and H-27). That makes fourteen at 3 on the initial ratings, thirteen with H-12's fix. Both new ones come down to 2 at first live use, H-24 only if malware scanning is built before then.
 
 **At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
 
@@ -72,6 +80,7 @@
 - The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`).
 - Task lists and procedure lists show the patient's name only (`MyTasksPage.tsx`, `ProceduresListPage.tsx`). Search matches on part of a name (`ProcedureSearch.Filter`).
 - Two pages can be open side by side (half views), and procedures can be pinned in the side navigation.
+- The same causes can put a file on the wrong patient: H-22.
 
 **Effect.** Notes are written on the wrong patient's procedure, or a stage is finished on it, and the other patient's procedure is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
 
@@ -107,6 +116,7 @@
 **Causes:**
 - The same identification limits as H-01.
 - Half views put two procedures side by side.
+- Files attached to the wrong record are H-22.
 - The notes box always belongs to the current stage, so a note about an earlier stage can only be added to the current one, unless an admin unlocks the earlier stage.
 - Template names can be similar, and the template list is the organisation's own.
 
@@ -398,6 +408,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **One maintainer** (risk O1).
 - A failed deploy: every merge deploys (risk D1).
 - The organisation's own network or devices.
+- File storage alone can fail while the rest works: H-27.
 
 **Effect.** Staff can't see who's assigned to what, which stage a procedure is at, its notes or its due date. Work is done without recording it, or not done.
 
@@ -707,7 +718,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Causes:**
 - **Procedures:** an admin can delete a cancelled or archived procedure, with its stages and assignments (`DeletePatientProcedureHandler`). Its stage notes then survive only as text inside audit entries, which only admins can read.
-- **Patients:** any staff member can delete a patient without procedures (H-03).
+- **Patients:** any staff member can delete a patient without procedures or files (H-03).
+- **Attached files:** deleted files can't be restored from MedApp: H-25.
 
 **Effect.** The record of what was done, or of the patient, is no longer where staff look for it.
 
@@ -739,6 +751,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Causes:**
 - **Backups:** 7 days of point-in-time restore on Azure, never tested; none on the local cluster (`docs/architecture.md`, section 8.2 and risk R5).
 - **Migrations** are reviewed by hand; a rename scaffolded as drop and create would lose data if missed (`AGENTS.md`, Migrations).
+- **Attached files aren't backed up** beyond 7 days of soft delete on Azure, and they're stored apart from the database (`deploy/azure/README.md`, "Not yet"). A database restored to an earlier point loses the details of files attached since, so they vanish from the record although their contents are still in storage.
 
 **Effect.** Stages finished, notes written and procedures created since the restore point are gone, for every patient, and staff don't know which.
 
@@ -797,12 +810,223 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
+## H-22: A file is attached to the wrong patient, procedure or stage
+
+**Description.** A letter, result, scan or photo is attached to a different patient from the one it's about, or to the wrong procedure or stage of the right patient, and someone reads it as belonging there. The file-level form of H-01 and H-02.
+
+**Causes:**
+- The same identification limits as H-01: no patient banner, no NHS number, and nothing that compares the document with the patient.
+- **Nothing asks which patient before a file is sent.** Files are dropped on, or chosen in, an "Add files" area on the patient page, the procedure page and each stage, several at once, and sent straight away (`MedApp.Web/src/components/attachments/Attachments.tsx`). There's no confirmation naming the patient.
+- **Half views** put two patients or procedures side by side, each with its own drop area; dragging a file from the desktop onto the wrong one is easy.
+- **The file on the computer doesn't say who it's for:** a scanner or a phone names files by date or number, and choosing several at once can pick up another patient's file from the same folder.
+- **A file can't be moved:** correcting it means deleting it and attaching it again in the right place, and staff can delete only their own files, and only while the stage or procedure can still change; otherwise only an admin can (`DeleteAttachmentHandler`, `WhyFilesCantChange`).
+
+**Effect.** The right record lacks the document and the wrong record has it. A clinician reads another patient's result, letter or image as this patient's, or doesn't find this patient's. It is also a disclosure of the other patient's data ([DPIA](../governance/dpia.md), risk 8).
+
+**Possible harm.** A decision made on another patient's result or image, for example a procedure going ahead on someone else's normal result. One patient; Major in the worst credible case.
+
+**Existing controls:**
+- A file is attached to whatever the page shows: the patient page attaches to the patient, a procedure page to the procedure, and a stage's area to that stage. The patient page lists every file of the patient, each saying what it's attached to (`ViewPatientPage.tsx`, `Attachments.tsx`).
+- Each file shows who attached it and when, and the upload is audited and shown on the patient's timeline as "a file was attached" (`AttachmentAudit`, `TimelineMapper`).
+- A wrong file can be deleted at once by whoever attached it, or by an admin, wherever it is; it's then hidden from staff and can't be downloaded, and the deletion is audited (`DeleteAttachmentHandler`).
+- **Transferred:** positive patient identification, and checking the identifiers printed on a document against the patient before acting on it.
+
+**Initial risk:** Major, Low: **3**.
+
+**Further controls:**
+- **The patient banner** from H-01, on every page where files can be attached. Protective; **planned** (step 6); **before first live use**.
+- **Name the patient and the target before sending:** "Attach 3 files to {stage} of {procedure} for {patient name, date of birth}?", including for files dropped in a half view. Protective; **proposed**; **before first live use**.
+- **Move a file** to another patient, procedure or stage (admins, with a reason, audited), so a correction doesn't depend on deleting and attaching again. Design; **proposed**; later.
+- **Train staff** to check the patient before attaching, to check a document's own identifiers before acting on it, and to delete and report a file attached in error. Information; transferred.
+
+**At first live use:** Major, Very low: **2**.
+
+**Residual risk:** Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-23: A document or result is missing, and nobody knows
+
+**Description.** A document staff expect to find in MedApp isn't there, and the person looking assumes it doesn't exist: a result not yet received, a letter not sent, a scan not done.
+
+**Causes:**
+- **An upload fails or is abandoned:** the file is refused (a type that isn't allowed, a name that doesn't match its contents, over 20 MB), storage is unavailable (H-27), or the tab is closed or the page left while files are still being sent. Nothing warns before closing a tab with uploads in progress, and a failed upload's message is shown only to the person who sent it, in that browser, until dismissed (`Attachments.tsx`).
+- **Files have to be downloaded to be read.** There's no preview of PDFs, and no thumbnail for HEIC photos (`docs/todo.md`), so the list gives only a name, a type and a size, and a document's content is easy to miss.
+- **"Not scanned"** on every file (H-24) may put staff off opening a file at all.
+- **Long lists:** a list shows the newest 200 files of a patient, procedure or stage, and says how many there are in all (`AttachmentLimits.MaxListed`).
+- A file deleted by mistake (H-25).
+
+**Effect.** A clinician acts as if a result or letter doesn't exist, or waits for one that was received.
+
+**Possible harm.** Delayed or wrong care for one patient. Considerable.
+
+**Existing controls:**
+- Each file shows its progress as it's sent, with Cancel, and a failed one stays listed with the reason until dismissed (`Attachments.tsx`, `useAttachmentsState`).
+- The API checks type and size and refuses with a clear message; the web app states the limits.
+- Every file attached is listed, newest first, with who attached it and when, on the page it's attached to and on the patient's page; an upload shows on the patient's timeline.
+- **Transferred:** MedApp isn't the record of results; the organisation's own systems (laboratory, imaging, EPR) hold the master copy.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Warn before closing the tab or leaving the page** while files are still being sent. Protective; **proposed**; later.
+- **A safe preview** of PDFs and HEIC photos (rendered to an image on the server, never shown inline). Protective; **planned** (`docs/todo.md`); later.
+- **Page long lists** instead of stopping at 200. Protective; **planned** (`docs/todo.md`); later.
+- **Train staff** to check a document is listed after attaching it, and that MedApp's files are copies: look in the source system before concluding a result doesn't exist. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-24: An attached file carries malware
+
+**Description.** A file attached in MedApp carries malware, for example a PDF or Word document received from outside the organisation, and is opened on a clinical workstation.
+
+**Causes:**
+- **Files aren't scanned.** No malware scanner is set up; every file is stored and shown as "Not scanned" (`NoMalwareScanner`; `deploy/azure/README.md`, "Not yet").
+- Staff attach documents that came from outside: from patients, referrers or other organisations.
+- Every file is opened by downloading it into a desktop application (a PDF reader, Word, an image viewer), whose own flaws are the target.
+
+**Effect.** The workstation, and possibly the organisation's network and clinical systems, are compromised, for example by ransomware, and become unavailable.
+
+**Possible harm.** Delayed or missed care for every patient whose care depends on the affected systems while they're down. Severe injury from which recovery is expected, multiple patients: Major, as for H-10.
+
+**Existing controls:**
+- **A short list of types,** found from each file's contents, never its name or the browser's type, with the name's extension matching: PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain text. Macro-enabled Word, SVG and HTML are refused, as is anything else (`FileTypeSniffer`, `UploadAttachmentValidator`).
+- **Nothing is shown or run in the app:** every file is sent as a download, with headers that stop a browser showing or running it on MedApp's site (`AttachmentResponseHeaders`). The only images shown in pages are thumbnails the server re-encodes (`SkiaThumbnailGenerator`).
+- **"Not scanned"** is shown on every file, with a note saying what it means (`Attachments.tsx`).
+- **Transferred:** up-to-date anti-malware, PDF readers and Office on every computer that opens files, with macros off.
+
+**Initial risk:** Major, Low: **3**.
+
+**Further controls:**
+- **Malware scanning on upload:** Microsoft Defender for Storage on Azure, a scanner such as ClamAV elsewhere, behind the existing `IMalwareScanner`; infected files refused, and downloads held until a file is scanned. Protective; **planned** (roadmap step 9; `docs/todo.md`); **brought forward to before first live use**, as the DPIA does (risk 21), or the deployment runs without file storage. Holding downloads until a scan finishes adds a delay before a new file can be read (H-23); assess it when it's built.
+- **Tell staff** what "Not scanned" means and how to report a suspicious file. Information; transferred.
+
+**At first live use:** Major, Very low: **2**, with scanning built. Without it, Major, Low: **3**, which would need the CSO's written justification.
+
+**Residual risk:** Major, Very low: **2**. Scanning finds known malware, not all of it; the organisation's own endpoint protection is the second layer.
+
+**Owner:** [CSO], with the maintainer. **Status:** Open.
+
+---
+
+## H-25: A file is deleted by mistake
+
+**Description.** A file that belongs on the record is deleted, by slip or by the wrong person, and staff can no longer open it.
+
+**Causes:**
+- Staff can delete files they attached, and admins any file (`DeleteAttachmentHandler`). Deleting a patient or procedure that has files is refused until the files are deleted (`DeletePatientHandler`, `DeletePatientProcedureHandler`), which invites deleting files in bulk.
+- **There's no restore.** Deleting is soft: the file's details stay, admins can see it was there ("Show deleted files"), and its contents are kept in storage. But nobody can download or restore a deleted file from MedApp (`DownloadAttachmentHandler`), so getting it back needs the supplier, working in the database and storage by hand.
+- Once a purge job exists (planned, proposed 30 days after deletion), the contents are gone after that window, and after 7 more days of storage soft delete on Azure.
+- Deleting is also how a file on the wrong record is corrected (H-22), so deletions are routine.
+
+**Effect.** A document that was part of the record is missing (H-23), though admins can see that it existed and who deleted it.
+
+**Possible harm.** A later decision made without that document, for one patient. Considerable.
+
+**Existing controls:**
+- Deleting asks for confirmation, naming the file (`Attachments.tsx`, `ConfirmDialog`).
+- Who deleted it, and when, is kept on the file and in the audit log, and shows on the patient's timeline (`AttachmentAudit`).
+- The contents are kept, so the supplier can recover a file on the customer's instruction ([support-access-policy.md](../governance/support-access-policy.md)).
+- **Transferred:** the master copy of a document is in the organisation's own systems.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Restore a deleted file** (admins, audited), within the purge window. Protective; **planned** (`docs/todo.md`, with the purge job); later.
+- **A purge window long enough to notice a mistake,** decided by the customer's DPO (proposed 30 days, [retention-schedule.md](../governance/retention-schedule.md)). Design; **proposed**; later.
+- **A local rule:** delete a file only if it was attached in error; correct a wrong document by attaching the right one and saying why, never by deleting a document that was relied on. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-26: An out-of-date or duplicate document is relied on
+
+**Description.** A patient has several versions of a document, for example an early and a final report, or the same letter twice, and staff read the wrong one.
+
+**Causes:**
+- **No versions:** a file can't be replaced, marked as superseded, or linked to the one that replaces it.
+- **The list is in upload order,** not the document's own date, and a file's name is free text that may not say what or when it is.
+- **No preview** of PDFs (H-23), so staff choose a file by its name.
+- The same file can be attached twice; MedApp keeps each file's SHA-256 (`Attachment.Sha256`) but doesn't use it to warn.
+
+**Effect.** A clinician reads a superseded result or letter, and acts on it.
+
+**Possible harm.** A decision made on out-of-date information, for one patient. Considerable.
+
+**Existing controls:**
+- Each file shows when it was attached and by whom; the list is newest first.
+- Superseded copies can be deleted (H-25 applies).
+- **Transferred:** the date and status printed on the document itself; the master copy in the source system.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Warn when the same file is attached twice** to a patient, using its SHA-256. Protective; **proposed**; later.
+- **Mark a file as replaced by another,** shown on both. Design; **proposed**; later.
+- **A local rule:** name files with what they are and the document's date, and delete superseded copies attached in error. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-27: File storage is unavailable
+
+**Description.** MedApp works, but its file storage doesn't: files can't be attached or opened.
+
+**Causes:**
+- The storage (Azure Blob Storage, or Azurite in the cluster) is down, unreachable, or misconfigured; or its key was rotated without redeploying (`deploy/azure/README.md`, Passwords).
+- **Nothing checks it:** readiness doesn't test storage, and there's no monitoring (H-10).
+- A deployment can run with no file storage at all; then every upload and download is refused (`UnconfiguredFileStore`).
+
+**Effect.** Uploads and downloads fail while everything else works: with no storage set up, with a clear 503 ("File storage isn't set up"); with storage set up but failing, with a general server error once the storage client has given up retrying (`BlobFileStore` handles only "not found"). Staff can't open a letter or result they need, or can't attach one.
+
+**Possible harm.** Delayed care for the patients whose documents are needed while it lasts. Minor injury from which recovery isn't expected in the short term, multiple patients, in the worst credible case: Considerable.
+
+**Existing controls:**
+- The rest of MedApp keeps working, and a failed upload or download is an error, never a wrong or empty file; a deployment without storage says so (`FileStorageUnavailableException`, mapped to 503 by `ExceptionHandling`).
+- On Azure, the files are zone-redundant, so one zone's outage doesn't stop them (`deploy/azure/main.bicep`).
+- **Transferred:** the master copies in the organisation's own systems; the downtime procedure (H-10).
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Monitoring and alerts that include storage,** and readiness that reports it. Protective; **planned** (step 5, with H-10's monitoring); before first live use.
+- **Report a storage failure as "file storage is unavailable, try again later"** (503), as for a deployment without storage, instead of a general server error. Protective; **proposed**; later.
+- **The downtime procedure says where to find documents** when MedApp's files can't be opened. Information; transferred; before first live use.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
 - **Completing a procedure with a stage unfinished or unlocked.** Designed out: `ChangePatientProcedureStatusHandler` refuses it (`AllStagesFinished`).
 - **One user's data in another's server-rendered page.** A security and privacy risk rather than a clinical one, controlled by a new query cache per request (`createSsrRouter`; `docs/architecture.md`, section 5.8). Left to the security work in step 2.
 - **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`).
+- **An uploaded file running script in MedApp.** Designed out: files are never shown inline on MedApp's site, only downloaded, with a sandboxing Content Security Policy, and SVG and HTML are refused (`AttachmentResponseHeaders`, `FileTypeSniffer`). A security risk rather than a clinical one; malware opened on the desktop is H-24.
+- **Thumbnails misread as the image.** A thumbnail is at most 320 pixels, too small to read clinically, and the full file is a download away. Not logged; the CSO may decide otherwise.
 
 ## Change log
 
@@ -811,3 +1035,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
+| 0.4 | 16 November 2026 | File attachments: six new hazards, H-22 (a file on the wrong record), H-23 (a missing document), H-24 (malware), H-25 (a file deleted by mistake), H-26 (an out-of-date or duplicate document) and H-27 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20 | AI coding agent, for review |
