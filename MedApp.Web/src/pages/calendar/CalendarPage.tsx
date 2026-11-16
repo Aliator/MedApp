@@ -158,7 +158,14 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
 
   const releaseSelection = () => {
     setHeld(null);
-    heldAnchor.current?.focus();
+    // Back to the time that was selected (Escape, or a press on nothing), unless the menu closed because another
+    // control was pressed: that press has moved the focus there, and it stays. The focus can still be in the closing
+    // menu, or on the selection it opened from, both on their way out: those count as nothing else having it.
+    window.setTimeout(() => {
+      const focused = document.activeElement;
+      const isLeaving = focused instanceof Element && focused.closest('[data-selected-time-menu], .mc-selection') !== null;
+      if (!focused || focused === document.body || isLeaving) heldAnchor.current?.focus();
+    }, 0);
   };
 
   // The grid's items are made from this calendar, so each one's appointment or block is in it.
@@ -347,7 +354,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             placement="end"
             padding={1}
             content={
-              <VStack gap={0.5} hAlign="stretch">
+              <VStack gap={0.5} hAlign="stretch" data-selected-time-menu="">
                 <Button
                   label="Book appointment"
                   variant="ghost"

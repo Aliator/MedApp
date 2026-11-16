@@ -1,4 +1,4 @@
-import {fireEvent, screen, within} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {calendarDay, testAppointment, testBlock, ukTime} from '../../test/calendar';
 import {renderWithApp} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
@@ -150,8 +150,13 @@ describe('CalendarGrid', () => {
     const free = await screen.findByRole('button', {name: 'Tuesday 24 November, 09:15, free'});
     fireEvent.pointerDown(free, {button: 0, pointerId: 1});
     fireEvent.pointerUp(free, {pointerId: 1});
+    // Not while the browser is still handling the release: a menu opened then would take it, and the click after it,
+    // as a press outside it, and close at once.
+    expect(onSelectRange).not.toHaveBeenCalled();
 
-    expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: ukTime('2026-11-24', '09:15').replace('Z', '.000Z'), endUtc: '2026-11-24T09:30:00.000Z'}, free);
+    await waitFor(() =>
+      expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: ukTime('2026-11-24', '09:15').replace('Z', '.000Z'), endUtc: '2026-11-24T09:30:00.000Z'}, free),
+    );
   });
 
   it('selects a range by dragging, stopping at anything in the way', async () => {
@@ -167,8 +172,11 @@ describe('CalendarGrid', () => {
     fireEvent.pointerMove(column('Monday 23 November, today'), {pointerId: 1, clientX: 50, clientY: yOf(12)});
     expect(screen.getByText('09:00 to 10:00')).toBeInTheDocument();
     fireEvent.pointerUp(column('Monday 23 November, today'), {pointerId: 1});
+    expect(onSelectRange).not.toHaveBeenCalled();
 
-    expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T09:00:00.000Z', endUtc: '2026-11-23T10:00:00.000Z'}, expect.anything());
+    await waitFor(() =>
+      expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T09:00:00.000Z', endUtc: '2026-11-23T10:00:00.000Z'}, expect.anything()),
+    );
   });
 
   it('is one tab stop: the arrow keys move between free times, Shift selects more, and Enter selects', async () => {
@@ -397,6 +405,8 @@ describe('CalendarGrid', () => {
     fireEvent.pointerMove(monday, {pointerId: 2, clientX: 50, clientY: 300});
     fireEvent.pointerCancel(monday, {pointerId: 2});
     fireEvent.pointerMove(monday, {pointerId: 2, clientX: 50, clientY: 300});
+    // A pointer selection is reported just after its press ends, so wait past that before saying none was.
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(onSelectRange).not.toHaveBeenCalled();
 
     fireEvent.pointerDown(card, {button: 2, pointerId: 3});
