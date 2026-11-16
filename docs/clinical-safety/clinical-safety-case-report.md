@@ -157,7 +157,7 @@ From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are lef
 | H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
-| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
+| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way and open appointments when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
 | H-23 | A file is attached to the wrong patient, procedure or stage | 3 | 2 | 2 | Patient banner (built, to verify); the patient and target named before files are sent |
 | H-24 | A document or result is missing, and nobody knows | 2 | 2 | 2 | None |
 | H-25 | An attached file carries malware | 3 | 2 | 2 | Malware scanning on upload (brought forward from step 9), or no file storage |
@@ -170,7 +170,7 @@ From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are lef
 | H-32 | A stage is finished without the visit it needed | (3) | (2) | (2) | A report of stages finished without a visit, reviewed locally; patient, stage and appointment named in the confirmations; clinical sign-off of which stages need a visit |
 | H-33 | An appointment is at the wrong time | (2) | (2) | (2) | Full date and day in confirmations; end-to-end tests outside UK time and on clock-change days |
 | H-34 | The wrong patient or procedure is booked | (3) | (2) | (2) | Date of birth in the patient picker and confirmations; the patient's name, date of birth and NHS number in the booking and appointment dialogs (built, to verify) |
-| H-35 | An appointment is left without its member of staff | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified; local absence process |
+| H-35 | An appointment is left without its member of staff | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified; removing every role refused with upcoming bookings (built, to verify); local absence process |
 | H-36 | A cancelled or moved appointment isn't passed on to the patient | (3) | (2) | (2) | "Has the patient been told?" recorded on cancel and move; local process for telling patients |
 
 [CSO: confirm or change each rating, and record the reasons for any change. Assign ratings to H-30 to H-36.]

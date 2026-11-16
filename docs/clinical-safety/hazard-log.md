@@ -861,7 +861,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Possible harm.** Delayed care for that patient. Considerable.
 
 **Existing controls (step 7, PR #68):**
-- **The admin must confirm:** restricting a record with procedures under way shows how many there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`).
+- **The admin must confirm:** restricting a record with procedures under way or open appointments shows how many of each there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`). Since the review of PR #93, open appointments alone ask for it too (decision 49), and if the dialog's counts are out of date the API's own message is shown.
 - **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue. Its appointments can still be cancelled, with a reason (`GetForCancelOrThrowAsync`), so a patient isn't left booked for care that's paused.
 - **Everyone sees why:** the procedure page, the patient's pages and their procedures show the restricted banner with its reason, and the procedure page says that only blocking and cancelling are possible.
 - Lifting the restriction is one admin action, recorded with a reason.
@@ -1184,6 +1184,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Causes:**
 - **Two people book the same slot at the same moment,** from two browsers.
+- **Two people book the same Needs booking appointment at the same moment,** with different members of staff (found in the review of PR #93): the lock is per member of staff, so they didn't wait for each other, and the later save silently overwrote the earlier. The first member of staff was told about an appointment that wasn't on their calendar.
 - **A later template change** (an admin moves everyone's lunch, or applies a day template with leave to a day) lands on appointments already booked. MedApp allows that, and shows both (decision 6).
 - **A page left open** shows slots that have since been taken (H-16).
 - **Appointments kept elsewhere** (a paper diary, another system), so MedApp's calendar isn't the whole picture.
@@ -1195,6 +1196,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Existing controls** (in the design):
 - **The server refuses any overlap:** a new or moved appointment or block that overlaps a Booked, Attended or Did not attend appointment, or a block (stored or from a template), on that person's calendar is a 409 that names the clash (decision 6; `CalendarClashes`). The UI only offers free slots (decisions 6 and 30).
 - **Racing bookings are serialised** by a database lock per member of staff (`ICalendarLock`, SQL Server's `sp_getapplock`), so one wins and the other gets the 409 (decision 6). An integration test books the same slot twice at once (plan, section 7).
+- **Two changes to one appointment can't both win:** an appointment has a row version, so the later of two overlapping saves is a 409, and a booking says whether it's booking a Requested appointment or moving a Booked one, refused (409) if someone else got there first (decision 46). An integration test books one Requested appointment twice at once, with two different members of staff: one succeeds, one gets the 409, and only one is told.
 - **Overlaps from template changes are shown, not hidden:** both appear, the appointment on top, and the block is flagged as overlapping; nothing is moved or removed by the app (decision 6).
 - **Past days don't change** (decision 8).
 
@@ -1263,6 +1265,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **"Today" on the server:** server rendering runs in UTC, so between 23:00 and midnight UTC in summer the server's day and the browser's can differ (H-12's residual note). Home's day calendar or the Calendar page could open on the wrong day for that hour.
 - **The wrong day or slot picked** in the booking dialog, or the wrong week open in the week view.
 - **A reschedule** that moves the appointment, when the patient was told the old time (H-36).
+- **A stale "book" that moves someone else's booking** (found in the review of PR #93): someone books a Needs booking appointment and tells the patient; a colleague whose list is out of date books it too, and the second request quietly moved it to their time, with nobody told.
 
 **Effect.** The patient and the member of staff turn up at different times, or the patient is told the wrong time.
 
@@ -1275,6 +1278,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **The server checks every time:** inside the working day, on a weekday, on a 5-minute boundary, start before end, and not in the past for a booking (decisions 2 and 17).
 - **Tests:** `CalendarProjection` across a clock change, in unit and integration tests (plan, section 7).
 - **Messages say the day and time in words** ("Monday 23 November at 10:00", `UkTime`).
+- **A booking says what it expects** (`expectedStatus`): booking an appointment someone else has already booked is a 409 ("Someone else has already booked this appointment"), not a move; moving one needs the caller to have seen it Booked (decision 46).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
 
@@ -1332,14 +1336,14 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Causes:**
 - **Leave or training added by a template change** (a week template edit, or a day's template applied) over appointments already booked. It's allowed, and both show, flagged (decision 6), but nothing moves the appointments or tells the patient.
 - **Absence that isn't in MedApp:** sickness, or leave recorded only in another system.
-- **A member of staff loses their role:** the staff picker lists everyone with a role (`GET api/calendar/staff`), so their calendar drops out of the picker, but their appointments stay.
+- **A member of staff loses their role:** the staff picker lists everyone with a role (`GET api/calendar/staff`), so their calendar would drop out of the picker and become a 404, with their appointments on it. Now refused while they have upcoming Booked appointments (below).
 
 **Effect.** The patient arrives and nobody is there to see them, or the appointment silently doesn't happen.
 
 **Possible harm.** Delayed care; for a whole day's list, several patients. Considerable.
 
 **Existing controls** (in the design):
-- **An account with upcoming Booked appointments can't be deleted** until they're moved or cancelled (decision 21).
+- **An account with upcoming Booked appointments can't be deleted** until they're moved or cancelled (decision 21), **nor lose every role** (decision 48): both are refused with the same `HasUpcomingAppointments` error, from one check (`WhyCantStopBeingStaffAsync`).
 - **A new block can't overlap an appointment** (decision 6), so leave added as a block forces the appointments to be moved or cancelled first.
 - **Overlaps from template changes are shown, not hidden,** with the appointment on top and the block flagged (decision 6).
 - **The member of staff is notified** when someone else books an appointment with them, moves one to them or away from them, or cancels one (decision 20), and sees their day's appointments on Home (decision 32).
@@ -1348,7 +1352,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Further controls:**
 - **After a template change or a day's template is applied,** list the booked appointments it overlaps and notify the member of staff (as H-31). Protective; **proposed**; before first live use.
-- **Refuse to remove the last role from someone with upcoming Booked appointments,** as account deletion does. Protective; **proposed**; later.
+- **Refuse to remove the last role from someone with upcoming Booked appointments,** as account deletion does. Protective; **built** (decision 48, from the review of PR #93); to be verified by the CSO before first live use.
 - **A local process for absence:** when someone is away unexpectedly, move or cancel their appointments and tell the patients (H-36). Information; transferred; before first live use.
 - **Deactivate accounts instead of deleting them** (H-21). Design; **planned** (step 4); later.
 
