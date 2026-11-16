@@ -305,20 +305,21 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 
 ### Review document format
 
-Review documents are written for the user, who reads them to understand the change well enough to explain it to someone else (for example, a recruiter asking about the project). Each one must be quick and easy to take in: plain language, short sections, bullets with bold lead-ins, and short sentences. Explain each technical term the first time it appears. The rigour stays the same; it moves into the findings and the detail at the end.
+Write each review so someone who didn't make the change can follow it quickly: short sections, bullets with bold lead-ins, short sentences, and any term that isn't obvious explained the first time it appears. Keep the depth in the findings and the detail at the end.
 
 Use these sections, in this order:
-1. **In one line:** what the PR does, in one plain sentence.
-2. **What changed, and why:** each change (or technology it brings in) explained plainly: what it is, what it does here, and why it was needed. Add an analogy where it helps someone new to the idea.
-3. **Why this, not that:** for each real choice, the main alternative and the trade-off, including what the chosen option is worse at.
+1. **Summary:** what the PR does, in one or two sentences.
+2. **What changed, and why:** each change, what it does here, and why it was needed.
+3. **Design choices:** for each real choice, the main alternative and the trade-off, including what the chosen option is worse at.
 4. **How it was checked:** tests, builds, screenshots and anything run by hand, with the results.
 5. **Findings,** most severe first. Each has:
    - a severity (critical, high, medium or low) and a confidence
-   - what could go wrong, in plain words, as a concrete scenario
+   - what could go wrong, as a concrete scenario
    - the evidence (`file:line`)
    - the fix, and what happened to it (fixed in the PR, documented, or left as a to-do)
-   
+
    With no findings, say so.
-6. **The honest catch:** what's still weak or left to do after this PR.
-7. **Say it like this:** one to three sentences the user could say out loud to explain the change, its main choice and its trade-off.
-8. **Detail** (optional): diffs, longer reasoning, and anything only an engineer needs.
+6. **Remaining risks:** what's still weak or left to do after this PR.
+7. **Detail** (optional): diffs, longer reasoning, and anything else only an engineer needs.
+
+Personal preferences for how reviews or explanations are written belong in a contributor's own git-ignored `CLAUDE.local.md`, not in this file.
