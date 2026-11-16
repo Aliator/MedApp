@@ -1,5 +1,6 @@
 import {screen, waitFor} from '@testing-library/react';
-import {adminUser, json, mockFetch, mustChangePasswordUser, renderApp, signedOutUser, staffUser} from '../test/render';
+import {adminUser, json, mockApi, mockFetch, mustChangePasswordUser, renderApp, signedOutUser, staffUser} from '../test/render';
+import {insights, templates} from '../test/insights';
 
 describe('route guards', () => {
   it('sends a signed-out visitor to the login page', async () => {
@@ -33,6 +34,25 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: /user management/i})).toBeInTheDocument();
   });
 
+  it('sends a non-admin away from Insights', async () => {
+    const {router} = renderApp({path: '/admin/insights', user: staffUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('lets an admin into Insights, loading it for the period in the address', async () => {
+    const fetch = mockApi({
+      'GET /api/procedures/insights': () => json(insights),
+      'GET /api/procedures/patient-procedure-stage/templates': () => json(templates),
+    });
+    renderApp({path: '/admin/insights?weeks=4', user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: 'Insights', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('link', {name: /^Overdue: 5/})).toBeInTheDocument();
+    expect(fetch.mock.calls.some(([request]) => (request as Request).url.endsWith('/api/procedures/insights?Weeks=4'))).toBe(true);
+    // Longer than the default: the route's chunk (with the chart library) loads during the test, slowly on a busy runner.
+  }, 15_000);
+
   it('sends someone who must change their password to do that, before loading anything the API would refuse', async () => {
     const fetch = mockFetch((request) =>
       new URL(request.url).pathname === '/api/auth/me/settings' ? json({settings: null}) : json({title: 'Password change required'}, 403),
@@ -44,6 +64,16 @@ describe('route guards', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     // Only its own settings: no notifications, no patients.
     expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).toEqual(['/api/auth/me/settings']);
+  });
+
+  it('sends an admin who must change their password from Insights to do that, without loading it', async () => {
+    const fetch = mockFetch((request) =>
+      new URL(request.url).pathname === '/api/auth/me/settings' ? json({settings: null}) : json({title: 'Password change required'}, 403),
+    );
+    const {router} = renderApp({path: '/admin/insights', user: {...mustChangePasswordUser, roles: ['Admin', 'User'], isAdmin: true}});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/change-password'));
+    expect(fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname)).not.toContain('/api/procedures/insights');
   });
 
   it('sends someone signed out from the change-password page to sign in', async () => {

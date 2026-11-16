@@ -11,6 +11,7 @@ import {
   parseProceduresSearch,
   parseSetupSearch,
   parseChoice,
+  parseInsightsSearch,
   parseUsersSearch,
   procedureStatuses,
 } from './listSearch';
@@ -187,6 +188,21 @@ describe('parseProceduresSearch', () => {
     expect(parseProceduresSearch({status: 'Finished', sort: 'colour'})).toEqual({});
   });
 
+  it('reads an assignee: an ID, or nobody (none), dropping anything else', () => {
+    const userId = '0000000A-0000-0000-0000-000000000001';
+    expect(parseProceduresSearch({assignee: userId})).toEqual({assignee: userId.toLowerCase()});
+    expect(parseProceduresSearch({assignee: 'NONE'})).toEqual({assignee: 'none'});
+    expect(parseProceduresSearch({assignee: 'k.ashford'})).toEqual({});
+    expect(hasProcedureFilters({assignee: 'none'})).toBe(true);
+  });
+
+  it('reads a template ID, dropping anything that is not one', () => {
+    const templateId = '0000000E-0000-0000-0000-000000000001';
+    expect(parseProceduresSearch({templateId})).toEqual({templateId: templateId.toLowerCase()});
+    expect(parseProceduresSearch({templateId: 'Knee review'})).toEqual({});
+    expect(hasProcedureFilters({templateId: 'x'})).toBe(true);
+  });
+
   it('knows when the list is filtered', () => {
     expect(hasProcedureFilters({page: 3, sort: 'Due'})).toBe(false);
     expect(hasProcedureFilters({closed: true})).toBe(true);
@@ -231,5 +247,19 @@ describe('parseAuditSearch', () => {
   it('knows when the log is filtered', () => {
     expect(hasAuditFilters({page: 2, asc: true})).toBe(false);
     expect(hasAuditFilters({procedureId: 'x'})).toBe(true);
+  });
+});
+
+describe('parseInsightsSearch', () => {
+  it('reads the period and template, keeping 12 weeks (the default) out', () => {
+    const template = '0000000E-0000-0000-0000-000000000001';
+    expect(parseInsightsSearch({weeks: '26', template})).toEqual({weeks: 26, template: template.toLowerCase()});
+    expect(parseInsightsSearch({weeks: 4})).toEqual({weeks: 4});
+    expect(parseInsightsSearch({weeks: '12'})).toEqual({});
+  });
+
+  it('drops a period it does not offer, and a template that is not an ID', () => {
+    expect(parseInsightsSearch({weeks: '5', template: 'knee'})).toEqual({});
+    expect(parseInsightsSearch({})).toEqual({});
   });
 });
