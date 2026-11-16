@@ -1,15 +1,26 @@
 # MedApp.E2ETests
 
-End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for .NET](https://playwright.dev/dotnet/) on NUnit, the same stack as `MedApp.UnitTests`.
+End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for .NET](https://playwright.dev/dotnet/) on NUnit, the same stack as `MedApp.UnitTests`. They drive the app in Chromium as a person would, against a running MedApp: the AppHost locally, and the production image in CI.
 
-**There are no tests yet.** The setup is ready so they can be added later (plan Q13). `dotnet test MedApp.UnitTests` and the PR workflow don't run this project.
+## What they cover
+
+| Test | Journey |
+|---|---|
+| `Auth/SignInTests` | Signing in and out through the login page, and a wrong password ("Invalid credentials"). |
+| `Patients/PatientTests` | Adding a patient through the form and finding them with the filter bar; editing; deleting, confirmed and cancelled. |
+| `Procedures/ProcedureTests` | A new procedure for a patient from a template, then its stages worked: notes, Finish Stage, the status from Unassigned to In progress to In review. |
+| `Tasks/MyTasksTests` | A procedure assigned to you in My Tasks, under Not started, then Started, and opening it. |
+| `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
+| `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
 
 ## What's here
 
 | File | Purpose |
 |---|---|
-| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. |
-| `Common/E2ESession.cs` | Signs in once per run through `POST /api/auth/login` and saves the session for every signed-in test. |
+| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and procedures. |
+| `Common/E2ESession.cs` | Signs in once per run through `POST /api/auth/login`, saves the session for every signed-in test, and signs it out at the end. |
+| `Common/E2EApi.cs` | The app's API, for a test's setup, its checks and its clean-up. |
+| `Common/E2EData.cs` | Unique synthetic names, and the clean-ups a test registers, run newest first when it ends, pass or fail. |
 | `Common/E2ESettings.cs` | Reads the environment variables below. |
 
 ## Settings
@@ -17,37 +28,52 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | Variable | Default | Purpose |
 |---|---|---|
 | `E2E_BASE_URL` | `http://localhost:5173` | The app under test (the React dev server the AppHost runs) |
-| `E2E_USERNAME` / `E2E_PASSWORD` | none | A dev-only account. Without them, the run is skipped. |
+| `E2E_USERNAME` / `E2E_PASSWORD` | none | An **admin** account (Users and procedures' admin actions need one). Without them the suite is **skipped** locally but **fails** in CI (where `CI=true`), so a green CI run always ran the journeys. |
+| `E2E_TRACE_DIR` | none | Saves a Playwright trace (screenshots, DOM, network) of each failed test there. A trace records what was typed, passwords included, so only CI's throwaway run (`main.yml`) sets it; never set it against a deployment. Open one with `pwsh bin/Release/net10.0/playwright.ps1 show-trace <file>.zip`. |
 
-Never commit credentials. Use a synthetic dev account, for example one made with `medapp-dev`'s `create_user`.
+Never commit credentials. Locally, use the dev-only `admin` / `admin` login that `medapp-dev` makes (it exists only in local dev databases).
 
 ## Running locally
 
 ```bash
 dotnet build MedApp.E2ETests
-pwsh MedApp.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium   # once
+pwsh MedApp.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium   # once (Windows PowerShell works too)
 dotnet run --project MedApp.AppHost                                       # in another terminal
-E2E_USERNAME=... E2E_PASSWORD=... dotnet test MedApp.E2ETests
+E2E_USERNAME=admin E2E_PASSWORD=admin dotnet test MedApp.E2ETests
 ```
+
+The whole suite takes about a minute. The tests write to the database the app uses (locally, your dev database) and delete what they made. What the app has no way to delete stays:
+- the audit log entries of the procedures they made (by design: the audit log outlives deletes)
+- the notification the bell test sends (marked read)
+- the session rows of the accounts they made and deleted (none can be used: their users are gone)
+
+A run that's cancelled or crashes before its clean-up (against a deployment, through `e2e.yml`, say) can also leave what it made: `E2E …` patients, stages and templates, and `e2e-…` accounts, one of them an admin. Their passwords are random for the run, but delete them by hand.
 
 ## Writing a test
 
 ```csharp
-public sealed class LoginTests : E2ETest
+public sealed class PatientTests : E2ETest
 {
-    protected override bool IsSignedIn => false;
-
     [Test]
-    public async Task Login_WrongPassword_ShowsInvalidCredentials()
+    public async Task EditPatient_ChangedFields_AreSaved()
     {
-        await Page.GotoAsync("/login");
+        var patient = await CreatePatientAsync();          // through the API, deleted after the test
+        await OpenAsync($"/patients/{patient.Id}/edit");   // waits until the page can be used
+
+        await Main.GetByLabel("Last Name").FillAsync(E2EData.UniqueName("Renamed"));
         // ...
     }
 }
 ```
 
-Use synthetic data only, and leave the database as you found it.
+- **Open pages with `OpenAsync`.** Pages are rendered on the server, then taken over by React in the browser; typing or clicking before that is lost. After `Page.ReloadAsync`, call `WaitUntilInteractiveAsync`.
+- **Find things by role and label** (`GetByRole`, `GetByLabel`), with the names people and screen readers get.
+- **Make the data you need through `Api`**, with names from `E2EData.UniqueName`, and register its clean-up with `Data.OnCleanUp` straight after making each thing. Things a test makes through the UI need one too (find them by their unique name).
+- **Rely on nothing you didn't make**, except the signed-in account and the seeded default stage definition. Other data may be there, so filter lists down to your own rows rather than counting everything.
+- **Use synthetic data only.** This is a medical app: never realistic patient details.
+- An account an admin makes must change its generated password before anything else (`UpdateOwnPasswordAsync`), as `NotificationBellTests` does for its second admin.
 
 ## CI
 
-`.github/workflows/e2e.yml` runs only by hand (**Actions → E2E tests → Run workflow**), against a deployed URL you give it, with the credentials from the `E2E_USERNAME` / `E2E_PASSWORD` repository secrets.
+- **Every pull request:** the `e2e` job in `.github/workflows/main.yml` builds the production image, starts SQL Server (on the runner's loopback, with a random password), migrates with the image's `/app/efbundle`, makes the first admin (`create-first-admin`, with a password generated for the run), starts the API on http://localhost:8080 under the chart's restrictions (read-only root, `/tmp` only, no capabilities) and runs these tests against it. A failed test's trace is uploaded as the `e2e-traces` artifact. The job is a required check on `main`. The session cookie is `Secure` there, as in production; Chromium keeps Secure cookies from `http://localhost`, so nothing is relaxed for the test.
+- **By hand:** `.github/workflows/e2e.yml` (**Actions → E2E tests → Run workflow**) runs them against a deployed URL you give it, with the credentials from the `E2E_USERNAME` / `E2E_PASSWORD` repository secrets (an admin). **Those secrets don't exist yet: create them (Settings → Secrets and variables → Actions) for the deployment you mean to test before you run it.** Without them the run fails. The tests change that deployment's data and clean up as they do locally (see above for what stays). This workflow saves no traces, as they would record the real credentials.
