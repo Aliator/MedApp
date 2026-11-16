@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.3 (draft), 16 November 2026: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup (roadmap step 9's first part), with a new risk 21 |
+| **Version** | 0.3 (draft), 16 November 2026: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup (roadmap step 9's first part), with a new risk 21; 0.4 (draft), the same day: admins' monitoring rules, with a new risk 24 (monitoring of staff; 22 and 23 are the attachments branch's) |
 | **Assessed** | MedApp on `main` as of 16 November 2026, with branch `feature/privacy-features` (roadmap step 7) and branch `feature/nhs-integrations` (step 9's first part), and its Azure design (`deploy/azure`), which has not been deployed |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
@@ -33,14 +33,15 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 - **Collection:** the customer's staff type patients' details and clinical notes into MedApp in a browser. There's no import or patient-facing access. A demographics lookup can fill a patient's name and date of birth from their NHS number, but only an offline stub of synthetic people exists; the real Personal Demographics Service (PDS) isn't connected, and connecting it would make NHS England a source of patient data and need this DPIA updated first.
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
-- **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts.
+- **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts. Admins can also set **monitoring rules** (Administration, Monitoring): to be told in the bell when a particular staff member, or anyone, does something to a procedure (creates one, finishes a stage, completes, blocks or cancels one, is assigned, unlocks a stage, changes a due date), optionally only for a priority, template or stage. Each person chooses whether they're told when they're assigned a procedure.
 - **Sharing:** none outside the customer. Within the customer, every staff user can see every patient (section 5, risk 1). A read-only FHIR API returns a patient's details, by ID or NHS number, in the NHS's standard format, but only to a caller signed in as one of the customer's staff, and each use is logged (risks 1 and 21); there are no system-to-system clients yet.
 - **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Admins can anonymise a patient's record in place (identifying details and free text replaced, the structure kept). Nothing is deleted on a schedule: records past their retention period are listed for an admin to review.
-- **New technology:** server-side rendering (a Node page server: in Kubernetes a container of its own in the API's pod, without the API's secrets; run on its own, inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
+- **New technology:** server-side rendering (a Node page server: in Kubernetes a container of its own in the API's pod, without the API's secrets; run on its own, inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions. Monitoring rules tell an admin about single actions as they happen; they don't score, rank or judge staff, and decide nothing (risk 24).
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
 
 ### Scope
 
+- **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, sessions with IP addresses and browsers, settings with saved searches; notifications, and each person's notification choices; admins' monitoring rules, which name the staff they watch. Field by field: [data-inventory.md](data-inventory.md).
 - **Data:** name, date of birth, email and (optionally) NHS number of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, sessions with IP addresses and browsers, settings with saved searches; notifications. SNOMED CT codes on stage definitions label kinds of step and aren't personal data. Field by field: [data-inventory.md](data-inventory.md).
 - **Special category:** health data. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it.
 - **Volume:** per customer, [patients a year], [staff users]. Across customers, large scale.
@@ -49,7 +50,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 ### Context
 
-- **Relationship:** patients are receiving care from the customer, and expect their information to be recorded and kept confidential. They don't use MedApp themselves.
+- **Relationship:** patients are receiving care from the customer, and expect their information to be recorded and kept confidential. They don't use MedApp themselves. **Staff** are the customer's employees (or contractors): there's an imbalance of power, so monitoring them must be necessary, proportionate and open (risk 24).
 - **Control:** patients have no direct control over what is recorded; they rely on the customer and its staff.
 - **Vulnerable people:** patients include people who are ill, children, and possibly people lacking capacity.
 - **Expectations:** patients would expect a care record system; they wouldn't expect staff outside their care to browse their record, or their data to be used for anything else.
@@ -60,7 +61,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 ### Purposes
 
 - **For patients:** their procedures are coordinated safely, in order, by the right staff, with an accurate record.
-- **For the customer:** coordinating work, accountability through the audit trail, meeting record-keeping duties.
+- **For the customer:** coordinating work, accountability through the audit trail, meeting record-keeping duties, and supervising work as it happens (admins' monitoring rules), for example a team lead keeping an eye on a new member of staff's work. Monitoring is supervision, not clinical follow-up, which doesn't rely on it (hazard H-29).
 - **For the supplier:** providing the service under contract. No purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)).
 
 ## Step 3: Consultation
@@ -88,6 +89,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 | **Rights** | Supported by the product: a subject access export, restriction and dispute flags, anonymisation; the clinician review of an export is by hand ([data-subject-rights.md](data-subject-rights.md)). |
 | **Processors** | The supplier, under an Article 28 agreement ([dpa-template.md](dpa-template.md)); Microsoft as a sub-processor ([sub-processors.md](sub-processors.md)). |
 | **International transfers** | None by the supplier; UK hosting ([international-transfers.md](international-transfers.md)). |
+| **Monitoring staff** | Admins' monitoring rules process **staff** personal data: what a named member of staff does, as it happens. **Necessary:** supervising clinical and administrative work (supporting a new member of staff, knowing when work is blocked or cancelled) is part of running a service, and the same facts are already in the audit trail admins can read; the rules only bring them sooner. **Proportionate:** only admins can have rules, and only while they're admins; each admin sees only their own; the events are workflow actions already audited (no reads, searches, sign-ins, locations or timings beyond the action's own); a notification carries no free text and no patient identifiers; nobody is told about their own actions; at most 50 rules each. **Open:** staff are told in the staff privacy notice ([privacy-notice-staff-template.md](privacy-notice-staff-template.md)), and the customer should have a monitoring policy that says why and how admins use it, following the ICO's guidance on monitoring workers. Risk 24. |
 | **Function creep** | The supplier commits to no use of its own. Any new purpose needs a DPIA update first. |
 
 ## Step 5: Risks
@@ -130,6 +132,7 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 | 19 | **Lack of transparency:** patients don't know MedApp is used or who runs it. | Depends on the customer's privacy notice. | Possible | Minimal | **Low** |
 | 20 | **Real data in development or testing:** patient data copied into a developer's database, a screenshot, a test, or an AI tool. | Convention only (`AGENTS.md`: synthetic data only); `medapp-dev` refuses anything but a local database. | Remote | Severe | **Medium** |
 | 21 | **The NHS number, a national identifier:** a disclosed NHS number lets anyone match the patient across every NHS system; a wrong number ties the patient to someone else's record in the systems that read it from MedApp. | New with branch `feature/nhs-integrations`, and scored for it: an optional NHS number on every patient, returned by a FHIR API that any signed-in staff member (or a script using their session) can call; not traced against PDS; not encrypted at field level. | Possible | Significant | **Medium** |
+| 24 | **Excessive or covert monitoring of staff:** an admin uses monitoring rules to follow one member of staff's every action, without a legitimate reason or their knowledge (to build a case, or to harass), and staff feel watched. | Rules can name any account and any of eight events, with no reason recorded; staff can't see the rules about them; rule changes aren't audited. | Possible | Significant | **Medium** |
 
 ## Step 6: Measures to reduce the risks
 
@@ -176,7 +179,8 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 | Measure | Status | Where |
 |---|---|---|
 | Staff guidance: write only what's needed for the patient's care; no other people's details | Customer and supplier guidance; planned in-app guidance in step 7 | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
-| No patient identifiers in notifications; procedure titles reviewed as not identifying | Planned, step 7 | `AssignPatientProcedureHandler.cs` writes the title today |
+| No free text or patient identifiers in **monitoring** notifications: a fixed title, and a message of usernames, priority, template and stage names and dates | In place | `MedApp.Application/Monitoring/Common/MonitoringNotifications.cs` |
+| No patient identifiers in **assignment** notifications; procedure titles reviewed as not identifying | Planned, step 7 | `AssignPatientProcedureHandler.cs` writes the title today |
 | Encrypt Valkey traffic, or send only IDs through it | Planned, step 2 or 5 | `docs/reviews/signalr-backplane.md` |
 
 **Residual risk:** now **high**; after **medium**. Free text can't be made risk-free; it relies on training.
@@ -387,6 +391,23 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 | Customer measures: check the number against the patient's own documents or the organisation's PAS when it's entered | The customer's | |
 
 **Residual risk:** now **medium**; after **low**.
+
+### Risk 24: monitoring of staff
+
+| Measure | Status | Where |
+|---|---|---|
+| Rules only for admins (the API is admin-only), and only while they're admins: a rule whose owner has lost the Admin role sends nothing | In place | `MedApp.API/Controllers/MonitoringController.cs`; `ProcedureMonitor` checks the role on every change |
+| Each admin sees and changes only their own rules (another admin's is a 404) | In place | `MonitoringRuleRepository.GetAsync`, the handlers in `MedApp.Application/Monitoring` |
+| Only workflow actions already in the audit trail can be watched; no reads, searches or sign-ins | In place | `MonitoredActivity` |
+| Notifications carry no free text and no patient identifiers; nobody is told about their own action; one notification per admin per change | In place | `MonitoringNotifications`, `MonitoringRuleMatcher` |
+| A patient's export leaves monitoring notifications out (they're the staff's data); a staff member's subject access request includes the rules and notifications that name them | In place (export); manual procedure (staff) | `PatientExportMapper`; [data-subject-rights.md](data-subject-rights.md) |
+| At most 50 rules per admin | In place | `MonitoringRuleInput.MaxRulesPerAdmin` |
+| Staff told that admins can be notified of their actions | Draft | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
+| The customer's monitoring policy: why admins use it, who may, for how long, and how staff can ask | The customer's | [privacy-notice-staff-template.md](privacy-notice-staff-template.md), notes for customers |
+| Audit who adds, changes and deletes rules, and let a staff member (or the DPO) see the rules that name them | Proposed (`docs/todo.md`) | |
+| Remove an account's rules, and its notification choices, when the account is deleted | Proposed (`docs/todo.md`) | |
+
+**Residual risk:** now **medium** (it relies on the customer's policy); after the proposed audit and visibility **low**.
 
 ## Step 7: Sign-off and outcomes
 

@@ -1,7 +1,9 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notifications.Common;
+using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.UnitTests.Common.Fixtures;
@@ -88,6 +90,23 @@ public sealed class AssignPatientProcedureHandlerTests : ProcedureHandlerTestBas
                 && x.CreatedAtUtc == Now
                 && x.ReadAtUtc == null),
             cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_NewAssignee_TellsThemBeforeTheWatchingAdmins()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.Unassigned));
+        var order = new List<string>();
+        var monitor = new Mock<IProcedureMonitor>();
+        _notifications.Setup(n => n.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("assignee")).Returns(Task.CompletedTask);
+        monitor.Setup(m => m.NotifyAsync(It.IsAny<ProcedureChange>(), It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("admins")).Returns(Task.CompletedTask);
+        Fixture.Inject(monitor.Object);
+
+        await Handler.Handle(new AssignPatientProcedureCommand(procedure.Id, OtherUserId, Admin), CancellationToken.None);
+
+        order.Should().Equal("assignee", "admins");
     }
 
     [Test]

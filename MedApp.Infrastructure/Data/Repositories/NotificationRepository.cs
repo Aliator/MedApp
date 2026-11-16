@@ -8,8 +8,17 @@ public sealed class NotificationRepository(MedAppDbContext context) : INotificat
 {
     public async Task AddAsync(Notification notification, CancellationToken cancellationToken)
     {
-        context.Notifications.Add(notification);
-        await context.SaveChangesAsync(cancellationToken);
+        var entry = context.Notifications.Add(notification);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // Otherwise it stays "added" in the request's DbContext, and the request's next save tries it again.
+            entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<Notification>> GetRecentAsync(Guid userId, int take, CancellationToken cancellationToken) =>

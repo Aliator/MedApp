@@ -28,3 +28,23 @@ export function useMarkNotificationsRead() {
     onSuccess: () => queryClient.invalidateQueries({queryKey: notificationsKey}),
   });
 }
+
+export type NotificationPreferences = Schemas['NotificationPreferencesResponse'];
+
+/** Kept apart from ['notifications'], so marking notifications read doesn't refetch them. */
+export const notificationPreferencesKey = ['notificationPreferences'] as const;
+
+/** Which notifications the signed-in user gets (everything, until they choose). The server checks it before sending. */
+export const notificationPreferencesQuery = queryOptions({
+  queryKey: notificationPreferencesKey,
+  queryFn: () => unwrap(api.GET('/api/notifications/preferences')),
+});
+
+/** Saves which notifications the signed-in user gets; the saved choices replace the cached ones. */
+export function useSaveNotificationPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {procedureAssigned: boolean}) => unwrap(api.PUT('/api/notifications/preferences', {body})),
+    onSuccess: (saved) => queryClient.setQueryData(notificationPreferencesKey, saved),
+  });
+}

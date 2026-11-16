@@ -1,6 +1,9 @@
 ﻿using MedApp.API.Common.Authentication;
 using MedApp.Application.Notifications.Commands.MarkNotificationsRead;
+using MedApp.Application.Notifications.Commands.UpdateMyNotificationPreferences;
+using MedApp.Application.Notifications.Queries.GetMyNotificationPreferences;
 using MedApp.Application.Notifications.Queries.GetMyNotifications;
+using MedApp.Contracts.Notifications.Requests;
 using MedApp.Contracts.Notifications.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -38,4 +41,16 @@ public sealed class NotificationsController(IMediator mediator) : ControllerBase
         await mediator.Send(new MarkNotificationsReadCommand(User.GetUserId(), id), ct);
         return NoContent();
     }
+
+    /// <summary>Which notifications you get (everything, until you choose).</summary>
+    [HttpGet("preferences")]
+    [ProducesResponseType<NotificationPreferencesResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyPreferences(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetMyNotificationPreferencesQuery(User.GetUserId()), ct));
+
+    /// <summary>Chooses which notifications you get.</summary>
+    [HttpPut("preferences")]
+    [ProducesResponseType<NotificationPreferencesResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateMyPreferences([FromBody] UpdateNotificationPreferencesRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new UpdateMyNotificationPreferencesCommand(User.GetUserId(), request.ProcedureAssigned), ct));
 }

@@ -55,6 +55,7 @@ import {
   RiPaletteLine,
   RiPlayCircleLine,
   RiQuestionLine,
+  RiRadarLine,
   RiPencilLine,
   RiRefreshLine,
   RiSaveLine,
@@ -183,4 +184,6 @@ export const AppIcon = {
   Calendar: remix(RiCalendarLine),
   // Looking a patient up by NHS number in the national demographics service
   LookUp: remix(RiUserSearchLine),
+  // Monitoring (admin): rules for being told what staff do
+  Monitoring: remix(RiRadarLine),
 } as const satisfies Record<string, IconType>;

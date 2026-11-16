@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -10,6 +11,7 @@ namespace MedApp.Application.Procedures.PatientProcedures.Commands.UnlockProcedu
 public sealed class UnlockProcedureStageHandler(
     IPatientProcedureRepository repository,
     IIdentityReadService identityReadService,
+    IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<UnlockProcedureStageCommand, PatientProcedureResponse>
 {
@@ -29,7 +31,10 @@ public sealed class UnlockProcedureStageHandler(
         change.UnlockStage(stage);
 
         if (change.HasChanges)
+        {
             await repository.SaveAsync(change.AuditEntries, cancellationToken);
+            await procedureMonitor.NotifyAsync(change, cancellationToken);
+        }
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }

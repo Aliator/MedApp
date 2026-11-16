@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
@@ -13,6 +14,7 @@ public sealed class CreatePatientProcedureHandler(
     IPatientProcedureRepository repository,
     IPatientRepository patientRepository,
     IPatientProcedureStagesRepository stagesRepository,
+    IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<CreatePatientProcedureCommand, PatientProcedureResponse>
 {
@@ -78,6 +80,7 @@ public sealed class CreatePatientProcedureHandler(
         });
 
         await repository.AddAsync(procedure, change.AuditEntries, cancellationToken);
+        await procedureMonitor.NotifyAsync(change, cancellationToken);
 
         return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, patient: patient);
     }
