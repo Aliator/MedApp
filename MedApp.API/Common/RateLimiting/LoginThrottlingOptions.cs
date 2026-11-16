@@ -23,4 +23,29 @@ public sealed class LoginThrottlingOptions
 
     /// <summary>The window both limits count in. A fixed window: the count starts again when it ends.</summary>
     public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Password reset requests (<c>POST api/auth/password/forgot</c>) for one username or email address, from anywhere,
+    /// in each <see cref="ResetRequestWindow"/>: few, since each may send an email, so nobody can flood someone with reset
+    /// emails. Counted whether or not an account matches, so the limit says nothing about which do.
+    /// </summary>
+    public int ResetRequestsPerIdentifierPermitLimit { get; set; } = 3;
+
+    /// <summary>The window reset requests per username or address are counted in.</summary>
+    public TimeSpan ResetRequestWindow { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// Two-factor codes checked for one account, from anywhere, in each <see cref="TwoFactorCodeWindow"/>: at sign-in
+    /// (across every challenge) and when turning two-factor off or replacing recovery codes
+    /// (<see cref="AccountAttemptLimiter"/>). With five codes a lockout, someone with the password gets at most two
+    /// lockouts' worth in a window.
+    /// </summary>
+    public int TwoFactorCodesPerAccountPermitLimit { get; set; } = 10;
+
+    public TimeSpan TwoFactorCodeWindow { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>Requests to use a new email address, each of which sends an email, per account in each <see cref="EmailChangeWindow"/>.</summary>
+    public int EmailChangesPerAccountPermitLimit { get; set; } = 3;
+
+    public TimeSpan EmailChangeWindow { get; set; } = TimeSpan.FromMinutes(15);
 }

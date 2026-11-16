@@ -1,2 +1,5 @@
 # Shell scripts keep LF line endings in every checkout, or Bash fails on the carriage returns.
 *.sh text eol=lf
+
+# Markdown keeps LF line endings in every checkout, as main has always committed it.
+*.md text eol=lf

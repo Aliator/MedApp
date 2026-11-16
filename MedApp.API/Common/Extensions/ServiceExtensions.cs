@@ -38,6 +38,9 @@ public static class ServiceExtensions
         services.AddSingleton<SsrServer>();
         services.AddSingleton<ISsrServer>(provider => provider.GetRequiredService<SsrServer>());
         services.AddHostedService(provider => provider.GetRequiredService<SsrServer>());
+
+        // Warns at startup outside Development when the data protection keys aren't wrapped.
+        services.AddHostedService<MedApp.Infrastructure.Common.Identity.DataProtectionKeyCheck>();
         // RemoveAllResilienceHandlers is still marked experimental (EXTEXP0001); a test checks it does its job.
 #pragma warning disable EXTEXP0001
         services.AddHttpClient(SsrPages.ClientName)

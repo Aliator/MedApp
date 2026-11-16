@@ -25,8 +25,9 @@ The organisations [Company name] uses to provide MedApp, and what each does with
 |---|---|---|---|---|---|
 | **Microsoft** ([Microsoft contracting entity, as named in the supplier's Azure agreement]) | **Microsoft Azure:** Azure Kubernetes Service (where MedApp runs), Azure SQL Database (where the data is stored, with its backups), Azure Blob Storage (where attached files are stored), Key Vault (secrets), Azure Container Registry (the application image, no personal data), and, once step 5 is done, Azure Monitor (Application Insights and Log Analytics) | Hosts and stores all customer data: patient records, attached files (scans, photos, results, letters), the audit trail, staff accounts, sessions, notifications, logs and backups. Microsoft doesn't access it except for service operations and support under its terms. | **UK South** (London), with geo-redundant backups in **UK West** (Cardiff) once step 5 is done. Attached files are zone-redundant within UK South | Microsoft's Products and Services Data Protection Addendum, incorporated in the Azure agreement [to confirm the current version]; ISO/IEC 27001, 27017, 27018 and other certifications [to confirm current list]; see [international-transfers.md](international-transfers.md) for access from outside the UK | [Date of first customer deployment] |
 
+**Email** is sent through **Azure Communication Services Email**, part of the Microsoft Azure service above, under the same agreement (built on `feature/email-2fa`, not yet deployed). Its data location is set to the **UK** (`emailDataLocation` in `deploy/azure/main.bicep`). It receives a staff member's work email address and username, and the email: a password reset or email confirmation link, or a notice of a change to their own sign-in. It never receives patient data or clinical text (`EmailTemplates`). Delivery onward to the staff member's mailbox goes through the customer's own mail provider.
+
 **Planned additions** (each needs the 30 days' notice above):
-- **An email provider** (roadmap step 4), for password reset links and, later, notifications. It must host data in the UK or the EU, and messages must carry no patient identifiers. [Provider to choose.]
 - **A managed monitoring service** for out-of-hours alerts (roadmap step 5), if one is contracted. It would see alerts and logs. [Provider to choose.]
 
 **Planned changes to what a sub-processor does:**
@@ -51,4 +52,5 @@ The supplier also uses providers for its own business (email, accounts, a helpde
 | Date | Change |
 |---|---|
 | 16 November 2026 | First draft |
+| 16 November 2026 | Azure Communication Services Email added, within Microsoft Azure (`feature/email-2fa`) |
 | 16 November 2026 | File attachments: Azure Blob Storage added to Microsoft's services (no new sub-processor); Defender for Storage's malware scanning planned; Azurite and SkiaSharp added to the open-source software |

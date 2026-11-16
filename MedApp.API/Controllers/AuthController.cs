@@ -53,18 +53,27 @@ public sealed class AuthController(
     [EnableRateLimiting(LoginThrottling.Policy)]
     [ThrottleLoginByUsername]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TwoFactorChallengeResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var session = await mediator.Send(
+        var outcome = await mediator.Send(
             new LoginCommand(
                 request.Username,
                 request.Password,
                 HttpContext.Connection.RemoteIpAddress?.ToString(),
                 Request.Headers.UserAgent.ToString()));
 
+        // Two-factor authentication: no session (and no cookie) until the second step, with a code, succeeds.
+        if (outcome.NeedsTwoFactor)
+        {
+            NoStore();
+            return Accepted(new TwoFactorChallengeResponse(outcome.Challenge, outcome.ChallengeExpiresAtUtc.Value));
+        }
+
+        var session = outcome.Session;
         cookieService.AppendSessionCookie(Response, session);
 
         return Ok(new LoginResponse(
@@ -130,7 +139,7 @@ public sealed class AuthController(
 
     /// <summary>
     /// Creates an account with a password the server generates. The password is returned only in this response,
-    /// for the admin to pass on securely.
+    /// for the admin to pass on securely. An optional email address is sent a link to confirm it (never the password).
     /// </summary>
     [HttpPost("users")]
     [Authorize(Roles = "Admin")]
@@ -140,7 +149,7 @@ public sealed class AuthController(
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
         var created = await mediator.Send(
-            new CreateUserCommand(request.Username));
+            new CreateUserCommand(request.Username, request.Email, User.GetUserId(), User.Identity?.Name));
 
         if (!created.Succeeded)
             return BadRequest(created.Result.Errors);
@@ -407,7 +416,8 @@ public sealed class AuthController(
             User.Identity?.IsAuthenticated ?? false,
             User.Identity?.Name,
             roles,
-            User.MustChangePassword()));
+            User.MustChangePassword(),
+            User.MustSetUpTwoFactor()));
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 import {mockFetch, json} from '../test/render';
 import {SSR_KEY_HEADER, setSsrRequestContextProvider} from '../ssr/requestContext';
-import {api, pageNavigation, PASSWORD_CHANGE_REQUIRED, unwrap} from './client';
+import {api, pageNavigation, PASSWORD_CHANGE_REQUIRED, TWO_FACTOR_SETUP_REQUIRED, unwrap} from './client';
 import {ApiError, ApiValidationError} from './errors';
 
 describe('api', () => {
@@ -79,6 +79,7 @@ describe('a forced password change', () => {
     ['a 403 without a body', () => new Response(null, {status: 403})],
     ['a 403 whose body is a list', () => json([PASSWORD_CHANGE_REQUIRED], 403)],
     ['another status with the code', () => json({code: PASSWORD_CHANGE_REQUIRED}, 401)],
+    ['a 403 with a code that names no page', () => json({code: 'toString'}, 403)],
   ])('leaves %s alone', async (_, respond) => {
     const assign = vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
     window.history.replaceState(null, '', '/patients');
@@ -92,6 +93,36 @@ describe('a forced password change', () => {
   it('leaves the page by assigning the address in the browser', () => {
     // jsdom can't navigate, but the call reaches its location.
     expect(() => pageNavigation.assign('/change-password')).not.toThrow();
+  });
+});
+
+describe('a required two-factor set-up', () => {
+  const held = () => json({title: 'Two-factor authentication required', status: 403, code: TWO_FACTOR_SETUP_REQUIRED}, 403);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('sends the page to set it up, with a full load, when the API says the account must', async () => {
+    const assign = vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
+    window.history.replaceState(null, '', '/patients');
+    mockFetch(held);
+
+    const error = await unwrap(api.GET('/api/patients/search')).catch((e: unknown) => e);
+
+    expect(assign).toHaveBeenCalledExactlyOnceWith('/set-up-two-factor');
+    expect(error).toMatchObject({status: 403, code: TWO_FACTOR_SETUP_REQUIRED});
+  });
+
+  it('stays on the set-up page itself', async () => {
+    const assign = vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
+    window.history.replaceState(null, '', '/set-up-two-factor');
+    mockFetch(held);
+
+    await api.GET('/api/patients/search');
+
+    expect(assign).not.toHaveBeenCalled();
   });
 });
 

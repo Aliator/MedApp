@@ -1,6 +1,7 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.UnitTests.Common.Fixtures;
 
 namespace MedApp.UnitTests.Application.Auth.Users.Commands.CreateUser;
 
@@ -12,7 +13,7 @@ public sealed class CreateUserValidatorTests
     [SetUp]
     public void SetUp()
     {
-        _validator = new CreateUserValidator();
+        _validator = new CreateUserValidator(EmailTestConstants.Availability(canSend: true));
     }
 
     [Test]

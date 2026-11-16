@@ -1,4 +1,26 @@
 {{- $name := printf "%s-api" (include "medapp.fullname" .) }}
+{{- $smtpHost := include "medapp.externalSmtpHost" . }}
+{{- if and .Values.mailpit.enabled .Values.email.smtp.host }}
+{{- fail "Set email.smtp.host or mailpit.enabled, not both: with Mailpit, the chart points the API at it." }}
+{{- end }}
+{{- if and .Values.email.smtp.auth.enabled (not .Values.email.smtp.auth.existingSecret) (not .Values.externalSecrets.enabled) }}
+{{- fail "email.smtp.auth.enabled needs the mail server's password from email.smtp.auth.existingSecret or externalSecrets." }}
+{{- end }}
+{{- with .Values.api.workloadIdentity.clientId }}
+# The API's own service account, for Microsoft Entra Workload ID: AKS gives the pods a token for the managed identity
+# named here (the identity's federated credential names this account). Still no Kubernetes API token.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: api
+  annotations:
+    azure.workload.identity/client-id: {{ . | quote }}
+automountServiceAccountToken: false
+---
+{{- end }}
 {{- /* The API's ports: the app (the Service's target, and the page server's way back), and its health checks. */}}
 {{- $apiPort := 8080 }}
 {{- $apiHealthPort := 8081 }}
@@ -45,16 +67,23 @@ spec:
       labels:
         {{- include "medapp.labels" . | nindent 8 }}
         app.kubernetes.io/component: api
+        {{- if .Values.api.workloadIdentity.clientId }}
+        # AKS's workload identity webhook adds the identity's token (a projected volume) and its AZURE_* variables.
+        azure.workload.identity/use: "true"
+        {{- end }}
       annotations:
         # kubectl logs and exec mean the API unless -c pages says otherwise.
         kubectl.kubernetes.io/default-container: api
         {{- if .Values.api.pageServer.enabled }}
-        # If the API is ever given a workload identity (passwordless Azure SQL, deploy/azure/README.md), Azure's
-        # webhook would put its token into every container: never into the page server's, which must hold no secrets.
-        # Harmless until then.
+        # With a workload identity (api.workloadIdentity.clientId, for the data protection key), Azure's webhook
+        # would put its token into every container: never into the page server's, which must hold no secrets. Without
+        # one, the annotation does nothing.
         azure.workload.identity/skip-containers: pages
         {{- end }}
     spec:
+      {{- if .Values.api.workloadIdentity.clientId }}
+      serviceAccountName: {{ $name }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -116,6 +145,71 @@ spec:
             # Behind the ingress: take the client's scheme and address from its X-Forwarded-* headers.
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"
+            {{- if .Values.mailpit.enabled }}
+            # Email goes to the chart's Mailpit, which catches it all (no TLS, no sign-in: it never leaves the cluster).
+            - name: Email__Smtp__Host
+              value: {{ include "medapp.mailpitName" . | quote }}
+            - name: Email__Smtp__Port
+              value: "1025"
+            - name: Email__Smtp__Security
+              value: None
+            {{- else if $smtpHost }}
+            # Email goes to this mail server.
+            - name: Email__Smtp__Host
+              value: {{ $smtpHost | quote }}
+            - name: Email__Smtp__Port
+              value: {{ .Values.email.smtp.port | toString | quote }}
+            {{- with .Values.email.smtp.security }}
+            - name: Email__Smtp__Security
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if or .Values.mailpit.enabled $smtpHost }}
+            {{- with .Values.email.smtp.timeoutSeconds }}
+            - name: Email__Smtp__TimeoutSeconds
+              value: {{ . | toString | quote }}
+            {{- end }}
+            {{- if .Values.email.smtp.auth.enabled }}
+            {{- if .Values.email.smtp.username }}
+            - name: Email__Smtp__Username
+              value: {{ .Values.email.smtp.username | quote }}
+            {{- else }}
+            - name: Email__Smtp__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.emailSecretName" . }}
+                  key: username
+            {{- end }}
+            - name: Email__Smtp__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.emailSecretName" . }}
+                  key: password
+            {{- end }}
+            {{- end }}
+            {{- with .Values.email.fromAddress | default (ternary "medapp@localhost" "" .Values.mailpit.enabled) }}
+            - name: Email__FromAddress
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.email.fromName }}
+            - name: Email__FromName
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.email.maxPerHour }}
+            # The most emails this copy sends in an hour, notices first.
+            - name: Email__MaxPerHour
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with include "medapp.emailLinkBaseUrl" . }}
+            # Links in emails start with this; never with a request's Host header.
+            - name: Email__LinkBaseUrl
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.dataProtection.keyVaultKeyUri }}
+            # The data protection keys (in the database) are wrapped with this Key Vault key.
+            - name: DataProtection__KeyVaultKeyUri
+              value: {{ . | quote }}
+            {{- end }}
             {{- if .Values.api.pageServer.enabled }}
             # Pages are rendered by the pages container beside this one, not by a Node the API starts itself.
             - name: Ssr__ServerUrl

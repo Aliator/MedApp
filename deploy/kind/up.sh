@@ -186,6 +186,8 @@ if $argocd; then
   echo "  kubectl --context $context -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
   echo "MedApp's first admin is 'admin', with the password from:"
   echo "  kubectl --context $context -n medapp-vault get secret medapp-first-admin -o jsonpath='{.data.password}' | base64 -d"
+  echo "Emails go to Mailpit; read them at http://localhost:8025 while this runs:"
+  echo "  kubectl --context $context -n medapp port-forward service/$release-mailpit 8025:8025"
   exit 0
 fi
 
@@ -228,3 +230,5 @@ else
   echo "The first admin is 'admin', with the password from:"
   echo "  kubectl --context $context -n medapp-vault get secret medapp-first-admin -o jsonpath='{.data.password}' | base64 -d"
 fi
+echo "Emails go to Mailpit; read them at http://localhost:8025 while this runs:"
+echo "  kubectl --context $context -n medapp port-forward service/$release-mailpit 8025:8025"

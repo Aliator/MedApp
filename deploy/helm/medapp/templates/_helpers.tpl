@@ -45,6 +45,31 @@ app.kubernetes.io/component: {{ index . 1 }}
 {{- .Values.backplane.existingSecret | default (printf "%s-backplane" (include "medapp.fullname" .)) -}}
 {{- end -}}
 
+{{/* The Secret with the mail server's user name and password: the given one, or one External Secrets fills. */}}
+{{- define "medapp.emailSecretName" -}}
+{{- .Values.email.smtp.auth.existingSecret | default (printf "%s-email" (include "medapp.fullname" .)) -}}
+{{- end -}}
+
+{{- define "medapp.mailpitName" -}}
+{{- printf "%s-mailpit" (include "medapp.fullname" .) -}}
+{{- end -}}
+
+{{/* The mail server outside the cluster, or empty (none, or Mailpit). */}}
+{{- define "medapp.externalSmtpHost" -}}
+{{- if not .Values.mailpit.enabled -}}
+{{- .Values.email.smtp.host -}}
+{{- end -}}
+{{- end -}}
+
+{{/* The address links in emails start with: email.linkBaseUrl, or https://<ingress.host>, or empty. */}}
+{{- define "medapp.emailLinkBaseUrl" -}}
+{{- if .Values.email.linkBaseUrl -}}
+{{- .Values.email.linkBaseUrl | trimSuffix "/" -}}
+{{- else if and .Values.ingress.enabled .Values.ingress.host -}}
+{{- printf "https://%s" .Values.ingress.host -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "medapp.valkeyName" -}}
 {{- printf "%s-valkey" (include "medapp.fullname" .) -}}
 {{- end -}}

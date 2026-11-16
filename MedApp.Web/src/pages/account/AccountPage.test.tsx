@@ -4,13 +4,15 @@ import {adminUser, isDisabled, renderWithApp, staffUser} from '../../test/render
 import {AccountPage} from './AccountPage';
 
 describe('AccountPage', () => {
-  it('shows who you are, and links to Change Password and Change Colours', async () => {
+  it('shows who you are, and links to Email Address, Security, Change Password and Change Colours', async () => {
     renderWithApp(<AccountPage />, {user: staffUser});
 
     expect(await screen.findByRole('heading', {name: 'Account Settings', level: 1})).toBeInTheDocument();
     expect(screen.getByText(staffUser.username)).toBeInTheDocument();
     expect(screen.getByText('User')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Change Password'})).toHaveAttribute('href', '/account/password');
+    expect(screen.getByRole('link', {name: 'Email Address'})).toHaveAttribute('href', '/account/email');
+    expect(screen.getByRole('link', {name: 'Security'})).toHaveAttribute('href', '/account/security');
     expect(screen.getByRole('link', {name: 'Change Colours'})).toHaveAttribute('href', '/account/colours');
   });
 

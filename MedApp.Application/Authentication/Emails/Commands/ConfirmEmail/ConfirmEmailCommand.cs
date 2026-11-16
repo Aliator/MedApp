@@ -1,0 +1,23 @@
+using System.Text;
+using MediatR;
+using Microsoft.AspNetCore.Identity;
+
+namespace MedApp.Application.Authentication.Emails.Commands.ConfirmEmail;
+
+/// <summary>
+/// Confirms a pending email address with the account and token from the link sent to it, by
+/// <paramref name="SignedInUserId"/>, who must be that account: the link proves the mailbox, the session the person.
+/// </summary>
+public sealed record ConfirmEmailCommand(
+    Guid UserId,
+    string Token,
+    Guid SignedInUserId
+) : IRequest<IdentityResult>
+{
+    // Never prints the token.
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append($"{nameof(UserId)} = {UserId}, {nameof(Token)} = ***");
+        return true;
+    }
+}

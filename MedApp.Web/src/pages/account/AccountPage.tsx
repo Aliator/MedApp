@@ -22,8 +22,8 @@ import {ViewSection} from '../../components/views/ViewSection';
 import {NotificationSettings} from './NotificationSettings';
 
 /**
- * The signed-in user's Account Settings, as cards: the account (who they are, and Change Password, a page of its
- * own); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
+ * The signed-in user's Account Settings, as cards: the account (who they are, and pages of their own for the email
+ * address, security (two-factor authentication) and Change Password); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
  * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
  * opens on, and what the side nav does while a half view is open); lists (rows per page, and where procedure lists
  * start); and accessibility (the text size, how long the folded nav waits on hover, and the switches in
@@ -59,12 +59,16 @@ export function AccountPage() {
       <VStack gap={6}>
         <ViewCard
           footerActions={
-            <Button
-              label="Change Password"
-              variant="secondary"
-              icon={<Icon icon={AppIcon.Password} />}
-              href="/account/password"
-            />
+            <>
+              <Button label="Email Address" variant="secondary" icon={<Icon icon={AppIcon.Email} />} href="/account/email" />
+              <Button label="Security" variant="secondary" icon={<Icon icon={AppIcon.TwoFactor} />} href="/account/security" />
+              <Button
+                label="Change Password"
+                variant="secondary"
+                icon={<Icon icon={AppIcon.Password} />}
+                href="/account/password"
+              />
+            </>
           }>
           <ViewSection title="Account">
             <MetadataListItem label="Username">{me.username}</MetadataListItem>

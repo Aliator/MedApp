@@ -70,5 +70,40 @@ public enum ActivityAction
     AttachmentsViewed = 26,
 
     /// <summary>Someone downloaded a file attached to a patient's record (with the procedure, if any).</summary>
-    AttachmentDownloaded = 27
+    AttachmentDownloaded = 27,
+
+    /// <summary>
+    /// A right password for an account with two-factor authentication: a code was asked for. The second step records
+    /// <see cref="SignedIn"/>, or <see cref="SignInFailed"/> for a wrong code.
+    /// </summary>
+    TwoFactorChallenged = 28,
+
+    TwoFactorEnabled = 29,
+    TwoFactorDisabled = 30,
+
+    /// <summary>An admin turned an account's two-factor authentication off, so its user can set it up again.</summary>
+    TwoFactorReset = 31,
+
+    RecoveryCodesRegenerated = 32,
+
+    /// <summary>Someone signed in with a recovery code: how many are left, never the code.</summary>
+    RecoveryCodeUsed = 33,
+
+    /// <summary>
+    /// Someone asked for a password reset link: the account when one with a confirmed address matched, otherwise no
+    /// account. Never what was typed.
+    /// </summary>
+    PasswordResetRequested = 34,
+
+    /// <summary>A password was reset with an emailed link (an admin's reset is <see cref="PasswordReset"/>).</summary>
+    PasswordResetByEmail = 35,
+
+    /// <summary>Someone asked to use a new email address. Never the address.</summary>
+    EmailChangeRequested = 36,
+
+    EmailConfirmed = 37,
+    EmailRemoved = 38,
+
+    /// <summary>An admin changed whether admin accounts must use two-factor authentication.</summary>
+    TwoFactorRequirementChanged = 39
 }

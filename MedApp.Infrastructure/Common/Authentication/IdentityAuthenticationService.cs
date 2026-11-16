@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Common.Authentication;
+using MedApp.Application.Authentication.TwoFactor.Repositories;
+using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
@@ -10,13 +11,15 @@ namespace MedApp.Infrastructure.Common.Authentication;
 /// <summary>
 /// Checks a sign-in, counting wrong passwords towards the lockout set under <c>Identity</c> in
 /// <c>appsettings.json</c>: a locked account is refused (even with the right password) until its lockout ends, a
-/// wrong password counts one more failure (the one that reaches the limit locks it), and a right one clears the count.
+/// wrong password counts one more failure (the one that reaches the limit locks it), and a right one clears the count
+/// (for an account with two-factor authentication, only once its code is right too).
 /// A name that couldn't be an account's (<see cref="UsernameRules.CouldExist"/>) is unknown, without being looked up.
 /// </summary>
 public sealed class IdentityAuthenticationService(
     UserManager<ApplicationUser> userManager,
     TimeProvider timeProvider,
-    IOptions<IdentityOptions> identityOptions)
+    IOptions<IdentityOptions> identityOptions,
+    IAccountLockoutRepository lockouts)
     : IAuthenticationService
 {
     public async Task<(Guid, string, IEnumerable<string>)>
@@ -36,13 +39,21 @@ public sealed class IdentityAuthenticationService(
 
         if (!await userManager.CheckPasswordAsync(user, password))
         {
-            await userManager.AccessFailedAsync(user);
-            if (await userManager.IsLockedOutAsync(user))
-                throw await LockedOut(user);
+            // Counted in one statement, so wrong passwords sent together all count, and none leaves a failed update
+            // behind to break the activity log's save.
+            var lockout = userManager.Options.Lockout;
+            if (await lockouts.RecordFailedPasswordAsync(
+                    user.Id, lockout.MaxFailedAccessAttempts, lockout.DefaultLockoutTimeSpan, timeProvider.GetUtcNow(), CancellationToken.None)
+                is { } lockedFor)
+                throw new AccountLockedOutException(Math.Max(1, (int)Math.Ceiling(lockedFor.TotalMinutes)), user.Id);
             throw new InvalidCredentialsException(user.Id);
         }
 
-        await userManager.ResetAccessFailedCountAsync(user);
+        // With two-factor on, the password is only the first step: the count of failures clears once the code is right
+        // too (TwoFactorService.RecordSignInAsync). Clearing it here would let someone with the password guess codes
+        // without ever reaching the lockout, by entering the password again after every few.
+        if (!user.TwoFactorEnabled)
+            await lockouts.ResetAsync(user.Id, CancellationToken.None);
         var roles = await userManager.GetRolesAsync(user);
 
         return (user.Id, user.UserName!, roles);

@@ -39,6 +39,8 @@ public abstract class IntegrationTest
     public async Task ResetAsync()
     {
         await TestEnvironment.ResetDatabaseAsync();
+        Api.Emails.Clear();
+        Api.Clock.Reset();
 
         if (MakesFirstAdmin)
         {
