@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using MediatR;
-using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Users.Commands.CreateUser;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Commands.CreatePatient;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -29,12 +28,13 @@ public sealed class DemoDataTools
     private static readonly Guid MissingDefinitionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     [McpServerTool(Name = "reset_demo_data", Destructive = true)]
-    [Description("WIPES all patients, procedures, stage definitions and templates, sessions, and every account except the kept ones (default: just the protected accounts, i.e. admin). Then it makes sure the local test login admin / admin exists, the only Admin account (see ensure_test_admin), and fills the app with plausible synthetic data: 6 staff accounts (role User), 60 patients, 11 stage definitions (one archived), 4 templates (one archived; the others repeat stages, e.g. Consultation), and about 80 procedures in every status, with stage notes and a full audit trail. admin is assigned some procedures too, so its task list isn't empty. It saves a 'pre-reset-<timestamp>' snapshot first. Needs confirm: true. The same seed gives the same data.")]
+    [Description("WIPES all patients, procedures, stage definitions and templates, sessions, and every account except the kept ones (default: just the protected accounts, i.e. admin). Then it makes sure the local test login admin / admin exists, the only Admin account (see ensure_test_admin), and fills the app with plausible synthetic data: 6 staff accounts (role User, with generated passwords they can sign in with straight away, not made to change them), 60 patients, 11 stage definitions (one archived), 4 templates (one archived; the others repeat stages, e.g. Consultation), and about 80 procedures in every status, with stage notes and a full audit trail. admin is assigned some procedures too, so its task list isn't empty. It saves a 'pre-reset-<timestamp>' snapshot first. Needs confirm: true. The same seed gives the same data.")]
     public static async Task<object> ResetDemoData(
         IMediator mediator,
         MedAppDbContext db,
         UserManager<ApplicationUser> users,
         RoleManager<IdentityRole<Guid>> roles,
+        IIdentityTransactions transactions,
         DevGuard guard,
         DevMcpOptions options,
         [Description("Must be true: this deletes data.")] bool confirm = false,
@@ -57,7 +57,7 @@ public sealed class DemoDataTools
         var random = new Random(seed);
         var now = DateTime.UtcNow;
 
-        var staff = await CreateStaff(mediator, users, ct);
+        var staff = await CreateStaff(mediator, users, transactions, ct);
         // The admin account is the only admin, so it's the one that assigned staff to the demo procedures.
         var admin = await users.FindByNameAsync(TestAdminTools.Username) ?? throw new McpException("The admin account was not created.");
         var adminStaff = new Staff(admin.UserName!, admin.Id, string.Empty);
@@ -113,7 +113,11 @@ public sealed class DemoDataTools
 
     private sealed record Staff(string Username, Guid Id, string Password);
 
-    private static async Task<List<Staff>> CreateStaff(IMediator mediator, UserManager<ApplicationUser> users, CancellationToken ct)
+    private static async Task<List<Staff>> CreateStaff(
+        IMediator mediator,
+        UserManager<ApplicationUser> users,
+        IIdentityTransactions transactions,
+        CancellationToken ct)
     {
         // Invented names; usernames follow an initial.surname pattern. All staff are role User: the admin account is
         // the only Admin.
@@ -122,12 +126,10 @@ public sealed class DemoDataTools
         var created = new List<Staff>();
         foreach (var username in accounts)
         {
-            // The app generates each account's first password, as it does for accounts created in the UI.
-            var result = await Guards.Validated(() => mediator.Send(new CreateUserCommand(username), ct));
-            Guards.Check(result.Result, $"Create {username}");
-            await Guards.Validated(() => mediator.Send(new AssignRoleCommand(username, "User"), ct));
-            var user = await users.FindByNameAsync(username) ?? throw new McpException($"{username} was not created.");
-            created.Add(new Staff(username, user.Id, result.GeneratedPassword!));
+            // The app generates each account's first password, as it does for accounts created in the UI, but the
+            // demo staff can sign in with it straight away, without being made to change it.
+            var account = await AccountTools.CreateAccount(mediator, users, transactions, username, ["User"], null, ct);
+            created.Add(new Staff(username, account.Id, account.Password));
         }
         return created;
     }

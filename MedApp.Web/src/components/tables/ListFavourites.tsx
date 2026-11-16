@@ -79,7 +79,8 @@ export function ListFavourites({
   const isEmpty = currentKey === '[]';
   const quickShowing = quick.find((q) => keyOf(normalize(q.values)) === currentKey)?.label;
   const savedShowing = favourites.saved.find((f) => keyOf(normalize(f.values)) === currentKey)?.name;
-  const showing = quickShowing ?? savedShowing;
+  // A saved search someone named wins, so the label and the star's name agree.
+  const showing = savedShowing ?? quickShowing;
   const label = namesQuickFilters ? showing : savedShowing;
   const isSaved = favourites.saved.some((f) => keyOf(normalize(f.values)) === currentKey);
 

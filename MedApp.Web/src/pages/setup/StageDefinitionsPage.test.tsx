@@ -36,6 +36,11 @@ describe('StageDefinitionsPage', () => {
 
     // The search starts on the active ones; the archived ones are a favourite away.
     expect(searchBar()).toHaveTextContent(/Status: is\s*Active/);
+    // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
+    expect(screen.getByRole('button', {name: 'Favourites (showing Active)'})).toBeInTheDocument();
+    // (Each active row says Active in its status column too.)
+    const outsideBarMenuAndTable = (el: HTMLElement) => !searchBar().contains(el) && !el.closest('[role="menu"]') && !el.closest('table');
+    expect(screen.queryAllByText('Active').filter(outsideBarMenuAndTable)).toEqual([]);
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     await pickFavourite(user, 'Archived');
     expect(onSearchChange).toHaveBeenCalledWith({name: undefined, status: 'archived', page: undefined});
