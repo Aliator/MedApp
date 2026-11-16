@@ -27,6 +27,7 @@ Each document says what changed and why, how it works, the decisions and their t
 | [pr-54-project-handbook.md](pr-54-project-handbook.md) | The review of #54: the architecture handbook, its roadmap, and the record of choices | #54 | Merged | High (fixed in the review pass) |
 | [pr-55-my-tasks-favourite-tag.md](pr-55-my-tasks-favourite-tag.md) | The review of #55: no favourite name beside the star on My Tasks, and the plain-language format for review documents | #55 | Merged | Medium (a personal detail in the public `AGENTS.md`; fixed before merging) |
 | [pr-56-standard-review-format.md](pr-56-standard-review-format.md) | The review of #56: a standard, neutral format for review documents | #56 | Merged | Medium (nothing committed git-ignores the local file the format points to; the #55 review keeps the framing this PR removes) |
+| [pr-61-gdpr-pack.md](pr-61-gdpr-pack.md) | The review of #61: the draft data protection and information governance pack in `docs/governance/` | #61 | Merged | Medium (the DPIA's go-live gate leaves the wrong-patient risk high; the patient notice says data never leaves the UK; contract terms a small supplier can't keep; the breach procedure's shutdown is undone by Argo CD) |
 
 ## How the risks are graded
 
