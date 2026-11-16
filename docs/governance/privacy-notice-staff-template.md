@@ -20,6 +20,8 @@
 > - **Your account:** your username, your roles (staff or admin), and your password, stored only in a scrambled form (a "hash") that nobody can read back.
 > - **Your sign-ins:** each time you sign in, the time, your device's IP address, and your browser and operating system. MedApp also counts failed sign-ins, and locks an account for 5 minutes after 5 failures.
 > - **What you do:** every change you make to a procedure is recorded with your name and the time: for example starting or finishing a stage, the notes you write (old and new text), and status changes. MedApp also records which patient records, timelines and procedures you open, the patients your patient and procedure lists show you and which search fields you used (not what you typed), including through MedApp's FHIR interface, when you look up an NHS number (not the number), changes to patients' details, and when you sign in and out (and failed attempts), with your computer's network address. The names of the patients you've pinned in the side menu aren't recorded each time they're shown.
+> - **Your email address, if you give one:** used only to confirm it, to send you a link when you forget your password, and to tell you when how you sign in changes (your password, your address or two-factor authentication). Emails never contain patient information or passwords.
+> - **Two-factor authentication, if you turn it on:** the key your authenticator app shares with MedApp, and your one-time recovery codes.
 > - **Your settings:** your display preferences, accessibility settings and saved searches. They're stored with your account so they follow you between computers, and in your browser.
 > - **Your notifications:** for example when someone assigns you a procedure. You can turn that one off in Account Settings.
 > - **If you're an admin, your monitoring rules:** what you've asked to be told about, and about whom.
@@ -45,6 +47,7 @@
 Give these to every member of staff with a MedApp account. They support the DPIA's measures for free text and shared computers ([dpia.md](dpia.md), risks 1, 3 and 10).
 
 - **Your account is yours.** Never share your password or use someone else's account.
+- **Give MedApp an email address of your own,** not a team or shared mailbox: anyone who reads the mailbox can reset the password of every account that uses it. Check it's typed correctly; you confirm it yourself, signed in to MedApp.
 - **Look only at the records you need** for the care you're giving or the work you're doing.
 - **Write only what's needed** in notes, titles and reasons: no unnecessary details about other people, and no identifying details in procedure titles beyond what's needed.
 - **Sign out** when you leave a shared computer, and lock your screen when you step away.

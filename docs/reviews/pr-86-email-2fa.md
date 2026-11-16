@@ -83,7 +83,7 @@ MedApp can now email staff (a link to confirm an address, a link to reset a forg
 
 ## Findings
 
-Most severe first. Two are high. All twelve were open at the reviewed commit.
+Most severe first. Two are high. All twelve were open at the reviewed commit; each one's outcome is under "What happened to it".
 
 ### 1. Wrong codes sent at the same moment aren't limited, counted or logged
 
@@ -105,7 +105,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
   - **Add a per-account limit on code attempts** (as sign-in has per username), on `login/two-factor` and the three signed-in code checks.
   - **Bound guessing over time:** a lockout that grows with each lockout from codes (or a daily cap that needs a reset by email or an admin), and an email to the account holder after the first such lockout ("someone has your password").
   - **Tests:** an integration test that sends 30 wrong codes at once on one challenge and asserts at most 5 are checked, none is a 500, the count rises by exactly the number checked, and each is in the activity log; the same for regenerate.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. Each challenge attempt is reserved in one statement before the code is checked (`SignInChallengeRepository.TryReserveAttemptAsync`, `WHERE Id AND FailedAttempts < 5 AND ExpiresAtUtc > now`; no row means the same 401 `sign_in_expired`). Wrong codes and wrong passwords are counted in one statement, with the lockout applied by a second conditional one so only one request applies it (`AccountLockoutRepository`; `TwoFactorService`, `IdentityAuthenticationService` and `IdentityUserService.VerifyPasswordAsync` no longer use `AccessFailedAsync`); after a failed Identity update the user is detached (`Forget`), so the activity entry always saves. Each account gets at most 10 code checks in 15 minutes from any address, across sign-in and the signed-in checks (`AccountAttemptLimiter`, a 429 with `Retry-After`, logged as `TooManyCodes`), and `enable`, `disable` and `recovery-codes` are limited per address like sign-in. A lockout caused by codes doubles each time, to a day at most, until a complete sign-in (`CodeLockouts`, `ApplicationUser.TwoFactorLockouts`, in the migration), and emails the holder ("Wrong sign-in codes locked your MedApp account"). New recovery codes need the password as well as a code. `ParallelCodeTests` sends 30 wrong codes at once on one challenge (exactly 4 wrong-code answers and one lockout, the rest refused, no 500, the lockout and the email once), 30 right codes at once (one sign-in), and 30 wrong recovery-code requests with the real limit (9 checked after the sign-in's one, 21 refused with 429); `CodeLockouts_GrowEachTime…` checks the growth against SQL Server. One race remains, bounded: requests already past the lockout check when another one locks the account are still checked, within the per-account limit (seen: 9 checks, one lockout, with the limit at 10).
 
 ### 2. A session alone can take the account for good: change the address, confirm it, reset the password
 
@@ -122,7 +122,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
   - **Tell the account when a change is asked for, not only when it's confirmed:** an email to the current confirmed address and an in-app notification; with no confirmed address, an activity entry admins are told about.
   - **Give admins a way to remove an account's address** (and have the Users page's "reset password" offer it), so a takeover can be undone.
   - Correct ASVS 7.5.1 and T-18 until then. Tests: each endpoint refuses without the password.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. Changing or removing the address and turning two-factor on need the current password; new recovery codes and turning two-factor off need the password and a code (`PasswordConfirmation`; a wrong password is a 400 on `Password` and counts towards the lockout). Asking for a new address emails the confirmed one at once ("Someone asked to change your MedApp email address"), and changes are limited to 3 per account in 15 minutes. Admins can remove any account's address and any pending one (`DELETE api/auth/users/{username}/email`, `RemoveUserEmailHandler`, the Users page's "Remove email address"), recorded with the admin and told to the removed address. ASVS 7.5.1 and T-18 are corrected. Tests: `EmailAddressTests` (refused without the password, the notice of a request, the admin removal), `ParallelCodeTests` (enable and recovery codes without the password), and the handlers' unit tests. With no confirmed address, a request is in the activity log but no one is emailed: an in-app notice is on `docs/todo.md`'s list only for admins' two-factor.
 
 ### 3. A confirmation link proves a mailbox, not a person: a mistyped or shared address hands over the account
 
@@ -134,7 +134,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
   - `MedApp.Infrastructure/Common/Identity/PasswordResetService.cs:79` (a reset also clears the forced change of the admin's generated password)
   - `AGENTS.md:295` ("anonymous: the link proves the address"); `docs/security/asvs.md:218` (6.4.3, "Met")
 - **Fix:** make confirmation prove the account as well: `POST api/auth/email/confirm` requires the session of the account in the link (the page sends a signed-out visitor to sign in, then returns), so a stranger can never confirm someone else's address. For an admin-given address this means it's confirmed only after the person has signed in with the password the admin gave them. Say in `AGENTS.md` and the staff privacy notice that each account needs a personal address, not a team mailbox. Tests: a signed-out confirm, and a confirm from another account's session, are refused.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. `POST api/auth/email/confirm` needs a session of the account the link is for (`[Authorize]`; another account is a 400 `WrongAccount`, `ConfirmEmailHandler`). Signed out, `/confirm-email` keeps the link in `sessionStorage` and sends the person to sign in, then back (a same-origin redirect only, `safeRedirectPath`). Every hold allows the confirmation, so someone held to choose their first password can confirm an address an admin gave them; an admin-typed address is confirmed only by the person who knows the password they were given. `AGENTS.md` says each account needs an address of its own. Tests: `EmailAddressTests` (signed out is 401, another account's session is refused, the right one confirms) and `ConfirmEmailPage.test.tsx`.
 
 ### 4. On Azure, the pod with the page server can now reach every public address on 443 and 587
 
@@ -146,7 +146,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
   - `docs/security/threat-model.md:117` (T-23) and `:161` (risk 5) unchanged; `deploy/azure/README.md:198`
   - `deploy/helm/medapp/templates/api.yaml:78-80` still says the API's workload identity is hypothetical ("Harmless until then")
 - **Fix:** before the first Azure deploy, either run the page server as its own Deployment whose policy allows only the API (risk 5's own proposal), or limit egress by name (Cilium FQDN policies, or Azure Firewall). Meanwhile, update T-23 and risk 5 to say the pod reaches the internet on 443 and 587 on Azure, and fix the stale comment.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed for Azure, as decided. A `CiliumNetworkPolicy` (`templates/fqdnpolicy.yaml`, behind `networkPolicy.fqdnEgress.enabled`, on only in `deploy/azure/values.yaml`) allows the API pod `smtp.azurecomm.net:587`, the vault named in `dataProtection.keyVaultKeyUri` and `login.microsoftonline.com` on 443, with a DNS rule for Cilium's proxy; with it on, the standard NetworkPolicy drops its `0.0.0.0/0` rules (CI's helm job now renders Azure's values and fails on any `0.0.0.0/0`). `main.bicep` turns on Advanced Container Networking Services' FQDN policies (API 2025-08-01; its cost is in `deploy/azure/README.md`), and Argo CD's project allows the kind. The stale comment in `api.yaml` is corrected, and T-23 and risk 5 say what the pod reaches. Not tried on a real AKS cluster. What remains: the page server shares the pod, so it can reach the same shared services (the relay with an attacker's own credentials, another vault behind the same addresses); the page server in its own Deployment is on `docs/todo.md`.
 
 ### 5. Under the admin requirement, whoever signs in first enrols the admin's two-factor
 
@@ -154,7 +154,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
 - **What could go wrong:** admins are required to use two-factor, and one admin hasn't set it up yet. Someone with that admin's password signs in, is held to set it up, enrols their own phone, and the enable call ends the real admin's sessions. The real admin is now locked out of their own admin account and needs another admin. That's inherent in enrolling at next sign-in, but nothing narrows it: no notice to other admins, and the only email goes to the admin's address if they confirmed one.
 - **Evidence:** `MedApp.API/Common/Authentication/TwoFactorSetupRequired.cs:26-34` (the hold allows enrolment); `MedApp.Application/Authentication/TwoFactor/Commands/EnableTwoFactor/EnableTwoFactorHandler.cs:47`; `docs/security/threat-model.md:107` (T-19).
 - **Fix:** notify every admin (in-app, and by email where confirmed) when an admin enrols or is reset; show in Admin Settings which admins haven't enrolled; and say in T-19 that enrolment under the hold trusts the password alone.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed as far as decided. Every other admin with a confirmed address is emailed when an admin turns two-factor on, off or has it reset (`ISecurityNotices.SendToOtherAdminsAsync`), Admin Settings names the admins who haven't set it up (`SecuritySettingsResponse.AdminsWithoutTwoFactorUsernames`), turning it on needs the password, and T-19 says enrolment under the hold trusts the password alone. In-app notices to admins are on `docs/todo.md`.
 
 ### 6. Nothing caps the email MedApp sends
 
@@ -165,7 +165,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
   - **Addresses with a display name** (`"Payroll team" <x@y.test>`) are accepted, stored and shown as typed; mail goes to `x@y.test`, and a reset by that address never matches. CR/LF and lists are refused (probe).
 - **Evidence:** `MedApp.Infrastructure/Common/Email/EmailQueue.cs:41-46` (no overall limit); `MedApp.API/Controllers/AccountSecurityController.cs:145-152` (no rate limiting); `MedApp.Application/Authentication/Emails/Common/EmailAddressRules.cs:13-17`; `deploy/azure/README.md:153`.
 - **Fix:** an hourly cap below the provider's quota, with notices sent ahead of reset links; a per-account limit on `PUT me/email` like the reset one (3 in 15 minutes); parse addresses with MimeKit's `MailboxAddress.TryParse` and store only the bare address.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. Each copy sends at most `Email:MaxPerHour` emails a clock hour (`EmailBudget`; default 100, `email.maxPerHour: 8` in Azure's values, under the managed domain's 10), a fifth kept for notices, and notices are queued and sent before links (`EmailCategory`, two queues in `EmailQueue`); over the cap a message is dropped and logged by category. `PUT me/email` is limited to 3 per account in 15 minutes and needs the password. Addresses are parsed (`EmailAddressRules.Normalize`) and only the bare address is stored and used (display names dropped; lists and line breaks refused), for staff and for admins creating accounts. Each copy counts on its own (on `docs/todo.md`).
 
 ### 7. The activity log credits some actions to someone who didn't do them
 
@@ -173,7 +173,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
 - **What could go wrong:** when an admin gives a new account an address, the log records `EmailChangeRequested` **by the new account**, from the admin's address. Anonymous requests are recorded the same way: a reset request, a confirmation and a reset by link all appear as done by the account, from whoever's address sent them. In finding 3's scenario the log reads as if the new nurse confirmed the address, asked for a reset and chose a password.
 - **Evidence:** `MedApp.Application/Authentication/Users/Commands/CreateUser/CreateUserHandler.cs:50-52` (no actor passed); `MedApp.Application/Common/Security/ActivitySecurityEventLog.cs:22-25` (no actor means "by the account").
 - **Fix:** pass the admin as the actor in `CreateUserHandler`; record anonymous events with no actor and the account as the target (`targetUsername`), as an admin's action on someone else is.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. `CreateUserHandler` passes the admin as the actor, so the address an admin gives is recorded by the admin with the account as its target; events from a request nobody was signed in for (a reset link asked for or used) are recorded by nobody, from the request's address, with the account as its target (`ActivitySecurityEventLog`, `ActivitySecurityEventLogTests`). A confirmation is now always by the signed-in account (finding 3).
 
 ### 8. Email transport: opportunistic TLS by default, and addresses in failure logs
 
@@ -181,7 +181,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
 - **What could go wrong:** the app's default `Email:Smtp:Security` is `Auto`, which on port 587 means "TLS if the server offers it": anyone on the network path can strip the offer and read the SMTP password (on Azure, an Entra client secret) and every reset link. The chart and Azure's values set `StartTls`, so this bites only a deployment configured some other way. Separately, a failed send is logged with its exception, and a refused recipient's message usually quotes the address (`5.1.1 <name@example.org>: Recipient address rejected`), against "never the address".
 - **Evidence:** `MedApp.Infrastructure/Common/Email/EmailDeliveryOptions.cs:43`; `MedApp.Infrastructure/Common/Email/SmtpEmailTransport.cs:50-57`; `MedApp.Infrastructure/Common/Email/EmailDispatcher.cs:30`.
 - **Fix:** default to `StartTls`, and allow `None` or `Auto` only for a host on loopback or the chart's Mailpit; log the exception's type and SMTP status code, not its message.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. `Email:Smtp:Security` defaults to `StartTls`, and an unknown value means `StartTls` too (`SmtpEmailTransport.SecurityFor`); `Auto` and `None` must be asked for. `EmailDispatcher` logs a failure with the email's category, the exception's type and the SMTP status code only (`SmtpStatus`), never the exception's message.
 
 ### 9. Outside Azure, the keys sit unwrapped beside the security stamps they protect
 
@@ -189,7 +189,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
 - **What could go wrong:** T-35 calls unwrapped keys acceptable for kind and development, but the chart stores them unwrapped in any cluster that isn't given a Key Vault key, such as a customer's own. Anyone with a copy of the database (a backup, a DBA) has both the keys and each account's security stamp, so they can mint a reset token for any account and post it to `password/reset` directly, with no email involved; with the authenticator keys also in clear, they can pass two-factor too. Nothing at deploy time says so.
 - **Evidence:** `MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs:57-69`; `deploy/helm/medapp/values.yaml:146`; `docs/security/threat-model.md:131` (T-35).
 - **Fix:** support wrapping without Azure (`ProtectKeysWithCertificate`, from a Secret) in the chart, and have `NOTES.txt` warn (or the chart fail) when neither is set outside a Mailpit cluster; say so in T-35.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** partly fixed, as decided. The API logs a warning at startup outside Development when the keys aren't wrapped (`DataProtectionKeyCheck`), and the chart's `NOTES.txt` says the same after an install without a Key Vault key; T-35 now rates it medium elsewhere with real data. Wrapping with a certificate from a Secret is on `docs/todo.md`.
 
 ### 10. The CodeQL check is red, with eight false positives
 
@@ -197,7 +197,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
 - **What could go wrong:** the PR's code scanning check fails with 4 high and 4 medium "clear text storage" and "exposure of private information" alerts. Each is a log line whose value is an enum name or constant subject containing "Password" or "Email" (`PasswordReset`, `ResetPasswordSubject`, `EmailChanged`), not a secret. CodeQL isn't a required check, so the PR can merge, but a check that is always red teaches everyone to ignore it, and the next real alert hides among these.
 - **Evidence:** alerts 23 to 30 at `MedApp.Application/Common/Email/ISecurityNotices.cs:43`, `MedApp.Application/Common/Security/LoggingSecurityEventLog.cs:16`, `MedApp.Infrastructure/Common/Email/EmailQueue.cs:41` and `:46`; the check run [133302833321](https://github.com/Aliator/MedApp/runs/133302833321).
 - **Fix:** dismiss them as false positives with that reason, or log those values under names CodeQL's heuristic doesn't match (for example the notice's number).
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed in the code, not dismissed. The logged values were renamed so CodeQL's heuristic no longer matches them (`SecurityEventKind.ResetLinkRequested`, `ResetByLink`, `AddressChangeRequested`, `AddressConfirmed`, `AddressRemoved`; `SecurityNotice.ResetByLink`, `AddressChanged`, `AddressRemoved`; `EmailTemplates.ResetLinkSubject`, `ConfirmAddressSubject`), the notice's debug log no longer names it, and the email queue and dispatcher log only the email's category, never its subject. The stored `ActivityAction` names are unchanged. To be confirmed by the next CodeQL run on the PR.
 
 ### 11. `AGENTS.md` is rewritten from LF to CRLF
 
@@ -205,7 +205,7 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
 - **What could go wrong:** `main` has `AGENTS.md` with LF line endings; the branch has CRLF, so its 25 changed lines show as 1,001, and one stray carriage return sits in the middle of line 111, in the list of mappers just before `EmailMapper`, which CommonMark reads as a line break. Every other branch that edits `AGENTS.md` (most do) will conflict on the whole file after this merges, and `git blame` loses its history.
 - **Evidence:** `git diff --stat origin/main...HEAD -- AGENTS.md` (1,001 lines) against `--ignore-cr-at-eol` (29); `.gitattributes` fixes only `*.sh`. Two more files flip too (`CreateUserCommand.cs`, `CreateUserValidator.cs`).
 - **Fix:** convert them back to LF before merging (and take out the stray carriage return), and add `*.md text eol=lf` (or `* text=auto`) to `.gitattributes`.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. `AGENTS.md` is back to LF, with the stray carriage return in the list of mappers removed, and `.gitattributes` has `*.md text eol=lf` (every `.md` file on `main` is already LF, so nothing else is renormalised). `CreateUserCommand.cs` and `CreateUserValidator.cs` are LF in the branch, as on `main`.
 
 ### 12. Docs that claim more than the code does
 
@@ -217,17 +217,17 @@ Most severe first. Two are high. All twelve were open at the reviewed commit.
   - `docs/security/threat-model.md:117` and `:161` (T-23, risk 5): the page server's pod reaches the internet on Azure (finding 4).
   - `docs/security/asvs.md:447-449` (16.3.1 to 16.3.3, "Planned: not logged"): the activity log has recorded sign-ins since #68, and now every step here. Older than this PR, but the PR's own claims rest on it.
 - **Fix:** correct each with its finding.
-- **What happened to it:** open at the reviewed commit.
+- **What happened to it:** fixed. ASVS 6.1.1, 6.3.1, 6.4.3, 6.4.4, 7.5.1 and 16.3.1 to 16.3.3, threat model T-16 to T-19, T-23, T-35 and risk 5, and `AGENTS.md` (confirmation needs the account signed in, password re-checks, the limits, the growing lockout, the email cap) now say what the code does.
 
 ## Remaining risks
 
 - **Two-factor is optional:** most accounts still have only a password (DPIA residual risk high until it's required).
 - **Recovery codes and authenticator keys are in clear** in `AspNetUserTokens` (recorded: ASVS 6.5.2, `docs/todo.md`).
 - **A rollback silently drops two-factor:** the previous image ignores `TwoFactorEnabled`, so after a revert every account signs in with the password alone, with nothing to say so. Worth a line in the rollback notes.
-- **An admin's response to a takeover is incomplete** until admins can remove an address (finding 2).
+- **An admin's response to a takeover** is now a password reset, a two-factor reset and removing the address (finding 2); nothing yet lists an account's recent security events for them in one place, beyond the activity log.
 - **The SMTP password is an Entra client secret** that expires and works beyond SMTP; the Communication Services email SDK with the API's workload identity would need none.
 - **Two pods starting together on an empty key table** may each make a key; not tested (the integration test starts its two copies one after the other).
-- **Each copy counts its own limits**, so two copies allow twice the sign-in, code and reset attempts.
+- **Each copy counts its own limits**, so two copies allow twice the sign-in, code, address-change and reset attempts and emails an hour; the challenge's attempts and the lockout are in the database and shared.
 - **Mail queued when the API stops is lost,** and nothing retries.
 - **Not seen in a browser, on kind or on Azure** by this review.
 
