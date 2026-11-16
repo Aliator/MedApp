@@ -1,4 +1,4 @@
-import {formatDateTime, ageOn, formatDate, formatShortDate, timeAgo, todayIso} from './dates';
+import {formatDateTime, ageOn, formatDate, formatShortDate, parseUtc, timeAgo, todayIso} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -34,12 +34,64 @@ describe('formatDate', () => {
   it('has a short form for tables', () => {
     expect(formatShortDate('1976-12-01')).toBe('1 Dec 1976');
   });
+
+  it('keeps a date-only value (a due date) on its day, summer and winter, whatever the time zone', () => {
+    expect(formatDate('2026-07-01')).toBe('1 July 2026');
+    expect(formatShortDate('2026-07-01')).toBe('1 Jul 2026');
+    expect(formatDate('2026-11-03')).toBe('3 November 2026');
+    expect(formatShortDate('2026-11-03')).toBe('3 Nov 2026');
+  });
+});
+
+describe('the test time zone', () => {
+  it('is neither UTC nor UK time, so a UTC time misread as local shows', () => {
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('America/New_York');
+    expect(new Date(2026, 6, 1).getTimezoneOffset()).toBe(240);
+    expect(new Date(2026, 10, 3).getTimezoneOffset()).toBe(300);
+  });
+});
+
+describe('parseUtc', () => {
+  it.each([
+    // As the API sends them: from the database without a zone (before it marked them UTC), and with Z.
+    ['2026-07-01T13:05:00', Date.UTC(2026, 6, 1, 13, 5)],
+    ['2026-07-01T13:05:00Z', Date.UTC(2026, 6, 1, 13, 5)],
+    ['2026-11-03T13:05:00', Date.UTC(2026, 10, 3, 13, 5)],
+    ['2026-11-03T13:05:00Z', Date.UTC(2026, 10, 3, 13, 5)],
+    // .NET's seven decimal places.
+    ['2026-11-15T03:30:25.0763552', Date.UTC(2026, 10, 15, 3, 30, 25, 76)],
+    ['2026-11-15T03:30:25.0763552Z', Date.UTC(2026, 10, 15, 3, 30, 25, 76)],
+    // An offset is kept as given.
+    ['2026-07-01T14:05:00+01:00', Date.UTC(2026, 6, 1, 13, 5)],
+    ['2026-07-01T09:05:00-0400', Date.UTC(2026, 6, 1, 13, 5)],
+  ])('reads %s as UTC', (value, expected) => {
+    expect(parseUtc(value).getTime()).toBe(expected);
+  });
+
+  it.each(['2026-07-01', 'not a date', ''])('does not read %j as a moment', (value) => {
+    expect(Number.isNaN(parseUtc(value).getTime())).toBe(true);
+  });
 });
 
 describe('formatDateTime', () => {
-  it('shows a UTC moment in UK time, summer and winter', () => {
-    expect(formatDateTime('2026-07-01T13:05:00Z')).toBe('1 Jul 2026, 14:05');
-    expect(formatDateTime('2026-11-03T13:05:00Z')).toBe('3 Nov 2026, 13:05');
+  it.each([
+    ['2026-07-01T13:05:00Z', '1 Jul 2026, 14:05'],
+    ['2026-07-01T13:05:00', '1 Jul 2026, 14:05'],
+    ['2026-07-01T13:05:00.1234567', '1 Jul 2026, 14:05'],
+    ['2026-11-03T13:05:00Z', '3 Nov 2026, 13:05'],
+    ['2026-11-03T13:05:00', '3 Nov 2026, 13:05'],
+    ['2026-11-03T13:05:00.1234567', '3 Nov 2026, 13:05'],
+    // Across the clocks changing (29 March and 25 October 2026, at 01:00 UTC).
+    ['2026-03-29T00:30:00', '29 Mar 2026, 00:30'],
+    ['2026-03-29T01:30:00', '29 Mar 2026, 02:30'],
+    ['2026-10-25T00:30:00', '25 Oct 2026, 01:30'],
+    ['2026-10-25T01:30:00', '25 Oct 2026, 01:30'],
+  ])('shows the UTC moment %s in UK time: %s', (value, expected) => {
+    expect(formatDateTime(value)).toBe(expected);
+  });
+
+  it('leaves a date-only value as it is, as it is a whole day, not a moment', () => {
+    expect(formatDateTime('2026-07-01')).toBe('2026-07-01');
   });
 
   it('returns anything it cannot read unchanged', () => {
@@ -53,6 +105,13 @@ describe('formatDateTime', () => {
     expect(timeAgo('2026-07-01T11:00:00Z', now)).toBe('1 hour ago');
     expect(timeAgo('2026-07-01T09:00:00Z', now)).toBe('3 hours ago');
     expect(timeAgo('2026-06-29T09:00:00Z', now)).toBe('29 Jun 2026, 10:00');
+  });
+
+  it('reads a time without Z as UTC, summer and winter', () => {
+    expect(timeAgo('2026-07-01T11:00:00', new Date('2026-07-01T12:00:00Z'))).toBe('1 hour ago');
+    expect(timeAgo('2026-06-29T09:00:00', new Date('2026-07-01T12:00:00Z'))).toBe('29 Jun 2026, 10:00');
+    expect(timeAgo('2026-11-15T11:00:00', new Date('2026-11-15T12:00:00Z'))).toBe('1 hour ago');
+    expect(timeAgo('2026-11-13T09:00:00', new Date('2026-11-15T12:00:00Z'))).toBe('13 Nov 2026, 09:00');
   });
 
   it('gives back what it cannot read, and counts from now by default', () => {
