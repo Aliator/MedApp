@@ -12,8 +12,13 @@ Run everything from the repo root. `global.json` pins the SDK to 10.0.x, and eve
 
 ```bash
 dotnet build MedApp.sln                     # build everything
-dotnet test MedApp.UnitTests                # the only project with tests (CI runs this)
+dotnet test MedApp.UnitTests                # unit tests (CI's unit-tests job)
 dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run a subset
+dotnet test MedApp.IntegrationTests         # the API against SQL Server in Docker (needs Docker running; about 1.5 min)
+
+# End-to-end tests (Playwright) against the running AppHost, signed in as the local dev admin. They make their own
+# synthetic data and delete what the app can delete (MedApp.E2ETests/README.md lists what stays). Install Chromium once: pwsh MedApp.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium
+E2E_USERNAME=admin E2E_PASSWORD=admin dotnet test MedApp.E2ETests
 
 dotnet run --project MedApp.AppHost         # everything (needs Docker running): SQL Server container, API, React app, Aspire dashboard
 #   React app:      http://localhost:5173   (MedApp.Web; its commands are in MedApp.Web/README.md)
@@ -36,7 +41,7 @@ To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-d
 
 Azure (AKS, Azure SQL, Key Vault, Azure Container Registry) is in `deploy/azure`. It's written and checked, but **not deployed**. Its Bicep (`main.bicep`) is compiled and linted in CI. Deploying it costs money, so never run `deploy.sh` or `bootstrap.sh` without the user asking. Once it's set up, the Publish workflow's `azure` job deploys each merge through the `env/azure` branch; until then the job is skipped. Chart versions for both clusters are in `deploy/versions.sh`. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
+Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change to the API's behaviour, run `dotnet test MedApp.IntegrationTests` too. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
 
 ## Solution layout
 
@@ -54,8 +59,8 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the API's image from `MedApp.API/Dockerfile`, which holds the API, the built React app in `wwwroot` and Node to render its pages. |
 | `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive`), used by the API. The health checks are on the app's port in Development; elsewhere only on the port in `HealthChecks:Port` (8081 in Kubernetes, which nothing outside the pod reaches), and not at all without it. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators, Infrastructure services, and the API's own services (`Api/`). |
-| `MedApp.IntegrationTests` | Empty project shell, with no tests yet. |
-| `MedApp.E2ETests` | Playwright for .NET setup (base fixture, sign-in) for end-to-end tests of `MedApp.Web`. No tests yet; see its `README.md`. |
+| `MedApp.IntegrationTests` | NUnit tests of the real API in memory (`WebApplicationFactory<Program>`, run as Production) against SQL Server 2022 in Docker (Testcontainers): sign-in and sessions, authorisation, the forced password change, users, patients, procedures, notifications (with the SignalR hub), errors and the migrations. They also cover `SessionService` and `IdentityTransactions`, which unit tests can't. |
+| `MedApp.E2ETests` | Playwright for .NET tests of `MedApp.Web`'s main journeys: signing in and out, patients, a procedure's stages, My Tasks, a new user's first sign-in (with the forced password change), deleting a user, and the notification bell. See its `README.md`. |
 
 The top-level `Application/`, `Domain/`, `Infrastructure/`, `UnitTests/`, `IntegrationTests/` and `E2ETests/` folders hold only stale `bin/`/`obj/` output from an old layout. Ignore them and never add code there.
 
@@ -261,18 +266,33 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - Use synthetic data only. This is a medical app, so never put realistic patient PII in tests, seeds or fixtures.
 - Procedure handler tests derive from `ProcedureHandlerTestBase` (mocked repository and username lookup, fixed clock), and build procedures with `ProceduresTestConstants.CreateProcedure`.
 
+**Integration tests** (`MedApp.IntegrationTests`) test behaviour through HTTP that unit tests can't: real SQL translation, real Identity stores and transactions, the authentication handler and policies, the middleware.
+- `TestEnvironment` (a `[SetUpFixture]`) starts SQL Server once per run, applies the migrations and starts the API. Before each test, `IntegrationTest` empties the database with Respawn (keeping the migrations history and the seeded stage definition), then makes the first admin with the deploy's own `FirstAdminSetup`.
+- Do everything through the API where you can, with the helpers in `IntegrationTest` (`SignInAsAdminAsync`, `CreateStaffAsync`, `CreatePatientWithProcedureAsync`, ...). Use `RunInScopeAsync` for a service, and `ExecuteSqlAsync` only for what the API can't do, such as making a session expire.
+- A test that acts as an account an admin made must first change its generated password, or every other `/api` call is a 403 `password_change_required`. `CreateStaffAsync` does when the account has a role; an account with no role can't change it (that needs the Staff policy), so it keeps its generated password and stays held. To test the Staff policy itself, give the account a role, let it choose its password, then remove the role (`AuthorisationTests.StaffEndpoint_RolesRemoved_*`). `Auth/PasswordChangeRequiredTests` tests the hold itself, with `CreateForcedUserAsync`.
+- Constants are in `Common/Constants/IntegrationTestConstants.cs`.
+
+**End-to-end tests** (`MedApp.E2ETests`) drive the React app in Chromium, against the AppHost locally and the production image in CI. They derive from `E2ETest`.
+- Open pages with `OpenAsync`, which waits until React has taken over the server-rendered page; typing or clicking before then is lost.
+- Find elements as people do: `GetByRole` and `GetByLabel`, with their accessible names.
+- Make the data a journey needs through the API (`Api`), with unique synthetic names (`E2EData.UniqueName`), and register every clean-up with `Data.OnCleanUp`. Rely on nothing you didn't make, except the signed-in account and the default stage definition. The E2E account must be an admin.
+- Give accounts a test makes a password from `E2EData.NewPassword()`, new each run, never one written in the source, and keep passwords out of messages.
+- Missing `E2E_USERNAME` or `E2E_PASSWORD` fails the suite in CI (`CI=true`) and skips it locally. With `E2E_TRACE_DIR` set (only `main.yml` sets it), a failed test's Playwright trace is saved there.
+
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`, with six jobs:
+`.github/workflows/main.yml` runs on PRs to `main`, with eight jobs:
 - `web` checks `MedApp.Web`: `npm ci`, `npm audit --audit-level=high` (a high or critical advisory fails it), lint, type check, a check that the built theme is up to date, Vitest with coverage, and the full production build (`npm run build`: the client, the server rendering bundle and the page server).
-- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. Then Trivy scans it: every finding with a fix goes to code scanning (SARIF), and a critical vulnerability with a fix fails the job. Trivy runs from its own image, pinned by digest (`TRIVY_IMAGE`), never from `aquasecurity/trivy-action`, whose tags were hijacked in March 2026. `web`, `helm`, `unit-tests` and `image` are all required checks on `main`.
+- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. Then Trivy scans it: every finding with a fix goes to code scanning (SARIF), and a critical vulnerability with a fix fails the job. Trivy runs from its own image, pinned by digest (`TRIVY_IMAGE`), never from `aquasecurity/trivy-action`, whose tags were hijacked in March 2026. `web`, `helm`, `unit-tests`, `image`, `integration-tests` and `e2e` are all required checks on `main`.
 - `dependency-review` fails a PR that adds or updates a dependency (npm, NuGet, actions) with a known high or critical advisory, and comments on the PR when it does.
 - `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, an external database, and Azure's values), renders it, and compiles and lints the Azure Bicep (`deploy/azure`). It also renders the cluster services (Traefik, cert-manager, External Secrets and Argo CD) at the versions in `deploy/versions.sh`, with every values file and `--set` value that `deploy/kind/up.sh` and `deploy/azure/bootstrap.sh` give them. After changing one of those values files, run the same `helm template` locally.
 - `unit-tests` builds the dev MCP tool (`tools/MedApp.DevMcp`, which isn't in `MedApp.sln`), then runs `dotnet test MedApp.UnitTests` in Release with coverage.
+- `integration-tests` runs `dotnet test MedApp.IntegrationTests` in Release, with SQL Server in the runner's Docker (Testcontainers).
+- `e2e` tests the production image under the chart's restrictions (a read-only root with a writable `/tmp`, every capability dropped, no privilege escalation; one copy, without kind's Valkey backplane). It builds the image itself, reading the cache earlier runs left (it runs alongside the `image` job, so on a cold cache both build from scratch). It starts SQL Server in a step, on the runner's loopback with a random masked password, migrates with the image's `/app/efbundle`, makes the first admin with `create-first-admin` and a password generated for the run, starts the API on http://localhost:8080, then runs `MedApp.E2ETests` against it. A failed test's Playwright trace is uploaded as the `e2e-traces` artifact. The session cookie stays `Secure`: browsers keep it from `http://localhost`. Both new jobs read the repository only (`permissions: contents: read`).
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 
 What coverage counts (the aim is full coverage of everything with behaviour worth testing):
-- **.NET:** handlers, validators, domain logic, Infrastructure services, and the API (controllers, middleware, authentication, server rendering). Excluded: commands, queries, DTOs, repositories, DbContext, migrations, generated code (`obj/`), the Aspire service defaults, and wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), plus `SessionService` and `IdentityTransactions`, which need a real database.
+- **.NET:** handlers, validators, domain logic, Infrastructure services, and the API (controllers, middleware, authentication, server rendering). Excluded: commands, queries, DTOs, repositories, DbContext, migrations, generated code (`obj/`), the Aspire service defaults, and wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), plus `SessionService` and `IdentityTransactions`, which need a real database (the integration tests cover them, but don't count towards coverage).
 - **React:** everything in `src/` except generated code, the theme build, test helpers, the thin route files and the browser entry. `npm run coverage` (CI's web job) fails below the thresholds in `vite.config.ts`, set just under the current figures (99% lines, statements and functions, 92% branches).
 - New code comes with tests that cover it. Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
 
@@ -285,7 +305,7 @@ What coverage counts (the aim is full coverage of everything with behaviour wort
 - **Give each job only the permissions it needs,** at the job, not the workflow.
 - **NuGet audit:** every csproj treats NU1903 (high) and NU1904 (critical) as errors, for transitive packages too, so a newly published advisory fails the build until the package is updated. There's no `Directory.Build.props`, because the Dockerfile copies only the csproj files before restoring.
 
-`.github/workflows/e2e.yml` runs the (empty) E2E suite, only when started by hand.
+`.github/workflows/e2e.yml` runs the E2E suite by hand against an app already running somewhere (a URL you give it), with the credentials in the `E2E_USERNAME` and `E2E_PASSWORD` repository secrets (an admin account). **Those secrets don't exist yet: create them for a known deployment before using it.** Without them, the run fails rather than skips (in CI, missing credentials fail the suite; locally they skip it). It saves no traces, as a trace records the real credentials.
 
 `.github/workflows/publish.yml` runs on every push to `main` except docs-only changes, so it runs after each merge:
 1. `image` builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`). It then makes an SPDX SBOM of the pushed image (`anchore/sbom-action`, also uploaded as the `medapp-api-sbom` artifact) and attests both the build provenance and the SBOM (`actions/attest`), pushed to GHCR beside the image. It's the only job with `id-token: write` and `attestations: write`. Check an image with `gh attestation verify oci://ghcr.io/aliator/medapp-api:<commit> --repo Aliator/MedApp`. Nothing checks the attestations before a deploy yet.

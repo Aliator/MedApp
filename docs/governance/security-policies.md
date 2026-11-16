@@ -49,7 +49,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 
 | Requirement | Status |
 |---|---|
-| **Every change through a pull request** to `main`, with required CI checks (`web`, `image`, `helm`, `unit-tests`) | In place (repository ruleset) |
+| **Every change through a pull request** to `main`, with required CI checks (`web`, `image`, `helm`, `unit-tests`, `integration-tests`, `e2e`) | In place (repository ruleset) |
 | **Planning, implementation and a separate review** of every change: a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions, and not yet approved by a human; a high or critical finding blocks the merge | In place since #51 (`AGENTS.md`, "Effort for each stage of a change" and the merge flow; `docs/reviews/`). No second human reviewer yet (next row) |
 | **Tests** for all new behaviour, with coverage gates for the web app | In place (`.github/workflows/main.yml`) |
 | **Synthetic data only** in code, tests, seeds, fixtures and screenshots | In place (convention, `AGENTS.md`) |
