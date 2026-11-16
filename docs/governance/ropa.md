@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
+| **Version** | 0.2 (draft), 16 November 2026 |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 6 months, when a customer or sub-processor is added or removed, and when the processing changes |
@@ -45,14 +45,16 @@ All customers receive the same service, so the categories are the same for each.
 | # | Processing | Data subjects | Personal data (see [data-inventory.md](data-inventory.md)) | Operations |
 |---|---|---|---|---|
 | A3.1 | **Hosting the patient and procedure records** | Patients | Name, date of birth, email; procedures (title, notes, due date, priority, status); stage notes; assignments | Storage, retrieval, display, change, deletion, backup and restore, on the customer's staff's actions |
-| A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text | Recording, storage, retrieval by the customer's admins (the full trail) and staff (a per-patient timeline without its free text) |
+| A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text; who did what to which appointment and when, with old and new times and staff, old and new notes, and cancellation reasons | Recording, storage, retrieval by the customer's admins (the full trail) and staff (a per-patient timeline without its free text) |
 | A3.3 | **Staff accounts and sign-in** | Staff users | Username, password hash, roles, lockout state, sessions (IP address, browser), settings (including saved searches), notifications | Authentication, authorisation, storage |
-| A3.4 | **Live notifications** | Staff users; patients indirectly | Procedure title, assigner's username | Transmission between API copies through Valkey, display |
+| A3.4 | **Live notifications** | Staff users; patients indirectly | Procedure title (or "Appointment"), the username of whoever assigned, booked, moved or cancelled, an appointment's time; never a patient's name | Transmission between API copies through Valkey, display |
 | A3.5 | **Operating the service** | Staff users; patients indirectly | Application logs and traces, which can contain record IDs and URLs | Monitoring, troubleshooting, security investigation |
 | A3.6 | **Support, on the customer's instruction** | Patients; staff users | Whatever the instruction needs, under [support-access-policy.md](support-access-policy.md) | Viewing, correcting, exporting, restoring |
 | A3.7 | **Data subject requests and exit, on instruction** | Patients; staff users | All the customer's data | Export, correction, erasure, return and deletion at the end of the contract |
+| A3.8 | **Appointments** | Patients; staff users | The patient, optionally the procedure and stage, the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes, a cancellation reason, who requested or booked it and who recorded the outcome | Storage, retrieval, display, change and cancellation, on the customer's staff's actions; a request made automatically when a stage that involves a visit becomes current. Every staff user can see every appointment |
+| A3.9 | **Staff calendars** | Staff users | Time blocked off (its activity, such as annual leave or training, and a short note); a person's default week template and one day's changes to it | Storage; display to every staff user; changes by the calendar's owner or an admin |
 
-**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, and possibly A3.6).
+**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 21).
 
 **What the supplier does not do with customer data:** analytics, profiling, AI training, marketing, sale, research, or any purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md), section 1).
 
@@ -70,7 +72,7 @@ A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the co
 
 **In place in the code and the deployment design:**
 - **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
-- **Audit:** every change to a procedure is recorded with who, when and what, in the same database transaction, and kept after deletes.
+- **Audit:** every change to a procedure or an appointment is recorded with who, when and what, in the same database transaction, and kept after deletes. Staff never see appointment notes or cancellation reasons on the patient timeline, and appointment notifications carry no patient name.
 - **Transport:** TLS to the ingress, HSTS, and TLS to Azure SQL.
 - **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server.
 - **Platform:** Kubernetes with default-deny network policies, the `restricted` Pod Security Standard, non-root containers, read-only filesystems, and secrets from Key Vault through External Secrets; Entra ID-only access to the cluster; no stored cloud secrets (OIDC and workload identity).
@@ -109,3 +111,4 @@ Rows marked with brackets are to be filled in when the supplier picks those prov
 | Date | Change | By |
 |---|---|---|
 | 16 November 2026 | First draft | [Author] |
+| 16 November 2026 | 0.2: appointments (A3.8) and staff calendars (A3.9); appointment history in the audit trail (A3.2); appointment notifications (A3.4) | AI coding agent, for review |

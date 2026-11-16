@@ -1,6 +1,6 @@
 # MedApp architecture handbook
 
-**Status:** describes MedApp as it is on `main` after pull request #53 (a generated first password for new accounts), which followed #51 (the SSR security fixes) and #52 (the Azure setup and the deploy fixes). Written 15 November 2026, and checked against that `main` the same day.
+**Status:** describes MedApp as it is on `main` after pull request #53 (a generated first password for new accounts), which followed #51 (the SSR security fixes) and #52 (the Azure setup and the deploy fixes). Written 15 November 2026, and checked against that `main` the same day. Updated on 16 November 2026 for staff calendars and appointments (`feature/staff-calendars`), from their design (`docs/calendar-plan.md`): sections 1.1, 1.2, 3.3, 5.4 to 5.8, 6.3, 8.1, 8.2, 8.8, ADR-23, "Features worth adding" (scheduling), the glossary and the document map.
 
 **For:** a new senior engineer, an architect, a security assessor, or someone assessing the product for purchase (technical due diligence). It's the one document to read for the whole picture, end to end. It links to the detailed documents rather than repeating them.
 
@@ -36,7 +36,7 @@
 
 ### 1.1 What MedApp does
 
-MedApp is a patient and procedure management app for clinical staff. It records patients, and tracks the procedures done for them through a fixed sequence of stages, with a full audit trail.
+MedApp is a patient and procedure management app for clinical staff. It records patients, and tracks the procedures done for them through a fixed sequence of stages, with a full audit trail. Each member of staff has a calendar, on which staff book appointments with patients.
 
 | Area | What people can do |
 |---|---|
@@ -46,20 +46,22 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Status workflow** | The status moves by itself (assigned, in progress, in review) and by hand (complete, block or cancel with a reason, archive). The rules are in one place, `ProcedureWorkflow` ([section 5.6](#56-the-domain-model)). |
 | **Assignment** | Admins assign staff to procedures. Assignment decides whose task list a procedure appears on; it doesn't limit who may work on it. Changing a procedure that isn't yours asks for confirmation first, once per visit. |
 | **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
-| **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
+| **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions, and whether the stage involves a visit: none, suggested or required) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
+| **Calendars** | Each member of staff has a **calendar**: an 08:00 to 18:00 working day, UK time, Monday to Friday, in day and week views, with weekends greyed. Staff **block off time** on it for activities from an admin-managed list (Lunch, Training, Annual leave, ...). Admins write **day and week templates** that fill each week with its usual blocks, applied when the calendar is read; a person's default week can be changed for one day. Nothing may overlap, and past days don't change. Everyone can see everyone's calendar; blocks and templates on a calendar are changed by its owner or an admin. |
+| **Appointments** | Staff book an **appointment** for a patient with a member of staff, optionally for a procedure and stage, in a free slot. It goes from **Requested** (needs booking) to **Booked**, then **Attended** or **Did not attend**, or **Cancelled** with a reason; every change is kept in its history. When a stage that involves a visit becomes current, the app requests an appointment for it, and a stage whose visit is **required** can't be finished until the appointment is Attended, unless an admin finishes it with a reason. A **Needs booking** list shows the requested ones. The member of staff is notified when someone else books, moves or cancels their appointment. |
 | **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
-| **Notifications** | Being assigned a procedure (by someone else) sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
+| **Notifications** | Being assigned a procedure, or having an appointment booked, moved or cancelled (by someone else), sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
 | **Accessibility** | The target is WCAG 2.2 level AA (the Web Content Accessibility Guidelines). There's an accessibility statement at `/accessibility`, keyboard shortcuts, screen reader announcements, and an automated audit. |
 | **Half views** | Any two pages side by side, opened from the side navigation. |
 
-There are two roles. **Staff** (role `User`) can do nearly everything: patients, and creating and working on procedures. **Admins** (role `Admin`) can also manage users and roles, stage definitions and templates, assign staff, unlock stages, delete cancelled or archived procedures, and read the audit log. An admin account normally holds both roles.
+There are two roles. **Staff** (role `User`) can do nearly everything: patients, creating and working on procedures, booking and changing any appointment, and blocking time on their own calendar. **Admins** (role `Admin`) can also manage users and roles, stage definitions and templates, activity types and calendar templates, anyone's calendar, assign staff, unlock stages, finish a stage whose visit is required without one, delete cancelled or archived procedures, and read the audit log. An admin account normally holds both roles.
 
 ### 1.2 Who uses it
 
-- **Clinical and administrative staff** use it every day: they find patients, start procedures from templates, work stages, and follow their task list.
-- **Admins** set up the templates and stages, manage accounts, assign work and review the audit log.
+- **Clinical and administrative staff** use it every day: they find patients, start procedures from templates, work stages, book appointments, and follow their task list and their day's calendar.
+- **Admins** set up the templates and stages, activity types and calendar templates, manage accounts, assign work and review the audit log.
 - **The maintainer** develops and operates it, mostly through AI coding agents that follow `AGENTS.md` ([section 2.2](#22-organisational-constraints)).
 
 ### 1.3 Quality goals
@@ -210,7 +212,8 @@ These are outside the system today, and nothing in the code integrates with them
 - **No single sign-on** for app users (no OpenID Connect or SAML); accounts are local, with passwords.
 - **No email or SMS.** "Forgot password?" on the sign-in page is a stand-in that says a link was sent but sends nothing (`MedApp.Web/src/pages/login/ForgotPasswordDialog.tsx`). Notifications are in-app only.
 - **No clinical integrations:** no HL7 or FHIR, no electronic health record, no lab or imaging systems, no NHS number lookup.
-- **No scheduling, billing or patient portal.**
+- **No billing or patient portal.**
+- **Scheduling is for staff only.** Staff book appointments on staff calendars ([1.1](#11-what-medapp-does)). There's no patient self-booking, no reminders to patients, no rooms or resources, no recurring appointments, no bank holidays, and no link to another organisation's scheduling or patient administration system (`docs/calendar-plan.md`, section 8). Appointments are administrative: MedApp doesn't decide whether, when or with whom a patient is seen.
 - **No structured clinical data.** Notes are free text (Markdown).
 - **No file uploads.**
 
@@ -425,21 +428,32 @@ The pipeline, in order (`MedApp.ServiceDefaults/Extensions.cs`, `MedApp.API/Comm
 - `FinishProcedureStageHandler.cs`: a sealed class with its dependencies in its primary constructor;
 - `FinishProcedureStageValidator.cs`, when the input needs checking.
 
-There are 53 handlers and 30 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit, the patient timeline) and Notifications.
+There are 53 handlers and 30 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit, the patient timeline) and Notifications. Staff calendars add two more areas: Calendar (calendars, blocks, activity types, day and week templates) and Appointments.
 
 **The pipeline.** `AddApplication()` (`MedApp.Application/Common/Extensions/ServiceExtensions.cs`) registers MediatR by assembly scanning, with one open behaviour, `ValidationBehaviour<,>`, which runs the command's validators before its handler and throws FluentValidation's `ValidationException` on failure. It also registers every validator, `TimeProvider.System` (so handlers and validators that need "now" can be tested at a fixed time), and the `NotificationSender`.
 
 **Errors.** Handlers throw `NotFoundException` (404), `ConflictException` (409), `InvalidCredentialsException` (401) and `AccountLockedOutException` (423). The older Patients and Auth slices return `null`, `bool` or `IdentityResult` and leave the status code to the controller; `AGENTS.md` says to keep that style there unless migrating them.
 
-**Mappers.** Entities become responses only through hand-written static mappers, one per area, in that area's `Common/` folder: `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`, `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, and `UserMapper` (in Infrastructure, because `ApplicationUser` is an Infrastructure type). `PagedMapper` builds every search endpoint's `PagedResponse<T>`. No handler or controller builds a response from an entity itself, and no query returns a Domain entity to the API (#44). See [ADR-8](#9-architecture-decisions).
+**Mappers.** Entities become responses only through hand-written static mappers, one per area, in that area's `Common/` folder: `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`, `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `AppointmentMapper`, `CalendarMapper`, `CalendarSetupMapper`, and `UserMapper` (in Infrastructure, because `ApplicationUser` is an Infrastructure type). `PagedMapper` builds every search endpoint's `PagedResponse<T>`. No handler or controller builds a response from an entity itself, and no query returns a Domain entity to the API (#44). See [ADR-8](#9-architecture-decisions).
 
-**Paging.** The four search endpoints filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`). A patient's timeline is the exception: a feed paged by cursor (keyset), newest first by time then ID, so entries added meanwhile don't shift its pages (`PatientTimelineSearch`).
+**Paging.** The search endpoints (four, plus `GET api/appointments/search`) filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`). A patient's timeline is the exception: a feed paged by cursor (keyset), newest first by time then ID, so entries added meanwhile don't shift its pages (`PatientTimelineSearch`).
 
 **Procedures.** All workflow rules are in `MedApp.Application/Procedures/Common`:
 - `ProcedureWorkflow`: statuses, which stage is current, what can be edited, what status changes are allowed, overdue.
 - `ProcedureChange`: applies one request's changes, moves the status automatically, stamps `LastUpdated` and collects the audit entries.
 - `DueDates`: due dates as the end of a UK day, stored in UTC.
 - `ProcedureAudit`, `ProcedureMapper`, `ProcedureActor` (the signed-in user, from the claims).
+- For stage visits: `ProcedureWorkflow.WhyStageNeedsVisit` (a stage whose visit is required needs an Attended appointment before it's finished), and `ProcedureChange.RequestVisit` and `CancelRequestedVisit`, which collect the appointments and their history to save with the procedure change.
+
+**Calendars and appointments** (`docs/calendar-plan.md`, section 3). The calendar rules are in `MedApp.Application/Calendar/Common`:
+- `WorkingHours`: the working day (08:00 to 18:00 UK time, Monday to Friday), the slot length, and `WhyOutside(startUtc, endUtc)` for the validators.
+- `UkTime`: UK dates and clock times to and from UTC, and readable times for messages.
+- `TemplateHistory`: replacing a set of dated template rows from today, so past days keep what applied then.
+- `CalendarProjection`: a person's days, with the blocks their templates give each day, worked out when the calendar is read from the rows the repository loads (`CalendarData`). Nothing is generated ahead of time.
+- `CalendarClashes`: what a time would overlap. Commands that add or move something take a per-person database lock first (`ICalendarLock`), so two bookings for one slot can't both succeed.
+- `CalendarMapper`, `CalendarSetupMapper`.
+
+The appointment rules are in `MedApp.Application/Appointments/Common`: `AppointmentWorkflow` (statuses and what's allowed), `AppointmentChange` (applies a change and writes its history) and `AppointmentMapper`.
 
 **Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
 
@@ -449,7 +463,7 @@ There are 53 handlers and 30 validators in four areas: Authentication (users, ro
 
 **Repositories.** Six, registered in `AddRepositories()`: patients, procedures, stage definitions and templates, audit, user settings, notifications. Each method calls `SaveChangesAsync` itself; there's no unit of work. Reads use `AsNoTracking()`.
 
-The procedure repository is the exception, by design: handlers load a **tracked** procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(auditEntries)` saves the change and its audit entries in **one** `SaveChangesAsync`, so one database transaction. That way EF works out which stages and assignments changed, and no change can be saved without its audit entries.
+The procedure repository is the exception, by design: handlers load a **tracked** procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(change)` saves the change, its audit entries, and any appointments it requested or cancelled with their history, in **one** `SaveChangesAsync`, so one database transaction. That way EF works out which stages and assignments changed, and no change can be saved without its audit entries.
 
 **Identity.** ASP.NET Core Identity (`AddIdentityCore<ApplicationUser>().AddRoles<IdentityRole<Guid>>()`), with password and lockout rules from the `Identity` section of `appsettings.json`: at least 8 characters with a digit, a lower-case and an upper-case letter; 5 failed attempts lock the account for 5 minutes. Behind Application's interfaces:
 - `IdentityAuthenticationService`: checks a password, counts failures, honours lockout (#38).
@@ -460,7 +474,7 @@ The procedure repository is the exception, by design: handlers load a **tracked*
 
 **The first admin.** `FirstAdminSetup` (`MedApp.Infrastructure/Common/Identity/FirstAdminSetup.cs`) creates the `Admin` and `User` roles if missing, then, **only if there are no users at all**, an admin with both roles from `FirstAdmin:Username` and `FirstAdmin:Password`, in one transaction. It exits 0 when it made the admin or found accounts, and 1 when it isn't configured or Identity refuses. See [6.6](#66-first-install-migrations-and-the-first-admin).
 
-**Migrations.** Nine, in one linear history in `MedApp.Infrastructure/Migrations/`, from `InitialCreate` (30 January 2026) to `AddedNotifications` (15 November 2026). They're never applied at startup: in development by hand with `dotnet ef`, in Kubernetes by the migrations Job. The only seed data (`HasData`) is one archived stage definition, "Definition missing", kept for old rows.
+**Migrations.** Nine, in one linear history in `MedApp.Infrastructure/Migrations/`, from `InitialCreate` (30 January 2026) to `AddedNotifications` (15 November 2026). They're never applied at startup: in development by hand with `dotnet ef`, in Kubernetes by the migrations Job. The seed data is one archived stage definition, "Definition missing", kept for old rows, and, since staff calendars, six activity types (Lunch, Admin time, Training, Meeting, Annual leave and Travel). Staff calendars add one migration, `AddedStaffCalendars`.
 
 ### 5.6 The domain model
 
@@ -477,6 +491,19 @@ erDiagram
     USER ||..o{ SESSION : "signs in with, no foreign key"
     USER ||..o| USER_SETTINGS : "keeps, no foreign key"
     USER ||..o{ NOTIFICATION : "receives, no foreign key"
+    PATIENT ||--o{ APPOINTMENT : "has"
+    PROCEDURE |o--o{ APPOINTMENT : "may have, detached when deleted"
+    PROCEDURE_STAGE |o--o{ APPOINTMENT : "may need, as a visit"
+    APPOINTMENT |o..o{ APPOINTMENT_EVENT : "is recorded by, no foreign key"
+    USER |o..o{ APPOINTMENT : "is booked with once Booked, no foreign key"
+    USER ||..o{ CALENDAR_BLOCK : "blocks time with, no foreign key"
+    ACTIVITY_TYPE ||--o{ CALENDAR_BLOCK : "is the kind of"
+    DAY_TEMPLATE ||--o{ DAY_TEMPLATE_BLOCK : "has, dated"
+    ACTIVITY_TYPE ||--o{ DAY_TEMPLATE_BLOCK : "is the kind of"
+    WEEK_TEMPLATE ||--o{ WEEK_TEMPLATE_DAY : "has, dated"
+    DAY_TEMPLATE ||--o{ WEEK_TEMPLATE_DAY : "is used on"
+    USER ||..o{ STAFF_WEEK_TEMPLATE : "has as default week, dated, no foreign key"
+    WEEK_TEMPLATE ||--o{ STAFF_WEEK_TEMPLATE : "is the default of"
 ```
 
 | Entity | Key fields | Notes |
@@ -485,15 +512,23 @@ erDiagram
 | `PatientProcedure` | title, notes (Markdown), `DueDateUtc`, priority, status, `BlockedFromStatus`, `TemplateId` and `TemplateName` | Created only from a template. Keeps the template's name, in case the template changes. |
 | `PatientProcedureStage` | order, a **snapshot** of the definition's name, description and instructions; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished procedure. |
 | `PatientProcedureAssignment` | user, assigned by, assigned at | Drives task lists and notifications, not permissions. |
-| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), `IsArchived` | Archived, not deleted, once in use. |
+| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), `VisitRequirement` (none, suggested or required), `IsArchived` | Archived, not deleted, once in use. The stage copies `VisitRequirement` too. |
 | `PatientProcedureStageTemplate` and `…TemplateMap` | name, `IsArchived`; ordered definitions | A definition may appear more than once (for example a consultation before and after). |
 | `PatientProcedureAuditEntry` | procedure ID and title, patient ID, stage ID and name, action, user ID and username, `AtUtc`, details (JSON) | No foreign keys, so the history outlives deletes. |
-| `Notification` | user, kind, title, message, procedure ID, created, read at | No foreign keys, like the audit log. |
+| `Notification` | user, kind, title, message, procedure ID, appointment ID, created, read at | No foreign keys, like the audit log. |
+| `Appointment` | patient; procedure and stage (optional); member of staff, start and end (UTC; none while Requested); status; notes (2,000 characters); cancellation reason (500); `IsAutomatic`; who requested, booked and recorded the outcome, and when | Foreign keys to the patient, procedure and stage that don't cascade; none to the member of staff. One open (Requested or Booked) appointment per stage. |
+| `AppointmentEvent` | appointment, patient and procedure IDs, procedure title, stage name, action, user ID and username, `AtUtc`, member of staff and time, details (JSON: old and new times and staff, old and new notes, the cancellation reason) | The appointment's history. No foreign keys, like the audit log. |
+| `CalendarBlock` | member of staff, activity type, start and end (UTC), note (200 characters), created by and at | Time blocked off on a calendar. No foreign key to the member of staff. |
+| `CalendarActivityType` | name, colour (from a fixed palette), `IsArchived` | Seeded with six; archived, not deleted, once in use. |
+| `DayTemplate` and `DayTemplateBlock` | name, `IsArchived`; blocks of activity type, UK start and end time (`TimeOnly`), note, `ValidFrom` and `ValidTo` | The dates keep history: an edit closes changed rows and adds new ones from today (`TemplateHistory`). |
+| `WeekTemplate` and `WeekTemplateDay` | name, `IsArchived`; a day template for each weekday, `ValidFrom` and `ValidTo` | Dated, like day template blocks. |
+| `StaffWeekTemplate` | member of staff, week template, `ValidFrom` and `ValidTo` | A person's default week, dated. |
+| `CalendarDayOverride` and `CalendarBlockException` | member of staff, date; a day template (or none), or the template block not to show that day | One day's change to what the templates give. |
 | `UserSession` | user, created, expires, revoked, IP address, user agent | The session cookie holds its ID. |
 | `UserSettings` | user, one JSON document, updated at | The account's settings, as the React app stores them. |
 | `ApplicationUser` | Identity's user (in Infrastructure) | Roles `Admin` and `User`. |
 
-**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction` and `NotificationKind` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30).
+**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30).
 
 **The status workflow** (`ProcedureWorkflow`, `docs/procedures-ui-plan.md` section 4):
 
@@ -522,13 +557,33 @@ stateDiagram-v2
 - **Overdue** means open and past the due date. A blocked procedure is never overdue.
 - **Every response lists the status changes allowed from where the procedure is** (`allowedStatusChanges`), so the UI never has to repeat the rules.
 
-**Audit actions:** created, details updated, status changed, assigned, unassigned, stage started, stage notes updated (old and new text), stage finished, stage unlocked, deleted.
+**Audit actions:** created, details updated, status changed, assigned, unassigned, stage started, stage notes updated (old and new text), stage finished (with `withoutVisit`, the visit requirement and an admin's reason, when finished without a visit), stage unlocked, deleted.
 
 **Due dates** are whole days. A procedure is due by the end of its day in UK time, stored as that moment in UTC (`DueDates.EndOfDayUtc`), so the day survives the clocks changing. The API takes and returns a date.
 
+**Appointments** (`AppointmentWorkflow`, `docs/calendar-plan.md` section 1):
+
+```mermaid
+stateDiagram-v2
+    [*] --> Requested : asked for without a time, or by the app for a stage visit
+    [*] --> Booked : booked with a member of staff and a time
+    Requested --> Booked : booked, in the future, clash-free
+    Booked --> Booked : rescheduled, in the future, clash-free
+    Booked --> Attended : after its start
+    Booked --> DidNotAttend : after its start
+    Attended --> DidNotAttend : corrected
+    DidNotAttend --> Attended : corrected
+    Requested --> Cancelled : with a reason
+    Booked --> Cancelled : with a reason
+```
+
+- **Calendars hold no overlaps:** a Booked, Attended or Did not attend appointment, or a block (stored or from a template), can't overlap another on the same person's calendar (409).
+- **Stage visits:** when a stage whose definition involves a visit becomes current, `ProcedureChange` adds a Requested appointment for it, unless it already has one that's Requested, Booked or Attended. A **required** visit must be Attended before the stage is finished, unless an admin finishes it with a reason; a **suggested** one only asks for confirmation in the UI. Finishing the stage cancels its Requested appointments, and cancelling the procedure cancels all its Requested ones; Booked ones are never cancelled by the app.
+- **Deleting:** a patient with appointments can't be deleted. Deleting a procedure detaches its appointments. An account with upcoming Booked appointments can't be deleted.
+
 ### 5.7 The API surface
 
-57 HTTP endpoints in seven controllers, plus the SignalR hub. "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
+57 HTTP endpoints in seven controllers, plus the SignalR hub, at #53; staff calendars add the calendar and appointment endpoints in the last rows (`docs/calendar-plan.md`, section 4). "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
 
 | Area | Endpoints | Who |
 |---|---|---|
@@ -538,14 +593,19 @@ stateDiagram-v2
 | Own password | `PUT api/auth/users/{username}/update-password` | Staff, and only for your own username (`SelfUserOnly`) |
 | Own settings | `GET`/`PUT api/auth/me/settings` | Staff |
 | Patients | `POST`, `GET {id}`, `GET search`, `GET` (all), `PATCH {id}`, `DELETE {id}` under `api/patients` | Staff |
-| Procedures | `POST`, `GET {id}`, `GET search`, `PATCH {id}`, `POST {id}/status`, and stage `start`, `notes`, `finish` under `api/procedures/patient-procedures` | Staff |
+| Procedures | `POST`, `GET {id}`, `GET search`, `PATCH {id}`, `POST {id}/status`, and stage `start`, `notes`, `finish` under `api/procedures/patient-procedures`. `finish` takes an optional `{ withoutVisit, reason }`, which only an admin may use to finish a stage whose visit is required | Staff |
 | Procedure administration | `DELETE {id}`; `POST`/`DELETE {id}/assignments/{userId}`; `POST {id}/stages/{stageId}/unlock` | Admin |
 | Stage definitions and templates | reads under `api/procedures/patient-procedure-stage/definitions` and `/templates` | Staff |
 | | create, update, archive, restore, delete | Admin |
 | Audit log | `GET api/procedures/audit/search` | Admin |
-| Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures and the log's free text) |
+| Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor; procedure changes and appointment history), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures, and the free text of the log and of appointments) |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
+| Calendars | `GET api/calendar?staffUserId&from&to` (one person's days, at most 31, with their blocks, stored and from templates, and appointments); `GET api/calendar/staff` (everyone with a role, with their default week) | Staff |
+| A calendar's own setup | `POST api/calendar/blocks`, `PUT`/`DELETE blocks/{id}`; `PUT`/`DELETE staff/{userId}/days/{date}/template-blocks/{templateBlockId}` (one day's template block); `PUT`/`DELETE staff/{userId}/days/{date}/day-template` (a day template for one day, or back to the week's); `PUT staff/{userId}/week-template` (the default week; `GET` for staff) | The calendar's owner, or an admin |
+| Calendar setup | `api/calendar/activity-types`, `day-templates`, `week-templates`: list (`includeArchived`), get | Staff |
+| | add, edit, archive, restore, delete | Admin |
+| Appointments | `POST api/appointments` (request, or book); `GET {id}`, `GET search` (by patient, procedure, stage, staff, statuses, from and to); `POST {id}/book` (book or reschedule); `POST {id}/outcome`; `POST {id}/cancel` (with a reason); `PUT {id}/notes` | Staff |
 
 `GET api/patients` and `GET api/auth/users` return every row. Only the deprecated Blazor client uses them, and the UI parity tool's sign-in step uses `GET api/patients`; the React app uses the search endpoints. Swagger is served only in Development.
 
@@ -559,7 +619,7 @@ stateDiagram-v2
 | `app/` | `App`, providers, the query client, the settings store and its providers (colour mode, colours, text size, navigation, lists, accessibility, favourites), `SettingsSync`, `LiveNotifications`, announcements |
 | `auth/` | The `whoami` query, sign-in and sign-out, `requireAdmin` |
 | `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `procedures/` (`ProcedureCells`, `StageList`, `StageWork`, `StatusChangeDialog`, `PatientTimeline`), `shared/` (`AppIcon`, `RichText`) |
-| `pages/` | One folder per page: accessibility, account, audit, home, login, patients, procedures, setup (stage definitions and templates), tasks, users |
+| `pages/` | One folder per page: accessibility, account, audit, home, login, patients, procedures, setup (stage definitions and templates), tasks, users; and, with staff calendars, the Calendar, Needs booking, Calendar templates and Activity types pages |
 | `routes/` | Thin TanStack Router file routes that point at pages; `routeTree.gen.ts` is generated from them |
 | `ssr/` | `document.tsx` (the whole HTML document when rendering on the server), `requestContext.ts` (the per-request API address, cookie and key) |
 | `themes/medapp/` | The `medapp` theme (Astryx's stone theme with MedApp's blues), built ahead of time and checked in |
@@ -569,13 +629,19 @@ stateDiagram-v2
 | Route | Page | Who |
 |---|---|---|
 | `/change-password` | Choose your own password, after a generated one | Signed in, with a password to change |
-| `/` | Welcome | Staff |
+| `/` | Welcome, with your **day calendar**: today, with Previous and Next day, your appointments and blocks; an appointment opens its procedure, or the patient when it has none | Staff |
 | `/tasks` | My Tasks: Not started and Started | Staff |
+| `/calendar` | **Calendar:** day and week views, your own by default, with a staff picker for anyone's. Click or drag across empty slots (or use the keyboard) to book an appointment or block time; click an appointment or block to see and change it, or drag it to move it. The toolbar has Previous, Today, Next, a date picker, Day or Week, whose calendar, **This day's template** and **My default week**. In a narrow window or a half view, the week view becomes the day view | Staff |
+| `/calendar/needs-booking` | **Needs booking:** Requested appointments, soonest procedure due date first, each with Book | Staff |
 | `/patients`, `/patients/add`, `/patients/$id`, `/patients/$id/edit`, `/patients/$id/procedures` | Patients | Staff |
 | `/procedures`, `/procedures/new`, `/procedures/$id`, `/procedures/$id/edit` | Procedures | Staff |
 | `/account`, `/account/colours`, `/account/password` | Account settings | Staff |
 | `/accessibility` | Accessibility statement | Anyone signed in |
 | `/admin/users`, `/admin/stages`, `/admin/templates` (and `new`, `$id`), `/admin/audit` | Administration | Admin |
+| `/admin/calendar-templates` | **Calendar templates:** day and week templates (add, edit, archive, restore, delete when unused), and each member of staff's default week | Admin |
+| `/admin/activity-types` | **Activity types:** add, edit, archive, restore, delete when unused | Admin |
+
+**Booking** is one dialog (`BookAppointmentDialog`), opened from the patient page, the procedure page, a stage that needs a visit ("Book visit"), Needs booking, an empty calendar slot, or an appointment (to reschedule). It asks for the patient (and procedure and stage) unless they're known, the member of staff, the length (15 to 120 minutes; 30 by default), the day (the week's working days, with how many slots are free) and a free slot, with optional notes. Without a time, it can add the appointment to Needs booking instead. The procedure page lists a procedure's Booked appointments, so someone can tell the patient if the procedure is cancelled.
 
 **Data.** TanStack Query holds server state. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Every call goes through `api` and `unwrap` (`src/api/client.ts`). A 400 becomes an `ApiValidationError`, and `fieldStatus(errors, field)` puts each message on its field. The server's FluentValidation rules are the only rules; the client doesn't repeat them.
 
@@ -703,13 +769,13 @@ Each step is one API call. Each handler loads a tracked procedure, checks the ru
 | 3 | Staff | Open the procedure. If it isn't assigned to them, their first change asks "This procedure is not assigned to you, are you sure…" (a UI check, once per visit, not a permission) | `GET …/{id}` | Nothing | None |
 | 4 | Staff | Start the current stage | `POST …/{id}/stages/{stageId}/start` | Started at and by; status to `InProgress` | `StageStarted`, `StatusChanged` (automatic) |
 | 5 | Staff | Save the stage's notes (rich text, stored as Markdown); starts the stage if needed | `PUT …/{id}/stages/{stageId}/notes` | The notes | `StageNotesUpdated`, with the old and new text |
-| 6 | Staff | Finish the stage | `POST …/{id}/stages/{stageId}/finish` | Finished at and by; locked. After the last stage, status to `InReview` | `StageFinished`, then `StatusChanged` (automatic) after the last |
+| 6 | Staff | Finish the stage. If its visit is required, it needs an Attended appointment first, or an admin finishing it with a reason; if suggested, the UI asks for confirmation | `POST …/{id}/stages/{stageId}/finish` | Finished at and by; locked. After the last stage, status to `InReview`. Its Requested appointments are cancelled, and if the next stage involves a visit, a Requested appointment is added for it | `StageFinished` (with `withoutVisit` when finished without a visit), then `StatusChanged` (automatic) after the last; the appointments' own history entries |
 | 7 | Staff | Mark it complete | `POST …/{id}/status` | `Completed`, only from `InReview` with every stage finished and locked | `StatusChanged` |
 | 8 | Admin | Unlock a finished stage to correct it | `POST …/{id}/stages/{stageId}/unlock` | Unlocked (still finished); an `InReview` or `Completed` procedure goes back to `InProgress`. Finishing it again re-locks it | `StageUnlocked`, `StatusChanged` (automatic) |
 | 9 | Staff | Archive it | `POST …/{id}/status` | `Archived` | `StatusChanged` |
 | 10 | Admin | Delete it (only `Cancelled` or `Archived`) | `DELETE …/{id}` | The procedure and its stages and assignments | `Deleted`, which outlives the procedure |
 
-Blocking and cancelling (each with a reason) work the same way as step 7. Details (title, notes, due date, priority) are edited with `PATCH …/{id}`, which writes `DetailsUpdated` with the fields' old and new values.
+Blocking and cancelling (each with a reason) work the same way as step 7; cancelling also cancels the procedure's Requested appointments, but not its Booked ones. Creating a procedure whose first stage involves a visit adds a Requested appointment for it in step 1. Details (title, notes, due date, priority) are edited with `PATCH …/{id}`, which writes `DetailsUpdated` with the fields' old and new values.
 
 **Reading the trail.** Admins search the whole log at `/admin/audit` (`GET api/procedures/audit/search`), by procedure, stage, user, action and date range, newest first. A procedure page links to its own log. Each entry keeps the username and the procedure's title as they were, so it reads correctly after renames and deletes. Staff see who started and finished each stage on the stage itself.
 
@@ -1015,7 +1081,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 - **The API is the only enforcement.** The React app's guards (`_app`, `requireAdmin`) and hidden admin buttons are conveniences.
 - **Roles are re-read on every request,** so a change applies at once.
 - **"Not assigned to you" is not a permission.** Any staff member may work on any procedure; the confirmation is a UI safeguard, and the audit log records who acted (procedures plan, decision 18).
-- **All staff see all patients.** There's no restriction by team, ward or care relationship.
+- **All staff see all patients,** and all calendars and appointments. There's no restriction by team, ward or care relationship. Any staff member may book, move or cancel any appointment; a calendar's blocks and its day and week templates are changed only by its owner or an admin.
 - **Only two endpoints' attributes are tested.** The own-password change (#51) and creating a user (#53) have tests that evaluate their `[Authorize]` attributes with the API's real policies. The other controller tests call actions directly through a recording mediator, so a missing or wrong `[Authorize]` anywhere else wouldn't fail a test ([11.1](#111-security-and-privacy)).
 
 #### Sessions and cookies
@@ -1106,16 +1172,16 @@ This describes what the code does today. It isn't a compliance statement; [secti
 
 | Topic | Today |
 |---|---|
-| **Personal data held** | Patients: name, date of birth, email. Procedures: titles, notes and stage notes, free text that will in practice hold clinical information. Staff: username, password hash, and on each session the IP address and browser user agent. Audit entries: usernames, and the old and new text of every notes change. Notifications: the procedure's title. |
+| **Personal data held** | Patients: name, date of birth, email. Procedures: titles, notes and stage notes, free text that will in practice hold clinical information. Staff: username, password hash, and on each session the IP address and browser user agent. Audit entries: usernames, and the old and new text of every notes change. Notifications: the procedure's title. Appointments: the patient, the member of staff, the time, the status, notes and a cancellation reason (free text about the patient), and their history with old and new notes. Calendar blocks: the member of staff, the time, the activity (Annual leave, Training, ...) and a short note, about staff. |
 | **Minimisation** | The patient record is deliberately small. Free text isn't limited by structure. |
 | **At rest** | In SQL Server. Azure SQL encrypts data at rest by default (transparent data encryption), which the Bicep doesn't change. On kind, the data is on the SQL Server pod's volume. No column-level encryption. |
 | **In transit** | TLS to the ingress; encrypted to Azure SQL; plain inside the cluster to Valkey (which carries procedure titles) and, on kind, to SQL Server. |
 | **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and procedures are kept only in the browser, as IDs. No patient records are stored in the browser. Signing out clears the query cache, but not `localStorage`. |
 | **In logs** | EF Core logs every SQL command at Information level, but without parameter values (sensitive data logging is off). Nothing logs patient fields on purpose. |
-| **Who can see what** | Every staff member sees every patient and procedure. Only admins read the audit log; staff see each patient's timeline without its free text. |
+| **Who can see what** | Every staff member sees every patient and procedure, and every calendar and appointment. Only admins read the audit log; staff see each patient's timeline without its free text (no appointment notes or cancellation reasons either). |
 | **Access logging** | **Reads aren't logged.** Changes to procedures are fully audited; changes to patients (create, edit, delete) and to accounts and roles are not. |
-| **Retention** | None. Nothing is ever purged: patients, procedures, audit entries, notifications and expired sessions stay forever. |
-| **Erasure** | A patient with procedures can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design. There's no export for subject access requests. |
+| **Retention** | None. Nothing is ever purged: patients, procedures, appointments and their history, calendar blocks, audit entries, notifications and expired sessions stay forever. |
+| **Erasure** | A patient with procedures or appointments can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design, and detaches its appointments, whose history keeps the procedure. There's no export for subject access requests. |
 | **Backups** | Azure SQL: 7 days of point-in-time restore, locally redundant. kind: none. Development: `medapp-dev` snapshots. No restore has been tested. |
 | **Residency** | UK South by default on Azure. GitHub holds only code and the public image. |
 | **Test data** | Synthetic only, by convention (`AGENTS.md`); the demo seeds invent names and use `@example.com` addresses. |
@@ -1189,6 +1255,7 @@ This describes what the code does today. It isn't a compliance statement; [secti
 
 - **Timestamps are UTC,** set in handlers from an injected `TimeProvider`, so tests run at a fixed time. (`SessionService` is the exception: it reads `DateTime.UtcNow` directly.)
 - **Due dates are whole days** in UK time, stored as the end of that day in UTC (`DueDates`), and sent and received as dates.
+- **Calendars work in UK time and store UTC.** The working day is 08:00 to 18:00 UK time (Europe/London). Appointments and blocks are stored and sent as UTC. Template times are UK clock times (`TimeOnly`), turned into UTC for each date by `UkTime`, so a 12:00 lunch stays at 12:00 UK time across a clock change; template history is dated in UK dates. The calendar response gives each day's working start and end in UTC, so the browser steps through slots without time zone arithmetic. A UK working day never spans a clock change (they happen at 01:00 and 02:00).
 - **The UI is `en-GB`:** UK date formats, and calendars starting on Monday. Dates go to the API as ISO `YYYY-MM-DD`.
 
 ### 8.9 Persistence conventions
@@ -1237,6 +1304,7 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | ADR-20 | **Health checks on their own port, 8081** (#48) | Kubernetes needs HTTP probes, which shouldn't be public. | On the app's port, hidden by ingress rules; TCP probes only (as before #48). | The public can't reach them. But 8081 also serves the whole app, so the Service and the network policy are what keep it private. |
 | ADR-21 | **On Azure: Cilium for network policy, private Azure SQL, OIDC and workload identity, and SQL authentication as a first step** (#52) | The chart relies on NetworkPolicies being enforced; Azure's own policy manager can't be enabled on new subscriptions (`docs/reviews/azure.md`). | Passwordless SQL from the start. | No stored cloud secrets. The app signs in to Azure SQL as the server admin until passwordless SQL and a least-privilege user are done. |
 | ADR-22 | **.NET Aspire for development, with SQL Server in a persistent container** (Q1, Q2; #26) | One command for the whole stack, and a database close to production's. | LocalDB (the old way); docker-compose. | Simple start-up and a dashboard; needs Docker Desktop and its licence; migrations are still applied by hand. |
+| ADR-23 | **Calendar templates applied when a calendar is read, with history kept by dated rows; clashes refused on the server under a lock per member of staff** (`docs/calendar-plan.md`, decisions 6 and 11) | Templates fill every week with its usual blocks, and must change from today without rewriting past days. Two people can book the same slot at once. | (Inferred) generating each day's blocks ahead of time with a background job; copying a template's rows on every edit; a unique index or a serialisable transaction instead of an application lock. | Nothing runs in the background, and an edit shows on every day it applies to at once; a past day shows what applied then. Reading a calendar does more work (`CalendarProjection`), and dated rows must be changed only through `TemplateHistory`. The lock (`sp_getapplock`) ties clash checking to SQL Server. Something already booked can come to overlap a later template change; both show, flagged, and nothing is moved. |
 
 ---
 
@@ -2126,7 +2194,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 These go beyond step 9, ranked by how often comparable products offer them and how often buyers ask. Each needs a hazard assessment (step 6) and a DPIA update (step 3).
 
 1. **Patient messaging and reminders.** SMS and email reminders, with replies. It's one of the most common features in clinical and clinic software ([Accurx](https://www.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-15/services/650967208338040), [Pabau](https://www.pabau.com/pricing/)).
-2. **Scheduling.** Book the appointments a procedure's stages need (pre-assessment, the procedure, follow-up), with calendar views and patient self-booking. Every clinic system has it ([Jane](https://jane.app/pricing), [WriteUpp](https://www.writeupp.com/pricing)).
+2. **Scheduling.** Book the appointments a procedure's stages need (pre-assessment, the procedure, follow-up), with calendar views and patient self-booking. Every clinic system has it ([Jane](https://jane.app/pricing), [WriteUpp](https://www.writeupp.com/pricing)). **Partly built:** staff calendars, booking by staff and stage visits (`docs/calendar-plan.md`). Still to do: patient self-booking and reminders, rooms and resources, recurring appointments, and closed days (`docs/todo.md`, "Calendar follow-ups").
 3. **Patient questionnaires and a portal.**
    - Pre-assessment questionnaires and outcome measures that patients complete themselves ([Ultramed](https://www.applytosupply.digitalmarketplace.service.gov.uk/g-cloud/services/799143724896306)).
    - NHS login for identity. It must be sponsored by an NHS organisation and takes three to four months to integrate ([NHS England](https://digital.nhs.uk/services/nhs-login/nhs-login-for-partners-and-developers)).
@@ -2362,9 +2430,11 @@ All accessed on or before 15 November 2026.
 | Term | Meaning |
 |---|---|
 | **ACR** | Azure Container Registry: Azure's private store for container images. |
+| **Activity type** | One kind of blocked time on a staff calendar (Lunch, Training, Annual leave, ...), with a colour; admins manage the list. |
 | **ADR** | Architecture decision record: a short note of a decision, its context, the alternatives and the consequences. |
 | **AKS** | Azure Kubernetes Service: Kubernetes run by Microsoft, with MedApp on its virtual machines. |
 | **AppHost** | The .NET Aspire project (`MedApp.AppHost`) that starts the development stack. |
+| **Appointment** | A patient booked with a member of staff at a time, optionally for a procedure's stage: Requested (needs booking), Booked, Attended, Did not attend or Cancelled. |
 | **AppProject** | An Argo CD setting that limits what its Applications may deploy, and where. |
 | **arc42** | A standard template for describing software architecture, in twelve sections. |
 | **Argo CD** | A tool running in the cluster that keeps it in step with a git branch. |
@@ -2376,6 +2446,7 @@ All accessed on or before 15 November 2026.
 | **Backplane** | A shared message relay that lets several copies of a server pass real-time messages to each other's connections. |
 | **Bicep** | Microsoft's language for describing Azure resources as code. |
 | **Blazor WebAssembly** | Microsoft's framework for C# web UIs that run in the browser; MedApp's original UI. |
+| **Block (calendar)** | Time a member of staff has blocked off on their calendar for an activity type, so nothing can be booked over it. |
 | **cert-manager** | A Kubernetes add-on that gets and renews TLS certificates. |
 | **CI** | Continuous integration: the automatic build and tests on every pull request. |
 | **Cilium** | A Kubernetes network plugin, used on AKS to route traffic and enforce network policies. |
@@ -2387,6 +2458,7 @@ All accessed on or before 15 November 2026.
 | **CQRS** | Command and query responsibility segregation: separate objects for changing data (commands) and reading it (queries). |
 | **CSP** | Content Security Policy: a response header that limits what a page may load and run. |
 | **CSRF** | Cross-site request forgery: another site making a signed-in browser send a request. |
+| **Day template, week template** | A named set of blocks for one day; a named set of day templates for Monday to Friday. A person's default week template fills their calendar, worked out when it's read. |
 | **DCB0129, DCB0160** | NHS England's clinical risk management standards for makers and users of health IT. |
 | **DPIA** | Data protection impact assessment, required by UK GDPR for high-risk processing. |
 | **DSPT** | The NHS Data Security and Protection Toolkit. |
@@ -2416,6 +2488,7 @@ All accessed on or before 15 November 2026.
 | **MCP** | Model Context Protocol: a standard way to give an AI agent tools. `medapp-dev` is an MCP server. |
 | **MediatR** | A .NET library that sends each command or query to its handler, through a pipeline. |
 | **Migration** | A versioned change to the database schema, kept in code. |
+| **Needs booking** | The list of Requested appointments: asked for, with no member of staff or time yet. |
 | **NetworkPolicy** | Kubernetes rules for which pods may talk to which. |
 | **Node.js** | JavaScript run outside a browser; it runs the page server. |
 | **OIDC** | OpenID Connect: a sign-in standard; here, GitHub proving its identity to Azure without a secret. |
@@ -2445,6 +2518,7 @@ All accessed on or before 15 November 2026.
 | **TLS** | Transport Layer Security: the encryption behind https. |
 | **Traefik** | The ingress controller MedApp uses. |
 | **Valkey** | An open-source, BSD-licensed fork of Redis, an in-memory data store; here, only a message relay. |
+| **Visit requirement** | Whether a stage involves seeing the patient: none, suggested (finishing without one asks for confirmation) or required (it needs an Attended appointment, unless an admin finishes it with a reason). |
 | **Vite, Vitest** | A JavaScript build tool and dev server, and the test runner built on it. |
 | **WCAG** | Web Content Accessibility Guidelines; 2.2 AA is the level MedApp targets. |
 | **WebSocket** | A long-lived two-way connection between browser and server. |
@@ -2479,6 +2553,7 @@ As of `main` at `eef92dd`, after #53. The code (or, for repository settings, Git
 | Conventions for the React app | `MedApp.Web/AGENTS.md`, `MedApp.Web/README.md` |
 | Why and how the UI moved from Blazor to React | `docs/react-migration-plan.md` |
 | The procedures concept and its decisions | `docs/procedures-ui-plan.md` |
+| Staff calendars, appointments and stage visits, and their decisions | `docs/calendar-plan.md` |
 | Smaller open items | `docs/todo.md` |
 | Clinical safety (DCB0129 drafts) and the medical device decision | `docs/clinical-safety/README.md` and the documents it lists |
 | Data protection and information governance: DPIA, ROPA, retention, contracts, privacy notices, DSPT (drafts) | `docs/governance/README.md` |

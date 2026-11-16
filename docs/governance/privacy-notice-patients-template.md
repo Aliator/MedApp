@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft template), 16 November 2026 |
+| **Version** | 0.2 (draft template), 16 November 2026: adds appointments |
 | **For** | Customers, to adapt and publish to their patients |
 | **Prepared by** | [Company name], the supplier of MedApp |
 
@@ -18,7 +18,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 
 > **The systems we use to coordinate your care**
 >
-> We use a system called MedApp to record your details and to organise the steps of procedures you have with us, such as [pre-assessment, the procedure itself and follow-up]. Our staff record notes at each step, and the system keeps a record of who made each change and when.
+> We use a system called MedApp to record your details, to organise the steps of procedures you have with us, such as [pre-assessment, the procedure itself and follow-up], and to book your appointments with our staff. Our staff record notes at each step and about appointments, and the system keeps a record of who made each change and when, including whether you attended an appointment and why one was cancelled.
 >
 > MedApp is provided by [Company name], which runs it for us. [Company name] acts only on our instructions. It can't use your information for its own purposes, and it's bound by a contract and a duty of confidentiality.
 >
@@ -32,11 +32,11 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > **Who we are.** [Customer name], [address], is responsible for your information (the "controller"). Our data protection officer is [DPO name], [DPO contact]. [Our Caldicott Guardian is [name].]
 >
-> **What we hold about you.** Your name, date of birth and email address; the procedures you are having with us, and their dates and progress; and notes our staff write about your care. [Add anything else you hold in other systems.]
+> **What we hold about you.** Your name, date of birth and email address; the procedures you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled); and notes our staff write about your care. [Add anything else you hold in other systems.]
 >
 > **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you].
 >
-> **Why we use it.** To provide and coordinate your care, to keep an accurate record of it, and to make sure the right staff do the right things at the right time.
+> **Why we use it.** To provide and coordinate your care, to book your appointments, to keep an accurate record of it, and to make sure the right staff do the right things at the right time.
 >
 > **Our legal basis.** *Choose one:*
 > - *NHS bodies:* We use your information to carry out our public task of providing health care (UK GDPR Article 6(1)(e)). Because it's health information, we also rely on Article 9(2)(h), for the provision of health care, and the Data Protection Act 2018, Schedule 1, Part 1, paragraph 2.
@@ -75,3 +75,4 @@ Write it so your patients can understand it: plain words, short sentences, and a
 - **Accessibility.** Publish the notice in an accessible format, and offer it in other formats and languages on request.
 - **Where to publish it.** On your website, in waiting areas, in appointment letters, and in the information given before a procedure.
 - **Keep it true.** If you change how you use MedApp (for example sharing records with another organisation), update the notice before you do it.
+- **Appointment reminders.** MedApp doesn't send patients reminders or confirmations. If you send them from another system, your notice should say so.

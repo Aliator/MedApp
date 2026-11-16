@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
+| **Version** | 0.2 (draft), 16 November 2026: adds appointments and staff calendars |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 12 months, and when the NHS Records Management Code of Practice changes |
@@ -24,10 +24,11 @@ How long each kind of data in MedApp is kept, and what happens at the end. It se
 ## 2. Clinical records
 
 **The trigger, "the conclusion of treatment",** is worked out per patient by MedApp (to be built): the latest of
-- the date the patient's last procedure was completed, cancelled or archived, and
+- the date the patient's last procedure was completed, cancelled or archived,
+- the date of the patient's last appointment that was attended, not attended or cancelled, and
 - the date the patient's record was last changed,
 
-counted only once the patient has no open procedures. MedApp doesn't record deaths yet (a deceased flag comes in step 9), so the periods after death in the Code can't be applied yet; the longer period applies until then.
+counted only once the patient has no open procedures and no Requested or Booked appointments. MedApp doesn't record deaths yet (a deceased flag comes in step 9), so the periods after death in the Code can't be applied yet; the longer period applies until then.
 
 **Retention classes.** Each procedure template has a retention class, set by the customer's admin (to be built). A patient's records are kept for the longest period among their procedures' classes.
 
@@ -48,8 +49,10 @@ Everything about the patient, kept and destroyed together:
 - the `Patient` row
 - their procedures, stages, stage notes and assignments
 - the audit entries about them (`PatientProcedureAuditEntry`, matched by `PatientId`), including entries for procedures already deleted
+- their appointments (`Appointment`, by `PatientId`, including those detached from a deleted procedure), with their notes and cancellation reasons
+- their appointment history (`AppointmentEvent`, matched by `PatientId`), which keeps copies of old notes and cancellation reasons and outlives the appointment
 - note versions and access audit entries, once step 7 adds them
-- notifications about their procedures (already gone under section 3, which is shorter)
+- notifications about their procedures and appointments (already gone under section 3, which is shorter)
 
 ### At the end of the period
 
@@ -68,11 +71,14 @@ Everything about the patient, kept and destroyed together:
 | **Sessions** (`UserSession`: IP address, browser, times) | **12 months** after the session was created | Deleted automatically | Long enough to investigate account misuse reported late; sessions last 8 hours (24 at most, if extended), so nothing operational needs them after that. |
 | **Sign-in and security events** (step 7: sign-ins, failures, refused requests, MFA changes) | **12 months** | Deleted automatically | As sessions. |
 | **Access audit** (step 7: who viewed or searched which patient) | **As the patient's record** (section 2) | With the record | It's the record's audit trail, and the evidence for "who has seen my record" questions. Search terms that match no single patient are kept **12 months**. |
-| **Notifications** | **6 months** after creation, read or not | Deleted automatically | A notification is a pointer to work; the procedure and its audit are the record. Titles can be sensitive. |
+| **Notifications** | **6 months** after creation, read or not | Deleted automatically | A notification is a pointer to work; the procedure and its audit are the record. Titles can be sensitive. The same for appointment notifications. |
+| **Staff calendar blocks** (`CalendarBlock`: time blocked off, its activity and note), with a person's day overrides and template block exceptions | **12 months** after the day [proposed; for the DPO to confirm] | Deleted automatically | They show when staff were available, which matters while appointments around them are booked and reviewed. They aren't the customer's record of leave or training, which its HR systems keep. Annual leave and notes can reveal private matters ([dpia.md](dpia.md), risk 21). |
+| **A person's default week template** (`StaffWeekTemplate` rows) | While the account exists; closed rows **12 months** after their end date | Deleted automatically, and with the account | They say which template applied on past days; a past day older than 12 months no longer needs it. |
 | **Staff accounts** | While the customer keeps the account. Once deactivated (step 4), **12 months**, then deleted | Deleted automatically, with the account's settings | Usernames in audit entries are copies, kept with the audit (section 2), so deleting the account doesn't break the trail. |
 | **Account settings** (`UserSettings`, including saved searches) | With the account | Deleted with it | Saved searches can hold patient names; see section 6. |
 | **Browser storage** (`localStorage`, `medapp.*`) | Until sign-out | Cleared at sign-out (to be built) | Shared computers. |
 | **Stage definitions and templates** | For the life of the customer's contract | Returned or deleted at exit | Configuration, not personal data. Archived ones are kept because procedures refer to them. |
+| **Activity types, and day and week templates** | For the life of the customer's contract | Returned or deleted at exit | Calendar configuration, not personal data. Archived ones are kept because blocks and dated template rows refer to them. |
 | **Application logs and traces** (Log Analytics, step 5) | **90 days** | Deleted automatically by the workspace's retention setting | Enough for troubleshooting and incident investigation; logs aren't the record. |
 | **Azure activity and infrastructure sign-in logs** (supplier's own) | **12 months** | Deleted automatically | Security investigation. |
 
@@ -109,11 +115,11 @@ Roadmap step 7 builds these. The privacy features work on roadmap step 7 must me
 | 2 | **A retention class on each template** | Adult general by default; children worked out from the date of birth. |
 | 3 | **The conclusion of treatment date** | Worked out per patient as in section 2, and shown on the patient's page. |
 | 4 | **A due-for-review list and decisions** | Destroy, anonymise or keep (with a reason and a review date), approved by a named person. |
-| 5 | **Destruction across every table** | Patient, procedures, stages, assignments, audit entries (by `PatientId`, including those of deleted procedures), note versions, access audit, and notifications that refer to the patient's procedures. Saved searches whose terms match the patient's name are removed. |
-| 6 | **Anonymisation** | Removes names, date of birth, email and every free-text field, and unlinks the audit, so the remaining data can't identify anyone. |
+| 5 | **Destruction across every table** | Patient, procedures, stages, assignments, audit entries (by `PatientId`, including those of deleted procedures), appointments and appointment history (by `PatientId`), note versions, access audit, and notifications that refer to the patient's procedures or appointments. Saved searches whose terms match the patient's name are removed. |
+| 6 | **Anonymisation** | Removes names, date of birth, email and every free-text field, including appointment notes and cancellation reasons and the copies in the appointment history, and unlinks the audit, so the remaining data can't identify anyone. **PR #68 (privacy features) builds anonymisation; when it merges, it must cover appointments this way** ([data-inventory.md](data-inventory.md), section 6). |
 | 7 | **A destruction log** | As section 2, step 3; kept for as long as the customer uses MedApp, and included in the export at exit. |
 | 8 | **Legal hold** | Per patient and for the whole customer; suspends destruction and shows on the due-for-review list. |
-| 9 | **Automatic jobs** for operational data | Sessions and security events at 12 months, notifications at 6 months, deactivated accounts at 12 months. A scheduled job that runs once across several API copies (a lease, or a Kubernetes CronJob), and logs what it deleted (counts, not content). |
+| 9 | **Automatic jobs** for operational data | Sessions and security events at 12 months, notifications at 6 months, staff calendar blocks (with day overrides and exceptions) and closed default-week rows at 12 months, deactivated accounts at 12 months. A scheduled job that runs once across several API copies (a lease, or a Kubernetes CronJob), and logs what it deleted (counts, not content). |
 | 10 | **Note versions instead of copies in the audit** | So destroying or correcting a note doesn't leave its text in `Details` ([dpia.md](dpia.md), risk 4). |
 | 11 | **Clear `localStorage` at sign-out** | Already in step 7's scope. |
 | 12 | **Archiving in place of deletion** | Staff can't hard-delete a patient; erasure goes through an approved workflow ([data-subject-rights.md](data-subject-rights.md)). |

@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
-| **Assessed** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed |
+| **Version** | 0.2 (draft), 16 November 2026: adds staff calendars and appointments (risks 1, 3 to 6, and new risk 21) |
+| **Assessed** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed; staff calendars and appointments from their design (`docs/calendar-plan.md`, branch `feature/staff-calendars`) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Before the first real patient data; then before each roadmap step that changes the processing (4, 5, 7, 8 and 9); and at least every 12 months |
@@ -20,7 +20,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 ## Step 1: The need for a DPIA
 
-**What MedApp does.** MedApp is a web application for clinical and administrative staff. It records patients, and tracks the procedures carried out for them through a fixed sequence of stages, each with clinical notes. Every change to a procedure is recorded in an audit trail. Admins manage staff accounts, procedure templates and assignments. The supplier, [Company name], runs it as a hosted service on Microsoft Azure in the UK, for customers such as clinics, private hospitals and NHS trusts.
+**What MedApp does.** MedApp is a web application for clinical and administrative staff. It records patients, and tracks the procedures carried out for them through a fixed sequence of stages, each with clinical notes. Every change to a procedure is recorded in an audit trail. Each member of staff has a calendar, on which staff book appointments with patients and block off time (lunch, training, annual leave). Admins manage staff accounts, procedure templates, calendar templates and assignments. The supplier, [Company name], runs it as a hosted service on Microsoft Azure in the UK, for customers such as clinics, private hospitals and NHS trusts.
 
 **Why a DPIA is needed:**
 - **Article 35(3)(b):** processing on a large scale of special category data (health). The supplier processes it for many customers.
@@ -34,15 +34,16 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 - **Collection:** the customer's staff type patients' details and clinical notes into MedApp in a browser. There's no import, integration or patient-facing access.
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
 - **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts.
-- **Sharing:** none outside the customer. Within the customer, every staff user can see every patient (section 5, risk 1).
-- **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Nothing is deleted on a schedule.
+- **Calendars and appointments:** staff book a patient with a member of staff at a time, optionally for a procedure's stage, with optional notes. An appointment goes from requested to booked, then attended or did not attend, or is cancelled with a reason; every change, including old and new notes and the reason, is kept in its history. When a stage that involves a visit becomes current, MedApp requests an appointment for it. Staff block off their own time for activities from an admin-managed list (Lunch, Training, Annual leave, ...), with an optional short note; admins' day and week templates fill each week with its usual blocks. The patient timeline shows appointment history: to staff, structured values only (status, time, member of staff, stage), never notes or cancellation reasons; to admins, everything.
+- **Sharing:** none outside the customer. Within the customer, every staff user can see every patient, and every staff member's calendar and every appointment (section 5, risks 1 and 21).
+- **Deletion:** staff can delete a patient who has no procedures and no appointments. Admins can delete cancelled or archived procedures; their audit entries remain, and their appointments are kept, detached from the procedure. Nothing is deleted on a schedule.
 - **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
 
 ### Scope
 
-- **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, sessions with IP addresses and browsers, settings with saved searches; notifications. Field by field: [data-inventory.md](data-inventory.md).
-- **Special category:** health data. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it.
+- **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; appointments (patient, member of staff, time, status, notes and cancellation reasons) and their history with copies of the notes and reasons; staff usernames, password hashes, roles, sessions with IP addresses and browsers, settings with saved searches; staff calendars (blocked time with its activity, such as annual leave or training, and a short note); notifications. Field by field: [data-inventory.md](data-inventory.md).
+- **Special category:** health data about patients, including that a patient is being seen and whether they attended. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it. MedApp is not meant to hold health data about staff, but a calendar block's note could ("hospital appointment"; risk 21).
 - **Volume:** per customer, [patients a year], [staff users]. Across customers, large scale.
 - **Retention:** proposed in [retention-schedule.md](retention-schedule.md); **not enforced today**.
 - **Geography:** patients in the UK; data stored in the UK.
@@ -59,8 +60,8 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 ### Purposes
 
-- **For patients:** their procedures are coordinated safely, in order, by the right staff, with an accurate record.
-- **For the customer:** coordinating work, accountability through the audit trail, meeting record-keeping duties.
+- **For patients:** their procedures are coordinated safely, in order, by the right staff, with an accurate record; the visits their procedures need are booked, and visits that are needed aren't skipped by mistake.
+- **For the customer:** coordinating work and staff time, accountability through the audit trail, meeting record-keeping duties.
 - **For the supplier:** providing the service under contract. No purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)).
 
 ## Step 3: Consultation
@@ -79,9 +80,9 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 | Question | Answer |
 |---|---|
 | **Lawful basis** | The customer's: typically 6(1)(e) (NHS) or 6(1)(b)/(f) (private), with 9(2)(h) and DPA 2018 Schedule 1, Part 1, paragraph 2 ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)). The supplier acts on instructions under Article 28. |
-| **Does the processing achieve the purpose?** | Yes. Coordinating a procedure's stages needs the patient's identity, the procedure, and notes on each stage. |
+| **Does the processing achieve the purpose?** | Yes. Coordinating a procedure's stages needs the patient's identity, the procedure, and notes on each stage. Booking a visit needs the patient, the member of staff and the time, and booking around staff time needs to know when staff are unavailable, but not why. |
 | **Is there a less intrusive way?** | Paper or spreadsheets hold the same data with weaker access control and no audit. A system without patient identity can't coordinate care for a person. |
-| **Minimisation** | **The patient record is deliberately small:** name, date of birth and email; no address, phone, NHS number or sex. The patient banner and identity checks that step 9 adds will need more, each justified then. **Free text isn't limited**, and the audit copies it (risks 3 and 4). |
+| **Minimisation** | **The patient record is deliberately small:** name, date of birth and email; no address, phone, NHS number or sex. The patient banner and identity checks that step 9 adds will need more, each justified then. **Free text isn't limited**, and the audit copies it (risks 3 and 4). Appointments hold only what booking needs; their notes are optional and limited to 2,000 characters, cancellation reasons to 500, and calendar block notes to 200. Blocked time records an activity from a fixed list, not a reason. Appointment notifications carry no patient name or notes. |
 | **Accuracy** | Staff can edit patients and procedures. Finished stages lock, and only an admin can unlock them, which is audited. Patient edits aren't audited (risk 7). |
 | **Retention** | Proposed periods in [retention-schedule.md](retention-schedule.md), based on the Records Management Code. Not enforced (risk 5). |
 | **Transparency** | Template privacy notices for customers to give patients and staff ([privacy-notice-patients-template.md](privacy-notice-patients-template.md), [privacy-notice-staff-template.md](privacy-notice-staff-template.md)). |
@@ -109,12 +110,12 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 | # | Risk to individuals | Source of the risk | Likelihood | Severity | Overall |
 |---|---|---|---|---|---|
-| 1 | **Inappropriate access ("snooping"):** a staff member looks at the record of a patient they don't care for (a neighbour, a relative, a public figure), and it can't be detected or disproved. | Every staff user sees every patient and procedure; **reads aren't recorded** at all; there are no access reports. | Probable | Severe | **High** |
+| 1 | **Inappropriate access ("snooping"):** a staff member looks at the record of a patient they don't care for (a neighbour, a relative, a public figure), and it can't be detected or disproved. | Every staff user sees every patient and procedure, and every appointment on every calendar (who is being seen, when and by whom); **reads aren't recorded** at all; there are no access reports. | Probable | Severe | **High** |
 | 2 | **Account takeover:** an attacker signs in as a staff member or admin with a stolen, guessed or reused password, and reads or changes records. | Password only, no MFA; no throttling beyond a 5-minute lockout; sessions not ended by a password change; no idle timeout; first admin always called `admin`. Accounts created before PR #53 may still have the published password `DefaultPassword1`. | Probable | Severe | **High** |
-| 3 | **Oversharing in free text:** notes, titles and block or cancel reasons hold more than needed (other people's details, unrelated conditions), and spread to the audit, notifications and logs. | Free text is unlimited; procedure titles appear in notifications and travel through Valkey. | Probable | Significant | **High** |
-| 4 | **Copies of clinical text that can't be managed:** correcting, erasing or expiring a note leaves its old text in the audit trail. | `StageNotesUpdated` and `DetailsUpdated` audit entries copy the old and new text into `Details` (`MedApp.Application/Procedures/Common/ProcedureChange.cs`, `UpdatePatientProcedureHandler.cs`). | Probable | Significant | **High** |
-| 5 | **Kept for ever:** records, sessions with IP addresses, notifications and audit entries are never deleted, so a later breach exposes far more than needed. | No retention is implemented; nothing is purged. | Probable | Significant | **High** |
-| 6 | **Rights can't be met fully or on time:** a subject access request is answered late or incompletely. | No export; the data is spread over several tables; the audit log's screen filters by procedure, not by patient. Admins can now see a patient's whole history on screen, on the patient page's timeline (every change to their procedures, with its free text, deleted procedures included), which helps answer a request, but it is not an export. | Probable | Significant | **High** |
+| 3 | **Oversharing in free text:** notes, titles, a procedure's block or cancel reasons, appointment notes and cancellation reasons hold more than needed (other people's details, unrelated conditions), and spread to the audit, the appointment history, notifications and logs. | Free text is unlimited in procedure notes, and long in appointment notes (2,000 characters); procedure titles appear in notifications and travel through Valkey; every staff user can open any appointment and read its notes. | Probable | Significant | **High** |
+| 4 | **Copies of clinical text that can't be managed:** correcting, erasing or expiring a note leaves its old text in the audit trail or the appointment history. | `StageNotesUpdated` and `DetailsUpdated` audit entries copy the old and new text into `Details` (`MedApp.Application/Procedures/Common/ProcedureChange.cs`, `UpdatePatientProcedureHandler.cs`); an appointment's history (`AppointmentEvent`) copies its old and new notes and its cancellation reason. | Probable | Significant | **High** |
+| 5 | **Kept for ever:** records, appointments, staff calendars, sessions with IP addresses, notifications and audit entries are never deleted, so a later breach exposes far more than needed. | No retention is implemented; nothing is purged. | Probable | Significant | **High** |
+| 6 | **Rights can't be met fully or on time:** a subject access request is answered late or incompletely. | No export; the data is spread over several tables, now including appointments and their history; the audit log's screen filters by procedure, not by patient. Admins can now see a patient's whole history on screen, on the patient page's timeline (every change to their procedures, with its free text, deleted procedures included), which helps answer a request, but it is not an export. | Probable | Significant | **High** |
 | 7 | **A patient's record is lost or changed without trace:** a staff member deletes or edits a patient, by mistake or deliberately, and nothing records it. | Any staff user can permanently delete a patient with no procedures; patient creates, edits and deletes aren't audited; account and role changes aren't audited. | Possible | Severe | **High** |
 | 8 | **Wrong patient:** notes are written on the wrong patient's record, leading to a disclosure or a clinical error. | Patients are identified by name, date of birth and email only; no NHS number; no duplicate check; no patient banner. | Possible | Severe | **High** |
 | 9 | **A lost update:** two staff save the same notes, and one silently overwrites the other. | No optimistic concurrency. The audit keeps both texts, but nobody is warned. | Possible | Significant | **Medium** |
@@ -129,6 +130,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 18 | **Mixing customers' data:** one customer sees another's patients. | Not possible today (one deployment per customer). Becomes a risk with multi-tenancy (step 8). | Not possible today | Severe | **Low today** (the matrix's one exception, because it can't happen yet); **to rescore at step 8** |
 | 19 | **Lack of transparency:** patients don't know MedApp is used or who runs it. | Depends on the customer's privacy notice. | Possible | Minimal | **Low** |
 | 20 | **Real data in development or testing:** patient data copied into a developer's database, a screenshot, a test, or an AI tool. | Convention only (`AGENTS.md`: synthetic data only); `medapp-dev` refuses anything but a local database. | Remote | Severe | **Medium** |
+| 21 | **Staff calendars reveal more than needed about staff:** colleagues see when someone is on annual leave or away, and a block's note gives a reason that reveals their health or private life (for example "hospital appointment"), or names a patient. | Every staff user can see every calendar; a block's note is free text (200 characters); MedApp can't check what a note says. | Possible | Significant | **Medium** |
 
 ## Step 6: Measures to reduce the risks
 
@@ -144,9 +146,9 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | Every API endpoint that reaches patient or account data requires a signed-in session and a role (`Staff` or `Admin`); only sign-in, sign-out and `whoami` don't; the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
-| The full audit trail is admin-only; staff see a per-patient timeline without its free text (no notes, titles or reasons; old and new due dates, priorities and statuses, past assignees and recorded usernames are shown) | In place | `MedApp.API/Controllers/ProcedureAuditController.cs`, `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs` |
-| Every change to a procedure is recorded with who and when | In place | `MedApp.Application/Procedures/Common/ProcedureChange.cs` |
-| **Record every read of patient data** (patient viewed, searched with the terms, procedure viewed, exported) | Planned, step 7. **Before go-live** | |
+| The full audit trail is admin-only; staff see a per-patient timeline without its free text (no notes, titles or reasons; old and new due dates, priorities and statuses, past assignees and recorded usernames are shown). For appointments, staff see the status, time, member of staff and stage, never the notes or a cancellation reason, and nothing about appointments of a deleted procedure | In place (appointments: on `feature/staff-calendars`) | `MedApp.API/Controllers/ProcedureAuditController.cs`, `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs`, `TimelineStaffCanaryTests` |
+| Every change to a procedure is recorded with who and when; so is every change to an appointment (`AppointmentEvent`) | In place (appointments: on `feature/staff-calendars`) | `MedApp.Application/Procedures/Common/ProcedureChange.cs`; `MedApp.Application/Appointments/Common/AppointmentChange.cs` |
+| **Record every read of patient data** (patient viewed, searched with the terms, procedure viewed, appointment opened, exported) | Planned, step 7. **Before go-live** | |
 | Access reports ("who has seen this patient", "what has this person seen"), an `Auditor` role, unusual-access alerts, periodic access reviews | Planned, steps 4 and 7. **Before go-live** (reports and review) | |
 | Restrict access by site, team or care relationship | Planned, step 8 (sites); customers decide who gets accounts until then | |
 | Customer measures: accounts only for staff who need them; staff told that access is monitored; disciplinary policy | The customer's | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
@@ -172,7 +174,9 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | Staff guidance: write only what's needed for the patient's care; no other people's details | Customer and supplier guidance; planned in-app guidance in step 7 | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
-| No patient identifiers in notifications; procedure titles reviewed as not identifying | Planned, step 7 | `AssignPatientProcedureHandler.cs` writes the title today |
+| No patient identifiers in notifications; procedure titles reviewed as not identifying | Planned, step 7. **Appointment notifications already carry no patient name or notes**, only the procedure's title (or "Appointment"), who and when | `AssignPatientProcedureHandler.cs` writes the title today; `docs/calendar-plan.md`, decision 20 |
+| Appointment notes and cancellation reasons have length limits (2,000 and 500 characters), and are never shown to staff on the patient timeline (only to admins) | In place on `feature/staff-calendars` | `docs/calendar-plan.md`, decisions 15, 16 and 27 |
+| Staff guidance for appointment notes: write only what the visit needs; nothing about other people; a cancellation reason says why, not more | Customer guidance | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | Encrypt Valkey traffic, or send only IDs through it | Planned, step 2 or 5 | `docs/reviews/signalr-backplane.md` |
 
 **Residual risk:** now **high**; after **medium**. Free text can't be made risk-free; it relies on training.
@@ -181,8 +185,9 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 | Measure | Status | Where |
 |---|---|---|
-| The full audit trail is admin-only and kept with the record; staff see a per-patient timeline without its free text | In place | As risk 1 |
-| Keep note versions in their own table, and have the audit refer to versions, so correction, retention and erasure apply in one place | Planned, step 7. **Before go-live** | |
+| The full audit trail is admin-only and kept with the record; staff see a per-patient timeline without its free text, including appointments' | In place | As risk 1 |
+| Keep note versions in their own table, and have the audit refer to versions, so correction, retention and erasure apply in one place. Appointment notes and their history's copies need the same | Planned, step 7. **Before go-live** | |
+| **PR #68 (anonymisation), when merged,** must also clear appointments' notes and cancellation reasons, and the copies in their history, when a patient is anonymised | To do when #68 merges | [data-inventory.md](data-inventory.md), section 6 |
 
 **Residual risk:** now **high**; after **low**.
 
@@ -191,7 +196,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | A retention schedule | Draft | [retention-schedule.md](retention-schedule.md) |
-| A retention engine: a due-for-review list, admin approval, destruction or anonymisation, a destruction log; short fixed periods for sessions and notifications | Planned, step 7. **Before go-live** (sessions and notifications at least; clinical records won't reach their minimum period for years) | |
+| A retention engine: a due-for-review list, admin approval, destruction or anonymisation, a destruction log; short fixed periods for sessions, notifications and staff calendar blocks; appointments kept and destroyed with the patient's record | Planned, step 7. **Before go-live** (sessions and notifications at least; clinical records won't reach their minimum period for years) | [retention-schedule.md](retention-schedule.md) |
 | Backups expire on a fixed cycle | Planned, step 5 | |
 
 **Residual risk:** now **high**; after **low**.
@@ -203,6 +208,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Staff can view and correct patients and procedures | In place | |
 | An interim, documented manual procedure for exports, run by the supplier on the customer's written instruction | Procedure written | [data-subject-rights.md](data-subject-rights.md) |
 | A subject access export (JSON and PDF), restriction and dispute flags, archiving in place of deletion, an erasure workflow | Planned, step 7. **Before go-live** (export) | |
+| **PR #68 (the subject access export), when merged,** must include a patient's appointments and their appointment history; until then the manual procedure covers them | To do when #68 merges | [data-subject-rights.md](data-subject-rights.md) |
 
 **Residual risk:** now **medium** with the manual procedure; after **low**.
 
@@ -356,6 +362,19 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 **Residual risk:** **low**.
 
+### Risk 21: staff calendars reveal more than needed about staff
+
+| Measure | Status | Where |
+|---|---|---|
+| Blocked time records an activity from an admin-managed list (Lunch, Admin time, Training, Meeting, Annual leave, Travel), not a reason; customers can name activities generically ("Away") | In place on `feature/staff-calendars` | `docs/calendar-plan.md`, decision 4 |
+| A block's note is optional and short (200 characters), and the UI tells staff not to put patient details in it | In place on `feature/staff-calendars` | `docs/calendar-plan.md`, decision 5 |
+| Only a calendar's owner or an admin can add, change or remove its blocks | In place on `feature/staff-calendars` | `docs/calendar-plan.md`, decision 7 |
+| Staff guidance: give no reason for time away, or a generic one; never health or family details, and never a patient | Customer guidance | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
+| Staff told that colleagues can see their calendar, including annual leave | Customer's staff notice | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
+| Blocks deleted after a fixed period | Planned, step 7 | [retention-schedule.md](retention-schedule.md), section 3 |
+
+**Residual risk:** **medium** now; **low** after guidance and retention. Free text can't be made risk-free.
+
 ## Step 7: Sign-off and outcomes
 
 | Item | Name and date | Notes |
@@ -373,7 +392,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 Add to your copy:
 - **Your context:** which services and patients, how many staff, which sites, whether children or people lacking capacity are involved.
 - **Your lawful bases** and your privacy notice.
-- **Your controls:** joiners, movers and leavers; device security; training; who your admins are; how you'll review access reports once they exist.
+- **Your controls:** joiners, movers and leavers; device security; training; who your admins are; how you'll review access reports once they exist; what your staff may write in appointment notes and calendar block notes.
 - **Your retention periods** if they differ from the defaults.
 - **Your sign-off:** your DPO, and your Caldicott Guardian for NHS and social care.
 - **DCB0160:** your clinical safety assessment of deploying MedApp, separate from this DPIA (roadmap step 6).

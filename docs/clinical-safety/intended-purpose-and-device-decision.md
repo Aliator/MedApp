@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-04, intended purpose and qualification as a medical device |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56), with staff calendars and appointments (`feature/staff-calendars`, designed in `docs/calendar-plan.md`) |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code and `docs/architecture.md`. Not yet reviewed by a person. |
 | **Decision owner** | [Manufacturer's accountable owner] |
@@ -16,8 +16,9 @@ This document sets out what MedApp is for, and whether that makes it a medical d
 
 ## Summary
 
-- **The decision:** as it stands, and used for the intended purpose below, MedApp is **an administrative workflow tool and not a medical device** under the UK Medical Devices Regulations 2002 (UK MDR 2002).
-- **Why:** it records and coordinates the steps of a procedure that staff have chosen. It doesn't diagnose, monitor, calculate, score, prioritise, triage or recommend anything from patient data. In the MHRA's words, it "just follows the path of a procedure/treatment - there are no decisions".
+- **The decision:** as it stands, and used for the intended purpose below, MedApp is **an administrative workflow and scheduling tool and not a medical device** under the UK Medical Devices Regulations 2002 (UK MDR 2002).
+- **Why:** it records and coordinates the steps of a procedure that staff have chosen, and books staff time for patients' appointments. It doesn't diagnose, monitor, calculate, score, prioritise, triage or recommend anything from patient data. In the MHRA's words, it "just follows the path of a procedure/treatment - there are no decisions", and booking an appointment is unlikely to be a device "if it only has an administrative function".
+- **Checked again for staff calendars and appointments** (version 0.3): the decision stands ([scheduling and the visit rule](#scheduling-and-the-visit-rule)).
 - **It is still health IT that supports direct care.** Not being a device doesn't take it out of clinical risk management. DCB0129 applies to the manufacturer, and DCB0160 to each organisation that deploys it.
 - **It can change.** The decision holds only while the product keeps to its intended purpose. The [conditions that would change it](#what-would-change-the-decision) are listed below, and any feature that meets one triggers a new assessment before it's merged.
 - **Status:** provisional. The accountable owner signs it, and the Clinical Safety Officer (CSO) and, ideally, a regulatory adviser confirm it ([sign-off](#sign-off)).
@@ -28,23 +29,25 @@ The MHRA's guidance on intended purpose asks for four things: the product's stru
 
 ### The statement
 
-> MedApp is software for recording and coordinating the steps of procedures that a health or care organisation carries out for its patients.
+> MedApp is software for recording and coordinating the steps of procedures that a health or care organisation carries out for its patients, and for the administrative scheduling of its staff's time and its patients' appointments.
 >
 > Staff record a patient's identifying details, and start a procedure for that patient from a template of stages that the organisation's administrators have written. They work through the stages in a fixed order, record free-text notes at each stage, and mark each stage finished. Administrators assign procedures to staff, who see them on their task lists, with the due dates that staff have set and whether a procedure is past its due date. MedApp keeps an audit trail of every change to a procedure.
 >
-> MedApp does not interpret clinical data. It does not calculate, score, prioritise, triage, diagnose or recommend. What a procedure involves, its stages, its priority and its due date are all decided by the organisation's staff, using their own knowledge and the organisation's clinical systems. MedApp is not a scheduling, clinical alerting or patient monitoring system, though it may remind staff about workflow dates they have set. It is not the organisation's record of who the patient is.
+> Each member of staff has a calendar of working hours. Staff block off time on it for activities, and book appointments for patients with a member of staff at a free time they choose, and record whether the patient attended. Where the organisation's template says a stage involves a visit, MedApp asks for an appointment when that stage is reached, and, where the template says the visit is required, doesn't let the stage be finished until an appointment is recorded as attended, unless an administrator finishes it with a reason. MedApp keeps a history of every change to an appointment.
+>
+> MedApp does not interpret clinical data. It does not calculate, score, prioritise, triage, diagnose or recommend. What a procedure involves, its stages, which stages involve a visit, its priority and its due date are all decided by the organisation's staff, using their own knowledge and the organisation's clinical systems. Whether, when and with whom a patient is seen, and how soon, are decided by staff; MedApp only books the time they choose and refuses times that clash. MedApp is not a clinical alerting or patient monitoring system, though it may remind staff about workflow dates and appointments they have set. It is not the organisation's record of who the patient is, and it doesn't contact patients.
 
 ### Its parts
 
 | Element | What it is for MedApp |
 |---|---|
-| **Function: inputs** | Patient details typed by staff (first and last name, date of birth, email). Templates and stage definitions written by administrators (names, descriptions, instructions). For each procedure: a template, a title, notes, a due date (a whole day) and a priority, all chosen by staff; then stage notes, and the actions start, finish, assign, unassign, block, cancel, complete, archive and unlock. |
-| **Function: processing** | It copies the template's stages onto the procedure; enforces the order of stages and the locks; moves the status as stages are started and finished; compares the due date with today's date; and records each change in the audit log. None of this uses the content of clinical data. |
-| **Function: outputs** | Lists and pages showing patients, procedures, stages, notes, who did what and when, status, due date and an "overdue" badge; task lists; in-app notifications about the workflow (today, only when someone is assigned a procedure; reminders about due dates staff set are planned); the audit log. |
-| **Where it sits in the care pathway** | Alongside the organisation's own clinical systems, as a shared checklist and task list for the administrative and clinical steps of a procedure. It doesn't replace the electronic patient record, the patient administration system, scheduling or clinical decision-making. |
+| **Function: inputs** | Patient details typed by staff (first and last name, date of birth, email). Templates and stage definitions written by administrators (names, descriptions, instructions, and whether a stage involves a visit: none, suggested or required). For each procedure: a template, a title, notes, a due date (a whole day) and a priority, all chosen by staff; then stage notes, and the actions start, finish, assign, unassign, block, cancel, complete, archive and unlock. Calendar setup by administrators: activity types, and day and week templates of blocked time. For each appointment: the patient (and procedure and stage), the member of staff, the length, the day and the time, and notes, all chosen by staff; then the actions book, reschedule, cancel (with a reason), and attended or did not attend. |
+| **Function: processing** | It copies the template's stages onto the procedure; enforces the order of stages and the locks; moves the status as stages are started and finished; compares the due date with today's date; and records each change in the audit log. For calendars: it works out each day's blocks from the templates, lists the free slots in a day, and refuses an appointment or block that falls outside working hours, is in the past, or overlaps another. For appointments: it moves the status as staff act, adds a requested appointment when a stage that involves a visit becomes current, refuses to finish a stage whose visit is required until an appointment for it is attended (admins can override with a reason), cancels requested ones that are no longer needed, and records each change in the appointment's history. None of this uses the content of clinical data. |
+| **Function: outputs** | Lists and pages showing patients, procedures, stages, notes, who did what and when, status, due date and an "overdue" badge; task lists; staff calendars (day and week) with appointments and blocked time; the Needs booking list of requested appointments; in-app notifications about the workflow (when someone is assigned a procedure, and when someone else books, moves or cancels your appointment; reminders about due dates staff set are planned); the audit log and the patient timeline. |
+| **Where it sits in the care pathway** | Alongside the organisation's own clinical systems, as a shared checklist and task list for the administrative and clinical steps of a procedure, and a diary of staff time for the visits those steps need. It doesn't replace the electronic patient record, the patient administration system, clinical decision-making, or the organisation's own contact with patients about their appointments. |
 | **Intended users** | Trained staff of health and care organisations: clinical and administrative staff (role `User`), and administrators (role `Admin`) who manage accounts, templates and assignments. Not patients or the public. |
 | **Intended population** | The organisation's patients, of any age. MedApp makes no decision about any patient, so it has no clinical population restriction. |
-| **Use environment** | A desktop web browser on an organisation's network or a managed device, in clinics, hospitals and offices. Not intended for phones (it's desktop-first: `docs/architecture.md`, section 2.1), for emergency or time-critical care, or for tracking anything that must happen within a day at a set time (due dates are whole days). |
+| **Use environment** | A desktop web browser on an organisation's network or a managed device, in clinics, hospitals and offices. Not intended for phones (it's desktop-first: `docs/architecture.md`, section 2.1), for emergency or time-critical care, or for tracking anything that must happen within a day at a set time (due dates are whole days). Appointments have times, but MedApp books them only within the working day (08:00 to 18:00 UK time, Monday to Friday), and reminds no one of them. |
 
 ### What it's not for
 
@@ -54,6 +57,7 @@ These go in the instructions for use and the contract, so the intended purpose c
 - **Not for time-critical work:** a procedure becomes overdue only after the end of its due day, UK time, and any reminder about it is best effort.
 - **Not a clinical alerting or monitoring system:** notifications are about the workflow (who is assigned, and dates staff set), never about clinical values. Today they're in-app only, for assignments only, and best effort.
 - **Not for medicines:** no doses, prescriptions or administration records.
+- **Not for deciding who is seen, when or how soon:** appointments are booked at times staff choose. MedApp doesn't decide urgency, order patients by need, or tell patients about their appointments; the organisation contacts patients by its own process.
 
 ### Claims the manufacturer must not make
 
@@ -61,9 +65,10 @@ The MHRA judges intended purpose from labelling, instructions for use and promot
 - improves clinical outcomes, prevents complications or makes care safer by itself;
 - detects, flags or predicts clinical risk, deterioration or urgency;
 - tells staff what to do next for a patient, or which patient to see first;
+- decides which patients need a visit, how urgently, or when they should be seen;
 - checks or calculates anything clinical.
 
-They can say that it records and coordinates procedure workflow, keeps an audit trail, and shows staff their tasks and due dates.
+They can say that it records and coordinates procedure workflow, keeps an audit trail, shows staff their tasks and due dates, and books staff time for appointments, asking for one where the organisation's template says a stage involves a visit.
 
 ## The assessment
 
@@ -102,6 +107,10 @@ They can say that it records and coordinates procedure workflow, keeps an audit 
 | **Assignment, task lists and notifications** | `AssignPatientProcedureHandler`, `MyTasksPage.tsx`, `NotificationSender` | No | Work allocation by administrators, and a message that it happened. |
 | **Audit log** | `ProcedureChange.Audit`, `PatientProcedureAuditEntry` | No | Record keeping. |
 | **Search, sort, filters and saved searches** | `ProcedureSearch`, `PatientSearch` | No | Simple search on fields staff entered, with user-chosen order. |
+| **Staff calendars** (working hours, blocked time, day and week templates) | `MedApp.Application/Calendar/Common` (`WorkingHours`, `CalendarProjection`, `TemplateHistory`) | No | A diary of staff time. Blocks and templates are set by staff and administrators; MedApp only lays them out on days. |
+| **Appointments** (booking, rescheduling, cancelling, attended or did not attend; free slots; clash checks) | `MedApp.Application/Appointments/Common` (`AppointmentWorkflow`, `AppointmentChange`), `CalendarClashes` | No | Booking staff time for a patient at a time staff choose: "software used to book an appointment ... if it only has an administrative function". Finding free slots and refusing clashes is arithmetic on times, not on clinical data. |
+| **Stage visits** (the requested appointment, the required-visit rule, the admin bypass, suggested visits) | `ProcedureChange.RequestVisit`, `ProcedureWorkflow.WhyStageNeedsVisit` | No, with care | Enforces the organisation's own template setting, like the order of stages: it follows the path of the procedure. MedApp doesn't decide whether a stage needs a visit. It would become a device question if the software decided that from clinical data (see below). |
+| **Needs booking list** | `GET api/appointments/search`, the Needs booking page | No, with care | Lists requested appointments, soonest procedure due date first: dates staff set, like the default procedure sort. It would become a device question if it were ordered by anything clinical. |
 
 ### Northern Ireland and the EU
 
@@ -113,10 +122,20 @@ In Northern Ireland, and in the EU, the EU Medical Device Regulation (2017/745) 
 - **The default sort** puts the soonest due date first. That order comes from dates staff entered, not from a clinical judgement made by the software.
 - **"Not assigned to you"** is a confirmation about who is doing the work, not about the patient.
 - **Stage instructions** can contain clinical guidance, but it's the organisation's own text, shown unchanged. MedApp is the means of display, like a document management system. The organisation is responsible for the content (`dcb0160-deploying-organisations.md`).
+- **"Needs a visit before it can be finished"** is the organisation's own template setting, enforced like the order of stages, not a judgement MedApp makes about the patient.
+- **Did not attend** is a status staff record. MedApp doesn't act on it, beyond offering to book another appointment.
+
+### Scheduling and the visit rule
+
+Checked for staff calendars and appointments (`docs/calendar-plan.md`, section 5), version 0.3:
+- **Booking staff time for a patient is administrative scheduling.** The MHRA's guidance says software used to book an appointment is unlikely to be a medical device "if it only has an administrative function". MedApp's booking is that: staff choose the patient, the member of staff, the length, the day and the free slot; MedApp records the choice, refuses a time outside working hours, in the past or overlapping something else, and shows the calendars. Nothing about the time comes from clinical data.
+- **The visit rule only enforces the organisation's own setting.** An administrator marks a stage definition as involving a visit (none, suggested or required). MedApp then requests an appointment when the stage becomes current, and refuses to finish a required one without an attended appointment, unless an administrator finishes it with a reason. That is the same kind of rule as stages in a fixed order: it "just follows the path of a procedure/treatment - there are no decisions".
+- **MedApp doesn't decide whether, when or with whom a patient is seen,** or how soon. It computes nothing from clinical data: not the need for a visit, its urgency, its time, or the order of the Needs booking list, which is by the procedure's due date, a date staff set.
+- **So the decision stands.** The flow chart's answers don't change: no device integration, no in vitro data, and no medical purpose. MedApp remains outside the device definition.
 
 ## The decision
 
-> **MedApp, at `main` `88dc1fa`, used for the intended purpose in this document, is not a medical device under UK MDR 2002.** It records and coordinates the administrative and clinical workflow steps of a procedure, and doesn't interpret clinical data, prioritise patients or recommend treatment. It is health IT that supports direct care, so the manufacturer applies DCB0129 to it, and each deploying organisation applies DCB0160.
+> **MedApp, at `main` `88dc1fa` with staff calendars and appointments, used for the intended purpose in this document, is not a medical device under UK MDR 2002.** It records and coordinates the administrative and clinical workflow steps of a procedure, and books staff time for patients' appointments as an administrative function, and doesn't interpret clinical data, prioritise patients or recommend treatment. It is health IT that supports direct care, so the manufacturer applies DCB0129 to it, and each deploying organisation applies DCB0160.
 
 It is a decision about this product and this intended purpose. A customer who uses MedApp outside its intended purpose takes on that use; the MHRA notes that using a product for a medical purpose doesn't by itself make it a device, but the hazard log assumes the intended use.
 
@@ -133,6 +152,8 @@ Any feature that does one of these needs a new assessment, and is likely to be a
 - **Due dates set by the software from clinical data:** for example, "due 6 weeks after the operation date" is still arithmetic on a date staff chose, and is borderline; "due sooner because the score is high" is a device function.
 - **Interpreting free text or images:** summaries, extraction, classification or any AI that reads notes or attachments and says something about the patient.
 - **Patient-facing questionnaires that are scored or that trigger actions.**
+- **Scheduling from clinical data:** the software choosing an appointment's urgency, time, length or member of staff from clinical data; deciding from what's recorded about the patient whether a stage needs a visit; or ordering, flagging or escalating the Needs booking list or a calendar by clinical values (a "most urgent first" list worked out by the software). Ordering by dates and times staff set, and refusing clashes, stay administrative.
+- **Acting on attendance clinically:** for example, a missed appointment that changes the patient's clinical priority or pathway by itself. Recording "did not attend" and offering another booking is administrative.
 - **Integration that controls or takes data from a medical device.**
 - **Claims:** any of the [claims the manufacturer must not make](#claims-the-manufacturer-must-not-make), in any material.
 
@@ -150,6 +171,7 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | **Waiting-list tracking (RTT clocks, breaches)** | Clocks and breach dates follow the national rules, and priority stays clinician-assigned. | The software sets or suggests clinical priority. |
 | **Digital consent and documents** | They store and display forms. | They assess capacity, risk or suitability. |
 | **Patient questionnaires and a portal** | Answers are stored and shown to staff. | Answers are scored, triaged or trigger clinical advice. |
+| **Calendar follow-ups: patient reminders, self-booking, overdue requested appointments** (`docs/todo.md`) | Reminders say when an appointment is; patients choose from free slots; requests waiting too long are flagged by how long they've waited. | Reminders give clinical advice; self-booking offers slots by clinical urgency; requests are flagged or ordered by clinical values. |
 | **FHIR API and EPR integration** | Data moves without change. | MedApp transforms or interprets the data clinically. |
 
 ### The change-control rule
@@ -173,3 +195,4 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft, for `main` at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: the intended purpose allows workflow reminders about dates staff set, so planned overdue notifications don't contradict it; all eight statuses listed; the change-control rule is in `AGENTS.md` | AI coding agent, for review |
+| 0.3 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): the intended purpose now includes administrative scheduling of staff time and appointments; the parts and function tables updated; the device decision checked for booking and the visit rule, and it stands; scheduling-specific conditions added to what would change it. Drafted by an AI coding agent, for review | AI coding agent, for review |

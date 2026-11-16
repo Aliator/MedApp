@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
+| **Version** | 0.2 (draft), 16 November 2026: staff calendars and appointments added across the pack |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Describes** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed |
 | **Brief** | Roadmap step 3 in the [architecture handbook](../architecture.md#step-3-write-the-data-protection-and-information-governance-pack) |
@@ -27,7 +27,7 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 | [data-inventory.md](data-inventory.md) | Every field of personal data MedApp stores, from the code, and every place it goes: database, browser, logs, backups, GitHub; the data flows | Supplier, customers, assessors |
 | [ropa.md](ropa.md) | The supplier's record of processing: as processor (Article 30(2)) and as controller of its own business data (Article 30(1)) | Supplier, ICO |
 | [ropa-customer-template.md](ropa-customer-template.md) | Entries for customers to copy into their own record of processing | Customers |
-| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 20 risks with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
+| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 21 risks with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
 | [retention-schedule.md](retention-schedule.md) | How long each kind of data is kept, following the NHS Records Management Code of Practice; review before destruction; backups; exit; **what MedApp must build** to enforce it | Supplier, customers |
 
 ### Contracts and suppliers
@@ -71,7 +71,7 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 - **Lawful bases (guidance to customers):** NHS bodies 6(1)(e); private providers 6(1)(b), or 6(1)(f) where there's no contract with the patient; all with 9(2)(h) and DPA 2018 Schedule 1, Part 1, paragraph 2. Not consent.
 - **DPO:** the supplier appoints one (an external service), because hosting health records for many customers is large-scale processing of special category data.
 - **Hosting:** UK only, Azure UK South, with backups and recovery in UK West.
-- **Retention:** clinical records follow the Records Management Code (adults 8 years, children to the 25th or 26th birthday, mental health 20 years, and longer classes per template), reviewed rather than deleted automatically; sessions and sign-in events 12 months; notifications 6 months; logs 90 days; point-in-time backups 35 days and long-term backups 12 months.
+- **Retention:** clinical records follow the Records Management Code (adults 8 years, children to the 25th or 26th birthday, mental health 20 years, and longer classes per template), reviewed rather than deleted automatically; appointments kept with the patient's record; sessions, sign-in events and staff calendar blocks 12 months; notifications 6 months; logs 90 days; point-in-time backups 35 days and long-term backups 12 months.
 - **Breach notice to customers:** within 48 hours of the supplier becoming aware, aiming for 24, moving to a firm 24 hours once out-of-hours cover exists (step 5).
 - **Rights requests reaching the supplier:** passed to the customer within 2 working days; help with exports within 5 working days, or as agreed.
 - **Sub-processor changes:** 30 days' notice with a right to object.
@@ -88,9 +88,10 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 | Audit every read and change of patient data (with search terms), sign-ins, and account and role changes; access reports; an `Auditor` role | 4, 7 | DPIA risks 1 and 7; DSPT standard 4; staff notice |
 | Note versions in their own table, instead of copies of notes in audit `Details` | 7 | DPIA risk 4; retention |
 | A subject access export (JSON and PDF) with a clinician review step | 7 | Rights; DPA clause 9 |
+| **PR #68 to cover appointments when it merges:** anonymisation clears appointments' notes and cancellation reasons and their history's copies; the export includes appointments and their history | 7 (PR #68) | Data inventory, section 6; DPIA risks 4 and 6; rights; retention |
 | Restriction and "disputed" flags; audited patient edits; archiving instead of hard deletion; an approved erasure workflow | 7 | Rights; DPIA risk 7 |
 | A retention engine: classes per template, the conclusion of treatment date, a due-for-review list, destroy or anonymise, a destruction log, legal hold | 7 | Retention schedule |
-| Automatic deletion of sessions (12 months), notifications (6 months) and deactivated accounts (12 months) | 7 | Retention schedule |
+| Automatic deletion of sessions (12 months), notifications (6 months), staff calendar blocks (12 months) and deactivated accounts (12 months) | 7 | Retention schedule; DPIA risk 21 |
 | Clear browser storage at sign-out | 7 | DPIA risk 10; cookies statement |
 | Keep identifying filters (name, email, date of birth) out of the URL, so they don't land in browser history; page, sort and status stay in it | 7 | DPIA risk 10; data inventory |
 | No patient identifiers in notifications | 7 | DPIA risk 3 |

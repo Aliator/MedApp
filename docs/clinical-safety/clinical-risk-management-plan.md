@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-01, clinical risk management plan (DCB0129) |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, from `main` at `88dc1fa` (the merge of #56) onwards |
 | **Manufacturer** | [Manufacturer name] |
@@ -18,7 +18,7 @@ This plan says how the manufacturer manages clinical risk in MedApp, as DCB0129 
 
 ### What it covers
 
-- **The product:** MedApp, the web app and API described in `docs/architecture.md`: patients, procedures created from templates, stages worked in order and locked when finished, due dates and the overdue flag, assignments and task lists, notifications, the audit log, and the administration of users, stage definitions and templates.
+- **The product:** MedApp, the web app and API described in `docs/architecture.md`: patients, procedures created from templates, stages worked in order and locked when finished, due dates and the overdue flag, assignments and task lists, notifications, the audit log, and the administration of users, stage definitions and templates; and staff calendars, appointments and stage visits (`docs/calendar-plan.md`), with the administration of activity types and calendar templates.
 - **Its whole life:** design, development, testing, release, deployment support, live use, changes, and decommissioning.
 - **Every release** that a customer can use with real patients, and every change that touches clinical workflow ([section 8](#8-changes-and-the-release-gate)).
 - **What the manufacturer runs for customers,** once it hosts MedApp as a service (Azure, `deploy/azure`): availability, backups and restores, as far as they affect patient care.
@@ -26,7 +26,8 @@ This plan says how the manufacturer manages clinical risk in MedApp, as DCB0129 
 ### What it doesn't cover
 
 - **Each customer's deployment:** how a customer configures, trains for and uses MedApp is their own clinical risk management under DCB0160. The manufacturer supports it (`dcb0160-deploying-organisations.md`).
-- **The content of templates and stage instructions:** customers write them, and are responsible for their clinical accuracy. The hazards that the software adds to that content (for example, how changes reach procedures) are in scope.
+- **The content of templates and stage instructions:** customers write them, and are responsible for their clinical accuracy, including which stages involve a visit. The hazards that the software adds to that content (for example, how changes reach procedures) are in scope.
+- **Contacting patients about appointments:** MedApp doesn't contact patients; how a customer tells them about bookings, changes and cancellations is its own process, under DCB0160.
 - **Medical device regulation:** MedApp isn't a medical device as it stands (`intended-purpose-and-device-decision.md`). If that changes, ISO 14971 and UK MDR 2002 apply too, and this plan has to be revised.
 
 ### Current state
@@ -69,12 +70,12 @@ The process follows DCB0129 and the principles of ISO 14971: identify hazards, e
 
 Hazards are found by:
 - **Walking the workflows:** each workflow in `docs/architecture.md` section 6.3 (creating and working a procedure) and the screens in `docs/procedures-ui-plan.md` section 6, asking "what if" at each step: the wrong patient, the wrong stage, too late, twice, by two people, with the system down. This is a structured what-if technique (SWIFT).
-- **Reading the rules in the code:** `MedApp.Application/Procedures/Common` (`ProcedureWorkflow`, `ProcedureChange`, `DueDates`), the handlers and the screens that use them.
+- **Reading the rules in the code:** `MedApp.Application/Procedures/Common` (`ProcedureWorkflow`, `ProcedureChange`, `DueDates`), `MedApp.Application/Calendar/Common` (`WorkingHours`, `UkTime`, `CalendarProjection`, `CalendarClashes`) and `MedApp.Application/Appointments/Common` (`AppointmentWorkflow`, `AppointmentChange`), the handlers and the screens that use them.
 - **The engineering reviews** in `docs/reviews/` and the risks in `docs/architecture.md` section 11, for failures with a clinical effect.
 - **People who use it:** a hazard workshop with the CSO and at least one clinician from a likely customer before first live use; then user feedback, support requests and incidents.
 - **Every change** that touches clinical workflow ([section 8](#8-changes-and-the-release-gate)).
 
-The first hazard log (`hazard-log.md`) came from the first two of these. The workshop hasn't happened yet.
+The first hazard log (`hazard-log.md`) came from the first two of these. The workshop hasn't happened yet. The calendar and appointment hazards (H-22 to H-28) came from walking the booking and stage visit workflows in the feature's design (`docs/calendar-plan.md`), as a change that touches clinical workflow.
 
 ### 4.2 Estimating risk
 
@@ -263,3 +264,4 @@ Once a year, the CSO checks that the process was followed: that every clinical-i
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table; the go-live rule on the "at first live use" rating; the release gate for every change under `MedApp.*` or `deploy/`, starting when a CSO is appointed, with the device question in `AGENTS.md` now | AI coding agent, for review |
+| 0.3 | 16 November 2026 | Staff calendars, appointments and stage visits in scope; contacting patients about appointments left to customers; the calendar and appointment rules added to where hazards are looked for | AI coding agent, for review |
