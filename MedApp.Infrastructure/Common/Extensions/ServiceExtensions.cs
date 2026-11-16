@@ -2,6 +2,7 @@
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Demographics.Common;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
@@ -9,6 +10,7 @@ using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
+using MedApp.Infrastructure.Demographics;
 using MedApp.Infrastructure.Data.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,7 @@ public static class ServiceExtensions
         services.AddDatabase(configuration);
         services.AddIdentity(configuration);
         services.AddRepositories();
+        services.AddDemographics(configuration);
 
         return services;
     }
@@ -61,6 +64,21 @@ public static class ServiceExtensions
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         
+        return services;
+    }
+
+    /// <summary>
+    /// The demographics lookup (<c>Pds:Mode</c>): none by default, or the offline stub of synthetic 999 numbers. The
+    /// real PDS FHIR API isn't wired in; it needs NHS England's onboarding first.
+    /// </summary>
+    private static IServiceCollection AddDemographics(this IServiceCollection services, IConfiguration configuration)
+    {
+        var options = configuration.GetSection(PdsOptions.Section).Get<PdsOptions>() ?? new PdsOptions();
+        if (options.Mode == PdsMode.Offline)
+            services.AddSingleton<IPersonalDemographicsService, OfflinePersonalDemographicsService>();
+        else
+            services.AddSingleton<IPersonalDemographicsService, NoPersonalDemographicsService>();
+
         return services;
     }
 

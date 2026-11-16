@@ -55,5 +55,11 @@ public enum ActivityAction
     RolesChanged = 21,
 
     RoleCreated = 22,
-    RoleDeleted = 23
+    RoleDeleted = 23,
+
+    /// <summary>
+    /// Someone looked a person up by NHS number in the demographics service (PDS): whether anyone was found, never the
+    /// number.
+    /// </summary>
+    DemographicsLookedUp = 24
 }
