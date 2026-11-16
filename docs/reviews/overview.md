@@ -95,6 +95,10 @@ Five pieces build on it:
 
 **Status:** written and checked, but **not deployed**. CI compiles and lints the Bicep, and renders every chart with Azure's settings, on every pull request. Deploying costs roughly £150 to £200 a month (see [azure.md](azure.md) and `deploy/azure/README.md`), so it waits for you to choose to. It's two commands, plus pointing your domain at the address it prints.
 
+## Data protection paperwork
+
+MedApp is built to hold patients' health data, which UK law protects most closely. The documents that law and NHS buyers ask for, such as a **data protection impact assessment** (a written assessment of the risks to patients and how they're reduced), a retention schedule, a contract for customers, and privacy notices, are drafts in [`docs/governance/`](../governance/README.md). None is approved yet, and they say plainly which protections are built and which are still planned.
+
 ## Running it
 
 | Where | How | What you get |
