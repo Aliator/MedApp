@@ -122,6 +122,27 @@ public sealed class AppointmentRepositoryExtensionsTests
         await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Appointment '{id}' was not found.");
     }
 
+    [TestCase(1, "1 upcoming appointment")]
+    [TestCase(3, "3 upcoming appointments")]
+    public async Task WhyCantStopBeingStaffAsync_UpcomingAppointments_ReturnsTheErrorCountingThem(int count, string counted)
+    {
+        using var cts = new CancellationTokenSource();
+        _repository.Setup(r => r.CountUpcomingForStaffAsync(StaffUserId, Now, cts.Token)).ReturnsAsync(count);
+
+        var error = await _repository.Object.WhyCantStopBeingStaffAsync(StaffUserId, StaffUsername, Now, cts.Token);
+
+        error!.Code.Should().Be(IdentityErrors.HasUpcomingAppointmentsCode);
+        error.Description.Should().Be($"{StaffUsername} has {counted}. Move or cancel them first.");
+    }
+
+    [Test]
+    public async Task WhyCantStopBeingStaffAsync_NoUpcomingAppointments_ReturnsNull()
+    {
+        _repository.Setup(r => r.CountUpcomingForStaffAsync(StaffUserId, Now, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+
+        (await _repository.Object.WhyCantStopBeingStaffAsync(StaffUserId, StaffUsername, Now, CancellationToken.None)).Should().BeNull();
+    }
+
     /// <summary>An appointment for this patient, found by the repository.</summary>
     private Appointment GivenAppointmentFor(MedApp.Domain.Patients.Patient patient)
     {

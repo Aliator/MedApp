@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using FluentAssertions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Procedures.Common;
@@ -112,6 +113,31 @@ public sealed class AppointmentDeletionTests : IntegrationTest
             StaffUsername = ProcedureMapper.DeletedUser,
             Status = "Cancelled",
         });
+    }
+
+    /// <summary>
+    /// Taking every role from someone with upcoming bookings would take their calendar away (it's only for staff), so
+    /// it's refused as deleting them is. Keeping a staff role, or cancelling the bookings first, is fine.
+    /// </summary>
+    [Test]
+    public async Task SetRoles_NoneForSomeoneWithAnUpcomingBookedAppointment_Returns400UntilItsCancelled()
+    {
+        var patient = await CreatePatientAsync(_staff.Client);
+        var appointment = await BookNewAppointmentAsync(_admin, patient.Id, _staff.UserId, NextBookableStart());
+        var url = $"/api/auth/users/{_staff.Username}/roles";
+
+        var refused = await _admin.PutAsJsonAsync(url, new SetUserRolesRequest([]));
+
+        var errors = await refused.ReadAsAsync<List<IdentityError>>(HttpStatusCode.BadRequest);
+        errors.Should().ContainSingle().Which.Code.Should().Be(IdentityErrors.HasUpcomingAppointmentsCode);
+        errors[0].Description.Should().Be($"{_staff.Username} has 1 upcoming appointment. Move or cancel them first.");
+        (await GetCalendarAsync(_admin, _staff.UserId, UkToday)).Should().NotBeNull("they're still staff, with a calendar");
+
+        // Another staff role is fine: they keep their calendar.
+        await (await _admin.PutAsJsonAsync(url, new SetUserRolesRequest([AdminRole]))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+
+        await (await PostCancelAsync(_admin, appointment.Id, CancelReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PutAsJsonAsync(url, new SetUserRolesRequest([]))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
     }
 
     [Test]

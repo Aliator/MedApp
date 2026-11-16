@@ -3,6 +3,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Appointments;
+using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Application.Appointments.Common;
 
@@ -41,4 +42,16 @@ public static class AppointmentRepositoryExtensions
         appointment.StaffUserId is { } staffUserId
             ? (await identity.GetUsernamesByIdAsync([staffUserId], ct)).GetValueOrDefault(staffUserId)
             : null;
+
+    /// <summary>
+    /// Why an account can't stop being staff (be deleted, or lose every staff role): it has Booked appointments still
+    /// to come, which would be left on a calendar nobody can open. Null if it has none. Deleting an account and
+    /// changing its roles both ask this, so they refuse alike.
+    /// </summary>
+    public static async Task<IdentityError?> WhyCantStopBeingStaffAsync(
+        this IAppointmentRepository repository, Guid userId, string username, DateTime nowUtc, CancellationToken ct)
+    {
+        var upcoming = await repository.CountUpcomingForStaffAsync(userId, nowUtc, ct);
+        return upcoming > 0 ? IdentityErrors.HasUpcomingAppointments(username, upcoming) : null;
+    }
 }

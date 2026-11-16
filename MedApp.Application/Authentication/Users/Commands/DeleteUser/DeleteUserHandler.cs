@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Identity;
 using MedApp.Domain.Activity;
@@ -25,13 +26,10 @@ public sealed class DeleteUserHandler(
             return confirmed;
 
         // No appointment may be left with nobody: upcoming ones must be moved or cancelled first.
-        if (await identityReadService.GetUserAsync(request.Username, ct) is { } user)
-        {
-            var upcoming = await appointmentRepository.CountUpcomingForStaffAsync(
-                user.UserId, timeProvider.GetUtcNow().UtcDateTime, ct);
-            if (upcoming > 0)
-                return IdentityResult.Failed(IdentityErrors.HasUpcomingAppointments(user.Username, upcoming));
-        }
+        if (await identityReadService.GetUserAsync(request.Username, ct) is { } user
+            && await appointmentRepository.WhyCantStopBeingStaffAsync(
+                user.UserId, user.Username, timeProvider.GetUtcNow().UtcDateTime, ct) is { } upcoming)
+            return IdentityResult.Failed(upcoming);
 
         var result = await userService.DeleteUserAsync(
             request.Username,
