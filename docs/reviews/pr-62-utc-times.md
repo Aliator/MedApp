@@ -60,7 +60,7 @@ Times were stored in UTC but left the API without a time zone, so browsers read 
 
 ## Findings
 
-Most severe first. None is high or critical. All three were open when this review was written.
+Most severe first. None is high or critical. All three were open when this review was written, and all three are now fixed.
 
 ### 1. Writes aren't checked: a local time would be stored as it is, then read back as UTC
 
@@ -72,7 +72,7 @@ Most severe first. None is high or critical. All three were open when this revie
   - every writer today is UTC: `timeProvider.GetUtcNow().UtcDateTime` in the procedure handlers (e.g. `AssignPatientProcedureHandler.cs:33`), `DateTime.UtcNow` in `CreatePatientHandler.cs:23-24`, `UpdatePatientHandler.cs:32`, `SessionService.cs:23` and `tools/MedApp.DevMcp`, and `TimeZoneInfo.ConvertTimeToUtc` in `DueDates.cs:12-17`
   - no `DateTime.Now` or `DateTime.Today` in server code; only the deprecated Blazor client uses `DateTime.Today`
 - **Fix:** convert a local time on the way in: `value => value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value`, with a `Local` test case (sketch under Detail). Optionally, ban `DateTime.Now` and `DateTime.Today` in the server projects with the .NET banned-API analyzer; `AGENTS.md` already says to take a `TimeProvider`.
-- **What happened to it:** open when this review was written.
+- **What happened to it:** fixed. The converter now writes a local time as UTC (`value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value`), and `ConvertToProvider_LocalTime_IsWrittenAsUtc` checks it, with a time built by `ToLocalTime()`, so it holds in any machine's zone. No analyzer ban was added: `AGENTS.md` already says to take a `TimeProvider`, and the converter makes a stray `DateTime.Now` harmless.
 
 ### 2. Two of the new .NET tests can't fail for the reason they give
 
@@ -91,7 +91,10 @@ Most severe first. None is high or critical. All three were open when this revie
 - **Fix:**
   - Take the options from the API's own registration: `new ServiceCollection().AddApi(new ConfigurationBuilder().Build())`, then `IOptions<JsonOptions>` for the controllers and `IOptions<JsonHubProtocolOptions>` for the hub. Serialise an audit entry with one and a `NotificationResponse` with the other.
   - Drop the date of birth test, or replace it with one that could fail: the JSON of a `PatientResponse` and of a procedure's `DueDate` is `yyyy-mm-dd`.
-- **What happened to it:** open when this review was written.
+- **What happened to it:** fixed.
+  - The date of birth model test is gone. In its place, `ApiJsonTests` (`MedApp.UnitTests/Api/Common/ApiJsonTests.cs`) checks that a `DateOnly` is sent as `yyyy-mm-dd`: a patient's `dateOfBirth`, and a procedure summary's `dueDate`, beside its `dueDateUtc` ending in `Z`.
+  - The JSON tests take their options from the API's own registration: `ApiJson` (`MedApp.UnitTests/Common/Fixtures/ApiJson.cs`) builds `AddApi(...)` once, and gives `IOptions<JsonOptions>` for the controllers and `IOptions<JsonHubProtocolOptions>` for the hub. The audit controller test uses the first.
+  - The hub is checked too: `Hub_NotificationReadFromTheDatabase_IsSentAsUtcWithZ` serialises a `NotificationResponse` with the hub's options.
 
 ### 3. The docs don't say what `dueDateUtc` is
 
@@ -107,7 +110,7 @@ Most severe first. None is high or critical. All three were open when this revie
   - `MedApp.Contracts/Procedures/PatientProcedures/Responses/PatientProcedureResponse.cs:15-16` and `PatientProcedureSummaryResponse.cs:11-12`, set at `MedApp.Application/Procedures/Common/ProcedureMapper.cs:52` and `:129`
   - `MedApp.Web/src/utils/dates.ts:6` and `:34-36` (`formatDate` accepts only a date)
 - **Fix:** one clause in each doc: "`dueDateUtc` is the moment the due day ends (UK time), for comparing with now; show `dueDate`." Or remove `dueDateUtc` from the responses, as the server already works out `isOverdue` and nothing reads it. That's a contract change, which needs `npm run gen:api`.
-- **What happened to it:** open when this review was written.
+- **What happened to it:** fixed. Both docs now say `dueDateUtc` is a moment, the end of the due day (UK time) in UTC, for comparing with now, and to show `dueDate`. It stays in the responses.
 
 ## Remaining risks
 
@@ -117,7 +120,7 @@ Most severe first. None is high or critical. All three were open when this revie
   - **The server disagrees with itself too:** the earliest due date is the UK day (`CreatePatientProcedureValidator.cs:32`), but the latest date of birth is the UTC day (`CreatePatientValidator.cs:25`).
   - **Fix, as a to-do:** a UK-day helper in `dates.ts` that formats now in `Europe/London`, used for every "today".
 - **The web fallback can hide a server regression.** If the converter were lost, the web app would still look right while the API's JSON lost its `Z` for every other consumer. Only the .NET model test guards it.
-- **The hazard log still lists H-12 as open.** It's on the unmerged `docs/clinical-safety` branch: `hazard-log.md:42` ("Open, to verify"), and `clinical-safety-case-report.md:132` and `:166`. Whichever of the two merges second should record the cause as confirmed and the fix as built in #62.
+- **The hazard log listed H-12's fix as open.** Updated after `main` (with #60) was merged into this branch: the hazard log, CS-03 (its summary, ratings, outstanding hazards and defects), the clinical safety README and the handbook's step 6 status line now record the defect as fixed by #62. H-12 stays in the log, Open until the CSO verifies the fix; its initial rating (at `88dc1fa`) is unchanged, and its residual (2) now gives the fix as built and lists what's left to verify.
 - **A flaky test, unrelated to this PR:** `PatientPages.test.tsx:80` counts the error text straight after the alert appears. Under load, the field's copy can arrive a moment later. Wrapping the check in `waitFor` would fix it.
 - **Not seen end to end** against SQL Server, or in a browser during British Summer Time.
 
