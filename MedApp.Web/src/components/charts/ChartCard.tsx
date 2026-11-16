@@ -10,10 +10,11 @@ import {PanelCard} from '../views/PanelCard';
 export type ChartView = 'chart' | 'table';
 
 /**
- * Every chart card's height, in pixels, whichever view it shows: tall enough for a column chart and its summary, so
- * the usual charts fit, and a longer chart or table scrolls inside the card.
+ * Every chart card's height, whichever view it shows. In rem, so it grows with the text size setting along with the
+ * card's header and summary: 480 px at Standard text, which fits a column chart, or a bar chart of up to 8 bars, under
+ * a two-line summary. A longer chart or table scrolls inside the card.
  */
-export const CHART_CARD_HEIGHT = 480;
+export const CHART_CARD_HEIGHT = '30rem';
 
 export interface ChartCardProps {
   /** The header bar's title, e.g. "Overdue by assignee". */
@@ -33,7 +34,8 @@ export interface ChartCardProps {
  * numbers (WCAG 1.1.1), and the table's links do what clicking a bar does, by keyboard too.
  *
  * The card keeps one height (`CHART_CARD_HEIGHT`) in both views, and what doesn't fit scrolls inside it, so showing a
- * long table never makes the page longer, and cards side by side stay level.
+ * long table never makes the page longer, and cards side by side stay level. While its body scrolls, the body is a Tab
+ * stop named by the title, as a chart or a table of numbers has nothing else the keyboard can scroll it by.
  *
  * The page keeps `view`, so the choice survives a change of layout (e.g. opening a half view).
  */
@@ -42,6 +44,7 @@ export function ChartCard({title, summary, view, onViewChange, children}: ChartC
     <VStack height={CHART_CARD_HEIGHT}>
       <PanelCard
         title={title}
+        isBodyKeyboardScrollable
         headerActions={
           view === 'chart' ? (
             <Button label="Show Table" aria-label={`Show Table of ${title}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.Table} />} onClick={() => onViewChange('table')} />

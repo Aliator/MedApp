@@ -6,6 +6,7 @@ import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Heading} from '@astryxdesign/core/Text';
 import {useState, type ReactNode, type Ref} from 'react';
 import {AppIcon} from '../shared/icons';
+import {useOverflows} from './useOverflows';
 
 export interface PanelHeaderProps {
   title: string;
@@ -84,6 +85,12 @@ export interface PanelCardProps {
    * parts: it gets the card's remaining height (`height="100%"`) and nothing outside those parts moves.
    */
   isBodyScrollable?: boolean;
+  /**
+   * While the body is too tall and scrolls, make it a Tab stop named by `title`, so the keyboard can scroll it when
+   * nothing inside can take focus: a chart, or a table of numbers (WCAG 2.1.1). Leave it off for a body of fields,
+   * buttons or links, which the keyboard scrolls by moving through them; an extra stop there only gets in the way.
+   */
+  isBodyKeyboardScrollable?: boolean;
   /** Buttons in a footer pinned to the bottom, aligned to the end. */
   footerActions?: ReactNode;
   /** Makes the header bar clickable. Put a control for it in `headerActions` too, so the keyboard can reach it. */
@@ -101,14 +108,23 @@ export function PanelCard({
   children,
   isBodyPadded = true,
   isBodyScrollable = true,
+  isBodyKeyboardScrollable = false,
   footerActions,
   onHeaderClick,
 }: PanelCardProps) {
+  const [measureBody, bodyOverflows] = useOverflows();
+  // Named only while it scrolls: Astryx then makes it a group with this name (a plain box takes no name).
+  const isScrollStop = isBodyKeyboardScrollable && isBodyScrollable && bodyOverflows;
   return (
     <Card padding={0} width="100%" height="100%">
       <VStack gap={0} height="100%">
         <PanelHeader title={title} actions={headerActions} onClick={onHeaderClick} />
-        <StackItem size="fill" isScrollable={isBodyScrollable}>
+        <StackItem
+          size="fill"
+          isScrollable={isBodyScrollable}
+          ref={isBodyKeyboardScrollable && isBodyScrollable ? measureBody : undefined}
+          tabIndex={isScrollStop ? 0 : undefined}
+          aria-label={isScrollStop ? title : undefined}>
           {isBodyPadded ? (
             <Section variant="transparent" padding={6}>
               <VStack gap={8}>{children}</VStack>

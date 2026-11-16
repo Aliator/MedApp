@@ -118,7 +118,7 @@ export function ChartLegend({series}: {series: readonly ChartSeries[]}) {
 /**
  * A bar chart (Recharts) in the app's look: the theme's tokens for its colours, so it follows the light and dark
  * modes and the colour themes; thin bars with rounded ends and a gap between neighbours; recessive axes; a tooltip
- * under the pointer; and a legend for two series or more. It fills its container's width.
+ * under the pointer; and, for two series or more, a key above the bars. It fills its container's width.
  *
  * Use it inside a `ChartCard`, which gives every chart its title, a summary in words, and a table of its numbers for
  * anyone who can't see or point at the chart. Screen readers read the chart as one image named by `description`.
@@ -151,6 +151,8 @@ export function BarChart<T extends object>({
 
   return (
     <VStack gap={3}>
+      {/* The key goes above the bars, so a card too short for the whole chart never cuts it off. */}
+      {series.length > 1 && <ChartLegend series={series} />}
       <StackItem ref={ref} role="img" aria-label={description} style={{blockSize: height}}>
         {width > 0 && (
           <Chart
@@ -202,7 +204,6 @@ export function BarChart<T extends object>({
           </Chart>
         )}
       </StackItem>
-      {series.length > 1 && <ChartLegend series={series} />}
     </VStack>
   );
 }

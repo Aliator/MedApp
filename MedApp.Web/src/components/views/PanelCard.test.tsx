@@ -1,5 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
-import {screen} from '@testing-library/react';
+import {act, screen, waitFor} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
 import {CollapseButton, PanelCard, PanelHeader} from './PanelCard';
 
@@ -27,7 +27,70 @@ describe('PanelCard', () => {
     expect(await screen.findByText('Body')).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('makes a scrolling body a Tab stop named by the title, while it overflows, when asked', async () => {
+    const layout = stubScrollLayout({content: 200, box: 400});
+    renderWithApp(
+      <PanelCard title="Created and completed" isBodyKeyboardScrollable>
+        <p>Rows</p>
+      </PanelCard>,
+    );
+    await screen.findByText('Rows');
+
+    // It fits: no extra stop.
+    expect(screen.queryByLabelText('Created and completed')).not.toBeInTheDocument();
+
+    layout.setContent(900);
+    const body = await screen.findByLabelText('Created and completed');
+    expect(body).toHaveAttribute('tabindex', '0');
+    expect(body).toContainElement(screen.getByText('Rows'));
+
+    // It fits again (the table went back to a chart): the stop goes.
+    layout.setContent(200);
+    await waitFor(() => expect(screen.queryByLabelText('Created and completed')).not.toBeInTheDocument());
+  });
+
+  it('leaves a scrolling body out of the Tab order unless asked, as its own fields and links scroll it', async () => {
+    stubScrollLayout({content: 900, box: 400});
+    renderWithApp(
+      <PanelCard title="Details">
+        <p>Fields</p>
+      </PanelCard>,
+    );
+
+    expect(await screen.findByText('Fields')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Details')).not.toBeInTheDocument();
+    expect(document.querySelector('[tabindex="0"]')).toBeNull();
+  });
 });
+
+/**
+ * jsdom has no layout: every element's content is `content` px tall in a `box` px box, until the test ends, and
+ * `setContent` changes the content's height and tells every ResizeObserver, as a browser would.
+ */
+function stubScrollLayout(size: {content: number; box: number}) {
+  const callbacks: ResizeObserverCallback[] = [];
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(callback: ResizeObserverCallback) {
+        callbacks.push(callback);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(() => size.content);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => size.box);
+  return {
+    setContent: (content: number) =>
+      act(() => {
+        size.content = content;
+        callbacks.forEach((callback) => callback([], {} as ResizeObserver));
+      }),
+  };
+}
 
 describe('PanelHeader and CollapseButton', () => {
   it('shows a section title with a button that folds it', async () => {
