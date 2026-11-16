@@ -1,0 +1,235 @@
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
+import {SaveShortcutProvider} from '../forms/SaveShortcut';
+import type {Appointment} from '../../api/appointments';
+import {STAFF_ME, testAppointment, testCalendar, testRequested} from '../../test/calendar';
+import {expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {AppointmentDialog, appointmentWhen} from './AppointmentDialog';
+
+const MONDAY = '2026-11-23';
+
+function renderDialog(appointment: Appointment, handlers: Parameters<typeof mockApi>[0] = {}) {
+  const onClose = vi.fn();
+  const fetch = mockApi({
+    [`GET /api/appointments/${appointment.id}`]: () => json(appointment),
+    'GET /api/calendar/staff': () => json([STAFF_ME]),
+    'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
+    ...handlers,
+  });
+  const result = renderWithApp(
+    <SaveShortcutProvider>
+      <AppointmentDialog appointment={appointment} onClose={onClose} />
+    </SaveShortcutProvider>,
+    {user: staffUser},
+  );
+  return {...result, fetch, onClose};
+}
+
+/** The open dialog, or the whole page until one opens (for `findBy` queries, which wait). */
+const dialog = () => within(openDialog() ?? document.body);
+const bodyOf = async (fetch: ReturnType<typeof mockApi>, method: string, path: string) => {
+  const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === method && new URL(r.url).pathname === path)!;
+  return request.clone().json();
+};
+
+describe('AppointmentDialog', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
+  });
+
+  it('says when an appointment is, or that it is not booked', () => {
+    expect(appointmentWhen(testAppointment({date: MONDAY, start: '09:00', end: '09:30'}))).toBe('Monday 23 November, 09:00 to 09:30 with test-user');
+    expect(appointmentWhen(testAppointment({staffUsername: null}))).toBe('Monday 23 November, 09:00 to 09:30');
+    expect(appointmentWhen(testRequested())).toBe('Not booked yet');
+  });
+
+  it("shows a booked appointment's details, with links to its patient and procedure", async () => {
+    const {user, router, onClose} = renderDialog(testAppointment({id: 'appt-1', notes: 'Bring the scan.'}));
+
+    expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+    expect(dialog().getAllByText('Booked').some((e) => e.closest('.astryx-token'))).toBe(true);
+    expect(dialog().getByText('Visit required')).toBeInTheDocument();
+    expect(dialog().getByText('Monday 23 November, 09:00 to 09:30 with test-user')).toBeInTheDocument();
+    // Requested and booked by the same person at the same time.
+    expect(dialog().getAllByText('By test-admin, 10 Nov 2026, 10:00')).toHaveLength(2);
+    expect(dialog().getByRole('textbox', {name: /Notes/})).toHaveValue('Bring the scan.');
+    expect(dialog().queryByRole('button', {name: 'Attended'})).not.toBeInTheDocument();
+
+    await user.click(dialog().getByRole('link', {name: 'Knee review: Assessment'}));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/procedures/procedure-1'));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('saves its notes', async () => {
+    withAnnouncements();
+    const appointment = testAppointment({id: 'appt-1'});
+    const {user, fetch} = renderDialog(appointment, {'PUT /api/appointments/appt-1/notes': () => json({...appointment, notes: 'Wheelchair access.'})});
+
+    const save = await dialog().findByRole('button', {name: 'Save Notes'});
+    expect(isDisabled(save)).toBe(true);
+    await user.type(dialog().getByRole('textbox', {name: /Notes/}), ' Wheelchair access. ');
+    await user.click(save);
+
+    await expectAnnounced('Notes saved');
+    expect(await bodyOf(fetch, 'PUT', '/api/appointments/appt-1/notes')).toEqual({notes: 'Wheelchair access.'});
+  });
+
+  it("shows a notes error on the field, and any other problem above", async () => {
+    const appointment = testAppointment({id: 'appt-1'});
+    let status = 400;
+    const {user} = renderDialog(appointment, {
+      'PUT /api/appointments/appt-1/notes': () =>
+        status === 400 ? json({errors: {Notes: ['Notes are too long.']}}, 400) : json({title: 'The appointment was cancelled.'}, 409),
+    });
+
+    await user.type(await dialog().findByRole('textbox', {name: /Notes/}), 'x');
+    await user.click(dialog().getByRole('button', {name: 'Save Notes'}));
+    expect(await dialog().findByText('Notes are too long.')).toBeInTheDocument();
+
+    status = 409;
+    await user.click(dialog().getByRole('button', {name: 'Save Notes'}));
+    expect(await dialog().findByText('The appointment was cancelled.')).toBeInTheDocument();
+  });
+
+  it('records whether the patient came, once it has started', async () => {
+    withAnnouncements();
+    let appointment = testAppointment({id: 'appt-1', canRecordOutcome: true, canReschedule: false, canCancel: false});
+    const {user, fetch} = renderDialog(appointment, {
+      'GET /api/appointments/appt-1': () => json(appointment),
+      'POST /api/appointments/appt-1/outcome': () => {
+        appointment = {...appointment, status: 'DidNotAttend'};
+        return json(appointment);
+      },
+    });
+
+    await user.click(await dialog().findByRole('button', {name: 'Did not attend'}));
+
+    await expectAnnounced('Marked Did not attend');
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/outcome')).toEqual({outcome: 'DidNotAttend'});
+    await waitFor(() => expect(isDisabled(dialog().getByRole('button', {name: 'Did not attend'}))).toBe(true));
+    expect(dialog().getByRole('button', {name: 'Book Another'})).toBeInTheDocument();
+  });
+
+  it('marks an appointment Attended, and says when that fails', async () => {
+    const appointment = testAppointment({id: 'appt-1', canRecordOutcome: true});
+    const {user} = renderDialog(appointment, {'POST /api/appointments/appt-1/outcome': () => json({}, 500)});
+
+    await user.click(await dialog().findByRole('button', {name: 'Attended'}));
+    expect(await dialog().findByText('The appointment could not be changed. Please try again.')).toBeInTheDocument();
+  });
+
+  it('cancels with a reason, after asking', async () => {
+    withAnnouncements();
+    const appointment = testAppointment({id: 'appt-1'});
+    const {user, fetch} = renderDialog(appointment, {
+      'POST /api/appointments/appt-1/cancel': () => json({...appointment, status: 'Cancelled', cancelReason: 'Patient unwell.'}),
+    });
+
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Appointment'}));
+    const confirm = await screen.findByRole('heading', {name: 'Cancel Appointment'});
+    expect(confirm).toBeInTheDocument();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Cancel Appointment'}))).toBe(true);
+    await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Patient unwell.');
+    await user.click(dialog().getByRole('button', {name: 'Cancel Appointment'}));
+
+    await expectAnnounced('Appointment cancelled');
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/cancel')).toEqual({reason: 'Patient unwell.'});
+    expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+  });
+
+  it('goes back to the appointment when cancelling fails or is called off', async () => {
+    const appointment = testAppointment({id: 'appt-1'});
+    const {user} = renderDialog(appointment, {'POST /api/appointments/appt-1/cancel': () => json({title: 'It has already happened.'}, 409)});
+
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Appointment'}));
+    await user.click(await dialog().findByRole('button', {name: 'Keep It'}));
+    await user.click(await dialog().findByRole('button', {name: 'Cancel Appointment'}));
+    await user.type(await dialog().findByRole('textbox', {name: /Reason/}), 'No longer needed.');
+    await user.click(dialog().getByRole('button', {name: 'Cancel Appointment'}));
+
+    expect(await dialog().findByText('It has already happened.')).toBeInTheDocument();
+  });
+
+  it('reschedules in the booking dialog, and comes back', async () => {
+    const {user} = renderDialog(testAppointment({id: 'appt-1'}));
+
+    await user.click(await dialog().findByRole('button', {name: 'Reschedule'}));
+    expect(await screen.findByRole('heading', {name: 'Reschedule Appointment'})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+  });
+
+  it('books a Requested appointment, which says who asked for it', async () => {
+    const {user} = renderDialog(testRequested({id: 'req-1', isAutomatic: true, notes: null}));
+
+    expect(await dialog().findByText('Needs booking')).toBeInTheDocument();
+    expect(dialog().getByText('Not booked yet')).toBeInTheDocument();
+    expect(dialog().getByText('Automatically, 10 Nov 2026, 10:00')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Book'}));
+    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+  });
+
+  it('shows why a cancelled one was cancelled, its notes read-only, and books another', async () => {
+    const appointment = testAppointment({
+      id: 'appt-1',
+      status: 'Cancelled',
+      cancelReason: 'Patient moved away.',
+      notes: 'Ground floor.',
+      canEditNotes: false,
+      canCancel: false,
+      canReschedule: false,
+      procedureId: null,
+      procedureTitle: null,
+      stageId: null,
+      stageName: null,
+      outcomeAtUtc: '2026-11-12T10:00:00Z',
+      outcomeByUsername: 'test-user',
+    });
+    const onClose = vi.fn();
+    function Harness() {
+      const [shown, setShown] = useState<Appointment | null>(appointment);
+      return (
+        <AppointmentDialog
+          appointment={shown}
+          onClose={() => {
+            onClose();
+            setShown(null);
+          }}
+        />
+      );
+    }
+    mockApi({
+      'GET /api/appointments/appt-1': () => json(appointment),
+      'GET /api/calendar/staff': () => json([STAFF_ME]),
+      'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
+      'GET /api/procedures/patient-procedures/search': () => json({items: []}),
+    });
+    const {user} = renderWithApp(<Harness />, {user: staffUser});
+
+    expect(await dialog().findByText('Patient moved away.')).toBeInTheDocument();
+    expect(dialog().getByText('Ground floor.')).toBeInTheDocument();
+    expect(dialog().getByText('Appointment', {selector: '.astryx-metadata-list *'})).toBeInTheDocument();
+    expect(dialog().getByText('By test-user, 12 Nov 2026, 10:00')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Book Another'}));
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    // The footer's Close (the header has one too).
+    await user.click((await dialog().findAllByRole('button', {name: 'Close'})).at(-1)!);
+    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('saves notes with Ctrl+S, and only when they changed', async () => {
+    const appointment = testAppointment({id: 'appt-1'});
+    const {user, fetch} = renderDialog(appointment, {'PUT /api/appointments/appt-1/notes': () => json(appointment)});
+
+    const notes = await dialog().findByRole('textbox', {name: /Notes/});
+    notes.focus();
+    fireEvent.keyDown(notes, {key: 's', ctrlKey: true});
+    expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(false);
+    await user.type(notes, 'Hearing aid.');
+    notes.focus();
+    fireEvent.keyDown(notes, {key: 's', ctrlKey: true});
+    await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(true));
+  });
+});

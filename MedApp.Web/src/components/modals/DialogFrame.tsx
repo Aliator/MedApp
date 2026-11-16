@@ -1,6 +1,6 @@
 import {Dialog, DialogHeader} from '@astryxdesign/core/Dialog';
 import {Layout, LayoutContent, LayoutFooter} from '@astryxdesign/core/Layout';
-import {HStack} from '@astryxdesign/core/Stack';
+import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import type {ReactNode} from 'react';
 
 export interface DialogFrameProps {
@@ -12,6 +12,8 @@ export interface DialogFrameProps {
   onClose: () => void;
   /** Buttons at the end of the footer. */
   footer?: ReactNode;
+  /** Something at the start of the footer, before its buttons, e.g. a summary of what the buttons will do. */
+  footerStart?: ReactNode;
   width?: number;
   /**
    * 'form' (default) keeps a stray backdrop click from losing what was typed; 'info' allows it;
@@ -25,7 +27,17 @@ export interface DialogFrameProps {
  * The frame every app dialog shares (replaces Blazor's Modal): a titled header with a close button, scrolling
  * content, and a footer of buttons. Laid out as Astryx's dialog templates are.
  */
-export function DialogFrame({isOpen, title, icon, onClose, footer, width = 440, purpose = 'form', children}: DialogFrameProps) {
+export function DialogFrame({
+  isOpen,
+  title,
+  icon,
+  onClose,
+  footer,
+  footerStart,
+  width = 440,
+  purpose = 'form',
+  children,
+}: DialogFrameProps) {
   const handleOpenChange = (open: boolean) => {
     if (!open) onClose();
   };
@@ -47,7 +59,8 @@ export function DialogFrame({isOpen, title, icon, onClose, footer, width = 440, 
         footer={
           footer ? (
             <LayoutFooter>
-              <HStack gap={2} vAlign="center" hAlign="end">
+              <HStack gap={2} vAlign="center" hAlign="end" wrap={footerStart ? 'wrap' : 'nowrap'}>
+                {footerStart && <StackItem size="fill">{footerStart}</StackItem>}
                 {footer}
               </HStack>
             </LayoutFooter>
