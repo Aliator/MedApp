@@ -79,7 +79,8 @@ describe('AddPatientPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
 
     await findAlert('One or more validation errors occurred.');
-    expect(screen.getAllByText('First name must not be empty.').length).toBeGreaterThan(1);
+    // On the field, and said by Astryx's live region, which can come a moment later.
+    await waitFor(() => expect(screen.getAllByText('First name must not be empty.').length).toBeGreaterThan(1));
     expect(openDialog()).toBeNull();
   });
 
