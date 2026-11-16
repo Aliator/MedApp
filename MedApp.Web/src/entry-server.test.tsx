@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {render, type RouterManifest} from './entry-server';
+import {insights, templates} from './test/insights';
 
 /**
  * Server rendering, end to end, as the Node server runs it (in Node, with no browser): the page's route guards and
@@ -185,5 +186,24 @@ describe('server rendering', () => {
 
     expect(await at('large')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark" style="font-size:112.5%"/);
     expect(await at('standard')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark">/);
+  });
+
+  it("renders Insights for an admin with its numbers and summaries; its charts draw once it's in a browser", async () => {
+    api({
+      '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/procedures/insights': insights,
+      '/api/procedures/patient-procedure-stage/templates': templates,
+    });
+
+    const response = await page('/admin/insights', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Completed this week');
+    expect(html).toContain('5 procedures are overdue. k.ashford has the most (3). 2 have nobody assigned.');
+    expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
+    expect(html).not.toContain('recharts-surface');
   });
 });

@@ -40,5 +40,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(MedAppDbContext).Assembly);
+
+        InsightsDbFunctions.Register(modelBuilder);
     }
 }

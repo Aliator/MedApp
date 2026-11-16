@@ -47,7 +47,8 @@ public static class ProceduresTestConstants
         Patient? patient = null,
         DateTime? dueDateUtc = null,
         PatientProcedurePriority priority = PatientProcedurePriority.Medium,
-        string title = ProcedureTitle)
+        string title = ProcedureTitle,
+        DateTime? createdAt = null)
     {
         var id = Guid.NewGuid();
         patient ??= PatientsTestConstants.CreateValidPatient();
@@ -64,8 +65,8 @@ public static class ProceduresTestConstants
             Patient = patient,
             TemplateId = Guid.NewGuid(),
             TemplateName = TemplateName,
-            CreatedAt = Now.AddDays(-7),
-            LastUpdated = Now.AddDays(-7),
+            CreatedAt = createdAt ?? Now.AddDays(-7),
+            LastUpdated = createdAt ?? Now.AddDays(-7),
             Stages =
             [
                 CreateStage(id, 1, ConsultationDefinitionId, ConsultationStage),
