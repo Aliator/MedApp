@@ -18,6 +18,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **Patients:** reminders by email or SMS, and booking for themselves.
   - **Requested appointments left waiting:** flag or notify ones requested long ago and still not booked.
   - **Printing a day list.**
+  - **Template edits that undo a day's changes.** Editing a day template's block gives it a new row, and a day's exception (the block removed or moved for one day) points at the old row, so the block comes back on that day, possibly over an appointment booked in its place. Keep a block's identity across versions (a lineage ID the exceptions key on), or at least list the future days' changes an edit will drop before saving (review of #93, finding 2).
 - **More monitoring.** Admins' monitoring rules (Administration, Monitoring) and each person's switch for assignment notifications are built (`AGENTS.md`, Monitoring). Still to do:
   - **An overdue event,** for rules and for the assignees. It isn't a change anyone makes, so it needs a scheduled job that runs once across both API copies (a lease, or a Kubernetes CronJob), and a record of which procedures it has already reported.
   - **Monitor visit bypasses:** an event for an admin finishing a stage without the visit it required (`docs/calendar-plan.md`, decision 24), so a rule can watch for it, with its own `NotificationKind` (18). Staff calendars added the bypass after #84's eight events, and it isn't one of them yet.
