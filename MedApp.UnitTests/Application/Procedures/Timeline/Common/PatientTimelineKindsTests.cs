@@ -21,6 +21,9 @@ public sealed class PatientTimelineKindsTests
     [TestCase(Action.StatusChanged, PatientTimelineKind.Status)]
     [TestCase(Action.DetailsUpdated, PatientTimelineKind.Details)]
     [TestCase(Action.Deleted, PatientTimelineKind.Deleted)]
+    [TestCase(Action.AttachmentAdded, PatientTimelineKind.Files)]
+    [TestCase(Action.AttachmentDeleted, PatientTimelineKind.Files)]
+    [TestCase(Action.AttachmentDownloaded, PatientTimelineKind.Files)]
     public void Of_Action_ReturnsItsKind(Action action, PatientTimelineKind expected)
     {
         PatientTimelineKinds.Of(CreateEntry(action, Now)).Should().Be(expected);
@@ -113,7 +116,7 @@ public sealed class PatientTimelineKindsTests
     [Test]
     public void Names_ListsEveryKind()
     {
-        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted");
+        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Files");
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 # OWASP ASVS 5.0 Level 2 checklist
 
-**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`, "Step 2: Close the remaining review findings and set an ASVS Level 2 baseline"). It describes branch `feature/security-baseline` at commit `c8b3d9a`: `main` at `ea827ef`, plus the branch's six commits (security headers and a nonce-based CSP, the `__Host-` session cookie, sign-in throttling, ending sessions when a password or roles change, the common-password list, and the supply chain checks in CI). `main` has since gained the governance pack (#61, `docs/governance/`). Where that pack meets a requirement, the row says "on `main` since #61" and counts it, because this branch will take `main` before it merges. The branch then merged `main` up to #64 (`f083ec3`), which also brought the session expiry warning and "Stay signed in" (#63) and the patient timeline (#64); the session rows (7.1.1, 7.3.2) were updated for #63, and #64's endpoint (`GET api/patients/{id}/timeline`, staff only) wasn't checked against every row again.
+**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`, "Step 2: Close the remaining review findings and set an ASVS Level 2 baseline"). It describes branch `feature/security-baseline` at commit `c8b3d9a`: `main` at `ea827ef`, plus the branch's six commits (security headers and a nonce-based CSP, the `__Host-` session cookie, sign-in throttling, ending sessions when a password or roles change, the common-password list, and the supply chain checks in CI). `main` has since gained the governance pack (#61, `docs/governance/`). Where that pack meets a requirement, the row says "on `main` since #61" and counts it, because this branch will take `main` before it merges. The branch then merged `main` up to #64 (`f083ec3`), which also brought the session expiry warning and "Stay signed in" (#63) and the patient timeline (#64); the session rows (7.1.1, 7.3.2) were updated for #63, and #64's endpoint (`GET api/patients/{id}/timeline`, staff only) wasn't checked against every row again. **Updated for file attachments (#85),** after that branch's review: V5 File Handling filled in from the code (8 met, malware scanning planned), and rows 1.1.1, 1.3.4 and 1.5.1 corrected; the summary counts follow.
 
 ## What this is
 
@@ -20,7 +20,7 @@ It sits beside the threat model (`docs/security/threat-model.md`), which looks a
   - **Partly met:** something real is in place, and the row says what's missing. Where a roadmap step covers the rest, the row names it.
   - **Planned:** essentially nothing is in place yet, and a roadmap step will do it. "Not yet named in its scope" means it falls under step 2's aim of closing every Level 2 gap, but the step's scope doesn't list it yet: those need adding.
   - **Accepted risk:** a gap left on purpose, with the reason. The owner is the Product owner. Both rows are proposals by this review until the Product owner signs them off.
-  - **Not applicable:** MedApp has nothing the requirement could apply to (no file uploads, no OAuth, no WebRTC), with when it will start to apply, if ever.
+  - **Not applicable:** MedApp has nothing the requirement could apply to (no OAuth, no WebRTC), with when it will start to apply, if ever.
 - **Evidence or reason:** paths from the repository root, with the class, member or setting that does the work. "Risk S5" and the like refer to the risk table in `docs/architecture.md` 11.1; "Step 4" and the like to the roadmap in the same document; "T-01" to the threat model.
 
 A few terms used throughout:
@@ -38,7 +38,7 @@ A few terms used throughout:
 
 ## Summary
 
-Of the 253 requirements, 83 don't apply to MedApp today: 33 because it has no OAuth, OIDC or other identity provider (V10 and 6.8), 9 because it has no MFA yet, 8 for file handling, 7 each for WebRTC and self-contained tokens, and 19 for things it doesn't use, such as LDAP, XML and GraphQL. Of the 170 that apply, **98 are met (58%)**, 52 partly met, 18 planned and 2 accepted as risks. At Level 1 alone, 36 of the 57 that apply are met, and the one planned is removing the password composition rules (6.2.5).
+Of the 253 requirements, 75 don't apply to MedApp today: 33 because it has no OAuth, OIDC or other identity provider (V10 and 6.8), 9 because it has no MFA yet, 7 each for WebRTC and self-contained tokens, and 19 for things it doesn't use, such as LDAP, XML and GraphQL. Of the 178 that apply, **105 are met (59%)**, 52 partly met, 19 planned and 2 accepted as risks. At Level 1 alone, 39 of the 60 that apply are met, and the one planned is removing the password composition rules (6.2.5). File handling (V5) applies since file attachments (#85): 8 of its 9 rows are met, and malware scanning is planned.
 
 The strongest chapters are encoding and sanitisation (V1), the browser protections this branch added (V3) and configuration (V13). The weakest are authentication (V6: no MFA, composition rules, no breached-password check), session management (V7: a GUID token, no idle timeout) and security logging (V16: sign-ins and refusals aren't recorded). The roadmap already plans most of what's missing; [Gaps, in priority order](#gaps-in-priority-order) lists the ones that matter most, and the ones the roadmap doesn't name yet.
 
@@ -48,7 +48,7 @@ The strongest chapters are encoding and sanitisation (V1), the browser protectio
 | [V2 Validation and Business Logic](#v2-validation-and-business-logic) | 4 | 6 | 0 | 0 | 1 | 11 |
 | [V3 Web Frontend Security](#v3-web-frontend-security) | 14 | 4 | 0 | 0 | 1 | 19 |
 | [V4 API and Web Service](#v4-api-and-web-service) | 3 | 3 | 0 | 1 | 3 | 10 |
-| [V5 File Handling](#v5-file-handling) | 1 | 0 | 0 | 0 | 8 | 9 |
+| [V5 File Handling](#v5-file-handling) | 8 | 0 | 1 | 0 | 0 | 9 |
 | [V6 Authentication](#v6-authentication) | 12 | 6 | 4 | 0 | 13 | 35 |
 | [V7 Session Management](#v7-session-management) | 8 | 5 | 3 | 0 | 2 | 18 |
 | [V8 Authorization](#v8-authorization) | 3 | 2 | 1 | 0 | 1 | 7 |
@@ -61,9 +61,9 @@ The strongest chapters are encoding and sanitisation (V1), the browser protectio
 | [V15 Secure Coding and Architecture](#v15-secure-coding-and-architecture) | 7 | 6 | 0 | 0 | 0 | 13 |
 | [V16 Security Logging and Error Handling](#v16-security-logging-and-error-handling) | 7 | 4 | 5 | 0 | 0 | 16 |
 | [V17 WebRTC](#v17-webrtc) | 0 | 0 | 0 | 0 | 7 | 7 |
-| **All chapters** | **98** | **52** | **18** | **2** | **83** | **253** |
-| Of which Level 1 | 36 | 20 | 1 | 0 | 13 | 70 |
-| Of which Level 2 only | 62 | 32 | 17 | 2 | 70 | 183 |
+| **All chapters** | **105** | **52** | **19** | **2** | **75** | **253** |
+| Of which Level 1 | 39 | 20 | 1 | 0 | 10 | 70 |
+| Of which Level 2 only | 66 | 32 | 18 | 2 | 65 | 183 |
 
 ## V1 Encoding and Sanitization
 
@@ -73,7 +73,7 @@ Injection is handled by the frameworks: EF Core parameterises every query, React
 
 | ID | Requirement (paraphrased) | L | Status | Evidence or reason |
 |---|---|---|---|---|
-| 1.1.1 | Input decoded to a canonical form once, before validation | 2 | Met | ASP.NET Core decodes the path, query and JSON body once, before model binding and FluentValidation. No app code decodes again (searched for `UrlDecode`, `HtmlDecode` and `Unescape`: none). |
+| 1.1.1 | Input decoded to a canonical form once, before validation | 2 | Met | ASP.NET Core decodes the path, query and JSON body once, before model binding and FluentValidation. One input is decoded in app code, also once and before validation: an upload's file name, which travels percent-encoded in the `X-File-Name` header (Kestrel refuses headers that aren't ASCII), is percent-decoded once in `AttachmentResponseHeaders.DecodeFileName`, then cleaned and validated (`AttachmentFileName`, `UploadAttachmentValidator`). Nothing else decodes again (searched for `UrlDecode`, `HtmlDecode` and `Unescape`). |
 | 1.1.2 | Output encoded as the last step, or by the interpreter | 2 | Met | React escapes text as it renders, `System.Text.Json` encodes as it writes, and EF Core sends values as SQL parameters. Nothing is stored pre-encoded. |
 | 1.2.1 | Output encoding fits its context (HTML, attributes, headers) | 1 | Met | React's escaping; no `dangerouslySetInnerHTML` or `innerHTML` anywhere in `MedApp.Web/src`. Response header values are constants or set through the framework. |
 | 1.2.2 | URLs built from untrusted data are encoded; only safe protocols | 1 | Met | API paths are built by `openapi-fetch` from typed path parameters, which it encodes (`MedApp.Web/src/api/client.ts`). Links with unsafe protocols in notes become plain text (Astryx `Markdown`, #41, `src/components/shared/RichText.tsx`). |
@@ -87,7 +87,7 @@ Injection is handled by the frameworks: EF Core parameterises every query, React
 | 1.3.1 | HTML from rich text editors sanitised | 1 | Met | The rich text editor stores Markdown, not HTML (`src/components/forms/RichTextField.tsx`), and it's shown with Astryx `Markdown`, which never renders raw HTML (#41, `RichText.tsx`). |
 | 1.3.2 | No `eval()` or dynamic code execution | 1 | Met | None in `MedApp.Web/src` (searched for `eval(` and `new Function`), and the page CSP has no `'unsafe-eval'` (`SecurityHeaders.PagePolicy`). |
 | 1.3.3 | Data sanitised before it reaches a dangerous context | 2 | Met | The CSP nonce header must match a base64 pattern before the page server uses it (`cspNonce` in `MedApp.Web/server/server.mjs`). Request paths sent to Node must stay on Node's host (`SsrPages.Forward`). |
-| 1.3.4 | User-supplied SVG sanitised | 2 | Not applicable | Users can't supply SVG, or any file. |
+| 1.3.4 | User-supplied SVG sanitised | 2 | Not applicable | Users can't supply SVG: attachments refuse SVG, HTML and anything starting with `<`, found from the contents, not the name (`FileTypeSniffer`). |
 | 1.3.5 | User-supplied Markdown, CSS or similar sanitised | 2 | Met | Notes are Markdown, rendered without raw HTML, with unsafe links turned into text (#41, `RichText.tsx`). |
 | 1.3.6 | Protection against server-side request forgery (SSRF) | 2 | Met | The only request the server builds from a request is the page forward. Its scheme, host and port are Node's, only the path and query come from the request, and the result is checked before sending (`SsrPages.Forward`). Paths containing `//` are refused (`PageServerFiles.IsBlocked`). No feature takes a URL from users. |
 | 1.3.7 | No templates built from untrusted input | 2 | Met | No server-side template engine: pages are React components, rendered with data, never compiled from it. |
@@ -98,7 +98,7 @@ Injection is handled by the frameworks: EF Core parameterises every query, React
 | 1.4.1 | Memory-safe strings and buffers | 2 | Met | Managed code only (.NET and JavaScript); no `unsafe` blocks in the solution. |
 | 1.4.2 | Range checks prevent integer overflow | 2 | **Partly met** | Page sizes are capped at 100, but `Page` has no upper bound, and `Paging.Skip` computes `(page - 1) * pageSize` unchecked (`MedApp.Application/Common/Paging/Paging.cs`). A page of 2,147,483,647 overflows to a negative offset and the query fails with a 500. No data leaks, but cap `Page` in the `Search…Validator` classes. |
 | 1.4.3 | Memory and resources released | 2 | Met | Garbage-collected runtimes; disposable resources are released with `using` (for example `SsrPages.Forward`, `ThrottleLoginByUsernameAttribute`). |
-| 1.5.1 | XML parsers protected against external entities (XXE) | 1 | Not applicable | MedApp parses no XML. |
+| 1.5.1 | XML parsers protected against external entities (XXE) | 1 | Not applicable | MedApp parses no XML. The Word check reads a `.docx`'s `[Content_Types].xml` and `.rels` parts as text, at most 64 KB each, and searches them with string and pattern matching, never an XML parser (`FileTypeSniffer`). |
 | 1.5.2 | Safe deserialisation of untrusted data | 2 | Met | `System.Text.Json` into fixed DTO types (`MedApp.Contracts`), with no type names taken from the input. Settings are stored as an opaque JSON string of at most 64 KB (`SaveMySettingsValidator`). |
 
 ## V2 Validation and Business Logic
@@ -170,21 +170,21 @@ A plain JSON API behind Traefik, with one WebSocket (the notifications hub). The
 
 ## V5 File Handling
 
-[ASVS chapter](https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x14-V5-File-Handling.md). 9 requirements at Levels 1 and 2: 1 met, 8 not applicable.
+[ASVS chapter](https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x14-V5-File-Handling.md). 9 requirements at Levels 1 and 2: 8 met, 1 planned.
 
-MedApp has no file uploads or downloads, so almost all of this chapter doesn't apply. It will when attachments or exports (Step 7's subject access export) arrive.
+Since file attachments (#85), staff upload scans, photos, results and letters to a patient, a procedure or a stage, and download them again (`MedApp.API/Controllers/AttachmentsController.cs`). The bytes go to blob storage under keys made from IDs; the details go to SQL. Checked against the branch's code after the fixes from its review (`docs/reviews/pr-85-file-attachments.md`, findings 1, 4, 8 and 9). The subject access export is JSON and a printable page, not a file upload, so it adds nothing here.
 
 | ID | Requirement (paraphrased) | L | Status | Evidence or reason |
 |---|---|---|---|---|
-| 5.1.1 | Documented file types, extensions and sizes for each upload | 2 | Not applicable | No upload features. |
-| 5.2.1 | Files accepted only at sizes the app can process | 1 | Not applicable | No file uploads. (Request bodies have Kestrel's default 30 MB limit.) |
-| 5.2.2 | File extensions and contents checked | 1 | Not applicable | No file uploads. |
-| 5.2.3 | Compressed files checked against size and file-count limits | 2 | Not applicable | No archives accepted. |
-| 5.3.1 | Uploaded files never executed as server code | 1 | Not applicable | No uploaded or generated files are stored. |
-| 5.3.2 | File paths built from trusted data, not user file names | 1 | Met | The app opens only fixed files (`index.html`, the page server's script). Static files go through ASP.NET Core's `PhysicalFileProvider`, which refuses paths outside `wwwroot`; the page server and the build's manifest are in `/app/ssr/`, outside it (`MedApp.API/Dockerfile`). `/ssr` and `/.vite` are still blocked as defence in depth (`PageServerFiles.IsBlocked`). |
-| 5.4.1 | User file names ignored, and `Content-Disposition` names set | 2 | Not applicable | No file downloads. |
-| 5.4.2 | Served file names encoded | 2 | Not applicable | No file names served. |
-| 5.4.3 | Untrusted files scanned for malware | 2 | Not applicable | No files from untrusted sources. |
+| 5.1.1 | Documented file types, extensions and sizes for each upload | 2 | Met | One upload feature, with its types and limit in one place (`AttachmentLimits`, `AttachmentFileTypes`): PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain UTF-8 text, at most 20 MiB. The upload area states them (`Attachments.tsx`, with the limits every list returns), and `AGENTS.md` (Attachments) documents them. |
+| 5.2.1 | Files accepted only at sizes the app can process | 1 | Met | A request is at most 20 MiB, checked against the declared length before reading and while streaming (`RequestSizeLimit`, `UploadAttachmentHandler`); the body is streamed to a temporary file, never held whole in memory (`TempFileUploadStaging`). What the app does with a file is bounded too: no thumbnail when the source image is over 24 megapixels or 10,000 pixels on a side, read from its header before decoding (`SkiaThumbnailGenerator`); a `.docx` whose ZIP lists more than 5,000 entries refused before it's opened (`FileTypeSniffer.MaxZipEntries`); and at most two thumbnails or Word inspections at a time per API copy (a `SemaphoreSlim(2)`). |
+| 5.2.2 | File extensions and contents checked | 1 | Met | The type comes from the contents (magic bytes, the HEIF `ftyp` box, a `.docx`'s ZIP directory and content types, UTF-8 text with no control characters), never the extension or the browser's type, and the name's extension must match it (`FileTypeSniffer.Identify`). SVG, HTML, macro-enabled Word and anything else are refused, and so is the commonest active content in the allowed types: Word files with external relationships, embedded objects or ActiveX, and PDFs containing `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile` or `/RichMedia`. |
+| 5.2.3 | Compressed files checked against size and file-count limits | 2 | Met | The only archive accepted is a `.docx`. Its entry count is read from the ZIP's end-of-central-directory record (ZIP64's when present) and over 5,000 is refused before the archive is opened; nothing is unpacked but `[Content_Types].xml` and the `.rels` parts, each read to at most 64 KB (`FileTypeSniffer`). The file is stored as uploaded, never extracted. |
+| 5.3.1 | Uploaded files never executed as server code | 1 | Met | Files go to blob storage (Azure Blob Storage, or Azurite), never under `wwwroot` or anywhere the server runs or serves files from; they come back only through the download endpoint, as attachments (`BlobFileStore`, `AttachmentResponseHeaders`). |
+| 5.3.2 | File paths built from trusted data, not user file names | 1 | Met | The app opens only fixed files (`index.html`, the page server's script). Static files go through ASP.NET Core's `PhysicalFileProvider`, which refuses paths outside `wwwroot`; the page server and the build's manifest are in `/app/ssr/`, outside it (`MedApp.API/Dockerfile`). `/ssr` and `/.vite` are still blocked as defence in depth (`PageServerFiles.IsBlocked`). Attachments' storage keys are made from the attachment's ID only (`AttachmentStorageKeys`), and staged uploads get random names in the temporary folder (`TempFileUploadStaging`); the user's file name is stored only as data. |
+| 5.4.1 | User file names ignored, and `Content-Disposition` names set | 2 | Met | The uploaded name is cleaned (no folders, control or direction characters, at most 255 characters) and made to end in the extension of the type found (`AttachmentFileName`); every download sets `Content-Disposition: attachment` with that name (`AttachmentResponseHeaders.Apply`). |
+| 5.4.2 | Served file names encoded | 2 | Met | `Content-Disposition` carries an ASCII fallback (`filename`, without quotes or backslashes) and the exact name as RFC 5987 percent-encoded UTF-8 (`filename*`), so nothing in a name can break out of the header (`AttachmentResponseHeaders.ContentDisposition`). |
+| 5.4.3 | Untrusted files scanned for malware | 2 | **Planned** | No scanner yet: every file is stored and shown as "Not scanned" (`NoMalwareScanner`, behind `IMalwareScanner`). Microsoft Defender for Storage on Azure, and a scanner such as ClamAV elsewhere, are planned in step 9 and brought forward to before go-live by the DPIA (risk 22) and the hazard log (H-25) (`docs/todo.md`). Until then, files are only ever downloaded, never shown or run in the app. |
 
 ## V6 Authentication
 
@@ -487,6 +487,7 @@ The Level 1 and 2 requirements not met that matter most for MedApp, most importa
 10. **No general rate limit** (2.4.1, 15.2.2). Only sign-in is throttled; a stolen session can page through every patient at full speed. **Step 2.**
 11. **A known first admin name, and malicious lockout** (6.3.2, 6.1.1). The first admin is called `admin`, and anyone can lock it for 5 minutes. **Step 4.**
 12. **Cryptography and TLS undocumented and unpinned** (11.1.1, 11.1.2, 11.2.3, 12.1.1, 12.1.2, 12.3.1). No key policy or inventory; the certificate key is RSA 2048; TLS settings are Traefik's defaults, never scanned; Valkey traffic is plain. **Step 2** for the documents (not yet named), Step 5 for the scan; Valkey is not yet planned.
+13. **Uploaded files aren't scanned for malware** (5.4.3). Every attached file is "Not scanned", and staff open them on clinical workstations. The type checks stop the commonest active content, not exploits in the formats themselves. **Step 9, brought forward to before go-live** (DPIA risk 22, H-25).
 
 ### Small fixes
 

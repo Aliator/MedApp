@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {NO_DATE} from '../../api/patients';
-import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, staffUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
@@ -106,6 +106,60 @@ describe('ViewPatientPage', () => {
     await user.click(screen.getByRole('button', {name: 'Show timeline'}));
     expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('link', {name: 'Edit Patient'})).toHaveAttribute('href', `/patients/${id}/edit`);
+  });
+});
+
+describe('ViewPatientPage: files', () => {
+  const files = {
+    'GET /api/attachments': () =>
+      json({
+        items: [
+          {
+            id: '00000033-0000-0000-0000-000000000009',
+            patientId: id,
+            attachedTo: 'Procedure',
+            procedureId: '00000033-0000-0000-0000-000000000002',
+            procedureTitle: 'Knee assessment',
+            fileName: 'referral.pdf',
+            contentType: 'application/pdf',
+            typeName: 'PDF',
+            sizeBytes: 2048,
+            scanStatus: 'Clean',
+            hasThumbnail: false,
+            uploadedByUsername: 'test.staff',
+            uploadedAtUtc: '2026-11-03T14:05:00Z',
+            canDelete: true,
+            isDeleted: false,
+          },
+        ],
+        totalCount: 1,
+        maxFileBytes: 20 * 1024 * 1024,
+        allowedExtensions: ['.pdf'],
+      }),
+  };
+
+  it("lists all the patient's files under their details, where files can be added to the patient", async () => {
+    const fetch = mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline, ...files});
+    renderWithApp(<PatientView id={id} isNarrow={false} />, {user: staffUser});
+
+    expect(await screen.findByText('referral.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Files'})).toBeInTheDocument();
+    expect(screen.getByText(/^Attached to/)).toHaveTextContent('Attached to Knee assessment');
+    expect(screen.getByRole('button', {name: 'Add files'})).toBeInTheDocument();
+    // A procedure's file is deleted from the procedure, where its rules apply.
+    expect(screen.queryByRole('button', {name: 'Delete referral.pdf'})).not.toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET /api/attachments?PatientId=${id}`);
+  });
+
+  it('narrow, folds the files as a section of their own', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline, ...files});
+    const {user} = renderWithApp(<PatientView id={id} isNarrow />, {user: staffUser});
+
+    expect(await screen.findByText('referral.pdf')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Hide files'}));
+
+    expect(screen.queryByText('referral.pdf')).not.toBeInTheDocument();
+    expect(screen.getByText('Freya')).toBeInTheDocument();
   });
 });
 

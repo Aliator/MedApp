@@ -95,6 +95,19 @@ spec:
                   name: {{ include "medapp.backplaneSecretName" . }}
                   key: connection-string
             {{- end }}
+            {{- if include "medapp.attachmentsStorage" . }}
+            # File storage for attachments (Azure Blob Storage, or Azurite). Without it, uploads and downloads answer
+            # 503. Optional, so a missing Secret (say, a secret store entry not made yet) means no file storage, not an
+            # API that can't start.
+            - name: ConnectionStrings__Attachments
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.attachmentsSecretName" . }}
+                  key: connection-string
+                  optional: true
+            - name: Attachments__Container
+              value: {{ .Values.attachments.container | quote }}
+            {{- end }}
             # The app on one port, and /health and /alive on the other only (MedApp.ServiceDefaults).
             - name: ASPNETCORE_HTTP_PORTS
               value: "{{ $apiPort }};{{ $apiHealthPort }}"
@@ -141,7 +154,9 @@ spec:
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           volumeMounts:
-            # The root filesystem is read-only; .NET (and Node, when the API starts it) get a scratch folder.
+            # The root filesystem is read-only; .NET (and Node, when the API starts it) get a scratch folder. Uploads
+            # pass through it too: the API streams each file (up to 20 MiB) into a temporary file here while it checks
+            # it, deleted straight after. The pages container has no scratch folder of its own and doesn't share this.
             - name: tmp
               mountPath: /tmp
         {{- if .Values.api.pageServer.enabled }}
@@ -201,7 +216,10 @@ spec:
       volumes:
         - name: tmp
           emptyDir:
-            sizeLimit: 256Mi
+            # The API's own scratch folder: room for dozens of 20 MiB uploads at once beside what .NET (and Node, when
+            # the API starts it) keep here. A pod whose scratch folder outgrows this is evicted, so it errs on the
+            # large side; it's a limit, not space set aside.
+            sizeLimit: 1Gi
 {{- if gt (int .Values.api.replicas) 1 }}
 {{- if not .Values.backplane.enabled }}
 {{- fail "api.replicas above 1 needs backplane.enabled: without it, live notifications reach only the browsers on the copy that sends them." }}

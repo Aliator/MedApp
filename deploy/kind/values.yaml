@@ -22,8 +22,14 @@ ingress:
     # A self-signed certificate from cert-manager (local-cluster.yaml), so browsers warn about it.
     clusterIssuer: medapp-local
 
-# The database and first admin Secrets come from the local stand-in for a secret store: Secrets in the medapp-vault
-# namespace, read by External Secrets Operator (local-cluster.yaml). up.sh fills it.
+# Attachments' files in Azurite, Azure Storage's emulator, in the cluster (the chart's default), where Azure uses a
+# storage account.
+attachments:
+  azurite:
+    enabled: true
+
+# The database, first admin, backplane and attachments Secrets come from the local stand-in for a secret store:
+# Secrets in the medapp-vault namespace, read by External Secrets Operator (local-cluster.yaml). up.sh fills it.
 externalSecrets:
   enabled: true
   secretStoreRef:

@@ -104,13 +104,15 @@ export interface StageDetailsProps {
   /** Replaces the read-only notes, e.g. with a notes box and the stage's actions. */
   work?: ReactNode;
   instructions?: InstructionsFolding;
+  /** The stage's files, under its notes (e.g. an `AttachmentsFold`). */
+  files?: ReactNode;
 }
 
 /**
  * Everything about one stage under its title: description, its SNOMED CT concept (copied from its definition when
- * the procedure was made), who started and finished it, instructions (which fold) and notes.
+ * the procedure was made), who started and finished it, instructions (which fold), notes and files.
  */
-export function StageDetails({stage, work, instructions}: StageDetailsProps) {
+export function StageDetails({stage, work, instructions, files}: StageDetailsProps) {
   return (
     <VStack gap={3}>
       {stage.description && (
@@ -122,6 +124,7 @@ export function StageDetails({stage, work, instructions}: StageDetailsProps) {
       <StageActivity stage={stage} />
       {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
       {work ?? <StageNotes notes={stage.notes ?? ''} />}
+      {files}
     </VStack>
   );
 }
@@ -143,6 +146,8 @@ export interface StageListProps {
   onStageOpenChange?: (stageId: string, isOpen: boolean) => void;
   /** Whether each stage's instructions are open, held by the page. Without it, they start folded. */
   instructions?: InstructionsFolding;
+  /** Each stage's files, under its notes; nothing shows none. */
+  renderFiles?: (stage: ProcedureStage) => ReactNode;
 }
 
 /**
@@ -150,7 +155,15 @@ export interface StageListProps {
  * opening it shows who started and finished it, its instructions and its notes. The current stage starts open
  * (unless `isCurrentOpen` is false) and the others closed, so the page leads with the work in hand.
  */
-export function StageList({stages, isCurrentOpen = true, renderWork, openStageIds, onStageOpenChange, instructions}: StageListProps) {
+export function StageList({
+  stages,
+  isCurrentOpen = true,
+  renderWork,
+  openStageIds,
+  onStageOpenChange,
+  instructions,
+  renderFiles,
+}: StageListProps) {
   return (
     <VStack gap={0}>
       {[...stages]
@@ -163,7 +176,7 @@ export function StageList({stages, isCurrentOpen = true, renderWork, openStageId
               onOpenChange={openStageIds ? (isOpen) => onStageOpenChange?.(stage.id ?? '', isOpen) : undefined}
               chevronPosition="end"
               trigger={<StageTitle stage={stage} />}>
-              <StageDetails stage={stage} work={renderWork?.(stage)} instructions={instructions} />
+              <StageDetails stage={stage} work={renderWork?.(stage)} instructions={instructions} files={renderFiles?.(stage)} />
             </Collapsible>
           </Section>
         ))}

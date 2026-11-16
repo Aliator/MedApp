@@ -64,5 +64,11 @@ public enum ActivityAction
     /// Someone looked a person up by NHS number in the demographics service (PDS): whether anyone was found, never the
     /// number.
     /// </summary>
-    DemographicsLookedUp = 25
+    DemographicsLookedUp = 25,
+
+    /// <summary>Someone listed the files attached to a patient, a procedure or a stage (with the procedure, if any).</summary>
+    AttachmentsViewed = 26,
+
+    /// <summary>Someone downloaded a file attached to a patient's record (with the procedure, if any).</summary>
+    AttachmentDownloaded = 27
 }

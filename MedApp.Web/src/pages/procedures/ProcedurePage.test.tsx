@@ -618,3 +618,107 @@ describe('finishedMessage', () => {
     expect(finishedMessage(consent, {currentStageId: null, stages: [consent]})).toBe('Consent finished. Every stage is finished');
   });
 });
+
+describe('ProcedurePage: files', () => {
+  const ATTACHMENTS = '/api/attachments';
+  const file = (fileName: string, fields: Record<string, unknown> = {}) => ({
+    id: `file-${fileName}`,
+    patientId: 'patient-1',
+    attachedTo: 'Procedure',
+    procedureId: id,
+    procedureTitle: 'Colonoscopy',
+    fileName,
+    contentType: 'application/pdf',
+    typeName: 'PDF',
+    sizeBytes: 2048,
+    scanStatus: 'NotScanned',
+    hasThumbnail: false,
+    uploadedByUsername: 'test-user',
+    uploadedAtUtc: '2026-11-03T14:05:00Z',
+    canDelete: true,
+    isDeleted: false,
+    ...fields,
+  });
+  /** The procedure, and its files and its stages' files by what's asked for. */
+  const mockFiles = (procedureFields: Record<string, unknown> = {}) =>
+    mockApi({
+      [`GET ${PATH}`]: () => json(working(procedureFields)),
+      [`GET ${ATTACHMENTS}`]: (request) => {
+        const query = new URL(request.url).searchParams;
+        const items = query.has('StageId')
+          ? [file(`stage-${query.get('StageId')}.pdf`, {attachedTo: 'Stage', stageId: query.get('StageId'), stageName: 'Procedure'})]
+          : [file('referral.pdf')];
+        return json({items, totalCount: items.length, maxFileBytes: 20 * 1024 * 1024, allowedExtensions: ['.pdf']});
+      },
+    });
+
+  it("shows the procedure's own files in a section of their own, open beside the work, where files can be added", async () => {
+    const fetch = mockFiles();
+    renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+
+    expect(await screen.findByText('referral.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Hide files'})).toHaveAttribute('aria-expanded', 'true');
+    expect(calls(fetch)).toContain(`GET ${ATTACHMENTS}?ProcedureId=${id}`);
+    expect(screen.getByRole('button', {name: 'Add files'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Delete referral.pdf'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Files', level: 2})).toBeInTheDocument();
+  });
+
+  it("hides Add files, and staff's Delete, once the procedure is cancelled or archived", async () => {
+    mockFiles({status: 'Cancelled', canEditDetails: false, canWorkOnStages: false});
+    renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+
+    expect(await screen.findByText('referral.pdf')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete referral.pdf'})).not.toBeInTheDocument();
+  });
+
+  it('folds the files away in a narrow window, fetching them when opened', async () => {
+    mockFiles();
+    const {user} = renderWithApp(<ProcedureView id={id} isNarrow />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Show files'}));
+
+    expect(await screen.findByText('referral.pdf')).toBeInTheDocument();
+  });
+
+  it("folds each stage's files under its notes; they can be added only while the stage can be edited", async () => {
+    const fetch = mockFiles();
+    const {user} = renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: staffUser});
+    await screen.findByText('referral.pdf');
+    expect(calls(fetch).some((call) => call.includes('StageId'))).toBe(false);
+
+    // The current stage, in its section (the first of its "Files"): editable, so files can be added.
+    await user.click(screen.getAllByRole('button', {name: 'Files'})[0]);
+
+    expect(await screen.findAllByText('stage-s2.pdf')).not.toHaveLength(0);
+    expect(calls(fetch)).toContain(`GET ${ATTACHMENTS}?StageId=s2`);
+    // The procedure's, and the stage's: in its section, and in the list (whose copy folds with it).
+    expect(screen.getAllByRole('button', {name: 'Add files'})).toHaveLength(3);
+
+    // The finished, locked stage, in the list (its "Files" comes after the current stage's): its files, but nothing
+    // to add.
+    await user.click(screen.getByRole('button', {name: /^1\. Consultation/}));
+    await user.click(screen.getAllByRole('button', {name: 'Files'})[1]);
+
+    expect(await screen.findByText('stage-s1.pdf')).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET ${ATTACHMENTS}?StageId=s1`);
+    expect(screen.getAllByRole('button', {name: 'Add files'})).toHaveLength(3);
+    expect(screen.queryByRole('button', {name: 'Delete stage-s1.pdf'})).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to add or delete, to admins too, while the patient's record is restricted", async () => {
+    const reason = "This patient's record is restricted, so it can't be changed until an admin lifts the restriction.";
+    mockFiles({readOnlyReason: reason, canEditDetails: false, canWorkOnStages: false, stages: working().stages.map((stage) => ({...stage, canEdit: false}))});
+    const {user} = renderWithApp(<ProcedureView id={id} isNarrow={false} />, {user: adminUser});
+
+    expect(await screen.findByText('referral.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Download referral.pdf'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete referral.pdf'})).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', {name: 'Files'})[0]);
+    expect(await screen.findAllByText('stage-s2.pdf')).not.toHaveLength(0);
+    expect(screen.queryByRole('button', {name: /^Delete stage-s2/})).not.toBeInTheDocument();
+  });
+});

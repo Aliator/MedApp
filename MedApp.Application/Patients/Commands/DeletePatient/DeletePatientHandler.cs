@@ -1,5 +1,6 @@
-using MediatR;
+﻿using MediatR;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -7,7 +8,7 @@ using MedApp.Domain.Activity;
 
 namespace MedApp.Application.Patients.Commands.DeletePatient;
 
-public sealed class DeletePatientHandler(IPatientRepository repository, IActivityLog activityLog)
+public sealed class DeletePatientHandler(IPatientRepository repository, IActivityLog activityLog, IAttachmentRepository attachments)
     : IRequestHandler<DeletePatientCommand, bool>
 {
     public async Task<bool> Handle(DeletePatientCommand request, CancellationToken cancellationToken)
@@ -26,6 +27,12 @@ public sealed class DeletePatientHandler(IPatientRepository repository, IActivit
         if (procedureCount > 0)
             throw new ConflictException(
                 $"This patient has {procedureCount} procedure{(procedureCount == 1 ? "" : "s")}, so they can't be deleted.");
+
+        // So are the files attached to them: they must be deleted first (which is audited).
+        var fileCount = await attachments.CountForPatientAsync(request.Id, cancellationToken);
+        if (fileCount > 0)
+            throw new ConflictException(
+                $"This patient has {fileCount} file{(fileCount == 1 ? "" : "s")} attached, so they can't be deleted. Delete the files first.");
 
         await repository.DeleteAsync(request.Id, activityLog.Entry(ActivityAction.PatientDeleted, request.Id), cancellationToken);
 
