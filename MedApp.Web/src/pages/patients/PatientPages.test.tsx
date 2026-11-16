@@ -4,15 +4,36 @@ import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, page
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
-import {ViewPatientPage} from './ViewPatientPage';
+import {PatientView, ViewPatientPage} from './ViewPatientPage';
 
 const id = 'f184a7b8-2585-4437-bcd4-e1700be38287';
 const freya = {id, firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', email: 'freya.ahmed18@example.com'};
+/** The patient's timeline: nothing due, and one entry. */
+const timeline = {
+  [`GET /api/patients/${id}/timeline/overview`]: () => json({upcoming: [], openCount: 0, procedures: []}),
+  [`GET /api/patients/${id}/timeline`]: () =>
+    json({
+      items: [
+        {
+          id: '00000033-0000-0000-0000-000000000001',
+          kind: 'Created',
+          action: 'Created',
+          atUtc: '2026-06-15T09:00:00Z',
+          username: 'test.staff',
+          procedureId: '00000033-0000-0000-0000-000000000002',
+          procedureTitle: 'Knee assessment',
+          isProcedureDeleted: false,
+          changes: [],
+        },
+      ],
+      nextCursor: null,
+    }),
+};
 const bodyOf = async (fetch: ReturnType<typeof mockApi>, index: number) => (fetch.mock.calls[index][0] as Request).json();
 
 describe('ViewPatientPage', () => {
   it("shows the patient's details and a link to edit them", async () => {
-    mockApi({[`GET /api/patients/${id}`]: () => json(freya)});
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline});
     renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
 
     expect(await screen.findByText('1 December 1976')).toBeInTheDocument();
@@ -43,6 +64,35 @@ describe('ViewPatientPage', () => {
     renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
 
     expect(await screen.findByText('1 year')).toBeInTheDocument();
+  });
+
+  it('shows the timeline beside the details', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline});
+    renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser});
+
+    expect(await screen.findByText('Procedure created')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Timeline'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Personal Information'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Hide timeline'})).not.toBeInTheDocument();
+  });
+
+  it('narrow, folds the details and the timeline in one card, keeping its filters', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline});
+    const {user} = renderWithApp(<PatientView id={id} isNarrow />, {user: adminUser});
+
+    expect(await screen.findByText('Procedure created')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Notes'}));
+    await user.click(screen.getByRole('button', {name: 'Hide details'}));
+
+    expect(screen.queryByText('Freya')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', {name: 'Hide timeline'}));
+    expect(screen.queryByRole('button', {name: 'Notes'})).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', {name: 'Show timeline'}));
+    expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('link', {name: 'Edit Patient'})).toHaveAttribute('href', `/patients/${id}/edit`);
   });
 });
 

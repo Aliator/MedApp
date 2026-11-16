@@ -1,4 +1,4 @@
-import {QueryClient, queryOptions} from '@tanstack/react-query';
+import {infiniteQueryOptions, QueryClient, queryOptions} from '@tanstack/react-query';
 import {preload} from './preload';
 
 const query = (key: string, data: () => Promise<unknown>) => queryOptions({queryKey: [key], queryFn: data});
@@ -30,5 +30,23 @@ describe('preload', () => {
 
     expect(queryClient.getQueryData(['a'])).toBe('one');
     expect(queryClient.getQueryState(['b'])?.status).toBe('error');
+  });
+
+  it('fetches the first page of a paged feed, on the server and in the browser', async () => {
+    const feed = (key: string) =>
+      infiniteQueryOptions({
+        queryKey: [key],
+        queryFn: async ({pageParam}) => `page after ${pageParam}`,
+        initialPageParam: 'start',
+        getNextPageParam: () => undefined,
+      });
+    const queryClient = new QueryClient();
+
+    await preload(queryClient, feed('browser'));
+    await vi.waitFor(() => expect(queryClient.getQueryData(['browser'])).toEqual({pages: ['page after start'], pageParams: ['start']}));
+
+    vi.stubGlobal('window', undefined);
+    await preload(queryClient, feed('server'));
+    expect(queryClient.getQueryData(['server'])).toEqual({pages: ['page after start'], pageParams: ['start']});
   });
 });

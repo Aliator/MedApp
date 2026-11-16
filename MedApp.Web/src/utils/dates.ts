@@ -79,3 +79,37 @@ export function timeAgo(isoUtc: string, now: Date = new Date()): string {
   if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
   return formatDateTime(then.toISOString());
 }
+
+const UK_DAY = new Intl.DateTimeFormat('en-CA', {year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Europe/London'});
+const UK_DAY_HEADING = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'Europe/London',
+});
+const UK_TIME = new Intl.DateTimeFormat('en-GB', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London'});
+
+/** The UK day a moment from the API falls on, as YYYY-MM-DD: what a feed groups its entries by. The input if unreadable. */
+export function ukDay(isoUtc: string): string {
+  const date = utc(isoUtc);
+  return Number.isNaN(date.getTime()) ? isoUtc : UK_DAY.format(date);
+}
+
+/**
+ * A UK day as a heading over a day's entries, e.g. "Monday 16 November 2026". Put together from its parts, as
+ * browsers and Node punctuate the whole differently, and a page rendered on the server must match. The input if
+ * unreadable.
+ */
+export function formatDayHeading(isoUtc: string): string {
+  const date = utc(isoUtc);
+  if (Number.isNaN(date.getTime())) return isoUtc;
+  const part = Object.fromEntries(UK_DAY_HEADING.formatToParts(date).map(({type, value}) => [type, value]));
+  return `${part.weekday} ${part.day} ${part.month} ${part.year}`;
+}
+
+/** A moment's time of day in the UK, e.g. "14:05". The input if unreadable. */
+export function formatTime(isoUtc: string): string {
+  const date = utc(isoUtc);
+  return Number.isNaN(date.getTime()) ? isoUtc : UK_TIME.format(date);
+}
