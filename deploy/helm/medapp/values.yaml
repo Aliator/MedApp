@@ -101,8 +101,13 @@ email:
   fromAddress: ""
   # The name shown beside it. Empty: the app's default, MedApp.
   fromName: ""
+  # The most emails each copy of the API sends in a clock hour; keep it under the mail provider's quota (with several
+  # copies, divided between them). A fifth is kept for security notices, which go out before links. Empty: the app's
+  # default (100).
+  maxPerHour: null
   # The mail server, when it's outside the cluster (with mailpit.enabled, leave host empty: the chart points the API at
-  # Mailpit). The API's network policy then lets it reach public addresses (networkPolicy.internet) on this port.
+  # Mailpit). The API's network policy then lets it reach public addresses (networkPolicy.internet) on this port, or
+  # with networkPolicy.fqdnEgress, this host alone (a name, not an IP address).
   smtp:
     host: ""
     port: 587
@@ -142,7 +147,8 @@ dataProtection:
   # A Key Vault key that wraps them (e.g. https://<vault>.vault.azure.net/keys/medapp-data-protection), so a copy of
   # the database alone can't unseal them. The API signs in to Key Vault with DefaultAzureCredential: on AKS, through
   # api.workloadIdentity. Its network policy then lets it reach public addresses on 443 (networkPolicy.internet), for
-  # Key Vault and Microsoft Entra ID. Empty: the keys are stored unwrapped.
+  # Key Vault and Microsoft Entra ID, or with networkPolicy.fqdnEgress, the vault named here and Entra ID alone.
+  # Empty: the keys are stored unwrapped.
   keyVaultKeyUri: ""
 
 # The first admin account, made by the migrations Job after migrating (the API's create-first-admin command), but
@@ -209,7 +215,7 @@ networkPolicy:
   # on its port only), and Key Vault and Microsoft Entra ID (dataProtection.keyVaultKeyUri, on 443 only). Policies
   # can't name hosts, so the default is every address except the private, shared and link-local ranges, which keeps
   # out the cluster's own pods and services and the cloud's instance metadata endpoint. Narrow it if the addresses
-  # you need are fixed. Unused unless one of those is set.
+  # you need are fixed. Unused unless one of those is set, and unused with fqdnEgress.
   internet:
     - ipBlock:
         cidr: 0.0.0.0/0
@@ -219,6 +225,19 @@ networkPolicy:
           - 192.168.0.0/16
           - 100.64.0.0/10
           - 169.254.0.0/16
+  # Egress by name, for clusters whose Cilium enforces FQDN rules (on AKS, Advanced Container Networking Services'
+  # security, which deploy/azure turns on): a CiliumNetworkPolicy (cilium.io/v2) lets the API reach the mail server,
+  # Key Vault and Microsoft Entra ID by name, on their ports only, and the API's NetworkPolicy then leaves out its
+  # internet rules (networkPolicy.internet). Off by default: without Cilium the kind doesn't exist (kind's cluster
+  # has none), and without Cilium's DNS proxy the names never resolve to allowed addresses, so those connections fail.
+  fqdnEgress:
+    enabled: false
+    # Microsoft Entra ID, where the API swaps its workload identity token for one for Key Vault: the host in AKS's
+    # AZURE_AUTHORITY_HOST. Change it only for a sovereign cloud.
+    authorityHost: login.microsoftonline.com
+    # More Cilium egress rules for the API's pods, e.g. another name:
+    # [{toFQDNs: [{matchName: login.windows.net}], toPorts: [{ports: [{port: "443", protocol: TCP}]}]}].
+    extraEgress: []
 
 # SQL Server in the cluster, one pod with its data on a volume. Turn it off to use an external database, such as
 # Azure SQL, through database.existingSecret.

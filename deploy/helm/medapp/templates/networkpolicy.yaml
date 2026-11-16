@@ -3,10 +3,15 @@ Each part of MedApp accepts and makes only the connections it needs; everything 
 refused. The API and its page server (the pages container, or a Node the API starts itself) talk on 127.0.0.1,
 inside the pod, which no policy affects. Policies apply to a pod, not a container, so the page server may make the
 API's connections too (DNS, the database, the backplane), though it has none of their passwords.
+
+With networkPolicy.fqdnEgress, the API reaches the mail server, Key Vault and Microsoft Entra ID through the
+CiliumNetworkPolicy in fqdnpolicy.yaml instead, by name, so the rules below that open the internet on their ports are
+left out: policies add up, so with them, any public address would still be allowed.
 */}}
 {{- if .Values.networkPolicy.enabled }}
 {{- $dns := dict "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" "kube-system")) "podSelector" (dict "matchLabels" (dict "k8s-app" "kube-dns")))) "ports" (list (dict "port" 53 "protocol" "UDP") (dict "port" 53 "protocol" "TCP")) }}
 {{- $smtpHost := include "medapp.externalSmtpHost" . }}
+{{- $byName := .Values.networkPolicy.fqdnEgress.enabled }}
 # The API: requests only from the ingress controller, on the app's port (and the kubelet's probes, on the health
 # ports, which policies don't block); out to DNS, the database and the backplane, and the mail server and Key Vault
 # when they're set.
@@ -56,7 +61,7 @@ spec:
       ports:
         - port: 1025
           protocol: TCP
-    {{- else if $smtpHost }}
+    {{- else if and $smtpHost (not $byName) }}
     # The mail server, by name, so anywhere on the internet (networkPolicy.internet), but on its port only.
     - to:
         {{- toYaml .Values.networkPolicy.internet | nindent 8 }}
@@ -64,7 +69,7 @@ spec:
         - port: {{ int .Values.email.smtp.port }}
           protocol: TCP
     {{- end }}
-    {{- if .Values.dataProtection.keyVaultKeyUri }}
+    {{- if and .Values.dataProtection.keyVaultKeyUri (not $byName) }}
     # Key Vault (the data protection key) and Microsoft Entra ID (signing in to it), over https: by name, so anywhere
     # on the internet (networkPolicy.internet), but on 443 only.
     - to:

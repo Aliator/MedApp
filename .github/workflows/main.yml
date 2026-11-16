@@ -340,6 +340,25 @@ jobs:
           --set email.fromAddress=DoNotReply@example.azurecomm.net
           --set dataProtection.keyVaultKeyUri=https://kv-medapp-ci.vault.azure.net/keys/medapp-data-protection
 
+      # Azure's values limit the API's egress by name (networkPolicy.fqdnEgress): the CiliumNetworkPolicy names the
+      # relay, the vault and Microsoft Entra ID, and the API's NetworkPolicy no longer opens the internet beside it.
+      - name: Render Azure's egress by name
+        run: |
+          helm template medapp deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci \
+            --set api.workloadIdentity.clientId=00000000-0000-0000-0000-000000000000 \
+            --set email.fromAddress=DoNotReply@example.azurecomm.net \
+            --set dataProtection.keyVaultKeyUri=https://kv-medapp-ci.vault.azure.net/keys/medapp-data-protection \
+            > azure.yaml
+          grep -q '^kind: CiliumNetworkPolicy$' azure.yaml
+          for name in smtp.azurecomm.net kv-medapp-ci.vault.azure.net login.microsoftonline.com; do
+            grep -q "matchName: \"$name\"" azure.yaml || { echo "No FQDN rule for $name."; exit 1; }
+          done
+          if grep -q '0\.0\.0\.0/0' azure.yaml; then
+            echo "The API's NetworkPolicy still allows the internet beside egress by name."; exit 1
+          fi
+          # Under the managed domain's quota of 10 emails an hour.
+          grep -A1 'name: Email__MaxPerHour' azure.yaml | grep -q 'value: "8"' || { echo "No hourly email cap under the quota."; exit 1; }
+
       - name: Lint with Mailpit
         run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set mailpit.enabled=true
 

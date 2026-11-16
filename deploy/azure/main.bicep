@@ -194,7 +194,7 @@ resource aksNetworkContributor 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
-resource aks 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
+resource aks 'Microsoft.ContainerService/managedClusters@2025-08-01' = {
   name: names.aks
   location: location
   identity: {
@@ -233,6 +233,20 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-09-01' = {
       // Cilium enforces the chart's NetworkPolicies.
       networkDataplane: 'cilium'
       networkPolicy: 'cilium'
+      // Advanced Container Networking Services' security: Cilium's FQDN filtering, so the chart's CiliumNetworkPolicy
+      // lets the API reach the SMTP relay, Key Vault and Microsoft Entra ID by name rather than every public address
+      // (networkPolicy.fqdnEgress in values.yaml). Paid, per node (README.md, Cost). Observability (Hubble's metrics
+      // and flow logs) stays off: filtering doesn't need it.
+      advancedNetworking: {
+        enabled: true
+        observability: {
+          enabled: false
+        }
+        security: {
+          enabled: true
+          advancedNetworkPolicies: 'FQDN'
+        }
+      }
       podCidr: '10.244.0.0/16'
       serviceCidr: '10.41.0.0/16'
       dnsServiceIP: '10.41.0.10'

@@ -22,6 +22,10 @@ api:
 email:
   # The Azure-managed domain's sender. deploy.sh: its emailSenderAddress output (DoNotReply@<...>.azurecomm.net).
   fromAddress: ""
+  # The managed domain allows 10 emails an hour for the whole subscription: stay under it, so the quota isn't the
+  # first limit a flood of reset requests meets (2 of these are kept for security notices). Raise it with a custom
+  # domain (100 an hour).
+  maxPerHour: 8
   smtp:
     host: smtp.azurecomm.net
     port: 587
@@ -68,3 +72,8 @@ networkPolicy:
       ports:
         - port: 1433
           protocol: TCP
+  # The SMTP relay (smtp.azurecomm.net:587), the vault (443) and Microsoft Entra ID (login.microsoftonline.com:443) by
+  # name, not every public address on those ports: a CiliumNetworkPolicy, which needs main.bicep's Advanced Container
+  # Networking Services security (FQDN filtering) on the cluster.
+  fqdnEgress:
+    enabled: true

@@ -75,9 +75,9 @@ spec:
         # kubectl logs and exec mean the API unless -c pages says otherwise.
         kubectl.kubernetes.io/default-container: api
         {{- if .Values.api.pageServer.enabled }}
-        # If the API is ever given a workload identity (passwordless Azure SQL, deploy/azure/README.md), Azure's
-        # webhook would put its token into every container: never into the page server's, which must hold no secrets.
-        # Harmless until then.
+        # With a workload identity (api.workloadIdentity.clientId, for the data protection key), Azure's webhook
+        # would put its token into every container: never into the page server's, which must hold no secrets. Without
+        # one, the annotation does nothing.
         azure.workload.identity/skip-containers: pages
         {{- end }}
     spec:
@@ -180,6 +180,11 @@ spec:
             {{- end }}
             {{- with .Values.email.fromName }}
             - name: Email__FromName
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.email.maxPerHour }}
+            # The most emails this copy sends in an hour, notices first.
+            - name: Email__MaxPerHour
               value: {{ . | quote }}
             {{- end }}
             {{- with include "medapp.emailLinkBaseUrl" . }}
