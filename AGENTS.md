@@ -59,8 +59,8 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the API's image from `MedApp.API/Dockerfile`, which holds the API, the built React app in `wwwroot` and Node to render its pages. |
 | `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive`), used by the API. The health checks are on the app's port in Development; elsewhere only on the port in `HealthChecks:Port` (8081 in Kubernetes, which nothing outside the pod reaches), and not at all without it. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators, Infrastructure services, and the API's own services (`Api/`). |
-| `MedApp.IntegrationTests` | NUnit tests of the real API in memory (`WebApplicationFactory<Program>`, run as Production) against SQL Server 2022 in Docker (Testcontainers): sign-in and sessions, authorisation, users, patients, procedures, notifications (with the SignalR hub), errors and the migrations. They also cover `SessionService` and `IdentityTransactions`, which unit tests can't. |
-| `MedApp.E2ETests` | Playwright for .NET tests of `MedApp.Web`'s main journeys: signing in and out, patients, a procedure's stages, My Tasks, Users and the notification bell. See its `README.md`. |
+| `MedApp.IntegrationTests` | NUnit tests of the real API in memory (`WebApplicationFactory<Program>`, run as Production) against SQL Server 2022 in Docker (Testcontainers): sign-in and sessions, authorisation, the forced password change, users, patients, procedures, notifications (with the SignalR hub), errors and the migrations. They also cover `SessionService` and `IdentityTransactions`, which unit tests can't. |
+| `MedApp.E2ETests` | Playwright for .NET tests of `MedApp.Web`'s main journeys: signing in and out, patients, a procedure's stages, My Tasks, a new user's first sign-in (with the forced password change), deleting a user, and the notification bell. See its `README.md`. |
 
 The top-level `Application/`, `Domain/`, `Infrastructure/`, `UnitTests/`, `IntegrationTests/` and `E2ETests/` folders hold only stale `bin/`/`obj/` output from an old layout. Ignore them and never add code there.
 
@@ -233,7 +233,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 **Integration tests** (`MedApp.IntegrationTests`) test behaviour through HTTP that unit tests can't: real SQL translation, real Identity stores and transactions, the authentication handler and policies, the middleware.
 - `TestEnvironment` (a `[SetUpFixture]`) starts SQL Server once per run, applies the migrations and starts the API. Before each test, `IntegrationTest` empties the database with Respawn (keeping the migrations history and the seeded stage definition), then makes the first admin with the deploy's own `FirstAdminSetup`.
 - Do everything through the API where you can, with the helpers in `IntegrationTest` (`SignInAsAdminAsync`, `CreateStaffAsync`, `CreatePatientWithProcedureAsync`, ...). Use `RunInScopeAsync` for a service, and `ExecuteSqlAsync` only for what the API can't do, such as making a session expire.
-- A test that acts as an account an admin made must first change its generated password (`CreateStaffAsync` does): a first password will have to be changed before anything else.
+- A test that acts as an account an admin made must first change its generated password (`CreateStaffAsync` does), or every other `/api` call is a 403 `password_change_required`. `Auth/PasswordChangeRequiredTests` tests that hold itself, with `CreateForcedUserAsync`.
 - Constants are in `Common/Constants/IntegrationTestConstants.cs`.
 
 **End-to-end tests** (`MedApp.E2ETests`) drive the React app in Chromium, against the AppHost locally and the production image in CI. They derive from `E2ETest`.
