@@ -159,6 +159,8 @@ The Processor helps the Controller, taking into account the nature of the proces
 
 The measures in place, and those planned with the date they'll be in place. The DPIA ([dpia.md](dpia.md), step 6) links each to the code.
 
+**Before signing,** check each "in place" item in the live environment. As of this draft, MedApp's Azure environment is written and checked in CI but has never been deployed, so the Azure items are in place in the design only.
+
 | Area | In place | Planned (by) |
 |---|---|---|
 | **Hosting** | Microsoft Azure UK South; managed Kubernetes (AKS) with Entra ID-only access; Azure SQL with public access off and a private endpoint | An Azure Policy allowing only UK regions; private endpoints for Key Vault and the registry; a restricted cluster API ([date]) |

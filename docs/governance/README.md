@@ -1,0 +1,114 @@
+# Data protection and information governance pack
+
+**Draft prepared for review. It is not legal advice and must be reviewed and approved by a qualified data protection professional and the organisation's Data Protection Officer before use.**
+
+| | |
+|---|---|
+| **Version** | 0.1 (draft), 16 November 2026 |
+| **Owner** | [DPO name], Data Protection Officer, [Company name] |
+| **Describes** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed |
+| **Brief** | Roadmap step 3 in the [architecture handbook](../architecture.md#step-3-write-the-data-protection-and-information-governance-pack) |
+
+The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and buyers' information governance (IG) teams ask for, and the decisions (roles, lawful bases, retention, transfers) that roadmap steps 4 to 9 build in.
+
+**Read this first:**
+- **Nothing here is approved.** Every document is a draft for the DPO, and for the data processing agreement a solicitor, to review.
+- **MedApp has never held real patient data,** and the DPIA concludes it must not until the measures it marks "before go-live" are built ([dpia.md](dpia.md)).
+- **Controls are described as they are.** Where a document relies on something MedApp doesn't do yet, it says "planned" and names the roadmap step.
+- **Placeholders** in square brackets, such as `[Company name]`, `[DPO contact]` and `[Address]`, are to be filled in. No real names or contacts are used.
+
+## The documents
+
+### Decisions and records
+
+| Document | What it covers | For |
+|---|---|---|
+| [roles-and-lawful-bases.md](roles-and-lawful-bases.md) | Controller and processor, and why; the supplier's commitments not to use customer data for its own purposes; Article 6 and 9 and DPA 2018 Schedule 1 guidance for customers; the supplier's own bases; the ICO fee and the DPO | Supplier, customers |
+| [data-inventory.md](data-inventory.md) | Every field of personal data MedApp stores, from the code, and every place it goes: database, browser, logs, backups, GitHub; the data flows | Supplier, customers, assessors |
+| [ropa.md](ropa.md) | The supplier's record of processing: as processor (Article 30(2)) and as controller of its own business data (Article 30(1)) | Supplier, ICO |
+| [ropa-customer-template.md](ropa-customer-template.md) | Entries for customers to copy into their own record of processing | Customers |
+| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 20 risks with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
+| [retention-schedule.md](retention-schedule.md) | How long each kind of data is kept, following the NHS Records Management Code of Practice; review before destruction; backups; exit; **what MedApp must build** to enforce it | Supplier, customers |
+
+### Contracts and suppliers
+
+| Document | What it covers | For |
+|---|---|---|
+| [dpa-template.md](dpa-template.md) | The data processing agreement with the Article 28(3) terms, and schedules for the processing, security measures, sub-processors, and retention and exit | Customers, solicitor |
+| [sub-processors.md](sub-processors.md) | Microsoft Azure (the only sub-processor), GitHub (no customer data), and how changes are notified | Public |
+| [international-transfers.md](international-transfers.md) | The decision to host in the UK only, what isn't enforced yet, and each possible transfer | Customers, DTAC |
+| [support-access-policy.md](support-access-policy.md) | When and how the supplier's people may access customer data | Supplier, customers |
+
+### Procedures
+
+| Document | What it covers | For |
+|---|---|---|
+| [breach-response.md](breach-response.md) | Breach response: the customer told within 24 hours, the ICO within 72 hours for the supplier's own data; grading; the notice template; the breach log | Supplier |
+| [data-subject-rights.md](data-subject-rights.md) | Each right, what MedApp supports today, what's planned, and the interim manual procedure | Supplier, customers |
+| [complaints.md](complaints.md) | The DUAA complaints duty for the supplier's own processing | Supplier, public |
+
+### Transparency
+
+| Document | What it covers | For |
+|---|---|---|
+| [privacy-notice-patients-template.md](privacy-notice-patients-template.md) | Wording for customers to give patients | Customers |
+| [privacy-notice-staff-template.md](privacy-notice-staff-template.md) | Wording for customers to give their staff users, with rules for staff | Customers |
+| [privacy-notice-supplier.md](privacy-notice-supplier.md) | The supplier's own privacy notice | Public |
+| [cookies-and-storage.md](cookies-and-storage.md) | The one session cookie and the browser storage keys, under PECR | Public, customers |
+
+### Assurance
+
+| Document | What it covers | For |
+|---|---|---|
+| [security-policies.md](security-policies.md) | Information security, access control, acceptable use, secure development, supplier management, vulnerability and patch management, continuity and recovery, training | Supplier, DSPT |
+| [nhs-context.md](nhs-context.md) | The Caldicott Principles, the National Data Opt-out, and the registrations and certificates NHS buyers ask for | Supplier, NHS customers |
+| [dspt-readiness.md](dspt-readiness.md) | The DSPT's ten standards mapped to evidence, with the gaps marked | Supplier |
+| [isms-risk-register.md](isms-risk-register.md) | The business risk register and an outline Statement of Applicability for ISO/IEC 27001 | Supplier |
+
+## The main decisions
+
+- **Roles:** customers are controllers of patient and staff data; the supplier is their processor, and a controller only of its own business data. It makes no use of customer data for its own purposes: no analytics, AI training, benchmarking or research.
+- **Lawful bases (guidance to customers):** NHS bodies 6(1)(e); private providers 6(1)(b), or 6(1)(f) where there's no contract with the patient; all with 9(2)(h) and DPA 2018 Schedule 1, Part 1, paragraph 2. Not consent.
+- **DPO:** the supplier appoints one (an external service), because hosting health records for many customers is large-scale processing of special category data.
+- **Hosting:** UK only, Azure UK South, with backups and recovery in UK West.
+- **Retention:** clinical records follow the Records Management Code (adults 8 years, children to the 25th or 26th birthday, mental health 20 years, and longer classes per template), reviewed rather than deleted automatically; sessions and sign-in events 12 months; notifications 6 months; logs 90 days; point-in-time backups 35 days and long-term backups 12 months.
+- **Breach notice to customers:** within 24 hours of the supplier becoming aware.
+- **Rights requests reaching the supplier:** passed to the customer within 2 working days; help with exports within 5 working days.
+- **Sub-processor changes:** 30 days' notice with a right to object.
+- **Exit:** return within 30 days, live deletion within 30 days after, backups expire within 12 months.
+- **Go-live gate:** no real patient data until roadmap steps 2, 4, 5 and 7's "before go-live" measures are in place.
+
+## What MedApp must build for these documents to be true
+
+Collected from the DPIA, the retention schedule and the rights procedure. Roadmap step 7 covers most of it; another branch is building privacy features now, and should be checked against this list.
+
+| Need | Step | Documents that depend on it |
+|---|---|---|
+| Audit every read and change of patient data (with search terms), sign-ins, and account and role changes; access reports; an `Auditor` role | 4, 7 | DPIA risks 1 and 7; DSPT standard 4; staff notice |
+| Note versions in their own table, instead of copies of notes in audit `Details` | 7 | DPIA risk 4; retention |
+| A subject access export (JSON and PDF) with a clinician review step | 7 | Rights; DPA clause 9 |
+| Restriction and "disputed" flags; audited patient edits; archiving instead of hard deletion; an approved erasure workflow | 7 | Rights; DPIA risk 7 |
+| A retention engine: classes per template, the conclusion of treatment date, a due-for-review list, destroy or anonymise, a destruction log, legal hold | 7 | Retention schedule |
+| Automatic deletion of sessions (12 months), notifications (6 months) and deactivated accounts (12 months) | 7 | Retention schedule |
+| Clear browser storage at sign-out | 7 | DPIA risk 10; cookies statement |
+| No patient identifiers in notifications | 7 | DPIA risk 3 |
+| MFA, SSO, account deactivation, a chosen first admin name | 4 | DPIA risk 2; DSPT standard 4 |
+| An idle timeout; sessions ended on password change; hashed session tokens; security headers; throttling; patient deletion admin-only | 2 | DPIA risks 2, 10, 11 and 7 |
+| A least-privilege, passwordless database identity; monitoring and alerts; 35-day and long-term backups, geo-redundant in the UK; restore drills; an Azure Policy allowing only UK regions; Customer Lockbox; just-in-time admin access | 5 | DPIA risks 12 to 17; transfers; support access |
+| Optimistic concurrency; a patient banner | 6 | DPIA risks 8 and 9 |
+| A deceased flag | 9 | Retention periods after death |
+| Export and deletion of a whole customer at exit | 7, 8 | DPA clause 11 |
+
+## What the supplier must do (not code)
+
+- Pay the ICO fee; appoint the DPO and name the SIRO.
+- Have a solicitor review the data processing agreement; record Microsoft's current data protection terms.
+- Put confidentiality clauses in every contract; run pre-engagement checks and annual training.
+- Certify Cyber Essentials; register for the DSPT and start the 2026-27 assessment (due 30 June 2027).
+- Run a breach tabletop exercise and write it up.
+- Approve, date and publish these documents, and keep their review dates.
+
+## Keeping it current
+
+- **Any change** that adds personal data, a purpose, a recipient, a sub-processor or a region updates [data-inventory.md](data-inventory.md) and [dpia.md](dpia.md) **before** it's merged ([security-policies.md](security-policies.md), secure development).
+- **Each document** has a version, an owner and a review date at the top. Approved versions are tagged in git, and superseded ones are kept for 6 years.
