@@ -15,6 +15,9 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
 
     public PatientProcedure Procedure => procedure;
 
+    /// <summary>Who made the change.</summary>
+    public ProcedureActor Actor => actor;
+
     public DateTime NowUtc => nowUtc;
 
     public IReadOnlyList<PatientProcedureAuditEntry> AuditEntries => _auditEntries;

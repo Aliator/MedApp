@@ -92,6 +92,18 @@ public sealed class PatientProcedureStagesRepository(MedAppDbContext context) : 
             .OrderBy(x => x.Name)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetStageTemplateNamesAsync(IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.Distinct().ToList();
+        if (list.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        return await Templates
+            .Where(x => list.Contains(x.Id))
+            .Select(x => new { x.Id, x.Name })
+            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+    }
+
     public async Task<bool> StageTemplateNameExistsAsync(string name, Guid? exceptId, CancellationToken ct)
     {
         var lower = name.Trim().ToLower();

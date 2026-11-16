@@ -42,6 +42,9 @@ public interface IPatientProcedureStagesRepository
     /// <summary>Templates sorted by name, with their stage lists; archived ones only if asked.</summary>
     Task<IReadOnlyList<PatientProcedureStageTemplate>> GetStageTemplatesAsync(bool includeArchived, CancellationToken ct);
 
+    /// <summary>The names of the templates with these IDs, archived or not. IDs with no template (deleted) are left out.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetStageTemplateNamesAsync(IEnumerable<Guid> ids, CancellationToken ct);
+
     /// <summary>Whether another template has this name, ignoring case.</summary>
     Task<bool> StageTemplateNameExistsAsync(string name, Guid? exceptId, CancellationToken ct);
 
