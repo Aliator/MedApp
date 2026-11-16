@@ -128,4 +128,54 @@ describe('AuditLogPage', () => {
 
     expect(await findAlert('The audit log could not be loaded. Please try again.')).toBeInTheDocument();
   });
+
+  it("lists file entries: a patient's own file as a Patient file, linked to the patient, and a procedure's as usual", async () => {
+    const patientId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5c';
+    const files = [
+      {
+        id: 'f1',
+        patientProcedureId: '00000000-0000-0000-0000-000000000000',
+        procedureTitle: '',
+        patientId,
+        stageName: null,
+        action: 'AttachmentDownloaded',
+        username: 'k.ashford',
+        atUtc: '2026-11-08T10:00:00Z',
+        details: JSON.stringify({attachmentId: 'x', fileName: 'letter.docx', contentType: 'text/plain', size: 2048, attachedTo: 'Patient'}),
+      },
+      {
+        id: 'f2',
+        patientProcedureId: procedureId,
+        procedureTitle: 'Knee review',
+        patientId,
+        stageName: 'Consent',
+        action: 'AttachmentAdded',
+        username: 'l.northcott',
+        atUtc: '2026-11-08T09:00:00Z',
+        details: JSON.stringify({attachmentId: 'y', fileName: 'consent.pdf', size: 1258291, attachedTo: 'Stage'}),
+      },
+      {...entries[1], id: 'f3', action: 'AttachmentDeleted', details: JSON.stringify({fileName: 'old.pdf', attachedTo: 'Procedure'})},
+    ];
+    renderLog({}, pageOf(files, 3));
+
+    const patientRow = within((await screen.findByText('letter.docx (2 KB), on the patient')).closest('tr')!);
+    expect(patientRow.getByRole('link', {name: 'Patient file'})).toHaveAttribute('href', `/patients/${patientId}`);
+    expect(patientRow.getByText('File downloaded')).toBeInTheDocument();
+    const stageRow = within(screen.getByText('consent.pdf (1.2 MB), on the stage').closest('tr')!);
+    expect(stageRow.getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    expect(stageRow.getByText('Consent')).toBeInTheDocument();
+    expect(stageRow.getByText('File attached')).toBeInTheDocument();
+    expect(screen.getByText('File deleted')).toBeInTheDocument();
+  });
+
+  it('filters to file entries from its Files favourite', async () => {
+    const {user, onSearchChange} = renderLog();
+
+    await screen.findByText('k.ashford');
+    await pickFavourite(user, 'Files');
+
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({action: 'AttachmentAdded,AttachmentDeleted,AttachmentDownloaded', page: undefined}),
+    );
+  });
 });

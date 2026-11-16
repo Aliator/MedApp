@@ -309,4 +309,51 @@ describe('PatientTimeline', () => {
     ])
       expect(await screen.findByText(text)).toBeInTheDocument();
   });
+
+  describe('files', () => {
+    const NO_PROCEDURE_ID = '00000000-0000-0000-0000-000000000000';
+    const attachmentId = '00000032-0000-0000-0000-000000000009';
+    const fileEntries = (fileName: (name: string) => string | null) => [
+      entry({kind: 'Files', action: 'AttachmentAdded', attachmentId, attachedTo: 'Patient', procedureId: NO_PROCEDURE_ID, procedureTitle: '', stageName: null, fileName: fileName('letter.docx')}),
+      entry({kind: 'Files', action: 'AttachmentAdded', attachmentId, attachedTo: 'Procedure', stageName: null, fileName: fileName('referral.pdf')}),
+      entry({kind: 'Files', action: 'AttachmentDeleted', attachmentId, attachedTo: 'Stage', stageName: 'Consultation', fileName: fileName('scan.png')}),
+    ];
+
+    it('offers a Files filter', async () => {
+      const fetch = mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null})});
+      const {user} = renderWithApp(<Harness />, {user: staffUser});
+
+      await user.click(await screen.findByRole('button', {name: 'Files'}));
+
+      await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Files`));
+    });
+
+    it('tells staff a file was attached or deleted, and to what, without its name', async () => {
+      mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: fileEntries(() => null), nextCursor: null})});
+      renderWithApp(<Harness />, {user: staffUser});
+
+      const patientRow = within((await screen.findByText('To the patient')).closest('li')!);
+      expect(patientRow.getByText('Attached a file')).toBeInTheDocument();
+      // A patient's own file has no procedure: no link, and no empty title.
+      expect(patientRow.queryByRole('link')).not.toBeInTheDocument();
+      expect(patientRow.getByText('10:05 · test.staff')).toBeInTheDocument();
+
+      const procedureRow = within(screen.getByText('To the procedure').closest('li')!);
+      expect(procedureRow.getByText('Attached a file')).toBeInTheDocument();
+      expect(procedureRow.getByRole('link', {name: 'Knee assessment'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+
+      const stageRow = within(screen.getByText('From the Consultation stage').closest('li')!);
+      expect(stageRow.getByText('Deleted a file')).toBeInTheDocument();
+      expect(screen.queryByText(/letter\.docx|referral\.pdf|scan\.png/)).not.toBeInTheDocument();
+    });
+
+    it('tells admins which file', async () => {
+      mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: fileEntries((name) => name), nextCursor: null})});
+      renderWithApp(<Harness />, {user: adminUser});
+
+      expect(await screen.findByText('Attached letter.docx')).toBeInTheDocument();
+      expect(screen.getByText('Attached referral.pdf')).toBeInTheDocument();
+      expect(screen.getByText('Deleted scan.png')).toBeInTheDocument();
+    });
+  });
 });

@@ -11,11 +11,14 @@ import {useEffect, useState} from 'react';
 import {ApiError} from '../../api/errors';
 import {patientQuery, type Patient} from '../../api/patients';
 import {NO_TIMELINE_FILTERS, type TimelineFilters} from '../../api/timeline';
+import {Attachments} from '../../components/attachments/Attachments';
+import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {PatientTimeline} from '../../components/procedures/PatientTimeline';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {CardSection} from '../../components/views/CardSection';
 import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewCard} from '../../components/views/ViewCard';
@@ -23,10 +26,10 @@ import {ViewSection} from '../../components/views/ViewSection';
 import {ageOn, formatDate} from '../../utils/dates';
 
 /**
- * A patient's details (replaces Blazor's ViewPatient) beside their timeline: everything that happened to their
- * procedures, with what's due. Like the procedure page, the two cards fill the page and each scrolls on its own; a
- * narrow window or a half view has one card of two folding sections instead (see PatientView). An unknown patient
- * goes back to the list, as in Blazor.
+ * A patient's details (replaces Blazor's ViewPatient) and files, beside their timeline: everything that happened to
+ * their procedures, with what's due. Like the procedure page, the two cards fill the page and each scrolls on its
+ * own; a narrow window or a half view has one card of three folding sections instead (see PatientView). An unknown
+ * patient goes back to the list, as in Blazor.
  */
 export function ViewPatientPage({id}: {id: string}) {
   const isNarrow = useIsNarrow();
@@ -35,7 +38,7 @@ export function ViewPatientPage({id}: {id: string}) {
 
 export interface PatientViewProps {
   id: string;
-  /** A narrow window or half view: one card with Details and Timeline sections that fold, instead of two cards. */
+  /** A narrow window or half view: one card with Details, Files and Timeline sections that fold, instead of two cards. */
   isNarrow: boolean;
 }
 
@@ -45,7 +48,9 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   const {data: patient, error, isPending} = useQuery(patientQuery(id));
   // Held here, so they carry over when the window switches between one card and two.
   const [filters, setFilters] = useState<TimelineFilters>(NO_TIMELINE_FILTERS);
-  const [open, setOpen] = useState({details: true, timeline: true});
+  const [open, setOpen] = useState({details: true, files: true, timeline: true});
+  // Files on their way, held here so they carry on when the window switches between one card and two.
+  const attachments = useAttachmentsState();
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
 
   useEffect(() => {
@@ -53,6 +58,8 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   }, [error, navigate]);
 
   const timeline = <PatientTimeline patientId={id} filters={filters} onFiltersChange={setFilters} />;
+  // Everything attached to the patient, anywhere; what's added here is attached to the patient themselves.
+  const files = <Attachments target={{patientId: id}} canChange state={attachments} />;
 
   return (
     <Page
@@ -68,7 +75,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
       }>
       {patient &&
         (isNarrow ? (
-          // One card: the details, then the timeline, each folding; they scroll together.
+          // One card: the details, the files, then the timeline, each folding; they scroll together.
           <FoldingCard
             footerActions={<Actions patient={patient} />}
             sections={[
@@ -85,15 +92,27 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
                   </Section>
                 ),
               },
+              {
+                key: 'files',
+                title: 'Files',
+                isOpen: open.files,
+                onToggle: () => toggle('files'),
+                children: (
+                  <Section variant="transparent" padding={6}>
+                    {files}
+                  </Section>
+                ),
+              },
               {key: 'timeline', title: 'Timeline', isOpen: open.timeline, onToggle: () => toggle('timeline'), children: timeline},
             ]}
           />
         ) : (
-          // The details card beside the timeline's.
+          // The details card, with the files under them, beside the timeline's.
           <TwoColumns
             start={
               <ViewCard fill footerActions={<Actions patient={patient} />}>
                 <PatientDetails patient={patient} />
+                <CardSection title="Files">{files}</CardSection>
               </ViewCard>
             }
             end={
