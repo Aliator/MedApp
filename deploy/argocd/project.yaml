@@ -29,6 +29,10 @@ spec:
       kind: Secret
     - group: ""
       kind: Service
+    # Only the API's, for Azure's workload identity (api.workloadIdentity). It gets no Kubernetes rights: the
+    # project allows no Role or RoleBinding.
+    - group: ""
+      kind: ServiceAccount
     - group: apps
       kind: Deployment
     - group: apps

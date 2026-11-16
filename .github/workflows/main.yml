@@ -298,6 +298,24 @@ jobs:
       - name: Lint with Azure's values
         run: helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
 
+      # As deploy/azure/values.yaml will be once deploy.sh's outputs are filled in: workload identity, the data
+      # protection key and the sender address (placeholders).
+      - name: Lint with Azure's values, filled in
+        run: >-
+          helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
+          --set api.workloadIdentity.clientId=00000000-0000-0000-0000-000000000000
+          --set email.fromAddress=DoNotReply@example.azurecomm.net
+          --set dataProtection.keyVaultKeyUri=https://kv-medapp-ci.vault.azure.net/keys/medapp-data-protection
+
+      - name: Lint with Mailpit
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set mailpit.enabled=true
+
+      - name: Lint with an external mail server and its password from a Secret
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set email.smtp.host=smtp.example.com --set email.fromAddress=medapp@example.com
+          --set email.smtp.auth.enabled=true --set email.smtp.auth.existingSecret=medapp-email
+
       # The Azure infrastructure (deploy/azure): compiled and linted, so a broken template fails here rather than on a
       # deploy. Placeholder passwords; nothing is deployed. The Azure CLI comes with the runner image.
       - name: Build the Bicep

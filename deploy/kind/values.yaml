@@ -18,6 +18,14 @@ ingress:
     # A self-signed certificate from cert-manager (local-cluster.yaml), so browsers warn about it.
     clusterIssuer: medapp-local
 
+# Email goes to Mailpit in the cluster, which catches it all: nothing is ever sent. Its inbox is reached with
+# kubectl port-forward (README.md). Links in emails open the https address, where sign-in works.
+mailpit:
+  enabled: true
+email:
+  linkBaseUrl: https://localhost:8443
+  fromAddress: medapp@kind.local
+
 # The database and first admin Secrets come from the local stand-in for a secret store: Secrets in the medapp-vault
 # namespace, read by External Secrets Operator (local-cluster.yaml). up.sh fills it.
 externalSecrets:

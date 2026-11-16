@@ -1,9 +1,33 @@
 # The Helm chart's values (deploy/helm/medapp) for AKS (deploy/azure). Argo CD deploys them from the env/azure
 # branch, with the image from deploy/argocd/azure-image.yaml (written by the Publish workflow).
+#
+# deploy.sh prints three values that are only known once main.bicep has run: fill them in below (each marked
+# "deploy.sh") and merge that to main before MedApp's first deploy (README.md, step 6). Without them the API sends no
+# email (with no from address, the app hides its email features) and stores its data protection keys unwrapped; keys
+# made unwrapped stay that way, in the database, until they expire.
 api:
   # Two copies, spread across the nodes where the scheduler can (the chart prefers different nodes for them), sharing
   # live notifications through the backplane (Valkey, in the cluster).
   replicas: 2
+  # Workload ID: the API signs in to Key Vault as main.bicep's API identity. deploy.sh: its apiClientId output.
+  workloadIdentity:
+    clientId: ""
+
+# Azure Communication Services' SMTP relay (main.bicep), signed in to as the Entra app's SMTP user name with its
+# client secret, both from Key Vault (medapp-email). Links in emails start with https://<ingress.host>.
+email:
+  # The Azure-managed domain's sender. deploy.sh: its emailSenderAddress output (DoNotReply@<...>.azurecomm.net).
+  fromAddress: ""
+  smtp:
+    host: smtp.azurecomm.net
+    port: 587
+    security: StartTls
+    auth:
+      enabled: true
+
+# The data protection keys, in Azure SQL, wrapped with Key Vault's key. deploy.sh: its dataProtectionKeyUri output.
+dataProtection:
+  keyVaultKeyUri: ""
 
 ingress:
   enabled: true

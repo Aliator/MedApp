@@ -48,6 +48,21 @@ To have the cluster follow git instead, use `up.sh --argocd`: Argo CD deploys th
 
 `deploy/kind/down.sh` deletes the cluster, its database and its secret store. The AppHost's dev database isn't affected.
 
+## Reading email
+
+The cluster sends no real email. The API sends everything (password resets, email confirmations, security notices) to **Mailpit**, a mail catcher the chart runs beside it (`mailpit.enabled` in `values.yaml`). To read it, forward Mailpit's inbox to this machine and open **http://localhost:8025**:
+
+```bash
+kubectl --context kind-medapp -n medapp port-forward service/medapp-mailpit 8025:8025
+```
+
+- **The inbox is only reachable this way:** it has no ingress route, and its network policy admits only the API, on SMTP.
+- **A restart of Mailpit empties it.** It keeps only the newest 500 emails anyway.
+- **Links in emails open https://localhost:8443** (`email.linkBaseUrl`), where the browser warns about the certificate.
+- **Emails come from `medapp@kind.local`.**
+
+The AppHost has its own Mailpit (the "Inbox" link on its dashboard), separate from this one.
+
 If your cluster was made before https://localhost:8443 was added, the script says so. Run `down.sh` first, once.
 
 ## The demo data
@@ -67,7 +82,7 @@ Save a snapshot from the dev database by asking for medapp-dev's `save_snapshot`
 | `cluster.yaml` | The one-node cluster, with Traefik's ports mapped to this machine only: 8080 (http) and 8443 (https). |
 | `traefik-values.yaml` | Traefik's chart values: its entry points on the node ports mapped to 8080 and 8443. |
 | `local-cluster.yaml` | The local stand-ins: a self-signed cert-manager issuer, and a secret store. The store is Secrets in the `medapp-vault` namespace, read by External Secrets, where Azure will use Key Vault. |
-| `values.yaml` | MedApp's chart values for this cluster: the local image (never pulled), two copies of the API sharing live notifications through Valkey, the ingress with TLS, and secrets from the local store. |
+| `values.yaml` | MedApp's chart values for this cluster: the local image (never pulled), two copies of the API sharing live notifications through Valkey, the ingress with TLS, Mailpit catching email, and secrets from the local store. |
 | `up.sh`, `down.sh` | Start or redeploy, and delete. |
 
 - **The `medapp` namespace enforces the `restricted` Pod Security Standard,** so a pod that runs as root, or asks for more than the chart's do, is refused.

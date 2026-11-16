@@ -9,4 +9,11 @@ No ingress is enabled. To try it from this machine:
 and open http://localhost:8080/
 {{- end }}
 
+{{- if .Values.mailpit.enabled }}
+
+Emails go to Mailpit, and never leave the cluster. Its inbox:
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "medapp.mailpitName" . }} 8025:8025
+and open http://localhost:8025/
+{{- end }}
+
 The app seeds no accounts. See deploy/helm/medapp/README.md for the first sign-in.

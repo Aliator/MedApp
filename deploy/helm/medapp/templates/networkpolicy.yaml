@@ -4,8 +4,9 @@ refused. The API's own Node renderer calls it on 127.0.0.1, inside the pod, whic
 */}}
 {{- if .Values.networkPolicy.enabled }}
 {{- $dns := dict "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" "kube-system")) "podSelector" (dict "matchLabels" (dict "k8s-app" "kube-dns")))) "ports" (list (dict "port" 53 "protocol" "UDP") (dict "port" 53 "protocol" "TCP")) }}
+{{- $smtpHost := include "medapp.externalSmtpHost" . }}
 # The API: requests only from the ingress controller (and the kubelet's probes, which policies don't block); out to
-# DNS, the database and the backplane only.
+# DNS, the database and the backplane, and the mail server and Key Vault when they're set.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -44,9 +45,57 @@ spec:
         - port: 6379
           protocol: TCP
     {{- end }}
+    {{- if .Values.mailpit.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "mailpit") | nindent 14 }}
+      ports:
+        - port: 1025
+          protocol: TCP
+    {{- else if $smtpHost }}
+    # The mail server, by name, so anywhere on the internet (networkPolicy.internet), but on its port only.
+    - to:
+        {{- toYaml .Values.networkPolicy.internet | nindent 8 }}
+      ports:
+        - port: {{ int .Values.email.smtp.port }}
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.dataProtection.keyVaultKeyUri }}
+    # Key Vault (the data protection key) and Microsoft Entra ID (signing in to it), over https: by name, so anywhere
+    # on the internet (networkPolicy.internet), but on 443 only.
+    - to:
+        {{- toYaml .Values.networkPolicy.internet | nindent 8 }}
+      ports:
+        - port: 443
+          protocol: TCP
+    {{- end }}
     {{- with .Values.networkPolicy.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+{{- if .Values.mailpit.enabled }}
+---
+# Mailpit: SMTP only from the API; nothing out (it relays nothing). Its web inbox accepts no pod at all: it's reached
+# with kubectl port-forward, which comes in through the pod's own loopback, where policies don't apply.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "medapp.mailpitName" . }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "mailpit") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "api") | nindent 14 }}
+      ports:
+        - port: smtp
+{{- end }}
 {{- if and .Values.backplane.enabled .Values.backplane.valkey.enabled }}
 ---
 # Valkey, the backplane: connections only from the API; nothing out.

@@ -3,9 +3,12 @@
 //   - AKS: Azure CNI Overlay with Cilium (network policies enforced), workload identity, Entra ID sign-in only
 //   - Azure Container Registry: the API's image, pulled by AKS with its own identity
 //   - Azure SQL: serverless, reachable only through its private endpoint, with a lock against deleting it
-//   - Key Vault: the database, first admin and backplane secrets, read by External Secrets Operator
+//   - Key Vault: the database, first admin, backplane and email secrets, read by External Secrets Operator, and the
+//     key that wraps the API's data protection keys
+//   - Azure Communication Services Email: an Azure-managed sender domain and the SMTP relay the API sends through,
+//     signing in as a Microsoft Entra app made by hand (README.md, Email)
 //   - managed identities: one for AKS's control plane (its subnet), one for External Secrets (Key Vault), one for
-//     GitHub Actions (pushing to the registry)
+//     the API (the data protection key), one for GitHub Actions (pushing to the registry)
 // Deploy it with deploy.sh, which runs what-if first. Then bootstrap.sh sets up the cluster.
 
 targetScope = 'resourceGroup'
@@ -56,6 +59,19 @@ param firstAdminPassword string
 @secure()
 param backplanePassword string
 
+@description('Where Azure Communication Services keeps email data at rest: a geography, not a region.')
+param emailDataLocation string = 'UK'
+
+@description('The application (client) ID of the Microsoft Entra app the API signs in to the SMTP relay as (README.md, Email). Empty: no SMTP user name, so email can\'t be sent yet.')
+param smtpAppClientId string = ''
+
+@description('The object ID of that app\'s service principal (az ad sp show --id <client ID> --query id), which gets the role to send.')
+param smtpAppPrincipalId string = ''
+
+@description('One of that app\'s client secrets: the SMTP password.')
+@secure()
+param smtpPassword string = ''
+
 // The environment's name, checked: Bicep has no pattern decorator, so any character that isn't a lower-case letter
 // or a digit fails the deployment here, with a clear message, rather than later on one resource's name.
 var environmentChars = map(range(0, length(environmentName)), i => substring(environmentName, i, 1))
@@ -63,6 +79,13 @@ var badEnvironmentChars = filter(environmentChars, c => !contains('abcdefghijklm
 var environment = empty(badEnvironmentChars)
   ? environmentName
   : fail('environmentName must be lower-case letters and digits only, but "${environmentName}" has "${join(badEnvironmentChars, '')}"')
+
+// The SMTP app is set up with both its IDs, or not at all.
+var smtpConfigured = empty(smtpAppClientId) && empty(smtpAppPrincipalId)
+  ? false
+  : !empty(smtpAppClientId) && !empty(smtpAppPrincipalId)
+      ? true
+      : fail('Set both smtpAppClientId and smtpAppPrincipalId, or neither (README.md, Email).')
 
 // Names: <type>-medapp-<environment>, except where Azure needs them globally unique and alphanumeric.
 var suffix = uniqueString(resourceGroup().id)
@@ -75,14 +98,26 @@ var names = {
   keyVault: 'kv-medapp-${environment}-${take(suffix, 5)}'
   aksIdentity: 'id-medapp-${environment}-aks'
   externalSecretsIdentity: 'id-medapp-${environment}-external-secrets'
+  apiIdentity: 'id-medapp-${environment}-api'
   githubIdentity: 'id-medapp-${environment}-github'
+  // Communication Services' names are global (<name>.communication.azure.com).
+  emailService: 'ecs-medapp-${environment}-${suffix}'
+  communication: 'acs-medapp-${environment}-${suffix}'
+  // The SMTP user name is global too, so it carries the suffix.
+  smtpUsername: 'medapp-${environment}-${suffix}'
 }
+
+// The API's Kubernetes service account (the chart's <release>-api, in the medapp namespace that bootstrap.sh makes),
+// which its managed identity is federated with.
+var apiServiceAccount = 'system:serviceaccount:medapp:medapp-api'
 
 // Built-in roles.
 var roles = {
   acrPull: '7f951dda-4ed3-4680-a7ca-43fe172d538d'
   acrPush: '8311e382-0749-4cb8-b61a-304f252e45ec'
   keyVaultSecretsUser: '4633458b-17de-408a-b874-0445c86b69e6'
+  // Read a key, and wrap and unwrap with it: nothing else.
+  keyVaultCryptoServiceEncryptionUser: 'e147488a-f6f5-4113-8e2d-b22465e65bf6'
   networkContributor: '4d97b98b-1d4f-4787-a291-c67834d212e7'
   aksRbacClusterAdmin: 'b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b'
 }
@@ -405,6 +440,109 @@ resource backplaneSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
 }
 
+// The SMTP relay's user name and password (the Entra app's client secret). Made even before the app is set up, with
+// empty values, so the API's Secret exists and it starts; until then, sending fails (and is logged).
+resource emailSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'medapp-email'
+  properties: {
+    contentType: 'application/json'
+    value: string({
+      username: smtpConfigured ? names.smtpUsername : ''
+      password: smtpPassword
+    })
+  }
+}
+
+// Wraps the API's data protection keys, which it keeps in the database: a copy of the database alone can't unseal
+// reset and confirmation tokens. Made once: a later deployment leaves the key, and its versions, as they are. Only
+// wrapping and unwrapping, and the private half never leaves Key Vault.
+resource dataProtectionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = {
+  parent: keyVault
+  name: 'medapp-data-protection'
+  properties: {
+    kty: 'RSA'
+    keySize: 2048
+    keyOps: ['wrapKey', 'unwrapKey']
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------- Email
+
+// Azure Communication Services Email, with an Azure-managed sender domain (<random>.azurecomm.net): no DNS to set
+// up, but low sending limits and a sender address nobody recognises (README.md, Email). Its data stays in the UK.
+resource emailService 'Microsoft.Communication/emailServices@2025-09-01' = {
+  name: names.emailService
+  location: 'global'
+  properties: {
+    dataLocation: emailDataLocation
+  }
+}
+
+resource emailDomain 'Microsoft.Communication/emailServices/domains@2025-09-01' = {
+  parent: emailService
+  // The one name Azure allows for its managed domain.
+  name: 'AzureManagedDomain'
+  location: 'global'
+  properties: {
+    domainManagement: 'AzureManaged'
+    // No tracking links rewritten into emails: they carry password reset links.
+    userEngagementTracking: 'Disabled'
+  }
+}
+
+resource communication 'Microsoft.Communication/communicationServices@2025-09-01' = {
+  name: names.communication
+  location: 'global'
+  properties: {
+    dataLocation: emailDataLocation
+    linkedDomains: [emailDomain.id]
+  }
+}
+
+// The SMTP relay signs in as the Entra app, which needs these rights on the Communication Services resource (a
+// narrower role than the built-in Communication and Email Service Owner).
+resource smtpSenderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = if (smtpConfigured) {
+  name: guid(resourceGroup().id, 'medapp-smtp-sender')
+  properties: {
+    roleName: 'MedApp SMTP sender (${resourceGroup().name})'
+    description: 'Sends email through Azure Communication Services\' SMTP relay (MedApp, deploy/azure).'
+    type: 'CustomRole'
+    assignableScopes: [resourceGroup().id]
+    permissions: [
+      {
+        actions: [
+          'Microsoft.Communication/CommunicationServices/Read'
+          'Microsoft.Communication/CommunicationServices/Write'
+          'Microsoft.Communication/EmailServices/write'
+        ]
+      }
+    ]
+  }
+}
+
+resource smtpSender 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (smtpConfigured) {
+  scope: communication
+  name: guid(communication.id, smtpAppPrincipalId, 'medapp-smtp-sender')
+  properties: {
+    roleDefinitionId: smtpSenderRole.id
+    principalId: smtpAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// The user name the API signs in to smtp.azurecomm.net with; the password is one of the app's client secrets.
+resource smtpUsername 'Microsoft.Communication/communicationServices/smtpUsernames@2025-09-01' = if (smtpConfigured) {
+  parent: communication
+  name: 'medapp'
+  dependsOn: [smtpSender]
+  properties: {
+    username: names.smtpUsername
+    entraApplicationId: smtpAppClientId
+    tenantId: tenant().tenantId
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------- Identities
 
 // External Secrets Operator reads Key Vault as this identity, through its Kubernetes service account.
@@ -429,6 +567,37 @@ resource externalSecretsKeyVault 'Microsoft.Authorization/roleAssignments@2022-0
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.keyVaultSecretsUser)
     principalId: externalSecretsIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// The API wraps and unwraps its data protection keys with Key Vault's key as this identity, through its Kubernetes
+// service account (the chart's api.workloadIdentity.clientId).
+resource apiIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: names.apiIdentity
+  location: location
+}
+
+resource apiFederation 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  parent: apiIdentity
+  name: 'medapp-api'
+  properties: {
+    issuer: aks.properties.oidcIssuerProfile.issuerURL
+    subject: apiServiceAccount
+    audiences: ['api://AzureADTokenExchange']
+  }
+}
+
+// On that one key only, not the vault: it can't read the vault's secrets or use any other key.
+resource apiDataProtectionKey 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: dataProtectionKey
+  name: guid(dataProtectionKey.id, apiIdentity.id, roles.keyVaultCryptoServiceEncryptionUser)
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      roles.keyVaultCryptoServiceEncryptionUser
+    )
+    principalId: apiIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
 }
@@ -466,6 +635,11 @@ output acrName string = acr.name
 output acrLoginServer string = acr.properties.loginServer
 output keyVaultUri string = keyVault.properties.vaultUri
 output externalSecretsClientId string = externalSecretsIdentity.properties.clientId
+// For the chart's values (deploy/azure/values.yaml): deploy.sh prints them.
+output apiClientId string = apiIdentity.properties.clientId
+output dataProtectionKeyUri string = dataProtectionKey.properties.keyUri
+output emailSenderAddress string = 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}'
+output smtpConfigured bool = smtpConfigured
 output githubClientId string = githubIdentity.properties.clientId
 output tenantId string = tenant().tenantId
 output subscriptionId string = subscription().subscriptionId
