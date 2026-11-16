@@ -1815,6 +1815,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed in PR #62, still open (`docs/clinical-safety/README.md`).
+
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 
 **Why now:**
@@ -2472,6 +2474,7 @@ As of `main` at `eef92dd`, after #53. The code (or, for repository settings, Git
 | Why and how the UI moved from Blazor to React | `docs/react-migration-plan.md` |
 | The procedures concept and its decisions | `docs/procedures-ui-plan.md` |
 | Smaller open items | `docs/todo.md` |
+| Clinical safety (DCB0129 drafts) and the medical device decision | `docs/clinical-safety/README.md` and the documents it lists |
 | Plain-language guide to the technology | `docs/reviews/overview.md` |
 | Detailed reviews of SSR, the image, Kubernetes, GitOps, the backplane, Azure and app changes | `docs/reviews/README.md` and the documents it lists |
 | The adversarial review's 31 findings | `docs/reviews/flaws-review.md` |
