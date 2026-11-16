@@ -31,6 +31,27 @@ export function ageOn(dateOfBirth: string, on: string = todayIso()): number | nu
   return age >= 0 ? age : null;
 }
 
+const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+
+/**
+ * An age as NHS patient banners give it, finer for the youngest: under 4 weeks in days ("6 days"), under 3 months in
+ * weeks ("9 weeks"), under 2 years in months ("14 months"), then years ("46 years"). On `on` (default today), as
+ * `ageOn`, so a page rendered on the server matches the browser's on the same day. Null for an invalid date or one
+ * in the future.
+ */
+export function ageDescription(dateOfBirth: string, on: string = todayIso()): string | null {
+  const dob = parse(dateOfBirth);
+  const at = parse(on);
+  if (!dob || !at) return null;
+  const days = Math.round((Date.UTC(at.year, at.month - 1, at.day) - Date.UTC(dob.year, dob.month - 1, dob.day)) / 86_400_000);
+  if (days < 0) return null;
+  if (days < 28) return plural(days, 'day');
+  const months = (at.year - dob.year) * 12 + (at.month - dob.month) - (at.day < dob.day ? 1 : 0);
+  if (months < 3) return plural(Math.floor(days / 7), 'week');
+  if (months < 24) return plural(months, 'month');
+  return plural(ageOn(dateOfBirth, on)!, 'year');
+}
+
 function format(iso: string, month: 'long' | 'short'): string {
   const date = parse(iso);
   if (!date) return iso;

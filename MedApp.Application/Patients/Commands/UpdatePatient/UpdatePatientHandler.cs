@@ -1,15 +1,18 @@
 using MediatR;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 
 /// <summary>
 /// Edits a patient's details. The activity log records which fields changed, never their values. A restricted or
-/// anonymised record can't be edited (409).
+/// anonymised record can't be edited (409). The NHS number is left as it is when not given, removed when given empty,
+/// and a 409 when another patient has it.
 /// </summary>
 public sealed class UpdatePatientHandler(IPatientRepository repository, IActivityLog activityLog)
     : IRequestHandler<UpdatePatientCommand, PatientResponse?>
@@ -49,6 +52,19 @@ public sealed class UpdatePatientHandler(IPatientRepository repository, IActivit
         {
             patient.Email = request.Email;
             changed.Add("email");
+        }
+
+        if (request.NhsNumber is not null)
+        {
+            var nhsNumber = NhsNumbers.Normalise(request.NhsNumber);
+            if (nhsNumber != patient.NhsNumber)
+            {
+                if (nhsNumber is not null && await repository.NhsNumberInUseAsync(nhsNumber, patient.Id, cancellationToken))
+                    throw new ConflictException(NhsNumberRules.InUse);
+
+                patient.NhsNumber = nhsNumber;
+                changed.Add("nhsNumber");
+            }
         }
 
         patient.LastUpdated = DateTime.UtcNow;

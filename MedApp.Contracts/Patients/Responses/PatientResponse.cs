@@ -8,6 +8,9 @@ public sealed record PatientResponse(
     string Email
 )
 {
+    /// <summary>The NHS number, as its ten digits (shown as <c>XXX XXX XXXX</c>), or null when it isn't known.</summary>
+    public string? NhsNumber { get; init; }
+
     /// <summary>An admin has restricted the record (Article 18): nothing about it can be changed until they lift it.</summary>
     public bool IsRestricted { get; init; }
 

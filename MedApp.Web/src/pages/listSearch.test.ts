@@ -61,6 +61,7 @@ describe('parsePatientsSearch', () => {
         email: 'example.com',
         dobFrom: '1970-01-01',
         dobTo: '1979-12-31',
+        nhs: ' 999 000 ',
       }),
     ).toEqual({
       page: 3,
@@ -71,6 +72,7 @@ describe('parsePatientsSearch', () => {
       email: 'example.com',
       dobFrom: '1970-01-01',
       dobTo: '1979-12-31',
+      nhs: '999 000',
     });
   });
 
@@ -89,6 +91,7 @@ describe('parsePatientsSearch', () => {
   it('tells whether any filter is set', () => {
     expect(hasPatientFilters({page: 2, sort: 'Email'})).toBe(false);
     expect(hasPatientFilters({dobTo: '1980-01-01'})).toBe(true);
+    expect(hasPatientFilters({nhs: '999'})).toBe(true);
   });
 });
 

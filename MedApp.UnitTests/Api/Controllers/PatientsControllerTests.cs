@@ -36,7 +36,7 @@ public sealed class PatientsControllerTests
 
         var result = await Controller(mediator).CreatePatient(request);
 
-        mediator.Request.Should().Be(new CreatePatientCommand(request.FirstName, request.LastName, request.DateOfBirth, request.Email));
+        mediator.Request.Should().Be(new CreatePatientCommand(request.FirstName, request.LastName, request.DateOfBirth, request.Email, request.NhsNumber));
         var created = result.Should().BeOfType<CreatedAtActionResult>().Subject;
         created.ActionName.Should().Be(nameof(PatientsController.GetPatientById));
         created.RouteValues!["id"].Should().Be(patient.Id);
@@ -69,7 +69,7 @@ public sealed class PatientsControllerTests
 
         mediator.Request.Should().Be(new SearchPatientsQuery(
             request.Page, request.PageSize, request.Sort, request.Ascending, request.FirstName, request.LastName,
-            request.Email, request.DateOfBirthFrom, request.DateOfBirthTo));
+            request.Email, request.DateOfBirthFrom, request.DateOfBirthTo, request.NhsNumber));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
@@ -96,7 +96,7 @@ public sealed class PatientsControllerTests
         var updated = await Controller(mediator).UpdatePatient(RecordId, request);
         var missing = await Controller(new RecordingMediator()).UpdatePatient(RecordId, request);
 
-        mediator.Request.Should().Be(new UpdatePatientCommand(RecordId, request.FirstName, request.LastName, request.DateOfBirth, request.Email));
+        mediator.Request.Should().Be(new UpdatePatientCommand(RecordId, request.FirstName, request.LastName, request.DateOfBirth, request.Email, request.NhsNumber));
         updated.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(patient);
         missing.Should().BeOfType<NotFoundResult>();
     }

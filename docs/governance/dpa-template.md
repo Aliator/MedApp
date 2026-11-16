@@ -154,7 +154,7 @@ The Processor helps the Controller, taking into account the nature of the proces
 | **Nature** | Collection (by the Controller's users), storage, retrieval, display, change, deletion, backup and restore, transmission between the service's components, logging for operation and security, and, on instruction, export and correction. |
 | **Purpose** | To provide the service to the Controller for the direct care of its patients and the administration of that care. |
 | **Data subjects** | The Controller's patients, including children [if applicable]; the Controller's staff who use MedApp. |
-| **Personal data** | Patients: first name, last name, date of birth, email; procedures (title, notes, due date, priority, status); stage notes; the audit trail of changes. Staff: username, password hash, roles, sessions with IP address and browser, settings including saved searches, notifications, and their actions in the audit trail. Detail: [data-inventory.md](data-inventory.md). |
+| **Personal data** | Patients: first name, last name, date of birth, email, NHS number; procedures (title, notes, due date, priority, status); stage notes; the audit trail of changes. Staff: username, password hash, roles, sessions with IP address and browser, settings including saved searches, notifications, and their actions in the audit trail. Detail: [data-inventory.md](data-inventory.md). |
 | **Special category data** | Health data about patients, and anything else staff write in free text. |
 | **The Controller's contacts** | Instructions: [name, email]. Breaches: [name, phone, email], and a second contact: [name, phone, email]. Data protection officer: [name, email]. |
 | **The Processor's contacts** | Service: [support email]. Breaches: [phone, email]. DPO: [DPO contact]. |

@@ -89,6 +89,29 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     }
 
     [Test]
+    public async Task Handle_DefinitionWithASnomedCode_CopiesTheCodeAndTermOntoTheStage()
+    {
+        var coded = _template.Maps.OrderBy(m => m.StageOrder).First().StageDefinition;
+        coded.SnomedCode = NhsTestConstants.SnomedCode;
+        coded.SnomedTerm = NhsTestConstants.SnomedTerm;
+        PatientProcedure? added = null;
+        Repository
+            .Setup(r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()))
+            .Callback((PatientProcedure p, IEnumerable<PatientProcedureAuditEntry> _, CancellationToken _) => added = p)
+            .Returns(Task.CompletedTask);
+
+        var response = await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
+
+        // Consultation is first and third; the procedure stage between has no code.
+        added!.Stages.Select(s => s.SnomedCode).Should().Equal(NhsTestConstants.SnomedCode, null, NhsTestConstants.SnomedCode);
+        added.Stages[0].SnomedTerm.Should().Be(NhsTestConstants.SnomedTerm);
+        response.Stages[0].SnomedCode.Should().Be(NhsTestConstants.SnomedCode);
+        response.Stages[0].SnomedTerm.Should().Be(NhsTestConstants.SnomedTerm);
+        // The new procedure's response names its patient for the banner, though the patient isn't loaded with it.
+        response.Patient!.Id.Should().Be(_patient.Id);
+    }
+
+    [Test]
     public async Task Handle_ValidTemplate_CopiesItsStagesInOrderIncludingRepeats()
     {
         PatientProcedure? added = null;

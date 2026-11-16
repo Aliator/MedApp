@@ -17,6 +17,7 @@ import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {PatientAccessReport} from '../../components/patients/PatientAccessReport';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {PatientFlagDialog, type PatientFlagChange} from '../../components/patients/PatientFlagDialog';
 import {PatientTimeline} from '../../components/procedures/PatientTimeline';
@@ -27,6 +28,7 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {ageOn, formatDate} from '../../utils/dates';
+import {formatNhsNumber} from '../../utils/nhsNumber';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 /**
@@ -83,6 +85,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
       isLoading={isPending}
       loadingMessage="Loading patient..."
       fill={patient !== undefined}
+      banner={patient && <PatientBanner patient={patient} />}
       message={
         error && !(error instanceof ApiError && error.status === 404) ? (
           <AlertMessage message="The patient could not be loaded. Please try again." />
@@ -160,6 +163,7 @@ function PatientDetails({patient}: {patient: Patient}) {
         <MetadataListItem label="Last Name">{patient.lastName}</MetadataListItem>
         <MetadataListItem label="Date of Birth">{formatDate(patient.dateOfBirth ?? '')}</MetadataListItem>
         <MetadataListItem label="Age">{age !== null ? `${age} ${age === 1 ? 'year' : 'years'}` : '—'}</MetadataListItem>
+        <MetadataListItem label="NHS Number">{patient.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
       </ViewSection>
       <ViewSection title="Contact Information" useGrid={false}>
         <MetadataListItem label="Email Address">

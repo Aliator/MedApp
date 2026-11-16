@@ -24,6 +24,7 @@ import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
@@ -211,6 +212,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
       isLoading={isPending}
       loadingMessage="Loading procedure..."
       fill={procedure !== undefined}
+      banner={procedure?.patient && <PatientBanner patient={procedure.patient} />}
       message={
         isMissing ? (
           <AlertMessage message="Procedure not found. It may have been deleted." />

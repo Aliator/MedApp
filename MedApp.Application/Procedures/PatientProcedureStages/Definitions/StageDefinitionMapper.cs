@@ -14,6 +14,8 @@ public static class StageDefinitionMapper
         Name = definition.Name,
         Description = definition.Description,
         Instructions = definition.Instructions,
+        SnomedCode = definition.SnomedCode,
+        SnomedTerm = definition.SnomedTerm,
         IsArchived = definition.IsArchived,
         TemplateCount = usage.TemplateCount,
         CanBeDeleted = !usage.InUse

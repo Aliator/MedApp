@@ -47,7 +47,7 @@ The built-in "Definition missing" stage is kept.
 
 **It then creates synthetic demo data:**
 - 6 staff accounts, all role `User`: `admin` is the only Admin account. Their generated passwords are returned, and `set_password` gives any of them a new one.
-- 60 patients, with ages skewed older and `@example.com` emails
+- 60 patients, with ages skewed older, `@example.com` emails, and most with an NHS number from the 999 test range (never issued to anyone real)
 - 10 stage definitions (referral, consultation, pre-assessment, consent, scheduling, procedure, recovery, review, results review and follow-up), plus 1 archived one
 - 3 templates (surgical, diagnostic and minor procedure) that repeat stages, e.g. Consultation before and after the procedure, plus 1 archived template
 - about 80 procedures across every status, with priorities, due dates (some overdue), assignees (including `admin`, so its Home task list isn't empty), stage notes, and stage progress that matches each status; a few have a stage an admin has unlocked
