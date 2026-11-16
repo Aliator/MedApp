@@ -65,7 +65,6 @@ public sealed class BookAppointmentHandler(
         Appointment appointment, Before before, BookAppointmentCommand request, DateTime nowUtc) =>
         AppointmentNotifications.AfterBooking(
             appointment,
-            appointment.Procedure?.Title,
             before.Status,
             before.StaffUserId,
             before.StartUtc,

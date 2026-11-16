@@ -174,6 +174,51 @@ public sealed class SetPatientFlagHandlerTests
     }
 
     [Test]
+    public async Task Handle_RestrictWithProceduresUnderWayAndOpenAppointments_CountsBoth()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        using var cts = new CancellationTokenSource();
+
+        var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), cts.Token);
+
+        var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
+        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenProcedures));
+        failure.ErrorMessage.Should().Be(
+            "This patient has 1 procedure under way and 2 open appointments. Confirm that work on them stops while the record " +
+            "is restricted (blocking and cancelling procedures, and cancelling appointments, stay possible).");
+        _repository.Verify(r => r.CountOpenAppointmentsAsync(patient.Id, cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithOneOpenAppointment_SaysIt()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Single().ErrorMessage.Should().StartWith("This patient has 2 procedures under way and 1 open appointment.");
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithNothingUnderWay_DoesNotCountAppointments()
+    {
+        // Only procedures under way need the confirmation: the dialog asks for it from their count.
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+
+        patient.RestrictedAtUtc.Should().NotBeNull();
+        _repository.Verify(r => r.CountOpenAppointmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Handle_RestrictWithProceduresUnderWay_Confirmed_RestrictsWithoutCounting()
     {
         var patient = Given(PatientsTestConstants.CreateValidPatient());

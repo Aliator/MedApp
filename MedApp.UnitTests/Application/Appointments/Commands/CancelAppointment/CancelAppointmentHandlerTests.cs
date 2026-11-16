@@ -96,15 +96,17 @@ public sealed class CancelAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ForAProcedure_NotificationTitleIsTheProceduresTitle()
+    public async Task Handle_ForAProcedure_NotificationLinksToItWithAFixedTitle()
     {
         var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked);
-        LinkToProcedure(appointment);
+        var procedure = LinkToProcedure(appointment);
         GivenAppointment(appointment);
 
         await _handler.Handle(new CancelAppointmentCommand(appointment.Id, CancelReason, Colleague), CancellationToken.None);
 
-        SentNotifications.Single().Title.Should().Be(ProcedureTitle);
+        var notification = SentNotifications.Single();
+        notification.Title.Should().Be("Appointment cancelled");
+        notification.ProcedureId.Should().Be(procedure.Id);
     }
 
     [Test]

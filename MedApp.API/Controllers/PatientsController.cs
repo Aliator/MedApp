@@ -198,7 +198,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
     /// <summary>
     /// Anonymises the record: identifying details and free text become placeholders, and the rest stays. Confirmed by
-    /// the patient's full name. Refused while a procedure is under way or the record is restricted (409).
+    /// the patient's full name. Refused while a procedure is under way, an appointment is open (Requested or Booked), or
+    /// the record is restricted (409).
     /// </summary>
     [HttpPost("{id:guid}/anonymise")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]

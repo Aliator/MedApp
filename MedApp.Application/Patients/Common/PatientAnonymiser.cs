@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -16,9 +15,9 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Procedure titles become the template's name; procedure and stage notes become <see cref="RemovedText"/>.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
 /// <item>Appointments' notes and cancellation reasons, and their history's procedure titles, notes and reasons, are replaced the same way.</item>
-/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (monitoring's "Stage
-/// finished"), which never held the procedure's title; their messages hold no free text either. A notification about
-/// an appointment not for a procedure keeps its fixed title ("Appointment").</item>
+/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (the appointment
+/// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
+/// either.</item>
 /// </list>
 /// The patient's ID, and every link to it, stays: on its own it identifies nobody.
 /// </summary>
@@ -89,12 +88,7 @@ public static class PatientAnonymiser
         }
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
-            notification.Title = notification switch
-            {
-                { ProcedureId: { } id } => titles.GetValueOrDefault(id, ProcedureTitle),
-                { AppointmentId: not null } => AppointmentNotifications.DefaultTitle,
-                _ => ProcedureTitle
-            };
+            notification.Title = notification.ProcedureId is { } id ? titles.GetValueOrDefault(id, ProcedureTitle) : ProcedureTitle;
     }
 
     /// <summary>

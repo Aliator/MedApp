@@ -110,7 +110,7 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
         token.Should().Be(cts.Token);
         notification.Kind.Should().Be(NotificationKind.AppointmentBooked);
         notification.UserId.Should().Be(StaffUserId);
-        notification.Title.Should().Be(AppointmentNotifications.DefaultTitle);
+        notification.Title.Should().Be("Appointment booked");
         notification.Message.Should().Be($"{Colleague.Username} booked you an appointment on Monday 23 November at 14:00.");
     }
 
@@ -126,7 +126,7 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ForAProcedure_NotificationTitleIsTheProceduresTitle()
+    public async Task Handle_ForAProcedure_NotificationLinksToItWithAFixedTitle()
     {
         var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested);
         var procedure = LinkToProcedure(appointment);
@@ -135,7 +135,7 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
         await _handler.Handle(Command(appointment), CancellationToken.None);
 
         var notification = SentNotifications.Single();
-        notification.Title.Should().Be(ProcedureTitle);
+        notification.Title.Should().Be("Appointment booked");
         notification.ProcedureId.Should().Be(procedure.Id);
         notification.AppointmentId.Should().Be(appointment.Id);
     }

@@ -1,7 +1,6 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using MedApp.Application.Patients.Common;
-using MedApp.Application.Appointments.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -284,40 +283,26 @@ public sealed class PatientAnonymiserTests
         entry.ProcedureTitle.Should().BeEmpty();
     }
 
-    [Test]
-    public void Apply_NotificationAboutAnAppointmentNotForAProcedure_KeepsItsFixedTitle()
-    {
-        var record = PrivacyTestConstants.CreateRecord();
-        var notification = new Notification
-        {
-            Id = Guid.NewGuid(), UserId = Staff.UserId, Kind = NotificationKind.AppointmentBooked,
-            Title = AppointmentNotifications.DefaultTitle, Message = "test.staff booked an appointment with you.",
-            AppointmentId = Guid.NewGuid(), CreatedAtUtc = Now
-        };
-        record = WithNotifications(record, notification);
-
-        PatientAnonymiser.Apply(record, AnonymisedAt);
-
-        notification.Title.Should().Be(AppointmentNotifications.DefaultTitle);
-    }
-
-    [Test]
-    public void Apply_NotificationAboutAnAppointmentForAProcedure_TakesTheNewTitle()
+    [TestCase(NotificationKind.AppointmentBooked, "Appointment booked", false)]
+    [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved", true)]
+    [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled", true)]
+    public void Apply_AppointmentNotification_KeepsItsFixedTitleAndMessage(NotificationKind kind, string title, bool forProcedure)
     {
         var procedure = CreateProcedure(Status.InProgress);
         procedure.TemplateName = TemplateName;
         var record = PrivacyTestConstants.CreateRecord(null, procedure);
         var notification = new Notification
         {
-            Id = Guid.NewGuid(), UserId = Staff.UserId, Kind = NotificationKind.AppointmentRescheduled,
-            Title = procedure.Title, Message = "test.staff moved your appointment.",
-            ProcedureId = procedure.Id, AppointmentId = Guid.NewGuid(), CreatedAtUtc = Now
+            Id = Guid.NewGuid(), UserId = Staff.UserId, Kind = kind,
+            Title = title, Message = "test.staff moved your appointment to Monday 23 November at 10:00.",
+            ProcedureId = forProcedure ? procedure.Id : null, AppointmentId = Guid.NewGuid(), CreatedAtUtc = Now
         };
         record = WithNotifications(record, notification);
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
-        notification.Title.Should().Be(TemplateName);
+        notification.Title.Should().Be(title);
+        notification.Message.Should().Be("test.staff moved your appointment to Monday 23 November at 10:00.");
     }
 
     private static PatientRecord WithAppointments(PatientRecord record, params Appointment[] appointments) => new()

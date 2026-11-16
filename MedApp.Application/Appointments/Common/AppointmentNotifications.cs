@@ -8,19 +8,25 @@ namespace MedApp.Application.Appointments.Common;
 /// <summary>
 /// What to tell members of staff when someone else changes their appointments: booked with them (or moved to them),
 /// moved to another time, or cancelled (or moved to someone else). Nobody is told about their own change. A
-/// notification's title is the procedure's title, or "Appointment"; its message says who and when, never the patient's
-/// name or notes.
+/// notification's title is a fixed phrase for its kind (<see cref="TitleOf"/>), so no free text ever reaches it; its
+/// message says who and when, never the patient's name, the procedure's title or the notes.
 /// </summary>
 public static class AppointmentNotifications
 {
-    public const string DefaultTitle = "Appointment";
+    /// <summary>A fixed title for each appointment kind, so anonymising a patient leaves it as it is.</summary>
+    public static string TitleOf(NotificationKind kind) => kind switch
+    {
+        NotificationKind.AppointmentBooked => "Appointment booked",
+        NotificationKind.AppointmentRescheduled => "Appointment moved",
+        NotificationKind.AppointmentCancelled => "Appointment cancelled",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
 
     /// <summary>
     /// After booking or moving an appointment, given where it was before (its status, member of staff and start).
     /// </summary>
     public static IReadOnlyList<Notification> AfterBooking(
         Appointment appointment,
-        string? procedureTitle,
         AppointmentStatus previousStatus,
         Guid? previousStaffUserId,
         DateTime? previousStartUtc,
@@ -58,14 +64,13 @@ public static class AppointmentNotifications
         void Add(NotificationKind kind, Guid userId, string message)
         {
             if (userId != actor.UserId)
-                notifications.Add(Create(kind, userId, appointment, procedureTitle, message, nowUtc));
+                notifications.Add(Create(kind, userId, appointment, message, nowUtc));
         }
     }
 
     /// <summary>After cancelling an appointment that was booked with someone else.</summary>
     public static IReadOnlyList<Notification> AfterCancelling(
         Appointment appointment,
-        string? procedureTitle,
         AppointmentStatus previousStatus,
         ProcedureActor actor,
         DateTime nowUtc) =>
@@ -76,7 +81,6 @@ public static class AppointmentNotifications
                 NotificationKind.AppointmentCancelled,
                 staffUserId,
                 appointment,
-                procedureTitle,
                 $"{actor.Username} cancelled your appointment on {UkTime.Describe(startUtc)}.",
                 nowUtc)]
             : [];
@@ -85,14 +89,13 @@ public static class AppointmentNotifications
         NotificationKind kind,
         Guid userId,
         Appointment appointment,
-        string? procedureTitle,
         string message,
         DateTime nowUtc) => new()
     {
         Id = Guid.NewGuid(),
         UserId = userId,
         Kind = kind,
-        Title = string.IsNullOrWhiteSpace(procedureTitle) ? DefaultTitle : procedureTitle,
+        Title = TitleOf(kind),
         Message = message,
         ProcedureId = appointment.ProcedureId,
         AppointmentId = appointment.Id,

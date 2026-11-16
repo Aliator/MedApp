@@ -211,7 +211,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
         afterMove.Items.Select(n => n.Kind).Should().Equal("AppointmentRescheduled", "AppointmentBooked");
         afterMove.Items[0].Should().BeEquivalentTo(new
         {
-            Title = "Appointment",
+            Title = "Appointment moved",
             AppointmentId = (Guid?)appointment.Id,
             IsRead = false,
         });

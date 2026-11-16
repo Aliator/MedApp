@@ -34,7 +34,7 @@ public sealed class CancelAppointmentHandler(
         await repository.SaveAsync(change.Events, cancellationToken);
 
         foreach (var notification in AppointmentNotifications.AfterCancelling(
-                     appointment, appointment.Procedure?.Title, previousStatus, request.Actor, now))
+                     appointment, previousStatus, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);
 
         return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken);

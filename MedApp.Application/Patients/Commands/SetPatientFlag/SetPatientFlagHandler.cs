@@ -34,16 +34,17 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
             return PatientMapper.ToResponse(patient);
 
         // Restricting freezes the procedures under way (all but blocking and cancelling), so the admin must say they know.
+        // The message counts the open appointments too, which freeze the same way (all but cancelling).
         if (request is { Flag: PatientFlag.Restricted, Set: true, ConfirmOpenProcedures: false })
         {
             var underWay = await repository.CountProceduresUnderWayAsync(patient.Id, cancellationToken);
             if (underWay > 0)
+            {
+                var openAppointments = await repository.CountOpenAppointmentsAsync(patient.Id, cancellationToken);
                 throw new ValidationException([
-                    new ValidationFailure(
-                        nameof(request.ConfirmOpenProcedures),
-                        $"This patient has {underWay} procedure{(underWay == 1 ? "" : "s")} under way. Confirm that work on " +
-                        $"{(underWay == 1 ? "it" : "them")} stops while the record is restricted (blocking and cancelling stay possible).")
+                    new ValidationFailure(nameof(request.ConfirmOpenProcedures), ConfirmationMessage(underWay, openAppointments))
                 ]);
+            }
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -83,5 +84,16 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
             cancellationToken);
 
         return PatientMapper.ToResponse(patient);
+    }
+
+    private static string ConfirmationMessage(int underWay, int openAppointments)
+    {
+        var procedures = $"{underWay} procedure{(underWay == 1 ? "" : "s")} under way";
+        return openAppointments == 0
+            ? $"This patient has {procedures}. Confirm that work on {(underWay == 1 ? "it" : "them")} stops while the record " +
+              "is restricted (blocking and cancelling stay possible)."
+            : $"This patient has {procedures} and {openAppointments} open appointment{(openAppointments == 1 ? "" : "s")}. " +
+              "Confirm that work on them stops while the record is restricted (blocking and cancelling procedures, and " +
+              "cancelling appointments, stay possible).";
     }
 }

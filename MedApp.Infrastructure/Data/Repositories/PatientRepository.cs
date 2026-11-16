@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Common.Exceptions;
+﻿using MedApp.Application.Appointments.Common;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.SearchPatients;
@@ -47,6 +48,12 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     {
         var closed = ProcedureWorkflow.ClosedStatuses.ToList();
         return await context.PatientProcedures.CountAsync(p => p.PatientId == patientId && !closed.Contains(p.Status), cancellationToken);
+    }
+
+    public async Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken)
+    {
+        var open = AppointmentWorkflow.OpenStatuses.ToList();
+        return await context.Appointments.CountAsync(a => a.PatientId == patientId && open.Contains(a.Status), cancellationToken);
     }
 
     public async Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken)

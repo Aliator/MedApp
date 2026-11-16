@@ -122,6 +122,23 @@ public sealed class PatientPrivacyTests : IntegrationTest
     }
 
     [Test]
+    public async Task Restriction_ProceduresUnderWay_ConfirmationCountsTheOpenAppointmentsToo()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin);
+        var staff = await CreateStaffAsync(UserRole);
+        await RequestAppointmentAsync(_admin, procedure.PatientId, procedure.Id);
+        await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, NextBookableStart());
+        var cancelled = await RequestAppointmentAsync(_admin, procedure.PatientId);
+        (await PostCancelAsync(_admin, cancelled.Id, "Synthetic: not needed")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var unconfirmed = await (await SetRestrictionAsync(procedure.PatientId, true, "Synthetic check"))
+            .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+
+        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenProcedures)].Should().ContainSingle()
+            .Which.Should().StartWith("This patient has 1 procedure under way and 2 open appointments.");
+    }
+
+    [Test]
     public async Task Restriction_NothingUnderWay_NeedsNoConfirmation()
     {
         var patient = await CreatePatientAsync(_admin);
@@ -161,8 +178,8 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .StatusCode.Should().Be(HttpStatusCode.Created);
         // Assigned, so the staff member has a notification with the procedure's title.
         (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
-        // An appointment for the procedure with the staff member (so they're told, under the procedure's title), with
-        // notes, cancelled with a reason; and one not for a procedure, waiting to be booked, whose notes were changed.
+        // An appointment for the procedure with the staff member (so they're told, under fixed titles), with notes,
+        // cancelled with a reason; and one not for a procedure, waiting to be booked, whose notes were changed.
         var booked = await (await PostBookingAsync(_admin, patient.Id, staff.UserId, NextBookableStart(), procedureId: procedure.Id,
                 notes: $"Visit notes about {Canary}"))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
@@ -188,10 +205,13 @@ public sealed class PatientPrivacyTests : IntegrationTest
             Confirmation = $"canary {Canary.ToUpperInvariant()}",
         };
 
-        // Refused while the procedure is under way.
+        // Refused while the procedure is under way, then while the appointment waiting to be booked is open.
         (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", anonymise)).StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status", new ChangePatientProcedureStatusRequest { Status = "Cancelled", Reason = $"Cancelled for {Canary}" }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", anonymise)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
+            .Title.Should().Contain("1 open appointment");
+        (await PostCancelAsync(_admin, requested.Id, $"Not needed by {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
         // Refused without the patient's name, or with a reason not in the list.
         (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", new AnonymisePatientRequest { Reason = "ErasureRequest", Confirmation = "Someone Else" }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -231,6 +251,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .Should().NotContain("MonitoredProcedureCancelled").And.NotContain(watcher.Username);
         var watched = await (await watcher.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
         watched.Items.Should().ContainSingle().Which.Title.Should().Be("Procedure cancelled");
+        // The appointment notifications have fixed titles, so they never held the procedure's title.
+        var told = await (await staff.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
+        told.Items.Where(n => n.AppointmentId == booked.Id).Select(n => n.Title)
+            .Should().BeEquivalentTo("Appointment booked", "Appointment cancelled");
 
         var log = await (await _admin.GetAsync($"/api/activity/search?PatientId={patient.Id}&Actions=PatientAnonymised"))
             .ReadAsAsync<PagedResponse<ActivityEntryResponse>>();

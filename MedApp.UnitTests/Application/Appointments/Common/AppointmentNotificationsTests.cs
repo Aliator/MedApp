@@ -24,13 +24,13 @@ public sealed class AppointmentNotificationsTests
         var appointment = BookedAt(At(NextMonday, 10));
 
         var notification = AppointmentNotifications.AfterBooking(
-                appointment, ProcedureTitle, AppointmentStatus.Requested, null, null, Colleague, Now)
+                appointment, AppointmentStatus.Requested, null, null, Colleague, Now)
             .Should().ContainSingle().Subject;
 
         notification.Id.Should().NotBeEmpty();
         notification.UserId.Should().Be(StaffUserId);
         notification.Kind.Should().Be(NotificationKind.AppointmentBooked);
-        notification.Title.Should().Be(ProcedureTitle);
+        notification.Title.Should().Be("Appointment booked");
         notification.Message.Should().Be("calendar.colleague booked you an appointment on Monday 23 November at 10:00.");
         notification.ProcedureId.Should().Be(appointment.ProcedureId);
         notification.AppointmentId.Should().Be(appointment.Id);
@@ -44,25 +44,45 @@ public sealed class AppointmentNotificationsTests
         // 09:00 UTC on a BST day is 10:00 UK time.
         var appointment = BookedAt(new DateTime(2026, 6, 15, 9, 0, 0, DateTimeKind.Utc));
 
-        AppointmentNotifications.AfterBooking(appointment, null, AppointmentStatus.Requested, null, null, Colleague, Now)
+        AppointmentNotifications.AfterBooking(appointment, AppointmentStatus.Requested, null, null, Colleague, Now)
             .Single().Message.Should().EndWith("on Monday 15 June at 10:00.");
     }
 
-    [TestCase(null)]
-    [TestCase("")]
-    [TestCase("  ")]
-    public void AfterBooking_NoProcedureTitle_IsTitledAppointment(string? title)
+    [TestCase(NotificationKind.AppointmentBooked, "Appointment booked")]
+    [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved")]
+    [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled")]
+    public void TitleOf_EachAppointmentKind_IsAFixedPhrase(NotificationKind kind, string title)
     {
-        AppointmentNotifications.AfterBooking(
-                BookedAt(At(NextMonday, 10)), title, AppointmentStatus.Requested, null, null, Colleague, Now)
-            .Single().Title.Should().Be(AppointmentNotifications.DefaultTitle);
+        AppointmentNotifications.TitleOf(kind).Should().Be(title);
+        Notification.HasFixedTitle(kind).Should().BeTrue();
+    }
+
+    [Test]
+    public void TitleOf_AnotherKind_Throws()
+    {
+        var act = () => AppointmentNotifications.TitleOf(NotificationKind.ProcedureAssigned);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public void AfterBooking_ForAProcedure_IsTitledByTheKindNotTheProcedure()
+    {
+        var appointment = BookedAt(At(NextMonday, 10));
+        var procedure = LinkToProcedure(appointment);
+
+        var notification = AppointmentNotifications.AfterBooking(appointment, AppointmentStatus.Requested, null, null, Colleague, Now)
+            .Single();
+
+        notification.Title.Should().Be("Appointment booked");
+        notification.ProcedureId.Should().Be(procedure.Id);
     }
 
     [Test]
     public void AfterBooking_BookedByThemselves_TellsNobody()
     {
         AppointmentNotifications.AfterBooking(
-                BookedAt(At(NextMonday, 10)), ProcedureTitle, AppointmentStatus.Requested, null, null, Self, Now)
+                BookedAt(At(NextMonday, 10)), AppointmentStatus.Requested, null, null, Self, Now)
             .Should().BeEmpty();
     }
 
@@ -70,7 +90,7 @@ public sealed class AppointmentNotificationsTests
     public void AfterBooking_NotBooked_TellsNobody()
     {
         AppointmentNotifications.AfterBooking(
-                CreateAppointment(AppointmentStatus.Requested), ProcedureTitle, AppointmentStatus.Requested, null, null, Colleague, Now)
+                CreateAppointment(AppointmentStatus.Requested), AppointmentStatus.Requested, null, null, Colleague, Now)
             .Should().BeEmpty();
     }
 
@@ -80,11 +100,12 @@ public sealed class AppointmentNotificationsTests
         var appointment = BookedAt(At(NextMonday, 15));
 
         var notification = AppointmentNotifications.AfterBooking(
-                appointment, ProcedureTitle, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now)
+                appointment, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now)
             .Should().ContainSingle().Subject;
 
         notification.UserId.Should().Be(StaffUserId);
         notification.Kind.Should().Be(NotificationKind.AppointmentRescheduled);
+        notification.Title.Should().Be("Appointment moved");
         notification.Message.Should().Be("calendar.colleague moved your appointment to Monday 23 November at 15:00.");
     }
 
@@ -93,7 +114,7 @@ public sealed class AppointmentNotificationsTests
     {
         // Only the end moved: the start, which the message gives, is the same.
         AppointmentNotifications.AfterBooking(
-                BookedAt(At(NextMonday, 10)), ProcedureTitle, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now)
+                BookedAt(At(NextMonday, 10)), AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now)
             .Should().BeEmpty();
     }
 
@@ -101,7 +122,7 @@ public sealed class AppointmentNotificationsTests
     public void AfterBooking_MovedByThemselves_TellsNobody()
     {
         AppointmentNotifications.AfterBooking(
-                BookedAt(At(NextMonday, 15)), ProcedureTitle, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Self, Now)
+                BookedAt(At(NextMonday, 15)), AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Self, Now)
             .Should().BeEmpty();
     }
 
@@ -111,14 +132,16 @@ public sealed class AppointmentNotificationsTests
         var appointment = BookedAt(At(NextMonday, 15), OtherStaffUserId);
 
         var notifications = AppointmentNotifications.AfterBooking(
-            appointment, ProcedureTitle, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now);
+            appointment, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now);
 
         notifications.Should().HaveCount(2);
         var booked = notifications.Single(n => n.UserId == OtherStaffUserId);
         booked.Kind.Should().Be(NotificationKind.AppointmentBooked);
+        booked.Title.Should().Be("Appointment booked");
         booked.Message.Should().Be("calendar.colleague moved an appointment to you, on Monday 23 November at 15:00.");
         var cancelled = notifications.Single(n => n.UserId == StaffUserId);
         cancelled.Kind.Should().Be(NotificationKind.AppointmentCancelled);
+        cancelled.Title.Should().Be("Appointment cancelled");
         cancelled.Message.Should().Be("calendar.colleague moved your appointment on Monday 23 November at 10:00 to someone else.");
     }
 
@@ -128,7 +151,7 @@ public sealed class AppointmentNotificationsTests
         var appointment = BookedAt(At(NextMonday, 15), OtherStaffUserId);
 
         AppointmentNotifications.AfterBooking(
-                appointment, ProcedureTitle, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Self, Now)
+                appointment, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Self, Now)
             .Should().ContainSingle().Which.UserId.Should().Be(OtherStaffUserId);
     }
 
@@ -138,7 +161,7 @@ public sealed class AppointmentNotificationsTests
         var appointment = BookedAt(At(NextMonday, 15), StaffUserId);
 
         var notification = AppointmentNotifications.AfterBooking(
-                appointment, ProcedureTitle, AppointmentStatus.Booked, OtherStaffUserId, At(NextMonday, 10), Self, Now)
+                appointment, AppointmentStatus.Booked, OtherStaffUserId, At(NextMonday, 10), Self, Now)
             .Should().ContainSingle().Subject;
 
         notification.UserId.Should().Be(OtherStaffUserId);
@@ -149,23 +172,25 @@ public sealed class AppointmentNotificationsTests
     public void AfterBooking_PreviousStaffUnknown_TellsOnlyTheNewOne()
     {
         AppointmentNotifications.AfterBooking(
-                BookedAt(At(NextMonday, 15)), ProcedureTitle, AppointmentStatus.Booked, null, null, Colleague, Now)
+                BookedAt(At(NextMonday, 15)), AppointmentStatus.Booked, null, null, Colleague, Now)
             .Should().ContainSingle().Which.Kind.Should().Be(NotificationKind.AppointmentBooked);
     }
 
     [Test]
-    public void AfterBooking_Messages_NeverHoldThePatientsNameOrNotes()
+    public void AfterBooking_Notifications_NeverHoldThePatientsNameNotesOrProcedureTitle()
     {
         var appointment = BookedAt(At(NextMonday, 15), OtherStaffUserId);
+        LinkToProcedure(appointment);
 
         var notifications = AppointmentNotifications.AfterBooking(
-            appointment, null, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now);
+            appointment, AppointmentStatus.Booked, StaffUserId, At(NextMonday, 10), Colleague, Now);
 
         notifications.Should().NotBeEmpty();
         foreach (var notification in notifications)
         {
-            notification.Message.Should().NotContain(PatientFirstName).And.NotContain(PatientLastName).And.NotContain(Notes);
-            notification.Title.Should().NotContain(PatientFirstName).And.NotContain(Notes);
+            notification.Message.Should().NotContain(PatientFirstName).And.NotContain(PatientLastName).And.NotContain(Notes)
+                .And.NotContain(ProcedureTitle);
+            notification.Title.Should().NotContain(PatientFirstName).And.NotContain(Notes).And.NotContain(ProcedureTitle);
         }
     }
 
@@ -176,28 +201,21 @@ public sealed class AppointmentNotificationsTests
         appointment.Status = AppointmentStatus.Cancelled;
         appointment.CancelReason = CancelReason;
 
-        var notification = AppointmentNotifications.AfterCancelling(appointment, ProcedureTitle, AppointmentStatus.Booked, Colleague, Now)
+        var notification = AppointmentNotifications.AfterCancelling(appointment, AppointmentStatus.Booked, Colleague, Now)
             .Should().ContainSingle().Subject;
 
         notification.UserId.Should().Be(StaffUserId);
         notification.Kind.Should().Be(NotificationKind.AppointmentCancelled);
-        notification.Title.Should().Be(ProcedureTitle);
+        notification.Title.Should().Be("Appointment cancelled");
         notification.AppointmentId.Should().Be(appointment.Id);
         notification.Message.Should().Be("calendar.colleague cancelled your appointment on Monday 23 November at 10:00.");
         notification.Message.Should().NotContain(CancelReason).And.NotContain(PatientFirstName);
     }
 
     [Test]
-    public void AfterCancelling_NoProcedureTitle_IsTitledAppointment()
-    {
-        AppointmentNotifications.AfterCancelling(BookedAt(At(NextMonday, 10)), null, AppointmentStatus.Booked, Colleague, Now)
-            .Single().Title.Should().Be(AppointmentNotifications.DefaultTitle);
-    }
-
-    [Test]
     public void AfterCancelling_TheirOwn_TellsNobody()
     {
-        AppointmentNotifications.AfterCancelling(BookedAt(At(NextMonday, 10)), ProcedureTitle, AppointmentStatus.Booked, Self, Now)
+        AppointmentNotifications.AfterCancelling(BookedAt(At(NextMonday, 10)), AppointmentStatus.Booked, Self, Now)
             .Should().BeEmpty();
     }
 
@@ -205,7 +223,7 @@ public sealed class AppointmentNotificationsTests
     public void AfterCancelling_WasRequested_TellsNobody()
     {
         AppointmentNotifications.AfterCancelling(
-                CreateAppointment(AppointmentStatus.Requested), ProcedureTitle, AppointmentStatus.Requested, Colleague, Now)
+                CreateAppointment(AppointmentStatus.Requested), AppointmentStatus.Requested, Colleague, Now)
             .Should().BeEmpty();
     }
 
@@ -215,7 +233,7 @@ public sealed class AppointmentNotificationsTests
         var appointment = BookedAt(At(NextMonday, 10));
         appointment.StartUtc = null;
 
-        AppointmentNotifications.AfterCancelling(appointment, ProcedureTitle, AppointmentStatus.Booked, Colleague, Now)
+        AppointmentNotifications.AfterCancelling(appointment, AppointmentStatus.Booked, Colleague, Now)
             .Should().BeEmpty();
     }
 }

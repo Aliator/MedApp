@@ -87,7 +87,7 @@ public sealed class CreateAppointmentHandler(
             }, cancellationToken);
 
             foreach (var notification in AppointmentNotifications.AfterBooking(
-                         appointment, procedure?.Title, AppointmentStatus.Requested, null, null, request.Actor, now))
+                         appointment, AppointmentStatus.Requested, null, null, request.Actor, now))
                 await notificationSender.SendAsync(notification, cancellationToken);
         }
         else

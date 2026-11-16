@@ -7,6 +7,7 @@ using MedApp.Application.Patients.Commands.AnonymisePatient;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Appointments;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -92,6 +93,61 @@ public sealed class AnonymisePatientHandlerTests
         var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*2 procedures under way*");
+    }
+
+    [TestCase(AppointmentStatus.Requested)]
+    [TestCase(AppointmentStatus.Booked)]
+    public async Task Handle_OpenAppointment_ThrowsConflict(AppointmentStatus status)
+    {
+        var record = Given(PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.Completed)));
+        record.Appointments[0].Status = status;
+
+        var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This patient has 1 open appointment (needing booking or booked), so their record can't be anonymised. " +
+                         "Cancel it, or record its outcome, first.");
+        record.Patient.FirstName.Should().Be(PatientsTestConstants.ValidFirstName);
+        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_SeveralOpenAppointments_SaysHowMany()
+    {
+        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.Completed));
+        record.Appointments[0].Status = AppointmentStatus.Booked;
+        Given(new PatientRecord
+        {
+            Patient = record.Patient,
+            Procedures = record.Procedures,
+            ProcedureHistory = record.ProcedureHistory,
+            Activity = record.Activity,
+            Appointments =
+            [
+                .. record.Appointments,
+                new Appointment { Id = Guid.NewGuid(), PatientId = record.Patient.Id, Status = AppointmentStatus.Requested }
+            ],
+            AppointmentHistory = record.AppointmentHistory,
+            Notifications = record.Notifications
+        });
+
+        var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*2 open appointments*Cancel them, or record their outcome*");
+    }
+
+    [TestCase(AppointmentStatus.Attended)]
+    [TestCase(AppointmentStatus.DidNotAttend)]
+    [TestCase(AppointmentStatus.Cancelled)]
+    public async Task Handle_OnlyClosedAppointments_Anonymises(AppointmentStatus status)
+    {
+        var record = Given(PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.Completed)));
+        record.Appointments[0].Status = status;
+
+        var response = await Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
+
+        response.IsAnonymised.Should().BeTrue();
+        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

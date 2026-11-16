@@ -252,7 +252,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
         token.Should().Be(cts.Token);
         notification.UserId.Should().Be(StaffUserId);
         notification.Kind.Should().Be(NotificationKind.AppointmentBooked);
-        notification.Title.Should().Be(ProcedureTitle);
+        notification.Title.Should().Be("Appointment booked");
         notification.ProcedureId.Should().Be(procedure.Id);
         notification.AppointmentId.Should().Be(Added.Single().Id);
         notification.Message.Should().Be($"{Colleague.Username} booked you an appointment on Monday 23 November at 10:00.");
