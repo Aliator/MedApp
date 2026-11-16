@@ -8,6 +8,10 @@ import {ProceduresListPage} from './ProceduresListPage';
 const SEARCH = 'GET /api/procedures/patient-procedures/search';
 const patientId = 'patient-1';
 const USERS = 'GET /api/auth/users/search';
+const TEMPLATES = 'GET /api/procedures/patient-procedure-stage/templates';
+const TEMPLATE_ID = '0000000e-0000-0000-0000-000000000001';
+/** The list's own searches, leaving out what it asks for its filters' choices (accounts, templates). */
+const searchCalls = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((call) => call.startsWith(SEARCH));
 const STAFF_ID = '0000000a-0000-0000-0000-000000000001';
 
 const summary = (overrides: Record<string, unknown> = {}) => ({
@@ -38,6 +42,7 @@ function renderList(
       json(options.body ?? pageOf([summary(), summary({id: 'proc-2', title: 'Biopsy', assignees: [], status: 'Unassigned'})], 23), options.status),
     [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com'}),
     [USERS]: () => json(pageOf([{userId: STAFF_ID, username: 'k.ashford', roles: ['User']}])),
+    [TEMPLATES]: () => json([{id: TEMPLATE_ID, name: 'Knee review', isArchived: false, stages: [], stageDefinitionIdsInOrder: []}]),
   });
   const onSearchChange = vi.fn();
   const result = renderWithApp(<ProceduresListPage search={search} onSearchChange={onSearchChange} patientId={options.patientId} />, {
@@ -62,7 +67,7 @@ describe('ProceduresListPage', () => {
     expect(screen.getByText('a.user')).toBeInTheDocument();
     expect(screen.getByText('Nobody')).toBeInTheDocument();
     expect(screen.getAllByRole('link', {name: 'View procedure'})[1]).toHaveAttribute('href', '/procedures/proc-2');
-    expect(calls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true`]);
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true`]);
   });
 
   it('asks the API for the page, sort and filters in the URL', async () => {
@@ -83,7 +88,7 @@ describe('ProceduresListPage', () => {
     });
 
     expect(await screen.findByText('23 matching procedures')).toBeInTheDocument();
-    expect(calls(fetch)).toEqual([
+    expect(searchCalls(fetch)).toEqual([
       `${SEARCH}?PageSize=10&Page=3&Sort=status&Ascending=false&Title=colon&TemplateName=scope&PatientName=freya` +
         '&Statuses=Completed&Statuses=Blocked&Priorities=Medium&Priorities=High&Priorities=Urgent' +
         '&OverdueOnly=true&AssignedToMe=true&IncludeClosed=true&DueFrom=2026-12-01&DueTo=2026-12-31',
@@ -206,8 +211,23 @@ describe('ProceduresListPage', () => {
     const {fetch} = renderList({assignee: 'none'});
 
     await screen.findByText('Colonoscopy');
-    expect(calls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&NobodyAssigned=true`]);
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&NobodyAssigned=true`]);
     expect(searchBar()).toHaveTextContent(/Assigned to: is\s*Nobody/);
+  });
+
+  it('shows the procedures made from a template, by its ID, named as the template is now', async () => {
+    const {fetch} = renderList({templateId: TEMPLATE_ID});
+
+    await screen.findByText('Colonoscopy');
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&TemplateId=${TEMPLATE_ID}`]);
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/From template: iss*Knee review/));
+  });
+
+  it("names a template it can't find as the selected one", async () => {
+    renderList({templateId: '0000000e-0000-0000-0000-000000000009'});
+
+    await screen.findByText('Colonoscopy');
+    expect(searchBar()).toHaveTextContent(/From template: iss*Selected template/);
   });
 
   it("names someone it can't look up (staff can't list the accounts) as the selected person", async () => {

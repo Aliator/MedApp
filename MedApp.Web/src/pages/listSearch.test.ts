@@ -188,6 +188,21 @@ describe('parseProceduresSearch', () => {
     expect(parseProceduresSearch({status: 'Finished', sort: 'colour'})).toEqual({});
   });
 
+  it('reads an assignee: an ID, or nobody (none), dropping anything else', () => {
+    const userId = '0000000A-0000-0000-0000-000000000001';
+    expect(parseProceduresSearch({assignee: userId})).toEqual({assignee: userId.toLowerCase()});
+    expect(parseProceduresSearch({assignee: 'NONE'})).toEqual({assignee: 'none'});
+    expect(parseProceduresSearch({assignee: 'k.ashford'})).toEqual({});
+    expect(hasProcedureFilters({assignee: 'none'})).toBe(true);
+  });
+
+  it('reads a template ID, dropping anything that is not one', () => {
+    const templateId = '0000000E-0000-0000-0000-000000000001';
+    expect(parseProceduresSearch({templateId})).toEqual({templateId: templateId.toLowerCase()});
+    expect(parseProceduresSearch({templateId: 'Knee review'})).toEqual({});
+    expect(hasProcedureFilters({templateId: 'x'})).toBe(true);
+  });
+
   it('knows when the list is filtered', () => {
     expect(hasProcedureFilters({page: 3, sort: 'Due'})).toBe(false);
     expect(hasProcedureFilters({closed: true})).toBe(true);

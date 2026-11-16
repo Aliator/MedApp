@@ -1,4 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
 import {adminUser, calls, json, mockApi, renderWithApp} from '../../test/render';
 import {insights, STAFF_ID, TEMPLATE_ID, templates} from '../../test/insights';
 import type {InsightsSearch} from '../listSearch';
@@ -8,8 +9,13 @@ import {givenWidth} from '../../test/layout';
 const INSIGHTS = '/api/procedures/insights';
 const TEMPLATES = '/api/procedures/patient-procedure-stage/templates';
 
+/** Answers with `body`, for the template asked for (as the API says which template its numbers are for). */
 function renderInsights(search: InsightsSearch = {}, body: unknown = insights, status = 200) {
-  const fetch = mockApi({[`GET ${INSIGHTS}`]: () => json(body, status), [`GET ${TEMPLATES}`]: () => json(templates)});
+  const fetch = mockApi({
+    [`GET ${INSIGHTS}`]: (request) =>
+      json(status === 200 ? {...(body as object), templateId: new URL(request.url).searchParams.get('TemplateId')} : body, status),
+    [`GET ${TEMPLATES}`]: () => json(templates),
+  });
   const onSearchChange = vi.fn();
   return {fetch, onSearchChange, ...renderWithApp(<InsightsPage search={search} onSearchChange={onSearchChange} />, {user: adminUser})};
 }
@@ -20,18 +26,56 @@ describe('InsightsPage', () => {
   it('shows each headline count against this time last week, linking to the procedures it counts', async () => {
     const {fetch} = renderInsights();
 
-    expect(await screen.findByRole('link', {name: 'Open: 14. 2 more than this time last week.'})).toHaveAttribute('href', '/procedures');
+    expect(await screen.findByRole('link', {name: 'Open: 14. 2 more than this time last week.'})).toHaveAttribute('href', '/procedures?mine=false');
     expect(screen.getByRole('link', {name: 'In progress: 6. Same as this time last week.'})).toHaveAttribute(
       'href',
-      '/procedures?status=InProgress',
+      '/procedures?status=InProgress&mine=false',
     );
-    expect(screen.getByRole('link', {name: 'Overdue: 5. 2 fewer than this time last week.'})).toHaveAttribute('href', '/procedures?overdue=true');
-    expect(screen.getByRole('link', {name: 'Completed this week: 3. 2 more than this time last week.'})).toHaveAttribute(
-      'href',
-      '/procedures?status=Completed',
-    );
+    expect(screen.getByRole('link', {name: 'Overdue: 5. 2 fewer than this time last week.'})).toHaveAttribute('href', '/procedures?overdue=true&mine=false');
+    // No list shows what was completed when, so that tile isn't a link.
+    expect(screen.getByText('Completed this week')).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /^Completed this week/})).not.toBeInTheDocument();
     expect(screen.getByText('31 Aug 2026 to 16 Nov 2026, all templates')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12`);
+  });
+
+  it('keeps its links on everyone when Account Settings starts lists on Assigned to me', async () => {
+    localStorage.setItem('medapp.proceduresStartOnMine', 'true');
+    renderInsights();
+
+    expect(await screen.findByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/procedures?overdue=true&mine=false');
+  });
+
+  it('says it is updating, and dims the last numbers, while another template loads', async () => {
+    let answer: (response: Response) => void = () => {};
+    const fetch = mockApi({
+      [`GET ${INSIGHTS}`]: (request) =>
+        new URL(request.url).searchParams.get('TemplateId')
+          ? new Promise<Response>((resolve) => (answer = resolve))
+          : json({...insights, templateId: null}),
+      [`GET ${TEMPLATES}`]: () => json(templates),
+    });
+    function Switcher() {
+      const [search, setSearch] = useState<InsightsSearch>({});
+      return (
+        <>
+          <button onClick={() => setSearch({template: TEMPLATE_ID})}>Choose the template</button>
+          <InsightsPage search={search} onSearchChange={setSearch} />
+        </>
+      );
+    }
+    const {user} = renderWithApp(<Switcher />, {user: adminUser});
+    await screen.findByText('31 Aug 2026 to 16 Nov 2026, all templates');
+
+    await user.click(screen.getByRole('button', {name: 'Choose the template'}));
+
+    expect(await screen.findByText('Updating...')).toBeInTheDocument();
+    expect(document.querySelector('[aria-label="Insights"]')).toHaveAttribute('aria-busy', 'true');
+    // The numbers on screen are still everyone's, so the links are too.
+    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/procedures?overdue=true&mine=false');
+    answer(json({...insights, templateId: TEMPLATE_ID}));
+    expect(await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review')).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12&TemplateId=${TEMPLATE_ID}`);
   });
 
   it('sums up each chart, and draws them as images named by their summaries', async () => {
@@ -53,7 +97,7 @@ describe('InsightsPage', () => {
     await waitFor(() => expect(chart.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2));
     await user.click(chart.querySelectorAll('.recharts-bar-rectangle path')[1]);
 
-    await waitFor(() => expect(router.state.location.href).toBe('/procedures?overdue=true&assignee=none'));
+    await waitFor(() => expect(router.state.location.href).toBe('/procedures?overdue=true&assignee=none&mine=false'));
   });
 
   it('opens the overdue procedures of a priority from its bar', async () => {
@@ -64,7 +108,7 @@ describe('InsightsPage', () => {
     await waitFor(() => expect(chart.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
     await user.click(chart.querySelectorAll('.recharts-bar-rectangle path')[0]);
 
-    await waitFor(() => expect(router.state.location.href).toBe('/procedures?overdue=true&priority=Urgent'));
+    await waitFor(() => expect(router.state.location.href).toBe('/procedures?overdue=true&priority=Urgent&mine=false'));
   });
 
   it("shows each chart's numbers as a table, whose rows link where the bars do", async () => {
@@ -72,14 +116,14 @@ describe('InsightsPage', () => {
 
     await screen.findByRole('heading', {name: 'Overdue by assignee'});
     for (const title of ['Overdue by assignee', 'Overdue by priority', 'Created and completed', 'Time at each stage']) {
-      await user.click(within(card(title)).getByRole('button', {name: 'Show Table'}));
+      await user.click(within(card(title)).getByRole('button', {name: `Show Table of ${title}`}));
     }
 
     const assignees = screen.getByRole('table', {name: 'Overdue procedures by assignee'});
-    expect(within(assignees).getByRole('link', {name: 'k.ashford'})).toHaveAttribute('href', `/procedures?overdue=true&assignee=${STAFF_ID}`);
-    expect(within(assignees).getByRole('link', {name: 'Nobody'})).toHaveAttribute('href', '/procedures?overdue=true&assignee=none');
+    expect(within(assignees).getByRole('link', {name: 'k.ashford'})).toHaveAttribute('href', `/procedures?overdue=true&assignee=${STAFF_ID}&mine=false`);
+    expect(within(assignees).getByRole('link', {name: 'Nobody'})).toHaveAttribute('href', '/procedures?overdue=true&assignee=none&mine=false');
     const priorities = screen.getByRole('table', {name: 'Overdue procedures by priority'});
-    expect(within(priorities).getByRole('link', {name: 'High'})).toHaveAttribute('href', '/procedures?overdue=true&priority=High');
+    expect(within(priorities).getByRole('link', {name: 'High'})).toHaveAttribute('href', '/procedures?overdue=true&priority=High&mine=false');
     const weeks = screen.getByRole('table', {name: 'Procedures created and completed each week'});
     expect(within(weeks).getByText('9 Nov 2026')).toBeInTheDocument();
     const stages = screen.getByRole('table', {name: 'Average time at each stage of Knee review'});
@@ -116,7 +160,7 @@ describe('InsightsPage', () => {
 
     expect(await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=26&TemplateId=${TEMPLATE_ID}`);
-    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', '/procedures?overdue=true&template=Knee+review');
+    expect(screen.getByRole('link', {name: /^Overdue: 5/})).toHaveAttribute('href', `/procedures?overdue=true&mine=false&templateId=${TEMPLATE_ID}`);
 
     await user.click(screen.getByRole('combobox', {name: /Template/}));
     await user.click(screen.getByRole('option', {name: 'All templates'}));

@@ -14,7 +14,7 @@ describe('ChartCard', () => {
     expect(await screen.findByRole('heading', {name: 'Overdue by priority'})).toBeInTheDocument();
     expect(screen.getByText('Of 5 overdue, 1 is urgent.')).toBeInTheDocument();
     expect(screen.getByText('The chart')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Show Table'}));
+    await user.click(screen.getByRole('button', {name: 'Show Table of Overdue by priority'}));
 
     expect(onViewChange).toHaveBeenCalledWith('table');
   });
@@ -27,7 +27,7 @@ describe('ChartCard', () => {
       </ChartCard>,
     );
 
-    await user.click(await screen.findByRole('button', {name: 'Show Chart'}));
+    await user.click(await screen.findByRole('button', {name: 'Show Chart of Throughput'}));
 
     expect(onViewChange).toHaveBeenCalledWith('chart');
   });

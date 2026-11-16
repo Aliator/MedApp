@@ -299,7 +299,7 @@ export const screens: Screen[] = [
     path: '/admin/insights?weeks=4',
     prepare: async (page) => {
       // Each button becomes Show Chart once pressed, so press the first left until none are.
-      const showTable = page.getByRole('button', { name: 'Show Table' });
+      const showTable = page.getByRole('button', { name: /^Show Table of / });
       while ((await showTable.count()) > 0) await showTable.first().click();
       await settle(page);
     },

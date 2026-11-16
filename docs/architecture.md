@@ -2047,7 +2047,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 4. **Documents:**
    - attach consent forms, referral letters and images to a procedure or stage
    - store them in Azure Blob Storage with a private endpoint and a customer-managed key, scanned for malware by Defender for Storage ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/defender-for-cloud/introduction-malware-scanning)), with type and size limits and audited downloads
-5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default.
+5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default. Insights (`/admin/insights`, #66) is a first version for one organisation: open, in progress, overdue and completed against last week, overdue work by assignee and priority, time at each stage per template, and weekly throughput. No exports yet.
 6. **Communications and escalation:**
    - the notification kinds in `docs/todo.md` (overdue, blocked, stage unlocked), by email, with no patient identifiers in the message
    - due dates for each stage, escalation to a lead, and daily digests

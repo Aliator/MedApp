@@ -208,6 +208,8 @@ export interface ProceduresListSearch {
   closed?: boolean;
   /** Who it's assigned to: a user's ID, or `none` for nobody (e.g. from Insights' overdue work by assignee). */
   assignee?: string;
+  /** Made from this template (its ID), whatever it was called then (e.g. from Insights, on a template). */
+  templateId?: string;
   dueFrom?: string;
   dueTo?: string;
 }
@@ -216,6 +218,12 @@ const flag = (value: unknown) => (bool(value) ? true : undefined);
 
 /** The `assignee` filter's value for nobody assigned. */
 export const NOBODY = 'none';
+
+/** An ID, in lower case; anything else is dropped. */
+function guid(value: unknown): string | undefined {
+  const t = text(value)?.toLowerCase();
+  return t && GUID.test(t) ? t : undefined;
+}
 
 /** An assignee filter: a user's ID, or `none`; anything else is dropped. */
 function assignee(value: unknown): string | undefined {
@@ -246,6 +254,7 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
     mine: bool(raw.mine),
     closed: flag(raw.closed),
     assignee: assignee(raw.assignee),
+    templateId: guid(raw.templateId),
     dueFrom: date(raw.dueFrom),
     dueTo: date(raw.dueTo),
   });
@@ -253,7 +262,7 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
 
 export const hasProcedureFilters = (s: ProceduresListSearch) =>
   Boolean(
-    s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.assignee || s.dueFrom || s.dueTo,
+    s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.assignee || s.templateId || s.dueFrom || s.dueTo,
   );
 
 // Procedure setup (admin): stage definitions and templates --------------------------------------------

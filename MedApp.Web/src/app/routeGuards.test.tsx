@@ -50,7 +50,8 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: 'Insights', level: 1})).toBeInTheDocument();
     expect(await screen.findByRole('link', {name: /^Overdue: 5/})).toBeInTheDocument();
     expect(fetch.mock.calls.some(([request]) => (request as Request).url.endsWith('/api/procedures/insights?Weeks=4'))).toBe(true);
-  });
+    // Longer than the default: the route's chunk (with the chart library) loads during the test, slowly on a busy runner.
+  }, 15_000);
 
   it('sends someone who must change their password to do that, before loading anything the API would refuse', async () => {
     const fetch = mockFetch((request) =>

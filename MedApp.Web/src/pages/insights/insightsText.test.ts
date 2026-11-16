@@ -1,7 +1,8 @@
-import {insights, STAFF_ID} from '../../test/insights';
+import {insights, STAFF_ID, TEMPLATE_ID} from '../../test/insights';
 import {
   assigneeHref,
   assigneeName,
+  assigneeNames,
   formatHours,
   formatWeek,
   overdueByAssigneeSummary,
@@ -36,12 +37,25 @@ describe('insights in words', () => {
   });
 
   it('links to the procedures list, filtered, and on the template when there is one', () => {
-    expect(proceduresHref({})).toBe('/procedures');
-    expect(proceduresHref({status: 'InProgress'}, 'Knee review')).toBe('/procedures?status=InProgress&template=Knee+review');
-    expect(assigneeHref({userId: STAFF_ID, count: 1})).toBe(`/procedures?overdue=true&assignee=${STAFF_ID}`);
-    expect(assigneeHref({userId: null, count: 1})).toBe('/procedures?overdue=true&assignee=none');
-    expect(priorityHref({priority: 'Urgent', count: 1}, 'Knee review')).toBe('/procedures?overdue=true&priority=Urgent&template=Knee+review');
-    expect(priorityHref({count: 1})).toBe('/procedures?overdue=true&priority=');
+    // mine=false: never narrowed to the admin's own procedures by where Account Settings has lists start.
+    expect(proceduresHref({})).toBe('/procedures?mine=false');
+    expect(proceduresHref({status: 'InProgress'}, TEMPLATE_ID)).toBe(`/procedures?status=InProgress&mine=false&templateId=${TEMPLATE_ID}`);
+    expect(proceduresHref({overdue: 'true'}, null)).toBe('/procedures?overdue=true&mine=false');
+    expect(assigneeHref({userId: STAFF_ID, count: 1})).toBe(`/procedures?overdue=true&assignee=${STAFF_ID}&mine=false`);
+    expect(assigneeHref({userId: null, count: 1})).toBe('/procedures?overdue=true&assignee=none&mine=false');
+    expect(priorityHref({priority: 'Urgent', count: 1}, TEMPLATE_ID)).toBe(`/procedures?overdue=true&priority=Urgent&mine=false&templateId=${TEMPLATE_ID}`);
+    expect(priorityHref({count: 1})).toBe('/procedures?overdue=true&priority=&mine=false');
+  });
+
+  it('numbers deleted accounts when there are several, so their bars can be told apart', () => {
+    const deleted = (n: number) => ({userId: `0000000a-0000-0000-0000-00000000000${n}`, username: null, count: 1});
+    expect(assigneeNames([deleted(2), {userId: null, count: 4}, {userId: STAFF_ID, username: 'k.ashford', count: 1}, deleted(3)])).toEqual([
+      'Deleted user 1',
+      'Nobody',
+      'k.ashford',
+      'Deleted user 2',
+    ]);
+    expect(assigneeNames([deleted(2), {userId: STAFF_ID, username: 'k.ashford', count: 1}])).toEqual(['Deleted user', 'k.ashford']);
   });
 
   it('sums up the overdue work by assignee', () => {

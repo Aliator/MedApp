@@ -5,6 +5,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
 import {patientQuery} from '../../api/patients';
 import type {ProcedureSummary} from '../../api/procedures';
+import {allTemplatesQuery} from '../../api/procedureSetup';
 import {procedureSearchQuery, userSearchQuery} from '../../api/search';
 import {useCurrentUser} from '../../auth/auth';
 import {Page, useIsNarrow} from '../../components/pages/Page';
@@ -69,6 +70,16 @@ function assigneeField(users: readonly {userId?: string; username?: string | nul
   return {kind: 'choice', key: 'assignee', label: 'Assigned to', options};
 }
 
+/**
+ * Which template procedures were made from, by its ID (so a renamed template still finds them all): the templates by
+ * their names now. One not in the list still shows, as "Selected template".
+ */
+function templateField(templates: readonly {id?: string; name?: string | null}[], current: string | undefined): ListFilterField {
+  const options = templates.map((t) => ({value: (t.id ?? '').toLowerCase(), label: t.name ?? ''}));
+  if (current && !options.some((o) => o.value === current)) options.push({value: current, label: 'Selected template'});
+  return {kind: 'choice', key: 'templateId', label: 'From template', options};
+}
+
 /** Quick look-ups: mine, and the ones needing attention. */
 const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Assigned to me', values: {mine: true}},
@@ -120,6 +131,7 @@ export function proceduresListQuery(
     AssignedToMe: mine || undefined,
     AssignedToUserId: search.assignee && search.assignee !== NOBODY ? search.assignee : undefined,
     NobodyAssigned: search.assignee === NOBODY || undefined,
+    TemplateId: search.templateId,
     IncludeClosed: search.closed,
     DueFrom: search.dueFrom,
     DueTo: search.dueTo,
@@ -139,11 +151,18 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
   const {data, isPending, isError} = useQuery(proceduresListQuery(search, {pageSize, startsOnMine}, patientId));
   // Admins can filter by anyone assigned; the bar names them from the accounts list.
   const me = useCurrentUser();
+  // The first 100 accounts, by username (the API's largest page): a larger team's later names can't be chosen here,
+  // and a link to one shows as "Selected person".
   const staff = useQuery({...userSearchQuery({PageSize: 100, Sort: 'username'}), enabled: me.isAdmin});
   const staffList = staff.data?.items;
+  const templates = useQuery(allTemplatesQuery).data;
   const fields = useMemo(
-    () => [...(patientId ? FIELDS_FOR_ONE_PATIENT : FILTER_FIELDS), assigneeField(staffList ?? [], search.assignee)],
-    [patientId, staffList, search.assignee],
+    () => [
+      ...(patientId ? FIELDS_FOR_ONE_PATIENT : FILTER_FIELDS),
+      assigneeField(staffList ?? [], search.assignee),
+      templateField(templates ?? [], search.templateId),
+    ],
+    [patientId, staffList, search.assignee, templates, search.templateId],
   );
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as ProcedureRow[];

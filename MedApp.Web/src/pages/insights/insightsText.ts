@@ -33,18 +33,30 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 /** An assignee's name: the account's, "Nobody" for the unassigned, or "Deleted user" for an account that's gone. */
 export const assigneeName = (row: OverdueByAssignee) => (row.userId ? (row.username ?? 'Deleted user') : 'Nobody');
 
-
-/** The procedures list, filtered: the template's name is added when Insights is on one. */
-export function proceduresHref(filters: Record<string, string>, templateName?: string): string {
-  const query = new URLSearchParams({...filters, ...(templateName ? {template: templateName} : {})}).toString();
-  return query ? `/procedures?${query}` : '/procedures';
+/**
+ * The assignees' names, in order, for a chart's bars: as `assigneeName`, but with deleted accounts numbered ("Deleted
+ * user 1", "Deleted user 2"...) when there's more than one, so each bar has a name of its own.
+ */
+export function assigneeNames(rows: readonly OverdueByAssignee[]): string[] {
+  const deleted = rows.filter((r) => r.userId && !r.username).length;
+  let n = 0;
+  return rows.map((row) => (row.userId && !row.username && deleted > 1 ? `Deleted user ${++n}` : assigneeName(row)));
 }
 
-export const assigneeHref = (row: OverdueByAssignee, templateName?: string) =>
-  proceduresHref({overdue: 'true', assignee: row.userId ?? NOBODY}, templateName);
 
-export const priorityHref = (row: OverdueByPriority, templateName?: string) =>
-  proceduresHref({overdue: 'true', priority: row.priority ?? ''}, templateName);
+/**
+ * The procedures list, filtered to what a count counts: on the template (by its ID) when Insights is on one. Always
+ * `mine=false`, so the list isn't narrowed to the admin's own procedures by where Account Settings has lists start.
+ */
+export function proceduresHref(filters: Record<string, string>, templateId?: string | null): string {
+  return `/procedures?${new URLSearchParams({...filters, mine: 'false', ...(templateId ? {templateId} : {})}).toString()}`;
+}
+
+export const assigneeHref = (row: OverdueByAssignee, templateId?: string | null) =>
+  proceduresHref({overdue: 'true', assignee: row.userId ?? NOBODY}, templateId);
+
+export const priorityHref = (row: OverdueByPriority, templateId?: string | null) =>
+  proceduresHref({overdue: 'true', priority: row.priority ?? ''}, templateId);
 
 export function overdueByAssigneeSummary(insights: ProcedureInsights): string {
   const overdue = insights.overdue?.current ?? 0;

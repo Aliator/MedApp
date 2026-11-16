@@ -1,3 +1,4 @@
+import {Card} from '@astryxdesign/core/Card';
 import {ClickableCard} from '@astryxdesign/core/ClickableCard';
 import {Icon} from '@astryxdesign/core/Icon';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
@@ -17,7 +18,7 @@ export interface StatTileProps {
    * green or red. The words always say which way it went, so the colour is never the only sign.
    */
   isRiseGood?: boolean;
-  /** Where the tile goes: the list of what it counts. */
+  /** Where the tile goes: the list of what it counts. Without one, it's a plain card. */
   href?: string;
 }
 
@@ -39,20 +40,27 @@ export function StatTile({label, value, previous, previousLabel, isRiseGood, hre
   const comparison = describeChange(value, previous, previousLabel);
   const icon = change > 0 ? AppIcon.Increase : change < 0 ? AppIcon.Decrease : AppIcon.NoChange;
   const isGood = change === 0 || isRiseGood === undefined ? undefined : (change > 0) === isRiseGood;
-  return (
+  const content = (
+    <VStack gap={1}>
+      <Text type="label" color="secondary">
+        {label}
+      </Text>
+      <Text type="display-3" weight="semibold">
+        {value}
+      </Text>
+      <HStack gap={1} vAlign="center">
+        <Icon icon={icon} size="sm" color={isGood === undefined ? 'secondary' : isGood ? 'success' : 'error'} />
+        <Text type="supporting">{comparison}</Text>
+      </HStack>
+    </VStack>
+  );
+  return href ? (
     <ClickableCard label={`${label}: ${value}. ${comparison}.`} href={href} padding={4} width="100%" height="100%">
-      <VStack gap={1}>
-        <Text type="label" color="secondary">
-          {label}
-        </Text>
-        <Text type="display-3" weight="semibold">
-          {value}
-        </Text>
-        <HStack gap={1} vAlign="center">
-          <Icon icon={icon} size="sm" color={isGood === undefined ? 'secondary' : isGood ? 'success' : 'error'} />
-          <Text type="supporting">{comparison}</Text>
-        </HStack>
-      </VStack>
+      {content}
     </ClickableCard>
+  ) : (
+    <Card padding={4} width="100%" height="100%">
+      {content}
+    </Card>
   );
 }

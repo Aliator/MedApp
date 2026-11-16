@@ -34,9 +34,9 @@ export function ChartCard({title, summary, view, onViewChange, children}: ChartC
       title={title}
       headerActions={
         view === 'chart' ? (
-          <Button label="Show Table" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Table} />} onClick={() => onViewChange('table')} />
+          <Button label="Show Table" aria-label={`Show Table of ${title}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.Table} />} onClick={() => onViewChange('table')} />
         ) : (
-          <Button label="Show Chart" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Chart} />} onClick={() => onViewChange('chart')} />
+          <Button label="Show Chart" aria-label={`Show Chart of ${title}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.Chart} />} onClick={() => onViewChange('chart')} />
         )
       }>
       <VStack gap={4}>

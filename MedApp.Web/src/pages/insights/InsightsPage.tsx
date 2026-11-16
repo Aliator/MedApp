@@ -19,7 +19,7 @@ import {formatShortDate} from '../../utils/dates';
 import {DEFAULT_INSIGHTS_WEEKS, INSIGHTS_WEEKS, type InsightsSearch, type InsightsWeeks} from '../listSearch';
 import {
   assigneeHref,
-  assigneeName,
+  assigneeNames,
   formatHours,
   formatWeek,
   overdueByAssigneeSummary,
@@ -39,6 +39,7 @@ export interface InsightsPageProps {
 }
 
 const ALL_TEMPLATES = 'all';
+const DIMMED = {opacity: 0.6};
 const LAST_WEEK = 'this time last week';
 
 const COUNT: ChartSeries[] = [{key: 'count', label: 'Overdue', colour: SERIES_COLOURS[0]}];
@@ -72,9 +73,11 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
   const viewOf = (card: CardName) => ({view: views[card], onViewChange: (view: ChartView) => setViews({...views, [card]: view})});
 
   const templates = useQuery(allTemplatesQuery);
-  const {data, isPending, isError} = useQuery(insightsPageQuery(search));
-  const template = templates.data?.find((t) => t.id?.toLowerCase() === search.template);
-  const templateName = template?.name ?? undefined;
+  const {data, isPending, isError, isPlaceholderData} = useQuery(insightsPageQuery(search));
+  // The template the numbers on screen are for: while another loads, the last one's stay, under their own name.
+  const templateId = data?.templateId?.toLowerCase();
+  const templateNameOf = (id: string | null | undefined) => templates.data?.find((t) => t.id?.toLowerCase() === id?.toLowerCase())?.name;
+  const templateName = templateId ? (templateNameOf(templateId) ?? 'one template') : undefined;
   const open = (href: string) => void router.navigate({href});
 
   const templateOptions = [
@@ -109,14 +112,18 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
     </HStack>
   );
 
-  const assignees: AssigneeRow[] = (data?.overdueByAssignee ?? []).map((row) => ({...row, name: assigneeName(row)}));
+  const assigneeRows = data?.overdueByAssignee ?? [];
+  const names = assigneeNames(assigneeRows);
+  const assignees: AssigneeRow[] = assigneeRows.map((row, i) => ({...row, name: names[i]}));
   const priorities = data?.overdueByPriority ?? [];
   const throughput = data?.throughput ?? [];
   const stageTimes = data?.stageTimes ?? [];
 
-  const subtitle = data
-    ? `${formatShortDate(data.from ?? '')} to ${formatShortDate(data.to ?? '')}, ${templateName ?? 'all templates'}`
-    : 'Loading insights...';
+  const subtitle = !data
+    ? 'Loading insights...'
+    : isPlaceholderData
+      ? 'Updating...'
+      : `${formatShortDate(data.from ?? '')} to ${formatShortDate(data.to ?? '')}, ${templateName ?? 'all templates'}`;
 
   return (
     <Page
@@ -129,7 +136,8 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
       <VStack gap={4} height="100%">
         {filters}
         {data && (
-          <StackItem size="fill" isScrollable aria-label="Insights">
+          // While another period or template loads, the numbers on screen are dimmed: they're the last ones.
+          <StackItem size="fill" isScrollable aria-label="Insights" aria-busy={isPlaceholderData} style={isPlaceholderData ? DIMMED : undefined}>
             <VStack gap={4}>
               <Grid columns={{minWidth: 180, max: 4}} gap={4}>
                 <StatTile
@@ -137,14 +145,14 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   value={data.open?.current ?? 0}
                   previous={data.open?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
-                  href={proceduresHref({}, templateName)}
+                  href={proceduresHref({}, templateId)}
                 />
                 <StatTile
                   label="In progress"
                   value={data.inProgress?.current ?? 0}
                   previous={data.inProgress?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
-                  href={proceduresHref({status: 'InProgress'}, templateName)}
+                  href={proceduresHref({status: 'InProgress'}, templateId)}
                 />
                 <StatTile
                   label="Overdue"
@@ -152,7 +160,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   previous={data.overdue?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
                   isRiseGood={false}
-                  href={proceduresHref({overdue: 'true'}, templateName)}
+                  href={proceduresHref({overdue: 'true'}, templateId)}
                 />
                 <StatTile
                   label="Completed this week"
@@ -160,7 +168,8 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   previous={data.completedThisWeek?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
                   isRiseGood
-                  href={proceduresHref({status: 'Completed'}, templateName)}
+                  // No link: the list can't show what was completed when (it has no such filter), only what's
+                  // completed now, from any week.
                 />
               </Grid>
               <Grid columns={isNarrow ? 1 : 2} gap={4}>
@@ -171,7 +180,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                         data={assignees}
                         categoryKey="name"
                         series={COUNT}
-                        onSelect={(row) => open(assigneeHref(row, templateName))}
+                        onSelect={(row) => open(assigneeHref(row, templateId))}
                         description={`Bar chart. ${overdueByAssigneeSummary(data)}`}
                       />
                     )
@@ -181,7 +190,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryKey="name"
                       categoryHeader="Assigned to"
                       series={COUNT}
-                      hrefFor={(row) => assigneeHref(row, templateName)}
+                      hrefFor={(row) => assigneeHref(row, templateId)}
                       label="Overdue procedures by assignee"
                     />
                   )}
@@ -192,7 +201,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       data={priorities}
                       categoryKey="priority"
                       series={COUNT}
-                      onSelect={(row: OverdueByPriority) => open(priorityHref(row, templateName))}
+                      onSelect={(row: OverdueByPriority) => open(priorityHref(row, templateId))}
                       description={`Bar chart. ${overdueByPrioritySummary(data)}`}
                     />
                   ) : (
@@ -201,7 +210,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryKey="priority"
                       categoryHeader="Priority"
                       series={COUNT}
-                      hrefFor={(row) => priorityHref(row, templateName)}
+                      hrefFor={(row) => priorityHref(row, templateId)}
                       label="Overdue procedures by priority"
                     />
                   )}
@@ -232,7 +241,10 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                     {stageTimes.map((t) => {
                       const rows: StageRow[] = (t.stages ?? []).map((s) => ({...s, name: `${s.stageOrder}. ${s.stageName}`}));
                       // Procedures made before templates were required have no template, only the name they were made under.
-                      const name = t.templateId ? (t.templateName ?? '') : `${t.templateName || 'Procedures'} (no template)`;
+                      // A template is named as it's called now (procedures keep the name it had when they were made).
+                      const name = t.templateId
+                        ? (templateNameOf(t.templateId) ?? t.templateName ?? '')
+                        : `${t.templateName || 'Procedures'} (no template)`;
                       return (
                         <VStack key={t.templateId ?? 'none'} gap={2}>
                           {/* With every template showing, each has its own chart, under its name. */}
