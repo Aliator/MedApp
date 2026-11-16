@@ -3,7 +3,8 @@ namespace MedApp.Contracts.Patients.Responses;
 /// <summary>
 /// Everything MedApp holds about a patient, for a subject access request (Article 15) or portability (Article 20):
 /// their details, procedures with stages, notes and assignments, the history of changes to their procedures, who has
-/// accessed their record, and the notifications about their procedures. Staff appear by username only: no account IDs,
+/// accessed their record, the notifications about their procedures, and the files attached to them (their details
+/// only: the files themselves aren't in the export yet). Staff appear by username only: no account IDs,
 /// network addresses or read times, which are the staff's data, not the patient's. The printable page shows exactly
 /// these fields.
 /// </summary>
@@ -27,6 +28,12 @@ public sealed class PatientExportResponse
 
     /// <summary>Notifications sent to staff about the patient's procedures.</summary>
     public List<ExportedNotificationResponse> Notifications { get; set; } = [];
+
+    /// <summary>
+    /// The files attached to the patient, their procedures and stages, oldest first, deleted ones included: their
+    /// details, not their contents.
+    /// </summary>
+    public List<ExportedAttachmentResponse> Attachments { get; set; } = [];
 }
 
 /// <summary>A patient's record in full, as the export gives it.</summary>
@@ -110,6 +117,39 @@ public sealed class ExportedAccessEntryResponse
 
     /// <summary>More about it, as JSON (the page puts it in words).</summary>
     public string Details { get; set; } = "{}";
+}
+
+/// <summary>A file attached to the patient's record, as the export gives it: its details, not its contents.</summary>
+public sealed class ExportedAttachmentResponse
+{
+    public Guid Id { get; set; }
+
+    /// <summary>What it's attached to: Patient, Procedure or Stage.</summary>
+    public string AttachedTo { get; set; } = string.Empty;
+
+    public Guid? ProcedureId { get; set; }
+
+    /// <summary>The stage's name, for a stage's file whose procedure still exists.</summary>
+    public string? StageName { get; set; }
+
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+
+    /// <summary>The type in words, e.g. PDF.</summary>
+    public string TypeName { get; set; } = string.Empty;
+
+    public long SizeBytes { get; set; }
+
+    /// <summary>The SHA-256 of its bytes (64 hex digits).</summary>
+    public string Sha256 { get; set; } = string.Empty;
+
+    /// <summary>NotScanned, Clean or Infected.</summary>
+    public string ScanStatus { get; set; } = string.Empty;
+
+    public string UploadedBy { get; set; } = string.Empty;
+    public DateTime UploadedAtUtc { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
+    public string? DeletedBy { get; set; }
 }
 
 /// <summary>A notification about one of the patient's procedures, and who it was for.</summary>

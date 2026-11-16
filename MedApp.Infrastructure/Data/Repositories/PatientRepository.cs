@@ -82,6 +82,9 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     public async Task<IReadOnlyList<RetentionCandidate>> GetRetentionCandidatesAsync(DateTime changedBeforeUtc, CancellationToken cancellationToken)
     {
         var closed = ProcedureWorkflow.ClosedStatuses.ToList();
+        // A download is a read, not a change to the record: it mustn't move the conclusion of treatment.
+        var readsOnly = RetentionSchedule.ReadOnlyAuditActions.ToList();
+        var changes = context.PatientProcedureAuditEntries.Where(a => !readsOnly.Contains(a.Action));
 
         return await context.Patients
             .AsNoTracking()
@@ -89,7 +92,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
             .Where(p => !context.PatientProcedures.Any(pp =>
                 pp.PatientId == p.Id && (!closed.Contains(pp.Status) || pp.LastUpdated > changedBeforeUtc)))
             // The audit trail outlives a deleted procedure, so it counts towards the conclusion of treatment too.
-            .Where(p => !context.PatientProcedureAuditEntries.Any(a => a.PatientId == p.Id && a.AtUtc > changedBeforeUtc))
+            .Where(p => !changes.Any(a => a.PatientId == p.Id && a.AtUtc > changedBeforeUtc))
             .Select(p => new RetentionCandidate(
                 p.Id,
                 p.FirstName,
@@ -99,7 +102,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
                 context.PatientProcedures.Where(pp => pp.PatientId == p.Id).Max(pp => (DateTime?)pp.LastUpdated),
                 p.RetentionKeptUntil,
                 p.RetentionKeptReason,
-                context.PatientProcedureAuditEntries.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc)))
+                changes.Where(a => a.PatientId == p.Id).Max(a => (DateTime?)a.AtUtc)))
             .ToListAsync(cancellationToken);
     }
 

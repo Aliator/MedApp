@@ -1,5 +1,8 @@
 using System.Reflection;
 using FluentAssertions;
+using MedApp.Application.Attachments.Commands.DeleteAttachment;
+using MedApp.Application.Attachments.Commands.DownloadAttachment;
+using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
@@ -31,6 +34,19 @@ public sealed class ProcedureRestrictionGuardConventionTests
 
     private static readonly MethodInfo EnsureCanChange = typeof(PatientRules).GetMethod(nameof(PatientRules.EnsureCanChange))!;
 
+    /// <summary>
+    /// Commands that take the procedure repository only to read a procedure, and change nothing about the patient's
+    /// record, so a restriction doesn't stop them: a download (audited, but nothing changes).
+    /// </summary>
+    private static readonly Type[] ReadOnlyCommands = [typeof(DownloadAttachmentHandler)];
+
+    /// <summary>
+    /// Commands that read the procedure (or patient) rather than loading it for update, and check the patient's record
+    /// themselves with <see cref="PatientRules.EnsureCanChange"/>: creating a procedure, and attaching or deleting a file.
+    /// </summary>
+    private static readonly Type[] CheckTheirOwnPatient =
+        [typeof(CreatePatientProcedureHandler), typeof(UploadAttachmentHandler), typeof(DeleteAttachmentHandler)];
+
     [Test]
     public void GetForUpdateAsync_IsCalledOnlyByTheGuards()
     {
@@ -58,7 +74,8 @@ public sealed class ProcedureRestrictionGuardConventionTests
         {
             var calls = CallsMadeBy(handler, includeNested: true).ToList();
             var isGuarded = calls.Any(m => Guards.Any(g => Same(m, g)))
-                            || (handler == typeof(CreatePatientProcedureHandler) && calls.Any(m => Same(m, EnsureCanChange)));
+                            || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)))
+                            || ReadOnlyCommands.Contains(handler);
             isGuarded.Should().BeTrue($"{handler.Name} changes a procedure, so it must load it through a guard that checks the patient");
         }
     }

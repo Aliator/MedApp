@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-01, clinical risk management plan (DCB0129) |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, from `main` at `88dc1fa` (the merge of #56) onwards |
 | **Manufacturer** | [Manufacturer name] |
@@ -18,7 +18,7 @@ This plan says how the manufacturer manages clinical risk in MedApp, as DCB0129 
 
 ### What it covers
 
-- **The product:** MedApp, the web app and API described in `docs/architecture.md`: patients, procedures created from templates, stages worked in order and locked when finished, due dates and the overdue flag, assignments and task lists, notifications, the audit log, and the administration of users, stage definitions and templates.
+- **The product:** MedApp, the web app and API described in `docs/architecture.md`: patients, procedures created from templates, stages worked in order and locked when finished, due dates and the overdue flag, assignments and task lists, notifications, files attached to patients, procedures and stages, the audit log, and the administration of users, stage definitions and templates.
 - **Its whole life:** design, development, testing, release, deployment support, live use, changes, and decommissioning.
 - **Every release** that a customer can use with real patients, and every change that touches clinical workflow ([section 8](#8-changes-and-the-release-gate)).
 - **What the manufacturer runs for customers,** once it hosts MedApp as a service (Azure, `deploy/azure`): availability, backups and restores, as far as they affect patient care.
@@ -263,3 +263,4 @@ Once a year, the CSO checks that the process was followed: that every clinical-i
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table; the go-live rule on the "at first live use" rating; the release gate for every change under `MedApp.*` or `deploy/`, starting when a CSO is appointed, with the device question in `AGENTS.md` now | AI coding agent, for review |
+| 0.3 | 16 November 2026 | File attachments added to the scope | AI coding agent, for review |

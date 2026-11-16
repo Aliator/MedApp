@@ -31,5 +31,8 @@ public enum PatientTimelineKind
     Details,
 
     /// <summary>A procedure was deleted.</summary>
-    Deleted
+    Deleted,
+
+    /// <summary>A file was attached to the patient, a procedure or a stage, or deleted.</summary>
+    Files
 }

@@ -1,4 +1,5 @@
 ﻿using MedApp.Domain.Activity;
+using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
@@ -38,6 +39,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     /// </summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
     public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
 
     /// <summary>Times are stored as UTC, and read back marked as UTC (<see cref="UtcDateTimeConverter"/>).</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

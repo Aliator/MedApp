@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Common;
@@ -27,6 +28,7 @@ public sealed class DeletePatientHandlerActivityTests
         _repository.Setup(r => r.CountProceduresAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
         _fixture.Inject(_repository.Object);
         _fixture.Inject<IActivityLog>(new RecordingActivityLog());
+        _fixture.Inject(new Mock<IAttachmentRepository>().Object);
     }
 
     [Test]

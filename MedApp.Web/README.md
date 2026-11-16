@@ -36,7 +36,8 @@ How a page renders on the server: its route's `beforeLoad` and `loader` run, the
 
 ```
 src/
-  api/          openapi-fetch client, generated schema.d.ts, 400 → field-error mapper, paged search queries
+  api/          openapi-fetch client, generated schema.d.ts, 400 → field-error mapper, paged search queries,
+                  attachments.ts (file lists, and uploads with progress through XMLHttpRequest)
   app/          App, providers (theme, locale, links, query cache), light/dark mode
   auth/         whoami query, login and logout
   components/   ports of MedApp.Client's Components/, built only from Astryx:
@@ -44,6 +45,7 @@ src/
                   tables/ (DataTable, TableActions, AvatarCell), modals/ (ConfirmDialog, SelectionDialog, SearchDialog),
                   views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage),
                   account/ (TwoFactorSetup, RecoveryCodes)
+                  attachments/ (Attachments, AttachmentsFold: attached files, with uploads and downloads)
   pages/        one folder per page: patients/ (list, view, add, edit), users/, account/ (settings, email, security, the hold pages),
                   login/ (sign in, forgot and reset password), admin/ (Admin Settings), home/ (the welcome page), tasks/ (My Tasks);
                   listSearch.ts parses the list pages' URL state

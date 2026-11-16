@@ -43,6 +43,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/procedures/patient-procedures/search"] = Records("PatientListed"),
         ["api/fhir/Patient/{id}"] = Records("PatientViewed"),
         ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
+        ["api/attachments"] = Records("AttachmentsViewed"),
+        ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the procedure audit log
+        ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
         ["api/patients/labels"] = Nothing("labels for pins the user chose; recording them would log views nobody made"),
@@ -115,6 +118,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {old.Id}");
         // A synthetic NHS number (the 999 range), so the FHIR search finds them.
         await ExecuteSqlAsync($"UPDATE Patients SET NhsNumber = '9990000018' WHERE Id = {patientId}");
+        var file = await UploadAttachmentOkAsync(admin, $"procedureId={procedure.Id}", SyntheticPdf, "synthetic.pdf");
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
@@ -129,6 +133,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ("/api/procedures/patient-procedures/search", "PatientListed", patientId),
             ($"/api/fhir/Patient/{patientId}", "PatientViewed", patientId),
             ("/api/fhir/Patient?identifier=https%3A%2F%2Ffhir.nhs.uk%2FId%2Fnhs-number%7C9990000018", "PatientListed", patientId),
+            ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),
+            ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

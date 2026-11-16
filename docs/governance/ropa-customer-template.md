@@ -29,17 +29,17 @@
 | **Business function** | [For example: day surgery unit, outpatient procedures, clinic administration] |
 | **Purpose** | Recording patients and coordinating the stages of the procedures carried out for them, for their direct care; keeping an accurate record of who did what and when. |
 | **Data subjects** | Patients, including children [if applicable] |
-| **Personal data** | First name, last name, date of birth, email address, NHS number (if you record it). Procedures: title, notes, due date, priority, status. Stage notes written by staff. |
-| **Special category data** | Health data: the procedures a patient is having, and clinical notes. |
+| **Personal data** | First name, last name, date of birth, email address, NHS number (if you record it). Procedures: title, notes, due date, priority, status. Stage notes written by staff. Files staff attach to the patient, a procedure or a stage (scans, photos, results, letters), with their names. |
+| **Special category data** | Health data: the procedures a patient is having, clinical notes, and attached files, which can include images of the body and other people's details (for example in a letter). |
 | **Article 6 basis** | [NHS bodies: 6(1)(e) public task. Private providers: 6(1)(b) contract with the patient, or 6(1)(f) legitimate interests with an assessment.] |
 | **Article 9 condition** | 9(2)(h) health or social care |
 | **DPA 2018 Schedule 1 condition** | Part 1, paragraph 2 (health or social care purposes). No appropriate policy document needed. |
 | **Common law duty of confidentiality** | Implied consent for direct care |
-| **Source of the data** | The patient; referrers; [other sources] |
+| **Source of the data** | The patient; referrers; [other services whose letters or results you attach]; [other sources] |
 | **Recipients** | Your staff with MedApp accounts. Your processor, [Company name], and its sub-processors ([sub-processors.md](sub-processors.md)). [Others you share with, outside MedApp.] |
 | **Processor** | [Company name], under the data processing agreement signed [date] |
 | **Transfers outside the UK** | None by your processor: data is stored in the UK. Its sub-processor Microsoft may, in rare cases, access data from outside the UK for support, under Microsoft's data protection terms and the safeguards they contain ([international-transfers.md](international-transfers.md)) |
-| **Retention** | [Your schedule.] The supplier's default follows the NHS Records Management Code of Practice: adult records 8 years after the conclusion of treatment; children's records until the 25th birthday, or the 26th if the patient was 17 at the conclusion of treatment ([retention-schedule.md](retention-schedule.md)). **MedApp doesn't apply retention automatically yet.** |
+| **Retention** | [Your schedule.] The supplier's default follows the NHS Records Management Code of Practice: adult records 8 years after the conclusion of treatment; children's records until the 25th birthday, or the 26th if the patient was 17 at the conclusion of treatment; attached files with the record ([retention-schedule.md](retention-schedule.md)). **MedApp doesn't apply retention automatically yet,** and keeps the contents of deleted files until a purge job exists (proposed: 30 days after deletion). |
 | **Security measures** | See the processor's description ([ropa.md](ropa.md), A6) and your own: [who can have an account, how accounts are reviewed, device and network controls]. |
 | **DPIA** | [Reference to your DPIA, adapted from [dpia.md](dpia.md)] |
 | **Privacy information** | [Where your privacy notice says this; see [privacy-notice-patients-template.md](privacy-notice-patients-template.md)] |
@@ -50,13 +50,13 @@
 
 | Item | Detail |
 |---|---|
-| **Purpose** | Accountability and the integrity of care records: knowing who changed what on a procedure, and when, including after deletes; investigating incidents and complaints. |
+| **Purpose** | Accountability and the integrity of care records: knowing who changed what on a procedure, and who added, deleted or downloaded a file, and when, including after deletes; investigating incidents and complaints. |
 | **Data subjects** | Patients; your staff |
-| **Personal data** | Procedure ID and title, patient ID, stage name, the action, the staff member's ID and username, the time, and the change, including old and new notes text and the reason for blocking or cancelling. |
+| **Personal data** | Procedure ID and title, patient ID, stage name, the action, the staff member's ID and username, the time, and the change, including old and new notes text and the reason for blocking or cancelling. For attached files: each file added, deleted or **downloaded**, with its name, type and size. |
 | **Special category data** | Health data (the notes text) |
 | **Article 6 basis** | [As entry 1; also 6(1)(c) where a legal duty to keep the record applies] |
 | **Article 9 condition** | 9(2)(h), with Schedule 1, Part 1, paragraph 2 |
-| **Recipients** | Your MedApp admins: the full audit trail is admin-only, and they can see a patient's whole history on screen. Your staff see a per-patient timeline without its free text: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text; no notes text, titles or reasons, and nothing about deleted procedures. |
+| **Recipients** | Your MedApp admins: the full audit trail is admin-only, and they can see a patient's whole history on screen. Your staff see a per-patient timeline without its free text: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text; no notes text, titles, reasons or file names (only that a file was attached or deleted), no downloads, and nothing about deleted procedures. |
 | **Retention** | The same as the record it relates to |
 
 ## Entry 3: staff accounts, sessions and notifications

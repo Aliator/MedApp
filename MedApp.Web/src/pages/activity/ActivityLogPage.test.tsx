@@ -114,4 +114,21 @@ describe('ActivityLogPage', () => {
     expect(await findAlert('The activity log could not be loaded. Please try again.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('0 entries')).toBeInTheDocument());
   });
+
+  it('lists file activity, and filters to it from its Files favourite', async () => {
+    const files = [
+      {id: 'f1', action: 'AttachmentDownloaded', username: 'k.ashford', atUtc: '2026-11-08T10:00:00Z', patientId, patientName: 'Oriel Penhallow', procedureId, details: '{}'},
+      {id: 'f2', action: 'AttachmentsViewed', username: 'l.northcott', atUtc: '2026-11-08T09:00:00Z', patientId, patientName: 'Oriel Penhallow', details: '{}'},
+    ];
+    const {user, onSearchChange} = renderLog({}, pageOf(files, 2));
+
+    const download = (await screen.findByText('File downloaded')).closest('tr')!;
+    expect(within(download).getByText('A file on a procedure or stage')).toBeInTheDocument();
+    expect(within(download).getByRole('link', {name: 'Procedure'})).toHaveAttribute('href', `/procedures/${procedureId}`);
+    const viewed = screen.getByText('Files viewed').closest('tr')!;
+    expect(within(viewed).getByText("All the patient's files")).toBeInTheDocument();
+
+    await pickFavourite(user, 'Files');
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({action: 'AttachmentsViewed,AttachmentDownloaded', page: undefined}));
+  });
 });

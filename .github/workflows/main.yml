@@ -328,6 +328,15 @@ jobs:
           --set sql.enabled=false --set externalSecrets.enabled=true
           --set externalSecrets.secretStoreRef.name=key-vault --set externalSecrets.database.sa-password=null
 
+      - name: Lint with attachments in a storage account from an existing Secret
+        run: >-
+          helm lint --strict deploy/helm/medapp --set image.tag=ci
+          --set attachments.azurite.enabled=false --set attachments.existingSecret=medapp-attachments
+
+      # Azurite off and no connection string: the API runs without file storage (uploads answer 503).
+      - name: Lint without file storage for attachments
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set attachments.azurite.enabled=false
+
       - name: Lint with Azure's values
         run: helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
 

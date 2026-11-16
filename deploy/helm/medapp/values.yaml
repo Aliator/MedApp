@@ -151,6 +151,39 @@ dataProtection:
   # Empty: the keys are stored unwrapped.
   keyVaultKeyUri: ""
 
+# File attachments: the files staff attach to patients, procedures and stages (scans, photos, results, letters). Their
+# details are in the database; the files themselves go to Azure Blob Storage. The API gets an Azure Storage connection
+# string (ConnectionStrings__Attachments) from a Secret: from existingSecret, from externalSecrets, or the chart's own
+# for Azurite. With none of those (Azurite off, no existingSecret, and externalSecrets off or its attachments
+# connection-string null), the API runs without file storage: everything else works, and uploads and downloads answer
+# 503.
+attachments:
+  # The blob container the files go in. The API makes it if it's missing.
+  container: attachments
+  # An existing Secret with the API's connection string (key connection-string: DefaultEndpointsProtocol=https;
+  # AccountName=...;AccountKey=...;EndpointSuffix=..., or with a BlobEndpoint) and, with azurite.enabled, Azurite's
+  # account key (key account-key, base64, as Azure's are).
+  existingSecret: ""
+  # Azurite, Azure Storage's emulator, in the cluster: blob storage only, with its files on a volume. For kind and
+  # trying the chart out, not for patients' files in production: it has no redundancy, no backups and no encryption
+  # of its own. Turn it off to use an Azure Storage account through existingSecret or externalSecrets.
+  azurite:
+    enabled: true
+    image: mcr.microsoft.com/azure-storage/azurite:3.37.0
+    # The one storage account it serves, with a random key. Azurite's well-known account (devstoreaccount1, whose
+    # key is published) is then off. The connection string the chart makes is for this account.
+    accountName: medapp
+    storage:
+      size: 5Gi
+      # Empty uses the cluster's default storage class.
+      storageClass: ""
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
 # The first admin account, made by the migrations Job after migrating (the API's create-first-admin command), but
 # only while the database has no accounts at all: once anyone exists, it changes nothing.
 firstAdmin:
@@ -162,7 +195,7 @@ firstAdmin:
 
 # Secrets from a secret store (Azure Key Vault, and others) through External Secrets Operator, which must be
 # installed in the cluster with a SecretStore or ClusterSecretStore. The chart then makes ExternalSecrets instead of
-# its own Secrets, and the operator fills the database and first admin Secrets from the store.
+# its own Secrets, and the operator fills the database, first admin, backplane and attachments Secrets from the store.
 externalSecrets:
   enabled: false
   secretStoreRef:
@@ -200,6 +233,15 @@ externalSecrets:
     password:
       key: medapp-email
       property: password
+  # Set account-key to null for an Azure Storage account (only Azurite needs it), and connection-string to null too
+  # to run without file storage.
+  attachments:
+    account-key:
+      key: medapp-attachments
+      property: account-key
+    connection-string:
+      key: medapp-attachments
+      property: connection-string
 
 # NetworkPolicies: each part of MedApp accepts and makes only the connections it needs. Needs a network plugin that
 # enforces them (kind's does; on AKS, Azure CNI with Cilium or Calico).
@@ -209,7 +251,8 @@ networkPolicy:
   ingressController:
     namespace: traefik
   # More places the API and the migrations Job may connect to, as NetworkPolicy egress rules, e.g. an external
-  # database: [{to: [{ipBlock: {cidr: 10.1.0.0/16}}], ports: [{port: 1433, protocol: TCP}]}].
+  # database: [{to: [{ipBlock: {cidr: 10.1.0.0/16}}], ports: [{port: 1433, protocol: TCP}]}], or an Azure Storage
+  # account for attachments (port 443).
   extraEgress: []
   # The internet, as NetworkPolicy peers, for what the API reaches by name: an external mail server (email.smtp.host,
   # on its port only), and Key Vault and Microsoft Entra ID (dataProtection.keyVaultKeyUri, on 443 only). Policies

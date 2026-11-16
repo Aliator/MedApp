@@ -44,8 +44,8 @@ All customers receive the same service, so the categories are the same for each.
 
 | # | Processing | Data subjects | Personal data (see [data-inventory.md](data-inventory.md)) | Operations |
 |---|---|---|---|---|
-| A3.1 | **Hosting the patient and procedure records** | Patients | Name, date of birth, email, NHS number (optional); procedures (title, notes, due date, priority, status); stage notes; assignments | Storage, retrieval, display, change, deletion, backup and restore, on the customer's staff's actions |
-| A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text | Recording, storage, retrieval by the customer's admins (the full trail) and staff (a per-patient timeline without its free text) |
+| A3.1 | **Hosting the patient and procedure records** | Patients | Name, date of birth, email, NHS number (optional); procedures (title, notes, due date, priority, status); stage notes; assignments; attached files (scans, photos, results, letters) and their names | Storage, retrieval, display, change, deletion, backup and restore, on the customer's staff's actions; for files, upload, type checking, hashing, thumbnails of photos, download and soft deletion |
+| A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text; who added, deleted or downloaded which file, with its name | Recording, storage, retrieval by the customer's admins (the full trail) and staff (a per-patient timeline without its free text or file names, and without downloads) |
 | A3.3 | **Staff accounts and sign-in** | Staff users | Username, password hash, roles, lockout state, sessions (IP address, browser), settings (including saved searches), notifications | Authentication, authorisation, storage |
 | A3.4 | **Live notifications** | Staff users; patients indirectly | Procedure title, assigner's username | Transmission between API copies through Valkey, display |
 | A3.5 | **The FHIR API** (branch `feature/nhs-integrations`) | Patients | Name, date of birth, email, NHS number, as UK Core Patient resources | Retrieval and transmission to a caller signed in as the customer's staff, read-only, each use logged. A demographics (PDS) lookup exists too, with only an offline stub: connecting the real PDS adds NHS England as a source of data, and an entry here |
@@ -73,12 +73,13 @@ A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the co
 - **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes, with sign-in throttling in front of it; the 10,000 most common passwords refused; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
 - **Audit:** every change to a procedure is recorded with who, when and what, in the same database transaction, and kept after deletes.
 - **Transport:** TLS to the ingress, HSTS, and TLS to Azure SQL.
-- **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server.
+- **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server. Attached files in Azure Blob Storage, likewise private (public network access off, a private endpoint, no anonymous access), encrypted at rest with Microsoft-managed keys, zone-redundant, with 7 days' soft delete and a delete lock.
+- **Files:** a type allow-list found from each file's contents, at most 20 MB; files only ever downloaded through the API, never shown in the page; downloads audited.
 - **Platform:** Kubernetes with default-deny network policies, the `restricted` Pod Security Standard, non-root containers, read-only filesystems, and secrets from Key Vault through External Secrets; Entra ID-only access to the cluster; no stored cloud secrets (OIDC and workload identity).
 - **Pages:** no caching of pages that carry personal data (`Cache-Control: no-store`).
 - **Development:** synthetic data only; required CI checks; a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions (not yet a second human reviewer).
 
-**Planned before real patient data** (roadmap steps 2, 4, 5 and 7, and step 6's patient banner): a patient banner (built on branch `feature/nhs-integrations`, to be verified by the Clinical Safety Officer); MFA; an idle session timeout; a least-privilege, passwordless database identity; monitoring and alerting; tested backups with longer retention; audit of reads and of patient and account changes; retention enforcement; subject access export.
+**Planned before real patient data** (roadmap steps 2, 4, 5 and 7, step 6's patient banner, and step 9's malware scanning): a patient banner (built on branch `feature/nhs-integrations`, to be verified by the Clinical Safety Officer); MFA; an idle session timeout; a least-privilege, passwordless database identity, and passwordless access to the files' storage; monitoring and alerting; tested backups with longer retention, including the files; audit of reads and of patient and account changes; retention enforcement, including a purge of deleted files; subject access export, including the files themselves; malware scanning of uploaded files (or no file storage).
 
 **Organisational:** a DPO; confidentiality clauses; MFA on every company account [to confirm]; annual data security training; a support access policy; a breach procedure; Cyber Essentials; the DSPT (all planned; see [dspt-readiness.md](dspt-readiness.md)).
 
@@ -110,3 +111,4 @@ Rows marked with brackets are to be filled in when the supplier picks those prov
 | Date | Change | By |
 |---|---|---|
 | 16 November 2026 | First draft | [Author] |
+| 16 November 2026 | File attachments: A3.1, A3.2 and A6 | [Author] |

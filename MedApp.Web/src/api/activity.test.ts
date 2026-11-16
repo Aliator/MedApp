@@ -1,4 +1,4 @@
-import {ACTIVITY_ACTIONS, activityActionLabel, activitySearchQuery, describeActivity} from './activity';
+import {ACCESS_ACTIONS, ACTIVITY_ACTIONS, activityActionLabel, activitySearchQuery, describeActivity, FILE_ACTIONS} from './activity';
 
 const describe_ = (action: string, details: unknown) => describeActivity({action, details: JSON.stringify(details)});
 
@@ -9,6 +9,11 @@ describe('activityActionLabel', () => {
     expect(activityActionLabel('SomethingNew')).toBe('SomethingNew');
     expect(activityActionLabel(null)).toBe('');
     expect(activityActionLabel(undefined)).toBe('');
+  });
+
+  it('names the actions on files, and counts them as access to the record', () => {
+    expect(FILE_ACTIONS.map(activityActionLabel)).toEqual(['Files viewed', 'File downloaded']);
+    expect(ACCESS_ACTIONS).toEqual(expect.arrayContaining(['AttachmentsViewed', 'AttachmentDownloaded']));
   });
 
   it('has words for every action', () => {
@@ -93,6 +98,16 @@ describe('describeActivity', () => {
     expect(describeActivity({action: 'PatientUpdated', details: '{not json'})).toBe('Nothing changed');
     expect(describeActivity({action: 'SignInFailed', details: '[1]'})).toBe('Wrong username or password');
     expect(describeActivity({action: 'RoleCreated', details: null})).toBe('');
+  });
+});
+
+describe('describeActivity: files', () => {
+  it("says whether the files were the patient's own or a procedure's (or a stage's), never which file", () => {
+    const procedureId = '00000037-0000-0000-0000-000000000001';
+    expect(describeActivity({action: 'AttachmentsViewed', details: '{}'})).toBe("All the patient's files");
+    expect(describeActivity({action: 'AttachmentsViewed', details: '{}', procedureId})).toBe("A procedure's or stage's files");
+    expect(describeActivity({action: 'AttachmentDownloaded', details: '{}', procedureId: null})).toBe('A file on the patient');
+    expect(describeActivity({action: 'AttachmentDownloaded', details: '{}', procedureId})).toBe('A file on a procedure or stage');
   });
 });
 

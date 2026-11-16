@@ -74,6 +74,34 @@ app.kubernetes.io/component: {{ index . 1 }}
 {{- printf "%s-valkey" (include "medapp.fullname" .) -}}
 {{- end -}}
 
+{{/* The Secret with the attachments' connection string (and Azurite's account key): the given one, or the chart's own. */}}
+{{- define "medapp.attachmentsSecretName" -}}
+{{- .Values.attachments.existingSecret | default (printf "%s-attachments" (include "medapp.fullname" .)) -}}
+{{- end -}}
+
+{{/*
+"true" when the API has file storage for attachments, from (in this order) attachments.existingSecret, the secret
+store (externalSecrets, unless its attachments connection-string is null), or the chart's own Secret for Azurite.
+Empty otherwise: the API runs without file storage, and uploads and downloads answer 503.
+*/}}
+{{- define "medapp.attachmentsStorage" -}}
+{{- if .Values.attachments.existingSecret -}}
+true
+{{- else if .Values.externalSecrets.enabled -}}
+{{- with .Values.externalSecrets.attachments -}}
+{{- if index . "connection-string" -}}
+true
+{{- end -}}
+{{- end -}}
+{{- else if .Values.attachments.azurite.enabled -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{- define "medapp.azuriteName" -}}
+{{- printf "%s-azurite" (include "medapp.fullname" .) -}}
+{{- end -}}
+
 {{- define "medapp.sqlName" -}}
 {{- printf "%s-sql" (include "medapp.fullname" .) -}}
 {{- end -}}

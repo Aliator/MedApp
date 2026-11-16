@@ -1,5 +1,8 @@
-﻿using Azure.Identity;
+using Azure.Identity;
+using Azure.Storage.Blobs;
 using MedApp.Application.Activity.Repositories;
+using MedApp.Application.Attachments.Common;
+using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
@@ -12,6 +15,7 @@ using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Infrastructure.Attachments;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Email;
 using MedApp.Infrastructure.Common.Identity;
@@ -40,6 +44,7 @@ public static class ServiceExtensions
         services.AddIdentity(configuration);
         services.AddEmail();
         services.AddRepositories();
+        services.AddAttachmentStorage(configuration);
         services.AddDemographics(configuration);
 
         return services;
@@ -81,6 +86,38 @@ public static class ServiceExtensions
         services.AddSingleton<IEmailSender>(provider => provider.GetRequiredService<EmailQueue>());
         services.AddSingleton<IEmailTransport, SmtpEmailTransport>();
         services.AddHostedService<EmailDispatcher>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Attached files: the blob store (or none, when <c>ConnectionStrings:Attachments</c> isn't set: uploads and
+    /// downloads are then refused, and nothing else changes), the malware scanner (none yet), thumbnails and the
+    /// temporary files uploads are checked in.
+    /// </summary>
+    private static IServiceCollection AddAttachmentStorage(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddOptions<AttachmentStorageOptions>().BindConfiguration(AttachmentStorageOptions.Section);
+
+        var connectionString = configuration.GetConnectionString(AttachmentStorageOptions.ConnectionStringName);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            services.AddSingleton<IFileStore, UnconfiguredFileStore>();
+        }
+        else
+        {
+            services.AddSingleton(provider => new BlobServiceClient(
+                    AttachmentStorageOptions.WithoutContainerName(connectionString), AttachmentStorageOptions.ClientOptions())
+                .GetBlobContainerClient(provider.GetRequiredService<IOptions<AttachmentStorageOptions>>().Value.Container));
+            services.AddSingleton<IFileStore, BlobFileStore>();
+        }
+
+        services.AddSingleton<IMalwareScanner, NoMalwareScanner>();
+        services.AddSingleton<IThumbnailGenerator, SkiaThumbnailGenerator>();
+        services.AddSingleton<IUploadStaging, TempFileUploadStaging>();
+        services.AddHostedService<StaleUploadSweeper>();
 
         return services;
     }
@@ -133,6 +170,7 @@ public static class ServiceExtensions
         services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
+        services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         
         return services;
     }

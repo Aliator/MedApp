@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261116132035_AddedStaffEmailAndTwoFactorSignIn")]
-    partial class AddedStaffEmailAndTwoFactorSignIn
+    [Migration("20261116124311_AddedAttachments")]
+    partial class AddedAttachments
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -74,58 +74,79 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("ActivityEntries", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Authentication.SecuritySettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("RequireTwoFactorForAdmins")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SecuritySettings", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Authentication.SignInChallenge", b =>
+            modelBuilder.Entity("MedApp.Domain.Attachments.Attachment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("CreatedAtUtc")
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("datetime2");
+                    b.Property<Guid?>("DeletedByUserId")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("FailedAttempts")
+                    b.Property<string>("DeletedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("HasThumbnail")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ScanStatus")
                         .HasColumnType("int");
 
-                    b.Property<string>("TokenHash")
+                    b.Property<string>("Sha256")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
 
-                    b.Property<Guid>("UserId")
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("StageId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UploadedByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExpiresAtUtc");
+                    b.HasIndex("DeletedAtUtc");
 
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
+                    b.HasIndex("ProcedureId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("StageId");
 
-                    b.ToTable("SignInChallenges", (string)null);
+                    b.HasIndex("PatientId", "UploadedAtUtc");
+
+                    b.ToTable("Attachments", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Authentication.UserSession", b =>
@@ -712,10 +733,6 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PendingEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
@@ -727,9 +744,6 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
-
-                    b.Property<int>("TwoFactorLockouts")
-                        .HasColumnType("int");
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
@@ -746,25 +760,6 @@ namespace MedApp.Infrastructure.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("FriendlyName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Xml")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DataProtectionKeys");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>

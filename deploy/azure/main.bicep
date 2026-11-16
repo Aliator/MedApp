@@ -1,10 +1,12 @@
 // MedApp's Azure infrastructure, in one resource group (deploy/azure/README.md):
-//   - a virtual network: AKS's nodes, and the private endpoint for Azure SQL
+//   - a virtual network: AKS's nodes, and the private endpoints for Azure SQL and the attachments' storage
 //   - AKS: Azure CNI Overlay with Cilium (network policies enforced), workload identity, Entra ID sign-in only
 //   - Azure Container Registry: the API's image, pulled by AKS with its own identity
 //   - Azure SQL: serverless, reachable only through its private endpoint, with a lock against deleting it
-//   - Key Vault: the database, first admin, backplane and email secrets, read by External Secrets Operator, and the
-//     key that wraps the API's data protection keys
+//   - a storage account for attachments' files: blob only, reachable only through its private endpoint, with soft
+//     delete and a lock against deleting it
+//   - Key Vault: the database, first admin, backplane, attachments and email secrets, read by External Secrets
+//     Operator, and the key that wraps the API's data protection keys
 //   - Azure Communication Services Email: an Azure-managed sender domain and the SMTP relay the API sends through,
 //     signing in as a Microsoft Entra app made by hand (README.md, Email)
 //   - managed identities: one for AKS's control plane (its subnet), one for External Secrets (Key Vault), one for
@@ -13,7 +15,7 @@
 
 targetScope = 'resourceGroup'
 
-@description('Short name for this environment, used in resource names, e.g. prod: 1 to 8 lower-case letters and digits only (the registry\'s name allows only letters and digits, and the SQL server\'s only lower case). Anything else fails the deployment, with a message saying so.')
+@description('Short name for this environment, used in resource names, e.g. prod: 1 to 8 lower-case letters and digits only (the registry\'s name allows only letters and digits, the SQL server\'s only lower case, and the storage account\'s both, in at most 24 characters). Anything else fails the deployment, with a message saying so.')
 @minLength(1)
 @maxLength(8)
 param environmentName string
@@ -72,6 +74,10 @@ param smtpAppPrincipalId string = ''
 @secure()
 param smtpPassword string = ''
 
+@description('The attachments\' storage redundancy. ZRS keeps copies in three availability zones, so a zone outage loses no files; LRS keeps all three in one datacenter, for a little less.')
+@allowed(['Standard_ZRS', 'Standard_LRS'])
+param storageSku string = 'Standard_ZRS'
+
 // The environment's name, checked: Bicep has no pattern decorator, so any character that isn't a lower-case letter
 // or a digit fails the deployment here, with a clear message, rather than later on one resource's name.
 var environmentChars = map(range(0, length(environmentName)), i => substring(environmentName, i, 1))
@@ -96,6 +102,9 @@ var names = {
   sql: 'sql-medapp-${environment}-${suffix}'
   // Key Vault names are at most 24 characters: 'kv-medapp-' (10) + the environment (at most 8) + '-' (1) + 5 = 24.
   keyVault: 'kv-medapp-${environment}-${take(suffix, 5)}'
+  // Storage account names are at most 24 lower-case letters and digits, and global: 'stmedapp' (8) + the environment
+  // (at most 8) + 8 = 24.
+  storage: 'stmedapp${environment}${take(suffix, 8)}'
   aksIdentity: 'id-medapp-${environment}-aks'
   externalSecretsIdentity: 'id-medapp-${environment}-external-secrets'
   apiIdentity: 'id-medapp-${environment}-api'
@@ -139,7 +148,8 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         }
       }
       {
-        // The private endpoints (Azure SQL). The chart's network policy lets the API reach this range on 1433.
+        // The private endpoints (Azure SQL and the attachments' storage). The chart's network policy lets the API
+        // reach this range on 1433 and 443 (values.yaml).
         name: 'private-endpoints'
         properties: {
           addressPrefix: '10.40.4.0/24'
@@ -400,6 +410,125 @@ resource sqlPrivateDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGr
   }
 }
 
+// ---------------------------------------------------------------------------------------------------- Attachments' storage
+
+// Attachments' files (scans, photos, results, letters), as blobs; their details are in Azure SQL. The API connects
+// with the account key, from Key Vault (README.md, "Not yet": passwordless storage).
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: names.storage
+  location: location
+  kind: 'StorageV2'
+  sku: {
+    name: storageSku
+  }
+  properties: {
+    accessTier: 'Hot'
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    // No anonymous reads: every container is private, whatever its own setting.
+    allowBlobPublicAccess: false
+    // The account key, which the app signs in with. Turn it off once the app uses workload identity.
+    allowSharedKeyAccess: true
+    allowCrossTenantReplication: false
+    // Only through the private endpoint, from inside the virtual network.
+    publicNetworkAccess: 'Disabled'
+    networkAcls: {
+      defaultAction: 'Deny'
+      bypass: 'None'
+    }
+  }
+}
+
+// The account can't be deleted while this lock is on it: deleting it deletes every file at once, which soft delete
+// doesn't undo. It also stops az group delete (README.md, Cost).
+resource storageLock 'Microsoft.Authorization/locks@2020-05-01' = {
+  scope: storage
+  name: 'medapp-keep-attachments'
+  properties: {
+    level: 'CanNotDelete'
+    notes: 'MedApp\'s attached files. Remove this lock only to delete them on purpose (deploy/azure/README.md).'
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    // A deleted file, or the whole container, can be brought back for 7 days.
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+    // Off: the API never overwrites a file (each is stored once, under a new key), so there are no old versions to
+    // keep, and soft delete already covers deletes.
+    isVersioningEnabled: false
+  }
+}
+
+// The chart's attachments.container. The API would make it if it were missing; made here, it's private for sure.
+resource attachmentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'attachments'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource storagePrivateDns 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.blob.${az.environment().suffixes.storage}'
+  location: 'global'
+}
+
+resource storagePrivateDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: storagePrivateDns
+  name: names.vnet
+  location: 'global'
+  properties: {
+    virtualNetwork: {
+      id: vnet.id
+    }
+    registrationEnabled: false
+  }
+}
+
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+  name: 'pe-${names.storage}'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnet.id
+    }
+    privateLinkServiceConnections: [
+      {
+        name: names.storage
+        properties: {
+          privateLinkServiceId: storage.id
+          groupIds: ['blob']
+        }
+      }
+    ]
+  }
+}
+
+resource storagePrivateDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  parent: storagePrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'blob'
+        properties: {
+          privateDnsZoneId: storagePrivateDns.id
+        }
+      }
+    ]
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------- Key Vault
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
@@ -464,6 +593,19 @@ resource emailSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
     value: string({
       username: smtpConfigured ? names.smtpUsername : ''
       password: smtpPassword
+    })
+  }
+}
+
+// The account's first key, as a connection string to its blob endpoint, which resolves to the private endpoint inside
+// the virtual network. Read at each deploy, so after rotating the key, run deploy.sh again (README.md).
+resource attachmentsSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'medapp-attachments'
+  properties: {
+    contentType: 'application/json'
+    value: string({
+      'connection-string': 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${az.environment().suffixes.storage}'
     })
   }
 }

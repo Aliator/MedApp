@@ -66,7 +66,11 @@ public enum ActivityAction
     /// </summary>
     DemographicsLookedUp = 25,
 
-    // 26 and 27 are taken by the attachments branch (AttachmentsViewed, AttachmentDownloaded).
+    /// <summary>Someone listed the files attached to a patient, a procedure or a stage (with the procedure, if any).</summary>
+    AttachmentsViewed = 26,
+
+    /// <summary>Someone downloaded a file attached to a patient's record (with the procedure, if any).</summary>
+    AttachmentDownloaded = 27,
 
     /// <summary>
     /// A right password for an account with two-factor authentication: a code was asked for. The second step records

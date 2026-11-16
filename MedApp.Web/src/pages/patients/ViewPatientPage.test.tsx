@@ -152,4 +152,34 @@ describe('ViewPatientPage, privacy', () => {
     expect(isDisabled(await privacyItem(user, 'Restrict Record'))).toBe(true);
     expect(isDisabled(await privacyItem(user, 'Mark as Disputed'))).toBe(true);
   });
+
+  it("lists and downloads a restricted record's files, offering nothing to add or delete, to admins too", async () => {
+    const restricted = {...oriel, isRestricted: true, restrictionReason: 'Synthetic accuracy check', restrictedAtUtc: '2026-11-16T09:00:00Z'};
+    renderPage(restricted, adminUser, {
+      'GET /api/attachments': () =>
+        json({
+          items: [
+            {
+              id: 'f1',
+              patientId: id,
+              attachedTo: 'Patient',
+              fileName: 'synthetic-letter.pdf',
+              typeName: 'PDF',
+              sizeBytes: 10,
+              scanStatus: 'NotScanned',
+              uploadedByUsername: 'k.ashford',
+              uploadedAtUtc: '2026-11-15T10:00:00Z',
+              canDelete: true,
+              isDeleted: false,
+            },
+          ],
+          totalCount: 1,
+        }),
+    });
+
+    expect(await screen.findByText('synthetic-letter.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Download synthetic-letter.pdf'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete synthetic-letter.pdf'})).not.toBeInTheDocument();
+  });
 });

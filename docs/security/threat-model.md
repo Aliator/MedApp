@@ -1,6 +1,6 @@
 # MedApp threat model
 
-**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`), on branch `feature/security-baseline`: `main` up to #64 (`f083ec3`, merged in) plus that branch's changes. Updated on `feature/email-2fa` (16 November 2026) for email, password reset by link, and optional two-factor authentication (DF12, DF13, T-16 to T-19, T-35). It describes MedApp as built, not as planned: where a control is only planned, it says which roadmap step. Review it whenever a data flow, a trust boundary or a deployment changes, and at least once a year.
+**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`), on branch `feature/security-baseline`: `main` up to #64 (`f083ec3`, merged in) plus that branch's changes. Updated on `feature/email-2fa` (16 November 2026) for email, password reset by link, and optional two-factor authentication (DF14, DF15, T-16 to T-19, T-35; renumbered from DF12 and DF13 when file attachments took those). It describes MedApp as built, not as planned: where a control is only planned, it says which roadmap step. Review it whenever a data flow, a trust boundary or a deployment changes, and at least once a year. **Updated for file attachments (#85),** after that branch's review: the files and the storage key as assets, two data flows (DF12, DF13), and five threats (T-47 to T-51, section 5.5).
 
 **Method:** STRIDE, applied to each element of the data flows below:
 - **S**poofing: pretending to be someone or something else.
@@ -17,11 +17,12 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | Asset | Why it matters |
 |---|---|
 | **Patient records** (name, date of birth, email) and **procedures** (titles, notes, stage notes, due dates) | Special category health data under UK GDPR. Disclosure harms patients; tampering can harm their care. |
+| **Attached files** (scans, photos, results, letters, in blob storage) and their names | Health data, possibly images of the body, kept exactly as uploaded. Each is also untrusted input: it came from outside, and staff open it on their workstations. |
 | **The procedure audit log** | The record of who did what. Losing or changing it loses accountability (hazard H-18). |
 | **Accounts:** usernames, password hashes, roles, the must-change-password flag | Whoever controls an account acts as that person. An admin account controls everyone's. |
 | **Sessions** (`UserSessions` rows, and their IDs in the session cookie) | A session ID is as good as a password for up to 8 hours, or 24 if extended ("Stay signed in"). |
 | **Generated passwords** (first passwords and resets) | Shown once to an admin, to pass on; work until changed. |
-| **Secrets:** database and Valkey passwords, the first admin's password, Azure identities | Each opens a whole store. |
+| **Secrets:** database and Valkey passwords, the first admin's password, the storage account's key, Azure identities | Each opens a whole store. The storage key can do anything to the files' account. |
 | **The build and deploy pipeline:** GitHub Actions, GHCR images, the `env/*` branches, Argo CD | Whoever controls them controls the code that runs. |
 
 ## 2. Who might attack it
@@ -59,7 +60,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 - **B1 Internet to ingress:** everything from the browser is untrusted until the API has authenticated and validated it.
 - **B2 Ingress to API:** the API trusts Traefik's `X-Forwarded-For` and `X-Forwarded-Proto` (`ASPNETCORE_FORWARDEDHEADERS_ENABLED`), which only holds because the network policy lets nothing else reach the API's port.
 - **B3 API to Node, inside one pod:** in Kubernetes, the page server is a container of its own in the API's pod (`pages`), as its own user, with none of the API's secrets or settings. It gets page requests with the user's cookie on loopback, and calls the API back there with that cookie, and no key, so it can act as anyone who opens a page (T-23). The containers share the pod's network, but not processes, users or environment. Run on its own (`docker run`), the API starts Node inside its own container, with a per-process key: same user, same container, not a strong boundary (S17).
-- **B4 API to data stores:** SQL Server and Valkey, behind network policies and passwords.
+- **B4 API to data stores:** SQL Server, Valkey and blob storage for attached files (Azure Blob Storage, or Azurite on kind; not drawn above, beside SQL Server), behind network policies and passwords or keys.
 - **B5 Build to runtime:** what GitHub Actions builds and records on `env/*` is what Argo CD runs.
 - **B6 Secret store to pods.**
 
@@ -76,10 +77,12 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | DF7 | API to Valkey to API | Notifications between API copies | Plain, with a password (S14) |
 | DF8 | GitHub Actions to GHCR and `env/*` | The image; a commit naming its tag | GitHub's own TLS and tokens |
 | DF9 | Argo CD to the cluster | Manifests from `env/*` | In the cluster |
-| DF10 | Secret store to pods | Database, Valkey and first admin passwords | External Secrets; workload identity on Azure |
+| DF10 | Secret store to pods | Database, Valkey and first admin passwords; the storage account's connection string, with its key | External Secrets; workload identity on Azure |
 | DF11 | Migrations Job to SQL Server | The schema, the first admin | As DF6 |
-| DF12 | API to the mail server to a staff mailbox | Reset and confirmation links (a token in the fragment), and security notices: the username and what changed, never clinical text or a password | SMTP with STARTTLS to Azure Communication Services; plain to Mailpit inside kind or the dev machine. Onward delivery to the mailbox is the mail providers' |
-| DF13 | Browser to API: second sign-in step (`POST api/auth/login/two-factor`) | The challenge from the password step and a code; back, the session cookie | As DF1 |
+| DF12 | Browser to API: attached files (`api/attachments`) | An upload's raw bytes, its name percent-encoded in `X-File-Name`; back, a file as a download, or a thumbnail | As DF1 |
+| DF13 | API to blob storage | Files and thumbnails, under keys made from IDs | Azure: https, TLS 1.2 or later, through a private endpoint. kind: Azurite over plain http inside the cluster |
+| DF14 | API to the mail server to a staff mailbox | Reset and confirmation links (a token in the fragment), and security notices: the username and what changed, never clinical text or a password | SMTP with STARTTLS to Azure Communication Services; plain to Mailpit inside kind or the dev machine. Onward delivery to the mailbox is the mail providers' |
+| DF15 | Browser to API: second sign-in step (`POST api/auth/login/two-factor`) | The challenge from the password step and a code; back, the session cookie | As DF1 |
 
 ## 5. Threats
 
@@ -142,6 +145,18 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | T-45 | E | **Something on `env/*` that creates cluster-wide resources.** | Argo CD's `medapp` project allows only the chart's kinds, in the `medapp` namespace. | Anyone with push rights to `env/*` could still change MedApp's own resources (to-do: a deploy-only GitHub App). **Low.** |
 | T-46 | S | **Traffic from inside the cluster pretending to be Traefik** (spoofed `X-Forwarded-For`, to dodge sign-in throttling or fake the scheme). | Network policies let only the ingress namespace reach the API's port; Traefik replaces untrusted forwarded headers, and ASP.NET Core takes only the last address. | The API trusts forwarded headers from any source (S12). **Low.** |
 
+### 5.5 Attached files (DF12, DF13)
+
+Added with file attachments (#85). The rows describe the code after the fixes from its review (`docs/reviews/pr-85-file-attachments.md`).
+
+| ID | STRIDE | Threat | In place | Left, and rating |
+|---|---|---|---|---|
+| T-47 | D | **A hostile file exhausting an API copy's memory:** an image whose header claims a huge size (a 1 MB progressive JPEG claiming 24,000 by 24,000 pixels needs over a gigabyte to decode), a Word file whose ZIP lists hundreds of thousands of entries, or many uploads at once, so the kernel kills the copy with every request it was serving. | A request is at most 20 MiB, streamed to a temporary file, not memory. The thumbnail generator reads the image's header first, and makes no thumbnail (the upload still succeeds) when the source is over 24 megapixels or 10,000 pixels on a side (`SkiaThumbnailGenerator`). A `.docx` whose ZIP lists more than 5,000 entries is refused, the count read from the end-of-central-directory record before the archive is opened (`FileTypeSniffer`). At most two thumbnails or Word inspections run at a time per API copy (a `SemaphoreSlim(2)`). Two API copies. | SkiaSharp's native decoders still parse untrusted images inside the API process, so a decoder flaw could crash or compromise a copy (patched under the vulnerability policy). No general rate limit on uploads (T-12). **Low.** |
+| T-48 | E, T | **Malware passed to workstations:** a file with an exploit, received from outside and attached, is downloaded and opened in a desktop application (a PDF reader, Word, an image viewer), compromising a clinical workstation. | A short allow-list of types found from the contents, the extension made to match; macros, external relationships, embedded objects and ActiveX refused in Word; scripts, launch actions and embedded files refused in PDFs (T-49). Files only ever downloaded. "Not scanned" shown on every file. | **No malware scanner** (`NoMalwareScanner`): Defender for Storage on Azure, ClamAV elsewhere, planned in step 9 and brought forward to before go-live (DPIA risk 22, H-25; ASVS 5.4.3). Workstations' own protection is the customer's. **High** before real data. |
+| T-49 | T, I | **Active content in the allowed types:** a PDF with JavaScript or a launch action, a Word document with a remote template (fetching macros after it opens) or an external link to a `\\server\share` path (which can leak the user's Windows credentials hash); or any file shown inline on MedApp's own origin, running script with the user's session. | Downloads only, never inline: `Content-Disposition: attachment`, the sniffed type, `nosniff`, `Content-Security-Policy: sandbox; default-src 'none'`, `Cross-Origin-Resource-Policy: same-origin`, `X-Frame-Options: DENY` (`AttachmentResponseHeaders`, confirmed in Chromium); SVG, HTML and anything starting with `<` refused; only server re-encoded thumbnails in pages. A `.docx` with any `TargetMode="External"` relationship, `word/embeddings/` or `word/activeX/` is refused; a PDF containing `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile` or `/RichMedia` is refused (a byte search). | The PDF search is literal: names written with `#` escapes (for example `/J#61vaScript`) or inside compressed object streams aren't found, and other formats' active features aren't looked for. Left to the malware scanner (T-48) and Office's Protected View. **Medium.** |
+| T-50 | I, T, E | **The storage account and its key:** whoever holds the account key can read, overwrite or delete every attached file, and change the account's data settings. | Azure: public network access off, reached only through a private endpoint; https only, TLS 1.2 or later; no anonymous access; Microsoft-managed encryption at rest; 7 days' soft delete; a `CanNotDelete` lock on the account (`deploy/azure/main.bicep`). The key lives in Key Vault, read by External Secrets into the API's Secret; the API's reference to it is optional, so without it the API runs with no file storage (503). Files reach users only through the API. | Shared key access is on, because the API uses the key: anyone who can read the Key Vault secret, the Kubernetes Secret or an API pod's environment holds full control of the files. Passwordless access (workload identity, a role on the container only, shared key off) is planned in step 5, a customer-managed key in step 9; other pods in the cluster can reach the private endpoint until a cluster-wide Cilium policy (step 5). **High** before real data, as T-33. |
+| T-51 | I, T | **Azurite's plain http inside the kind cluster:** files and the account key read or changed on the cluster's network. | Azurite is for kind and development only (synthetic data); its own random account key, not the published `devstoreaccount1` one; a network policy lets only the API reach it, and it reaches nothing; the `restricted` Pod Security Standard and a read-only root. | Traffic in clear inside the cluster, as for SQL Server on kind (DF6) and Valkey (T-34); its volume isn't encrypted; one pod and one volume. Never for real data. **Low.** |
+
 ## 6. What this change added, in one place
 
 - Security headers and Content Security Policies (`MedApp.API/Middleware/SecurityHeaders.cs`): T-03, T-06 to T-10.
@@ -150,7 +165,9 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 - Ending sessions on a password change or reset, and signing a user out everywhere: T-03, T-14.
 - The common-password deny list (`CommonPasswordValidator`): T-01, T-32.
 - The pipeline: SHA-pinned actions, Dependabot, CodeQL, dependency review, npm and NuGet audits, Trivy, SBOM and provenance attestations: T-40 to T-43.
-- `feature/email-2fa`: optional two-factor authentication with recovery codes and an admin requirement (T-01, T-18, T-19); "Forgot your password?" by a single-use emailed link (T-16, T-17); data protection keys shared in the database and wrapped by Key Vault on Azure (T-35); security notices by email (DF12). After its review: code attempts reserved and counted atomically, per-account limits and a growing lockout (T-18); the password again for changing the address and for two-factor changes, a notice when a change is asked for, an admin action to remove an address, and confirmation only by the signed-in account (T-16); admins told of each other's two-factor (T-19); the API pod's egress by name on Azure (T-23).
+- `feature/email-2fa`: optional two-factor authentication with recovery codes and an admin requirement (T-01, T-18, T-19); "Forgot your password?" by a single-use emailed link (T-16, T-17); data protection keys shared in the database and wrapped by Key Vault on Azure (T-35); security notices by email (DF14). After its review: code attempts reserved and counted atomically, per-account limits and a growing lockout (T-18); the password again for changing the address and for two-factor changes, a notice when a change is asked for, an admin action to remove an address, and confirmation only by the signed-in account (T-16); admins told of each other's two-factor (T-19); the API pod's egress by name on Azure (T-23).
+
+File attachments (#85), later, added DF12 and DF13 and their controls: the type allow-list and active content checks (`FileTypeSniffer`), the download headers (`AttachmentResponseHeaders`), the bounds on decoding (`SkiaThumbnailGenerator`, the ZIP entry cap, two at a time), and the storage account in the Bicep: T-47 to T-51.
 
 ## 7. The biggest risks left
 
@@ -161,3 +178,4 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 5. **Code in Node acting as its visitors (T-23):** the page server is in a container of its own, without the API's secrets, but it sees every visitor's session, can call the API on loopback, and can reach DNS. On Azure the pod also reaches the mail relay, the Key Vault and Microsoft Entra ID, allowed by name only (a Cilium FQDN policy), which are shared services an attacker's own credentials could use to carry cookies out. Containing it fully needs a page server with no route out: a Deployment of its own whose policy allows only the API.
 6. **No fallback authorisation policy (T-13)** and the two return-everything endpoints (step 2, later).
 7. **Deploys don't verify provenance (T-43),** and images aren't pinned by digest (T-42).
+8. **Attached files aren't scanned for malware (T-48),** and the storage account is reached with its all-powerful key (T-50) (steps 9 and 5; the scanner before go-live).

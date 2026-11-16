@@ -45,5 +45,19 @@ public sealed class DeletePatientProcedureHandlerTests : ProcedureHandlerTestBas
 
         Repository.Verify(r => r.DeleteAsync(procedure, It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), cts.Token), Times.Once);
         SavedAudit.Should().ContainSingle(e => e.Action == PatientProcedureAuditAction.Deleted && e.UserId == Admin.UserId);
+        Attachments.Verify(a => a.CountForProcedureAsync(procedure.Id, cts.Token), Times.Once);
+    }
+
+    [TestCase(1, "This procedure has 1 file attached*")]
+    [TestCase(3, "This procedure has 3 files attached*")]
+    public async Task Handle_ProcedureHasFiles_ThrowsConflictAndKeepsIt(int files, string message)
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.Cancelled));
+        Attachments.Setup(a => a.CountForProcedureAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync(files);
+
+        var act = () => Handler.Handle(new DeletePatientProcedureCommand(procedure.Id, Admin), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(message);
+        Repository.Verify(r => r.DeleteAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

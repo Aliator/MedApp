@@ -22,6 +22,9 @@ import {
 import {userSearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
+import {Attachments} from '../../components/attachments/Attachments';
+import {AttachmentsFold} from '../../components/attachments/AttachmentsFold';
+import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -92,6 +95,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const remove = useDeleteProcedure(id);
   const navigate = useNavigate();
   const announce = useAnnounce();
+  // Files on their way, held here so they carry on when the window switches between one card and two.
+  const attachments = useAttachmentsState();
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -101,10 +106,11 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const [toAssign, setToAssign] = useState<string[]>([]);
   // What's open and folded is held here, so it carries over when the window switches between one card and two.
   // The defaults apply once, when the page loads: Details (with Patient info) and the Current stage open, Stages
-  // folded, and in a narrow window Assigned staff folded too. Stages in the list open only when clicked.
+  // folded, and in a narrow window Assigned staff and Files folded too. Stages in the list open only when clicked.
   const [open, setOpen] = useState(() => ({
     details: true,
     currentStage: true,
+    files: !isNarrow,
     stages: false,
     patientInfo: true,
     assignedStaff: !isNarrow,
@@ -120,6 +126,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     isOpen: (stage) => instructionsOpen[stage.id ?? ''] ?? false,
     onOpenChange: (stage, isOpen) => setInstructionsOpen((current) => ({...current, [stage.id ?? '']: isOpen})),
   };
+  // Each stage's files start folded (and unfetched), and open on their own, like its instructions.
+  const [stageFilesOpen, setStageFilesOpen] = useState<Record<string, boolean>>({});
 
   const staff = useQuery({...userSearchQuery({PageSize: 100, Sort: 'username'}), enabled: user.isAdmin && dialog?.kind === 'assign'});
 
@@ -196,6 +204,18 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         setActionError(null);
         setDialog({kind: 'unlock', stage});
       }}
+    />
+  );
+
+  /** A stage's files, folded under its notes: they can change while its notes can. */
+  const filesFor = (stage: ProcedureStage) => (
+    <AttachmentsFold
+      target={{stageId: stage.id ?? ''}}
+      canChange={stage.canEdit ?? false}
+      isLocked={Boolean(procedure?.readOnlyReason)}
+      state={attachments}
+      isOpen={stageFilesOpen[stage.id ?? ''] ?? false}
+      onOpenChange={(isOpen) => setStageFilesOpen((current) => ({...current, [stage.id ?? '']: isOpen}))}
     />
   );
 
@@ -490,6 +510,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           procedure={procedure}
           stage={currentStage}
           work={currentStage && workFor(currentStage, true)}
+          files={currentStage && filesFor(currentStage)}
           instructions={instructions}
         />
       </Section>
@@ -509,6 +530,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           setOpenStageIds((ids) => (isOpen ? [...ids, stageId] : ids.filter((other) => other !== stageId)))
         }
         renderWork={(stage) => (stage.isCurrent && open.currentStage ? undefined : workFor(stage))}
+        renderFiles={filesFor}
         instructions={instructions}
       />
     );
@@ -529,13 +551,41 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   }
 
   /**
-   * Two cards side by side: Details and the Current stage, each folding and sharing the left card, and all the
-   * stages on the right.
+   * The procedure's own files (not its stages'). They can change unless it's cancelled or archived, as its details
+   * can; admins can delete any.
+   */
+  function filesSection(procedure: Procedure): FoldingSection {
+    return {
+      key: 'files',
+      title: 'Files',
+      isOpen: open.files,
+      onToggle: () => toggle('files'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <Attachments
+            target={{procedureId: procedure.id ?? ''}}
+            canChange={procedure.canEditDetails ?? false}
+            isLocked={Boolean(procedure.readOnlyReason)}
+            state={attachments}
+          />
+        </Section>
+      ),
+    };
+  }
+
+  /**
+   * Two cards side by side: Details, the Current stage and Files, each folding and sharing the left card, and all
+   * the stages on the right.
    */
   function wideLayout(procedure: Procedure) {
     return (
       <TwoColumns
-        start={<FoldingCard sections={[detailsSection(procedure), currentStageSection(procedure)]} footerActions={footer(procedure)} />}
+        start={
+          <FoldingCard
+            sections={[detailsSection(procedure), currentStageSection(procedure), filesSection(procedure)]}
+            footerActions={footer(procedure)}
+          />
+        }
         end={
           <PanelCard title="Stages" isBodyPadded={false}>
             {stageList(procedure)}
@@ -546,8 +596,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   }
 
   /**
-   * One card of three folding sections: Details, Current stage and Stages. The open ones share the card equally,
-   * and each scrolls on its own; the card and page never do. View Patient stays in the footer.
+   * One card of four folding sections: Details, Current stage, Files and Stages, scrolling together; the page never
+   * does. View Patient stays in the footer.
    */
   function narrowLayout(procedure: Procedure) {
     return (
@@ -556,6 +606,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         sections={[
           detailsSection(procedure),
           currentStageSection(procedure),
+          filesSection(procedure),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(procedure)},
         ]}
       />
@@ -593,10 +644,12 @@ interface CurrentStageProps {
   procedure: Procedure;
   stage: ProcedureStage | undefined;
   work: ReactNode;
+  /** The stage's files, under its notes. */
+  files: ReactNode;
   instructions: InstructionsFolding;
 }
 
-function CurrentStage({procedure, stage, work, instructions}: CurrentStageProps) {
+function CurrentStage({procedure, stage, work, files, instructions}: CurrentStageProps) {
   return (
     <VStack gap={4}>
       {stage ? (
@@ -607,7 +660,7 @@ function CurrentStage({procedure, stage, work, instructions}: CurrentStageProps)
               {`Stages can't be worked on while the procedure is ${statusLabel(procedure.status ?? '').toLowerCase()}.`}
             </Text>
           )}
-          <StageDetails stage={stage} work={work} instructions={instructions} />
+          <StageDetails stage={stage} work={work} files={files} instructions={instructions} />
         </VStack>
       ) : (
         <Text type="body" color="secondary">

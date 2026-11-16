@@ -35,6 +35,8 @@ export const ACTIVITY_ACTIONS = [
   'RoleCreated',
   'RoleDeleted',
   'SignedOutEverywhere',
+  'AttachmentsViewed',
+  'AttachmentDownloaded',
   'TwoFactorChallenged',
   'TwoFactorEnabled',
   'TwoFactorDisabled',
@@ -77,6 +79,8 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   RoleCreated: 'Role created',
   RoleDeleted: 'Role deleted',
   SignedOutEverywhere: 'Signed out everywhere',
+  AttachmentsViewed: 'Files viewed',
+  AttachmentDownloaded: 'File downloaded',
   TwoFactorChallenged: 'Code asked for',
   TwoFactorEnabled: 'Two-factor turned on',
   TwoFactorDisabled: 'Two-factor turned off',
@@ -95,8 +99,11 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
 export const activityActionLabel = (action: string | null | undefined) =>
   ACTION_LABELS[action as ActivityAction] ?? action ?? '';
 
+/** The actions about a patient's attached files: listing them, and downloading one. */
+export const FILE_ACTIONS: ActivityAction[] = ['AttachmentsViewed', 'AttachmentDownloaded'];
+
 /** The actions that read a patient's record, for the "who has looked" quick filter. */
-export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'ProcedureViewed', 'PatientExported'];
+export const ACCESS_ACTIONS: ActivityAction[] = ['PatientViewed', 'PatientListed', 'ProcedureViewed', 'PatientExported', ...FILE_ACTIONS];
 
 /** The sign-in actions, for their quick filter. */
 export const SIGN_IN_ACTIONS: ActivityAction[] = ['SignedIn', 'TwoFactorChallenged', 'SignInFailed', 'SignedOut'];
@@ -187,10 +194,10 @@ const text = (value: unknown) => (typeof value === 'string' && value.trim() ? va
 
 /**
  * What an entry's details say, in a line of words, e.g. "Changed first name, email", "By last name: 3 found",
- * "By NHS number (FHIR API): 1 found" or
- * "User → Admin, User". Empty when the action says it all.
+ * "By NHS number (FHIR API): 1 found", "A file on the patient" or "User → Admin, User". Empty when the action says
+ * it all.
  */
-export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'>): string {
+export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details' | 'procedureId'>): string {
   const d = parse(entry.details);
   switch (entry.action) {
     case 'PatientUpdated': {
@@ -227,6 +234,11 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
       return text(d.role);
     case 'RetentionKept':
       return [typeof d.keepUntil === 'string' ? `Until ${formatShortDate(d.keepUntil)}` : '', text(d.reason)].filter(Boolean).join(': ');
+    // Recorded with the procedure when the files are a procedure's or a stage's; the file's name is never recorded.
+    case 'AttachmentsViewed':
+      return entry.procedureId ? "A procedure's or stage's files" : "All the patient's files";
+    case 'AttachmentDownloaded':
+      return entry.procedureId ? 'A file on a procedure or stage' : 'A file on the patient';
     case 'PatientRestricted':
     case 'PatientRestrictionLifted':
     case 'PatientDisputed':

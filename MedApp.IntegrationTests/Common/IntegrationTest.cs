@@ -196,6 +196,27 @@ public abstract class IntegrationTest
         return await CreateProcedureAsync(admin, patient.Id, template.Id);
     }
 
+    /// <summary>A synthetic PDF, the smallest the API accepts as one.</summary>
+    protected static readonly byte[] SyntheticPdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n");
+
+    /// <summary>
+    /// Uploads a file as the web app does: its bytes as the body, its name percent-encoded in a header, and what it's
+    /// attached to (<c>patientId=…</c>, <c>procedureId=…</c> or <c>stageId=…</c>) in the query.
+    /// </summary>
+    protected static Task<HttpResponseMessage> UploadAttachmentAsync(HttpClient client, string target, byte[] bytes, string fileName)
+    {
+        var content = new ByteArrayContent(bytes);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/attachments?{target}") { Content = content };
+        request.Headers.Add("X-File-Name", Uri.EscapeDataString(fileName));
+        return client.SendAsync(request);
+    }
+
+    protected static async Task<MedApp.Contracts.Attachments.Responses.AttachmentResponse> UploadAttachmentOkAsync(
+        HttpClient client, string target, byte[] bytes, string fileName) =>
+        await (await UploadAttachmentAsync(client, target, bytes, fileName))
+            .ReadAsAsync<MedApp.Contracts.Attachments.Responses.AttachmentResponse>(HttpStatusCode.Created);
+
     protected static string ProcedureUrl(Guid procedureId) => $"/api/procedures/patient-procedures/{procedureId}";
 
     protected static string StageUrl(Guid procedureId, Guid stageId) => $"{ProcedureUrl(procedureId)}/stages/{stageId}";
