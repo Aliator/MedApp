@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261116075941_IndexedAuditEntriesByPatientAndTime")]
+    [Migration("20261116082648_IndexedAuditEntriesByPatientAndTime")]
     partial class IndexedAuditEntriesByPatientAndTime
     {
         /// <inheritdoc />
@@ -478,6 +478,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("bit");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)

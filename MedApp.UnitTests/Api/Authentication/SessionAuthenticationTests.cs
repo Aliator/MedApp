@@ -73,6 +73,21 @@ public sealed class SessionAuthenticationHandlerTests
         user.FindFirstValue(ClaimTypes.NameIdentifier).Should().Be(UserId.ToString());
         user.Identity.Name.Should().Be(Username);
         user.FindAll(ClaimTypes.Role).Select(c => c.Value).Should().Equal("Admin", "User");
+        user.HasClaim(c => c.Type == SessionAuthenticationDefaults.MustChangePasswordClaim).Should().BeFalse();
+        user.MustChangePassword().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Authenticate_UserMustChangePassword_AddsTheClaim()
+    {
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(UserId, Username, ["User"], MustChangePassword: true));
+
+        var result = await Authenticate(SessionId.ToString());
+
+        result.Principal!.FindFirstValue(SessionAuthenticationDefaults.MustChangePasswordClaim).Should().Be("true");
+        result.Principal!.MustChangePassword().Should().BeTrue();
     }
 }
 

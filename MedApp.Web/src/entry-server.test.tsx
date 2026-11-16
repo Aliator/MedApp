@@ -61,6 +61,40 @@ describe('server rendering', () => {
     expect(response.headers.get('location')).toBe('/login');
   });
 
+  it('sends someone who must change their password to do that, without asking for what the API would refuse', async () => {
+    const requests = api({'/api/auth/whoami': {...signedIn, mustChangePassword: true}});
+
+    const response = await page('/patients', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/change-password');
+    expect(requests.map((r) => new URL(r.url).pathname)).toEqual(['/api/auth/whoami']);
+  });
+
+  it("renders the change-password page in the account's settings", async () => {
+    api({
+      '/api/auth/whoami': {...signedIn, mustChangePassword: true},
+      '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
+    });
+
+    const response = await page('/change-password', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
+    expect(html).toContain('Choose your password');
+    expect(html).toContain('test-user');
+  });
+
+  it('sends someone who needn’t change their password from the change-password page home', async () => {
+    api({'/api/auth/whoami': signedIn});
+
+    const response = await page('/change-password', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/');
+  });
+
   it("renders a signed-in page with its data, fetched as the user with their cookie, in the account's settings", async () => {
     const requests = api({
       '/api/auth/whoami': signedIn,

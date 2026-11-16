@@ -8,17 +8,26 @@ public interface IIdentityUserService
     /// <summary>
     /// Creates an account with a generated password that meets the Identity password rules (the same generator as
     /// <see cref="ResetUserPasswordAsync"/>). The result carries the password, once, when the account was created.
+    /// The account must change it at first sign-in (its must-change-password flag is set).
     /// </summary>
     Task<CreateUserResult> CreateUserAsync(
         string username,
         CancellationToken ct);
-    
+
+    /// <summary>
+    /// Changes a user's own password, given the current one. A successful change clears their must-change-password
+    /// flag, in the same update.
+    /// </summary>
     Task<IdentityResult> UpdateUserPasswordAsync(
         string username,
         string oldPassword,
         string newPassword,
         CancellationToken ct);
-    
+
+    /// <summary>
+    /// Gives a user a new generated password, to be passed on to them, and sets their must-change-password flag in the
+    /// same update, so they must replace it with their own.
+    /// </summary>
     Task<ResetUserPasswordResponse> ResetUserPasswordAsync(
         string username,
         CancellationToken ct);

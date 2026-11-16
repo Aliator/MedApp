@@ -19,7 +19,7 @@ public sealed class TestAdminTools
     private static readonly string[] Roles = ["Admin", "User"];
 
     [McpServerTool(Name = "ensure_test_admin", Idempotent = true)]
-    [Description("Makes sure the local test login admin / admin exists, with the Admin and User roles, and isn't locked out. Creates the account if it's missing; otherwise puts the password back to 'admin'. The password skips the app's password rules, so this is for local testing only. reset_demo_data runs it too.")]
+    [Description("Makes sure the local test login admin / admin exists, with the Admin and User roles, and isn't locked out. Creates the account if it's missing; otherwise puts the password back to 'admin'. It's never made to change its password. The password skips the app's password rules, so this is for local testing only. reset_demo_data runs it too.")]
     public static async Task<object> EnsureTestAdmin(
         UserManager<ApplicationUser> users,
         RoleManager<IdentityRole<Guid>> roles,
@@ -40,6 +40,8 @@ public sealed class TestAdminTools
 
         ct.ThrowIfCancellationRequested();
         user.PasswordHash = users.PasswordHasher.HashPassword(user, Password);
+        // The test login signs in with admin / admin straight away, even if a reset in the app had asked it to change.
+        user.MustChangePassword = false;
         Guards.Check(await users.UpdateAsync(user), $"Set the {Username} password");
         Guards.Check(await users.UpdateSecurityStampAsync(user), $"Refresh the {Username} security stamp");
         Guards.Check(await users.SetLockoutEndDateAsync(user, null), $"Unlock {Username}");
