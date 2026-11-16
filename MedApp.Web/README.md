@@ -14,7 +14,7 @@ dotnet run --project MedApp.AppHost   # from the repo root
 
 Pages are **rendered on the server** (SSR, with TanStack Router's SSR support), then taken over in the browser (hydrated):
 - **Development:** `npm run dev` runs `server/server.mjs`, a small Node server that hosts Vite as middleware. It serves the source with hot reload, proxies `/api` to the API, and renders each page, on http://localhost:5173.
-- **Production:** the API's image (`MedApp.API/Dockerfile`, which the AppHost builds on publish) builds this app into the API's `wwwroot`, with the page server in `wwwroot/ssr/`, and includes Node to run it. The API serves the files itself on the same origin as `/api` (plan Q4). It starts the page server with Node and forwards page requests to it. Without Node, or if it stops, the API serves `index.html` and pages render in the browser as before.
+- **Production:** the API's image (`MedApp.API/Dockerfile`, which the AppHost builds on publish) builds this app into the API's `wwwroot`, and the page server (`dist/ssr/`: `server.mjs`, the bundled server entry and a copy of the client manifest) into `/app/ssr/`, outside `wwwroot`, with Node to run it. The API serves the files itself on the same origin as `/api` (plan Q4), and forwards page requests to the page server: in Kubernetes, a container of its own beside the API (the Helm chart's `pages`); elsewhere, one the API starts. Without Node, or if it stops, the API serves `index.html` and pages render in the browser as before.
 
 How a page renders on the server: its route's `beforeLoad` and `loader` run, then the page streams with its data in it. `_app` checks sign-in and fetches the account's settings and notifications. Each list or record page's loader preloads its data (`src/api/preload.ts`). API calls go straight to the API with the request's cookie (`src/ssr/requestContext.ts`). The page is rendered with the account's saved settings (`ServerSettingsContext`), so its mode and text size are right from the first paint.
 
@@ -24,8 +24,8 @@ How a page renders on the server: its route's `beforeLoad` and `loader` run, the
 |---|---|
 | `npm run dev` | The page server with Vite: server-rendered pages and hot reload on :5173 (the AppHost runs this) |
 | `npm run dev:client` | Plain Vite, pages rendered in the browser only (no server rendering) |
-| `npm run build` | Type check, then the production build into `dist/`, and the page server into `dist/ssr/` |
-| `npm run start` | The built page server, on its own (production mode; set `MEDAPP_API_URL`) |
+| `npm run build` | Type check, then the production build into `dist/`, and the page server into `dist/ssr/` (with the client manifest, as `client-manifest.json`) |
+| `npm run start` | The built page server, on its own (production mode; set `MEDAPP_API_URL`, and `HEALTH_PORT` for a `GET /alive` listener) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc -b` |
 | `npm test` / `npm run test:watch` / `npm run coverage` | Vitest + React Testing Library |

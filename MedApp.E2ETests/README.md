@@ -12,6 +12,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | `Tasks/MyTasksTests` | A procedure assigned to you in My Tasks, under Not started, then Started, and opening it. |
 | `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
 | `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
+| `Security/ContentSecurityPolicyTests` | Each main page (home, patients, procedures, My Tasks, account, users, insights) is rendered on the server with its own response's CSP nonce, which the API passes to the page server, in its container or beside it. Skipped against the development server, which sends no policy. |
 
 ## What's here
 

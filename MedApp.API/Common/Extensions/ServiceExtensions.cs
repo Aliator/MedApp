@@ -26,11 +26,15 @@ public static class ServiceExtensions
         services.AddSignalR().AddBackplane(configuration);
         services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
 
-        // Server-side rendering: the Node server that renders the React app's pages (SsrServer), and the client
-        // that forwards page requests to it. Redirects (e.g. to sign in) go back to the browser as they are. No
-        // resilience handler (the service defaults add one to every client): a failed render isn't retried, but falls
-        // back to the client-rendered app at once, and SsrOptions.RenderTimeout is the only timeout.
-        services.AddOptions<SsrOptions>().BindConfiguration(SsrOptions.Section);
+        // Server-side rendering: the Node server that renders the React app's pages (SsrServer: its own container's,
+        // at Ssr:ServerUrl, or one the API starts), and the client that forwards page requests to it. Redirects (e.g.
+        // to sign in) go back to the browser as they are. No resilience handler (the service defaults add one to every
+        // client): a failed render isn't retried, but falls back to the client-rendered app at once, and
+        // SsrOptions.RenderTimeout is the only timeout. A Ssr:ServerUrl that isn't a server's address stops startup.
+        services.AddOptions<SsrOptions>()
+            .BindConfiguration(SsrOptions.Section)
+            .Validate(options => options.HasValidServerUrl(), SsrOptions.InvalidServerUrl)
+            .ValidateOnStart();
         services.AddSingleton<SsrServer>();
         services.AddSingleton<ISsrServer>(provider => provider.GetRequiredService<SsrServer>());
         services.AddHostedService(provider => provider.GetRequiredService<SsrServer>());
