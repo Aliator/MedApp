@@ -30,7 +30,7 @@ Other policies in this folder: [support-access-policy.md](support-access-policy.
 - **Admin access is separate and time-limited:** admin roles are used only when needed. Planned: Entra ID Privileged Identity Management (step 5).
 - **Joiners, movers and leavers:** access is granted on approval by the SIRO, reviewed every 3 months, and removed on the day someone leaves.
 - **Programs:** use managed identities and federation, not stored secrets. MedApp already does: GitHub signs in to Azure with OIDC, External Secrets with workload identity (`deploy/azure/main.bicep`). Still to do: the app's own database identity (step 5).
-- **In MedApp:** two roles enforced by the API on every endpoint except sign-in, sign-out and `whoami`; admin-only user management and audit. MFA, SSO and an `Auditor` role are planned (step 4).
+- **In MedApp:** two roles enforced by the API on every endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text (who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text). MFA, SSO and an `Auditor` role are planned (step 4).
 - **Customer data:** only under [support-access-policy.md](support-access-policy.md).
 
 ## 3. Acceptable use
@@ -49,7 +49,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 
 | Requirement | Status |
 |---|---|
-| **Every change through a pull request** to `main`, with required CI checks (`web`, `image`, `helm`, `unit-tests`) | In place (repository ruleset) |
+| **Every change through a pull request** to `main`, with required CI checks (`web`, `image`, `helm`, `unit-tests`, `integration-tests`, `e2e`) | In place (repository ruleset) |
 | **Planning, implementation and a separate review** of every change: a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions, and not yet approved by a human; a high or critical finding blocks the merge | In place since #51 (`AGENTS.md`, "Effort for each stage of a change" and the merge flow; `docs/reviews/`). No second human reviewer yet (next row) |
 | **Tests** for all new behaviour, with coverage gates for the web app | In place (`.github/workflows/main.yml`) |
 | **Synthetic data only** in code, tests, seeds, fixtures and screenshots | In place (convention, `AGENTS.md`) |

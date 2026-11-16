@@ -65,7 +65,7 @@ Everything about the patient, kept and destroyed together:
 
 | Data | Period | At the end | Why this period |
 |---|---|---|---|
-| **Sessions** (`UserSession`: IP address, browser, times) | **12 months** after the session was created | Deleted automatically | Long enough to investigate account misuse reported late; sessions last 8 hours, so nothing operational needs them after that. |
+| **Sessions** (`UserSession`: IP address, browser, times) | **12 months** after the session was created | Deleted automatically | Long enough to investigate account misuse reported late; sessions last 8 hours (24 at most, if extended), so nothing operational needs them after that. |
 | **Sign-in and security events** (step 7: sign-ins, failures, refused requests, MFA changes) | **12 months** | Deleted automatically | As sessions. |
 | **Access audit** (step 7: who viewed or searched which patient) | **As the patient's record** (section 2) | With the record | It's the record's audit trail, and the evidence for "who has seen my record" questions. Search terms that match no single patient are kept **12 months**. |
 | **Notifications** | **6 months** after creation, read or not | Deleted automatically | A notification is a pointer to work; the procedure and its audit are the record. Titles can be sensitive. |

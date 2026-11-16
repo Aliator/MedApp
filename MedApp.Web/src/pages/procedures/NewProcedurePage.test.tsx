@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
-import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
+import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NewProcedurePage} from './NewProcedurePage';
 import {typeRichText} from '../../test/richText';
 
@@ -66,6 +66,7 @@ describe('NewProcedurePage', () => {
   });
 
   it('creates the procedure after a confirmation, then opens it', async () => {
+    withAnnouncements();
     const {fetch, user, router} = renderNew({
       [`POST ${CREATE}`]: () => json({id: 'proc-new', patientId: 'patient-1', title: 'Knee review'}, 201),
     });
@@ -92,6 +93,7 @@ describe('NewProcedurePage', () => {
       dueDate: '2099-12-01',
       priority: 'Medium',
     });
+    await expectAnnounced('Procedure created');
   });
 
   it("shows the API's validation errors on their fields", async () => {

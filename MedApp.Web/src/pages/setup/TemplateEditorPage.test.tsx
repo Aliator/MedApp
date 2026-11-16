@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
-import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp} from '../../test/render';
+import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {TemplateEditorPage} from './TemplateEditorPage';
 
 const BASE = '/api/procedures/patient-procedure-stage';
@@ -32,6 +32,7 @@ const sent = (fetch: ReturnType<typeof mockApi>, method: string) =>
 
 describe('TemplateEditorPage', () => {
   it('builds a new template from the active definitions, then creates it after a confirmation', async () => {
+    withAnnouncements();
     const {user, fetch, router} = renderEditor(undefined, {[`POST ${BASE}/templates`]: () => json({id: 't9'}, 201)});
 
     await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Scan pathway');
@@ -50,6 +51,7 @@ describe('TemplateEditorPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/templates'));
     expect(await sent(fetch, 'POST')!.json()).toEqual({name: 'Scan pathway', stageDefinitionIdsInOrder: ['d1', 'd1']});
+    await expectAnnounced('Template created');
   });
 
   it("starts from a template's stages, archived ones marked, and says its procedures keep theirs", async () => {

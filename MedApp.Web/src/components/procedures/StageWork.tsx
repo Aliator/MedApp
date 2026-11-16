@@ -6,6 +6,7 @@ import {useLayoutEffect, useRef, useState} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
 import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
 import {RichTextField} from '../forms/RichTextField';
+import {useSaveShortcut} from '../forms/SaveShortcut';
 import {AppIcon} from '../shared/icons';
 import {StageNotes} from './StageList';
 
@@ -70,12 +71,26 @@ function fittedHeight(box: HTMLElement): number | undefined {
  * for an admin, Unlock Stage on a finished stage.
  *
  * The notes box starts from the saved notes; give it a `key` that changes with them, so it resets after a save.
+ * Ctrl+S (⌘S on a Mac) in it saves the notes.
  */
 export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinish, onUnlock, notesHeight, onFitNotes}: StageWorkProps) {
   const saved = stage.notes ?? '';
   const [draft, setDraft] = useState(saved);
   const isChanged = draft !== saved;
   const box = useRef<HTMLDivElement>(null);
+  const work = useRef<HTMLDivElement>(null);
+  // Ctrl+S saves the notes, as Save Notes does (only when they've changed, and not while saving).
+  useSaveShortcut(
+    work,
+    stage.canEdit
+      ? () => {
+          // Busy saving already; or nothing changed, which Ctrl+S then says.
+          if (isBusy) return;
+          if (!isChanged) return false;
+          onSaveNotes(draft);
+        }
+      : undefined,
+  );
 
   // Once, as the box first shows, if it's to be fitted: once the page around it is laid out and the editor has drawn
   // its writing area (a frame or two; it gives up after a few, keeping its size).
@@ -114,7 +129,7 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
   }
 
   return (
-    <VStack gap={3}>
+    <VStack ref={work} gap={3}>
       {/* A failed save shows in the page's header, never on the box, so it has no error line. Its text grows the
           box past its height. */}
       <VStack gap={0} ref={box} style={NO_FIELD_STATUS_LINE}>

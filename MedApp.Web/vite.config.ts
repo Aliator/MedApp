@@ -33,6 +33,9 @@ export default defineConfig(({command}) => ({
   },
   test: {
     environment: 'jsdom',
+    // Tests run in a fixed time zone that is neither UTC nor UK time, in summer or winter, so a time read as the
+    // browser's local time instead of UTC (or a UK day shifted by one) fails here, not only for some people.
+    env: {TZ: 'America/New_York'},
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,

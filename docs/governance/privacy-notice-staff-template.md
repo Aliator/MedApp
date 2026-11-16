@@ -31,7 +31,7 @@
 >
 > **Monitoring.** We use the audit trail to check that patients' records are used properly, and to investigate concerns and complaints. Look only at the records you need for your work. Inappropriate access to records may lead to disciplinary action, and can be a criminal offence under the Data Protection Act 2018 (section 170). [Describe how and how often you review access.]
 >
-> **Who can see it.** Our MedApp admins can see accounts and roles, and read the audit trail. [Company name] can see it only to run and support the system, under its contract with us.
+> **Who can see it.** Our MedApp admins can see accounts and roles, and read the audit trail. Other staff see your username, and what you did and when, on the timeline of the patients whose procedures you worked on. [Company name] can see it only to run and support the system, under its contract with us.
 >
 > **How long we keep it.** [Sign-in records: 12 months. Notifications: 6 months.] Your account: until you no longer need access [then removed within 12 months]. Your name in the audit trail is kept as long as the patient record it's about, because it's part of that record. *Include the periods in brackets only once MedApp deletes sign-in records and notifications on schedule (roadmap step 7); until then they're kept until deleted by hand, so say that instead.*
 >

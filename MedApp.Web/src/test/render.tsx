@@ -110,6 +110,13 @@ export async function pickFavourite(user: ReturnType<typeof userEvent.setup>, na
   await user.click(await within(menu).findByRole('menuitem', {name, hidden: true}));
 }
 
+/** Turns screen reader announcements on (Account Settings, Accessibility; they start off), before rendering. */
+export const withAnnouncements = () => localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
+
+/** Waits for screen readers to have been told `text` (the announcer's live region; see `useAnnounce`). */
+export const expectAnnounced = (text: string | RegExp) =>
+  waitFor(() => expect(screen.getByTestId('announcer')).toHaveTextContent(text));
+
 /** The dialog that is open, or null: closed Astryx dialogs stay in the DOM without `open`. */
 export const openDialog = () => document.querySelector<HTMLDialogElement>('dialog[open]');
 

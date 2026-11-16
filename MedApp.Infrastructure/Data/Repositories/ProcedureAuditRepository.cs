@@ -1,6 +1,8 @@
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Procedures.Audit.Queries.SearchProcedureAudit;
 using MedApp.Application.Procedures.Repositories;
+using MedApp.Application.Procedures.Timeline.Common;
+using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
 using MedApp.Domain.Procedures.PatientProcedures;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,4 +24,15 @@ public sealed class ProcedureAuditRepository(MedAppDbContext context) : IProcedu
 
         return new PagedResult<PatientProcedureAuditEntry>(page, totalCount);
     }
+
+    public async Task<IReadOnlyList<PatientTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct) =>
+        await PatientTimelineSearch
+            .Page(context.PatientProcedureAuditEntries.AsNoTracking(), context.PatientProcedures.AsNoTracking(), query)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<PatientProcedureAuditEntry>> GetDeletionsAsync(Guid patientId, CancellationToken ct) =>
+        await context.PatientProcedureAuditEntries
+            .AsNoTracking()
+            .Where(e => e.PatientId == patientId && e.Action == PatientProcedureAuditAction.Deleted)
+            .ToListAsync(ct);
 }

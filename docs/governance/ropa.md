@@ -45,7 +45,7 @@ All customers receive the same service, so the categories are the same for each.
 | # | Processing | Data subjects | Personal data (see [data-inventory.md](data-inventory.md)) | Operations |
 |---|---|---|---|---|
 | A3.1 | **Hosting the patient and procedure records** | Patients | Name, date of birth, email; procedures (title, notes, due date, priority, status); stage notes; assignments | Storage, retrieval, display, change, deletion, backup and restore, on the customer's staff's actions |
-| A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text | Recording, storage, retrieval by the customer's admins |
+| A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text | Recording, storage, retrieval by the customer's admins (the full trail) and staff (a per-patient timeline without its free text) |
 | A3.3 | **Staff accounts and sign-in** | Staff users | Username, password hash, roles, lockout state, sessions (IP address, browser), settings (including saved searches), notifications | Authentication, authorisation, storage |
 | A3.4 | **Live notifications** | Staff users; patients indirectly | Procedure title, assigner's username | Transmission between API copies through Valkey, display |
 | A3.5 | **Operating the service** | Staff users; patients indirectly | Application logs and traces, which can contain record IDs and URLs | Monitoring, troubleshooting, security investigation |
@@ -69,7 +69,7 @@ See [sub-processors.md](sub-processors.md). Today: Microsoft (Azure). GitHub hol
 A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the code, and marks what's planned.
 
 **In place in the code and the deployment design:**
-- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long; two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management and audit log.
+- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
 - **Audit:** every change to a procedure is recorded with who, when and what, in the same database transaction, and kept after deletes.
 - **Transport:** TLS to the ingress, HSTS, and TLS to Azure SQL.
 - **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server.

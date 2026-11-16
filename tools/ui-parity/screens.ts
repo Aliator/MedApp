@@ -98,7 +98,25 @@ export const screens: Screen[] = [
     },
   },
   { name: 'patients-sorted', title: 'Patients sorted by date of birth, newest first', path: '/patients?sort=DateOfBirth&asc=false' },
-  { name: 'patient-view', title: 'View patient', path: (d) => `/patients/${d.patientId}` },
+  { name: 'patient-view', title: 'View patient: details beside the timeline (what is due, filters, the feed by day)', path: (d) => `/patients/${d.patientId}` },
+  {
+    name: 'patient-view-narrow',
+    title: 'View patient on a narrow window: one card, Details and Timeline folding',
+    path: (d) => `/patients/${d.patientId}`,
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await settle(page);
+    },
+  },
+  {
+    name: 'patient-timeline-filtered',
+    title: 'View patient, the timeline filtered to stages',
+    path: (d) => `/patients/${d.patientId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Stages', exact: true }).click();
+      await settle(page);
+    },
+  },
   { name: 'patient-procedures', title: "A patient's procedures", path: (d) => `/patients/${d.patientId}/procedures` },
   { name: 'procedures-list', title: 'All procedures, page 1', path: '/procedures' },
   {

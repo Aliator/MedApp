@@ -3,6 +3,8 @@ import {renderWithApp, staffUser} from '../../test/render';
 import {ColoursPage} from './ColoursPage';
 
 const list = (mode: 'Light' | 'Dark') => within(screen.getByRole('list', {name: `${mode} mode colour themes`}));
+/** The readability warnings showing on the fields (not their copy in the screen reader's live region). */
+const warnings = () => screen.queryAllByText(/hard to read/).filter((el) => !el.closest('[data-astryx-live-region]'));
 const stored = () => JSON.parse(localStorage.getItem('medapp.colours') ?? 'null');
 
 describe('ColoursPage', () => {
@@ -82,5 +84,22 @@ describe('ColoursPage', () => {
     await user.click(screen.getByRole('button', {name: 'Back to the themes'}));
     expect(list('Light').getByText('Stone')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Page background/)).not.toBeInTheDocument();
+  });
+
+  it('warns on a custom colour that leaves text hard to read, and stops when it is readable again', async () => {
+    const {user} = renderWithApp(<ColoursPage />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colours', level: 1});
+    await user.click(list('Light').getByText('Custom'));
+    expect(warnings()).toHaveLength(0);
+
+    // Light mode's text is dark, so a dark page is hard to read on.
+    fireEvent.input(screen.getByLabelText(/Page background/), {target: {value: '#2a3550'}});
+    expect(warnings().map((el) => el.textContent)).toEqual([
+      'Text on this colour is hard to read (under 4.5:1 contrast). Try a lighter colour.',
+    ]);
+
+    fireEvent.input(screen.getByLabelText(/Page background/), {target: {value: '#ffffff'}});
+    expect(warnings()).toHaveLength(0);
   });
 });

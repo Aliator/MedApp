@@ -8,6 +8,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {fieldStatus} from '../../api/errors';
 import {
   stageDefinitionsQuery,
@@ -57,6 +58,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const {data = [], isPending, isError} = useQuery(stageDefinitionsQuery);
   const save = useSaveStageDefinition();
   const actions = useStageDefinitionActions();
+  const announce = useAnnounce();
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<StageDefinitionInput>(EMPTY);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
@@ -92,7 +94,13 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const saveDefinition = () =>
     save.mutate(
       {id: editing?.id, ...form},
-      {onSuccess: close, onError: (e) => setProblem(saveProblem(e, editing ? 'save' : 'add', 'stage'))},
+      {
+        onSuccess: () => {
+          announce(editing ? 'Stage saved' : 'Stage added');
+          close();
+        },
+        onError: (e) => setProblem(saveProblem(e, editing ? 'save' : 'add', 'stage')),
+      },
     );
 
   const columns: DataTableColumn<DefinitionRow>[] = [
@@ -165,6 +173,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             confirmText={editing ? 'Save' : 'Add Stage'}
             isProcessing={save.isPending}
             confirmDisabled={!form.name.trim()}
+            hasSaveShortcut
             onConfirm={saveDefinition}
             onCancel={close}>
             <VStack gap={2}>

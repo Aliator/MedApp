@@ -12,8 +12,13 @@ Run everything from the repo root. `global.json` pins the SDK to 10.0.x, and eve
 
 ```bash
 dotnet build MedApp.sln                     # build everything
-dotnet test MedApp.UnitTests                # the only project with tests (CI runs this)
+dotnet test MedApp.UnitTests                # unit tests (CI's unit-tests job)
 dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run a subset
+dotnet test MedApp.IntegrationTests         # the API against SQL Server in Docker (needs Docker running; about 1.5 min)
+
+# End-to-end tests (Playwright) against the running AppHost, signed in as the local dev admin. They make their own
+# synthetic data and delete what the app can delete (MedApp.E2ETests/README.md lists what stays). Install Chromium once: pwsh MedApp.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium
+E2E_USERNAME=admin E2E_PASSWORD=admin dotnet test MedApp.E2ETests
 
 dotnet run --project MedApp.AppHost         # everything (needs Docker running): SQL Server container, API, React app, Aspire dashboard
 #   React app:      http://localhost:5173   (MedApp.Web; its commands are in MedApp.Web/README.md)
@@ -36,7 +41,7 @@ To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-d
 
 Azure (AKS, Azure SQL, Key Vault, Azure Container Registry) is in `deploy/azure`. It's written and checked, but **not deployed**. Its Bicep (`main.bicep`) is compiled and linted in CI. Deploying it costs money, so never run `deploy.sh` or `bootstrap.sh` without the user asking. Once it's set up, the Publish workflow's `azure` job deploys each merge through the `env/azure` branch; until then the job is skipped. Chart versions for both clusters are in `deploy/versions.sh`. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
+Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change to the API's behaviour, run `dotnet test MedApp.IntegrationTests` too. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
 
 ## Solution layout
 
@@ -54,8 +59,8 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev: runs the SQL Server container, the API and the React app. On publish, it builds the API's image from `MedApp.API/Dockerfile`, which holds the API, the built React app in `wwwroot` and Node to render its pages. |
 | `MedApp.ServiceDefaults` | Aspire service defaults (OpenTelemetry, health checks at `/health` and `/alive`), used by the API. The health checks are on the app's port in Development; elsewhere only on the port in `HealthChecks:Port` (8081 in Kubernetes, which nothing outside the pod reaches), and not at all without it. |
 | `MedApp.UnitTests` | NUnit tests for Application handlers/validators, Infrastructure services, and the API's own services (`Api/`). |
-| `MedApp.IntegrationTests` | Empty project shell, with no tests yet. |
-| `MedApp.E2ETests` | Playwright for .NET setup (base fixture, sign-in) for end-to-end tests of `MedApp.Web`. No tests yet; see its `README.md`. |
+| `MedApp.IntegrationTests` | NUnit tests of the real API in memory (`WebApplicationFactory<Program>`, run as Production) against SQL Server 2022 in Docker (Testcontainers): sign-in and sessions, authorisation, the forced password change, users, patients, procedures, notifications (with the SignalR hub), errors and the migrations. They also cover `SessionService` and `IdentityTransactions`, which unit tests can't. |
+| `MedApp.E2ETests` | Playwright for .NET tests of `MedApp.Web`'s main journeys: signing in and out, patients, a procedure's stages, My Tasks, a new user's first sign-in (with the forced password change), deleting a user, and the notification bell. See its `README.md`. |
 
 The top-level `Application/`, `Domain/`, `Infrastructure/`, `UnitTests/`, `IntegrationTests/` and `E2ETests/` folders hold only stale `bin/`/`obj/` output from an old layout. Ignore them and never add code there.
 
@@ -94,7 +99,8 @@ To add a feature end to end:
 
 - Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/procedures/patient-procedures/search`, `GET api/procedures/audit/search`, `GET api/activity/search` and `GET api/patients/retention-review` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and in unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
-  - The one exception is the retention review: SQL narrows it to patients last changed long enough ago, then the schedule's rules, which depend on each patient's age, sort and page it in memory (`SearchRetentionReviewHandler`).
+  - The retention review is an exception too: SQL narrows it to patients last changed long enough ago, then the schedule's rules, which depend on each patient's age, sort and page it in memory (`SearchRetentionReviewHandler`).
+- **The exception is a feed:** a patient's timeline (`GET api/patients/{id}/timeline`) pages by cursor (keyset) rather than by page number, so entries added meanwhile don't shift the pages. It orders by `AtUtc` then `Id`, both descending; a page's `NextCursor` encodes its last entry's pair, and the next page starts after it (`PatientTimelineSearch`, `TimelineCursor`).
 - `GET api/patients` and `GET api/auth/users` return everything. Only the deprecated Blazor client uses them; prefer the search endpoints.
 
 ### Mapping
@@ -102,8 +108,8 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`
-  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper`, `AuditEntryMapper`
+  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `TimelineMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
 - **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a generated password, the signed-in user's claims) may be built where they're made.
@@ -116,6 +122,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Procedures are the exception:** handlers load a tracked procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(auditEntries)` saves the change and its audit entries in one `SaveChangesAsync`. That way EF works out which stages and assignments changed, and no change can miss the audit log.
 - Pass `CancellationToken` all the way through. The tests check that it is passed on.
 - IDs are `Guid`s generated in handlers (`Guid.NewGuid()`). Timestamps are UTC (`CreatedAt`, `LastUpdated`), set in handlers.
+- **Times are stored and sent as UTC, with a `Z`.** SQL Server's `datetime2` keeps no time zone, so `UtcDateTimeConverter` (every `DateTime` and `DateTime?`, in `MedAppDbContext.ConfigureConventions`) marks what EF reads as UTC; without it the JSON has no `Z` and browsers read the time as their local time, an hour out in British Summer Time. The web app formats times in UK time (`formatDateTime` in `MedApp.Web/src/utils/dates.ts`), and reads one without a `Z` as UTC too. Due dates and dates of birth are dates, not times, and are never shifted. `dueDateUtc` is a moment, the end of the due day (UK time) in UTC, for comparing with now; show `dueDate`.
 - Handlers and validators that need "now" take a `TimeProvider` (registered in `AddApplication`); tests pass a `FixedTimeProvider`.
 
 ### Procedures
@@ -126,6 +133,19 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - **Due dates are whole days,** due by the end of the day UK time and stored as that moment in UTC (`DueDates`). The API takes and returns `DueDate` as a date.
 - **Definitions and templates in use are archived, not deleted;** deleting one that's in use is a 409. Patients with procedures can't be deleted (409).
 - Status numbers are stored, so never renumber `PatientProcedureStatus` or `PatientProcedureAuditAction`.
+
+### Patient timeline
+
+The patient page shows a **timeline**: everything that happened to the patient's procedures, in one feed, built from the procedure audit log (`MedApp.Application/Procedures/Timeline`).
+- **Endpoints, for staff:** `GET api/patients/{id}/timeline` (a page of entries, newest first, with `Kinds` and `ProcedureIds` filters and a `Before` cursor) and `GET api/patients/{id}/timeline/overview` (the open and blocked procedures, soonest due first and overdue flagged, and the procedures to filter by). Both are 404 for an unknown patient.
+- **Kinds** (`PatientTimelineKind`) group the audit actions for filtering: Created, Stages (started, finished, unlocked), Notes, Assignments, Blocks (to Blocked, or back from it: cancelling a blocked procedure is under Status), Status, DueDates (a details edit that includes the due date), Details and Deleted. `PatientTimelineKinds` works them out the same way in memory and in SQL, reading markers in the entry's JSON details. They aren't stored, so they can be regrouped freely; a change to how `ProcedureAudit` writes details must keep its tests passing.
+- **What each person sees is decided on the server** (`GetPatientTimelineQuery.IsAdmin`, from the caller's role), because the audit log itself is admin-only and keeps old values:
+  - **Staff** see entries only for procedures that still exist. Each shows the kind, who, when and the procedure (a link), and structured values, old and new: due dates, priorities and statuses, the template, who was assigned and unassigned (past assignees too), and the username recorded at the time (a deleted account's too, where the procedure page says "Deleted user"). **Never** free text from the log: no notes text (stage or procedure), no old or new titles, no block or cancel reasons; for those they get only which field changed.
+  - **Admins** see everything, including entries for deleted procedures (labelled as deleted, each with the title recorded in that entry) and the free-text values.
+  - Keep this when adding a field to `PatientTimelineEntryResponse`: free text from the audit details goes to admins only (`TimelineMapper`'s `PublicValueFields` is the allowlist for edited fields). `TimelineStaffCanaryTests` records every action with one string as all its free text and checks the whole staff response never holds it; add any new action or free-text field to it.
+  - The governance pack (`docs/governance/`) states this rule; change both together.
+- An entry carries the procedure's title now, or, once it's deleted, the title recorded in that entry (so a procedure renamed before it was deleted shows under both titles).
+- **Order:** newest first by `AtUtc`, then `Id`. The entries one change writes (a stage started, its notes saved, the status change that followed) are each a tick (100 ns) after the one before (`ProcedureChange.Audit`), so they sort in the order they happened; entries written before that share a time and fall back to ID order.
 
 ### Notifications
 
@@ -163,8 +183,14 @@ Roadmap step 7. What it records and why is in `docs/governance/` (the data inven
 ### Auth
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
+- **Sessions last 8 hours** from sign-in (`UserSession.Lifetime`), and can be extended to 24 hours at most (`MaxLifetime`; over 20 hours, so WCAG 2.2.1 allows the hard limit). Using the app doesn't extend one; only asking does:
+  - `GET api/auth/session` returns the signed-in session's `SessionResponse`: `expiresAtUtc`, `expiresInSeconds` (by the server's clock, so a device with a wrong clock still counts down right) and `canExtend`. Reading it never extends it.
+  - `POST api/auth/session/extend` ("Stay signed in") moves the expiry to 8 hours from now, but never past 24 hours from sign-in and never earlier than it was, and sends the cookie again with the new expiry (the cookie expires with the session).
+  - Both take the session from the cookie, are open to anyone signed in (`[Authorize]`, no role needed), are sent `no-store`, and are a 401 once the session has ended. `SessionTimeout` in `MedApp.Web` uses them for the warning before a session times out.
+  - **The forced password change page has no timeout warning.** `/change-password` is outside the signed-in layout, and `PasswordChangeRequired` doesn't allow the session endpoints, deliberately: that page ends at the session's normal expiry, without a warning, and its change then fails, so its user signs in again.
+  - A session isn't yet ended by a lockout, a password change, a reset or a role change (risk S5); the security baseline work is adding that.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, the activity log, and a patient's export, restriction, dispute, anonymisation and retention review. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients (with their timeline, which shows staff less than admins: see [Patient timeline](#patient-timeline)), and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, the activity log, and a patient's export, restriction, dispute, anonymisation and retention review. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
@@ -243,21 +269,36 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - Procedure handler tests derive from `ProcedureHandlerTestBase` (mocked repository and username lookup, fixed clock), and build procedures with `ProceduresTestConstants.CreateProcedure`.
 - Handlers that write the activity log get a `RecordingActivityLog` (`_fixture.Inject<IActivityLog>(...)`), which makes entries as the real one does and keeps what's recorded, so tests can check the entries.
 
+**Integration tests** (`MedApp.IntegrationTests`) test behaviour through HTTP that unit tests can't: real SQL translation, real Identity stores and transactions, the authentication handler and policies, the middleware.
+- `TestEnvironment` (a `[SetUpFixture]`) starts SQL Server once per run, applies the migrations and starts the API. Before each test, `IntegrationTest` empties the database with Respawn (keeping the migrations history and the seeded stage definition), then makes the first admin with the deploy's own `FirstAdminSetup`.
+- Do everything through the API where you can, with the helpers in `IntegrationTest` (`SignInAsAdminAsync`, `CreateStaffAsync`, `CreatePatientWithProcedureAsync`, ...). Use `RunInScopeAsync` for a service, and `ExecuteSqlAsync` only for what the API can't do, such as making a session expire.
+- A test that acts as an account an admin made must first change its generated password, or every other `/api` call is a 403 `password_change_required`. `CreateStaffAsync` does when the account has a role; an account with no role can't change it (that needs the Staff policy), so it keeps its generated password and stays held. To test the Staff policy itself, give the account a role, let it choose its password, then remove the role (`AuthorisationTests.StaffEndpoint_RolesRemoved_*`). `Auth/PasswordChangeRequiredTests` tests the hold itself, with `CreateForcedUserAsync`.
+- Constants are in `Common/Constants/IntegrationTestConstants.cs`.
+
+**End-to-end tests** (`MedApp.E2ETests`) drive the React app in Chromium, against the AppHost locally and the production image in CI. They derive from `E2ETest`.
+- Open pages with `OpenAsync`, which waits until React has taken over the server-rendered page; typing or clicking before then is lost.
+- Find elements as people do: `GetByRole` and `GetByLabel`, with their accessible names.
+- Make the data a journey needs through the API (`Api`), with unique synthetic names (`E2EData.UniqueName`), and register every clean-up with `Data.OnCleanUp`. Rely on nothing you didn't make, except the signed-in account and the default stage definition. The E2E account must be an admin.
+- Give accounts a test makes a password from `E2EData.NewPassword()`, new each run, never one written in the source, and keep passwords out of messages.
+- Missing `E2E_USERNAME` or `E2E_PASSWORD` fails the suite in CI (`CI=true`) and skips it locally. With `E2E_TRACE_DIR` set (only `main.yml` sets it), a failed test's Playwright trace is saved there.
+
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`, with five jobs:
+`.github/workflows/main.yml` runs on PRs to `main`, with seven jobs:
 - `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and the full production build (`npm run build`: the client, the server rendering bundle and the page server).
-- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. `web`, `helm`, `unit-tests` and `image` are all required checks on `main`.
+- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. `web`, `helm`, `unit-tests`, `image`, `integration-tests` and `e2e` are all required checks on `main`.
 - `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, an external database, and Azure's values), renders it, and compiles and lints the Azure Bicep (`deploy/azure`). It also renders the cluster services (Traefik, cert-manager, External Secrets and Argo CD) at the versions in `deploy/versions.sh`, with every values file and `--set` value that `deploy/kind/up.sh` and `deploy/azure/bootstrap.sh` give them. After changing one of those values files, run the same `helm template` locally.
 - `unit-tests` builds the dev MCP tool (`tools/MedApp.DevMcp`, which isn't in `MedApp.sln`), then runs `dotnet test MedApp.UnitTests` in Release with coverage.
+- `integration-tests` runs `dotnet test MedApp.IntegrationTests` in Release, with SQL Server in the runner's Docker (Testcontainers).
+- `e2e` tests the production image under the chart's restrictions (a read-only root with a writable `/tmp`, every capability dropped, no privilege escalation; one copy, without kind's Valkey backplane). It builds the image itself, reading the cache earlier runs left (it runs alongside the `image` job, so on a cold cache both build from scratch). It starts SQL Server in a step, on the runner's loopback with a random masked password, migrates with the image's `/app/efbundle`, makes the first admin with `create-first-admin` and a password generated for the run, starts the API on http://localhost:8080, then runs `MedApp.E2ETests` against it. A failed test's Playwright trace is uploaded as the `e2e-traces` artifact. The session cookie stays `Secure`: browsers keep it from `http://localhost`. Both new jobs read the repository only (`permissions: contents: read`).
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 
 What coverage counts (the aim is full coverage of everything with behaviour worth testing):
-- **.NET:** handlers, validators, domain logic, Infrastructure services, and the API (controllers, middleware, authentication, server rendering). Excluded: commands, queries, DTOs, repositories, DbContext, migrations, generated code (`obj/`), the Aspire service defaults, and wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), plus `SessionService` and `IdentityTransactions`, which need a real database.
+- **.NET:** handlers, validators, domain logic, Infrastructure services, and the API (controllers, middleware, authentication, server rendering). Excluded: commands, queries, DTOs, repositories, DbContext, migrations, generated code (`obj/`), the Aspire service defaults, and wiring (`ServiceExtensions`, `ApplicationBuilderExtensions`, `Program`), plus `SessionService` and `IdentityTransactions`, which need a real database (the integration tests cover them, but don't count towards coverage).
 - **React:** everything in `src/` except generated code, the theme build, test helpers, the thin route files and the browser entry. `npm run coverage` (CI's web job) fails below the thresholds in `vite.config.ts`, set just under the current figures (99% lines, statements and functions, 92% branches).
 - New code comes with tests that cover it. Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
 
-`.github/workflows/e2e.yml` runs the (empty) E2E suite, only when started by hand.
+`.github/workflows/e2e.yml` runs the E2E suite by hand against an app already running somewhere (a URL you give it), with the credentials in the `E2E_USERNAME` and `E2E_PASSWORD` repository secrets (an admin account). **Those secrets don't exist yet: create them for a known deployment before using it.** Without them, the run fails rather than skips (in CI, missing credentials fail the suite; locally they skip it). It saves no traces, as a trace records the real credentials.
 
 `.github/workflows/publish.yml` runs on every push to `main` except docs-only changes, so it runs after each merge:
 1. `image` builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`).

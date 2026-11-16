@@ -346,9 +346,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("AtUtc");
 
-                    b.HasIndex("PatientId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("PatientId", "AtUtc");
 
                     b.HasIndex("PatientProcedureId", "AtUtc");
 

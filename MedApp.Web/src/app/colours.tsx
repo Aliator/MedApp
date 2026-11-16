@@ -1,4 +1,5 @@
 import {createContext, useCallback, useContext, useMemo, type CSSProperties, type ReactNode} from 'react';
+import {contrastRatio, MIN_TEXT_CONTRAST, mixSrgb} from '../utils/contrast';
 import type {ColorMode} from './colorMode';
 import {defineSetting, useAppSetting} from './settingsStore';
 
@@ -66,6 +67,57 @@ export const COLOUR_THEMES: ColourTheme[] = [
     dark: {page: '#16182b', card: '#16182b', nav: '#0e0f1a'},
   },
 ];
+
+/**
+ * The text shown on the page and cards in each mode: the theme's main and secondary text colours
+ * (`--color-text-primary` and `--color-text-secondary`, `src/themes/medapp`). Secondary text (subtitles, Back,
+ * descriptions, placeholders) is the lighter grey in light mode and the darker in dark mode. The side nav's text is
+ * always dark mode's, as the nav keeps a dark theme of its own. Disabled text is left out: WCAG 1.4.3 exempts it.
+ */
+export const TEXT_COLOURS: Record<ColorMode, {primary: string; secondary: string}> = {
+  light: {primary: '#25252a', secondary: '#5f5f64'},
+  dark: {primary: '#f0f0f9', secondary: '#ababb3'},
+};
+
+/**
+ * How card header bars and footers (`--color-background-muted`) are mixed from the card colour, in each mode: a
+ * little black in light mode, a little white in dark (as the theme does).
+ */
+const HEADER_BAR_MIX: Record<ColorMode, {percent: number; with: 'black' | 'white'}> = {
+  light: {percent: 94, with: 'black'},
+  dark: {percent: 90, with: 'white'},
+};
+
+const cssMix = (mode: ColorMode, card: string) =>
+  `color-mix(in srgb, ${card} ${HEADER_BAR_MIX[mode].percent}%, ${HEADER_BAR_MIX[mode].with})`;
+
+/** A card's header bar colour in a mode, mixed from its card colour as the browser mixes it. */
+export function headerBarColour(mode: ColorMode, card: string): string {
+  const {percent, with: other} = HEADER_BAR_MIX[mode];
+  return mixSrgb(card, percent, other === 'black' ? '#000000' : '#ffffff');
+}
+
+/**
+ * How readable text is on a chosen colour (WCAG's contrast ratio): the worse of the main and secondary text shown on
+ * it, and for cards on the card and its header bars. Under `MIN_TEXT_CONTRAST` (4.5:1), the Colours page warns.
+ */
+export function textContrast(mode: ColorMode, part: ColourPart, colour: string): number {
+  // The side nav keeps dark mode's text in both modes.
+  const text = TEXT_COLOURS[part === 'nav' ? 'dark' : mode];
+  const surfaces = part === 'card' ? [colour, headerBarColour(mode, colour)] : [colour];
+  return Math.min(...surfaces.flatMap((surface) => [contrastRatio(text.primary, surface), contrastRatio(text.secondary, surface)]));
+}
+
+/**
+ * A warning for a chosen colour that leaves text on it under 4.5:1 (WCAG 1.4.3), which way to go to fix it, or
+ * nothing. Its words don't change as the colour is dragged, so a screen reader says it once, not at every step.
+ */
+export function readabilityWarning(mode: ColorMode, part: ColourPart, colour: string): string | undefined {
+  if (textContrast(mode, part, colour) >= MIN_TEXT_CONTRAST) return undefined;
+  // Text is dark on light mode's page and cards, and light in dark mode and on the side nav.
+  const fix = mode === 'light' && part !== 'nav' ? 'lighter' : 'darker';
+  return `Text on this colour is hard to read (under ${MIN_TEXT_CONTRAST}:1 contrast). Try a ${fix} colour.`;
+}
 
 const same = (a: ModeColours, b: ModeColours) => a.page === b.page && a.card === b.card && a.nav === b.nav;
 
@@ -142,7 +194,7 @@ export function ColoursProvider({mode, children}: {mode: ColorMode; children: Re
     '--color-background-popover': both('card'),
     // The theme mixes header bars and footers from the card colour where it defines them, so they're mixed again
     // here from the chosen card colours: slightly darker in light mode, a step lighter in dark (as the theme does).
-    '--color-background-muted': `light-dark(color-mix(in srgb, ${colours.light.card} 94%, black), color-mix(in srgb, ${colours.dark.card} 90%, white))`,
+    '--color-background-muted': `light-dark(${cssMix('light', colours.light.card)}, ${cssMix('dark', colours.dark.card)})`,
     // The side nav (and the rows its folded icons bring out) sits in a dark theme of its own, where light-dark()
     // always picks the dark colour, so it takes the current mode's colour as it is.
     '--medapp-nav-background': colours[mode].nav,

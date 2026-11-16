@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar, expectAnnounced, withAnnouncements} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
 import {StageDefinitionsPage} from './StageDefinitionsPage';
 import {richText, typeRichText} from '../../test/richText';
@@ -47,6 +47,7 @@ describe('StageDefinitionsPage', () => {
   });
 
   it('adds a definition', async () => {
+    withAnnouncements();
     const {user, fetch} = renderPage({}, {[`POST ${BASE}`]: () => json({id: 'd9'}, 201)});
 
     await user.click(await screen.findByRole('button', {name: 'Add Stage'}));
@@ -58,6 +59,7 @@ describe('StageDefinitionsPage', () => {
 
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(await sent(fetch, 'POST').json()).toEqual({name: 'Scan', description: 'Imaging done.', instructions: 'Book the scanner.'});
+    await expectAnnounced('Stage added');
   });
 
   it("edits one, starting from what it says, and shows the API's errors on the fields", async () => {

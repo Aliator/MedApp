@@ -41,7 +41,8 @@ describe('ViewPatientPage, privacy', () => {
     expect(await screen.findByText('Oriel')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Privacy'})).not.toBeInTheDocument();
     expect(screen.queryByText('Access Report')).not.toBeInTheDocument();
-    expect(calls(fetch)).toEqual([`GET /api/patients/${id}`]);
+    // The patient and their timeline, but not the activity log.
+    expect(calls(fetch).some((call) => call.startsWith(`GET ${ACCESS}`))).toBe(false);
   });
 
   it('shows admins the access report and the Privacy menu, with the export page', async () => {
