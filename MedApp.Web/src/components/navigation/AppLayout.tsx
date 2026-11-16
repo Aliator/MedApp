@@ -7,6 +7,7 @@ import {useCallback, useContext, useEffect, useMemo, useRef, useState} from 'rea
 import {LiveNotifications} from '../../app/LiveNotifications';
 import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
+import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
 import {AppSideNav} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
@@ -117,50 +118,53 @@ function MainLayout() {
   const otherHalf: HalfView = {isHalf: true, onClose: () => close(false)};
 
   return (
-    <HalfViewsContext.Provider value={halfViews}>
-      {/* The settings, kept with the account while signed in. */}
-      <SettingsSync />
-      {/* The keyboard shortcuts (Account Settings, Accessibility), and their list (?). */}
-      <KeyboardShortcuts />
-      {/* New notifications, as they happen (the bell is in the side nav). */}
-      <LiveNotifications />
-      <AppShell
-        sideNav={
-          // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
-          <Theme theme={themes[defaultThemeSlug]} mode="dark">
-            <AppSideNav
-              collapsible={{
-                isCollapsed: isNavCollapsed,
-                onCollapsedChange: setIsNavCollapsed,
-                hasButton: half !== null,
-              }}
-            />
-          </Theme>
-        }
-        // In a half view, each half's page frame insets it instead (see below).
-        contentPadding={half ? 0 : 6}>
-        {half ? (
-          // Each half scrolls on its own: a long page scrolls in its half, not the whole window, and only up and
-          // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
-          // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
-          // fits its half exactly (it would otherwise reach out over the shell's padding, and overflow its half).
-          <HStack gap={0} height="100%">
-            <StackItem size="fill" isScrollable aria-label="Left half" style={HALF}>
-              <HalfViewContext.Provider value={mainHalf}>
-                <Outlet />
-              </HalfViewContext.Provider>
-            </StackItem>
-            <Divider orientation="vertical" style={{marginBlock: 'var(--spacing-6)', blockSize: 'auto', alignSelf: 'stretch'}} />
-            <StackItem size="fill" isScrollable aria-label="Right half" style={HALF}>
-              <HalfViewContext.Provider value={otherHalf}>
-                <HalfPane key={half.key} path={half.path} onPathChange={trackHalf} />
-              </HalfViewContext.Provider>
-            </StackItem>
-          </HStack>
-        ) : (
-          <Outlet />
-        )}
-      </AppShell>
-    </HalfViewsContext.Provider>
+    // Ctrl+S saves the form that's open, in either half.
+    <SaveShortcutProvider>
+      <HalfViewsContext.Provider value={halfViews}>
+        {/* The settings, kept with the account while signed in. */}
+        <SettingsSync />
+        {/* The keyboard shortcuts (Account Settings, Accessibility), and their list (?). */}
+        <KeyboardShortcuts />
+        {/* New notifications, as they happen (the bell is in the side nav). */}
+        <LiveNotifications />
+        <AppShell
+          sideNav={
+            // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
+            <Theme theme={themes[defaultThemeSlug]} mode="dark">
+              <AppSideNav
+                collapsible={{
+                  isCollapsed: isNavCollapsed,
+                  onCollapsedChange: setIsNavCollapsed,
+                  hasButton: half !== null,
+                }}
+              />
+            </Theme>
+          }
+          // In a half view, each half's page frame insets it instead (see below).
+          contentPadding={half ? 0 : 6}>
+          {half ? (
+            // Each half scrolls on its own: a long page scrolls in its half, not the whole window, and only up and
+            // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
+            // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
+            // fits its half exactly (it would otherwise reach out over the shell's padding, and overflow its half).
+            <HStack gap={0} height="100%">
+              <StackItem size="fill" isScrollable aria-label="Left half" style={HALF}>
+                <HalfViewContext.Provider value={mainHalf}>
+                  <Outlet />
+                </HalfViewContext.Provider>
+              </StackItem>
+              <Divider orientation="vertical" style={{marginBlock: 'var(--spacing-6)', blockSize: 'auto', alignSelf: 'stretch'}} />
+              <StackItem size="fill" isScrollable aria-label="Right half" style={HALF}>
+                <HalfViewContext.Provider value={otherHalf}>
+                  <HalfPane key={half.key} path={half.path} onPathChange={trackHalf} />
+                </HalfViewContext.Provider>
+              </StackItem>
+            </HStack>
+          ) : (
+            <Outlet />
+          )}
+        </AppShell>
+      </HalfViewsContext.Provider>
+    </SaveShortcutProvider>
   );
 }

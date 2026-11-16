@@ -165,6 +165,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             confirmText={editing ? 'Save' : 'Add Stage'}
             isProcessing={save.isPending}
             confirmDisabled={!form.name.trim()}
+            hasSaveShortcut
             onConfirm={saveDefinition}
             onCancel={close}>
             <VStack gap={2}>
