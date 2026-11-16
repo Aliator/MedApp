@@ -100,11 +100,37 @@ public sealed class SkiaThumbnailGeneratorTests
     }
 
     [Test]
-    public async Task CreateAsync_UnreadableStream_ReturnsNull()
+    public async Task CreateAsync_UnreadableStream_ReturnsNullWithoutEndingTheProcess()
     {
+        // A read that fails must fail in managed code: thrown inside Skia's native read callback, it can't be caught,
+        // and ends the process (it did, on Linux, before the bytes were read first).
         var act = await _generator.CreateAsync(new BrokenStream(), AttachmentFileTypes.Png, CancellationToken.None);
 
         act.Should().BeNull();
+    }
+
+    [Test]
+    public async Task CreateAsync_StreamThatFailsPartWay_ReturnsNull()
+    {
+        var act = await _generator.CreateAsync(new FailsAfter(Image(50, 50, SKEncodedImageFormat.Png), 100), AttachmentFileTypes.Png, CancellationToken.None);
+
+        act.Should().BeNull();
+    }
+
+    [Test]
+    public async Task CreateAsync_LargerThanAnUploadCanBe_ReturnsNullWithoutReadingIt()
+    {
+        await using var huge = new FailsAfter(new byte[AttachmentLimits.MaxFileBytes + 1], 0);
+
+        (await _generator.CreateAsync(huge, AttachmentFileTypes.Png, CancellationToken.None)).Should().BeNull();
+    }
+
+    [Test]
+    public async Task CreateAsync_UnseekableStreamOverTheLimit_StopsReading()
+    {
+        await using var huge = new Unseekable(new byte[AttachmentLimits.MaxFileBytes + 1]);
+
+        (await _generator.CreateAsync(huge, AttachmentFileTypes.Png, CancellationToken.None)).Should().BeNull();
     }
 
     [TestCase(1, 200, 100)]
@@ -181,6 +207,25 @@ public sealed class SkiaThumbnailGeneratorTests
     {
         var crc = System.IO.Hashing.Crc32.HashToUInt32(png.AsSpan(12, 17));
         WriteBigEndian(png, 29, unchecked((int)crc));
+    }
+
+    /// <summary>Reads its bytes until <paramref name="failAfter"/> have been read, then fails.</summary>
+    private sealed class FailsAfter(byte[] bytes, int failAfter) : MemoryStream(bytes)
+    {
+        public override int Read(byte[] buffer, int offset, int count) =>
+            Position >= failAfter ? throw new IOException("Synthetic read failure.") : base.Read(buffer, offset, Math.Min(count, failAfter - (int)Position));
+    }
+
+    /// <summary>A stream that can't seek, so its length isn't known before it's read.</summary>
+    private sealed class Unseekable(byte[] bytes) : MemoryStream(bytes)
+    {
+        public override bool CanSeek => false;
+
+        public override long Position
+        {
+            get => base.Position;
+            set { }
+        }
     }
 
     private sealed class BrokenStream : MemoryStream

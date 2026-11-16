@@ -16,6 +16,13 @@ namespace MedApp.Infrastructure.Attachments;
 /// anything it can't read. That's never an error: the file itself is still attached, without a preview. At most
 /// <see cref="FileWorkLimiter.MaxConcurrent"/> thumbnails are made at once in each copy of the API.
 /// </para>
+/// <para>
+/// <b>Skia never reads a managed stream.</b> The file's bytes are read into memory here, in managed code, and Skia
+/// decodes from those (<see cref="SKData"/>). A managed stream handed to Skia is read from inside its native code, and
+/// an exception thrown there (a read failing) can't be caught: it ends the process. Reading first is bounded by the
+/// upload limit (<see cref="AttachmentLimits.MaxFileBytes"/>, and refused above it); the pixels are bounded by the header
+/// check, which needs no decoding.
+/// </para>
 /// </summary>
 public sealed class SkiaThumbnailGenerator(ILogger<SkiaThumbnailGenerator> logger) : IThumbnailGenerator
 {
@@ -65,8 +72,11 @@ public sealed class SkiaThumbnailGenerator(ILogger<SkiaThumbnailGenerator> logge
 
     private static byte[]? Create(Stream image, AttachmentFileType type)
     {
-        using var stream = new SKManagedStream(image, disposeManagedStream: false);
-        using var codec = SKCodec.Create(stream);
+        using var source = ReadAll(image);
+        if (source is null)
+            return null;
+
+        using var codec = SKCodec.Create(source);
         // The source's own size, from its header, before anything is decoded (see the class comment).
         if (codec is null || !IsSmallEnough(codec.Info.Width, codec.Info.Height))
             return null;
@@ -96,6 +106,28 @@ public sealed class SkiaThumbnailGenerator(ILogger<SkiaThumbnailGenerator> logge
             : encoded.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
 
         return data?.ToArray();
+    }
+
+    /// <summary>
+    /// The whole image, read in managed code (so a failing read throws here, where it's caught) into a buffer Skia can
+    /// decode from; null if it's larger than an upload can be.
+    /// </summary>
+    private static SKData? ReadAll(Stream image)
+    {
+        if (image.CanSeek && image.Length - image.Position > AttachmentLimits.MaxFileBytes)
+            return null;
+
+        using var buffer = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = image.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            if (buffer.Length + read > AttachmentLimits.MaxFileBytes)
+                return null;
+            buffer.Write(chunk, 0, read);
+        }
+
+        return SKData.CreateCopy(buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
     }
 
     /// <summary>The size within a square of <paramref name="maxSide"/>, keeping the shape; never larger than it was.</summary>
