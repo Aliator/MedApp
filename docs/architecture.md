@@ -478,7 +478,7 @@ The procedure repository is the exception, by design: handlers load a **tracked*
 
 **The first admin.** `FirstAdminSetup` (`MedApp.Infrastructure/Common/Identity/FirstAdminSetup.cs`) creates the `Admin` and `User` roles if missing, then, **only if there are no users at all**, an admin with both roles from `FirstAdmin:Username` and `FirstAdmin:Password`, in one transaction. It exits 0 when it made the admin or found accounts, and 1 when it isn't configured or Identity refuses. See [6.6](#66-first-install-migrations-and-the-first-admin).
 
-**Migrations.** Nine, in one linear history in `MedApp.Infrastructure/Migrations/`, from `InitialCreate` (30 January 2026) to `AddedNotifications` (15 November 2026). They're never applied at startup: in development by hand with `dotnet ef`, in Kubernetes by the migrations Job. The seed data is one archived stage definition, "Definition missing", kept for old rows, and, since staff calendars, six activity types (Lunch, Admin time, Training, Meeting, Annual leave and Travel). Staff calendars add one migration, `AddedStaffCalendars`.
+**Migrations.** Seventeen, in one linear history in `MedApp.Infrastructure/Migrations/`, from `InitialCreate` (30 January 2026) to `AddedStaffCalendars` (16 November 2026). They're never applied at startup: in development by hand with `dotnet ef`, in Kubernetes by the migrations Job. The seed data is one archived stage definition, "Definition missing", kept for old rows, and, since staff calendars, six activity types (Lunch, Admin time, Training, Meeting, Annual leave and Travel).
 
 ### 5.6 The domain model
 

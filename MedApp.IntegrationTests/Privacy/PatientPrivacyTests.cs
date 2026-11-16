@@ -320,6 +320,46 @@ public sealed class PatientPrivacyTests : IntegrationTest
         json.Should().Contain(AdminUsername, "staff are named by username");
     }
 
+    /// <summary>
+    /// History details are stored with staff account IDs (an assignment's <c>userId</c>, a rescheduled appointment's
+    /// <c>previousStaffUserId</c>); the export leaves every one out, in any field and any format, and keeps the usernames.
+    /// </summary>
+    [Test]
+    public async Task Export_HoldsNoStaffAccountIds_AnywhereInItsJson()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin, stages: 2);
+        var adminId = await GetUserIdAsync(_admin, AdminUsername);
+        var staff = await CreateStaffAsync(UserRole);
+        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{adminId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.DeleteAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        // Booked with the staff member, then moved to the admin: the history keeps who it was with before.
+        var start = NextBookableStart();
+        var appointment = await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, start, procedureId: procedure.Id);
+        await (await PostBookAsync(_admin, appointment.Id, adminId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var response = await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export");
+        var json = await (await response.ShouldHaveStatusAsync(HttpStatusCode.OK)).Content.ReadAsStringAsync();
+
+        foreach (var id in new[] { adminId, staff.UserId })
+        {
+            foreach (var form in new[] { id.ToString("D"), id.ToString("N"), Convert.ToBase64String(id.ToByteArray()) })
+                json.Should().NotContainEquivalentOf(form, "the export holds no staff account IDs");
+        }
+
+        json.Should().NotContainEquivalentOf("userId");
+        var export = System.Text.Json.JsonSerializer.Deserialize<PatientExportResponse>(
+            json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        export.ProcedureHistory.Where(e => e.Action is "Assigned" or "Unassigned").Select(e => (e.Action, e.Details))
+            .Should().Equal(
+                ("Assigned", $$"""{"username":"{{staff.Username}}"}"""),
+                ("Assigned", $$"""{"username":"{{AdminUsername}}"}"""),
+                ("Unassigned", $$"""{"username":"{{staff.Username}}"}"""));
+        export.AppointmentHistory.Single(e => e.Action == "Rescheduled").Details
+            .Should().Contain($"\"previousStaffUsername\":\"{staff.Username}\"", "who it was with before is still there, by username");
+        export.Appointments.Single().StaffUsername.Should().Be(AdminUsername);
+    }
+
     [Test]
     public async Task Export_Staff_Is403()
     {

@@ -288,4 +288,98 @@ public sealed class PatientExportMapperTests
 
         json.Should().NotContain("userId").And.NotContain(Staff.UserId.ToString()).And.NotContain(Admin.UserId.ToString());
     }
+
+    [Test]
+    public void ToResponse_HistoryDetails_HoldNoStaffAccountIds_ButKeepTheirUsernames()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var appointmentEvent = record.AppointmentHistory[0];
+        var withIds = new PatientRecord
+        {
+            Patient = record.Patient,
+            Procedures = record.Procedures,
+            ProcedureHistory =
+            [
+                .. record.ProcedureHistory,
+                HistoryEntry(procedure, PatientProcedureAuditAction.Assigned,
+                    $$"""{"userId":"{{Staff.UserId}}","username":"{{Staff.Username}}"}"""),
+                HistoryEntry(procedure, PatientProcedureAuditAction.Unassigned,
+                    $$"""{"userId":"{{Admin.UserId}}","username":"{{Admin.Username}}"}"""),
+            ],
+            Activity =
+            [
+                new MedApp.Domain.Activity.ActivityEntry
+                {
+                    Id = Guid.NewGuid(), AtUtc = Now, Action = MedApp.Domain.Activity.ActivityAction.PatientUpdated,
+                    UserId = Staff.UserId, Username = Staff.Username, PatientId = record.Patient.Id,
+                    Details = $$"""{"fields":["email"],"byUserId":"{{Admin.UserId}}"}"""
+                }
+            ],
+            Appointments = record.Appointments,
+            AppointmentHistory =
+            [
+                new AppointmentEvent
+                {
+                    Id = Guid.NewGuid(), AppointmentId = appointmentEvent.AppointmentId, PatientId = appointmentEvent.PatientId,
+                    ProcedureId = procedure.Id, ProcedureTitle = procedure.Title, Action = AppointmentEventAction.Rescheduled,
+                    UserId = Admin.UserId, Username = Admin.Username, AtUtc = Now,
+                    Details = $$"""{"previousStartUtc":"2026-11-20T14:00:00Z","previousStaffUserId":"{{Staff.UserId}}","previousStaffUsername":"{{Staff.Username}}"}"""
+                }
+            ],
+            Notifications = record.Notifications
+        };
+
+        var export = PatientExportMapper.ToResponse(withIds, Usernames, Now, "exporter");
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            export, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+        json.Should().NotContainEquivalentOf(Staff.UserId.ToString()).And.NotContainEquivalentOf(Admin.UserId.ToString());
+        export.ProcedureHistory[1].Details.Should().Be($$"""{"username":"{{Staff.Username}}"}""");
+        export.ProcedureHistory[2].Details.Should().Be($$"""{"username":"{{Admin.Username}}"}""");
+        export.ProcedureHistory[0].Details.Should().Be(record.ProcedureHistory[0].Details, "it has no IDs, so it's as stored");
+        export.AppointmentHistory.Single().Details.Should()
+            .Be($$"""{"previousStartUtc":"2026-11-20T14:00:00Z","previousStaffUsername":"{{Staff.Username}}"}""");
+        export.AccessLog.Single().Details.Should().Be("""{"fields":["email"]}""");
+    }
+
+    [TestCase("""{"userId":"x","username":"a"}""", """{"username":"a"}""")]
+    [TestCase("""{"previousStaffUserId":"x","previousStaffUsername":"a"}""", """{"previousStaffUsername":"a"}""")]
+    [TestCase("""{"UserID":"x","staffUserIds":["x"],"other":1}""", """{"other":1}""")]
+    [TestCase("""{"changes":{"assignee":{"fromUserId":"x","to":"a"}}}""", """{"changes":{"assignee":{"to":"a"}}}""")]
+    [TestCase("""{"items":[{"userId":"x","name":"a"},2]}""", """{"items":[{"name":"a"},2]}""")]
+    public void WithoutStaffIds_RemovesEveryUserIdProperty_AtAnyDepth(string details, string expected)
+    {
+        PatientExportMapper.WithoutStaffIds(details).Should().Be(expected);
+    }
+
+    [TestCase("{}")]
+    [TestCase("""{"template":"Test template","stageCount":3}""")]
+    [TestCase("""{ "username" : "a" }""")]
+    public void WithoutStaffIds_NoIds_ReturnsTheDetailsAsStored(string details)
+    {
+        PatientExportMapper.WithoutStaffIds(details).Should().BeSameAs(details);
+    }
+
+    [TestCase("not json")]
+    [TestCase("[]")]
+    [TestCase("\"a string\"")]
+    [TestCase("null")]
+    public void WithoutStaffIds_NotAJsonObject_IsEmpty(string details)
+    {
+        PatientExportMapper.WithoutStaffIds(details).Should().Be("{}");
+    }
+
+    private static PatientProcedureAuditEntry HistoryEntry(PatientProcedure procedure, PatientProcedureAuditAction action, string details) => new()
+    {
+        Id = Guid.NewGuid(),
+        PatientProcedureId = procedure.Id,
+        ProcedureTitle = procedure.Title,
+        PatientId = procedure.PatientId,
+        Action = action,
+        UserId = Admin.UserId,
+        Username = Admin.Username,
+        AtUtc = Now,
+        Details = details
+    };
 }

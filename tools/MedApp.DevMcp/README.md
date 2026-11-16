@@ -41,6 +41,7 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 
 **It removes:**
 - all patients, procedures (with their audit log), stage definitions and templates, and sessions
+- every attached file's record. The files' bytes stay in Azurite, unreferenced: the tool has no storage connection, and restoring the `pre-reset` snapshot brings the records back, so they must still be there.
 - every account except the protected ones (`admin`)
 
 The built-in "Definition missing" stage is kept.
