@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Attachments.Responses;
@@ -13,8 +14,9 @@ using MediatR;
 namespace MedApp.Application.Attachments.Commands.UploadAttachment;
 
 /// <summary>
-/// Attaches a file. In order: storage is set up and the file isn't declared too large; what it's attached to exists
-/// and allows new files; the body is copied to a temporary file (<see cref="IUploadStaging"/>), counting its size and
+/// Attaches a file. In order: storage is set up and the file isn't declared too large; what it's attached to exists,
+/// its patient's record can be changed (not restricted or anonymised: <see cref="PatientRules"/>), and it allows new
+/// files; the body is copied to a temporary file (<see cref="IUploadStaging"/>), counting its size and
 /// hashing it as it goes, so 20 MB is never held in memory; its type is found from its contents
 /// (<see cref="FileTypeSniffer"/>); it's scanned for malware; it's stored, with a thumbnail if it's an image; then its
 /// record and audit entry are saved together. If anything after storing fails, the stored bytes are deleted again.
@@ -41,6 +43,7 @@ public sealed class UploadAttachmentHandler(
 
         var target = await AttachmentTargets.ResolveAsync(
             request.PatientId, request.ProcedureId, request.StageId, patients, procedures, attachments, cancellationToken);
+        PatientRules.EnsureCanChange(target.Owner);
         if (target.WhyFilesCantChange() is { } reason)
             throw new ConflictException(reason);
 

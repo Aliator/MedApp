@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using MedApp.API.Middleware;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 
 namespace MedApp.API.ServerRendering;
@@ -13,6 +14,12 @@ public static class SsrPages
 {
     /// <summary>The named HttpClient that calls the Node server.</summary>
     public const string ClientName = "ssr";
+
+    /// <summary>
+    /// The header that tells the Node server the nonce this page's Content Security Policy allows inline scripts with
+    /// (<see cref="SecurityHeaders"/>), for it to put on the scripts it writes.
+    /// </summary>
+    public const string NonceHeader = "X-MedApp-Csp-Nonce";
 
     /// <summary>Request headers passed on to the Node server: what a page depends on.</summary>
     private static readonly string[] ForwardedRequestHeaders = ["Cookie", "Accept", "Accept-Language", "User-Agent"];
@@ -93,6 +100,9 @@ public static class SsrPages
         // The page's links and redirects are for the address the browser used.
         request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", context.Request.Scheme);
         request.Headers.TryAddWithoutValidation("X-Forwarded-Host", context.Request.Host.Value);
+        // The page's inline scripts run only with this response's nonce.
+        if (SecurityHeaders.GetNonce(context) is { } nonce)
+            request.Headers.TryAddWithoutValidation(NonceHeader, nonce);
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
         timeoutSource.CancelAfter(timeout);

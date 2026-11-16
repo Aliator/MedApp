@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.4, draft |
+| **Version** | 0.6, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-22 to H-27 added for file attachments (branch `feature/file-attachments`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-23 to H-28 added for file attachments (branch `feature/file-attachments`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -33,8 +33,8 @@
 
 | ID | Hazard | Initial risk | At first live use | Residual risk | Needs a product change? | Status |
 |---|---|---|---|---|---|---|
-| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
+| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
 | [H-03](#h-03-a-patients-details-are-changed-or-deleted-without-trace) | A patient's details are changed or deleted without trace | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-04](#h-04-an-overdue-procedure-is-missed) | An overdue procedure is missed | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
 | [H-05](#h-05-a-blocked-procedure-is-forgotten) | A blocked procedure is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
@@ -54,18 +54,21 @@
 | [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-22](#h-22-a-file-is-attached-to-the-wrong-patient-procedure-or-stage) | A file is attached to the wrong patient, procedure or stage | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-23](#h-23-a-document-or-result-is-missing-and-nobody-knows) | A document or result is missing, and nobody knows | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-24](#h-24-an-attached-file-carries-malware) | An attached file carries malware | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-25](#h-25-a-file-is-deleted-by-mistake) | A file is deleted by mistake | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-26](#h-26-an-out-of-date-or-duplicate-document-is-relied-on) | An out-of-date or duplicate document is relied on | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-27](#h-27-file-storage-is-unavailable) | File storage is unavailable | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Operational, before first live use | Open |
+| [H-22](#h-22-care-under-way-is-delayed-because-the-patients-record-is-restricted) | Care under way is delayed because the patient's record is restricted | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later (a local procedure before first live use) | Open |
+| [H-23](#h-23-a-file-is-attached-to-the-wrong-patient-procedure-or-stage) | A file is attached to the wrong patient, procedure or stage | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-24](#h-24-a-document-or-result-is-missing-and-nobody-knows) | A document or result is missing, and nobody knows | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-25](#h-25-an-attached-file-carries-malware) | An attached file carries malware | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-26](#h-26-a-file-is-deleted-by-mistake) | A file is deleted by mistake | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-27](#h-27-an-out-of-date-or-duplicate-document-is-relied-on) | An out-of-date or duplicate document is relied on | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-28](#h-28-file-storage-is-unavailable) | File storage is unavailable | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Operational, before first live use | Open |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
-**File attachments** (version 0.4) add six hazards, rated with the controls on the `feature/file-attachments` branch: two at 3, a file on the wrong record (H-22) and malware in a file (H-24), and four at 2 (H-23, H-25, H-26 and H-27). That makes fourteen at 3 on the initial ratings, thirteen with H-12's fix. Both new ones come down to 2 at first live use, H-24 only if malware scanning is built before then.
+**File attachments** (version 0.6) add six hazards, rated with the controls on the `feature/file-attachments` branch: two at 3, a file on the wrong record (H-23) and malware in a file (H-25), and four at 2 (H-24, H-26, H-27 and H-28). That makes fourteen at 3 on the initial ratings, thirteen with H-12's fix. Both new ones come down to 2 at first live use, H-25 only if malware scanning is built before then.
 
 **At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
+
+**The patient banner,** the main control for H-01 and H-02, and for files on the wrong record (H-23), is built on branch `feature/nhs-integrations`, with the NHS number. It doesn't change any rating yet: the initial ratings are for `88dc1fa`, and the "at first live use" ratings already assumed it. Those two ratings now depend on the CSO verifying the banner, and on the other controls marked "before first live use" (the date of birth in lists, the patient's name in the page title and in the confirmations), which aren't built.
 
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
@@ -76,11 +79,13 @@
 **Description.** A member of staff opens, and records work on, a procedure that belongs to a different patient from the one in front of them, believing it's the right one.
 
 **Causes:**
-- Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`).
-- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`).
+- Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`). **Since branch `feature/nhs-integrations`,** a patient can have an NHS number, optional and unique, so two records with the same number are refused; but two patients with the same name and date of birth, or one patient recorded twice with the number on only one record, still aren't caught. There's still no local hospital number.
+- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`). Branch `feature/nhs-integrations` adds the patient banner above it (further controls); the title is unchanged.
+- **A wrong NHS number** (branch `feature/nhs-integrations`): one mistyped, or the right digits typed on the wrong patient's record. The Modulus 11 check digit catches any single mistyped digit and most swapped pairs, but not a valid number that belongs to someone else. Nothing traces numbers with PDS, so MedApp never confirms that a number is the patient's (the FHIR API says so: "02 Number present but not traced"). The banner then shows a precise-looking identifier that's wrong, and another system reading the patient through the FHIR API could match them to the wrong person.
+- **The demographics lookup** fills a patient's name and date of birth from an NHS number, so a wrong number can fill in another person's details. Today it's off by default, and its only source is an offline stub of four synthetic people; the real PDS isn't connected. Since the review of #69: on Edit Patient it shows who it found beside the record's details and fills only on "Use These Details"; on Add Patient it fills at once; and on either, if the number is changed after a lookup while the filled details are unchanged, the save is refused until the new number is looked up or the details are changed by hand.
 - Task lists and procedure lists show the patient's name only (`MyTasksPage.tsx`, `ProceduresListPage.tsx`). Search matches on part of a name (`ProcedureSearch.Filter`).
 - Two pages can be open side by side (half views), and procedures can be pinned in the side navigation.
-- The same causes can put a file on the wrong patient: H-22.
+- The same causes can put a file on the wrong patient: H-23.
 
 **Effect.** Notes are written on the wrong patient's procedure, or a stage is finished on it, and the other patient's procedure is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
 
@@ -96,16 +101,17 @@
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **planned** (roadmap step 6); **before first live use**.
-- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use.
-- **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design; **planned** (step 9); later.
+- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`): `SURNAME, Forename` in bold, the date of birth with the age, and the NHS number as `XXX XXX XXXX` (or "No NHS number"), with tokens for a restricted, disputed or anonymised record; not foldable, under the page header of the patient's page, Edit Patient, the export page, the patient's procedures, the procedure page, Edit Procedure and New Procedure; it stays in view on every one but the printable export page (the forms scroll inside their cards under it), wraps in a narrow window or half view, is a region named for the patient, upper-cases the surname by CSS so screen readers read it as a name, and gives young children's ages in months, weeks or days. Edit Patient shows it from the saved record, and its save confirmation shows the old and new name, date of birth and NHS number when they change. A test renders every patient and procedure route and checks for it. Not shown: sex or gender, which MedApp doesn't hold yet (`docs/todo.md`). Procedure responses carry the patient, so the procedure pages need no second read to show it. **Before first live use,** to be verified by the CSO. A dialog over the page can hide the banner, so dialogs that change a procedure rely on naming the patient themselves (H-02's confirmations).
+- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
+- **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design. **Built in part** on branch `feature/nhs-integrations`: the number is optional, checked with its check digit on the server and in the form, unique across the deployment (within an organisation once step 8 adds them), and searchable; an exact duplicate number is refused with a 409. **Still planned** (step 9): a duplicate check on name and date of birth, and merging; later.
+- **Trace NHS numbers with PDS,** so a number is confirmed to be the patient's, and have the lookup show who it found and ask staff to confirm before it fills the form. Protective. The confirmation is **built** on Edit Patient, with the hold on a changed number on both forms (above); Add Patient still fills at once. Tracing is **planned** (step 9, after NHS England's onboarding); before the real PDS is connected, Add Patient should confirm as Edit Patient does.
 - **Train staff** to check the banner against the patient before recording work. Information; transferred.
 
-**At first live use:** Major, Very low: **2**.
+**At first live use:** Major, Very low: **2**. Unchanged by branch `feature/nhs-integrations`: this rating already assumed the banner, and it holds only once the CSO has verified it and the proposed controls above are built.
 
-**Residual risk:** Major, Very low: **2**.
+**Residual risk:** Major, Very low: **2**. The NHS number makes two patients harder to confuse, but adds the wrong-number cause above, which tracing with PDS controls; on balance the rating is unchanged.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the other controls needed before first live use aren't built.
 
 ---
 
@@ -116,7 +122,7 @@
 **Causes:**
 - The same identification limits as H-01.
 - Half views put two procedures side by side.
-- Files attached to the wrong record are H-22.
+- Files attached to the wrong record are H-23.
 - The notes box always belongs to the current stage, so a note about an earlier stage can only be added to the current one, unless an admin unlocks the earlier stage.
 - Template names can be similar, and the template list is the organisation's own.
 
@@ -133,16 +139,16 @@
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **The patient banner** from H-01. Protective; **planned** (step 6); before first live use.
-- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use.
+- **The patient banner** from H-01. Protective; **built** on branch `feature/nhs-integrations`, on the procedure page, Edit Procedure and New Procedure, and Edit Patient (so a procedure is created under the patient's banner); before first live use, to be verified by the CSO.
+- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
 - **An "entered in error" action** for stage notes and procedures, which strikes the entry through, keeps it in the record and asks for a reason, instead of only overwriting or deleting. Design; **proposed**; later.
 - **Train staff** to correct a wrong entry with a note saying so, never by deleting it. Information; transferred.
 
-**At first live use:** Considerable, Low: **2**.
+**At first live use:** Considerable, Low: **2**. As for H-01, this already assumed the banner, and holds once the CSO has verified it and the confirmations name the patient.
 
 **Residual risk:** Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the confirmations aren't changed yet.
 
 ---
 
@@ -153,20 +159,23 @@
 **Causes:**
 - Any staff member can edit any patient, and the change overwrites the old values (`UpdatePatientHandler`).
 - Any staff member can permanently delete a patient who has no procedures (`DeletePatientHandler`).
-- Neither is audited: only procedures are (`docs/architecture.md`, risk S2).
+- Since roadmap step 7 (branch `feature/privacy-features`), both are recorded in the activity log, with who, when and which fields changed, but **not the old values** (the log holds no patient details by design), so what a field said before can't be recovered from it.
 
-**Effect.** All of that patient's procedures now show the new, wrong details. Nobody can tell when it changed or what it was. A deleted patient's record is gone.
+**Effect.** All of that patient's procedures now show the new, wrong details. An admin can see who changed which fields and when (the activity log, and the patient's access report), but not what they said before. A deleted patient's record is gone.
 
 **Possible harm.** Wrong-patient errors (H-01) on every procedure of that patient; a patient lost from follow-up. One patient; Considerable.
 
 **Existing controls:**
 - A patient with procedures can't be deleted (409; `DeletePatientHandler`).
 - Procedure audit entries keep the patient's ID, so procedures can still be traced to the patient row.
+- Patient creates, edits (the fields changed) and deletes are recorded in the activity log with the user, time and address, in the same save as the change (`UpdatePatientHandler`, `DeletePatientHandler`, `PatientRepository`; step 7).
+- A restricted record can't be edited or deleted, nor its procedures changed but for blocking or cancelling (`PatientRules`; step 7; its own hazard is H-22), and a disputed one carries a banner saying what the patient disputes, on the patient's, procedures' and edit pages.
+- Two saves of the same patient at once can't silently undo each other: the second, made from an older copy, is refused (a row version, step 7).
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Audit patient changes** (create, edit, delete) with old and new values. Protective; **planned** (step 7); later. Rated 2 today, but the CSO may bring it forward.
+- **Audit patient changes** (create, edit, delete). Protective; **built** (step 7) for who, when and which fields. **Still planned:** keeping the old values (a version table, step 7); later. Rated 2 today, but the CSO may bring it forward.
 - **Make deleting a patient admin-only.** Protective; **planned** (step 2); later.
 - **Show "details changed on {date}"** on the patient banner for a recent change. Protective; **proposed**; later.
 
@@ -408,7 +417,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **One maintainer** (risk O1).
 - A failed deploy: every merge deploys (risk D1).
 - The organisation's own network or devices.
-- File storage alone can fail while the rest works: H-27.
+- File storage alone can fail while the rest works: H-28.
 
 **Effect.** Staff can't see who's assigned to what, which stage a procedure is at, its notes or its due date. Work is done without recording it, or not done.
 
@@ -516,6 +525,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No second check:** there's no approval or clinical review step in MedApp.
 - **No history:** changes to templates and stage definitions aren't audited and have no versions. Nobody can see who changed what, or what a template said when a procedure was created from it, beyond the copy on the procedure itself.
 - Admin is also the role that manages users, so the people who can edit clinical content aren't necessarily clinicians (`docs/architecture.md`, step 4, splits these roles).
+- **SNOMED CT codes** (branch `feature/nhs-integrations`): a stage definition can carry a SNOMED CT code with a display term the admin types, copied onto procedures' stages. Only the code's format is checked (`SnomedCt`): nothing checks that the concept exists, is active, or means what the term says, so a code and its term can disagree. MedApp does nothing with the code, so today a wrong one only misleads someone reading it; once codes leave MedApp (step 9's FHIR resources for procedures), another system could act on one.
 
 **Effect.** Every procedure created afterwards misses a step, does them in the wrong order, or shows wrong instructions, and staff follow it because MedApp enforces the order.
 
@@ -536,6 +546,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **A local template governance process:** clinical sign-off before a template is used. Information; transferred; before first live use.
 - **Versions:** each template change makes a new version; procedures record the version they came from. Design; **proposed**; later.
 - **A separate role** for template administration. Protective; **planned** (step 4); later.
+- **Check SNOMED CT codes with a terminology server:** that the concept exists and is active, with its preferred term shown beside the admin's. Protective; **planned** (`docs/todo.md`); before codes leave MedApp in the FHIR API.
 
 **At first live use:** Catastrophic, Very low: **3**. Needs the CSO's written justification for first live use.
 
@@ -693,13 +704,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Existing controls:**
 - Each change is recorded with the signed-in user's ID and a snapshot of their username (`ProcedureActor`, `ProcedureAudit`).
 - Sessions are revoked on sign-out, and a session whose user no longer exists is refused, so deleting a user ends their sessions (`SessionService`, `MedApp.Infrastructure/Common/Authentication/SessionService.cs`).
-- Five wrong passwords lock an account for five minutes.
+- Five wrong passwords lock an account for five minutes. Sign-in is also throttled: 5 attempts a minute per username and 30 per address (`LoginThrottling`; `feature/security-baseline`, not yet merged).
+- Ending sessions when the password changes: changing a password ends the user's other sessions, an admin's reset ends all of them, and an admin can sign a user out everywhere, for example when a password may have been shared (`UpdateUserPasswordHandler`, `ResetUserPasswordHandler`, `SetUserRolesHandler`, `SignOutEverywhereHandler`; same branch).
+- The 10,000 most common passwords are refused when a password is set (`CommonPasswordValidator`; same branch).
 
 **Initial risk:** Significant, Medium: **2**.
 
 **Further controls:**
 - **An idle timeout,** with a warning. Protective; **planned** (step 2); later. (The warning before the fixed limit, added in #63, is not this control.)
-- **End a user's other sessions** on a password change, a reset and a role change. Protective; **in progress** (the security baseline branch); later.
+- **End a user's other sessions** on a password change and a reset. Protective; **in place** (`feature/security-baseline`, #67). A role change applies to the next request without ending sessions.
 - **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
@@ -718,8 +731,9 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Causes:**
 - **Procedures:** an admin can delete a cancelled or archived procedure, with its stages and assignments (`DeletePatientProcedureHandler`). Its stage notes then survive only as text inside audit entries, which only admins can read.
-- **Patients:** any staff member can delete a patient without procedures or files (H-03).
-- **Attached files:** deleted files can't be restored from MedApp: H-25.
+- **Patients:** any staff member can delete a patient without procedures or files (H-03); since step 7, the deletion is recorded in the activity log.
+- **Anonymisation (step 7):** an admin can anonymise a patient's record, which replaces their name, email and every note, procedure title and reason (in the record, its audit trail and notifications) with placeholders, and keeps only the year of birth. It's meant for records past their retention period. Done on the wrong patient, or too early, the clinical content is gone from the live system (backups keep it until they expire). It also renames and deletes the patient's attached files (H-26).
+- **Attached files:** deleted files can't be restored from MedApp: H-26.
 
 **Effect.** The record of what was done, or of the patient, is no longer where staff look for it.
 
@@ -729,11 +743,14 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - Only cancelled or archived procedures can be deleted, only by admins, after a confirmation that names the procedure and patient (`ProcedureWorkflow.CanBeDeleted`; `ProcedurePage.tsx`).
 - The audit log keeps the deletion and every earlier change, including the old and new text of every notes save, with no foreign keys, so it outlives the procedure (`PatientProcedureAuditEntry`).
 - A patient with procedures can't be deleted.
+- Anonymising is admin-only; it needs the patient's full name typed, and a reason, which the activity log keeps with the admin's name; it's refused while any of the patient's procedures is under way or the record is restricted; the dialog shows the patient's name and date of birth, and says it can't be undone (`AnonymisePatientHandler`, `AnonymiseDialog`; step 7). An admin can export the whole record first (step 7).
+- The retention review lists records past the **adult or children** minimum period only, and nothing is deleted automatically (step 7). It doesn't know the longer specialty classes (mental health 20 years, maternity 25, oncology 30), so a specialty record can be listed years before its period ends: the Retention Review page and the anonymise dialog warn about this, the retention schedule tells customers to set `Retention:AdultYears` to the longest class they use until classes exist, and a specialty record listed early is kept (Keep, with the class as the reason).
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **planned** (step 7); later.
+- **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **partly built** (step 7: a review list from configurable periods, keep or anonymise, no automatic deletion); per-template classes and a destruction log **planned**; later.
+- **A second person to approve an anonymisation** (and a destruction), as the retention schedule's "approved by a named person" asks. Protective; **proposed**; later.
 - **Admin-only patient deletion.** Protective; **planned** (step 2); later.
 
 **At first live use:** Considerable, Low: **2**.
@@ -810,16 +827,52 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-22: A file is attached to the wrong patient, procedure or stage
+## H-22: Care under way is delayed because the patient's record is restricted
+
+**Description.** An admin restricts a patient's record (UK GDPR Article 18), for example while the patient contests their recorded details, and the procedures under way for that patient can't be worked on until the restriction is lifted.
+
+**Causes:**
+- **Restriction freezes the record and its procedures** (`PatientRules.EnsureCanChange`, applied to every procedure change by `GetForUpdateOrThrowAsync`): no stage can be started, written up or finished, and nothing can be assigned, while the record is restricted.
+- **Files are frozen too** (branch `feature/file-attachments`): nobody, admins included, can attach a file to a restricted record, its procedures or its stages, or delete one, so a new letter or result can't be added while the restriction lasts (H-24), nor a file on the wrong record removed (H-23).
+- **A restriction can last weeks** while the contested details are checked, and only an admin can lift it.
+- **The admin restricting may not be the clinician working the procedures,** and may not know what's due.
+
+**Effect.** The next stages of a procedure under way (pre-assessment, consent, a follow-up) can't be recorded, and the procedure goes overdue with nothing staff can do but wait for an admin.
+
+**Possible harm.** Delayed care for that patient. Considerable.
+
+**Existing controls (step 7, PR #68):**
+- **The admin must confirm:** restricting a record with procedures under way shows how many there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`).
+- **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue.
+- **Everyone sees why:** the procedure page, the patient's pages and their procedures show the restricted banner with its reason, and the procedure page says that only blocking and cancelling are possible.
+- Lifting the restriction is one admin action, recorded with a reason.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Let an admin record the patient's consent, or another lawful basis, for treatment to continue** (Article 18(2)), with the restriction then stopping only edits to the contested details. Design; **proposed**; later. A clinical safety decision.
+- **Tell the procedures' assignees** when their patient's record is restricted. Protective; **proposed**; later.
+- **A local procedure for restriction requests:** the admin checks with the clinician responsible for the patient's care before restricting, and agrees how care continues. Information; transferred; before first live use.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-23: A file is attached to the wrong patient, procedure or stage
 
 **Description.** A letter, result, scan or photo is attached to a different patient from the one it's about, or to the wrong procedure or stage of the right patient, and someone reads it as belonging there. The file-level form of H-01 and H-02.
 
 **Causes:**
-- The same identification limits as H-01: no patient banner, no NHS number, and nothing that compares the document with the patient.
+- The same identification limits as H-01: the NHS number is optional and isn't traced, and nothing compares the document with the patient.
 - **Nothing asks which patient before a file is sent.** Files are dropped on, or chosen in, an "Add files" area on the patient page, the procedure page and each stage, several at once, and sent straight away (`MedApp.Web/src/components/attachments/Attachments.tsx`). There's no confirmation naming the patient.
 - **Half views** put two patients or procedures side by side, each with its own drop area; dragging a file from the desktop onto the wrong one is easy.
 - **The file on the computer doesn't say who it's for:** a scanner or a phone names files by date or number, and choosing several at once can pick up another patient's file from the same folder.
 - **A file can't be moved:** correcting it means deleting it and attaching it again in the right place, and staff can delete only their own files, and only while the stage or procedure can still change; otherwise only an admin can (`DeleteAttachmentHandler`, `WhyFilesCantChange`).
+- **On a restricted or anonymised record nobody can delete a file,** admins included (the restriction guard's 409, `PatientRules`), so a file attached to the wrong patient stays on their record until the restriction is lifted (H-22).
 
 **Effect.** The right record lacks the document and the wrong record has it. A clinician reads another patient's result, letter or image as this patient's, or doesn't find this patient's. It is also a disclosure of the other patient's data ([DPIA](../governance/dpia.md), risk 8).
 
@@ -834,29 +887,30 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **The patient banner** from H-01, on every page where files can be attached. Protective; **planned** (step 6); **before first live use**.
+- **The patient banner** from H-01, on every page where files can be attached (the patient page and the procedure page, with each stage's files). Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`), awaiting the CSO's verification; **before first live use**.
 - **Name the patient and the target before sending:** "Attach 3 files to {stage} of {procedure} for {patient name, date of birth}?", including for files dropped in a half view. Protective; **proposed**; **before first live use**.
 - **Move a file** to another patient, procedure or stage (admins, with a reason, audited), so a correction doesn't depend on deleting and attaching again. Design; **proposed**; later.
 - **Train staff** to check the patient before attaching, to check a document's own identifiers before acting on it, and to delete and report a file attached in error. Information; transferred.
 
-**At first live use:** Major, Very low: **2**.
+**At first live use:** Major, Very low: **2**. It assumes the banner, which is built and awaits the CSO's verification, and the confirmation naming the patient, which isn't built.
 
 **Residual risk:** Major, Very low: **2**.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the confirmation naming the patient isn't built.
 
 ---
 
-## H-23: A document or result is missing, and nobody knows
+## H-24: A document or result is missing, and nobody knows
 
 **Description.** A document staff expect to find in MedApp isn't there, and the person looking assumes it doesn't exist: a result not yet received, a letter not sent, a scan not done.
 
 **Causes:**
-- **An upload fails or is abandoned:** the file is refused (a type that isn't allowed, a name that doesn't match its contents, over 20 MB), storage is unavailable (H-27), or the tab is closed or the page left while files are still being sent. Nothing warns before closing a tab with uploads in progress, and a failed upload's message is shown only to the person who sent it, in that browser, until dismissed (`Attachments.tsx`).
+- **An upload fails or is abandoned:** the file is refused (a type that isn't allowed, a name that doesn't match its contents, over 20 MB), storage is unavailable (H-28), or the tab is closed or the page left while files are still being sent. Nothing warns before closing a tab with uploads in progress, and a failed upload's message is shown only to the person who sent it, in that browser, until dismissed (`Attachments.tsx`).
 - **Files have to be downloaded to be read.** There's no preview of PDFs, and no thumbnail for HEIC photos (`docs/todo.md`), so the list gives only a name, a type and a size, and a document's content is easy to miss.
-- **"Not scanned"** on every file (H-24) may put staff off opening a file at all.
+- **"Not scanned"** on every file (H-25) may put staff off opening a file at all.
 - **Long lists:** a list shows the newest 200 files of a patient, procedure or stage, and says how many there are in all (`AttachmentLimits.MaxListed`).
-- A file deleted by mistake (H-25).
+- A file deleted by mistake (H-26).
+- **A restricted or anonymised record takes no new files** (the restriction guard's 409, admins included), so a letter or result for a patient whose record is restricted can't be attached until the restriction is lifted (H-22).
 
 **Effect.** A clinician acts as if a result or letter doesn't exist, or waits for one that was received.
 
@@ -884,7 +938,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-24: An attached file carries malware
+## H-25: An attached file carries malware
 
 **Description.** A file attached in MedApp carries malware, for example a PDF or Word document received from outside the organisation, and is opened on a clinical workstation.
 
@@ -906,7 +960,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **Malware scanning on upload:** Microsoft Defender for Storage on Azure, a scanner such as ClamAV elsewhere, behind the existing `IMalwareScanner`; infected files refused, and downloads held until a file is scanned. Protective; **planned** (roadmap step 9; `docs/todo.md`); **brought forward to before first live use**, as the DPIA does (risk 21), or the deployment runs without file storage. Holding downloads until a scan finishes adds a delay before a new file can be read (H-23); assess it when it's built.
+- **Malware scanning on upload:** Microsoft Defender for Storage on Azure, a scanner such as ClamAV elsewhere, behind the existing `IMalwareScanner`; infected files refused, and downloads held until a file is scanned. Protective; **planned** (roadmap step 9; `docs/todo.md`); **brought forward to before first live use**, as the DPIA does (risk 22), or the deployment runs without file storage. Holding downloads until a scan finishes adds a delay before a new file can be read (H-24); assess it when it's built.
 - **Tell staff** what "Not scanned" means and how to report a suspicious file. Information; transferred.
 
 **At first live use:** Major, Very low: **2**, with scanning built. Without it, Major, Low: **3**, which would need the CSO's written justification.
@@ -917,7 +971,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-25: A file is deleted by mistake
+## H-26: A file is deleted by mistake
 
 **Description.** A file that belongs on the record is deleted, by slip or by the wrong person, and staff can no longer open it.
 
@@ -925,9 +979,10 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - Staff can delete files they attached, and admins any file (`DeleteAttachmentHandler`). Deleting a patient or procedure that has files is refused until the files are deleted (`DeletePatientHandler`, `DeletePatientProcedureHandler`), which invites deleting files in bulk.
 - **There's no restore.** Deleting is soft: the file's details stay, admins can see it was there ("Show deleted files"), and its contents are kept in storage. But nobody can download or restore a deleted file from MedApp (`DownloadAttachmentHandler`), so getting it back needs the supplier, working in the database and storage by hand.
 - Once a purge job exists (planned, proposed 30 days after deletion), the contents are gone after that window, and after 7 more days of storage soft delete on Azure.
-- Deleting is also how a file on the wrong record is corrected (H-22), so deletions are routine.
+- Deleting is also how a file on the wrong record is corrected (H-23), so deletions are routine.
+- **Anonymising a record deletes all its files** and renames them, and can't be undone. Done on the wrong patient, or too early (H-19), the files are gone from the app, though their contents stay in storage until the purge job removes them.
 
-**Effect.** A document that was part of the record is missing (H-23), though admins can see that it existed and who deleted it.
+**Effect.** A document that was part of the record is missing (H-24), though admins can see that it existed and who deleted it.
 
 **Possible harm.** A later decision made without that document, for one patient. Considerable.
 
@@ -952,14 +1007,14 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-26: An out-of-date or duplicate document is relied on
+## H-27: An out-of-date or duplicate document is relied on
 
 **Description.** A patient has several versions of a document, for example an early and a final report, or the same letter twice, and staff read the wrong one.
 
 **Causes:**
 - **No versions:** a file can't be replaced, marked as superseded, or linked to the one that replaces it.
 - **The list is in upload order,** not the document's own date, and a file's name is free text that may not say what or when it is.
-- **No preview** of PDFs (H-23), so staff choose a file by its name.
+- **No preview** of PDFs (H-24), so staff choose a file by its name.
 - The same file can be attached twice; MedApp keeps each file's SHA-256 (`Attachment.Sha256`) but doesn't use it to warn.
 
 **Effect.** A clinician reads a superseded result or letter, and acts on it.
@@ -968,7 +1023,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Existing controls:**
 - Each file shows when it was attached and by whom; the list is newest first.
-- Superseded copies can be deleted (H-25 applies).
+- Superseded copies can be deleted (H-26 applies).
 - **Transferred:** the date and status printed on the document itself; the master copy in the source system.
 
 **Initial risk:** Considerable, Low: **2**.
@@ -986,7 +1041,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
-## H-27: File storage is unavailable
+## H-28: File storage is unavailable
 
 **Description.** MedApp works, but its file storage doesn't: files can't be attached or opened.
 
@@ -1025,7 +1080,9 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Completing a procedure with a stage unfinished or unlocked.** Designed out: `ChangePatientProcedureStatusHandler` refuses it (`AllStagesFinished`).
 - **One user's data in another's server-rendered page.** A security and privacy risk rather than a clinical one, controlled by a new query cache per request (`createSsrRouter`; `docs/architecture.md`, section 5.8). Left to the security work in step 2.
 - **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`).
-- **An uploaded file running script in MedApp.** Designed out: files are never shown inline on MedApp's site, only downloaded, with a sandboxing Content Security Policy, and SVG and HTML are refused (`AttachmentResponseHeaders`, `FileTypeSniffer`). A security risk rather than a clinical one; malware opened on the desktop is H-24.
+- **The FHIR API sending wrong data** (branch `feature/nhs-integrations`). It's read-only, and returns the patient's details as stored, with no clinical content and no logic, to staff who could see the same on the patient's page; nothing in MedApp changes because of it. Its one clinical risk, another system matching the wrong person by a wrong NHS number, is under H-01. Each receiving system assesses its own use under DCB0129 and DCB0160.
+- **The NHS number check refusing a valid number.** Staff can't save it, so the record goes without it until it's fixed: no worse than before the number existed. The check is unit tested with valid and invalid numbers.
+- **An uploaded file running script in MedApp.** Designed out: files are never shown inline on MedApp's site, only downloaded, with a sandboxing Content Security Policy, and SVG and HTML are refused (`AttachmentResponseHeaders`, `FileTypeSniffer`). A security risk rather than a clinical one; malware opened on the desktop is H-25.
 - **Thumbnails misread as the image.** A thumbnail is at most 320 pixels, too small to read clinically, and the full file is a download away. Not logged; the CSO may decide otherwise.
 
 ## Change log
@@ -1035,4 +1092,6 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
-| 0.4 | 16 November 2026 | File attachments: six new hazards, H-22 (a file on the wrong record), H-23 (a missing document), H-24 (malware), H-25 (a file deleted by mistake), H-26 (an out-of-date or duplicate document) and H-27 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20 | AI coding agent, for review |
+| 0.4 | 16 November 2026 | The privacy features (PR #68): H-03 and H-19's new controls and causes (anonymisation, the retention review's adult and children periods only), and new hazard H-22 (restricting a record delays care under way), after the review of #68 | AI coding agent, for review |
+| 0.5 | 16 November 2026 | The NHS integrations (PR #69): the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed. After the review of #69: the banner on every page about one patient, and the lookup's confirmation on Edit Patient | AI coding agent, for review |
+| 0.6 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. Merged with 0.4 and 0.5: H-23 has the built patient banner as a control, and the restriction guard and anonymisation are causes in H-23, H-24 and H-26. No earlier rating changed | AI coding agent, for review |

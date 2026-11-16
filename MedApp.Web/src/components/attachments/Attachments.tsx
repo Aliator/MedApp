@@ -72,6 +72,11 @@ export interface AttachmentsProps {
    */
   canChange: boolean;
   /**
+   * The patient's record is restricted or anonymised: nothing can be added or deleted, by admins either (the API
+   * refuses with a 409), though the files can still be listed and downloaded. The page says why, in its own banner.
+   */
+  isLocked?: boolean;
+  /**
    * Uploads in progress and Show deleted, held by the page (`useAttachmentsState`), so they carry on when the page
    * changes layout. Without it, the component keeps its own.
    */
@@ -87,7 +92,7 @@ export interface AttachmentsProps {
  * Files are never shown inline: Download always downloads, and only the server's small re-encoded thumbnails are
  * shown as images. Use it in a card's section, padded by its container (it lays out no padding of its own).
  */
-export function Attachments({target, canChange, state}: AttachmentsProps) {
+export function Attachments({target, canChange, isLocked = false, state}: AttachmentsProps) {
   const ownState = useAttachmentsState();
   const {uploads, add, cancel, dismissFailed, isShowingDeleted, setShowingDeleted} = state ?? ownState;
   const {isAdmin} = useCurrentUser();
@@ -106,9 +111,15 @@ export function Attachments({target, canChange, state}: AttachmentsProps) {
   const [toDelete, setToDelete] = useState<Attachment | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  /** Admins may delete any file; staff their own (`canDelete`), and only where files can change now. */
+  /**
+   * Admins may delete any file; staff their own (`canDelete`), and only where files can change now. Nobody can while
+   * the record is locked.
+   */
   const canDelete = (attachment: Attachment) =>
-    (attachment.canDelete ?? false) && !attachment.isDeleted && (isAdmin || (canChange && attachment.attachedTo === targetKind));
+    !isLocked &&
+    (attachment.canDelete ?? false) &&
+    !attachment.isDeleted &&
+    (isAdmin || (canChange && attachment.attachedTo === targetKind));
 
   const confirmDelete = (attachment: Attachment) =>
     remove.mutate(attachment.id ?? '', {
@@ -126,7 +137,7 @@ export function Attachments({target, canChange, state}: AttachmentsProps) {
 
   return (
     <VStack gap={4}>
-      {canChange && (
+      {canChange && !isLocked && (
         <FileInput
           label="Add files"
           mode="dropzone"

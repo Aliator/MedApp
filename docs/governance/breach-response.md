@@ -19,7 +19,7 @@ What to do when personal data may have been lost, seen, changed or made unavaila
 A **personal data breach** is a breach of security leading to the accidental or unlawful destruction, loss, alteration, unauthorised disclosure of, or access to, personal data. It doesn't have to be an attack. Examples for MedApp:
 - **Confidentiality:** a staff user reads records they shouldn't (once reads are audited, this shows in the access reports); a page, export or downloaded file reaches the wrong person; a file is attached to the wrong patient; patient data is pasted into a support ticket, an email, a chat or an AI tool; a credential or database backup is exposed; one customer sees another's data.
 - **Integrity:** records changed or deleted without authority; a bug that writes notes to the wrong patient or procedure.
-- **Malware:** a malicious file uploaded to MedApp, and opened on a customer's computer (uploads aren't scanned yet: [dpia.md](dpia.md), risk 21). Contain it by deleting the file (an admin can delete any file), and give the customer the list of who downloaded it, from the audit log.
+- **Malware:** a malicious file uploaded to MedApp, and opened on a customer's computer (uploads aren't scanned yet: [dpia.md](dpia.md), risk 22). Contain it by deleting the file (an admin can delete any file), and give the customer the list of who downloaded it, from the audit log.
 - **Availability:** a ransomware attack; data lost and not recoverable from backups; an outage that stops clinicians seeing records they need for care.
 
 **Security incidents without personal data** (for example a failed attack, or an outage with no data effect) follow the same first steps, and are logged, but aren't breaches.

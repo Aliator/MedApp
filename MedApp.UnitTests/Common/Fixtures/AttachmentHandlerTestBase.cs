@@ -1,4 +1,5 @@
 using AutoFixture;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Attachments;
@@ -21,6 +22,9 @@ public abstract class AttachmentHandlerTestBase : ProcedureHandlerTestBase
     protected Mock<IMalwareScanner> Scanner { get; private set; } = null!;
     protected Mock<IThumbnailGenerator> Thumbnails { get; private set; } = null!;
 
+    /// <summary>What the handlers record in the activity log.</summary>
+    protected RecordingActivityLog Activity { get; private set; } = null!;
+
     /// <summary>The attachments the repository was asked to add.</summary>
     protected List<Attachment> Added { get; } = [];
 
@@ -31,6 +35,7 @@ public abstract class AttachmentHandlerTestBase : ProcedureHandlerTestBase
         Store = new InMemoryFileStore();
         Scanner = new Mock<IMalwareScanner>();
         Thumbnails = new Mock<IThumbnailGenerator>();
+        Activity = new RecordingActivityLog();
         Added.Clear();
 
         Scanner.Setup(s => s.ScanAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>())).ReturnsAsync(AttachmentScanStatus.NotScanned);
@@ -60,6 +65,7 @@ public abstract class AttachmentHandlerTestBase : ProcedureHandlerTestBase
         Fixture.Inject<IUploadStaging>(new MemoryUploadStaging());
         Fixture.Inject(Scanner.Object);
         Fixture.Inject(Thumbnails.Object);
+        Fixture.Inject<IActivityLog>(Activity);
     }
 
     /// <summary>Makes the patient repository find this patient.</summary>

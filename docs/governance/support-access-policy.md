@@ -63,6 +63,6 @@ Access is removed on the day someone leaves or no longer needs it, and the regis
 | A read-only database role for investigations; the app's own least-privilege identity | Planned, step 5 |
 | Azure activity and sign-in logs, and database audit, streamed to a log workspace the support person can't change | Planned, step 5 |
 | Customer Lockbox for Microsoft's own support | Planned, step 5 |
-| An admin view in MedApp that lets the customer's admin do most corrections and exports, so the supplier doesn't need to | Planned, step 7 |
+| An admin view in MedApp that lets the customer's admin do most corrections and exports, so the supplier doesn't need to | Built for patients (step 7): export, restriction, dispute, anonymisation; staff users' data still by the supplier |
 
 **Until the planned controls exist,** this policy relies on the people on the register and on the access log. That's a known gap, recorded in the DPIA (risk 16).

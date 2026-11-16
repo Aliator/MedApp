@@ -19,8 +19,11 @@ public sealed class Attachment
     /// <summary>The stage it's attached to; null unless it's a stage's file.</summary>
     public Guid? StageId { get; init; }
 
-    /// <summary>The name it was uploaded with, cleaned (no folders or control characters). Free text.</summary>
-    public string FileName { get; init; } = string.Empty;
+    /// <summary>
+    /// The name it was uploaded with, cleaned (no folders or control characters). Free text, so anonymising the
+    /// patient replaces it.
+    /// </summary>
+    public string FileName { get; set; } = string.Empty;
 
     /// <summary>The type found from its contents (not its extension or what the browser said), e.g. application/pdf.</summary>
     public string ContentType { get; init; } = string.Empty;

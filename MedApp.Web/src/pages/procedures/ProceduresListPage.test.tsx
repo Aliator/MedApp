@@ -35,12 +35,12 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
 
 function renderList(
   search: ProceduresListSearch = {},
-  options: {patientId?: string; body?: unknown; status?: number; user?: CurrentUser} = {},
+  options: {patientId?: string; body?: unknown; status?: number; user?: CurrentUser; patientFlags?: object} = {},
 ) {
   const fetch = mockApi({
     [SEARCH]: () =>
       json(options.body ?? pageOf([summary(), summary({id: 'proc-2', title: 'Biopsy', assignees: [], status: 'Unassigned'})], 23), options.status),
-    [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com'}),
+    [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com', ...options.patientFlags}),
     [USERS]: () => json(pageOf([{userId: STAFF_ID, username: 'k.ashford', roles: ['User']}])),
     [TEMPLATES]: () => json([{id: TEMPLATE_ID, name: 'Knee review', isArchived: false, stages: [], stageDefinitionIdsInOrder: []}]),
   });
@@ -196,6 +196,25 @@ describe('ProceduresListPage', () => {
     expect(screen.getByRole('link', {name: 'Back'})).toHaveAttribute('href', `/patients/${patientId}`);
     expect(screen.getByRole('link', {name: 'New Procedure'})).toHaveAttribute('href', `/procedures/new?patientId=${patientId}`);
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&PatientId=${patientId}`);
+  });
+
+  it("shows the patient's banner on one patient's procedures, and none on the full list", async () => {
+    const {unmount} = renderList({}, {patientId});
+
+    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('No NHS number')).toBeInTheDocument();
+    unmount();
+
+    renderList();
+    await screen.findByText('Colonoscopy');
+    expect(screen.queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
+  });
+
+  it("shows the patient's banners over their procedures", async () => {
+    renderList({}, {patientId, patientFlags: {isDisputed: true, disputeReason: 'Synthetic allergy', isRestricted: true, restrictionReason: 'Synthetic check'}});
+
+    expect(await screen.findByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
+    expect(screen.getByText(/Restricted record/)).toBeInTheDocument();
   });
 
   it("shows someone's procedures, named from the accounts for an admin", async () => {

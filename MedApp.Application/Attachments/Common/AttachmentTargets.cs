@@ -39,8 +39,8 @@ public static class AttachmentTargets
         }
 
         var patient = patientId ?? throw new ArgumentException("A patient, procedure or stage is needed.");
-        _ = await patients.GetByIdAsync(patient, ct) ?? throw new NotFoundException($"Patient '{patient}' was not found.");
-        return new AttachmentTarget(patient, null, null);
+        var found = await patients.GetByIdAsync(patient, ct) ?? throw new NotFoundException($"Patient '{patient}' was not found.");
+        return new AttachmentTarget(patient, null, null) { Patient = found };
     }
 
     /// <summary>
@@ -49,15 +49,16 @@ public static class AttachmentTargets
     /// </summary>
     public static async Task<AttachmentTarget> OfAsync(
         Attachment attachment,
+        IPatientRepository patients,
         IPatientProcedureRepository procedures,
         CancellationToken ct)
     {
-        if (attachment.ProcedureId is not { } procedureId)
-            return new AttachmentTarget(attachment.PatientId, null, null);
-
-        var procedure = await procedures.GetByIdAsync(procedureId, ct);
+        var procedure = attachment.ProcedureId is { } procedureId ? await procedures.GetByIdAsync(procedureId, ct) : null;
         if (procedure is null)
-            return new AttachmentTarget(attachment.PatientId, null, null);
+            return new AttachmentTarget(attachment.PatientId, null, null)
+            {
+                Patient = await patients.GetByIdAsync(attachment.PatientId, ct)
+            };
 
         var stage = attachment.StageId is { } stageId ? procedure.Stages.FirstOrDefault(s => s.Id == stageId) : null;
         return new AttachmentTarget(attachment.PatientId, procedure, stage);

@@ -29,7 +29,7 @@
 | **Business function** | [For example: day surgery unit, outpatient procedures, clinic administration] |
 | **Purpose** | Recording patients and coordinating the stages of the procedures carried out for them, for their direct care; keeping an accurate record of who did what and when. |
 | **Data subjects** | Patients, including children [if applicable] |
-| **Personal data** | First name, last name, date of birth, email address. Procedures: title, notes, due date, priority, status. Stage notes written by staff. Files staff attach to the patient, a procedure or a stage (scans, photos, results, letters), with their names. |
+| **Personal data** | First name, last name, date of birth, email address, NHS number (if you record it). Procedures: title, notes, due date, priority, status. Stage notes written by staff. Files staff attach to the patient, a procedure or a stage (scans, photos, results, letters), with their names. |
 | **Special category data** | Health data: the procedures a patient is having, clinical notes, and attached files, which can include images of the body and other people's details (for example in a letter). |
 | **Article 6 basis** | [NHS bodies: 6(1)(e) public task. Private providers: 6(1)(b) contract with the patient, or 6(1)(f) legitimate interests with an assessment.] |
 | **Article 9 condition** | 9(2)(h) health or social care |

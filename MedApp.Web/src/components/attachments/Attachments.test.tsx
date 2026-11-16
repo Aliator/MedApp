@@ -24,6 +24,9 @@ const procedureId = '00000036-0000-0000-0000-000000000002';
 const stageId = '00000036-0000-0000-0000-000000000003';
 const MB = 1024 * 1024;
 const LIST = '/api/attachments';
+/** The API's refusal while the patient's record is restricted (`PatientRules.RestrictedMessage`). */
+const RESTRICTED =
+  "This patient's record is restricted, so it can't be changed until an admin lifts the restriction. Its procedures can still be blocked or cancelled, with a reason.";
 
 let next = 0;
 const attachment = (fields: Partial<Attachment> = {}): Attachment => ({
@@ -71,8 +74,8 @@ function mockList(items: Attachment[] | ((request: Request) => AttachmentList), 
   });
 }
 
-function render(target: AttachmentTarget = {patientId}, {canChange = true, user = staffUser, isNarrow = false} = {}) {
-  const ui = <Attachments target={target} canChange={canChange} />;
+function render(target: AttachmentTarget = {patientId}, {canChange = true, user = staffUser, isNarrow = false, isLocked = false} = {}) {
+  const ui = <Attachments target={target} canChange={canChange} isLocked={isLocked} />;
   return renderWithApp(isNarrow ? <HalfViewContext.Provider value={{isHalf: true}}>{ui}</HalfViewContext.Provider> : ui, {user});
 }
 
@@ -259,6 +262,17 @@ describe('Attachments', () => {
 
       expect(await screen.findByRole('button', {name: 'Delete scan.pdf'})).toBeInTheDocument();
     });
+  });
+
+  it("offers nothing to add or delete, even to admins, while the patient's record is restricted or anonymised", async () => {
+    mockList([attachment()]);
+    render({patientId}, {user: adminUser, isLocked: true});
+
+    expect(await screen.findByText('scan.pdf')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add files'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete scan.pdf'})).not.toBeInTheDocument();
+    // Still listed, and downloadable.
+    expect(screen.getByRole('link', {name: 'Download scan.pdf'})).toBeInTheDocument();
   });
 
   it("shows admins deleted files on request: who deleted them and when, with no download or thumbnail", async () => {
@@ -450,6 +464,19 @@ describe('Attachments', () => {
       sent[0].respond(201, attachment({fileName: 'a.pdf'}));
       await waitFor(() => expect(sent).toHaveLength(2));
       expect(sent[1].headers['X-File-Name']).toBe('b.pdf');
+    });
+
+    it("shows the server's refusal when the record was restricted meanwhile", async () => {
+      const sent = stubXhr();
+      mockList([]);
+      const {user} = render();
+      await screen.findByText('No files attached yet.');
+
+      await user.upload(fileInput(), file('scan.pdf'));
+      await waitFor(() => expect(sent).toHaveLength(1));
+      sent[0].respond(409, {title: RESTRICTED});
+
+      expect(await findAlert("A file wasn't attached")).toHaveTextContent(`scan.pdf: ${RESTRICTED}`);
     });
 
     it("shows the server's reason a file wasn't attached", async () => {

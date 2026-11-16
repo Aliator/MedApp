@@ -25,6 +25,8 @@ public sealed class UpdatePatientProcedureStageDefinitionHandler(IPatientProcedu
 
         if (request.Description is not null) definition.Description = request.Description;
         if (request.Instructions is not null) definition.Instructions = request.Instructions;
+        if (request.SnomedCode is not null)
+            (definition.SnomedCode, definition.SnomedTerm) = SnomedRules.Normalise(request.SnomedCode, request.SnomedTerm);
 
         await repository.UpdateStageDefinitionAsync(definition, cancellationToken);
 

@@ -1,4 +1,5 @@
 ﻿using MedApp.API.Common.Authentication;
+using MedApp.API.Fhir;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
@@ -9,6 +10,10 @@ public static class ApplicationBuilderExtensions
 {
     public static WebApplication UseApi(this WebApplication app)
     {
+        // First, so every response carries them: nosniff, no framing, the referrer and permissions policies, no-store
+        // on /api, and the Content Security Policies (with the page's nonce, which SsrPages passes to the renderer).
+        app.UseMiddleware<SecurityHeaders>();
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -42,6 +47,9 @@ public static class ApplicationBuilderExtensions
 
         app.UseMiddleware<ExceptionHandling>();
 
+        // Sign-in throttling (LoginThrottling): before authentication, so a refused attempt costs no session lookup.
+        app.UseRateLimiter();
+
         app.UseAuthentication();
         // A user with a password an admin gave them can only change it (and sign out) until they do.
         app.UseMiddleware<PasswordChangeRequired>();
@@ -50,7 +58,9 @@ public static class ApplicationBuilderExtensions
         app.MapControllers();
         app.MapHub<NotificationsHub>(NotificationsHub.Path);
 
-        // An /api path that matches no endpoint is a 404, not the React app's index.html.
+        // An /api path that matches no endpoint is a 404, not the React app's index.html; under the FHIR API, a 404
+        // OperationOutcome, as FHIR clients expect.
+        app.Map("/api/fhir/{**path}", FhirJson.NotFoundAsync);
         app.Map("/api/{**path}", () => Results.NotFound());
 
         // Any other path (that isn't a file) is one of the app's pages (e.g. /patients/{id}): rendered on the server

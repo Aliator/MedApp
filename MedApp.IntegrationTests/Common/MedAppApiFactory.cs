@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace MedApp.IntegrationTests.Common;
@@ -35,6 +35,10 @@ public sealed class MedAppApiFactory(string connectionString, string? attachment
         builder.UseSetting("Ssr:Enabled", "false");
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft.EntityFrameworkCore", "Warning");
+        // The tests sign in far more often than people do, all from one address (and the admin under one name), so
+        // sign-in throttling is set out of reach here. LoginThrottlingTests puts it back to the real limits.
+        builder.UseSetting("LoginThrottling:PerClientPermitLimit", "100000");
+        builder.UseSetting("LoginThrottling:PerUsernamePermitLimit", "100000");
     }
 
     /// <summary>A client with its own cookie jar (so its own session), that doesn't follow redirects.</summary>

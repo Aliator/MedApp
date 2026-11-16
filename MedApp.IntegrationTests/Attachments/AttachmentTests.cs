@@ -25,19 +25,13 @@ namespace MedApp.IntegrationTests.Attachments;
 [TestFixture]
 public sealed class AttachmentTests : IntegrationTest
 {
-    private static readonly byte[] Pdf = Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n");
+    private static readonly byte[] Pdf = SyntheticPdf;
 
-    private static Task<HttpResponseMessage> UploadAsync(HttpClient client, string target, byte[] bytes, string fileName)
-    {
-        var content = new ByteArrayContent(bytes);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/attachments?{target}") { Content = content };
-        request.Headers.Add("X-File-Name", Uri.EscapeDataString(fileName));
-        return client.SendAsync(request);
-    }
+    private static Task<HttpResponseMessage> UploadAsync(HttpClient client, string target, byte[] bytes, string fileName) =>
+        UploadAttachmentAsync(client, target, bytes, fileName);
 
-    private static async Task<AttachmentResponse> UploadOkAsync(HttpClient client, string target, byte[] bytes, string fileName) =>
-        await (await UploadAsync(client, target, bytes, fileName)).ReadAsAsync<AttachmentResponse>(HttpStatusCode.Created);
+    private static Task<AttachmentResponse> UploadOkAsync(HttpClient client, string target, byte[] bytes, string fileName) =>
+        UploadAttachmentOkAsync(client, target, bytes, fileName);
 
     private static async Task<AttachmentListResponse> ListAsync(HttpClient client, string target) =>
         await (await client.GetAsync($"/api/attachments?{target}")).ReadAsAsync<AttachmentListResponse>();
@@ -301,6 +295,49 @@ public sealed class AttachmentTests : IntegrationTest
         var staff = await CreateStaffAsync(UserRole);
 
         await (await staff.Client.GetAsync($"/api/attachments?patientId={Guid.NewGuid()}")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task RestrictedRecord_RefusesUploadsAndDeletesEvenFromAnAdmin_ButStillLetsStaffReadThem()
+    {
+        var admin = await SignInAsAdminAsync();
+        var staff = await CreateStaffAsync(UserRole);
+        var procedure = await CreatePatientWithProcedureAsync(admin);
+        var onPatient = await UploadOkAsync(staff.Client, $"patientId={procedure.PatientId}", Pdf, "letter.pdf");
+        await (await admin.PutAsJsonAsync($"/api/patients/{procedure.PatientId}/restriction",
+                new MedApp.Contracts.Patients.Requests.SetPatientFlagRequest { Set = true, Reason = "Synthetic restriction", ConfirmOpenProcedures = true }))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var uploads = new[]
+        {
+            await UploadAsync(admin, $"patientId={procedure.PatientId}", Pdf, "more.pdf"),
+            await UploadAsync(admin, $"procedureId={procedure.Id}", Pdf, "more.pdf"),
+            await UploadAsync(admin, $"stageId={procedure.Stages[0].Id}", Pdf, "more.pdf"),
+        };
+        var delete = await admin.DeleteAsync($"/api/attachments/{onPatient.Id}");
+
+        foreach (var refused in uploads.Append(delete))
+            (await refused.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title
+                .Should().StartWith("This patient's record is restricted");
+        await (await staff.Client.GetAsync($"/api/attachments/{onPatient.Id}/content")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        (await ListAsync(staff.Client, $"patientId={procedure.PatientId}")).Items.Select(i => i.Id).Should().Equal(onPatient.Id);
+    }
+
+    [Test]
+    public async Task Export_ListsTheFilesDetails_NotTheirContents()
+    {
+        var admin = await SignInAsAdminAsync();
+        var patient = await CreatePatientAsync(admin);
+        var kept = await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "kept.pdf");
+        var gone = await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "gone.pdf");
+        await (await admin.DeleteAsync($"/api/attachments/{gone.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+
+        var export = await (await admin.GetAsync($"/api/patients/{patient.Id}/export"))
+            .ReadAsAsync<MedApp.Contracts.Patients.Responses.PatientExportResponse>();
+
+        export.Attachments.Select(a => (a.Id, a.FileName, a.DeletedBy)).Should().Equal(
+            (kept.Id, "kept.pdf", (string?)null), (gone.Id, "gone.pdf", AdminUsername));
+        export.Attachments[0].Sha256.Should().Be(kept.Sha256);
     }
 
     [Test]

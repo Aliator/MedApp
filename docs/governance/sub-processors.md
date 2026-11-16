@@ -30,7 +30,7 @@ The organisations [Company name] uses to provide MedApp, and what each does with
 - **A managed monitoring service** for out-of-hours alerts (roadmap step 5), if one is contracted. It would see alerts and logs. [Provider to choose.]
 
 **Planned changes to what a sub-processor does:**
-- **Microsoft Defender for Storage's malware scanning** of attached files (roadmap step 9, brought forward to before go-live, [dpia.md](dpia.md) risk 21). Microsoft is already a sub-processor, but scanning is a new operation on file contents, so customers are told before it's turned on. [Confirm that scanning happens in the storage account's region, UK South, and what Microsoft keeps about a scanned file.]
+- **Microsoft Defender for Storage's malware scanning** of attached files (roadmap step 9, brought forward to before go-live, [dpia.md](dpia.md) risk 22). Microsoft is already a sub-processor, but scanning is a new operation on file contents, so customers are told before it's turned on. [Confirm that scanning happens in the storage account's region, UK South, and what Microsoft keeps about a scanned file.]
 
 ## Providers that don't process customer personal data
 

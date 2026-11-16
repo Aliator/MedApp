@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using MedApp.Domain.Activity;
 using FluentAssertions;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
@@ -54,6 +55,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 It.IsAny<Guid>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -80,6 +82,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 patient.Id,
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -103,6 +106,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 It.IsAny<Guid>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -127,6 +131,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 It.IsAny<Guid>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -146,7 +151,7 @@ public sealed class DeletePatientHandlerTests
         var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(message);
-        _repository.Verify(r => r.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.DeleteAsync(It.IsAny<Guid>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -171,6 +176,7 @@ public sealed class DeletePatientHandlerTests
         _repository.Verify(
             r => r.DeleteAsync(
                 patient.Id,
+                It.IsAny<ActivityEntry>(),
                 cts.Token),
             Times.Once);
         _attachments.Verify(a => a.CountForPatientAsync(patient.Id, cts.Token), Times.Once);

@@ -7,6 +7,7 @@ import {ApiError} from '../../api/errors';
 import {procedureQuery, useUpdateProcedure, type Procedure, type ProcedureDetailsInput} from '../../api/procedures';
 import {FormCard} from '../../components/forms/FormCard';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/procedures/ProcedureCells';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
@@ -76,9 +77,11 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
       },
     });
 
+  const banner = procedure.patient && <PatientBanner patient={procedure.patient} />;
+
   if (!procedure.canEditDetails) {
     return (
-      <Page {...pageProps} onBack={backToProcedure}>
+      <Page {...pageProps} onBack={backToProcedure} banner={banner}>
         <AlertMessage
           message={`This procedure is ${statusLabel(procedure.status ?? '').toLowerCase()}, so its details can't be edited.`}
         />
@@ -91,6 +94,9 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
       {...pageProps}
       subtitle={procedure.patientName ? `For ${procedure.patientName}` : undefined}
       onBack={backToProcedure}
+      banner={banner}
+      // The form scrolls inside its card, so the banner above it stays in view.
+      fill
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PROCEDURE_DETAILS_FIELDS} />
@@ -118,7 +124,8 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
           setIsConfirming(true);
         }}
         onCancel={backToProcedure}
-        isProcessing={update.isPending}>
+        isProcessing={update.isPending}
+        fill>
         <ProcedureDetailsFields value={form} onChange={setForm} errors={problem.validation} isDisabled={update.isPending} />
       </FormCard>
     </Page>

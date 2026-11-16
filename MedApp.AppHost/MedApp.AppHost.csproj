@@ -1,5 +1,13 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.6.5">
 
+    <!-- NuGet audit: a known high (NU1903) or critical (NU1904) vulnerability in any package, direct or
+         transitive, fails the build. Moderate and low ones stay warnings. -->
+    <PropertyGroup>
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+    </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\MedApp.API\MedApp.API.csproj" />
   </ItemGroup>

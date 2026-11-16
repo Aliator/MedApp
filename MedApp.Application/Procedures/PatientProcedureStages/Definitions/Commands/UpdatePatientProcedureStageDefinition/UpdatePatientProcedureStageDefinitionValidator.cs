@@ -30,5 +30,7 @@ public sealed class UpdatePatientProcedureStageDefinitionValidator : AbstractVal
             .WithMessage("Instructions must not be blank.")
             .MaximumLength(2000)
             .WithMessage("Instructions must not exceed 2000 characters.");
+
+        this.AddSnomedRules(x => x.SnomedCode, x => x.SnomedTerm);
     }
 }

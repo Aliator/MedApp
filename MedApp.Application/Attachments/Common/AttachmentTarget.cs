@@ -1,5 +1,6 @@
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Attachments;
+using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Attachments.Common;
@@ -14,10 +15,17 @@ public enum AttachmentTargetKind
 
 /// <summary>
 /// What a file is (or will be) attached to: a patient, one of their procedures, or a stage of one, with the
-/// procedure and stage loaded, to check the workflow's rules and record their names.
+/// procedure and stage loaded, to check the workflow's rules and record their names, and the patient, to check their
+/// record can be changed (<see cref="Patients.Common.PatientRules"/>).
 /// </summary>
 public sealed record AttachmentTarget(Guid PatientId, PatientProcedure? Procedure, PatientProcedureStage? Stage)
 {
+    /// <summary>The patient, when it isn't the procedure's (a patient's own file); see <see cref="Owner"/>.</summary>
+    public Patient? Patient { get; init; }
+
+    /// <summary>The patient whose record the file is part of, if loaded.</summary>
+    public Patient? Owner => Patient ?? Procedure?.Patient;
+
     public AttachmentTargetKind Kind =>
         Stage is not null ? AttachmentTargetKind.Stage
         : Procedure is not null ? AttachmentTargetKind.Procedure

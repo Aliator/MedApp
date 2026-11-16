@@ -3,7 +3,7 @@ import {defineSetting, useAppSetting} from './settingsStore';
 
 export type ColorMode = 'light' | 'dark';
 
-const STORAGE_KEY = defineSetting('medapp.colorMode');
+const STORAGE_KEY = defineSetting('medapp.colorMode', {keepOnSignOut: true});
 
 interface ColorModeContextValue {
   mode: ColorMode;

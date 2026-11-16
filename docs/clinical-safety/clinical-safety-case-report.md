@@ -22,9 +22,9 @@
 
 - **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates, attached documents and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
 - **The safety position at `88dc1fa`:**
-  - 27 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects. H-22 to H-27 came with file attachments.
+  - 28 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects. H-23 to H-28 came with file attachments.
   - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
-  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-22) and malware in a file (H-24).
+  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-23) and malware in a file (H-25).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
   - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
 - **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, and the CSO has to justify accepting H-07, H-10 and H-13 at 3 (the go-live rule, `clinical-risk-management-plan.md` section 4.4). MedApp has never been used with real patients, so there is no live use to stop.
@@ -80,7 +80,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Every file attached, deleted or downloaded is audited with who, when and which file; a deleted file's details stay, marked deleted, with who deleted it | `AttachmentAudit`; `Attachment`; `DeleteAttachmentHandler` |
 | Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
 
-**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
+**Limits:** changes to templates and stage definitions aren't audited (H-13). Since roadmap step 7, patient changes (which fields, not their values) and reads are recorded in the activity log (H-03). Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
 
 ### Claim 3: Due dates mean the same thing everywhere
 
@@ -110,7 +110,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | A failed migration stops the rollout and leaves the old version running | ADR-10 |
 | Without file storage, the rest of MedApp works, and uploads and downloads are refused with a clear message | `UnconfiguredFileStore`; `ExceptionHandling` (503) |
 
-**Limits:** there's no monitoring, so failures go unnoticed (H-10); the live connection stops retrying after about 42 seconds (H-09). Storage that is set up but failing gives a general server error, not a clear message, and nothing checks it (H-27).
+**Limits:** there's no monitoring, so failures go unnoticed (H-10); the live connection stops retrying after about 42 seconds (H-09). Storage that is set up but failing gives a general server error, not a clear message, and nothing checks it (H-28).
 
 ### Claim 6: The residual risk of the release is acceptable
 
@@ -118,13 +118,13 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 
 ## 6. Hazards and their risk
 
-From `hazard-log.md`, version 0.4. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
+From `hazard-log.md`, version 0.6. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
-| H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner; date of birth in lists |
-| H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner; patient named in confirmations |
-| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | None (patient audit planned, step 7) |
+| H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); date of birth in lists |
+| H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); patient named in confirmations |
+| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | Patient changes recorded (fields, not old values; step 7) |
 | H-04 | An overdue procedure is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Tasks; an unassigned-and-due view; local review process |
 | H-05 | A blocked procedure is forgotten | 3 | 2 | 2 | A "past due date" flag on blocked procedures; started work counted on My Tasks |
 | H-06 | A stage is finished in error | 2 | 2 | 2 | None |
@@ -140,15 +140,16 @@ From `hazard-log.md`, version 0.4. **At first live use** counts only the control
 | H-16 | The screen shows out-of-date information | 2 | 2 | 2 | None |
 | H-17 | Stage instructions aren't read | 2 | 2 | 2 | None |
 | H-18 | A change is recorded under the wrong person's name | 2 | 2 | 2 | None |
-| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | None |
+| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
-| H-22 | A file is attached to the wrong patient, procedure or stage | 3 | 2 | 2 | Patient banner; the patient and target named before files are sent |
-| H-23 | A document or result is missing, and nobody knows | 2 | 2 | 2 | None |
-| H-24 | An attached file carries malware | 3 | 2 | 2 | Malware scanning on upload (brought forward from step 9), or no file storage |
-| H-25 | A file is deleted by mistake | 2 | 2 | 2 | None |
-| H-26 | An out-of-date or duplicate document is relied on | 2 | 2 | 2 | None |
-| H-27 | File storage is unavailable | 2 | 2 | 2 | Monitoring that includes storage; downtime procedure covers documents |
+| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
+| H-23 | A file is attached to the wrong patient, procedure or stage | 3 | 2 | 2 | Patient banner (built, to verify); the patient and target named before files are sent |
+| H-24 | A document or result is missing, and nobody knows | 2 | 2 | 2 | None |
+| H-25 | An attached file carries malware | 3 | 2 | 2 | Malware scanning on upload (brought forward from step 9), or no file storage |
+| H-26 | A file is deleted by mistake | 2 | 2 | 2 | None |
+| H-27 | An out-of-date or duplicate document is relied on | 2 | 2 | 2 | None |
+| H-28 | File storage is unavailable | 2 | 2 | 2 | Monitoring that includes storage; downtime procedure covers documents |
 
 [CSO: confirm or change each rating, and record the reasons for any change.]
 
@@ -173,8 +174,8 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | H-15 | 3 | 2 | | | |
 | H-20 | 3 | 2 | | | |
 | H-21 | 3 | 2 | | | |
-| H-22 | 3 | 2 | | | |
-| H-24 | 3 | 2 (with scanning) | [Controls verified / not verified] | | |
+| H-23 | 3 | 2 | | | |
+| H-25 | 3 | 2 (with scanning) | [Controls verified / not verified] | | |
 
 ### Known defects with a clinical impact
 
@@ -185,12 +186,12 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Deleting an account leaves its open procedures assigned to it, on nobody's task list | H-21 | Known. Refusing the delete, or requiring reassignment first, proposed before first live use. |
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
-| Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. |
-| Attached files aren't scanned for malware; every file shows "Not scanned" | H-24 | Known (`docs/todo.md`). Planned, step 9; proposed before first live use. |
-| A deleted file can't be restored, or downloaded, from MedApp | H-25 | Known. Restore planned with the purge job (`docs/todo.md`). |
-| Failing (as opposed to absent) file storage gives a general server error | H-27 | Known. Proposed: report it as storage unavailable (503). |
-| Nothing warns before closing a tab with files still being sent | H-23 | Known. Proposed. |
-| Patient changes and deletions aren't audited | H-03 | Known (risk S2). Planned, step 7. |
+| Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. Sessions now end when a password is changed or reset, and an admin can sign a user out everywhere (`feature/security-baseline`, not yet merged). |
+| Attached files aren't scanned for malware; every file shows "Not scanned" | H-25 | Known (`docs/todo.md`). Planned, step 9; proposed before first live use. |
+| A deleted file can't be restored, or downloaded, from MedApp | H-26 | Known. Restore planned with the purge job (`docs/todo.md`). |
+| Failing (as opposed to absent) file storage gives a general server error | H-28 | Known. Proposed: report it as storage unavailable (503). |
+| Nothing warns before closing a tab with files still being sent | H-24 | Known. Proposed. |
+| Patient changes and deletions are recorded without their old values | H-03 | Known (risk S2). Who, when and which fields since step 7; old values planned (step 7). |
 
 [For each release: list the open defects from the issue tracker that have a clinical impact.]
 
@@ -230,4 +231,4 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | 0.1 | 16 November 2026 | Template, filled in for `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: ratings on DCB0129's consequence table, a rating at first live use and the go-live rule on it, H-21, My Tasks' default view, H-12's fix in PR #62 | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62 | AI coding agent, for review |
-| 0.4 | 16 November 2026 | File attachments: H-22 to H-27 in the summary, the hazard table and the outstanding hazards; their evidence in claims 2 and 5; their known defects; two new assumptions | AI coding agent, for review |
+| 0.4 | 16 November 2026 | File attachments: H-23 to H-28 in the summary, the hazard table and the outstanding hazards; their evidence in claims 2 and 5; their known defects; two new assumptions | AI coding agent, for review |

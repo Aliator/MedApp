@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
+    <!-- NuGet audit: a known high (NU1903) or critical (NU1904) vulnerability in any package, direct or
+         transitive, fails the build. Moderate and low ones stay warnings. -->
+    <PropertyGroup>
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+    </PropertyGroup>
+
     <!-- DEPRECATED: the original Blazor WebAssembly UI, replaced by the React app in MedApp.Web.
          It is no longer run (the AppHost doesn't start it) and gets no new features; it is kept, and kept
          building, only for reference. See README.md. -->

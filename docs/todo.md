@@ -17,7 +17,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 - **File attachments: what's left.** Attachments are built (`AGENTS.md`, Attachments). Still to do:
   - **A real malware scanner.** Every file is "Not scanned" today (`NoMalwareScanner`). On Azure, turn on Microsoft Defender for Storage's malware scanning for the attachments account (about £8 a month per account plus about 12p per GB scanned; `deploy/azure/README.md`), and have the API read its verdict (the blob index tag it writes, or its Event Grid event) into `ScanStatus`, holding downloads until a file is scanned. Elsewhere (kind, other hosts), a ClamAV container behind `IMalwareScanner`. Decide what staff see while a scan is pending.
   - **Purging deleted files' bytes** after a retention window (proposed: 30 days, for the DPO to decide; `docs/governance/retention-schedule.md`), which needs a scheduled job that runs once across the API copies, as overdue notifications do. Until then, deleted files' bytes are kept. The `DeletedAtUtc` index is there for it. Restoring a deleted file (admins) could come with it.
-  - **Privacy features (PR #68):** when they merge, the subject access export must list a patient's attachments (and optionally include the files), and anonymisation must deal with file names and the files themselves.
+  - **The files themselves in the subject access export.** The export lists every file's details (deleted ones too), but not its contents; add them, for example as a ZIP beside the export's JSON, streamed from the file store and recorded as one export. Anonymisation already renames and deletes the files; their bytes go with the purge.
   - **Storage hardening on Azure:** a customer-managed key, and passwordless access (workload identity) instead of the account key in Key Vault, which needs the API's network policy to reach Entra ID (`deploy/azure/README.md`, "Not yet").
   - **Previews:** HEIC/HEIF thumbnails (SkiaSharp's Linux build can't decode HEIC), and a safe PDF preview (rendered to an image on the server, never shown inline). Today both are download only.
   - **Longer lists:** a list shows the newest 200 files of a patient, procedure or stage and says how many there are; page it if real use gets near that.
@@ -25,6 +25,42 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **Snapshots:** `medapp-dev`'s snapshots and demo data cover only the database, not Azurite's blobs.
 - **A customisable home screen.** Let each person arrange their home screen from "widgets" they choose, move and resize: for example today's calendar, My Tasks, overdue work, recent notifications, and the admin insights charts. The layout is saved with their account, like their other settings, and admins can set a default for everyone. Moving and resizing needs a keyboard and click alternative to dragging (WCAG 2.5.7).
 - **Find accounts still using `DefaultPassword1`.** Accounts created before #53 got that published password, and may still have it; until this check exists, an admin should reset their passwords or ask their users to change them. Add a one-off check that tests each account's hash with Identity's `PasswordHasher.VerifyHashedPassword` (no side effects, and SQL can't do it because the hashes are salted), then for each match sets a generated password (or locks it), revokes its sessions and lists the usernames. As a `medapp-dev` tool for local databases, and as an admin report or API command (like `create-first-admin`) for deployed ones (PR #53 review, finding 1).
+
+## Privacy (the rest of roadmap step 7)
+
+The first part is built: the activity log and access report, the subject access export, restricted and disputed flags, anonymisation, the retention review, and clearing browser storage at sign-out (`AGENTS.md`, Activity log and patient privacy). Still to do, roughly in order of need (`docs/governance/README.md` has the full list):
+
+- **Automatic purging of operational data:** sessions and sign-in events at 12 months, notifications at 6 months, as a job that runs once across the API copies, logging counts. The activity log's own retention: its sign-in entries at 12 months, its patient entries with the patient's record.
+- **Note versions** in their own table, with the procedure audit pointing at them instead of copying notes into `Details` (DPIA risk 4), and the old values of patient edits.
+- **A tamper-evident activity log:** ledger tables, and streaming the log to the log workspace (step 5).
+- **Access reviews and alerts:** a periodic review of who can sign in, an alert when one account opens an unusual number of records, a "what has this person seen" report, and an `Auditor` role.
+- **The browser's address for pages rendered on the server:** requests from the browser already record its address (the chart turns on forwarded headers for the ingress), but a page rendered on the server calls the API from Node, so its reads record the loopback address. Pass the browser's address through server rendering, trusted only with the page server's key.
+- **A scheduled job for operational data:** purge sign-in events (including refused sign-ins) and sessions at 12 months and notifications at 6 months, once across the API copies (a lease or a Kubernetes CronJob), logging counts; the activity log's patient entries go with the patient's record. There is no scheduled job in MedApp yet.
+- **Restriction hiding patients from lists** except for named roles; a second person approving an anonymisation.
+- **A clinician review step in the export,** to hold back what meets the serious harm test, and a PDF.
+- **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
+- **Saved searches that name a patient,** removed on anonymisation or destruction: their terms can be a name or an NHS number (the patient list's NHS number filter), kept in the account's settings and the browser. Anonymisation removes the number from the record but not from saved searches (DPIA risk 21).
+- **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).
+- **Contact preferences** and a National Data Opt-out flag.
+- **Always Encrypted for the NHS number** (deterministic, so lookups by exact value still work), which step 7 planned once the number existed. It exists now (branch `feature/nhs-integrations`), protected only by TDE like the rest. Its partial-match search (the list's NHS number filter, which matches numbers containing the digits typed) would have to become an exact match.
+
+## Patient identity and interoperability (the rest of roadmap step 9's first part)
+
+Built on branch `feature/nhs-integrations` (`AGENTS.md`, NHS number, FHIR and SNOMED CT): an optional, validated, unique NHS number; the patient banner; a read-only FHIR R4 Patient API in the UK Core shape; SNOMED CT codes on stage definitions; and a demographics lookup with only an offline stub. Still to do:
+
+- **The real PDS lookup.** Wire `IPersonalDemographicsService` to the PDS FHIR API ([NHS England](https://digital.nhs.uk/developer/api-catalogue/personal-demographics-service-fhir)). It needs NHS England's onboarding first ([onboarding process](https://digital.nhs.uk/developer/guides-and-documentation/onboarding-process)): a CIS2 integration for health workers' access, or an application-restricted API key through the API platform; a DSPT submission; a DCB0129 hazard log; risk logs for each access mode; a penetration test; and a connection agreement. Then trace numbers, so the FHIR API can report them as verified, not "02 Number present but not traced". Update the data inventory, DPIA and ROPA first: NHS England becomes a source of patient data.
+- **Validate the FHIR API against the UK Core profiles** with a FHIR validator (the HL7 validator, or Firely's), in CI, before any system relies on it. The resources are hand-built and haven't been checked yet.
+- **FHIR access for other systems:** OAuth 2.0 client credentials (SMART Backend Services), with a client per system and its own scopes, instead of a signed-in member of staff's session cookie. The activity log then records the client, not a person.
+- **More FHIR resources:** the procedure as a CarePlan or ServiceRequest, stages as Tasks, templates as PlanDefinitions, the audit as AuditEvents (the minimal CapabilityStatement at `api/fhir/metadata` lists only Patient today); webhooks for status changes; a published canonical URL for MedApp's record-flag code system (`urn:medapp:fhir:CodeSystem:record-flag`, today). Revisit the Firely SDK in place of hand-built DTOs then.
+- **SNOMED CT on templates and OPCS-4 codes,** as step 9 plans (a procedure concept on each template), and the codes in the FHIR resources once procedures are exposed.
+- **A terminology server** (the NHS England Terminology Server) to check that a SNOMED CT concept exists and is active, and to offer its preferred term, instead of the format check and the admin's own term. Inactive concepts need a periodic check too.
+- **A duplicate-patient check** when a patient is added or edited: today only an exact duplicate NHS number is refused. Warn about the same name and date of birth, or a near match, and let an admin merge duplicates.
+- **The rest of hazards H-01 and H-02's controls** (`docs/clinical-safety/hazard-log.md`): the date of birth beside the patient's name in task and procedure lists; the patient's name in the procedure page's title; the patient named in the Save Notes and Finish Stage confirmations. Then the CSO verifies the banner and these together.
+- **Sex and gender on the patient and in the banner:** the NHS patient banner guidance shows them, and the banner can't until MedApp holds them (the NHS Data Dictionary's "person stated gender" and sex at birth, with the care that data needs). Then add them to the banner and the FHIR Patient (`gender`), and update the data inventory and DPIA first.
+- **Checking NHS numbers against the issued ranges,** after the placeholder check: possible, but would refuse some valid numbers from the rest of the UK, so only as an option.
+- **The rest of step 9's patient details:** a local hospital number (with its assigning organisation), address, phone, registered GP practice (ODS code), and a deceased flag. Each one updates the data inventory and the DPIA first.
+- **NHS number unique within an organisation,** not the deployment, with multi-tenancy (step 8).
+- **Keep the NHS number out of URLs,** where request logs, traces and the ingress's access logs can record it: the FHIR search takes it in its query string. Support FHIR's `POST Patient/_search`, which keeps the parameters in the body (the demographics lookup is already a POST). The patient list's NHS number filter stays in the URL by the product owner's decision on list filters (DPIA risk 10).
 
 ## Deployment
 
@@ -43,10 +79,24 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **A MediatR licence** before running in production: MediatR 14 logs a licence warning at startup.
   - **Readiness that checks the database and Valkey,** and **restarting Node** when the page server exits (the chart's `README.md`, "Not yet").
   - **Restarting the API and Valkey when a password changes,** for example with a reloader. Until then it's by hand (`deploy/azure/README.md`, Passwords).
-  - **Pinning actions and images by digest,** with Dependabot keeping them current.
-  - **Repository settings:** `web`, `helm`, `unit-tests` and `image` are required on `main`, and `env/*` can't be deleted or force-pushed. Still to do: let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
+  - **Pinning images by digest** (the Dockerfile's base images, SQL Server and Valkey), with Dependabot keeping them current. Actions are pinned by commit SHA. Write the Dockerfile's base image tags out (not as `ARG`s), so Dependabot can read them.
+  - **Verify the image's provenance attestation before deploying it** (an admission policy, or a check in the deploy job), and copy the attestations to Azure's registry with the image.
+  - **Move the PR workflow's `pull-requests: write`** from the whole workflow to the jobs that comment.
+  - **Repository settings:** `web`, `helm`, `unit-tests`, `image`, `integration-tests` and `e2e` are required on `main`, and `env/*` can't be deleted or force-pushed. The dependency graph, Dependabot alerts and Dependabot security updates are on (Settings, Advanced Security; done in #67, which `dependency-review` needs), with secret scanning and push protection; CodeQL's default setup stays off, so `codeql.yml`'s advanced setup can upload. Make `dependency-review` a required check too. Still to do: let only a deploy-only GitHub App push to `env/*` (a personal repository can't make GitHub Actions the only pusher).
 - **An audit index for Insights' stage times.** Add an index on the audit log's `(PatientProcedureId, Action, AtUtc)`, including `StageId`, in a migration of its own (#66 left it out while two other branches were adding migrations). Each stage's first finish is a `TOP(1)` over its procedure's entries; today that seeks `(PatientProcedureId, AtUtc)` and looks up every entry to check its action. Measured on LocalDB with 20,000 procedures and 342,627 audit entries (the second of two runs), the whole Insights query took 239 ms, 495 ms and 1,025 ms for 4, 12 and 26 weeks; with the index, 189 ms, 209 ms and 516 ms. Stage times are most of it, and grow with the stages finished in the period (PR #66 review, finding 4).
 - **Move the page server out of `wwwroot`** (e.g. to `/app/ssr/`), so static files can't reach `ssr/` or `.vite/` on any host. On Windows, `PageServerFiles`' path check can be got round with `\`, trailing dots or 8.3 short names (PR #51 review, 3.2).
+
+## Security (roadmap step 2, after `feature/security-baseline`)
+
+What that branch left, so the app would work exactly as before (`docs/security/asvs.md` has the rest, requirement by requirement):
+- **An idle timeout** (30 minutes as a start, configurable) beside the 8 hours (extendable to 24 since #63), with its own warning.
+- **Store a hash of a random 256-bit session token** instead of the row's ID (needs a migration), and stop repeating the session ID in the login response's body.
+- **The same answer for a locked account** as for a wrong password (today a 423 confirms the account exists).
+- **Close a user's live-notifications connections when their sessions end** (a password change, a reset or "Sign out everywhere"): today an open page keeps receiving notifications until it reloads.
+- **Share the sign-in throttling counts between API copies** (Valkey), and add a per-session limit on everything else.
+- **Passwords:** a breached-password check (Have I Been Pwned's k-anonymity range API, or an offline list), a 15-character minimum without composition rules (ASVS V6.2.1), and context words (the username, "medapp") on the deny list.
+- **Tighten the page policy:** move style attributes to classes so `style-src` can drop `'unsafe-inline'`, and collect violation reports (`report-to`).
+- **Audit the new session actions** (sign-out everywhere, and the sessions a change ends) with the rest of account administration (step 7).
 
 ## Testing
 

@@ -7,6 +7,7 @@ import type {ReactNode} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
 import {formatDateTime} from '../../utils/dates';
 import {RichText} from '../shared/RichText';
+import {SnomedConcept} from './SnomedConcept';
 
 /** What a stage's state looks like: finished, under way or waiting. */
 export function StageStateTokens({stage}: {stage: ProcedureStage}) {
@@ -108,8 +109,8 @@ export interface StageDetailsProps {
 }
 
 /**
- * Everything about one stage under its title: description, who started and finished it, instructions (which fold),
- * notes and files.
+ * Everything about one stage under its title: description, its SNOMED CT concept (copied from its definition when
+ * the procedure was made), who started and finished it, instructions (which fold), notes and files.
  */
 export function StageDetails({stage, work, instructions, files}: StageDetailsProps) {
   return (
@@ -119,6 +120,7 @@ export function StageDetails({stage, work, instructions, files}: StageDetailsPro
           {stage.description}
         </Text>
       )}
+      <SnomedConcept code={stage.snomedCode} term={stage.snomedTerm} />
       <StageActivity stage={stage} />
       {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
       {work ?? <StageNotes notes={stage.notes ?? ''} />}

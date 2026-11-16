@@ -11,6 +11,10 @@ public sealed class PatientProcedureStageResponse
     public string Description { get; set; } = string.Empty;
     public string Instructions { get; set; } = string.Empty;
 
+    /// <summary>The SNOMED CT code and term, copied from the stage definition when the procedure was created, or null.</summary>
+    public string? SnomedCode { get; set; }
+    public string? SnomedTerm { get; set; }
+
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>NotStarted, InProgress or Completed.</summary>

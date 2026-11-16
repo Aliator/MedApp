@@ -17,7 +17,10 @@ public static class PatientSearch
     public static bool IsSortColumn(string sort) =>
         SortColumns.Contains(sort, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Patients whose names and email contain the given text, born within the given dates (inclusive).</summary>
+    /// <summary>
+    /// Patients whose names and email contain the given text, born within the given dates (inclusive), and whose NHS
+    /// number contains the given digits (spaces ignored).
+    /// </summary>
     public static IQueryable<Patient> Filter(this IQueryable<Patient> patients, SearchPatientsQuery query)
     {
         if (Term(query.FirstName) is { } firstName)
@@ -30,6 +33,8 @@ public static class PatientSearch
             patients = patients.Where(p => p.DateOfBirth >= from);
         if (query.DateOfBirthTo is { } to)
             patients = patients.Where(p => p.DateOfBirth <= to);
+        if (NhsNumberDigits(query.NhsNumber) is { } nhsNumber)
+            patients = patients.Where(p => p.NhsNumber != null && p.NhsNumber.Contains(nhsNumber));
         return patients;
     }
 
@@ -51,6 +56,31 @@ public static class PatientSearch
             (_, false) => patients.OrderByDescending(p => p.LastName.ToLower()).ThenByDescending(p => p.FirstName.ToLower()).ThenBy(p => p.Id),
         };
     }
+
+    /// <summary>
+    /// The names of the filters a search used (<c>firstName</c>, <c>lastName</c>, <c>email</c>,
+    /// <c>dateOfBirthFrom</c>, <c>dateOfBirthTo</c>, <c>nhsNumber</c>), for the activity log, which never keeps the terms themselves.
+    /// </summary>
+    public static IReadOnlyList<string> FiltersUsed(SearchPatientsQuery query)
+    {
+        var used = new List<string>();
+        if (Term(query.FirstName) is not null)
+            used.Add("firstName");
+        if (Term(query.LastName) is not null)
+            used.Add("lastName");
+        if (Term(query.Email) is not null)
+            used.Add("email");
+        if (query.DateOfBirthFrom is not null)
+            used.Add("dateOfBirthFrom");
+        if (query.DateOfBirthTo is not null)
+            used.Add("dateOfBirthTo");
+        if (NhsNumberDigits(query.NhsNumber) is not null)
+            used.Add("nhsNumber");
+        return used;
+    }
+
+    /// <summary>The NHS number filter's digits, its spaces left out, or null when it's empty.</summary>
+    public static string? NhsNumberDigits(string? text) => NhsNumbers.Normalise(text);
 
     private static string? Term(string? text) =>
         string.IsNullOrWhiteSpace(text) ? null : text.Trim().ToLower();
