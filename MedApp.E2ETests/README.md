@@ -10,6 +10,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | `Patients/PatientTests` | Adding a patient through the form and finding them with the filter bar; editing; deleting, confirmed and cancelled. |
 | `Procedures/ProcedureTests` | A new procedure for a patient from a template, then its stages worked: notes, Finish Stage, the status from Unassigned to In progress to In review. |
 | `Tasks/MyTasksTests` | A procedure assigned to you in My Tasks, under Not started, then Started, and opening it. |
+| `Auth/TwoFactorTests` | Two-factor authentication: a member of staff sets up an authenticator app in Account Settings, Security (the key is read from the page, and codes made from it as an app makes them), sees their recovery codes once, then signs in again with their password and a code. Needs no email, so it runs against the production image as CI starts it. |
 | `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
 | `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
 
