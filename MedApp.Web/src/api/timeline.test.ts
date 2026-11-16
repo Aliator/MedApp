@@ -73,6 +73,7 @@ describe('timeline filters', () => {
     expect(TIMELINE_KINDS.map(timelineKindLabel)).toEqual([
       'Created',
       'Stages',
+      'Appointments',
       'Notes',
       'Assignments',
       'Blocks',
@@ -183,6 +184,61 @@ describe('describeTimelineEntry', () => {
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'Blocked', toStatus: 'Cancelled', reason: 'No longer needed.'}))).toEqual({
       title: 'Status changed to cancelled',
       detail: 'Was blocked. No longer needed.',
+    });
+  });
+
+  it('says a stage was finished without a visit, what it asked for, and (to admins) why', () => {
+    const required = entry({action: 'StageFinished', stageName: 'Review', finishedWithoutVisit: true, visitRequirement: 'Required', reason: 'Seen elsewhere.'});
+    const suggested = entry({action: 'StageFinished', stageName: 'Review', finishedWithoutVisit: true, visitRequirement: 'Suggested'});
+
+    expect(describeTimelineEntry(required)).toEqual({title: 'Finished Review without a visit', detail: 'A visit was required. Seen elsewhere.'});
+    expect(describeTimelineEntry(suggested)).toEqual({title: 'Finished Review without a visit', detail: 'A visit was suggested'});
+    expect(describeTimelineEntry(entry({action: 'StageFinished', finishedWithoutVisit: true})).detail).toBe('');
+  });
+
+  describe('appointments', () => {
+    const appointment = (fields: Partial<TimelineEntry>) =>
+      entry({
+        kind: 'Appointments',
+        stageName: 'Review',
+        appointmentStartUtc: '2026-11-23T10:00:00Z',
+        appointmentEndUtc: '2026-11-23T10:30:00Z',
+        appointmentStaffUsername: 'test.doctor',
+        ...fields,
+      });
+    const slot = 'Mon 23 Nov 2026, 10:00 to 10:30 with test.doctor';
+
+    it.each([
+      [{action: 'AppointmentRequested', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested for Review', 'Requested automatically, as the stage involves a visit. Needs booking'],
+      [{action: 'AppointmentRequested', stageName: null, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested', 'Needs booking'],
+      [{action: 'AppointmentBooked'}, 'Appointment booked for Review', slot],
+      [{action: 'AppointmentAttended'}, 'Marked Attended for Review', slot],
+      [{action: 'AppointmentAttended', fromStatus: 'DidNotAttend'}, 'Marked Attended for Review', `${slot}. Was marked Did not attend`],
+      [{action: 'AppointmentDidNotAttend', fromStatus: 'Attended'}, 'Marked Did not attend for Review', `${slot}. Was marked Attended`],
+      [{action: 'AppointmentDidNotAttend', fromStatus: 'Booked'}, 'Marked Did not attend for Review', slot],
+      [{action: 'AppointmentCancelled', reason: 'Patient asked to cancel.'}, 'Appointment cancelled for Review', `${slot}. Patient asked to cancel.`],
+      [{action: 'AppointmentCancelled', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment cancelled for Review', 'Cancelled automatically'],
+      [{action: 'AppointmentSomethingNew', appointmentStartUtc: null}, 'Appointment changed for Review', 'With test.doctor'],
+    ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {
+      expect(describeTimelineEntry(appointment(fields))).toEqual({title, detail});
+    });
+
+    it('says where a rescheduled appointment moved from, and to', () => {
+      const moved = appointment({action: 'AppointmentRescheduled', previousStartUtc: '2026-11-20T14:00:00Z', previousStaffUsername: 'other.doctor'});
+
+      expect(describeTimelineEntry(moved)).toEqual({
+        title: 'Appointment rescheduled for Review',
+        detail: `From Fri 20 Nov 2026, 14:00 with other.doctor, to ${slot}`,
+      });
+      expect(describeTimelineEntry(appointment({action: 'AppointmentRescheduled'})).detail).toBe(`To ${slot}`);
+    });
+
+    it('gives an admin the notes, and staff only that they changed', () => {
+      const admin = appointment({action: 'AppointmentNotesUpdated', changes: [{field: 'appointmentNotes', from: '', to: 'Synthetic note.'}]});
+      const staff = appointment({action: 'AppointmentNotesUpdated', changes: [{field: 'appointmentNotes', from: null, to: null}]});
+
+      expect(describeTimelineEntry(admin)).toEqual({title: 'Appointment notes changed for Review', detail: 'Notes: Synthetic note.'});
+      expect(describeTimelineEntry(staff)).toEqual({title: 'Appointment notes changed for Review', detail: ''});
     });
   });
 

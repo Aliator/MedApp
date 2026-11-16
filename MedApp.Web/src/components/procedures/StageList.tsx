@@ -88,12 +88,16 @@ function StageInstructions({stage, folding}: {stage: ProcedureStage; folding?: I
   );
 }
 
-/** A stage's title: its number and name, as headers and the current stage show it. */
-export function StageTitle({stage}: {stage: ProcedureStage}) {
+/**
+ * A stage's title: its number and name, as headers and the current stage show it, and its state; `extra` adds more
+ * after them (its visit, `StageVisitTokens`). It wraps in a narrow space.
+ */
+export function StageTitle({stage, extra}: {stage: ProcedureStage; extra?: ReactNode}) {
   return (
-    <HStack gap={3} vAlign="center">
+    <HStack gap={3} vAlign="center" wrap="wrap">
       <Text type="body" size="lg" weight="bold">{`${stage.stageOrder}. ${stage.name}`}</Text>
       <StageStateTokens stage={stage} />
+      {extra}
     </HStack>
   );
 }
@@ -141,6 +145,8 @@ export interface StageListProps {
   onStageOpenChange?: (stageId: string, isOpen: boolean) => void;
   /** Whether each stage's instructions are open, held by the page. Without it, they start folded. */
   instructions?: InstructionsFolding;
+  /** More for a stage's title, after its state, e.g. its visit (`StageVisitTokens`). */
+  renderVisit?: (stage: ProcedureStage) => ReactNode;
 }
 
 /**
@@ -148,7 +154,15 @@ export interface StageListProps {
  * opening it shows who started and finished it, its instructions and its notes. The current stage starts open
  * (unless `isCurrentOpen` is false) and the others closed, so the page leads with the work in hand.
  */
-export function StageList({stages, isCurrentOpen = true, renderWork, openStageIds, onStageOpenChange, instructions}: StageListProps) {
+export function StageList({
+  stages,
+  isCurrentOpen = true,
+  renderWork,
+  openStageIds,
+  onStageOpenChange,
+  instructions,
+  renderVisit,
+}: StageListProps) {
   return (
     <VStack gap={0}>
       {[...stages]
@@ -160,7 +174,7 @@ export function StageList({stages, isCurrentOpen = true, renderWork, openStageId
               isOpen={openStageIds ? openStageIds.includes(stage.id ?? '') : undefined}
               onOpenChange={openStageIds ? (isOpen) => onStageOpenChange?.(stage.id ?? '', isOpen) : undefined}
               chevronPosition="end"
-              trigger={<StageTitle stage={stage} />}>
+              trigger={<StageTitle stage={stage} extra={renderVisit?.(stage)} />}>
               <StageDetails stage={stage} work={renderWork?.(stage)} instructions={instructions} />
             </Collapsible>
           </Section>

@@ -127,6 +127,43 @@ describe('PatientTimeline', () => {
     expect(screen.getByRole('button', {name: 'Old biopsy (deleted)'})).toBeInTheDocument();
   });
 
+  it("shows appointments' history, with the procedure only when the appointment is for one, and filters to them", async () => {
+    const fetch = mockApi({
+      [`GET ${OVERVIEW}`]: () => json(overview),
+      [`GET ${TIMELINE}`]: () =>
+        json({
+          items: [
+            entry({
+              kind: 'Appointments',
+              action: 'AppointmentBooked',
+              appointmentStartUtc: '2026-06-22T09:00:00Z',
+              appointmentEndUtc: '2026-06-22T09:30:00Z',
+              appointmentStaffUsername: 'test.doctor',
+            }),
+            entry({kind: 'Appointments', action: 'AppointmentDidNotAttend', procedureId: null, procedureTitle: null, stageName: null}),
+            entry({kind: 'Appointments', action: 'AppointmentRequested', isAutomatic: true}),
+            entry({kind: 'Appointments', action: 'AppointmentCancelled'}),
+            entry({kind: 'Appointments', action: 'AppointmentAttended'}),
+            entry({kind: 'Appointments', action: 'AppointmentNotesUpdated'}),
+            entry({action: 'StageFinished', finishedWithoutVisit: true, visitRequirement: 'Suggested'}),
+          ],
+          nextCursor: null,
+        }),
+    });
+    renderWithApp(<Harness />, {user: staffUser});
+
+    expect(await screen.findByText('Appointment booked for Consultation')).toBeInTheDocument();
+    expect(screen.getByText('Mon 22 Jun 2026, 10:00 to 10:30 with test.doctor')).toBeInTheDocument();
+    expect(screen.getByText('Finished Consultation without a visit')).toBeInTheDocument();
+    // Not for a procedure: no link, just when and who.
+    const missed = within(screen.getByText('Marked Did not attend').closest('li')!);
+    expect(missed.queryByRole('link')).not.toBeInTheDocument();
+    expect(missed.getByText('10:05 · test.staff')).toBeInTheDocument();
+
+    screen.getByRole('button', {name: 'Appointments'}).click();
+    await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Appointments`));
+  });
+
   it('loads older entries after the last page, announces them, focuses the first, and stops when there are none', async () => {
     localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
     const fetch = mockApi({

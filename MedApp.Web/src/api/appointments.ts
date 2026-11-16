@@ -51,6 +51,15 @@ export function appointmentsQuery(search: AppointmentSearch) {
   });
 }
 
+/** The most appointments the procedure and patient pages list (the API's largest page). */
+export const LISTED_APPOINTMENTS = 100;
+
+/** A procedure's appointments, every status, by start (Requested ones last): the procedure page's list and stage visits. */
+export const procedureAppointmentsQuery = (procedureId: string) => appointmentsQuery({ProcedureId: procedureId, PageSize: LISTED_APPOINTMENTS});
+
+/** A patient's appointments, every status, by start (Requested ones last): the patient page's list. */
+export const patientAppointmentsQuery = (patientId: string) => appointmentsQuery({PatientId: patientId, PageSize: LISTED_APPOINTMENTS});
+
 /** Refreshes everything an appointment change can show up in. */
 export function useRefreshAppointments() {
   const queryClient = useQueryClient();

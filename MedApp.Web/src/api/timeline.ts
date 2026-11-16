@@ -1,5 +1,5 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
-import {formatShortDate, ukDay} from '../utils/dates';
+import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -15,12 +15,13 @@ export const MAX_TIMELINE_PROCEDURES = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
   Created: 'Created',
   Stages: 'Stages',
+  Appointments: 'Appointments',
   Notes: 'Notes',
   Assignments: 'Assignments',
   Blocks: 'Blocks',
@@ -105,7 +106,14 @@ const date = (value: string | null | undefined) => (value ? formatShortDate(valu
 const quoted = (value: string | null | undefined) => (value?.trim() ? `"${value.trim()}"` : 'nothing');
 const hasValues = (change: TimelineChange) => change.from != null || change.to != null;
 
-const FIELD_NAMES: Record<string, string> = {title: 'title', notes: 'notes', dueDate: 'due date', priority: 'priority', stageNotes: 'notes'};
+const FIELD_NAMES: Record<string, string> = {
+  title: 'title',
+  notes: 'notes',
+  dueDate: 'due date',
+  priority: 'priority',
+  stageNotes: 'notes',
+  appointmentNotes: 'notes',
+};
 
 /**
  * One edited field in words. Values come only where the API sends them (due dates and priorities to everyone, free
@@ -156,7 +164,9 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
     case 'StageStarted':
       return {title: `Started ${stage}`, detail: ''};
     case 'StageFinished':
-      return {title: `Finished ${stage}`, detail: ''};
+      return entry.finishedWithoutVisit
+        ? {title: `Finished ${stage} without a visit`, detail: withoutVisitDetail(entry)}
+        : {title: `Finished ${stage}`, detail: ''};
     case 'StageUnlocked':
       return {title: `Unlocked ${stage}`, detail: ''};
     case 'StageNotesUpdated':
@@ -175,7 +185,70 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
     case 'Deleted':
       return {title: 'Procedure deleted', detail: entry.fromStatus ? `Was ${words(entry.fromStatus)}` : ''};
     default:
-      return {title: entry.action ?? 'Changed', detail: ''};
+      return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
+  }
+}
+
+/** A stage finished without a visit: what the stage asked for, and (to admins) why. */
+function withoutVisitDetail(entry: TimelineEntry): string {
+  const requirement =
+    entry.visitRequirement === 'Required' ? 'A visit was required' : entry.visitRequirement === 'Suggested' ? 'A visit was suggested' : null;
+  return [requirement, entry.reason?.trim()].filter(Boolean).join('. ');
+}
+
+/** Whether an entry is from an appointment's history (its action is "Appointment" and what happened). */
+const isAppointmentEntry = (entry: TimelineEntry) => entry.kind === 'Appointments' || (entry.action ?? '').startsWith('Appointment');
+
+/** An appointment's time and member of staff: "Mon 23 Nov 2026, 10:00 to 10:30 with j.smith". */
+function appointmentSlot(startUtc: string | null | undefined, endUtc: string | null | undefined, staff: string | null | undefined): string {
+  if (!startUtc) return staff ? `With ${staff}` : '';
+  return `${formatAppointmentTime(startUtc, endUtc)}${staff ? ` with ${staff}` : ''}`;
+}
+
+const sentences = (...parts: (string | null | undefined)[]) =>
+  parts
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join('. ');
+
+/** An outcome that corrects an earlier one says what it was. */
+function correction(entry: TimelineEntry): string | null {
+  if (entry.fromStatus === 'Attended') return 'Was marked Attended';
+  if (entry.fromStatus === 'DidNotAttend') return 'Was marked Did not attend';
+  return null;
+}
+
+/**
+ * An appointment history entry in words. Staff get the structured values only (time, member of staff, stage);
+ * cancellation reasons and notes come only to admins, so for staff a notes entry just says the notes changed.
+ */
+function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
+  const about = entry.stageName ? ` for ${entry.stageName}` : '';
+  const slot = appointmentSlot(entry.appointmentStartUtc, entry.appointmentEndUtc, entry.appointmentStaffUsername);
+  switch (entry.action) {
+    case 'AppointmentRequested':
+      return {
+        title: `Appointment requested${about}`,
+        detail: entry.isAutomatic ? 'Requested automatically, as the stage involves a visit. Needs booking' : 'Needs booking',
+      };
+    case 'AppointmentBooked':
+      return {title: `Appointment booked${about}`, detail: slot};
+    case 'AppointmentRescheduled': {
+      const before = appointmentSlot(entry.previousStartUtc, null, entry.previousStaffUsername);
+      return {title: `Appointment rescheduled${about}`, detail: before ? `From ${before}, to ${slot}` : `To ${slot}`};
+    }
+    case 'AppointmentAttended':
+      return {title: `Marked Attended${about}`, detail: sentences(slot, correction(entry))};
+    case 'AppointmentDidNotAttend':
+      return {title: `Marked Did not attend${about}`, detail: sentences(slot, correction(entry))};
+    case 'AppointmentCancelled':
+      return {title: `Appointment cancelled${about}`, detail: sentences(slot, entry.isAutomatic ? 'Cancelled automatically' : null, entry.reason)};
+    case 'AppointmentNotesUpdated': {
+      const changes = (entry.changes ?? []).filter(hasValues).map(describeChange);
+      return {title: `Appointment notes changed${about}`, detail: changes.join('; ')};
+    }
+    default:
+      return {title: `Appointment changed${about}`, detail: slot};
   }
 }
 

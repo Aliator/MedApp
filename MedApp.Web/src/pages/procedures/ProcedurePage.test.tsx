@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {adminUser, calls, findAlert, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE, ProcedurePage, ProcedureView, finishedMessage} from './ProcedurePage';
 import {richText, typeRichText} from '../../test/richText';
+import {testAppointment, testRequested} from '../../test/calendar';
 
 const id = 'proc-1';
 const procedure = {
@@ -552,6 +553,175 @@ describe('ProcedurePage details and deleting', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Procedure'}));
 
     expect(await findAlert('Only cancelled or archived procedures can be deleted.')).toBeInTheDocument();
+  });
+});
+
+describe('ProcedurePage: visits and appointments', () => {
+  const APPOINTMENTS = '/api/appointments/search';
+  /** Stage 2 involves a visit (Required unless said otherwise). */
+  const visiting = (visitRequirement = 'Required', overrides: Record<string, unknown> = {}) => {
+    const base = working();
+    return {...base, stages: [base.stages[0], {...base.stages[1], visitRequirement}], ...overrides};
+  };
+  const forStage = {procedureId: id, procedureTitle: 'Colonoscopy', stageId: 's2', stageName: 'Procedure'};
+  const requested = testRequested({id: 'requested', ...forStage});
+  // 23 November 2026: UK time is UTC.
+  const booked = testAppointment({id: 'booked', date: '2026-11-23', start: '10:00', end: '10:30', ...forStage});
+  const attended = testAppointment({id: 'attended', status: 'Attended', date: '2026-11-16', ...forStage});
+
+  function renderVisit(
+    procedure: ReturnType<typeof working>,
+    appointments: unknown[],
+    user = staffUser,
+    extra: Parameters<typeof mockApi>[0] = {},
+  ) {
+    const fetch = mockApi({[`GET ${PATH}`]: () => json(procedure), [`GET ${APPOINTMENTS}`]: () => json(pageOf(appointments)), ...extra});
+    return {fetch, ...renderWithApp(<ProcedurePage id={id} />, {user})};
+  }
+
+  it("asks for the procedure's appointments, and lists them in the details, each opening on the calendar", async () => {
+    const {fetch} = renderVisit(visiting(), [booked, requested]);
+
+    const list = within(await screen.findByRole('list', {name: 'Appointments'}));
+    expect(list.getByRole('link', {name: 'Mon 23 Nov 2026, 10:00 to 10:30 with test-user'})).toHaveAttribute('href', '/calendar?appointment=booked');
+    expect(list.getByText('Needs booking')).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET ${APPOINTMENTS}?ProcedureId=${id}&PageSize=100`);
+  });
+
+  it('says when there are none', async () => {
+    renderVisit(working(), []);
+    expect(await screen.findByText('No appointments yet.')).toBeInTheDocument();
+  });
+
+  it("says when the appointments, and so the stage's visit, could not be loaded", async () => {
+    renderVisit(visiting(), [], staffUser, {[`GET ${APPOINTMENTS}`]: () => json({title: 'Down'}, 500)});
+
+    expect(await findAlert('The appointments could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert("The stage's visit could not be loaded. Please try again.")).toBeInTheDocument();
+  });
+
+  it('shows each stage’s visit in the stage list', async () => {
+    renderVisit(visiting(), [booked]);
+
+    expect(await screen.findByRole('button', {name: /^2\. Procedure.*Visit required.*Booked/})).toBeInTheDocument();
+  });
+
+  it("won't let staff finish a stage that requires a visit until one is attended, and books it from the stage", async () => {
+    const {user} = renderVisit(visiting(), [requested]);
+
+    const visit = within(await screen.findByRole('group', {name: 'Visit'}));
+    expect(visit.getByText('Needs booking')).toBeInTheDocument();
+    expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', {name: 'Finish Stage'})).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(visit.getByRole('button', {name: 'Book Visit'}));
+    expect(within(openDialog()!).getByText('Book Visit')).toBeInTheDocument();
+  });
+
+  it('lets an admin finish a required stage without a visit, giving a reason', async () => {
+    withAnnouncements();
+    const {user, fetch} = renderVisit(visiting(), [requested], adminUser, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText('Finish without a visit?')).toBeInTheDocument();
+    expect(dialog.getByText(/Procedure requires a visit, and none is marked Attended/)).toBeInTheDocument();
+    expect(dialog.getByText('Its visit comes off Needs booking.')).toBeInTheDocument();
+    expect(dialog.getByRole('button', {name: 'Finish Without Visit'})).toHaveAttribute('aria-disabled', 'true');
+    await user.type(dialog.getByRole('textbox', {name: /Reason/}), ' Seen at another clinic ');
+    await user.click(dialog.getByRole('button', {name: 'Finish Without Visit'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({withoutVisit: true, reason: 'Seen at another clinic'});
+    await expectAnnounced(/finished\. Next stage: /);
+  });
+
+  it('asks anyone to confirm finishing a stage that suggests a visit without one, saying a booked one stays', async () => {
+    const {user, fetch} = renderVisit(visiting('Suggested'), [booked], staffUser, {[`POST ${PATH}/stages/s2/finish`]: () => json(working())});
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText('Procedure suggests a visit, and none is marked Attended. Finish it anyway?')).toBeInTheDocument();
+    expect(dialog.getByText(/stays booked: cancel it on the calendar/)).toBeInTheDocument();
+    expect(dialog.queryByRole('textbox', {name: /Reason/})).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Finish Without Visit'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({withoutVisit: true});
+  });
+
+  it('finishes as usual once the visit is attended', async () => {
+    const {user} = renderVisit(visiting(), [attended]);
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+
+    expect(within(openDialog()!).getByText('Finish Procedure?')).toBeInTheDocument();
+  });
+
+  it('records that the patient came to a visit that has started, and reschedules one', async () => {
+    withAnnouncements();
+    const started = {...booked, canRecordOutcome: true};
+    const {user, fetch} = renderVisit(visiting(), [started], staffUser, {
+      [`POST /api/appointments/booked/outcome`]: () => json({...started, status: 'Attended'}),
+    });
+
+    const visit = within(await screen.findByRole('group', {name: 'Visit'}));
+    await user.click(visit.getByRole('button', {name: 'Attended'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/appointments/booked/outcome'));
+    expect(await bodyOf(fetch, 'POST /api/appointments/booked/outcome')).toEqual({outcome: 'Attended'});
+    await expectAnnounced('Visit marked Attended');
+
+    await user.click(visit.getByRole('button', {name: 'Reschedule'}));
+    expect(within(openDialog()!).getByText('Reschedule Appointment')).toBeInTheDocument();
+  });
+
+  it('says why an outcome could not be recorded', async () => {
+    withAnnouncements();
+    const started = {...booked, canRecordOutcome: true};
+    const {user} = renderVisit(visiting(), [started], staffUser, {
+      [`POST /api/appointments/booked/outcome`]: () => json({title: 'Too early.'}, 409),
+    });
+
+    await user.click(within(await screen.findByRole('group', {name: 'Visit'})).getByRole('button', {name: 'Did Not Attend'}));
+
+    expect(await findAlert('Too early.')).toBeInTheDocument();
+  });
+
+  it('books an appointment for the procedure from the footer, and closes the booking', async () => {
+    const {user} = renderVisit(working(), []);
+
+    await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));
+    expect(within(openDialog()!).getByText('Book Appointment')).toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it('folds the Appointments, and says while they load', async () => {
+    const {user} = renderVisit(working(), [], staffUser, {[`GET ${APPOINTMENTS}`]: () => new Promise<Response>(() => {})});
+
+    expect(await screen.findByText('Loading appointments...')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Appointments'}));
+
+    expect(screen.getByRole('button', {name: 'Appointments'})).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('points out appointments still booked for a cancelled procedure, and books nothing more for it', async () => {
+    renderVisit(working({status: 'Cancelled', allowedStatusChanges: [], canWorkOnStages: false}), [booked, {...booked, id: 'booked-2'}]);
+
+    expect(
+      await screen.findByText('The procedure is cancelled, but 2 appointments are still booked. Tell the patient, then cancel them on the calendar.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
+  });
+
+  it("names a cancelled procedure's one booked appointment, and shows the visit beside a stage that can't be worked on", async () => {
+    const blocked = visiting('Required', {status: 'Cancelled', allowedStatusChanges: [], canWorkOnStages: false});
+    renderVisit({...blocked, stages: [blocked.stages[0], {...blocked.stages[1], canEdit: false}]}, [booked]);
+
+    expect(await screen.findByText(/but an appointment is still booked\. Tell the patient, then cancel it/)).toBeInTheDocument();
+    expect(screen.getAllByText('Visit required').length).toBeGreaterThan(1);
   });
 });
 

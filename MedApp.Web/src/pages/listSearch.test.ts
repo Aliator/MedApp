@@ -6,6 +6,7 @@ import {
   hasTaskFilters,
   hasUserFilters,
   parseAuditSearch,
+  parseCalendarTemplatesSearch,
   parseTasksSearch,
   parsePatientsSearch,
   parseProceduresSearch,
@@ -216,6 +217,19 @@ describe('parseSetupSearch', () => {
 
   it('reads the old show archived switch as both', () => {
     expect(parseSetupSearch({archived: 'true'})).toEqual({status: 'any'});
+  });
+});
+
+describe('parseCalendarTemplatesSearch', () => {
+  it('reads the tab (Day templates unless it says otherwise) and its search', () => {
+    expect(parseCalendarTemplatesSearch({tab: 'Week', name: 'standard', status: 'any', page: '2'})).toEqual({
+      tab: 'week',
+      name: 'standard',
+      status: 'any',
+      page: 2,
+    });
+    expect(parseCalendarTemplatesSearch({tab: 'day'})).toEqual({});
+    expect(parseCalendarTemplatesSearch({tab: 'staff'})).toEqual({tab: 'staff'});
   });
 });
 

@@ -44,6 +44,15 @@ describe('describeAuditDetails', () => {
     expect(describe_('Deleted', {status: 'Cancelled'})).toBe('Was cancelled');
   });
 
+  it('says when a stage was finished without a visit, with its requirement and the reason', () => {
+    expect(describe_('StageFinished', {withoutVisit: true, visitRequirement: 'Required', reason: 'Seen at another clinic'})).toBe(
+      'Finished without a visit (required): Seen at another clinic',
+    );
+    expect(describe_('StageFinished', {withoutVisit: true, visitRequirement: 'Suggested', reason: null})).toBe('Finished without a visit (suggested)');
+    expect(describe_('StageFinished', {withoutVisit: true})).toBe('Finished without a visit');
+    expect(describe_('StageFinished', {withoutVisit: false, visitRequirement: 'Required'})).toBe('');
+  });
+
   it('has nothing to add for stage steps, or unreadable details', () => {
     expect(describe_('StageFinished', {})).toBe('');
     expect(describeAuditDetails({action: 'Created', details: 'not json'})).toBe('');

@@ -265,6 +265,21 @@ export function parseSetupSearch(raw: Record<string, unknown>): SetupListSearch 
   });
 }
 
+// Calendar templates (admin) -------------------------------------------------------------------------
+
+/** The Calendar Templates page's tabs; Day templates when the URL has none. */
+export const CALENDAR_TEMPLATE_TABS = ['day', 'week', 'staff'] as const;
+export type CalendarTemplatesTab = (typeof CALENDAR_TEMPLATE_TABS)[number];
+
+/** The Calendar Templates page: its tab, and that tab's list search (a name, or username for Staff defaults). */
+export interface CalendarTemplatesSearch extends SetupListSearch {
+  tab?: Exclude<CalendarTemplatesTab, 'day'>;
+}
+
+export function parseCalendarTemplatesSearch(raw: Record<string, unknown>): CalendarTemplatesSearch {
+  return compact({...parseSetupSearch(raw), tab: oneOf(raw.tab, ['week', 'staff'] as const)});
+}
+
 // The audit log (admin) -------------------------------------------------------------------------------
 
 

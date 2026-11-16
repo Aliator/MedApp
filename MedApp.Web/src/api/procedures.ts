@@ -41,6 +41,9 @@ export function patientProcedureCountQuery(patientId: string) {
 
 const PROCEDURE = '/api/procedures/patient-procedures/{id}';
 
+/** Finishing a stage that involves a visit without an attended one: `withoutVisit`, and an admin's reason. */
+export type FinishStageRequest = Schemas['FinishProcedureStageRequest'];
+
 /**
  * Everything staff (and admins) can do to a procedure from its page. Each action returns the updated procedure,
  * which replaces the cached one, so the page shows the result at once; lists and searches are refreshed too.
@@ -52,6 +55,8 @@ export function useProcedureActions(id: string) {
     queryClient.setQueryData(procedureQuery(id).queryKey, procedure);
     await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
     await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
+    // Finishing a stage, or cancelling the procedure, cancels Requested visits and can request the next stage's.
+    await queryClient.invalidateQueries({queryKey: ['appointments']});
   };
   const stage = (stageId: string) => ({params: {path: {id, stageId}}});
 
@@ -65,8 +70,17 @@ export function useProcedureActions(id: string) {
         unwrap(api.PUT(`${PROCEDURE}/stages/{stageId}/notes`, {...stage(stageId), body: {notes}})),
       onSuccess,
     }),
+    /**
+     * Finishes a stage: by its ID, or with `withoutVisit` (and an admin's `reason`) to finish one that involves a visit
+     * without an attended one (docs/calendar-plan.md, decisions 24 and 25).
+     */
     finishStage: useMutation({
-      mutationFn: (stageId: string) => unwrap(api.POST(`${PROCEDURE}/stages/{stageId}/finish`, stage(stageId))),
+      mutationFn: (finish: string | ({stageId: string} & FinishStageRequest)) => {
+        const {stageId, ...body} = typeof finish === 'string' ? {stageId: finish} : finish;
+        return unwrap(
+          api.POST(`${PROCEDURE}/stages/{stageId}/finish`, {...stage(stageId), ...(Object.keys(body).length > 0 ? {body} : {})}),
+        );
+      },
       onSuccess,
     }),
     unlockStage: useMutation({

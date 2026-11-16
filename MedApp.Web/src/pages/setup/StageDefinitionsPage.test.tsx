@@ -7,7 +7,16 @@ import {richText, typeRichText} from '../../test/richText';
 const BASE = '/api/procedures/patient-procedure-stage/definitions';
 
 const definitions = [
-  {id: 'd1', name: 'Consent', description: 'Consent recorded.', instructions: 'Give the patient a copy.', isArchived: false, templateCount: 2, canBeDeleted: false},
+  {
+    id: 'd1',
+    name: 'Consent',
+    description: 'Consent recorded.',
+    instructions: 'Give the patient a copy.',
+    visitRequirement: 'Required',
+    isArchived: false,
+    templateCount: 2,
+    canBeDeleted: false,
+  },
   {id: 'd2', name: 'Biopsy', description: 'Sample taken.', instructions: '', isArchived: false, templateCount: 0, canBeDeleted: true},
   {id: 'd3', name: 'Old triage', description: '', instructions: '', isArchived: true, templateCount: 1, canBeDeleted: false},
 ];
@@ -28,7 +37,11 @@ describe('StageDefinitionsPage', () => {
 
     await screen.findByText('Consent');
     const rows = screen.getAllByRole('row');
-    expect(rows.slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)).toEqual(['BiopsySample taken.', 'ConsentConsent recorded.']);
+    // Consent involves a visit, and says so beside its name.
+    expect(rows.slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)).toEqual([
+      'BiopsySample taken.',
+      'ConsentVisit requiredConsent recorded.',
+    ]);
     expect(within(await rowOf('Consent')).getByText('2 templates')).toBeInTheDocument();
     expect(within(await rowOf('Biopsy')).getByText('No templates')).toBeInTheDocument();
     expect(screen.queryByText('Old triage')).not.toBeInTheDocument();
@@ -55,10 +68,18 @@ describe('StageDefinitionsPage', () => {
     await user.type(dialog.getByRole('textbox', {name: /Name/}), 'Scan');
     await user.type(dialog.getByRole('textbox', {name: /Description/}), 'Imaging done.');
     await typeRichText(dialog.getByRole('textbox', {name: /Instructions/}), 'Book the scanner.');
+    // No visit unless chosen.
+    expect(dialog.getByRole('radio', {name: /^None/})).toBeChecked();
+    await user.click(dialog.getByRole('radio', {name: /^Suggested/}));
     await user.click(dialog.getByRole('button', {name: 'Add Stage'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await sent(fetch, 'POST').json()).toEqual({name: 'Scan', description: 'Imaging done.', instructions: 'Book the scanner.'});
+    expect(await sent(fetch, 'POST').json()).toEqual({
+      name: 'Scan',
+      description: 'Imaging done.',
+      instructions: 'Book the scanner.',
+      visitRequirement: 'Suggested',
+    });
     await expectAnnounced('Stage added');
   });
 
@@ -71,11 +92,17 @@ describe('StageDefinitionsPage', () => {
     await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage'}));
     const dialog = within(openDialog()!);
     expect(richText(dialog.getByRole('textbox', {name: /Instructions/}))).toBe('Give the patient a copy.');
+    expect(dialog.getByRole('radio', {name: /^Required/})).toBeChecked();
     await user.type(dialog.getByRole('textbox', {name: /Name/}), '!');
     await user.click(dialog.getByRole('button', {name: 'Save'}));
 
     expect((await dialog.findAllByText('Name is already used.')).length).toBeGreaterThan(0);
-    expect(await sent(fetch, 'PATCH').json()).toEqual({name: 'Consent!', description: 'Consent recorded.', instructions: 'Give the patient a copy.'});
+    expect(await sent(fetch, 'PATCH').json()).toEqual({
+      name: 'Consent!',
+      description: 'Consent recorded.',
+      instructions: 'Give the patient a copy.',
+      visitRequirement: 'Required',
+    });
   });
 
   it('archives after a confirmation, and restores an archived one', async () => {

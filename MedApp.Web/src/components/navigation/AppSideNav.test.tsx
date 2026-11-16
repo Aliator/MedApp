@@ -23,7 +23,9 @@ describe('AppSideNav', () => {
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
     expect(screen.getByRole('link', {name: 'Stages'})).toHaveAttribute('href', '/admin/stages');
-    expect(screen.getByRole('link', {name: /templates/i})).toHaveAttribute('href', '/admin/templates');
+    expect(screen.getByRole('link', {name: 'Templates'})).toHaveAttribute('href', '/admin/templates');
+    expect(screen.getByRole('link', {name: 'Calendar Templates'})).toHaveAttribute('href', '/admin/calendar-templates');
+    expect(screen.getByRole('link', {name: 'Activity Types'})).toHaveAttribute('href', '/admin/activity-types');
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByText('test-admin')).toBeInTheDocument();
     expect(screen.getByText('Administrator')).toBeInTheDocument();
@@ -45,6 +47,19 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'My Tasks'})).not.toHaveAttribute('aria-current');
     // Home is the MedApp heading's, not a nav item.
     expect(screen.getByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
+  });
+
+  it('has the calendar and Needs Booking for everyone, each marked current on its own page', async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar/needs-booking'});
+
+    expect(await screen.findByRole('link', {name: 'Needs Booking'})).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', {name: 'Calendar'})).toHaveAttribute('href', '/calendar');
+    expect(screen.getByRole('link', {name: 'Calendar'})).not.toHaveAttribute('aria-current');
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar'});
+    expect(await screen.findByRole('link', {name: 'Calendar'})).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', {name: 'Needs Booking'})).not.toHaveAttribute('aria-current');
   });
 
   it('navigates on the client when a link is clicked', async () => {
@@ -380,6 +395,14 @@ describe('AppSideNav with a half view open', () => {
     expect(rowOf(audit).style.backgroundColor).toBe(HALF_VIEW_SHADE);
     expect(audit).not.toHaveAttribute('aria-current');
     expect(rowOf(screen.getByRole('link', {name: /^procedures$/i})).style.backgroundColor).toBe('');
+  });
+
+  it("marks Needs Booking in the half view beside the calendar", async () => {
+    renderWithHalf('/calendar', '/calendar/needs-booking');
+
+    const needsBooking = await screen.findByRole('link', {name: 'Needs Booking'});
+    expect(rowOf(needsBooking).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+    expect(rowOf(screen.getByRole('link', {name: 'Calendar'})).style.backgroundColor).toBe('');
   });
 
   it("marks a patient whose page is in the half view under Patients, and a section whose list is", async () => {

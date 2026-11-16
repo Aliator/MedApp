@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {render, type RouterManifest} from './entry-server';
+import {STAFF_ME, testAppointment, testCalendar} from './test/calendar';
 
 /**
  * Server rendering, end to end, as the Node server runs it (in Node, with no browser): the page's route guards and
@@ -143,6 +144,18 @@ describe('server rendering', () => {
             stageName: 'Consultation',
             changes: [],
           },
+          {
+            id: '0000000d-0000-0000-0000-000000000004',
+            kind: 'Appointments',
+            action: 'AppointmentBooked',
+            atUtc: '2026-06-15T08:00:00Z',
+            username: 'test.staff',
+            procedureId: null,
+            procedureTitle: null,
+            appointmentStartUtc: '2026-06-22T09:00:00Z',
+            appointmentEndUtc: '2026-06-22T09:30:00Z',
+            appointmentStaffUsername: 'test.doctor',
+          },
         ],
         nextCursor: 'older',
       },
@@ -152,11 +165,74 @@ describe('server rendering', () => {
 
     expect(html).toContain('test.patient@example.org');
     expect(html).toContain('Finished Consultation');
+    // An appointment's time in UK time, the same on the server as in the browser.
+    expect(html).toContain('Mon 22 Jun 2026, 10:00 to 10:30 with test.doctor');
     expect(html).toContain('Monday 15 June 2026');
     expect(html).toContain('Due 30 Jun 2026');
     expect(html).toContain('Load More');
     const feed = requests.find((r) => new URL(r.url).pathname === `/api/patients/${patient.id}/timeline`)!;
     expect(new URL(feed.url).search).toBe('?PageSize=20');
+  });
+
+  it("renders an admin's calendar templates on the tab in the URL, with its data", async () => {
+    const requests = api({
+      '/api/auth/whoami': {...signedIn, roles: ['Admin', 'User']},
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar/week-templates': [
+        {
+          id: '0000000d-0000-0000-0000-000000000010',
+          name: 'Full time',
+          isArchived: false,
+          staffCount: 2,
+          days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, dayTemplateId: 'd', dayTemplateName: 'Standard day'})),
+        },
+      ],
+    });
+
+    const html = await (await page('/admin/calendar-templates?tab=week', 'medapp_session=abc')).text();
+
+    expect(html).toContain('Full time');
+    expect(html).toContain('Mon to Fri: Standard day');
+    expect(html).toContain('1 active week template');
+    expect(requests.some((r) => new URL(r.url).pathname === '/api/calendar/day-templates')).toBe(false);
+  });
+
+  it("renders the calendar's week with its appointments, and leaves the time now to the browser", async () => {
+    vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
+    const requests = api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar/staff': [STAFF_ME],
+      '/api/appointments/search': {items: [], totalCount: 2},
+      '/api/calendar': testCalendar({from: '2026-11-23', today: '2026-11-23', appointments: [testAppointment({date: '2026-11-24'})]}),
+    });
+
+    const html = await (await page('/calendar', 'medapp_session=abc')).text();
+
+    expect(html).toContain('My calendar · 23 to 29 November 2026');
+    expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
+    expect(html).toContain('Needs Booking (2)');
+    expect(html).not.toContain('class="mc-now"');
+    const calendar = requests.find((r) => new URL(r.url).pathname === '/api/calendar')!;
+    expect(new URL(calendar.url).search).toBe('?From=2026-11-23&To=2026-11-29');
+  });
+
+  it("renders Home with the user's day", async () => {
+    vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar': testCalendar({from: '2026-11-23', dayCount: 1, today: '2026-11-23', appointments: [testAppointment({date: '2026-11-23'})]}),
+    });
+
+    const html = await (await page('/', 'medapp_session=abc')).text();
+
+    expect(html).toContain('Welcome, test-user');
+    expect(html).toContain('Today, Monday 23 November');
+    expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
   });
 
   it('still renders the page when its data fails, for it to show its error', async () => {

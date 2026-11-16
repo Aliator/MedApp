@@ -2,6 +2,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
+import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
@@ -16,7 +17,9 @@ import {
   useStageDefinitionActions,
   type StageDefinition,
   type StageDefinitionInput,
+  type VisitRequirement,
 } from '../../api/procedureSetup';
+import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
@@ -38,7 +41,22 @@ type DialogState =
   | {kind: 'archive' | 'delete'; definition: StageDefinition}
   | null;
 
-const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: ''};
+const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: '', visitRequirement: 'None'};
+
+/** The Visit choices, each saying what it means for staff finishing the stage (decisions 22 to 25). */
+const VISIT_CHOICES: {value: VisitRequirement; label: string; description: string}[] = [
+  {value: 'None', label: 'None', description: 'No appointment needed.'},
+  {value: 'Suggested', label: 'Suggested', description: 'Staff confirm if they finish it without an attended appointment.'},
+  {
+    value: 'Required',
+    label: 'Required',
+    description: "It can't be finished until an appointment is marked Attended; an admin can override.",
+  },
+];
+
+/** A definition's visit requirement, as one of the choices (None for anything else). */
+const visitRequirementOf = (definition: StageDefinition): VisitRequirement =>
+  VISIT_CHOICES.find((choice) => choice.value === definition.visitRequirement)?.value ?? 'None';
 const FIELDS = Object.keys(EMPTY);
 
 export interface StageDefinitionsPageProps {
@@ -72,7 +90,12 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const openEditor = (definition: StageDefinition | null) => {
     setForm(
       definition
-        ? {name: definition.name ?? '', description: definition.description ?? '', instructions: definition.instructions ?? ''}
+        ? {
+            name: definition.name ?? '',
+            description: definition.description ?? '',
+            instructions: definition.instructions ?? '',
+            visitRequirement: visitRequirementOf(definition),
+          }
         : EMPTY,
     );
     setProblem(NO_PROBLEM);
@@ -108,7 +131,9 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       key: 'name',
       header: 'Stage',
       width: proportional(3, {minWidth: 120}),
-      renderCell: (d) => <SetupNameCell name={d.name ?? ''} secondary={d.description} />,
+      renderCell: (d) => (
+        <SetupNameCell name={d.name ?? ''} secondary={d.description} token={<VisitRequirementToken requirement={d.visitRequirement} />} />
+      ),
     },
     {key: 'templates', header: 'Used in', width: pixel(140), renderCell: (d) => <Text type="body">{templatesUsing(d.templateCount ?? 0)}</Text>},
     {key: 'status', header: 'Status', width: pixel(100), renderCell: (d) => <SetupStatusToken isArchived={d.isArchived ?? false} />},
@@ -209,6 +234,16 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                 isRequired
                 status={fieldStatus(problem.validation, 'instructions')}
               />
+              <RadioList
+                label="Visit"
+                description="Whether the stage involves an appointment with the patient. New procedures ask for one to be booked when they reach it."
+                value={form.visitRequirement}
+                onChange={(value) => setForm((current) => ({...current, visitRequirement: value as VisitRequirement}))}
+                status={fieldStatus(problem.validation, 'visitRequirement')}>
+                {VISIT_CHOICES.map((choice) => (
+                  <RadioListItem key={choice.value} value={choice.value} label={choice.label} description={choice.description} />
+                ))}
+              </RadioList>
             </VStack>
           </ConfirmDialog>
 

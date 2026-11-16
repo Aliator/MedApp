@@ -8,11 +8,19 @@ import {api, unwrap, type Schemas} from './client';
 export type StageDefinition = Schemas['PatientProcedureStageDefinitionResponse'];
 export type TemplateStage = Schemas['PatientProcedureTemplateStageResponse'];
 
-/** A stage definition's fields: its name, the description staff see under it, and how to carry it out. */
+/** Whether a stage involves a visit (an appointment), as the API names it. */
+export const VISIT_REQUIREMENTS = ['None', 'Suggested', 'Required'] as const;
+export type VisitRequirement = (typeof VISIT_REQUIREMENTS)[number];
+
+/**
+ * A stage definition's fields: its name, the description staff see under it, how to carry it out, and whether it
+ * involves a visit (copied onto each procedure's stage when the procedure is created).
+ */
 export interface StageDefinitionInput {
   name: string;
   description: string;
   instructions: string;
+  visitRequirement: VisitRequirement;
 }
 
 /** A template's fields: its name, and its stages in order (a definition may appear more than once). */
