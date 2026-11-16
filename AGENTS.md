@@ -146,6 +146,10 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 ### Auth
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
+- **Sessions last 8 hours** from sign-in (`UserSession.Lifetime`), and can be extended to 24 hours at most (`MaxLifetime`; over 20 hours, so WCAG 2.2.1 allows the hard limit). Using the app doesn't extend one; only asking does:
+  - `GET api/auth/session` returns the signed-in session's `SessionResponse`: `expiresAtUtc`, `expiresInSeconds` (by the server's clock, so a device with a wrong clock still counts down right) and `canExtend`. Reading it never extends it.
+  - `POST api/auth/session/extend` ("Stay signed in") moves the expiry to 8 hours from now, but never past 24 hours from sign-in and never earlier than it was, and sends the cookie again with the new expiry (the cookie expires with the session).
+  - Both take the session from the cookie, are open to anyone signed in (`[Authorize]`, no role needed), are sent `no-store`, and are a 401 once the session has ended. `SessionTimeout` in `MedApp.Web` uses them for the warning before a session times out.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
 - The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
