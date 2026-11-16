@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
@@ -58,6 +58,8 @@ public sealed class ExceptionHandlingTests
         yield return new TestCaseData(new ConflictException("Synthetic problem."), StatusCodes.Status409Conflict);
         yield return new TestCaseData(new InvalidCredentialsException(), StatusCodes.Status401Unauthorized);
         yield return new TestCaseData(new AccountLockedOutException(5), StatusCodes.Status423Locked);
+        yield return new TestCaseData(new InvalidTwoFactorCodeException(), StatusCodes.Status401Unauthorized);
+        yield return new TestCaseData(new SignInExpiredException(), StatusCodes.Status401Unauthorized);
     }
 
     [TestCaseSource(nameof(KnownProblems))]
@@ -77,5 +79,21 @@ public sealed class ExceptionHandlingTests
         var act = () => Run(new InvalidOperationException("Unexpected"));
 
         await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task InvokeAsync_SignInExpired_SaysSoInItsCode()
+    {
+        var (_, body) = await Run(new SignInExpiredException());
+
+        body.GetProperty("code").GetString().Should().Be(SignInExpiredException.Code);
+    }
+
+    [Test]
+    public async Task InvokeAsync_WrongCode_HasNoCode()
+    {
+        var (_, body) = await Run(new InvalidTwoFactorCodeException());
+
+        body.TryGetProperty("code", out _).Should().BeFalse();
     }
 }

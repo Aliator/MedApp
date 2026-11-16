@@ -66,7 +66,9 @@ public sealed class TestEnvironment
         _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
         {
             DbAdapter = DbAdapter.SqlServer,
-            TablesToIgnore = [new Table("__EFMigrationsHistory"), new Table("PatientProcedureStageDefinitions")],
+            // The data protection keys stay, as they would in a real database: the API caches its key ring, and a key
+            // deleted under it would make tokens it seals unreadable after the cache refreshes.
+            TablesToIgnore = [new Table("__EFMigrationsHistory"), new Table("PatientProcedureStageDefinitions"), new Table("DataProtectionKeys")],
         });
     }
 

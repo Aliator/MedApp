@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Infrastructure.Common.Authentication;
 using MedApp.Infrastructure.Common.Identity;
@@ -187,5 +187,16 @@ public sealed class IdentityAuthenticationServiceTests
         var result = await _service.ValidateCredentialsAsync(AuthTestConstants.Usernames[0] + " ", AuthTestConstants.Passwords[0]);
 
         result.Item1.Should().Be(user.Id);
+    }
+
+    [Test]
+    public async Task ValidateCredentialsAsync_RightPasswordWithTwoFactorOn_LeavesTheFailureCountForTheCode()
+    {
+        var user = FoundUser(isPasswordRight: true);
+        user.TwoFactorEnabled = true;
+
+        await _service.ValidateCredentialsAsync(user.UserName!, AuthTestConstants.Passwords[0]);
+
+        _userManager.Verify(u => u.ResetAccessFailedCountAsync(It.IsAny<ApplicationUser>()), Times.Never);
     }
 }

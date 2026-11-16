@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 
 namespace MedApp.UnitTests.Common.Constants;
 
@@ -14,6 +14,9 @@ public static class ApiTestConstants
     public const string Password = "Synthetic-Password-1";
     public const string IpAddress = "192.0.2.10";
     public const string UserAgent = "SyntheticBrowser/1.0";
+    public const string Email = "test.admin@example.test";
+    public const string TwoFactorChallenge = "synthetic-challenge-token";
+    public const string AuthenticatorCode = "123456";
 
     /// <summary>A signed-in user, as the session handler builds them.</summary>
     public static ClaimsPrincipal SignedIn(params string[] roles) =>
