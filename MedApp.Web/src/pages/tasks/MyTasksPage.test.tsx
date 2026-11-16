@@ -57,6 +57,9 @@ describe('MyTasksPage', () => {
     expect(await screen.findByText('Colonoscopy')).toBeInTheDocument();
     expect(screen.getByText('1 procedure not started')).toBeInTheDocument();
     expect(searchBar()).toHaveTextContent(/Progress: is\s*Not started/);
+    // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
+    expect(screen.getByRole('button', {name: 'Favourites (showing Not started)'})).toBeInTheDocument();
+    expect(screen.queryAllByText('Not started').filter((el) => !searchBar().contains(el) && !el.closest('[role="menu"]'))).toEqual([]);
     expect(screen.getByRole('columnheader', {name: 'Template'})).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`${SEARCH}?PageSize=10&AssignedToMe=true&Started=false&Page=1&Sort=dueDate&Ascending=true`]);
     // A normal list: no search button, and no switch between two lists.

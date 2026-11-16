@@ -294,7 +294,7 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 3. **Review the PR at xhigh**, with a subagent (`effort: "xhigh"`), and write it up as a review document:
    - **What to review:** the PR's whole diff against `main` (`git diff main...HEAD`), its description, and the code around the changes. Give the reviewer the PR and the files, not your own conclusions, so its view isn't anchored on yours.
    - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), consistency between docs and code, and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence, and a suggested fix.
-   - **The document:** `docs/reviews/pr-<number>-<short-name>.md`. It covers what the PR changes and why, how it was checked, then the findings, most severe first, and what's worth keeping. Commit it to the branch and push, so it's merged with the PR.
+   - **The document:** `docs/reviews/pr-<number>-<short-name>.md`. Commit it to the branch and push, so it's merged with the PR. Write it in the format below (see [Review document format](#review-document-format)).
    - **If it finds anything high or critical, stop.** Don't merge. Check those findings yourself against the code, then report them to the user with the fixes you propose, and wait. Medium and low findings are recorded in the document and don't block. Mention them when you report the merge.
 4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (the one with the review document) to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
    - **If it fails, stop.** Don't merge. Report it and propose a fix, as in step 4 of the CI section.
@@ -302,3 +302,23 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 6. **Delete the branch**, both on GitHub and locally (`--delete-branch` handles both).
 7. **Pull `main` locally:** `git switch main` then `git pull`, so the working copy is up to date and ready for the next change. Then confirm the merge commit and that the working tree is clean.
 8. **Check the deploy:** each merge runs the Publish workflow, which deploys through the environment branches (`deploy/argocd/README.md`). Check that its run for the merge commit succeeded, as with CI.
+
+### Review document format
+
+Review documents are written for the user, who reads them to understand the change well enough to explain it to someone else (for example, a recruiter asking about the project). Each one must be quick and easy to take in: plain language, short sections, bullets with bold lead-ins, and short sentences. Explain each technical term the first time it appears. The rigour stays the same; it moves into the findings and the detail at the end.
+
+Use these sections, in this order:
+1. **In one line:** what the PR does, in one plain sentence.
+2. **What changed, and why:** each change (or technology it brings in) explained plainly: what it is, what it does here, and why it was needed. Add an analogy where it helps someone new to the idea.
+3. **Why this, not that:** for each real choice, the main alternative and the trade-off, including what the chosen option is worse at.
+4. **How it was checked:** tests, builds, screenshots and anything run by hand, with the results.
+5. **Findings,** most severe first. Each has:
+   - a severity (critical, high, medium or low) and a confidence
+   - what could go wrong, in plain words, as a concrete scenario
+   - the evidence (`file:line`)
+   - the fix, and what happened to it (fixed in the PR, documented, or left as a to-do)
+   
+   With no findings, say so.
+6. **The honest catch:** what's still weak or left to do after this PR.
+7. **Say it like this:** one to three sentences the user could say out loud to explain the change, its main choice and its trade-off.
+8. **Detail** (optional): diffs, longer reasoning, and anything only an engineer needs.
