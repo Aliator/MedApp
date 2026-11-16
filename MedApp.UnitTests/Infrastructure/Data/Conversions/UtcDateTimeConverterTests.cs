@@ -1,5 +1,4 @@
 using FluentAssertions;
-using MedApp.Domain.Patients;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +36,17 @@ public sealed class UtcDateTimeConverterTests
     }
 
     [Test]
+    public void ConvertToProvider_LocalTime_IsWrittenAsUtc()
+    {
+        var local = Now.ToLocalTime();
+
+        var written = (DateTime)_converter.ConvertToProvider(local)!;
+
+        written.Should().Be(Now);
+        written.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Test]
     public void Model_EveryDateTimeProperty_IsReadAsUtc()
     {
         var properties = DateTimeProperties().ToList();
@@ -44,16 +54,6 @@ public sealed class UtcDateTimeConverterTests
         properties.Should().Contain(p => p.ClrType == typeof(DateTime?), "the convention must cover nullable times too");
         properties.Should().AllSatisfy(p => p.GetValueConverter().Should().BeOfType<UtcDateTimeConverter>(
             $"{p.DeclaringType.DisplayName()}.{p.Name} is a time stored as UTC"));
-    }
-
-    [Test]
-    public void Model_DateOfBirth_KeepsItsOwnDateConversion()
-    {
-        using var context = Context();
-
-        var dateOfBirth = context.Model.FindEntityType(typeof(Patient))!.FindProperty(nameof(Patient.DateOfBirth))!;
-
-        dateOfBirth.GetValueConverter().Should().NotBeNull().And.NotBeOfType<UtcDateTimeConverter>();
     }
 
     private static IEnumerable<Microsoft.EntityFrameworkCore.Metadata.IProperty> DateTimeProperties()

@@ -12,8 +12,6 @@ using MedApp.Contracts.Procedures.Audit.Responses;
 using MedApp.Infrastructure.Data.Conversions;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 
@@ -51,14 +49,9 @@ public sealed class ProcedureAuditControllerTests
         var result = await new ProcedureAuditController(mediator).WithRequest(SignedIn("Admin"))
             .SearchProcedureAudit(AutoFixtureFactory.Create().Create<SearchProcedureAuditRequest>(), CancellationToken.None);
 
-        var json = JsonSerializer.Serialize(result.Should().BeOfType<OkObjectResult>().Which.Value, MvcJsonOptions());
+        var json = JsonSerializer.Serialize(result.Should().BeOfType<OkObjectResult>().Which.Value, ApiJson.Controllers);
         json.Should().Contain("\"atUtc\":\"2026-06-15T12:00:00Z\"");
     }
-
-    /// <summary>The JSON options the API's controllers write responses with.</summary>
-    private static JsonSerializerOptions MvcJsonOptions() =>
-        new ServiceCollection().AddControllers().Services.BuildServiceProvider()
-            .GetRequiredService<IOptions<JsonOptions>>().Value.JsonSerializerOptions;
 }
 
 [TestFixture]
