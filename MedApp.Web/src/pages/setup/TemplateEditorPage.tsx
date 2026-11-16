@@ -10,6 +10,7 @@ import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useMemo, useState, type ReactNode} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {ApiError, fieldStatus} from '../../api/errors';
 import type {ProcedureTemplate} from '../../api/procedures';
 import {stageDefinitionsQuery, templateQuery, useSaveTemplate, type StageDefinition} from '../../api/procedureSetup';
@@ -78,6 +79,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
   const navigate = useNavigate();
   const isNarrow = useIsNarrow();
   const save = useSaveTemplate();
+  const announce = useAnnounce();
   const [name, setName] = useState(template?.name ?? '');
   const [stages, setStages] = useState<StageRow[]>(() => (template?.stageDefinitionIdsInOrder ?? []).map(row));
   const [isConfirming, setIsConfirming] = useState(false);
@@ -113,7 +115,10 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
     save.mutate(
       {id: template?.id, name: name.trim(), stageDefinitionIdsInOrder: stages.map((s) => s.definitionId)},
       {
-        onSuccess: backToList,
+        onSuccess: () => {
+          announce(template ? 'Template saved' : 'Template created');
+          backToList();
+        },
         onError: (e) => {
           setProblem(saveProblem(e, template ? 'save' : 'add', 'template'));
           setIsConfirming(false);

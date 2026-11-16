@@ -3,14 +3,15 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {Card} from '@astryxdesign/core/Card';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
-import type {FormEvent, ReactNode} from 'react';
+import {useRef, type FormEvent, type ReactNode} from 'react';
 import {AppIcon} from '../shared/icons';
 import {InCardContext} from '../views/CardSection';
+import {useSaveShortcut} from './SaveShortcut';
 
 export interface FormCardProps {
   /** The form's sections, usually FormSection. */
   children: ReactNode;
-  /** Submits the form: the Save button, or Enter in a field. Omit for no Save button. */
+  /** Submits the form: the Save button, Enter in a field, or Ctrl+S (⌘S on a Mac). Omit for no Save button. */
   onSave?: () => void;
   onCancel?: () => void;
   /** Shows a destructive Delete button at the start of the footer. */
@@ -36,7 +37,7 @@ const FILL = {height: '100%'};
 /**
  * A form in a card (replaces Blazor's FormCard): sections, each with its title as a header bar across the card,
  * then a footer with Delete at the start and Cancel and Save at the end. It is a native <form>, so Enter submits
- * it, and Save is its submit button.
+ * it, and Save is its submit button. Ctrl+S (⌘S on a Mac) submits it too (`useSaveShortcut`).
  */
 export function FormCard({
   children,
@@ -51,16 +52,19 @@ export function FormCard({
   showFooter = true,
   fill = false,
 }: FormCardProps) {
+  const form = useRef<HTMLFormElement>(null);
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isProcessing) onSave?.();
   };
+  // Ctrl+S submits it, as Save does (so it waits while saving, like the button).
+  useSaveShortcut(form, onSave && (() => form.current?.requestSubmit()));
 
   const sections = <InCardContext.Provider value>{children}</InCardContext.Provider>;
 
   return (
     <Card padding={0} width="100%" height={fill ? '100%' : undefined}>
-      <form onSubmit={handleSubmit} noValidate style={fill ? FILL : undefined}>
+      <form ref={form} onSubmit={handleSubmit} noValidate style={fill ? FILL : undefined}>
         {fill ? (
           <VStack gap={0} height="100%">
             <StackItem size="fill" isScrollable>

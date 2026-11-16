@@ -1,4 +1,6 @@
-﻿namespace MedApp.Application.Common.Authentication;
+﻿using MedApp.Domain.Authentication;
+
+namespace MedApp.Application.Common.Authentication;
 
 public interface ISessionService
 {
@@ -10,6 +12,21 @@ public interface ISessionService
 
     Task<SessionValidationResult?> ValidateSessionAsync(
         Guid sessionId,
+        CancellationToken ct = default);
+
+    /// <summary>The session, if it exists and is still active at <paramref name="utcNow"/>; otherwise null.</summary>
+    Task<UserSession?> GetActiveSessionAsync(
+        Guid sessionId,
+        DateTime utcNow,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Extends the session (<see cref="UserSession.Extend"/>) and saves it. Returns it as it now is, or null if it
+    /// doesn't exist or has already ended.
+    /// </summary>
+    Task<UserSession?> ExtendSessionAsync(
+        Guid sessionId,
+        DateTime utcNow,
         CancellationToken ct = default);
 
     Task RevokeSessionAsync(

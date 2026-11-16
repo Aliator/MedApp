@@ -1,5 +1,5 @@
 import {screen} from '@testing-library/react';
-import {adminUser, calls, json, mockApi, mockFetch, renderWithApp, findAlert} from '../../test/render';
+import {adminUser, calls, json, mockApi, mockFetch, renderWithApp, findAlert, expectAnnounced, withAnnouncements} from '../../test/render';
 import {ChangePasswordPage} from './ChangePasswordPage';
 
 async function fill(user: ReturnType<typeof renderWithApp>['user'], current: string, next: string, confirm: string) {
@@ -12,6 +12,7 @@ async function fill(user: ReturnType<typeof renderWithApp>['user'], current: str
 
 describe('ChangePasswordPage', () => {
   it("changes the signed-in user's password", async () => {
+    withAnnouncements();
     const fetch = mockApi({
       'PUT /api/auth/users/*': () => new Response(null, {status: 204}),
     });
@@ -23,6 +24,7 @@ describe('ChangePasswordPage', () => {
     expect(calls(fetch)).toEqual([`PUT /api/auth/users/${adminUser.username}/update-password`]);
     expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({oldPassword: 'Old-Synthetic1', newPassword: 'New-Synthetic1'});
     expect(screen.getByLabelText(/^current password/i)).toHaveValue('');
+    await expectAnnounced('Password updated');
   });
 
   it('checks the new passwords match before asking the API', async () => {

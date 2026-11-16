@@ -6,6 +6,7 @@ import {useRouter} from '@tanstack/react-router';
 import {useEffect, useRef, useState} from 'react';
 import {useAccessibility} from '../../app/accessibility';
 import {useCurrentUser} from '../../auth/auth';
+import {SAVE_KEYS} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
 
 /** "Go to" shortcuts: G, then a letter. The admin ones only for admins. */
@@ -35,6 +36,9 @@ function isTyping(event: KeyboardEvent) {
  * The app's keyboard shortcuts (Account Settings, Accessibility; off until turned on, and so off for anyone they'd
  * get in the way of, as WCAG 2.1.4 asks of single-key shortcuts): ? lists them, / goes to the list's search, and G then a letter goes to a page. They
  * never fire while typing in a field or in a dialog.
+ *
+ * The list also shows Ctrl+S (⌘S on a Mac), which saves the form that's open. That one isn't here: it's
+ * `SaveShortcutProvider`'s, always on, and works in fields, as a shortcut with a modifier can.
  */
 export function KeyboardShortcuts() {
   const {flags} = useAccessibility();
@@ -85,6 +89,9 @@ export function KeyboardShortcuts() {
           <MetadataListItem label="Search the list">
             <Kbd keys="/" />
           </MetadataListItem>
+          <MetadataListItem label="Save the form">
+            <Kbd keys={SAVE_KEYS} />
+          </MetadataListItem>
           {GO_TO.filter((go) => !('isAdmin' in go) || isAdmin).map((go) => (
             <MetadataListItem key={go.key} label={`Go to ${go.label}`}>
               <Text type="body">
@@ -94,7 +101,8 @@ export function KeyboardShortcuts() {
           ))}
         </MetadataList>
         <Text type="supporting" color="secondary">
-          They don’t work while you’re typing in a field. Turn them off again in Account Settings, Accessibility.
+          The single keys don’t work while you’re typing in a field; save does, and works even with these shortcuts
+          off. Turn them off again in Account Settings, Accessibility.
         </Text>
       </VStack>
     </DialogFrame>
