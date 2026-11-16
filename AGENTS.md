@@ -17,7 +17,7 @@ dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run
 dotnet test MedApp.IntegrationTests         # the API against SQL Server in Docker (needs Docker running; about 1.5 min)
 
 # End-to-end tests (Playwright) against the running AppHost, signed in as the local dev admin. They make their own
-# synthetic data and delete it. Install Chromium once: pwsh MedApp.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium
+# synthetic data and delete what the app can delete (MedApp.E2ETests/README.md lists what stays). Install Chromium once: pwsh MedApp.E2ETests/bin/Debug/net10.0/playwright.ps1 install chromium
 E2E_USERNAME=admin E2E_PASSWORD=admin dotnet test MedApp.E2ETests
 
 dotnet run --project MedApp.AppHost         # everything (needs Docker running): SQL Server container, API, React app, Aspire dashboard
@@ -234,23 +234,25 @@ It only runs against a local database: by default the AppHost's SQL container, u
 **Integration tests** (`MedApp.IntegrationTests`) test behaviour through HTTP that unit tests can't: real SQL translation, real Identity stores and transactions, the authentication handler and policies, the middleware.
 - `TestEnvironment` (a `[SetUpFixture]`) starts SQL Server once per run, applies the migrations and starts the API. Before each test, `IntegrationTest` empties the database with Respawn (keeping the migrations history and the seeded stage definition), then makes the first admin with the deploy's own `FirstAdminSetup`.
 - Do everything through the API where you can, with the helpers in `IntegrationTest` (`SignInAsAdminAsync`, `CreateStaffAsync`, `CreatePatientWithProcedureAsync`, ...). Use `RunInScopeAsync` for a service, and `ExecuteSqlAsync` only for what the API can't do, such as making a session expire.
-- A test that acts as an account an admin made must first change its generated password (`CreateStaffAsync` does), or every other `/api` call is a 403 `password_change_required`. `Auth/PasswordChangeRequiredTests` tests that hold itself, with `CreateForcedUserAsync`.
+- A test that acts as an account an admin made must first change its generated password, or every other `/api` call is a 403 `password_change_required`. `CreateStaffAsync` does when the account has a role; an account with no role can't change it (that needs the Staff policy), so it keeps its generated password and stays held. To test the Staff policy itself, give the account a role, let it choose its password, then remove the role (`AuthorisationTests.StaffEndpoint_RolesRemoved_*`). `Auth/PasswordChangeRequiredTests` tests the hold itself, with `CreateForcedUserAsync`.
 - Constants are in `Common/Constants/IntegrationTestConstants.cs`.
 
 **End-to-end tests** (`MedApp.E2ETests`) drive the React app in Chromium, against the AppHost locally and the production image in CI. They derive from `E2ETest`.
 - Open pages with `OpenAsync`, which waits until React has taken over the server-rendered page; typing or clicking before then is lost.
 - Find elements as people do: `GetByRole` and `GetByLabel`, with their accessible names.
 - Make the data a journey needs through the API (`Api`), with unique synthetic names (`E2EData.UniqueName`), and register every clean-up with `Data.OnCleanUp`. Rely on nothing you didn't make, except the signed-in account and the default stage definition. The E2E account must be an admin.
+- Give accounts a test makes a password from `E2EData.NewPassword()`, new each run, never one written in the source, and keep passwords out of messages.
+- Missing `E2E_USERNAME` or `E2E_PASSWORD` fails the suite in CI (`CI=true`) and skips it locally. With `E2E_TRACE_DIR` set (only `main.yml` sets it), a failed test's Playwright trace is saved there.
 
 ## CI
 
 `.github/workflows/main.yml` runs on PRs to `main`, with seven jobs:
 - `web` checks `MedApp.Web`: `npm ci`, lint, type check, a check that the built theme is up to date, Vitest with coverage, and the full production build (`npm run build`: the client, the server rendering bundle and the page server).
-- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. `web`, `helm`, `unit-tests` and `image` are all required checks on `main`.
+- `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. `web`, `helm`, `unit-tests`, `image`, `integration-tests` and `e2e` are all required checks on `main`.
 - `helm` lints the Helm chart (`deploy/helm/medapp`) in its main configurations (its own SQL Server, kind's values with External Secrets and TLS, an external database, and Azure's values), renders it, and compiles and lints the Azure Bicep (`deploy/azure`). It also renders the cluster services (Traefik, cert-manager, External Secrets and Argo CD) at the versions in `deploy/versions.sh`, with every values file and `--set` value that `deploy/kind/up.sh` and `deploy/azure/bootstrap.sh` give them. After changing one of those values files, run the same `helm template` locally.
 - `unit-tests` builds the dev MCP tool (`tools/MedApp.DevMcp`, which isn't in `MedApp.sln`), then runs `dotnet test MedApp.UnitTests` in Release with coverage.
 - `integration-tests` runs `dotnet test MedApp.IntegrationTests` in Release, with SQL Server in the runner's Docker (Testcontainers).
-- `e2e` tests the production image, as a deploy runs it: it builds the image (from the `image` job's cache), runs SQL Server as a service container, migrates with the image's `/app/efbundle`, makes the first admin with `create-first-admin` and a password generated for the run, starts the API on http://localhost:8080, then runs `MedApp.E2ETests` against it. The session cookie stays `Secure`: browsers keep it from `http://localhost`.
+- `e2e` tests the production image under the chart's restrictions (a read-only root with a writable `/tmp`, every capability dropped, no privilege escalation; one copy, without kind's Valkey backplane). It builds the image itself, reading the cache earlier runs left (it runs alongside the `image` job, so on a cold cache both build from scratch). It starts SQL Server in a step, on the runner's loopback with a random masked password, migrates with the image's `/app/efbundle`, makes the first admin with `create-first-admin` and a password generated for the run, starts the API on http://localhost:8080, then runs `MedApp.E2ETests` against it. A failed test's Playwright trace is uploaded as the `e2e-traces` artifact. The session cookie stays `Secure`: browsers keep it from `http://localhost`. Both new jobs read the repository only (`permissions: contents: read`).
 - `coverage-comment` posts one sticky PR comment with both: .NET classes and React files under 80% line coverage.
 
 What coverage counts (the aim is full coverage of everything with behaviour worth testing):
@@ -258,7 +260,7 @@ What coverage counts (the aim is full coverage of everything with behaviour wort
 - **React:** everything in `src/` except generated code, the theme build, test helpers, the thin route files and the browser entry. `npm run coverage` (CI's web job) fails below the thresholds in `vite.config.ts`, set just under the current figures (99% lines, statements and functions, 92% branches).
 - New code comes with tests that cover it. Leave a branch uncovered only when it's unreachable or needs a real browser or database, and say so in the PR.
 
-`.github/workflows/e2e.yml` runs the E2E suite by hand against an app already running somewhere (a URL you give it), with the credentials in the `E2E_USERNAME` and `E2E_PASSWORD` repository secrets.
+`.github/workflows/e2e.yml` runs the E2E suite by hand against an app already running somewhere (a URL you give it), with the credentials in the `E2E_USERNAME` and `E2E_PASSWORD` repository secrets (an admin account). **Those secrets don't exist yet: create them for a known deployment before using it.** Without them, the run fails rather than skips (in CI, missing credentials fail the suite; locally they skip it). It saves no traces, as a trace records the real credentials.
 
 `.github/workflows/publish.yml` runs on every push to `main` except docs-only changes, so it runs after each merge:
 1. `image` builds the API's image and pushes it to GHCR (`ghcr.io/aliator/medapp-api:<commit>`).

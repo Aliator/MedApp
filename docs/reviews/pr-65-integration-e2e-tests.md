@@ -67,7 +67,7 @@ The PR fills the two empty test projects: 182 integration tests that run the rea
 
 ## Findings
 
-Most severe first. None is high or critical. None was fixed at the time of this review.
+Most severe first. None is high or critical. None was fixed at the time of this review; each one's "What happened to it" says how it was dealt with afterwards.
 
 ### 1. Five of the six "no roles" authorisation rows are passed by the forced password change, not by the Staff policy
 
@@ -83,7 +83,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.IntegrationTests/Auth/UserTests.cs:100`: the one other test that would notice
   - `docs/architecture.md:1248`: the matrix as the measure of confidentiality; `AGENTS.md:237` says `CreateStaffAsync` always changes the password
 - **Fix:** test the account the policy actually guards: create it with `User`, let it choose its password (as `CreateStaffAsync(UserRole)` does), then remove its roles through `PUT /api/auth/users/{username}/roles` with `[]`, and assert the 403 isn't the `password_change_required` problem. Keep the forced case, if wanted, under its own name in `PasswordChangeRequiredTests`. Make `AGENTS.md:237` say no-role accounts keep their generated password. (Code in Detail.)
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. `StaffEndpoint_NoRoles_Returns403` became `StaffEndpoint_RolesRemoved_Returns403FromTheStaffPolicy`: the account gets `User`, chooses its own password, then an admin removes its roles, and the test asserts the 403 isn't `password_change_required`. The held case moved to `PasswordChangeRequiredTests.ApiRequest_AccountWithNoRoleYet_IsHeldByTheForcedChange`. Mutation-checked: with the Staff policy weakened to "any signed-in user", all 6 rows now fail. `AGENTS.md` and `CreateStaffAsync`'s comment say that a no-role account keeps its generated password.
 
 ### 2. The end-to-end suite reports success when it can't sign in, and the by-hand workflow's credentials don't exist
 
@@ -98,7 +98,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - a local run with no credentials: 11 skipped, exit code 0
   - `AGENTS.md:261` and `MedApp.E2ETests/README.md:73` describe the by-hand run as using those secrets
 - **Fix:** fail instead of skipping when running in CI (GitHub sets `CI=true`), so a green run always ran the journeys; keep the skip for a local run without credentials. Then either create the two secrets for a known deployment, or say in `e2e.yml` and the README that they must be created first. (Code in Detail.)
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. `E2ESession` fails when `CI=true` and a credential is missing, and still skips locally. `e2e.yml`, the README and `AGENTS.md` say the `E2E_USERNAME` and `E2E_PASSWORD` repository secrets don't exist yet and must be created for a deployment before the by-hand workflow is used. No secrets were created.
 
 ### 3. Neither new job is a required check, so a red one doesn't stop a merge
 
@@ -110,7 +110,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `docs/architecture.md:98` and `:1333`: "both run on every pull request"; C1 lowered to low
   - `docs/governance/security-policies.md:52`: the policy lists the four required checks
 - **Fix:** add `integration-tests` and `e2e` to the ruleset's required checks once they've proved stable over a few runs, then update `AGENTS.md:249` and `security-policies.md:52`. Until then, say in `docs/architecture.md` that they report but don't block.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** decided by the owner: `integration-tests` and `e2e` will be added to `main`'s required checks once this merges and runs green on `main`. The docs say "required on `main`" now (`AGENTS.md`, `docs/governance/security-policies.md`, `docs/architecture.md`), so they're true once that's done.
 
 ### 4. Accounts the journeys make, an admin among them, all get the same password, which is in the public repository
 
@@ -121,7 +121,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.E2ETests/Users/UserTests.cs:15`, `:71-72` and `:82`: the same password for the new user
   - `MedApp.E2ETests/Common/E2EData.cs:13` and `:33`: the 8-character suffix, and the clean-up failure message that names the account
 - **Fix:** generate the chosen password per run, for example `$"E2e-{Guid.NewGuid():N}"` (upper and lower case, a digit and a symbol, as the rules need), and keep it out of failure messages. Mention in the README that a cancelled run against a deployment can leave `e2e-…` accounts to delete by hand.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. The accounts the journeys make get a password from `E2EData.NewPassword()`, new each run; none is in the source, and none goes into a message. The README says a cancelled run against a deployment can leave `e2e-…` accounts to delete by hand.
 
 ### 5. The "no endpoint gives 404, not the app" tests can't fail, because the tests have no app to fall back to
 
@@ -133,7 +133,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.API/ServerRendering/SsrPages.cs:130-137`: no `index.html`, so 404
   - `MedApp.API/Common/Extensions/ApplicationBuilderExtensions.cs:54`: the route under test; `.gitignore:16`
 - **Fix:** give the factory a temporary web root holding a stub `index.html`, and add the positive case: a page path such as `/patients/anything` returns the stub, while the `/api` paths still get 404 without it. (Code in Detail.)
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. `MedAppApiFactory` gives the API a temporary web root with a stub `index.html` (deleted with the factory), the `/api` 404 tests check that the stub isn't in the answer, and `PagePath_AnyRoute_ReturnsTheApp` shows a page path gets it. Mutation-checked: with the `/api/{**path}` route removed, all four `/api` tests now fail.
 
 ### 6. Two session-expiry tests compare SQL Server's clock with the test machine's
 
@@ -144,7 +144,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `MedApp.IntegrationTests/Auth/SignInTests.cs:120`: one minute, the same mix
   - `MedApp.Infrastructure/Common/Authentication/SessionService.cs:44`: compared with the app's clock
 - **Fix:** pass the time from .NET, with a margin: `{DateTime.UtcNow.AddMinutes(-5)}` as the interpolated parameter in both statements.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. Both expiry statements, the revocation and the overdue due date pass the time from .NET (`DateTime.UtcNow`, five minutes or a day back) instead of `SYSUTCDATETIME()`.
 
 ### 7. The `e2e` job runs the image "as a deploy runs it", but not under the chart's restrictions
 
@@ -155,7 +155,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `.github/workflows/main.yml:144-147`: `docker run -d … --network host` with no restrictions
   - `deploy/helm/medapp/templates/_helpers.tpl:70-75` and `deploy/helm/medapp/templates/api.yaml:118-124`: the chart's read-only filesystem and `/tmp` volume
 - **Fix:** start the container closer to the chart: `--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges`. Or change the wording to "the image a deploy runs", and leave the restrictions to kind.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. Every `docker run` of the image in the `e2e` job (the bundle, `create-first-admin` and the API) has `--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges`. The bundle unpacks into `/tmp` (`DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp`), as the chart's migrations Job sets it. The job's comment and `AGENTS.md` say it runs one copy without kind's Valkey backplane.
 
 ### 8. CI hardening: a predictable SQL Server password printed in a public log, the port open on every interface, and write permission the new jobs don't need
 
@@ -168,7 +168,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - `.github/workflows/main.yml:81` and `:89`: the password; `:91`: the port; `:5-7`: the permissions
   - the `e2e` log of run 43832645185: "Initialize containers" (`-e "MSSQL_SA_PASSWORD=Ci-43832645185-1-Sql"`) and each step's `SQL_PASSWORD:` line
 - **Fix:** bind the port to `127.0.0.1:1433:1433` if the runner accepts it, or start SQL Server in a step with a random password masked by `::add-mask::` (losing the service container's built-in health wait, so poll `sqlcmd` instead). Give `e2e` and `integration-tests` their own `permissions: contents: read`. Reword the comment to say the password is public and why that's acceptable.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. SQL Server starts in a step, published on `127.0.0.1:1433` only, with a random password masked by `::add-mask::` and passed to containers through the environment (by name), with a `sqlcmd` wait. `integration-tests` and `e2e` have `permissions: contents: read`. Checked with `actionlint` 1.7.7; not run in CI before the push.
 
 ### 9. A journey that fails only in CI leaves nothing to look at but the console and the API's log
 
@@ -176,7 +176,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
 - **What could go wrong:** a CI-only failure (a slower runner, a hydration race) shows a Playwright timeout message and `docker logs medapp-api`. There's no trace, screenshot or page HTML, so the cause has to be guessed and the run repeated.
 - **Evidence:** `.github/workflows/main.yml:160-165` (only the API's log on failure); `MedApp.E2ETests/Common/E2ETest.cs:41-66` (no tracing).
 - **Fix:** start Playwright tracing in `StartApiAsync`, save it only for a failed test, and upload it with `actions/upload-artifact` under `if: failure()` in `main.yml` only. A trace records typed values, the E2E admin's password included; in `main.yml` that password dies with the run's database, but in `e2e.yml` it's a deployment's real credential, so don't upload traces there.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. With `E2E_TRACE_DIR` set, `E2ETest` records a Playwright trace and keeps it only for a failed test. `main.yml` sets it and uploads `e2e-traces` on failure; `e2e.yml` doesn't, so no trace of a deployment's real credentials is kept.
 
 ### 10. Docs that don't match the code or each other
 
@@ -188,7 +188,7 @@ Most severe first. None is high or critical. None was fixed at the time of this 
   - **"And delete it":** `AGENTS.md:19-20` and `.github/workflows/e2e.yml:2-4` say the journeys delete what they make. `MedApp.E2ETests/README.md:44` is accurate that audit entries and a notification stay; session rows of the deleted test accounts stay too (`UserSessions` has no foreign key to users, and deleting a user doesn't revoke them).
   - **Findings 1 and 3:** `docs/architecture.md:1248` and `:1333` lean on the matrix and on the suites guarding every pull request.
 - **Fix:** correct each line; point `AGENTS.md` and `e2e.yml` at the README's list of what stays, adding session rows to it.
-- **What happened to it:** open at the time of this review.
+- **What happened to it:** fixed. Web tests are 713 in `docs/architecture.md`, with integration tests at 185; "the gap" now says what the integration tests do and don't reach; the confidentiality row and C1 are updated. `AGENTS.md` explains the `e2e` job's cache. `AGENTS.md` and `e2e.yml` point to the README's list of what stays, which now includes the session rows.
 
 ## Remaining risks
 
