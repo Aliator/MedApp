@@ -1,0 +1,84 @@
+# Dependabot: weekly pull requests that update dependencies, one ecosystem at a time. Minor and patch updates are
+# grouped into one pull request per ecosystem; a major update gets a pull request of its own, since it may need code
+# changes. Security updates (for a known advisory) are separate: they come as soon as there's an advisory, without
+# waiting for the schedule or the cooldown.
+#
+# cooldown: a new version is only proposed once it has been out for a week. A hijacked release (like Trivy's, in March
+# 2026) is usually found and pulled within days, so this keeps one from arriving here in a routine update.
+version: 2
+updates:
+  # The actions the workflows use. They're pinned to commit SHAs with the tag in a comment, and Dependabot updates
+  # both. (Not the Trivy image in main.yml, which is a docker run: that one is bumped by hand.)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The .NET projects: MedApp.sln at the root, and the dev MCP tool, which isn't in the solution.
+  - package-ecosystem: nuget
+    directories:
+      - /
+      - /tools/MedApp.DevMcp
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      # Aspire's packages are released together and must stay on one version, as must the AppHost's
+      # Sdk="Aspire.AppHost.Sdk/<version>" (check it in the pull request).
+      aspire:
+        patterns: ["Aspire.*"]
+      nuget-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # A new .NET major version (ASP.NET Core, EF Core, the Microsoft.Extensions packages) needs the new SDK and
+      # target framework: that's a deliberate upgrade, not a weekly bump. (Whenever EF Core moves, even by a patch,
+      # dotnet-ef in MedApp.API/Dockerfile, DOTNET_EF_VERSION, should follow; Dependabot doesn't update that.)
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: [version-update:semver-major]
+
+  # MedApp.Web, and the UI parity screenshot tool.
+  - package-ecosystem: npm
+    directories:
+      - /MedApp.Web
+      - /tools/ui-parity
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The base images in the API's Dockerfile. Its FROM lines take their tags from ARGs (NODE_VERSION, DOTNET_VERSION),
+  # which Dependabot can't follow, so until they're written out (ideally with digests) this finds nothing to update.
+  - package-ecosystem: docker
+    directory: /MedApp.API
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      docker-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
