@@ -81,8 +81,8 @@ public static class DemoProcedures
 
     /// <summary>
     /// Appointments that aren't for a procedure: telephone reviews and new patient clinics, booked by the coordinator
-    /// as CreateAppointmentHandler books them. One fills a nurse's removed admin time; reserved before the procedures
-    /// are replayed, so nothing else takes that time.
+    /// as CreateAppointmentHandler books them. One fills a nurse's removed admin time; it's booked (and so reserved)
+    /// before the procedures are replayed, so nothing else takes that time.
     /// </summary>
     public static void BookFreedSlot(DemoWorld world, IReadOnlyList<PatientSeed> patients)
     {
@@ -90,8 +90,8 @@ public static class DemoProcedures
             return;
 
         var nurse = world.Staff.Single(s => s.Id == freed.StaffUserId);
-        var patient = Pick(world, patients);
-        Standalone(world, patient, nurse, freed.StartUtc, freed.EndUtc, world.Coordinator, freed.StartUtc.AddDays(-3).AddHours(-2),
+        var bookedAt = freed.StartUtc.AddDays(-3).AddHours(-2);
+        Standalone(world, Pick(world, patients, bookedAt), nurse, freed.StartUtc, freed.EndUtc, world.Coordinator, bookedAt,
             "Telephone review: wound healing query from the patient.");
     }
 
@@ -118,8 +118,7 @@ public static class DemoProcedures
                 world.Calendars.Prefers(DayKind.Clinic));
             if (slot is null)
                 continue;
-            world.Allocator.Reserve(staff.Id, slot.StartUtc, slot.EndUtc);
-            Standalone(world, Pick(world, patients), staff, slot.StartUtc, slot.EndUtc, world.Coordinator, bookedAt, notes[random.Next(notes.Length)]);
+            Standalone(world, Pick(world, patients, bookedAt), staff, slot.StartUtc, slot.EndUtc, world.Coordinator, bookedAt, notes[random.Next(notes.Length)]);
         }
 
         // The lead's diary day: a full clinic of five, around lunch and the MDT, with free time left.
@@ -134,15 +133,19 @@ public static class DemoProcedures
             if (free.Count == 0)
                 break;
             var start = free[random.Next(free.Count)];
-            world.Allocator.Reserve(lead.Id, start, start.AddMinutes(minutes));
             var bookedAt = DemoTimeline.InWorkingHours(start.AddDays(-random.Next(4, 15)), random);
-            Standalone(world, Pick(world, patients), lead, start, start.AddMinutes(minutes), world.Coordinator, bookedAt, notes[random.Next(notes.Length)]);
+            Standalone(world, Pick(world, patients, bookedAt), lead, start, start.AddMinutes(minutes), world.Coordinator, bookedAt, notes[random.Next(notes.Length)]);
         }
     }
 
+    /// <summary>
+    /// Books one, reserving its time on the allocator first, so nothing booked later can take it (and booking a time
+    /// that isn't free fails loudly, as the app would refuse it).
+    /// </summary>
     private static void Standalone(DemoWorld world, PatientSeed patient, StaffMember staff, DateTime startUtc, DateTime endUtc,
         StaffMember by, DateTime bookedAt, string note)
     {
+        world.Allocator.Reserve(staff.Id, startUtc, endUtc);
         var appointment = new Appointment
         {
             Id = Guid.NewGuid(),
@@ -173,10 +176,11 @@ public static class DemoProcedures
         }
     }
 
-    private static PatientSeed Pick(DemoWorld world, IReadOnlyList<PatientSeed> patients)
+    /// <summary>A patient to book: anyone referred or waiting who was registered by the time it's booked.</summary>
+    private static PatientSeed Pick(DemoWorld world, IReadOnlyList<PatientSeed> patients, DateTime bookedAt)
     {
-        var active = patients.Where(p => p.Role is PatientRole.Active or PatientRole.Waiting).ToList();
-        return active[world.Random.Next(active.Count)];
+        var registered = patients.Where(p => p.Role is PatientRole.Active or PatientRole.Waiting && p.IsOnSystemAt(bookedAt)).ToList();
+        return registered[world.Random.Next(registered.Count)];
     }
 
     /// <summary>

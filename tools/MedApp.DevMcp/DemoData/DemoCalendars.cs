@@ -12,6 +12,12 @@ namespace MedApp.DevMcp.DemoData;
 /// the exceptions: leave, a training day, a moved lunch, a removed block, a day using another template, and the
 /// lead's MDT meeting today. The schedule allocator is built from the same rows through the app's
 /// <see cref="CalendarProjection"/>, so appointments never land on a block.
+/// <para>
+/// Every stored block obeys the app's no-overlap rule (<see cref="CalendarClashes"/>), checked as the app checks a new
+/// block: a day of leave or training first sets that day to no day template (a day override with none, as "This
+/// day's template: none" saves), as the app needs before a whole-day block can go on it; a moved lunch goes only
+/// into free time.
+/// </para>
 /// </summary>
 public sealed class DemoCalendars
 {
@@ -39,6 +45,12 @@ public sealed class DemoCalendars
     public int Exceptions => _exceptions.Count;
     public int Overrides => _overrides.Count;
 
+    /// <summary>The stored blocks (leave, training, meetings, the moved lunch), as saved.</summary>
+    public IReadOnlyList<CalendarBlock> StoredBlocks => _blocks;
+
+    /// <summary>The dates using a day template of their own (or none), as saved.</summary>
+    public IReadOnlyList<CalendarDayOverride> DayOverrides => _overrides;
+
     /// <summary>Whether someone is away all day (annual leave, a training day): no sign-in, nothing booked.</summary>
     public bool IsOnLeave(Guid staffUserId, DateOnly date) =>
         _blocks.Any(b => b.StaffUserId == staffUserId
@@ -55,11 +67,19 @@ public sealed class DemoCalendars
         _ => null,
     };
 
-    public static async Task<DemoCalendars> CreateAsync(
-        SeedServices services, IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random, CancellationToken ct)
+    /// <summary>Plans everyone's calendars in memory (nothing saved), and builds the schedule allocator from them.</summary>
+    public static DemoCalendars Plan(IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random)
     {
         var calendars = new DemoCalendars();
         calendars.Build(staff, timeline, random);
+        calendars.BuildAllocator(staff, timeline);
+        return calendars;
+    }
+
+    public static async Task<DemoCalendars> CreateAsync(
+        SeedServices services, IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random, CancellationToken ct)
+    {
+        var calendars = Plan(staff, timeline, random);
 
         await services.Run(async sp =>
         {
@@ -75,9 +95,23 @@ public sealed class DemoCalendars
             await db.SaveChangesAsync(ct);
         });
 
-        calendars.BuildAllocator(staff, timeline);
         return calendars;
     }
+
+    /// <summary>
+    /// Everything on someone's calendar over some dates but appointments, from the rows planned so far, as the app's
+    /// repository would load it (<c>ICalendarRepository.GetCalendarDataAsync</c>).
+    /// </summary>
+    public CalendarData DataFor(Guid staffUserId, DateOnly from, DateOnly to) => new(
+        staffUserId, from, to,
+        _staffWeeks.Where(s => s.StaffUserId == staffUserId).ToList(),
+        _weeks.Values.SelectMany(w => w.Days).ToList(),
+        _days.Values.SelectMany(d => d.Blocks).ToList(),
+        _overrides.Where(o => o.StaffUserId == staffUserId).ToList(),
+        _exceptions.Where(e => e.StaffUserId == staffUserId).ToList(),
+        _blocks.Where(b => b.StaffUserId == staffUserId).ToList(),
+        [],
+        _days.Values.ToDictionary(d => d.Id, d => d.Name));
 
     private void Build(IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random)
     {
@@ -166,12 +200,19 @@ public sealed class DemoCalendars
         foreach (var weeks in new[] { 1, 2 })
             Block(otherSurgeon, nextMonday.AddDays(7 * (weeks - 1) + 3), 16, 0, 17, 0, "Teaching", "Junior doctor teaching", otherSurgeon, created);
 
-        // Lunch moved for one day: the template's lunch is left off that date, and a stored block put in its place.
+        // Lunch moved for one day: the template's lunch is left off that date, and a stored block put in its place, in
+        // the first free 45 minutes after the department meeting (13:45 if free), else the last free before it. If
+        // nothing is free, the lunch stays where it was.
         var lunchDay = NextWorkingDay(timeline.DiaryDay);
         if (TemplateBlockOn(otherSurgeon, lunchDay, "Lunch") is { } lunch)
         {
-            _exceptions.Add(new CalendarBlockException { Id = Guid.NewGuid(), StaffUserId = otherSurgeon.Id, Date = lunchDay, DayTemplateBlockId = lunch.Id });
-            Block(otherSurgeon, lunchDay, 13, 45, 14, 30, "Lunch", "Moved for the department meeting", otherSurgeon, timeline.NowUtc.AddDays(-2));
+            var moved = new CalendarBlockException { Id = Guid.NewGuid(), StaffUserId = otherSurgeon.Id, Date = lunchDay, DayTemplateBlockId = lunch.Id };
+            _exceptions.Add(moved);
+            var starts = Enumerable.Range(0, 10).Select(i => new TimeOnly(13, 45).AddMinutes(15 * i))
+                .Concat(Enumerable.Range(1, 7).Select(i => new TimeOnly(13, 0).AddMinutes(-15 * i)));
+            if (!starts.Any(start => Block(otherSurgeon, lunchDay, start, start.AddMinutes(45), "Lunch", "Moved for the department meeting",
+                    otherSurgeon, timeline.NowUtc.AddDays(-2))))
+                _exceptions.Remove(moved);
         }
 
         // A template block removed for a day (the nurse's admin time), and an appointment booked in its place.
@@ -184,7 +225,8 @@ public sealed class DemoCalendars
         }
 
         // A day using another day template: the nurse covering recovery on a theatre day next week.
-        _overrides.Add(new CalendarDayOverride { Id = Guid.NewGuid(), StaffUserId = nurse.Id, Date = nextMonday.AddDays(1), DayTemplateId = _days["Theatre day"].Id });
+        if (!IsOnLeave(nurse.Id, nextMonday.AddDays(1)))
+            SetDayTemplate(nurse, nextMonday.AddDays(1), _days["Theatre day"].Id);
 
         // The lead's MDT meeting on the diary day.
         Block(lead, timeline.DiaryDay, 13, 30, 14, 30, "MDT meeting", "Weekly MDT", lead, timeline.NowUtc.AddDays(-14));
@@ -194,22 +236,10 @@ public sealed class DemoCalendars
     {
         var from = UkTime.DateOf(timeline.AppStartUtc).AddDays(-60);
         var to = timeline.Today.AddDays(400);
-        var weekDays = _weeks.Values.SelectMany(w => w.Days).ToList();
-        var dayBlocks = _days.Values.SelectMany(d => d.Blocks).ToList();
-        var names = _days.Values.ToDictionary(d => d.Id, d => d.Name);
 
         foreach (var member in staff)
         {
-            var data = new CalendarData(
-                member.Id, from, to,
-                _staffWeeks.Where(s => s.StaffUserId == member.Id).ToList(),
-                weekDays,
-                dayBlocks,
-                _overrides.Where(o => o.StaffUserId == member.Id).ToList(),
-                _exceptions.Where(e => e.StaffUserId == member.Id).ToList(),
-                _blocks.Where(b => b.StaffUserId == member.Id).ToList(),
-                [],
-                names);
+            var data = DataFor(member.Id, from, to);
 
             foreach (var block in CalendarProjection.TemplateBlocks(data))
                 Allocator.AddBlock(member.Id, block.StartUtc, block.EndUtc);
@@ -257,22 +287,45 @@ public sealed class DemoCalendars
             Id = Guid.NewGuid(), StaffUserId = member.Id, WeekTemplateId = _weeks[week].Id, ValidFrom = from, ValidTo = to,
         });
 
-    /// <summary>Whole working days blocked (leave, training), one block a day.</summary>
+    /// <summary>
+    /// Whole working days blocked (leave, training), one block a day, as the app lets someone record them: the day is
+    /// set to no day template first (its lunch and other template blocks would overlap a whole-day block), then
+    /// blocked.
+    /// </summary>
     private void Leave(StaffMember member, DateOnly first, int days, string type, StaffMember by, DateTime createdUtc, string note = "")
     {
         for (var date = first; date < first.AddDays(days); date = date.AddDays(1))
-            if (WorkingHours.IsWorkingDay(date))
-                Block(member, date, 8, 0, 18, 0, type, note, by, createdUtc);
+        {
+            if (!WorkingHours.IsWorkingDay(date))
+                continue;
+            SetDayTemplate(member, date, null);
+            Block(member, date, 8, 0, 18, 0, type, note, by, createdUtc);
+        }
     }
 
-    private void Block(StaffMember member, DateOnly date, int fromHour, int fromMinute, int toHour, int toMinute,
+    /// <summary>A date's own day template (null for none), replacing any it had: one override per person and date.</summary>
+    private void SetDayTemplate(StaffMember member, DateOnly date, Guid? dayTemplateId)
+    {
+        _overrides.RemoveAll(o => o.StaffUserId == member.Id && o.Date == date);
+        _overrides.Add(new CalendarDayOverride { Id = Guid.NewGuid(), StaffUserId = member.Id, Date = date, DayTemplateId = dayTemplateId });
+    }
+
+    private bool Block(StaffMember member, DateOnly date, int fromHour, int fromMinute, int toHour, int toMinute,
+        string type, string note, StaffMember by, DateTime createdUtc) =>
+        Block(member, date, new TimeOnly(fromHour, fromMinute), new TimeOnly(toHour, toMinute), type, note, by, createdUtc);
+
+    /// <summary>
+    /// Stores a block, if the app would allow it: checked against everything on that day of the person's calendar
+    /// (stored blocks and the day template's blocks), as <c>CreateCalendarBlockHandler</c> checks a new one, so one
+    /// already there wins. Whether it was stored.
+    /// </summary>
+    private bool Block(StaffMember member, DateOnly date, TimeOnly from, TimeOnly to,
         string type, string note, StaffMember by, DateTime createdUtc)
     {
-        // A block can't overlap another (the app refuses it), so one already there wins.
-        var start = UkTime.ToUtc(date, new TimeOnly(fromHour, fromMinute));
-        var end = UkTime.ToUtc(date, new TimeOnly(toHour, toMinute));
-        if (_blocks.Any(b => b.StaffUserId == member.Id && CalendarClashes.Overlaps(start, end, b.StartUtc, b.EndUtc)))
-            return;
+        var start = UkTime.ToUtc(date, from);
+        var end = UkTime.ToUtc(date, to);
+        if (CalendarClashes.Find(DataFor(member.Id, date, date), start, end) is not null)
+            return false;
 
         _blocks.Add(new CalendarBlock
         {
@@ -286,20 +339,14 @@ public sealed class DemoCalendars
             CreatedByUserId = by.Id,
             LastUpdated = createdUtc,
         });
+        return true;
     }
 
     /// <summary>The block of a type that someone's template puts on a date, if any.</summary>
-    private DayTemplateBlock? TemplateBlockOn(StaffMember member, DateOnly date, string type)
-    {
-        var data = new CalendarData(
-            member.Id, date, date,
-            _staffWeeks.Where(s => s.StaffUserId == member.Id).ToList(),
-            _weeks.Values.SelectMany(w => w.Days).ToList(),
-            _days.Values.SelectMany(d => d.Blocks).ToList(),
-            _overrides.Where(o => o.StaffUserId == member.Id).ToList(),
-            [], [], [], new Dictionary<Guid, string>());
-        return CalendarProjection.TemplateBlocks(data).Select(p => p.Source).FirstOrDefault(b => b.ActivityTypeId == _types[type].Id);
-    }
+    private DayTemplateBlock? TemplateBlockOn(StaffMember member, DateOnly date, string type) =>
+        CalendarProjection.TemplateBlocks(DataFor(member.Id, date, date))
+            .Select(p => p.Source)
+            .FirstOrDefault(b => b.ActivityTypeId == _types[type].Id);
 
     private static DateOnly NextWorkingDay(DateOnly date)
     {
