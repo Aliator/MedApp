@@ -71,7 +71,8 @@ export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
                   status="info"
                   title="Your session timed out, so you were signed out. Sign in again to carry on."
                   container="card"
-                  role="status"
+                  // An alert, so it's read out as it appears: a live region that arrives already filled often isn't.
+                  role="alert"
                 />
               )}
 

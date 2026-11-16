@@ -105,7 +105,8 @@ describe('AddPatientPage', () => {
     expect((await bodyOf(fetch, 0)).dateOfBirth).toBe(NO_DATE);
   });
 
-  it('says why an add failed for a reason other than its fields', async () => {
+  it('says why an add failed for a reason other than its fields, and announces no add', async () => {
+    withAnnouncements();
     mockApi({'POST /api/patients': () => json({title: 'Server error'}, 500)});
     const {user} = renderWithApp(<AddPatientPage />, {user: adminUser});
 
@@ -113,6 +114,8 @@ describe('AddPatientPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
 
     expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(screen.getByTestId('announcer')).not.toHaveTextContent('Patient added');
   });
 
   it('goes back to the list when cancelled', async () => {

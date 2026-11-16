@@ -4,8 +4,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
-import {ApiError} from '../../api/errors';
-import {sessionQuery, useExtendSession} from '../../api/session';
+import {isUnauthorized, sessionQuery, useExtendSession} from '../../api/session';
 import {useLogout} from '../../auth/auth';
 import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage} from '../shared/AlertMessage';
@@ -26,7 +25,11 @@ export function timeLeftText(ms: number): string {
   return seconds === 0 ? amount(minutes, 'minute') : `${amount(minutes, 'minute')} ${amount(seconds, 'second')}`;
 }
 
-const isUnauthorized = (error: unknown) => error instanceof ApiError && error.status === 401;
+/**
+ * How far apart two answers for the same end can be: each is counted from when it arrived, so they're never quite
+ * the same number.
+ */
+const SAME_END_MS = 5_000;
 
 /**
  * Warns before the session times out (WCAG 2.2.1), instead of letting the next action fail. Sessions last 8 hours
@@ -46,7 +49,7 @@ export function SessionTimeout() {
   const logout = useLogout();
   // The time now, while the warning is due (0 until then, and on the server), for the countdown.
   const [now, setNow] = useState(0);
-  // The end the warning was closed for, so it stays closed until the end moves.
+  // The end the warning was closed for, so it stays closed until the end moves (by more than `SAME_END_MS`).
   const [dismissedFor, setDismissedFor] = useState<number | null>(null);
   const [hasEnded, setHasEnded] = useState(false);
 
@@ -98,7 +101,8 @@ export function SessionTimeout() {
 
   if (endsAt === undefined || now === 0) return null;
   const left = endsAt - now;
-  const isOpen = left <= WARNING_MS && left > 0 && dismissedFor !== endsAt && !isOver;
+  const isDismissed = dismissedFor !== null && Math.abs(endsAt - dismissedFor) < SAME_END_MS;
+  const isOpen = left <= WARNING_MS && left > 0 && !isDismissed && !isOver;
   const canExtend = session.data?.canExtend ?? false;
   const time = timeLeftText(left);
 

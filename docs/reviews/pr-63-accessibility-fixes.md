@@ -68,7 +68,7 @@ Four accessibility items from the to-do list (WCAG 2.2 AA): a warning five minut
 
 ## Findings
 
-Most severe first. None is high or critical. All were open when this review was written.
+Most severe first. None is high or critical. All were open when this review was written; each says below what happened to it.
 
 ### 1. The contrast warning checks only the main text, so a custom colour can leave grey text unreadable without a warning
 
@@ -81,7 +81,7 @@ Most severe first. None is high or critical. All were open when this review was 
   - secondary text on each surface: `MedApp.Web/src/components/pages/PageHeader.tsx:56` and `:65` (page), `MedApp.Web/src/components/navigation/AppSideNav.tsx:575` (side nav), and 29 uses of `color="secondary"` across the app
 - **Also:** measured against secondary text, three of the bundled colour themes are under 4.5:1 already: Y2K's light page (4.19:1, where the back link and subtitle sit), and the header bars of Chocolate's light cards and Butter's dark cards (4.41:1 each). The test "passes every colour theme" can't see this, as it checks only the main text. The axe audit runs one colour theme, so it doesn't either.
 - **Fix:** measure the worse of the main and secondary text (diff under Detail), extend the test that compares `TEXT_COLOURS` with the theme to `--color-text-secondary`, and decide whether to adjust Y2K's light page (and the two header bars) or accept them knowingly. Disabled text is exempt from 1.4.3, so it can stay out.
-- **What happened to it:** open.
+- **What happened to it:** fixed. `textContrast` now measures the worse of the main and secondary text (`TEXT_COLOURS` holds both per mode), on the card and its header bars, and the test comparing them with the theme covers `--color-text-secondary` too. The three bundled themes just under 4.5:1 on secondary text (Y2K's light page, Chocolate's light and Butter's dark card header bars) were left as they are, so they don't change how they look: a to-do item in `docs/todo.md` (Accessibility), and the theme test lists them by name.
 
 ### 2. The docs still say a session lasts a fixed 8 hours, including the cookie notice and a clinical hazard
 
@@ -94,7 +94,7 @@ Most severe first. None is high or critical. All were open when this review was 
   - this branch: `docs/architecture.md:458`, `:650`, `:1026` ("8 hours from sign-in, fixed; no idle timeout"), `:1277` (risk S5, "a fixed 8 hours") and `:1554` ("the fixed 8-hour lifetime")
   - `main` at `a506079`: `docs/governance/cookies-and-storage.md:19` and `:39` (the notice's own words: "It's deleted when you sign out, or after 8 hours"), `docs/governance/data-inventory.md:38`, and `docs/clinical-safety/hazard-log.md:673` (H-18's causes; its further controls follow)
 - **Fix:** change each to "8 hours from sign-in, extendable on request ('Stay signed in') to at most 24 hours from sign-in" (the ones from `main` once it's merged in), add the extension to H-18's causes, and record the warning as what it is (a warning before a fixed limit, not an idle timeout) for the clinical safety officer to assess.
-- **What happened to it:** open.
+- **What happened to it:** fixed. Every statement of a fixed 8 hours now says 8 hours, extendable on request to 24 at most from sign-in: `docs/architecture.md` (the services, the sign-in walkthrough, the session table, risk S5 and the ASVS note), and in `docs/governance/` the cookie notice and its table, the data inventory, the DPA template, the DPIA, the retention schedule and the ROPA. Hazard H-18 gains the extension as a cause, marked as a change for the clinical safety officer to assess, and says the warning isn't the planned idle timeout.
 
 ### 3. Merging `main` stops at a conflict in the change password page, and #59's forced change page has no warning
 
@@ -108,7 +108,7 @@ Most severe first. None is high or critical. All were open when this review was 
   - on `main`: `MedApp.API/Common/Authentication/PasswordChangeRequired.cs:45-57` (`IsAllowed`), `MedApp.Web/src/api/client.ts:65-72` (the redirect on a 403), `MedApp.Web/src/routes/change-password.tsx:12-16` (outside `_app`)
   - this PR: `MedApp.Web/src/components/navigation/SessionTimeout.tsx:55` and `:73`
 - **Fix:** resolve by taking `main`'s file and saying it in `usePasswordChangeForm`'s `onChanged` (diff under Detail). For the forced page, either allow `GET /api/auth/session` and `POST /api/auth/session/extend` in `IsAllowed` and render `SessionTimeout` on that page, or record that the page has no warning.
-- **What happened to it:** open.
+- **What happened to it:** the conflict was resolved by taking `main`'s `ChangePasswordPage.tsx` and announcing in `usePasswordChangeForm`'s `onChanged`, as shown under Detail. The session endpoints were deliberately not added to `PasswordChangeRequired`'s allowlist: the forced change page has no timeout warning, and ends at the session's normal expiry. That's recorded in the root `AGENTS.md` (Auth).
 
 ### 4. At the 24-hour limit, on a server not running on UTC, the cookie ends before the session
 
@@ -120,7 +120,7 @@ Most severe first. None is high or critical. All were open when this review was 
   - `MedApp.API/Controllers/AuthController.cs:110` and `MedApp.API/Common/Authentication/SessionCookieService.cs:12`, `:34`
   - the scratch program: an Unspecified `2026-07-02T09:00` became a cookie expiry of `08:00Z` on a machine on "GMT Standard Time"
 - **Fix:** #62 (open, branch `fix/utc-times`) adds a `UtcDateTimeConverter` to every `DateTime` the database context reads, which fixes this with nothing more here. If this PR merges first, mark the kind in `SessionMapper.ToResponse` (`DateTime.SpecifyKind(session.ExpiresAtUtc, DateTimeKind.Utc)`); the controller takes the cookie's expiry from that response, so both are fixed. Add a test with an Unspecified sign-in time either way.
-- **What happened to it:** open.
+- **What happened to it:** fixed. #62 hadn't landed, so `SessionMapper.ToResponse` marks the expiry UTC (`DateTime.SpecifyKind`); the controller takes the cookie's expiry from that response. `SessionMapperTests.ToResponse_ExpiryReadBackWithoutAKind_MarksItUtc` builds a session with an Unspecified-kind time, as EF Core reads it back.
 
 ### 5. If the first session check fails, no warning is ever set
 
@@ -128,7 +128,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** the app asks `GET api/auth/session` once, when the signed-in layout opens, and never retries. If that one request fails other than with a 401 (a deploy restarting the API, a network blip, a 502 from the proxy), there's no end to count to, so no timer is set. In a clinic where the app stays open all day, the session then ends at 8 hours with no warning, and the next save fails: the very thing this feature exists to prevent. Nothing goes to the login page either. Only showing the tab again (switching away and back) asks again.
 - **Evidence:** `MedApp.Web/src/api/session.ts:31` (`retry: false`); `MedApp.Web/src/components/navigation/SessionTimeout.tsx:60` (no end, no timers) and `:85-90` (the only other trigger)
 - **Fix:** retry anything but a 401, and keep asking while there's no answer, for example `retry: (failures, error) => !isUnauthorized(error) && failures < 3` and `refetchInterval: (query) => (query.state.status === 'error' ? 60_000 : false)`; add a test where the first answer is a 503.
-- **What happened to it:** open.
+- **What happened to it:** fixed. `sessionQuery` retries anything but a 401 (three times), and while the last check failed it asks again every minute (`SESSION_RETRY_MS`). A test has the first check and its retries fail, then warns as usual.
 
 ### 6. A closed warning comes back whenever the tab is shown again
 
@@ -136,7 +136,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** the warning is kept closed for "the end it was closed for" (`dismissedFor`), compared by exact number. But the end is recalculated from `Date.now()` with each answer from the API, so it's never the same number twice. Closed with Escape, the close button or OK (at the 24-hour limit), the warning reopens as soon as the tab is shown again, which asks the API again. At the limit, where OK is the only answer, it reopens every time the tab comes back. The test "stays closed once closed, until the end moves" asks the API only once, so it can't see this.
 - **Evidence:** `MedApp.Web/src/api/session.ts:17`; `MedApp.Web/src/components/navigation/SessionTimeout.tsx:50`, `:101` and `:110`
 - **Fix:** compare with a tolerance (`dismissedFor !== null && Math.abs(endsAt - dismissedFor) < 5_000`), or keep the server's `expiresAtUtc` in `SessionExpiry` and key the dismissal on that. Add a test that refetches after closing.
-- **What happened to it:** open.
+- **What happened to it:** fixed. A closed warning stays closed while the end is within 5 seconds of the one it was closed for (`SAME_END_MS`). A test asks the API again after closing it, then moves the end and sees it warn again.
 
 ### 7. "Your session timed out" may not be read out
 
@@ -144,7 +144,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** when the session ends, the app moves to the login page in the browser, without a page load. The banner is a `role="status"` region inserted together with its text. Live regions are announced when their content changes, and many screen readers don't announce a region that arrives already filled; and the page's own name is announced only when announcements are on, which they aren't by default. A screen reader user whose warning ran out hears nothing, and may not know why they're on the login page.
 - **Evidence:** `MedApp.Web/src/pages/login/LoginPage.tsx:69-76`; `MedApp.Web/src/components/navigation/SessionTimeout.tsx:96`
 - **Fix:** `role="alert"` on this banner (alerts are announced when they appear), or move the focus to the "Sign in" heading after the redirect. Check with NVDA during the screen reader pass.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The timed-out banner on the login page is `role="alert"`, and its test checks that. Hearing it with NVDA stays part of the screen reader pass.
 
 ### 8. Ctrl+S sometimes does nothing, silently, and stops the browser too
 
@@ -152,7 +152,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** whenever a form has joined, Ctrl+S is taken from the browser, but in several cases it then saves nothing and says nothing: two forms open in a half view with the focus in neither (a click on blank space moves the focus to the page); any dialog open; a form dialog whose focus is still on its title, where Astryx puts it on opening; the stage notes unchanged. Someone used to Ctrl+S may believe their changes were saved, then close the half.
 - **Evidence:** `MedApp.Web/src/components/forms/SaveShortcut.tsx:76-78` (it prevents the default before choosing), `:39` and `:44` (the cases that choose none); `MedApp.Web/src/components/procedures/StageWork.tsx:87`
 - **Fix:** when Ctrl+S is taken but nothing is saved, say so briefly, on screen and to screen readers ("Nothing saved: click in the form to save it"). The rule itself (never guess between two forms) is right.
-- **What happened to it:** open.
+- **What happened to it:** fixed. When Ctrl+S is taken from the browser but saves nothing, an Astryx toast says so ("Nothing saved: click in the form you want to save, then try again.", or "Nothing to save." when the chosen form had nothing it could save), which screen readers hear through Astryx's live regions. A `save` that has nothing to do returns `false` (stage notes unchanged, a form dialog that can't be confirmed yet).
 
 ### 9. A session can now be kept for 24 hours by anyone holding it, and a lockout still doesn't end it
 
@@ -160,7 +160,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** extending can't make a session last for ever: the cap is counted from `CreatedAtUtc`, which never changes, and it's enforced on the server. But a session cookie copied from a shared workstation, or an unattended screen in its last five minutes, can now be kept for 24 hours instead of 8 (one `POST api/auth/session/extend` every 8 hours). Locking the account, or the user changing their own password, still doesn't end existing sessions (risk S5, `docs/architecture.md:1277`). An admin's reset is better since #59: the session is held to changing the password, which needs the generated one.
 - **Evidence:** `MedApp.Domain/Authentication/UserSession.cs:17`, `:28`, `:41-52`; `MedApp.API/Controllers/AuthController.cs:97-114`; `MedApp.Infrastructure/Common/Authentication/SessionService.cs:31-55` (validation checks the session and the user, not a lockout)
 - **Fix:** end a user's other sessions on a lockout and on a password change (a `RevokeAllForUserAsync`), and record the longer limit in risk S5 and hazard H-18 (finding 2). An idle timeout remains the real control.
-- **What happened to it:** open.
+- **What happened to it:** handled elsewhere. Ending a user's other sessions on a password change, a reset and a role change is being built on the security baseline branch, so it isn't built here. The longer limit is recorded in risk S5 (`docs/architecture.md`) and as a cause in H-18, with that work listed among H-18's further controls.
 
 ### 10. Deleting a procedure isn't announced, though deleting a patient is
 
@@ -168,7 +168,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** "Patient deleted" is said before the app leaves the page; deleting a procedure leaves the page in silence. `MedApp.Web/AGENTS.md` now says "A new form or action that saves and moves on does the same", and this action moves on. The setup lists' archive and delete, a status change, unlocking, and assigning or unassigning staff are silent too, but they stay on the page, where the list or the page itself changes.
 - **Evidence:** `MedApp.Web/src/pages/procedures/ProcedurePage.tsx:349-352`; `MedApp.Web/src/pages/patients/EditPatientPage.tsx:84`; `MedApp.Web/AGENTS.md:37`
 - **Fix:** `announce('Procedure deleted')` before the navigation, with a test.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The procedure page says "Procedure deleted" before it leaves, with a test.
 
 ### 11. Small drift: a mapper missing from the list, an unused helper, undeclared 401s
 
@@ -176,7 +176,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **What could go wrong:** the root `AGENTS.md` lists every mapper "so far", and `SessionMapper` isn't there, so the next change may not find it. `formatRatio` is exported and tested but used nowhere. The two endpoints return 401 (their summaries say so) but declare only 200, so the Swagger document and the generated types don't show it.
 - **Evidence:** `AGENTS.md:102-105`; `MedApp.Web/src/utils/contrast.ts:51-54`; `MedApp.API/Controllers/AuthController.cs:83` and `:100`
 - **Fix:** add `SessionMapper` to the list; remove `formatRatio` or show the ratio; add `[ProducesResponseType(StatusCodes.Status401Unauthorized)]` to both endpoints and run `npm run gen:api`.
-- **What happened to it:** open.
+- **What happened to it:** fixed. `SessionMapper` is in the root `AGENTS.md`'s list of mappers, `formatRatio` is gone, and both endpoints declare their 401 (`[ProducesResponseType(StatusCodes.Status401Unauthorized)]`), with `schema.d.ts` updated by hand to match, as `gen:api` would write it.
 
 ### 12. The tests miss some failure paths, and the session tests run on real time
 
@@ -188,7 +188,7 @@ Most severe first. None is high or critical. All were open when this review was 
   - **The flaky-test fix:** it's sound: `waitFor` retries until Astryx's live region has its copy of the error. But it still counts copies of the text, which depends on how Astryx announces; checking the field's own error would be firmer.
 - **Evidence:** `MedApp.Web/src/pages/patients/PatientPages.test.tsx:82-83`; `MedApp.Web/src/components/navigation/SessionTimeout.test.tsx:31`, `:66`, `:99`; `MedApp.UnitTests/Common/Constants/AuthTestConstants.cs` (the new session times)
 - **Fix:** a "not announced on failure" case on one form page and on the stage finish; fake timers (`vi.useFakeTimers({shouldAdvanceTime: true})`) for `SessionTimeout`; the test from finding 4.
-- **What happened to it:** open.
+- **What happened to it:** fixed. A failed patient add and a refused stage finish are checked not to be announced; the `SessionTimeout` tests run on fake timers (`vi.useFakeTimers({shouldAdvanceTime: true})`), with the mock counting down to a fixed end; and finding 4's test covers an Unspecified-kind time. `SessionService` itself still has no database test.
 
 ## Remaining risks
 
@@ -198,7 +198,7 @@ Most severe first. None is high or critical. All were open when this review was 
 - **Ctrl+S on keyboards whose letters aren't Latin** (Russian, Greek): `event.key` is that layout's letter, so the shortcut isn't caught and the browser's Save page dialog opens. Checking `event.code === 'KeyS'` as well would cover them.
 - **Ctrl+S held down repeats.** Each form's own guard (`isProcessing`, `isBusy`) stops double saves once the first has started; `event.repeat` isn't ignored.
 - **The screen reader pass by hand** is still on the to-do list, and the new dialog, banner and announcements haven't been heard yet.
-- **Merging this PR** needs `main` merged into it first (finding 3), then findings 1 and 2 dealt with or accepted.
+- **Merging this PR:** `main` (with #59, #60 and #61) has been merged into it, and findings 1 and 2 dealt with. If #62 lands first, its converter and `SessionMapper`'s `SpecifyKind` overlap harmlessly.
 
 ## Say it like this
 

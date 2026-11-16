@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Authentication.Sessions.Common;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Domain.Authentication;
 using MedApp.UnitTests.Common.Constants;
 
 namespace MedApp.UnitTests.Application.Auth.Session.Common;
@@ -15,6 +16,21 @@ public sealed class SessionMapperTests
 
         SessionMapper.ToResponse(session, AuthTestConstants.SessionNowUtc)
             .Should().Be(new SessionResponse(session.ExpiresAtUtc, 300, true));
+    }
+
+    [Test]
+    public void ToResponse_ExpiryReadBackWithoutAKind_MarksItUtc()
+    {
+        // As EF Core reads a datetime2 back from SQL Server: the same moment, with no kind.
+        var started = DateTime.SpecifyKind(AuthTestConstants.SessionStartedAtUtc, DateTimeKind.Unspecified);
+        var session = new UserSession(AuthTestConstants.SettingsUserId, started, started.AddHours(8), null, null);
+
+        var response = SessionMapper.ToResponse(session, AuthTestConstants.SessionNowUtc);
+
+        response.ExpiresAtUtc.Kind.Should().Be(DateTimeKind.Utc);
+        response.ExpiresAtUtc.Should().Be(AuthTestConstants.SessionStartedAtUtc.AddHours(8));
+        response.ExpiresInSeconds.Should().Be(300);
+        new DateTimeOffset(response.ExpiresAtUtc).Offset.Should().Be(TimeSpan.Zero);
     }
 
     [Test]

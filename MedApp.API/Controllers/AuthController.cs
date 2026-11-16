@@ -81,6 +81,7 @@ public sealed class AuthController(
     [Authorize]
     [Tags("Login")]
     [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetSession(CancellationToken ct)
     {
         if (CurrentSessionId() is not { } sessionId)
@@ -98,6 +99,7 @@ public sealed class AuthController(
     [Authorize]
     [Tags("Login")]
     [ProducesResponseType(typeof(SessionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ExtendSession(CancellationToken ct)
     {
         if (CurrentSessionId() is not { } sessionId)

@@ -84,7 +84,10 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
     work,
     stage.canEdit
       ? () => {
-          if (isChanged && !isBusy) onSaveNotes(draft);
+          // Busy saving already; or nothing changed, which Ctrl+S then says.
+          if (isBusy) return;
+          if (!isChanged) return false;
+          onSaveNotes(draft);
         }
       : undefined,
   );

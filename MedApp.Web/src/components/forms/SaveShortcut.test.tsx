@@ -1,9 +1,9 @@
 import {fireEvent, render, screen} from '@testing-library/react';
 import {useRef} from 'react';
-import {isSaveShortcut, pickSaver, SaveShortcutProvider, useSaveShortcut, type Saver} from './SaveShortcut';
+import {isSaveShortcut, NO_FORM_CHOSEN, NOTHING_TO_SAVE, pickSaver, SaveShortcutProvider, useSaveShortcut, type Saver} from './SaveShortcut';
 
 /** A form that Ctrl+S can save, with a field in it. */
-function Form({name, onSave}: {name: string; onSave?: () => void}) {
+function Form({name, onSave}: {name: string; onSave?: () => boolean | void}) {
   const ref = useRef<HTMLFormElement>(null);
   useSaveShortcut(ref, onSave);
   return (
@@ -51,6 +51,53 @@ describe('SaveShortcutProvider', () => {
 
     pressSave(document.activeElement!);
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so, on screen and to screen readers, when it saves nothing", async () => {
+    const declining = vi.fn(() => false);
+    const saving = vi.fn();
+    const {unmount} = render(
+      <SaveShortcutProvider>
+        <button type="button">Elsewhere</button>
+        <Form name="Left" onSave={saving} />
+        <Form name="Right" onSave={saving} />
+      </SaveShortcutProvider>,
+    );
+
+    // Two forms, and the focus in neither: it can't tell which was meant.
+    screen.getByRole('button', {name: 'Elsewhere'}).focus();
+    expect(pressSave(document.activeElement!)).toBe(false);
+    expect((await screen.findAllByText(NO_FORM_CHOSEN)).length).toBeGreaterThan(0);
+    expect(saving).not.toHaveBeenCalled();
+    unmount();
+
+    // A form with nothing it can save yet.
+    render(
+      <SaveShortcutProvider>
+        <Form name="Unchanged" onSave={declining} />
+      </SaveShortcutProvider>,
+    );
+    screen.getByLabelText('Unchanged field').focus();
+    pressSave(document.activeElement!);
+    expect(declining).toHaveBeenCalledOnce();
+    expect((await screen.findAllByText(NOTHING_TO_SAVE)).length).toBeGreaterThan(0);
+  });
+
+  it('says nothing when it saves', async () => {
+    render(
+      <SaveShortcutProvider>
+        <Form name="Saving" onSave={() => {}} />
+      </SaveShortcutProvider>,
+    );
+    screen.getByLabelText('Saving field').focus();
+    // Toasts outlive a test (they're shown outside it), so it counts them.
+    const messages = () => screen.queryAllByText(/^Nothing (to save|saved)/).length;
+    const before = messages();
+
+    pressSave(document.activeElement!);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(messages()).toBe(before);
   });
 
   it('leaves Ctrl+S to the browser when no form is open', () => {

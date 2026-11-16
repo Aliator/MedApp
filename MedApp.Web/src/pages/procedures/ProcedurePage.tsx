@@ -347,8 +347,10 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             isProcessing={remove.isPending}
             onConfirm={() =>
               remove.mutate(undefined, {
-                onSuccess: () =>
-                  void navigate({to: '/patients/$id/procedures', params: {id: procedure?.patientId ?? ''}, replace: true}),
+                onSuccess: () => {
+                  announce('Procedure deleted');
+                  void navigate({to: '/patients/$id/procedures', params: {id: procedure?.patientId ?? ''}, replace: true});
+                },
                 onError: failed('The procedure could not be deleted.'),
               })
             }

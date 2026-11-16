@@ -82,7 +82,10 @@ export function ConfirmDialog({
     content,
     hasSaveShortcut && isOpen
       ? () => {
-          if (!isProcessing && !confirmDisabled) confirm();
+          // Already confirming: nothing more to do, but nothing to complain of either.
+          if (isProcessing) return;
+          if (confirmDisabled) return false;
+          confirm();
         }
       : undefined,
   );

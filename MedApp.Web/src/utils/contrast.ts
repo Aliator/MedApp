@@ -47,8 +47,3 @@ export function mixSrgb(colour: string, percent: number, other: string): string 
   const b = parseHex(other);
   return toHex(a.map((c, i) => (c * percent + b[i] * (100 - percent)) / 100));
 }
-
-/** A ratio as people read it, to one decimal place and never rounded up past the line: `4.4:1`. */
-export function formatRatio(ratio: number): string {
-  return `${(Math.floor(ratio * 10) / 10).toFixed(1)}:1`;
-}

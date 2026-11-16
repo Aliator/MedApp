@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {contrastRatio, formatRatio, MIN_TEXT_CONTRAST, mixSrgb, parseHex, relativeLuminance, toHex} from './contrast';
+import {contrastRatio, MIN_TEXT_CONTRAST, mixSrgb, parseHex, relativeLuminance, toHex} from './contrast';
 
 describe('contrast', () => {
   it('reads #rrggbb colours, in either case, and refuses anything else', () => {
@@ -38,10 +38,5 @@ describe('contrast', () => {
     expect(mixSrgb('#ffffff', 50, '#000000')).toBe('#808080');
     expect(mixSrgb('#e4ebf8', 94, '#000000')).toBe('#d6dde9');
     expect(mixSrgb('#212634', 90, '#ffffff')).toBe('#373c48');
-  });
-
-  it('writes ratios to one decimal place, never rounding up past the line', () => {
-    expect(formatRatio(4.49)).toBe('4.4:1');
-    expect(formatRatio(21)).toBe('21.0:1');
   });
 });

@@ -240,7 +240,8 @@ describe('ProcedurePage: working on it', () => {
     expect(calls(fetch).filter((c) => !c.startsWith('GET'))).toEqual([]);
   });
 
-  it("shows the API's reason when a change is refused", async () => {
+  it("shows the API's reason when a change is refused, and doesn't announce it as finished", async () => {
+    withAnnouncements();
     mockApi({
       [`GET ${PATH}`]: () => json(working()),
       [`POST ${PATH}/stages/s2/finish`]: () => json({title: "The 'Procedure' stage is finished and locked."}, 409),
@@ -251,6 +252,8 @@ describe('ProcedurePage: working on it', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Finish Stage'}));
 
     await findAlert("The 'Procedure' stage is finished and locked.");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(screen.getByTestId('announcer')).not.toHaveTextContent(/finished/);
   });
 
   it('keeps assigning and unlocking for admins', async () => {
@@ -521,6 +524,7 @@ describe('ProcedurePage details and deleting', () => {
   });
 
   it("deletes a cancelled procedure after a confirmation, then shows the patient's procedures", async () => {
+    withAnnouncements();
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true})),
       [`DELETE ${PATH}`]: () => new Response(null, {status: 204}),
@@ -534,6 +538,7 @@ describe('ProcedurePage details and deleting', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients/patient-1/procedures'));
     expect(calls(fetch)).toContain(`DELETE ${PATH}`);
+    await expectAnnounced('Procedure deleted');
   });
 
   it('explains a failed delete', async () => {

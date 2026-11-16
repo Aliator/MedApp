@@ -101,6 +101,8 @@ describe('after a session timed out', () => {
     const {user} = renderWithApp(<LoginPage isExpired />, {path: '/login'});
 
     expect(await screen.findByText(TIMED_OUT)).toBeInTheDocument();
+    // An alert, so it's read out as it appears.
+    expect(screen.getByText(TIMED_OUT).closest('[role="alert"]')).not.toBeNull();
     await user.type(screen.getByLabelText(/username/i), 'test-admin');
     await user.type(screen.getByLabelText(/^password/i), 'wrong');
     await user.click(screen.getByRole('button', {name: /sign in/i}));

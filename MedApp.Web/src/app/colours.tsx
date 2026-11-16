@@ -69,10 +69,15 @@ export const COLOUR_THEMES: ColourTheme[] = [
 ];
 
 /**
- * The text colour on the page and cards in each mode: the theme's `--color-text-primary` (`src/themes/medapp`). The
- * side nav's text is always dark mode's, as the nav keeps a dark theme of its own.
+ * The text shown on the page and cards in each mode: the theme's main and secondary text colours
+ * (`--color-text-primary` and `--color-text-secondary`, `src/themes/medapp`). Secondary text (subtitles, Back,
+ * descriptions, placeholders) is the lighter grey in light mode and the darker in dark mode. The side nav's text is
+ * always dark mode's, as the nav keeps a dark theme of its own. Disabled text is left out: WCAG 1.4.3 exempts it.
  */
-export const TEXT_COLOURS: Record<ColorMode, string> = {light: '#25252a', dark: '#f0f0f9'};
+export const TEXT_COLOURS: Record<ColorMode, {primary: string; secondary: string}> = {
+  light: {primary: '#25252a', secondary: '#5f5f64'},
+  dark: {primary: '#f0f0f9', secondary: '#ababb3'},
+};
 
 /**
  * How card header bars and footers (`--color-background-muted`) are mixed from the card colour, in each mode: a
@@ -93,14 +98,14 @@ export function headerBarColour(mode: ColorMode, card: string): string {
 }
 
 /**
- * How readable text is on a chosen colour (WCAG's contrast ratio): against the text actually shown on it, and for
- * cards the worse of the card and its header bars. Under `MIN_TEXT_CONTRAST` (4.5:1), the Colours page warns.
+ * How readable text is on a chosen colour (WCAG's contrast ratio): the worse of the main and secondary text shown on
+ * it, and for cards on the card and its header bars. Under `MIN_TEXT_CONTRAST` (4.5:1), the Colours page warns.
  */
 export function textContrast(mode: ColorMode, part: ColourPart, colour: string): number {
-  if (part === 'nav') return contrastRatio(TEXT_COLOURS.dark, colour);
-  const text = TEXT_COLOURS[mode];
-  const ratio = contrastRatio(text, colour);
-  return part === 'card' ? Math.min(ratio, contrastRatio(text, headerBarColour(mode, colour))) : ratio;
+  // The side nav keeps dark mode's text in both modes.
+  const text = TEXT_COLOURS[part === 'nav' ? 'dark' : mode];
+  const surfaces = part === 'card' ? [colour, headerBarColour(mode, colour)] : [colour];
+  return Math.min(...surfaces.flatMap((surface) => [contrastRatio(text.primary, surface), contrastRatio(text.secondary, surface)]));
 }
 
 /**

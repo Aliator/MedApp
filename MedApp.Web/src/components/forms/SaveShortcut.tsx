@@ -1,3 +1,4 @@
+import {useToast} from '@astryxdesign/core/Toast';
 import {createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject} from 'react';
 
 /** The save shortcut, as `Kbd` shows it: Ctrl+S, or ⌘S on a Mac. */
@@ -11,11 +12,18 @@ export function isSaveShortcut(event: KeyboardEvent): boolean {
   return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 's' && !event.isComposing;
 }
 
-/** Something Ctrl+S can save: a form's element (where focus counts as "in it"), and how to save it. */
+/**
+ * Something Ctrl+S can save: a form's element (where focus counts as "in it"), and how to save it. `save` returns
+ * false when there was nothing it could save (no changes, or its button can't be pressed yet).
+ */
 export interface Saver {
   element: () => HTMLElement | null;
-  save: () => void;
+  save: () => boolean | void;
 }
+
+/** Said, on screen and to screen readers, when Ctrl+S was taken from the browser but saved nothing. */
+export const NOTHING_TO_SAVE = 'Nothing to save.';
+export const NO_FORM_CHOSEN = 'Nothing saved: click in the form you want to save, then try again.';
 
 /** Dialogs, open or closed (Astryx keeps a closed one in the page, without `open`). */
 const DIALOG = 'dialog, [role="dialog"], [role="alertdialog"]';
@@ -59,9 +67,16 @@ const SaveShortcutContext = createContext<SaveShortcutContextValue | null>(null)
  * a modifier, so it can't be pressed by accident while typing (WCAG 2.1.4 is about single keys), and in a field is
  * where it's wanted. While any form is open it always stops the browser's own Save page dialog, even when it saves
  * nothing (a dialog is open, or it can't tell which of two forms was meant); with no form open, the browser has it.
+ * When it saves nothing, a brief message (an Astryx toast, which screen readers hear too) says so, so nobody takes
+ * the key press for a save.
  */
 export function SaveShortcutProvider({children}: {children: ReactNode}) {
   const savers = useRef<Saver[]>([]);
+  const toast = useToast();
+  const toastRef = useRef(toast);
+  useEffect(() => {
+    toastRef.current = toast;
+  });
 
   const register = useCallback((saver: Saver) => {
     savers.current = [...savers.current, saver];
@@ -75,7 +90,9 @@ export function SaveShortcutProvider({children}: {children: ReactNode}) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !isSaveShortcut(event) || savers.current.length === 0) return;
       event.preventDefault();
-      pickSaver(savers.current, document.activeElement, document)?.save();
+      const saver = pickSaver(savers.current, document.activeElement, document);
+      const saved = saver ? saver.save() !== false : false;
+      if (!saved) toastRef.current({body: saver ? NOTHING_TO_SAVE : NO_FORM_CHOSEN, isAutoHide: true});
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -87,9 +104,10 @@ export function SaveShortcutProvider({children}: {children: ReactNode}) {
 
 /**
  * Lets Ctrl+S save this form: `ref` is its element, and `save` does what its Save button does (undefined when it
- * has none, or can't save now). Outside `SaveShortcutProvider` (tests of one part), it does nothing.
+ * has none), returning false when there's nothing it can save now. Outside `SaveShortcutProvider` (tests of one
+ * part), it does nothing.
  */
-export function useSaveShortcut(ref: RefObject<HTMLElement | null>, save: (() => void) | undefined) {
+export function useSaveShortcut(ref: RefObject<HTMLElement | null>, save: (() => boolean | void) | undefined) {
   const context = useContext(SaveShortcutContext);
   const latest = useRef(save);
   useEffect(() => {

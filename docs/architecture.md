@@ -455,7 +455,7 @@ The procedure repository is the exception, by design: handlers load a **tracked*
 - `IdentityUserService`, `IdentityRoleService`, `IdentityReadService`: users, roles, and username lookups for responses. `IdentityUserService` generates the password for every new account and every admin reset: at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (#53).
 - `IdentityTransactions`: runs several Identity changes in one transaction, inside EF's execution strategy so a retry repeats the whole transaction, clearing the change tracker first (#52). So the work loads everything it changes itself, inside the retried delegate, never using entities loaded before it.
 
-**Sessions.** `SessionService` creates a `UserSession` row on sign-in (8-hour lifetime), validates it on every request (the session, then the user and their roles), and revokes it on sign-out. See [6.1](#61-signing-in-and-the-session-check).
+**Sessions.** `SessionService` creates a `UserSession` row on sign-in (8 hours, extendable to 24 at most from sign-in), validates it on every request (the session, then the user and their roles), and revokes it on sign-out. See [6.1](#61-signing-in-and-the-session-check).
 
 **The first admin.** `FirstAdminSetup` (`MedApp.Infrastructure/Common/Identity/FirstAdminSetup.cs`) creates the `Admin` and `User` roles if missing, then, **only if there are no users at all**, an admin with both roles from `FirstAdmin:Username` and `FirstAdmin:Password`, in one transaction. It exits 0 when it made the admin or found accounts, and 1 when it isn't configured or Identity refuses. See [6.6](#66-first-install-migrations-and-the-first-admin).
 
@@ -636,7 +636,7 @@ sequenceDiagram
     A->>H: LoginCommand, after LoginValidator
     H->>S: check the password and the lockout
     S->>D: read the user, count a failure or clear the count
-    S->>D: insert a UserSession that expires in 8 hours
+    S->>D: insert a UserSession that expires in 8 hours (extendable to 24 from sign-in)
     A-->>B: 200 and the medapp.session cookie
     B->>A: GET /api/patients/search with the cookie
     A->>S: SessionAuthenticationHandler validates the session ID
@@ -648,7 +648,7 @@ sequenceDiagram
    - a locked account is refused even with the right password: **423 Locked**, with the time left ("Try again in 5 minutes.");
    - a wrong password counts as a failure and gives **401** ("Invalid credentials"); the fifth locks the account;
    - a right password clears the count.
-2. **The session.** `SessionService` inserts a `UserSession` row: the user, created and expiry times (8 hours, fixed), the client's IP address and user agent.
+2. **The session.** `SessionService` inserts a `UserSession` row: the user, created and expiry times (8 hours, extendable on request to 24 at most from sign-in: see the table below), the client's IP address and user agent.
 3. **The cookie.** `SessionCookieService` sets `medapp.session` to the session's ID: `HttpOnly` (script can't read it), `SameSite=Lax` (not sent on cross-site POSTs), `Secure` outside Development, expiring with the session. The response body also carries the session ID and expiry.
 4. **Every request.** `SessionAuthenticationHandler` reads the cookie, parses the ID, and asks `SessionService` to validate it: the row must exist, not be revoked or expired, and its user must still exist. It then builds the claims: the user's ID (`NameIdentifier`), username and roles, and `medapp:must_change_password` when the account's `MustChangePassword` is set (an admin generated its password). Roles and the flag are read from the database on every request, so a role change or a reset applies at once, and deleting a user ends their sessions. `PasswordChangeRequired`, between authentication and authorisation, then refuses a flagged user every `/api` request but its allowlist.
 5. **Authorisation.** Endpoints require the `Staff` policy (role `User` or `Admin`) or the `Admin` role. The own-password change also requires `SelfUserOnly`: the route's username must be the caller's.
@@ -1024,7 +1024,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 | `HttpOnly` | Yes | `SessionCookieService.cs` |
 | `SameSite` | `Lax`: not sent on cross-site POSTs | `SessionCookieService.cs` |
 | `Secure` | Outside Development | `SessionCookieService.cs` |
-| Lifetime | 8 hours from sign-in, fixed; no idle timeout | `SessionService.cs` |
+| Lifetime | 8 hours from sign-in, extendable on request ("Stay signed in", `POST api/auth/session/extend`) to 24 at most from sign-in; using the app doesn't extend it; no idle timeout | `UserSession.cs`, `SessionService.cs` |
 | Revocation | On sign-out; or when the user is deleted (validation fails) | `SessionService.cs` |
 
 **Cross-site request forgery (CSRF).** There are no antiforgery tokens. The defence is `SameSite=Lax`, which keeps the cookie off cross-site POSTs, PUTs, PATCHes and DELETEs, together with JSON request bodies. There's no CORS policy, so no other origin is allowed to read responses.
@@ -1275,7 +1275,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S2 | **Patient records and account administration aren't audited, and reads aren't logged at all.** Any staff member can delete a patient who has no procedures, and nothing records it. For health data, who viewed and changed what is usually required. | High | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
 | S4 | **No approved regulatory groundwork:** the DPIA, retention schedule, subject access and erasure procedures and the rest are drafts in `docs/governance/`, not approved, and the app doesn't yet enforce retention or export a patient's data ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
-| S5 | **Sessions:** a fixed 8 hours with no idle timeout; not ended by a password change, a reset or a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. | Medium | (handbook) |
+| S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a password change, a reset or a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. | Medium | (handbook) |
 | S6 | **No security headers** on pages: no Content Security Policy, `X-Content-Type-Options`, `frame-ancestors` or `X-Frame-Options`, or `Referrer-Policy`. | Medium | F24 (the `Cache-Control` half is fixed) |
 | S7 | **Authorisation is barely tested.** Endpoint roles and policies are attributes, and only the own-password and create-user endpoints' are checked by a test. Nothing tests the assembled pipeline (HSTS, blocked paths, the health port, the order of middleware). | Medium | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
 | S8 | **No multi-factor authentication or single sign-on,** and "Forgot password?" tells users a link was sent when nothing was. | Medium | (handbook) |
@@ -1552,7 +1552,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - The NCSC (National Cyber Security Centre) prefers throttling to lockout, because lockout lets anyone lock people out ([NCSC](https://www.ncsc.gov.uk/collection/passwords/updating-your-approach)). Keep the lockout, but add throttling in front of it.
   - Give the same answer for an unknown user, a wrong password and a locked account, so the 423 no longer confirms that an account exists.
 - **Sessions** (`MedApp.Infrastructure/Common/Authentication/SessionService.cs`, `MedApp.Domain/Authentication/UserSession.cs`; [ASVS V7](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x16-V7-Session-Management.md)):
-  - an idle timeout (V7.3.1), configurable with 30 minutes as a starting point, as well as the fixed 8-hour lifetime (V7.3.2)
+  - an idle timeout (V7.3.1), configurable with 30 minutes as a starting point, as well as the 8-hour lifetime, extendable to 24 hours from sign-in (V7.3.2)
   - end a user's other sessions when their password is changed or reset (V7.4.3), when their roles change, and when their account is disabled
   - let admins end anyone's sessions (V7.4.5)
   - store a hash of a random 256-bit token instead of the row's GUID, so a copy of the database can't be replayed as sessions

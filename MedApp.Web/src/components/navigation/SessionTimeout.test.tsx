@@ -1,44 +1,65 @@
 import {act, waitFor, within} from '@testing-library/react';
+import {SESSION_RETRY_MS} from '../../api/session';
 import {calls, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
-import {SessionTimeout, timeLeftText} from './SessionTimeout';
+import {SessionTimeout, timeLeftText, WARNING_MS} from './SessionTimeout';
 
 const SESSION = 'GET /api/auth/session';
 const EXTEND = 'POST /api/auth/session/extend';
+const MINUTE = 60_000;
 const session = (expiresInSeconds: number, canExtend = true) =>
   json({expiresAtUtc: '2026-11-16T17:00:00Z', expiresInSeconds, canExtend});
 const unauthorized = () => new Response(null, {status: 401});
+const unavailable = () => json({title: 'Unavailable'}, 503);
 
 const renderTimeout = () => renderWithApp(<SessionTimeout />, {user: staffUser, path: '/patients'});
 const warning = () => waitFor(() => within(openDialog()!).getByRole('heading', {name: 'Your session is ending'}));
+/** Moves the clock (and every timer) on, letting what it sets off settle. */
+const wait = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+const sessionChecks = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((c) => c === SESSION).length;
 
 describe('SessionTimeout', () => {
-  it('warns five minutes before the end, counting down, and stays signed in for another session length', async () => {
-    const fetch = mockApi({[SESSION]: () => session(4 * 60 + 30), [EXTEND]: () => session(8 * 60 * 60)});
+  // Fake timers, with the clock still moving on by itself, so user-event and React Query keep working.
+  beforeEach(() => vi.useFakeTimers({shouldAdvanceTime: true}));
+  afterEach(() => vi.useRealTimers());
+
+  it('says nothing until five minutes before the end, then counts down, and stays signed in for another session length', async () => {
+    let extended = false;
+    // The server counts down to a fixed end.
+    const end = Date.now() + 6 * MINUTE;
+    const fetch = mockApi({
+      [SESSION]: () => session(extended ? 8 * 60 * 60 : Math.round((end - Date.now()) / 1000)),
+      [EXTEND]: () => {
+        extended = true;
+        return session(8 * 60 * 60);
+      },
+    });
     const {user} = renderTimeout();
+    await waitFor(() => expect(sessionChecks(fetch)).toBe(1));
 
+    await wait(6 * MINUTE - WARNING_MS - 5_000);
+    expect(openDialog()).toBeNull();
+
+    await wait(6_000);
     await warning();
-    expect(openDialog()).toHaveTextContent(/signed out in 4 minutes (30|29|28) seconds/);
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Stay signed in'}));
+    expect(openDialog()).toHaveTextContent(/signed out in 4 minutes 5\d seconds/);
+    await wait(30_000);
+    expect(openDialog()).toHaveTextContent(/signed out in 4 minutes 2\d seconds/);
 
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Stay signed in'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(calls(fetch)).toContain(EXTEND);
   });
 
-  it('says nothing while the end is further off than that', async () => {
-    mockApi({[SESSION]: () => session(60 * 60)});
-    renderTimeout();
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(openDialog()).toBeNull();
-  });
-
   it('checks again as the warning is due, and stays quiet when the session was extended elsewhere', async () => {
     let answers = 0;
-    const fetch = mockApi({[SESSION]: () => session(answers++ === 0 ? 5 * 60 + 0.3 : 8 * 60 * 60)});
+    const fetch = mockApi({[SESSION]: () => session(answers++ === 0 ? 10 * 60 : 8 * 60 * 60)});
     renderTimeout();
+    await waitFor(() => expect(sessionChecks(fetch)).toBe(1));
 
-    await waitFor(() => expect(calls(fetch).filter((c) => c === SESSION)).toHaveLength(2), {timeout: 2000});
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wait(5 * MINUTE + 1_000);
+
+    expect(sessionChecks(fetch)).toBe(2);
+    await wait(2_000);
     expect(openDialog()).toBeNull();
   });
 
@@ -54,17 +75,27 @@ describe('SessionTimeout', () => {
     await waitFor(() => expect(openDialog()).toBeNull());
   });
 
-  it('stays closed once closed, until the end moves', async () => {
-    mockApi({[SESSION]: () => session(4 * 60)});
+  it('stays closed once closed, even when asked again, until the end really moves', async () => {
+    let end = 4 * 60;
+    const fetch = mockApi({[SESSION]: () => session(end)});
     const {user} = renderTimeout();
 
     await warning();
     await user.click(within(openDialog()!).getByRole('button', {name: /close/i}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
-    // It counts on, closed.
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    // Shown again a little later: the API is asked again, with the same end (counted from a new moment).
+    await wait(1_500);
+    end -= 1;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(sessionChecks(fetch)).toBe(2));
+    await wait(1_100);
     expect(openDialog()).toBeNull();
+
+    // Extended to near its limit elsewhere: a new end, so it warns again.
+    end = 3 * 60;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await warning();
   });
 
   it('signs out from the warning', async () => {
@@ -90,47 +121,69 @@ describe('SessionTimeout', () => {
 
   it('goes to the login page, saying why, once the session has ended', async () => {
     let answers = 0;
-    mockApi({[SESSION]: () => (answers++ === 0 ? session(1) : unauthorized())});
+    mockApi({[SESSION]: () => (answers++ === 0 ? session(30) : unauthorized())});
     const {router} = renderTimeout();
 
     await warning();
-    expect(openDialog()).toHaveTextContent(/signed out in 1 second\./);
+    expect(openDialog()).toHaveTextContent(/signed out in (30|29) seconds\./);
+    await wait(32_000);
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/login'), {timeout: 4000});
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(router.state.location.search).toEqual({expired: true});
   });
 
-  it('ends it too when the check at the end fails some other way', async () => {
+  it('ends it too when the check at the end fails some other way, after trying again', async () => {
     let answers = 0;
-    mockApi({[SESSION]: () => (answers++ === 0 ? session(0.2) : json({title: 'Unavailable'}, 503))});
+    const fetch = mockApi({[SESSION]: () => (answers++ === 0 ? session(10) : unavailable())});
     const {router} = renderTimeout();
+    await waitFor(() => expect(sessionChecks(fetch)).toBe(1));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/login'), {timeout: 4000});
+    await wait(20_000);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    // The check at the end, and its retries.
+    expect(sessionChecks(fetch)).toBeGreaterThan(2);
   });
 
-  it('goes straight to the login page when the session has already ended', async () => {
-    mockApi({[SESSION]: unauthorized});
+  it('keeps asking when the first check fails, then warns as usual', async () => {
+    let answers = 0;
+    const fetch = mockApi({[SESSION]: () => (answers++ < 4 ? unavailable() : session(4 * 60))});
+    renderTimeout();
+
+    // The first check and its three retries fail; it asks again a minute later.
+    await wait(10_000);
+    expect(sessionChecks(fetch)).toBe(4);
+    expect(openDialog()).toBeNull();
+    await wait(SESSION_RETRY_MS);
+
+    expect(sessionChecks(fetch)).toBe(5);
+    await warning();
+  });
+
+  it('goes straight to the login page when the session has already ended, without asking again', async () => {
+    const fetch = mockApi({[SESSION]: unauthorized});
     const {router} = renderTimeout();
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(sessionChecks(fetch)).toBe(1);
   });
 
   it('checks again when the tab is shown, as timers sleep in hidden tabs', async () => {
     const fetch = mockApi({[SESSION]: () => session(60 * 60)});
     renderTimeout();
-    await waitFor(() => expect(calls(fetch)).toEqual([SESSION]));
+    await waitFor(() => expect(sessionChecks(fetch)).toBe(1));
 
     act(() => {
       Object.defineProperty(document, 'visibilityState', {value: 'hidden', configurable: true});
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(calls(fetch)).toHaveLength(1);
+    expect(sessionChecks(fetch)).toBe(1);
     act(() => {
       Object.defineProperty(document, 'visibilityState', {value: 'visible', configurable: true});
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    await waitFor(() => expect(calls(fetch)).toEqual([SESSION, SESSION]));
+    await waitFor(() => expect(sessionChecks(fetch)).toBe(2));
   });
 });
 
