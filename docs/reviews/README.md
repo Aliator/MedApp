@@ -29,6 +29,7 @@ Each document says what changed and why, how it works, the decisions and their t
 | [pr-56-standard-review-format.md](pr-56-standard-review-format.md) | The review of #56: a standard, neutral format for review documents | #56 | Merged | Medium (nothing committed git-ignores the local file the format points to; the #55 review keeps the framing this PR removes) |
 | [pr-57-todo-features.md](pr-57-todo-features.md) | The review of #57: seven new features and a long-term platform goal in the to-do list | #57 | Merged | Medium (the items repeat the roadmap without its prerequisites; the email, timeline and attachment items leave out reset-link, access and upload safeguards) |
 | [pr-58-duplicate-favourite-labels.md](pr-58-duplicate-favourite-labels.md) | The review of #58: no duplicate quick filter label beside the star on Stage definitions, Templates and the procedures lists | #58 | Merged | Low (the setup lists' "All" repeats no token; a saved search matching a quick filter is named differently on screen and to screen readers; the documented rule doesn't match which lists opt in) |
+| [pr-62-utc-times.md](pr-62-utc-times.md) | The review of #62: times sent and read as UTC, so they aren't shown an hour out in summer | #62 | Merged | Low (a local time written to the database would be stored unconverted; two new .NET tests can't fail for the reason they give; the docs don't say what `dueDateUtc` is) |
 
 ## How the risks are graded
 
