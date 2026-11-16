@@ -17,13 +17,24 @@ const pageStyle: CSSProperties = {minHeight: '100dvh', backgroundColor: 'var(--c
 // Stack has no maxWidth prop, so the column's cap is set here.
 const columnStyle: CSSProperties = {width: '100%', maxWidth: 400};
 
+export interface LoginSearch {
+  /** Came here because the session timed out (`SessionTimeout`). */
+  expired?: true;
+}
+
+/** The login page's URL search: `?expired=true` after a session timed out. Anything else is ignored. */
+export function parseLoginSearch(search: Record<string, unknown>): LoginSearch {
+  return search.expired === true || search.expired === 'true' ? {expired: true} : {};
+}
+
 /**
  * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields. An account locked after too
  * many wrong passwords (a 423) says so, and for how long, in the API's words. So do too many attempts in a short time
  * (a 429, from the API's sign-in throttling), with how long to wait. Any other failure (a 401 for a wrong username or
- * password, or a server error) shows "Invalid credentials", as Blazor does.
+ * password, or a server error) shows "Invalid credentials", as Blazor does. After a session timed out (`isExpired`),
+ * it says so until a sign-in is tried.
  */
-export function LoginPage() {
+export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isForgotOpen, setIsForgotOpen] = useState(false);
@@ -61,6 +72,15 @@ export function LoginPage() {
               <Heading level={1}>Sign in</Heading>
 
               {showBanner && <Banner status="error" title={bannerTitle} container="card" role="alert" />}
+              {isExpired && !login.isError && (
+                <Banner
+                  status="info"
+                  title="Your session timed out, so you were signed out. Sign in again to carry on."
+                  container="card"
+                  // An alert, so it's read out as it appears: a live region that arrives already filled often isn't.
+                  role="alert"
+                />
+              )}
 
               <TextInput
                 label="Username"

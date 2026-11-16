@@ -60,7 +60,7 @@ export const ACCESSIBILITY_SETTINGS = [
   {
     key: 'announcements',
     label: 'Screen reader announcements',
-    description: 'Your screen reader says which page opened and how many rows a list found.',
+    description: 'Your screen reader says which page opened, how many rows a list found, and when a form is saved or a stage finished.',
   },
 ] as const satisfies readonly {key: string; label: string; description: string}[];
 

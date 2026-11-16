@@ -13,7 +13,9 @@ using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
+using MedApp.Application.Authentication.Sessions.Commands.ExtendSession;
 using MedApp.Application.Authentication.Sessions.Commands.Login;
+using MedApp.Application.Authentication.Sessions.Queries.GetSession;
 using MedApp.Application.Authentication.Sessions.Commands.Logout;
 using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Settings.Commands.SaveMySettings;
@@ -54,7 +56,15 @@ public sealed class AuthControllerTests
     {
         _fixture = AutoFixtureFactory.Create();
         _cookies = new Mock<ISessionCookieService>();
+        // Reads the session cookie as the real service does outside Development (a test may set up its own answer).
+        var real = MedApp.UnitTests.Api.Authentication.SessionCookieServiceTests.Service(Microsoft.Extensions.Hosting.Environments.Production);
+        Guid? any;
+        _cookies
+            .Setup(c => c.TryGetSessionCookie(It.IsAny<HttpRequest>(), out any))
+            .Returns(new TryGetSessionCookie((HttpRequest request, out Guid? sessionId) => real.TryGetSessionCookie(request, out sessionId)));
     }
+
+    private delegate bool TryGetSessionCookie(HttpRequest request, out Guid? sessionId);
 
     private AuthController Controller(RecordingMediator mediator, Action<HttpContext>? configure = null, params string[] roles) =>
         new AuthController(mediator, _cookies.Object).WithRequest(SignedIn(roles), configure);
@@ -117,6 +127,67 @@ public sealed class AuthControllerTests
         mediator.Request.Should().Be(new LogoutCommand(null));
         _cookies.Verify(c => c.DeleteSessionCookie(controller.Response), Times.Once);
         result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Test]
+    public async Task GetSession_WithASessionCookie_ReturnsThatSessionsExpiryUncached()
+    {
+        var expiry = new SessionResponse(ExpiresAtUtc, 300, true);
+        var mediator = new RecordingMediator(_ => expiry);
+        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={SessionId}");
+        using var cts = new CancellationTokenSource();
+
+        var result = await controller.GetSession(cts.Token);
+
+        mediator.Request.Should().Be(new GetSessionQuery(SessionId));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(expiry);
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [Test]
+    public async Task ExtendSession_WithASessionCookie_ExtendsItAndSendsTheCookieAgainWithTheNewExpiry()
+    {
+        var extended = new SessionResponse(ExpiresAtUtc, 8 * 60 * 60, true);
+        var mediator = new RecordingMediator(_ => extended);
+        var controller = Controller(mediator, context => context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={SessionId}");
+        using var cts = new CancellationTokenSource();
+
+        var result = await controller.ExtendSession(cts.Token);
+
+        mediator.Request.Should().Be(new ExtendSessionCommand(SessionId));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        _cookies.Verify(c => c.AppendSessionCookie(controller.Response, new LoginResult(SessionId, ExpiresAtUtc)), Times.Once);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(extended);
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [TestCase(null)]
+    [TestCase("not-a-session-id")]
+    public async Task GetSessionAndExtendSession_NoReadableSessionCookie_AreUnauthorized(string? cookie)
+    {
+        var mediator = new RecordingMediator();
+        Action<HttpContext> configure = context =>
+        {
+            if (cookie is not null) context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={cookie}";
+        };
+
+        var got = await Controller(mediator, configure).GetSession(CancellationToken.None);
+        var extended = await Controller(mediator, configure).ExtendSession(CancellationToken.None);
+
+        got.Should().BeOfType<UnauthorizedResult>();
+        extended.Should().BeOfType<UnauthorizedResult>();
+        mediator.Sent.Should().BeEmpty();
+        _cookies.Verify(c => c.AppendSessionCookie(It.IsAny<HttpResponse>(), It.IsAny<LoginResult>()), Times.Never);
+    }
+
+    [TestCase(nameof(AuthController.GetSession))]
+    [TestCase(nameof(AuthController.ExtendSession))]
+    public async Task GetSessionAndExtendSession_AnyoneSignedIn_IsAllowed_AndNoOneElse(string action)
+    {
+        (await MayCall(action, Username, "User")).Should().BeTrue();
+        (await MayCall(action, Username)).Should().BeTrue();
+        (await MayCall(action, Username, new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()))).Should().BeFalse();
     }
 
     [Test]

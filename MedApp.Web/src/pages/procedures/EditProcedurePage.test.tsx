@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
+import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE} from './ProcedurePage';
 import {EditProcedurePage} from './EditProcedurePage';
 import {richText} from '../../test/richText';
@@ -38,6 +38,7 @@ describe('EditProcedurePage', () => {
   });
 
   it('saves the changes after a confirmation, then goes back to the procedure', async () => {
+    withAnnouncements();
     const {fetch, user, router} = renderEdit(procedure(), {[`PATCH ${PATH}`]: () => json(procedure({title: 'Colonoscopy (repeat)'}))});
 
     const title = await screen.findByRole('textbox', {name: /Title/});
@@ -53,6 +54,7 @@ describe('EditProcedurePage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/procedures/${id}`));
     const patch = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PATCH')!;
     expect(await patch.json()).toEqual({title: 'Colonoscopy (repeat)', notes: 'Pack posted.', dueDate: '2099-12-01', priority: 'Urgent'});
+    await expectAnnounced('Procedure saved');
   });
 
   it("asks the not-assigned question when saving a procedure that isn't yours", async () => {

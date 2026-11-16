@@ -147,6 +147,46 @@ describe('server rendering', () => {
     expect(new URL(search.url).searchParams.get('PageSize')).toBe('25');
   });
 
+  it("renders a patient's page with the first page of their timeline and what's due", async () => {
+    const requests = api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/patients/${patient.id}`]: patient,
+      [`/api/patients/${patient.id}/timeline/overview`]: {
+        upcoming: [{procedureId: '0000000d-0000-0000-0000-000000000002', title: 'Knee assessment', status: 'Assigned', dueDate: '2026-06-30', isOverdue: false}],
+        openCount: 1,
+        procedures: [],
+      },
+      [`/api/patients/${patient.id}/timeline`]: {
+        items: [
+          {
+            id: '0000000d-0000-0000-0000-000000000003',
+            kind: 'Stages',
+            action: 'StageFinished',
+            atUtc: '2026-06-15T09:00:00Z',
+            username: 'test.staff',
+            procedureId: '0000000d-0000-0000-0000-000000000002',
+            procedureTitle: 'Knee assessment',
+            stageName: 'Consultation',
+            changes: [],
+          },
+        ],
+        nextCursor: 'older',
+      },
+    });
+
+    const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
+
+    expect(html).toContain('test.patient@example.org');
+    expect(html).toContain('Finished Consultation');
+    expect(html).toContain('Monday 15 June 2026');
+    expect(html).toContain('Due 30 Jun 2026');
+    expect(html).toContain('Load More');
+    const feed = requests.find((r) => new URL(r.url).pathname === `/api/patients/${patient.id}/timeline`)!;
+    expect(new URL(feed.url).search).toBe('?PageSize=20');
+  });
+
   it('still renders the page when its data fails, for it to show its error', async () => {
     api({
       '/api/auth/whoami': signedIn,

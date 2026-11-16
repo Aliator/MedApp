@@ -3,6 +3,7 @@ import {Icon, type IconType} from '@astryxdesign/core/Icon';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useEffect, useRef, type ReactNode} from 'react';
+import {useSaveShortcut} from '../forms/SaveShortcut';
 import {AppIcon} from '../shared/icons';
 import {DialogFrame} from './DialogFrame';
 
@@ -32,6 +33,11 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
   /** Extra content under the message, e.g. a PatientSummary or a field. */
   children?: ReactNode;
+  /**
+   * A dialog that is a form (e.g. Add Stage): Ctrl+S (⌘S on a Mac) in it confirms, as its button would. Off for
+   * dialogs that only ask "are you sure?", which want a deliberate answer.
+   */
+  hasSaveShortcut?: boolean;
 }
 
 const intentColor = {accent: 'accent', warning: 'warning', danger: 'error'} as const;
@@ -55,6 +61,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   children,
+  hasSaveShortcut = false,
 }: ConfirmDialogProps) {
   const resolvedIntent = intent ?? (isDanger ? 'danger' : 'accent');
   const resolvedIcon = icon ?? (isDanger ? AppIcon.Warning : AppIcon.Check);
@@ -68,6 +75,20 @@ export function ConfirmDialog({
     if (confirmHoldMs && Date.now() - textChange.current.at < confirmHoldMs) return;
     onConfirm();
   };
+  const content = useRef<HTMLDivElement>(null);
+  // Joined while open, so Ctrl+S never brings up the browser's Save page dialog here, but it only confirms when
+  // the button could be pressed.
+  useSaveShortcut(
+    content,
+    hasSaveShortcut && isOpen
+      ? () => {
+          // Already confirming: nothing more to do, but nothing to complain of either.
+          if (isProcessing) return;
+          if (confirmDisabled) return false;
+          confirm();
+        }
+      : undefined,
+  );
 
   return (
     <DialogFrame
@@ -88,7 +109,7 @@ export function ConfirmDialog({
           />
         </>
       }>
-      <VStack gap={4} hAlign="stretch">
+      <VStack ref={content} gap={4} hAlign="stretch">
         {message && (
           <Text type="body" color="secondary" justify="center">
             {message}

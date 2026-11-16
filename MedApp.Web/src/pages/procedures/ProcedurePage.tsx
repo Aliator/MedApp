@@ -20,6 +20,7 @@ import {
   type ProcedureStage,
 } from '../../api/procedures';
 import {userSearchQuery} from '../../api/search';
+import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
@@ -48,6 +49,12 @@ type Dialog =
   | {kind: 'unassign'; userId: string; username: string}
   | {kind: 'delete'}
   | null;
+
+/** What a screen reader says when a stage is finished: which, and what's next. */
+export function finishedMessage(stage: ProcedureStage, procedure: Procedure): string {
+  const next = procedure.stages?.find((s) => s.id === procedure.currentStageId);
+  return `${stage.name} finished. ${next ? `Next stage: ${next.name}` : 'Every stage is finished'}`;
+}
 
 /** The wording of decision 18 in docs/procedures-ui-plan.md. */
 export const NOT_ASSIGNED_MESSAGE = 'This procedure is not assigned to you, are you sure you want to make these changes?';
@@ -82,6 +89,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const actions = useProcedureActions(id);
   const remove = useDeleteProcedure(id);
   const navigate = useNavigate();
+  const announce = useAnnounce();
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -137,14 +145,20 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const startStage = (stage: ProcedureStage) =>
     checked(() => actions.startStage.mutate(stage.id ?? '', {onError: failed('The stage could not be started.')}));
   const saveNotes = (stage: ProcedureStage, notes: string) =>
-    checked(() => actions.saveNotes.mutate({stageId: stage.id ?? '', notes}, {onError: failed('The notes could not be saved.')}));
+    checked(() =>
+      actions.saveNotes.mutate(
+        {stageId: stage.id ?? '', notes},
+        {onSuccess: () => announce('Notes saved'), onError: failed('The notes could not be saved.')},
+      ),
+    );
   const finishStage = (stage: ProcedureStage, notes: string) => checked(() => setDialog({kind: 'finish', stage, notes}));
 
   /** Saves notes typed but not saved, then finishes the stage. */
   const confirmFinish = async (stage: ProcedureStage, notes: string) => {
     try {
       if (notes !== (stage.notes ?? '')) await actions.saveNotes.mutateAsync({stageId: stage.id ?? '', notes});
-      await actions.finishStage.mutateAsync(stage.id ?? '');
+      const updated = await actions.finishStage.mutateAsync(stage.id ?? '');
+      announce(finishedMessage(stage, updated));
       close();
     } catch (e) {
       failed('The stage could not be finished.')(e);
@@ -333,8 +347,10 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             isProcessing={remove.isPending}
             onConfirm={() =>
               remove.mutate(undefined, {
-                onSuccess: () =>
-                  void navigate({to: '/patients/$id/procedures', params: {id: procedure?.patientId ?? ''}, replace: true}),
+                onSuccess: () => {
+                  announce('Procedure deleted');
+                  void navigate({to: '/patients/$id/procedures', params: {id: procedure?.patientId ?? ''}, replace: true});
+                },
                 onError: failed('The procedure could not be deleted.'),
               })
             }

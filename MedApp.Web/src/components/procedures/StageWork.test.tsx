@@ -1,6 +1,7 @@
-import {screen, waitFor} from '@testing-library/react';
+import {fireEvent, screen, waitFor} from '@testing-library/react';
 import type {ProcedureStage} from '../../api/procedures';
 import {isDisabled, renderWithApp} from '../../test/render';
+import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {StageWork} from './StageWork';
 import {richText, typeRichText} from '../../test/richText';
 
@@ -55,6 +56,24 @@ describe('StageWork', () => {
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
 
     expect(onSaveNotes).toHaveBeenCalledWith('Seen in clinic. Plan agreed.');
+  });
+
+  it('saves changed notes on Ctrl+S in the box', async () => {
+    const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
+    renderWithApp(
+      <SaveShortcutProvider>
+        <StageWork stage={stage()} isAdmin={false} isBusy={false} {...handlers} />
+      </SaveShortcutProvider>,
+    );
+    const box = await screen.findByRole('textbox', {name: 'Notes'});
+
+    // Nothing to save yet.
+    fireEvent.keyDown(box, {key: 's', ctrlKey: true});
+    expect(handlers.onSaveNotes).not.toHaveBeenCalled();
+
+    await typeRichText(box, ' Plan agreed.');
+    expect(fireEvent.keyDown(box, {key: 's', ctrlKey: true})).toBe(false);
+    expect(handlers.onSaveNotes).toHaveBeenCalledWith('Seen in clinic. Plan agreed.');
   });
 
   it('finishes the stage with the notes as typed', async () => {

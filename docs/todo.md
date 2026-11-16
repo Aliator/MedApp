@@ -6,11 +6,8 @@ Improvements and features to pick up later, outside the phased plans (`docs/proc
 
 The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light and a colour theme, WCAG 2.2 A and AA) passes, and the Accessibility card has the text size, the hover delay and the switches in `src/app/accessibility.tsx`. The statement is at `/accessibility`. Still to do:
 
+- **Three colour themes just under 4.5:1 on secondary text.** Measured against the secondary text colour (subtitles, Back, descriptions), Y2K's light page is 4.19:1, and the header bars of Chocolate's light cards and Butter's dark cards 4.41:1. The custom colour check (`textContrast`) now counts secondary text; these themes were left as they are so they don't change how they look. Decide whether to adjust them (a test lists them in `src/app/colours.test.tsx`).
 - **Screen reader pass by hand.** NVDA and VoiceOver through the main tasks (find a patient, work a stage, finish a procedure), and keyboard-only use of every dialog: focus trapped, and returned on close.
-- **Warn on unreadable custom colours.** On the Colours page, warn when a custom page or card colour leaves text under 4.5:1 (the colour themes all pass).
-- **More announcements.** Announce a saved form and a finished stage, as lists already announce their results.
-- **A save shortcut.** Ctrl+S (or Cmd+S) to save the form that's open, listed in the shortcuts dialog.
-- **Session timeout warning.** Warn before a session ends, with time to extend it (WCAG 2.2.1), instead of failing the next action.
 
 ## Features
 
@@ -20,12 +17,6 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - the time spent in each stage, to show the bottlenecks (the audit log already records when each stage starts and finishes)
   - created against completed over time
 - **Appointments and booking.** Book appointments for patients with staff. Each member of staff gets a calendar (day and week) showing their appointments with their procedures' due dates. Appointments tie into the workflow: booking the next stage, or a follow-up when a procedure finishes.
-- **A patient timeline tab.** On the patient page: one feed, grouped by day, of everything that happened to that patient across their procedures:
-  - what's shown: procedures started, stages finished, notes, assignments, blocks and unlocks
-  - filters by type and by procedure
-  - what's coming up, at the top
-
-  Built from the audit log. Staff see only what they can see today (no old field values, and no deleted procedures); the audit log stays admin-only.
 - **Notification settings for each person.** Admins choose which events notify each member of staff (for example, a procedure finished, a stage unlocked, something overdue or blocked), separately for each person. Only "assigned to a procedure" exists today, so it needs those new notification kinds too, and a per-user setting checked before each one is sent. Overdue notifications need a scheduled job that runs once across both API copies. Store the admins' choices apart from each person's own settings, so nobody can undo them.
 - **Emails, and resetting your own password.** Send emails (notifications, a welcome email for a new account), and let people reset a forgotten password by an emailed link instead of asking an admin. It needs an email service and single-use, expiring reset links. ASP.NET Identity's password reset tokens fit. Staff accounts have no email address yet, so add one. Reset links need data protection keys shared by every API copy (roadmap step 2). Emails must never carry free text that may hold clinical information (a notification's title is a procedure's title), and a welcome email never carries the password. Roadmap step 4 plans the reset.
 - **File attachments.** Attach files (scans, photos, results, letters) to a patient, a procedure or a stage, by dragging them in, with a preview and a download. Adding or removing a file is audited. It needs file storage (Azure Blob Storage when deployed) and limits on file types and sizes. Serve files safely: download by default, a strict content type and `nosniff`, and never render an uploaded SVG or HTML inline on the app's own origin. Scan for malware, audit downloads too, and offer a button as well as dragging (WCAG 2.5.7). Roadmap step 9 has a version.
@@ -58,7 +49,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 ## Security (roadmap step 2, after `feature/security-baseline`)
 
 What that branch left, so the app would work exactly as before (`docs/security/asvs.md` has the rest, requirement by requirement):
-- **An idle timeout** (30 minutes as a start, configurable) beside the fixed 8 hours, with the warning under Accessibility.
+- **An idle timeout** (30 minutes as a start, configurable) beside the 8 hours (extendable to 24 since #63), with its own warning.
 - **Store a hash of a random 256-bit session token** instead of the row's ID (needs a migration), and stop repeating the session ID in the login response's body.
 - **The same answer for a locked account** as for a wrong password (today a 423 confirms the account exists).
 - **Close a user's live-notifications connections when their sessions end** (a password change, a reset, a role change or "Sign out everywhere"): today an open page keeps receiving notifications until it reloads.
@@ -66,6 +57,10 @@ What that branch left, so the app would work exactly as before (`docs/security/a
 - **Passwords:** a breached-password check (Have I Been Pwned's k-anonymity range API, or an offline list), a 15-character minimum without composition rules (ASVS V6.2.1), and context words (the username, "medapp") on the deny list.
 - **Tighten the page policy:** move style attributes to classes so `style-src` can drop `'unsafe-inline'`, and collect violation reports (`report-to`).
 - **Audit the new session actions** (sign-out everywhere, and the sessions a change ends) with the rest of account administration (step 7).
+
+## Testing
+
+- **Run the patient timeline's query on SQL Server,** once `MedApp.IntegrationTests` has a database (#65): page through entries that share a time (SQL Server orders `uniqueidentifier`s its own way, and the cursor must agree), and filter by kind (its `LIKE` markers ignore case there). Today it's only proven to translate (`PatientTimelineTranslationTests`) and run in memory (PR #64 review, finding 6).
 
 ## Long term
 

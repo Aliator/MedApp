@@ -1,8 +1,9 @@
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
-import {screen} from '@testing-library/react';
+import {fireEvent, screen} from '@testing-library/react';
 import {renderWithApp, isDisabled} from '../../test/render';
 import {FormCard} from './FormCard';
+import {SaveShortcutProvider} from './SaveShortcut';
 import {FormSection} from './FormSection';
 
 describe('FormCard', () => {
@@ -46,6 +47,30 @@ describe('FormCard', () => {
 
     await user.type(await screen.findByLabelText(/first name/i), '{Enter}');
 
+    expect(onSave).toHaveBeenCalledOnce();
+  });
+
+  it('saves on Ctrl+S in a field, but not while processing', async () => {
+    const onSave = vi.fn();
+    const form = (isProcessing: boolean) => (
+      <SaveShortcutProvider>
+        <FormCard onSave={onSave} isProcessing={isProcessing}>
+          <TextInput label="First name" value="" onChange={() => {}} />
+        </FormCard>
+      </SaveShortcutProvider>
+    );
+    const {unmount} = renderWithApp(form(false));
+
+    const field = await screen.findByLabelText(/first name/i);
+    field.focus();
+    expect(fireEvent.keyDown(field, {key: 's', ctrlKey: true})).toBe(false);
+    expect(onSave).toHaveBeenCalledOnce();
+    unmount();
+
+    renderWithApp(form(true));
+    const busy = await screen.findByLabelText(/first name/i);
+    busy.focus();
+    fireEvent.keyDown(busy, {key: 's', ctrlKey: true});
     expect(onSave).toHaveBeenCalledOnce();
   });
 

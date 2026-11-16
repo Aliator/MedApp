@@ -1,6 +1,7 @@
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {ApiError} from '../../api/errors';
 import {procedureQuery, useUpdateProcedure, type Procedure, type ProcedureDetailsInput} from '../../api/procedures';
@@ -54,6 +55,7 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
   const navigate = useNavigate();
   const user = useCurrentUser();
   const update = useUpdateProcedure(id);
+  const announce = useAnnounce();
   const [form, setForm] = useState<ProcedureDetailsInput>(() => toInput(procedure));
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
@@ -64,7 +66,10 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
 
   const save = () =>
     update.mutate(form, {
-      onSuccess: backToProcedure,
+      onSuccess: () => {
+        announce('Procedure saved');
+        backToProcedure();
+      },
       onError: (e) => {
         setProblem(saveProblem(e, 'save', 'procedure'));
         setIsConfirming(false);

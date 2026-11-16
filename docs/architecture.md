@@ -47,7 +47,7 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Assignment** | Admins assign staff to procedures. Assignment decides whose task list a procedure appears on; it doesn't limit who may work on it. Changing a procedure that isn't yours asks for confirmation first, once per visit. |
 | **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
 | **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
-| **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. |
+| **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
 | **Notifications** | Being assigned a procedure (by someone else) sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
@@ -424,7 +424,7 @@ The pipeline, in order (`MedApp.ServiceDefaults/Extensions.cs`, `MedApp.API/Comm
 - `FinishProcedureStageHandler.cs`: a sealed class with its dependencies in its primary constructor;
 - `FinishProcedureStageValidator.cs`, when the input needs checking.
 
-There are 51 handlers and 29 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit) and Notifications.
+There are 53 handlers and 30 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit, the patient timeline) and Notifications.
 
 **The pipeline.** `AddApplication()` (`MedApp.Application/Common/Extensions/ServiceExtensions.cs`) registers MediatR by assembly scanning, with one open behaviour, `ValidationBehaviour<,>`, which runs the command's validators before its handler and throws FluentValidation's `ValidationException` on failure. It also registers every validator, `TimeProvider.System` (so handlers and validators that need "now" can be tested at a fixed time), and the `NotificationSender`.
 
@@ -432,7 +432,7 @@ There are 51 handlers and 29 validators in four areas: Authentication (users, ro
 
 **Mappers.** Entities become responses only through hand-written static mappers, one per area, in that area's `Common/` folder: `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`, `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, and `UserMapper` (in Infrastructure, because `ApplicationUser` is an Infrastructure type). `PagedMapper` builds every search endpoint's `PagedResponse<T>`. No handler or controller builds a response from an entity itself, and no query returns a Domain entity to the API (#44). See [ADR-8](#9-architecture-decisions).
 
-**Paging.** The four search endpoints filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`).
+**Paging.** The four search endpoints filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`). A patient's timeline is the exception: a feed paged by cursor (keyset), newest first by time then ID, so entries added meanwhile don't shift its pages (`PatientTimelineSearch`).
 
 **Procedures.** All workflow rules are in `MedApp.Application/Procedures/Common`:
 - `ProcedureWorkflow`: statuses, which stage is current, what can be edited, what status changes are allowed, overdue.
@@ -455,7 +455,7 @@ The procedure repository is the exception, by design: handlers load a **tracked*
 - `IdentityUserService`, `IdentityRoleService`, `IdentityReadService`: users, roles, and username lookups for responses. `IdentityUserService` generates the password for every new account and every admin reset: at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (#53).
 - `IdentityTransactions`: runs several Identity changes in one transaction, inside EF's execution strategy so a retry repeats the whole transaction, clearing the change tracker first (#52). So the work loads everything it changes itself, inside the retried delegate, never using entities loaded before it.
 
-**Sessions.** `SessionService` creates a `UserSession` row on sign-in (8-hour lifetime), validates it on every request (the session, then the user and their roles), and revokes it on sign-out. See [6.1](#61-signing-in-and-the-session-check).
+**Sessions.** `SessionService` creates a `UserSession` row on sign-in (8 hours, extendable to 24 at most from sign-in), validates it on every request (the session, then the user and their roles), and revokes it on sign-out. See [6.1](#61-signing-in-and-the-session-check).
 
 **The first admin.** `FirstAdminSetup` (`MedApp.Infrastructure/Common/Identity/FirstAdminSetup.cs`) creates the `Admin` and `User` roles if missing, then, **only if there are no users at all**, an admin with both roles from `FirstAdmin:Username` and `FirstAdmin:Password`, in one transaction. It exits 0 when it made the admin or found accounts, and 1 when it isn't configured or Identity refuses. See [6.6](#66-first-install-migrations-and-the-first-admin).
 
@@ -527,7 +527,7 @@ stateDiagram-v2
 
 ### 5.7 The API surface
 
-55 HTTP endpoints in six controllers, plus the SignalR hub. "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
+57 HTTP endpoints in seven controllers, plus the SignalR hub. "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
 
 | Area | Endpoints | Who |
 |---|---|---|
@@ -542,6 +542,7 @@ stateDiagram-v2
 | Stage definitions and templates | reads under `api/procedures/patient-procedure-stage/definitions` and `/templates` | Staff |
 | | create, update, archive, restore, delete | Admin |
 | Audit log | `GET api/procedures/audit/search` | Admin |
+| Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures and the log's free text) |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
 
@@ -556,7 +557,7 @@ stateDiagram-v2
 | `api/` | The typed `openapi-fetch` client, the generated `schema.d.ts`, the 400-to-field-error mapper, query functions per area, `preload` for route loaders |
 | `app/` | `App`, providers, the query client, the settings store and its providers (colour mode, colours, text size, navigation, lists, accessibility, favourites), `SettingsSync`, `LiveNotifications`, announcements |
 | `auth/` | The `whoami` query, sign-in and sign-out, `requireAdmin` |
-| `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `procedures/` (`ProcedureCells`, `StageList`, `StageWork`, `StatusChangeDialog`), `shared/` (`AppIcon`, `RichText`) |
+| `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `procedures/` (`ProcedureCells`, `StageList`, `StageWork`, `StatusChangeDialog`, `PatientTimeline`), `shared/` (`AppIcon`, `RichText`) |
 | `pages/` | One folder per page: accessibility, account, audit, home, login, patients, procedures, setup (stage definitions and templates), tasks, users |
 | `routes/` | Thin TanStack Router file routes that point at pages; `routeTree.gen.ts` is generated from them |
 | `ssr/` | `document.tsx` (the whole HTML document when rendering on the server), `requestContext.ts` (the per-request API address, cookie and key) |
@@ -636,7 +637,7 @@ sequenceDiagram
     A->>H: LoginCommand, after LoginValidator
     H->>S: check the password and the lockout
     S->>D: read the user, count a failure or clear the count
-    S->>D: insert a UserSession that expires in 8 hours
+    S->>D: insert a UserSession that expires in 8 hours (extendable to 24 from sign-in)
     A-->>B: 200 and the medapp.session cookie
     B->>A: GET /api/patients/search with the cookie
     A->>S: SessionAuthenticationHandler validates the session ID
@@ -648,7 +649,7 @@ sequenceDiagram
    - a locked account is refused even with the right password: **423 Locked**, with the time left ("Try again in 5 minutes.");
    - a wrong password counts as a failure and gives **401** ("Invalid credentials"); the fifth locks the account;
    - a right password clears the count.
-2. **The session.** `SessionService` inserts a `UserSession` row: the user, created and expiry times (8 hours, fixed), the client's IP address and user agent.
+2. **The session.** `SessionService` inserts a `UserSession` row: the user, created and expiry times (8 hours, extendable on request to 24 at most from sign-in: see the table below), the client's IP address and user agent.
 3. **The cookie.** `SessionCookieService` sets `medapp.session` to the session's ID: `HttpOnly` (script can't read it), `SameSite=Lax` (not sent on cross-site POSTs), `Secure` outside Development, expiring with the session. The response body also carries the session ID and expiry.
 4. **Every request.** `SessionAuthenticationHandler` reads the cookie, parses the ID, and asks `SessionService` to validate it: the row must exist, not be revoked or expired, and its user must still exist. It then builds the claims: the user's ID (`NameIdentifier`), username and roles, and `medapp:must_change_password` when the account's `MustChangePassword` is set (an admin generated its password). Roles and the flag are read from the database on every request, so a role change or a reset applies at once, and deleting a user ends their sessions. `PasswordChangeRequired`, between authentication and authorisation, then refuses a flagged user every `/api` request but its allowlist.
 5. **Authorisation.** Endpoints require the `Staff` policy (role `User` or `Admin`) or the `Admin` role. The own-password change also requires `SelfUserOnly`: the route's username must be the caller's.
@@ -1024,7 +1025,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 | `HttpOnly` | Yes | `SessionCookieService.cs` |
 | `SameSite` | `Lax`: not sent on cross-site POSTs | `SessionCookieService.cs` |
 | `Secure` | Outside Development | `SessionCookieService.cs` |
-| Lifetime | 8 hours from sign-in, fixed; no idle timeout | `SessionService.cs` |
+| Lifetime | 8 hours from sign-in, extendable on request ("Stay signed in", `POST api/auth/session/extend`) to 24 at most from sign-in; using the app doesn't extend it; no idle timeout | `UserSession.cs`, `SessionService.cs` |
 | Revocation | On sign-out; when the user is deleted (validation fails); the user's other sessions when they change their password; all of them on an admin's reset, a change of roles, or "Sign out everywhere" | `SessionService.cs`, the password and role handlers |
 | Sign-in throttling | 30 attempts a minute per client address, 5 per username; then a 429 with `Retry-After` | `MedApp.API/Common/RateLimiting` |
 
@@ -1110,7 +1111,7 @@ This describes what the code does today. It isn't a compliance statement; [secti
 | **In transit** | TLS to the ingress; encrypted to Azure SQL; plain inside the cluster to Valkey (which carries procedure titles) and, on kind, to SQL Server. |
 | **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and procedures are kept only in the browser, as IDs. No patient records are stored in the browser. Signing out clears the query cache, but not `localStorage`. |
 | **In logs** | EF Core logs every SQL command at Information level, but without parameter values (sensitive data logging is off). Nothing logs patient fields on purpose. |
-| **Who can see what** | Every staff member sees every patient and procedure. Only admins read the audit log. |
+| **Who can see what** | Every staff member sees every patient and procedure. Only admins read the audit log; staff see each patient's timeline without its free text. |
 | **Access logging** | **Reads aren't logged.** Changes to procedures are fully audited; changes to patients (create, edit, delete) and to accounts and roles are not. |
 | **Retention** | None. Nothing is ever purged: patients, procedures, audit entries, notifications and expired sessions stay forever. |
 | **Erasure** | A patient with procedures can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design. There's no export for subject access requests. |
@@ -1275,8 +1276,8 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S1 | **Fixed in #53: new accounts no longer share a password.** Before #53, every account was created with `DefaultPassword1`, which was in the public source and shown in the UI. Now the server generates each first password and shows it once. **Left over:** accounts created before #53 may still have `DefaultPassword1`, and nothing finds them yet (a reset now forces its user to choose their own). A generated password must now be changed at first sign-in. If the admin leaves the page while an account is being created, its password is never shown. The deprecated Blazor client doesn't show the generated password. | Was high. Now medium (the old accounts) and low (the rest) | (handbook); `docs/reviews/pr-53-generated-first-password.md`, findings 1, 3 and 7; `docs/todo.md` |
 | S2 | **Patient records and account administration aren't audited, and reads aren't logged at all.** Any staff member can delete a patient who has no procedures, and nothing records it. For health data, who viewed and changed what is usually required. | High | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
-| S4 | **No regulatory groundwork:** no DPIA, retention policy, subject access or erasure process ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
-| S5 | **Sessions:** a fixed 8 hours with no idle timeout; not ended by a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. **`feature/security-baseline`** ends a user's sessions when their password or roles change, lets an admin sign a user out everywhere, and throttles sign-in. | Medium | (handbook) |
+| S4 | **No approved regulatory groundwork:** the DPIA, retention schedule, subject access and erasure procedures and the rest are drafts in `docs/governance/`, not approved, and the app doesn't yet enforce retention or export a patient's data ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
+| S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. **`feature/security-baseline`** ends a user's sessions when their password or roles change, lets an admin sign a user out everywhere, and throttles sign-in. | Medium | (handbook) |
 | S6 | **Fixed on `feature/security-baseline`:** security headers on every response, `no-store` on every `/api` response, and a nonce-based Content Security Policy on pages (`SecurityHeaders`). Left: styles allow `'unsafe-inline'`, and nothing collects violation reports. | Was medium. Now low | F24 |
 | S7 | **Authorisation is barely tested.** Endpoint roles and policies are attributes, and only the own-password and create-user endpoints' are checked by a test. Nothing tests the assembled pipeline (HSTS, blocked paths, the health port, the order of middleware). | Medium | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
 | S8 | **No multi-factor authentication or single sign-on,** and "Forgot password?" tells users a link was sent when nothing was. | Medium | (handbook) |
@@ -1477,7 +1478,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 - **Exposure:** the repository is public, and the image can be pulled anonymously (`docs/reviews/README.md`). Anyone can read the source a buyer would pay for, and the reviews that list its weaknesses.
 
 **Scope:**
-- **Replace MediatR.** `MedApp.Application` has 51 handlers and one pipeline behaviour (`Common/Behaviors/ValidationBehavior.cs`), and the controllers only call `IMediator.Send`. That's small enough to replace with about a hundred lines of in-house dispatch (a sender, the handler interface, and validation as a decorator) or an MIT-licensed, source-generated mediator. Pinning MediatR 12.5.0 (the last Apache 2.0 release) works but leaves an unmaintained dependency.
+- **Replace MediatR.** `MedApp.Application` has 53 handlers and one pipeline behaviour (`Common/Behaviors/ValidationBehavior.cs`), and the controllers only call `IMediator.Send`. That's small enough to replace with about a hundred lines of in-house dispatch (a sender, the handler interface, and validation as a decorator) or an MIT-licensed, source-generated mediator. Pinning MediatR 12.5.0 (the last Apache 2.0 release) works but leaves an unmaintained dependency.
 - **Replace FluentAssertions 8** in `MedApp.UnitTests` (122 files) with AwesomeAssertions, the Apache 2.0 community fork ([NuGet](https://www.nuget.org/packages/AwesomeAssertions)), or pin FluentAssertions 7.x. Both are close to drop-in.
 - **Remove `FluentValidation.AspNetCore`** (`MedApp.API/Common/Extensions/ServiceExtensions.cs`). It's deprecated as "legacy and is no longer maintained" ([NuGet](https://www.nuget.org/packages/FluentValidation.AspNetCore)), and validation already runs in the MediatR pipeline.
 - **Settle the front-end licences** (`MedApp.Web/package-lock.json`):
@@ -1557,7 +1558,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - The NCSC (National Cyber Security Centre) prefers throttling to lockout, because lockout lets anyone lock people out ([NCSC](https://www.ncsc.gov.uk/collection/passwords/updating-your-approach)). Keep the lockout, but add throttling in front of it.
   - Give the same answer for an unknown user, a wrong password and a locked account, so the 423 no longer confirms that an account exists.
 - **Sessions** (`MedApp.Infrastructure/Common/Authentication/SessionService.cs`, `MedApp.Domain/Authentication/UserSession.cs`; [ASVS V7](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x16-V7-Session-Management.md)):
-  - an idle timeout (V7.3.1), configurable with 30 minutes as a starting point, as well as the fixed 8-hour lifetime (V7.3.2)
+  - an idle timeout (V7.3.1), configurable with 30 minutes as a starting point, as well as the 8-hour lifetime, extendable to 24 hours from sign-in (V7.3.2)
   - end a user's other sessions when their password is changed or reset (V7.4.3), when their roles change, and when their account is disabled
   - let admins end anyone's sessions (V7.4.5)
   - store a hash of a random 256-bit token instead of the row's GUID, so a copy of the database can't be replayed as sessions
@@ -1603,6 +1604,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 ### Step 3: Write the data protection and information governance pack
 
 **Goal:** Produce the documents that UK GDPR, the DSPT and buyers' information governance (IG) teams ask for, and settle the decisions (roles, lawful bases, retention, transfers) that steps 4 to 9 build in.
+
+**Status:** drafts written, not yet approved: [`docs/governance/`](governance/README.md) holds the roles and lawful bases, the data inventory, the ROPA, the DPIA, the retention schedule, the data processing agreement template, the sub-processor list, transfers, breach response, data subject rights, privacy notice templates and the DSPT readiness map. Its README lists the decisions made and what the app must build for them to be true. The DPIA's go-live gate is steps 2, 4, 5 and 7 **plus step 6's patient banner**, because the wrong-patient risk stays high without it. The organisational items (the ICO fee, a DPO, a solicitor's review, Cyber Essentials, the DSPT registration, a tabletop exercise) are still to do.
 
 **Why now:**
 - **A DPIA comes first.** It's mandatory for "processing on a large scale of special categories of data", which health data is ([Article 35](https://www.legislation.gov.uk/eur/2016/679/article/35)). If a high risk can't be reduced, "You cannot begin the processing until you have consulted us" ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/guide-to-accountability-and-governance/data-protection-impact-assessments/)).
@@ -1820,7 +1823,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
-**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed in PR #62, still open (`docs/clinical-safety/README.md`).
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`).
 
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 
@@ -2145,25 +2148,25 @@ These go beyond step 9, ranked by how often comparable products offer them and h
 
 | Requirement | Where MedApp stands now | Step |
 |---|---|---|
-| **UK GDPR Art 5(1)(a), 6, 9, 13 and 14:** lawful basis, the health condition, privacy information | Nothing written. Customers choose their bases, but get no guidance or notice wording | 3 |
+| **UK GDPR Art 5(1)(a), 6, 9, 13 and 14:** lawful basis, the health condition, privacy information | Drafts in `docs/governance/`, not approved: guidance on lawful bases, and privacy notice templates | 3 |
 | **Art 5(1)(c):** data minimisation | The patient record is small. But stage notes are copied whole into audit `Details`, and saved searches can hold patient names | 3, 7 |
 | **Art 5(1)(d) and 16:** accuracy and rectification | Patients and procedure details can be edited, but patient edits aren't audited. Finished stages lock, and unlocking is audited | 7 |
-| **Art 5(1)(e):** storage limitation | Nothing is deleted on a schedule. Sessions (with IP addresses), notifications and audit entries are kept forever | 3, 7 |
+| **Art 5(1)(e):** storage limitation | Nothing is deleted on a schedule. Sessions (with IP addresses), notifications and audit entries are kept forever. Retention schedule: Drafts in `docs/governance/`, not approved | 3, 7 |
 | **Art 5(1)(f) and 32:** security | Partly in place: TLS, and HSTS (HTTP Strict Transport Security); an HttpOnly, Secure, SameSite=Lax cookie; lockout after 5 failures; network policies; the restricted Pod Security Standard; External Secrets; PR #51's SSR fixes. Missing: MFA, security headers, throttling, an idle timeout | 2, 4, 5 |
-| **Art 5(2) and 30:** accountability and the ROPA | None | 3 |
+| **Art 5(2) and 30:** accountability and the ROPA | Drafts in `docs/governance/`, not approved | 3 |
 | **Art 12A and 15:** subject access, with the DUAA's search and timing rules | No export; it would take hand-written SQL | 7 |
 | **Art 17, 18, 20 and 21:** erasure, restriction, portability, objection | Any staff member can hard-delete a patient with no procedures; one with procedures can't be deleted (409); no restriction, export or preferences | 7 |
 | **Art 25:** data protection by design and default | Partly: the procedure audit, stage snapshots, an admin-only audit log, audit rows that outlive deletes. But every staff member sees every patient by default | 3, 7, 8 |
-| **Art 28:** processor terms and sub-processors | None | 3 |
-| **Art 33 and 34:** breach notification | No plan, and no monitoring to notice a breach | 3, 5 |
-| **Art 35 and 36:** DPIA | None | 3 |
-| **Art 37:** DPO | None | 3 |
-| **Chapter V:** international transfers | Azure UK South is planned. Code and images are on GitHub, with no patient data. No transfer assessment | 3, 5 |
-| **DPA 2018 s164A** (from the DUAA): complaints handling | None | 3 |
-| **PECR:** cookies and browser storage | One strictly necessary cookie, preferences in `localStorage`; no statement | 3 |
+| **Art 28:** processor terms and sub-processors | Drafts in `docs/governance/`, not approved: a data processing agreement template and a sub-processor list | 3 |
+| **Art 33 and 34:** breach notification | A breach procedure: Drafts in `docs/governance/`, not approved. No monitoring to notice a breach | 3, 5 |
+| **Art 35 and 36:** DPIA | Drafts in `docs/governance/`, not approved | 3 |
+| **Art 37:** DPO | Decided (an external DPO service) in `docs/governance/`; none appointed | 3 |
+| **Chapter V:** international transfers | Azure UK South is planned. Code and images are on GitHub, with no patient data. Transfers assessment: Drafts in `docs/governance/`, not approved | 3, 5 |
+| **DPA 2018 s164A** (from the DUAA): complaints handling | A complaints procedure: Drafts in `docs/governance/`, not approved | 3 |
+| **PECR:** cookies and browser storage | One strictly necessary cookie, preferences in `localStorage`; a statement: Drafts in `docs/governance/`, not approved | 3 |
 | **Common law duty of confidentiality, Caldicott Principles** | Two roles, but every staff member can see every patient, and reads aren't audited | 3, 7, 8 |
 | **ICO's November 2026 letter:** access reviewed, monitoring and audit | Only procedure changes are audited; no access reports or reviews | 7 |
-| **Records Management Code of Practice** | No retention schedule, review process or destruction log | 3, 7 |
+| **Records Management Code of Practice** | A retention schedule following it: Drafts in `docs/governance/`, not approved. No review process or destruction log in the app | 3, 7 |
 | **National Data Opt-out** | Doesn't apply to direct care; no secondary use yet | 3, 7 |
 | **DSPT 2026-27** (IT supplier assertions) | Some technical controls; no registration, policies, training records, tested restores or penetration test | 3, 5, 10 |
 | **DCB0129** (manufacturer) | None | 6 |
@@ -2480,6 +2483,7 @@ As of `main` at `eef92dd`, after #53. The code (or, for repository settings, Git
 | The procedures concept and its decisions | `docs/procedures-ui-plan.md` |
 | Smaller open items | `docs/todo.md` |
 | Clinical safety (DCB0129 drafts) and the medical device decision | `docs/clinical-safety/README.md` and the documents it lists |
+| Data protection and information governance: DPIA, ROPA, retention, contracts, privacy notices, DSPT (drafts) | `docs/governance/README.md` |
 | Plain-language guide to the technology | `docs/reviews/overview.md` |
 | Detailed reviews of SSR, the image, Kubernetes, GitOps, the backplane, Azure and app changes | `docs/reviews/README.md` and the documents it lists |
 | The adversarial review's 31 findings | `docs/reviews/flaws-review.md` |

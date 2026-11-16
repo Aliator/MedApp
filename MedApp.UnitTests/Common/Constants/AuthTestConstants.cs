@@ -1,4 +1,5 @@
 ﻿using MedApp.Application.Authentication.Users.Queries.SearchUsers;
+using MedApp.Domain.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using Microsoft.AspNetCore.Identity;
 
@@ -54,6 +55,18 @@ public static class AuthTestConstants
 
     public static readonly DateTime SessionExpiresAtUtc =
         new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>When a synthetic session began: sign-in, with an 8-hour session.</summary>
+    public static readonly DateTime SessionStartedAtUtc =
+        new(2026, 11, 16, 9, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>"Now" in session tests: five minutes before a session started at <see cref="SessionStartedAtUtc"/> ends.</summary>
+    public static readonly DateTime SessionNowUtc =
+        SessionStartedAtUtc.AddHours(8).AddMinutes(-5);
+
+    /// <summary>A session that began at <see cref="SessionStartedAtUtc"/> and lasts the usual 8 hours.</summary>
+    public static UserSession CreateSession() =>
+        new(SettingsUserId, SessionStartedAtUtc, SessionStartedAtUtc.Add(UserSession.Lifetime), "192.0.2.20", "SyntheticBrowser/1.0");
 
     public static ApplicationUser CreateValidUser()
     {

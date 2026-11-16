@@ -25,10 +25,10 @@ This folder is MedApp's clinical risk management file under DCB0129, the NHS sta
 - **The device decision:** MedApp is an administrative workflow tool, not a medical device. It follows the path of a procedure with no decisions, and doesn't interpret clinical data. Features that calculate, score, prioritise, triage, recommend or flag from patient data would change that. A rule in the merge flow of `AGENTS.md` makes such a change update CS-04 before it merges.
 - **Today, one hazard is rated 4 and twelve are rated 3,** on DCB0129's consequence table, which counts how many patients a harm affects:
   - **4:** wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
-  - **3:** the wrong patient (H-01), the wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20), and work left on a deleted leaver's account (H-21).
+  - **3:** the wrong patient (H-01), the wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12, at `88dc1fa`; its defect is now fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20), and work left on a deleted leaver's account (H-21).
 - **At first live use,** with only the "before first live use" controls built, none is above 3, and three stay at 3 (H-07, H-10 and H-13). Each needs the CSO's written justification. H-13 gets there only because its approval step for template changes is brought forward.
 - **Two product behaviours the drafts first relied on, and now don't:** My Tasks opens on "Not started", so it hides work already under way (H-04, H-05, H-09); and deleting a leaver's account leaves their open work assigned to nobody (H-21).
-- **A defect, confirmed:** times read from the database were sent without a time zone and shown as browser-local time, an hour early in summer (H-12). The fix is in PR #62 (open).
+- **A defect, fixed:** times read from the database were sent without a time zone and shown as browser-local time, an hour early in summer (H-12). PR #62 fixed it: the API now sends every time as UTC with a `Z`, and the web app reads a time without one as UTC.
 
 ## Choices proposed in drafting
 
@@ -49,7 +49,7 @@ These are proposals for the CSO and the accountable owner to confirm:
 
 1. **Appoint a CSO** (a registered clinician, contracted for a few days a month) and, ideally, a deputy.
 2. **Hold a hazard workshop** with the CSO and clinicians from a likely customer, following handovers, leavers, bank and agency staff and night shifts on purpose, and update the hazard log.
-3. **Merge the H-12 fix** (PR #62), then re-rate H-12 and update this README, CS-03's defects table and the handbook's step 6 status line together.
+3. **Verify the H-12 fix** (PR #62, merged): see times right against SQL Server and in a browser during British Summer Time, then have the CSO confirm H-12's ratings.
 4. **Build the "before first live use" controls,** with tests, and re-rate the hazards.
 5. **Have the CSO sign** the plan, the hazard log, the device decision, the first safety case report and CS-05, and the accountable owner sign the plan and the device decision.
 6. **Switch on the release gate:** add the clinical safety section to a pull request template and to the merge flow in `AGENTS.md`.
