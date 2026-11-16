@@ -1,5 +1,5 @@
+import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
-import {SegmentedControl, SegmentedControlItem} from '@astryxdesign/core/SegmentedControl';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import type {ReactNode} from 'react';
@@ -21,7 +21,8 @@ export interface ChartCardProps {
 }
 
 /**
- * A chart in a card (a `PanelCard`): its title in the header bar with a Chart and Table switch, a summary in words,
+ * A chart in a card (a `PanelCard`): its title in the header bar with a button to show it as a table (or the chart
+ * again), a summary in words,
  * then the chart, or its numbers as a table. Every chart goes in one, so each has a text summary and a table of its
  * numbers (WCAG 1.1.1), and the table's links do what clicking a bar does, by keyboard too.
  *
@@ -32,10 +33,11 @@ export function ChartCard({title, summary, view, onViewChange, children}: ChartC
     <PanelCard
       title={title}
       headerActions={
-        <SegmentedControl label={`Show ${title} as`} value={view} onChange={(next) => onViewChange(next as ChartView)} size="sm">
-          <SegmentedControlItem value="chart" label="Chart" icon={<Icon icon={AppIcon.Chart} />} />
-          <SegmentedControlItem value="table" label="Table" icon={<Icon icon={AppIcon.Table} />} />
-        </SegmentedControl>
+        view === 'chart' ? (
+          <Button label="Show Table" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Table} />} onClick={() => onViewChange('table')} />
+        ) : (
+          <Button label="Show Chart" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Chart} />} onClick={() => onViewChange('chart')} />
+        )
       }>
       <VStack gap={4}>
         <Text type="body" color="secondary">

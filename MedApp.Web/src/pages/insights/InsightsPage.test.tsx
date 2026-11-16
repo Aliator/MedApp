@@ -72,7 +72,7 @@ describe('InsightsPage', () => {
 
     await screen.findByRole('heading', {name: 'Overdue by assignee'});
     for (const title of ['Overdue by assignee', 'Overdue by priority', 'Created and completed', 'Time at each stage']) {
-      await user.click(within(card(title)).getByRole('radio', {name: 'Table'}));
+      await user.click(within(card(title)).getByRole('button', {name: 'Show Table'}));
     }
 
     const assignees = screen.getByRole('table', {name: 'Overdue procedures by assignee'});
@@ -92,9 +92,12 @@ describe('InsightsPage', () => {
   it('changes the period, keeping 12 weeks (the default) out of the URL', async () => {
     const {user, onSearchChange} = renderInsights({weeks: 4, template: TEMPLATE_ID});
 
-    await user.click(await screen.findByRole('radio', {name: '26 weeks'}));
+    await user.click(await screen.findByRole('combobox', {name: /Period/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Last 4 weeks', 'Last 12 weeks', 'Last 26 weeks']);
+    await user.click(screen.getByRole('option', {name: 'Last 26 weeks'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({weeks: 26, template: TEMPLATE_ID});
-    await user.click(screen.getByRole('radio', {name: '12 weeks'}));
+    await user.click(screen.getByRole('combobox', {name: /Period/}));
+    await user.click(screen.getByRole('option', {name: 'Last 12 weeks'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({weeks: undefined, template: TEMPLATE_ID});
   });
 
@@ -125,12 +128,14 @@ describe('InsightsPage', () => {
       ...insights,
       stageTimes: [
         {templateId: null, templateName: '', stages: [{stageOrder: 1, stageName: 'Old stage', averageWorkingHours: 1}]},
+        {templateId: null, templateName: 'Knee review', stages: []},
         ...insights.stageTimes!,
       ],
     };
     renderInsights({}, several);
 
-    expect(await screen.findByRole('heading', {name: 'No template'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Procedures (no template)'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Knee review (no template)'})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Knee review'})).toBeInTheDocument();
   });
 

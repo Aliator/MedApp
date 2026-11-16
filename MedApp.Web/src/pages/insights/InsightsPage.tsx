@@ -1,6 +1,5 @@
 import {Grid} from '@astryxdesign/core/Grid';
 import {Heading} from '@astryxdesign/core/Text';
-import {SegmentedControl, SegmentedControlItem} from '@astryxdesign/core/SegmentedControl';
 import {Selector} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useQuery} from '@tanstack/react-query';
@@ -87,14 +86,17 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
 
   const filters = (
     <HStack gap={4} vAlign="end" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
-      <SegmentedControl
+      <Selector
         label="Period"
+        isLabelHidden
+        options={INSIGHTS_WEEKS.map((w) => ({value: String(w), label: `Last ${w} weeks`}))}
         value={String(weeks)}
-        onChange={(value) => onSearchChange({...search, weeks: Number(value) === DEFAULT_INSIGHTS_WEEKS ? undefined : (Number(value) as InsightsWeeks)})}>
-        {INSIGHTS_WEEKS.map((w) => (
-          <SegmentedControlItem key={w} value={String(w)} label={`${w} weeks`} />
-        ))}
-      </SegmentedControl>
+        onChange={(value: string) =>
+          onSearchChange({...search, weeks: Number(value) === DEFAULT_INSIGHTS_WEEKS ? undefined : (Number(value) as InsightsWeeks)})
+        }
+        variant="secondary"
+        width={180}
+      />
       <Selector
         label="Template"
         isLabelHidden
@@ -226,34 +228,37 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   )}
                 </ChartCard>
                 <ChartCard title="Time at each stage" summary={stageTimesSummary(stageTimes)} {...viewOf('stages')}>
-                  {stageTimes.map((t) => {
-                    const rows: StageRow[] = (t.stages ?? []).map((s) => ({...s, name: `${s.stageOrder}. ${s.stageName}`}));
-                    const name = t.templateName || 'No template';
-                    return (
-                      <VStack key={t.templateId ?? 'none'} gap={2}>
-                        {/* With every template showing, each has its own chart, under its name. */}
-                        {stageTimes.length > 1 && <Heading level={3}>{name}</Heading>}
-                        {views.stages === 'chart' ? (
-                          <BarChart
-                            data={rows}
-                            categoryKey="name"
-                            series={STAGE_TIME}
-                            isStacked
-                            formatValue={formatHours}
-                            description={`Stacked bar chart of the average time at each stage of ${name}, waiting to start and being worked on.`}
-                          />
-                        ) : (
-                          <ChartTable
-                            data={rows}
-                            categoryKey="name"
-                            categoryHeader="Stage"
-                            series={[...STAGE_TIME.map((s) => ({...s, format: formatHours})), {key: 'finishedCount', label: 'Finished'}]}
-                            label={`Average time at each stage of ${name}`}
-                          />
-                        )}
-                      </VStack>
-                    );
-                  })}
+                  <VStack gap={6}>
+                    {stageTimes.map((t) => {
+                      const rows: StageRow[] = (t.stages ?? []).map((s) => ({...s, name: `${s.stageOrder}. ${s.stageName}`}));
+                      // Procedures made before templates were required have no template, only the name they were made under.
+                      const name = t.templateId ? (t.templateName ?? '') : `${t.templateName || 'Procedures'} (no template)`;
+                      return (
+                        <VStack key={t.templateId ?? 'none'} gap={2}>
+                          {/* With every template showing, each has its own chart, under its name. */}
+                          {stageTimes.length > 1 && <Heading level={3}>{name}</Heading>}
+                          {views.stages === 'chart' ? (
+                            <BarChart
+                              data={rows}
+                              categoryKey="name"
+                              series={STAGE_TIME}
+                              isStacked
+                              formatValue={formatHours}
+                              description={`Stacked bar chart of the average time at each stage of ${name}, waiting to start and being worked on.`}
+                            />
+                          ) : (
+                            <ChartTable
+                              data={rows}
+                              categoryKey="name"
+                              categoryHeader="Stage"
+                              series={[...STAGE_TIME.map((s) => ({...s, format: formatHours})), {key: 'finishedCount', label: 'Finished'}]}
+                              label={`Average time at each stage of ${name}`}
+                            />
+                          )}
+                        </VStack>
+                      );
+                    })}
+                  </VStack>
                 </ChartCard>
               </Grid>
             </VStack>

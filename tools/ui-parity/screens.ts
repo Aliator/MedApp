@@ -280,7 +280,9 @@ export const screens: Screen[] = [
     title: "Insights with every chart's numbers as a table",
     path: '/admin/insights?weeks=4',
     prepare: async (page) => {
-      for (const table of await page.getByRole('radio', { name: 'Table' }).all()) await table.click();
+      // Each button becomes Show Chart once pressed, so press the first left until none are.
+      const showTable = page.getByRole('button', { name: 'Show Table' });
+      while ((await showTable.count()) > 0) await showTable.first().click();
       await settle(page);
     },
   },

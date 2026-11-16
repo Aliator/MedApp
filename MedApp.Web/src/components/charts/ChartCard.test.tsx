@@ -14,12 +14,21 @@ describe('ChartCard', () => {
     expect(await screen.findByRole('heading', {name: 'Overdue by priority'})).toBeInTheDocument();
     expect(screen.getByText('Of 5 overdue, 1 is urgent.')).toBeInTheDocument();
     expect(screen.getByText('The chart')).toBeInTheDocument();
-    const show = screen.getByRole('radiogroup', {name: 'Show Overdue by priority as'});
-    expect(screen.getByRole('radio', {name: 'Chart'})).toBeChecked();
+    await user.click(screen.getByRole('button', {name: 'Show Table'}));
 
-    await user.click(screen.getByRole('radio', {name: 'Table'}));
-
-    expect(show).toBeInTheDocument();
     expect(onViewChange).toHaveBeenCalledWith('table');
+  });
+
+  it('offers the chart again while showing the table', async () => {
+    const onViewChange = vi.fn();
+    const {user} = renderWithApp(
+      <ChartCard title="Throughput" summary="Busy." view="table" onViewChange={onViewChange}>
+        <p>The table</p>
+      </ChartCard>,
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Show Chart'}));
+
+    expect(onViewChange).toHaveBeenCalledWith('chart');
   });
 });
