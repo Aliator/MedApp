@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using MedApp.Application.Authentication.TwoFactor.Repositories;
+using FluentAssertions;
 using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
@@ -14,6 +15,7 @@ public sealed class IdentityUserServiceTests
     private Mock<UserManager<ApplicationUser>> _userManager = null!;
     private IdentityOptions _options = null!;
     private IdentityUserService _service = null!;
+    private Mock<IAccountLockoutRepository> _lockouts = null!;
 
     [SetUp]
     public void SetUp()
@@ -32,7 +34,8 @@ public sealed class IdentityUserServiceTests
         // The password rules a PasswordValidator checks come from the manager's options.
         _userManager.Object.Options = _options;
 
-        _service = new IdentityUserService(_userManager.Object, Options.Create(_options));
+        _lockouts = new Mock<IAccountLockoutRepository>();
+        _service = new IdentityUserService(_userManager.Object, Options.Create(_options), _lockouts.Object, TimeProvider.System);
     }
 
     
@@ -447,8 +450,21 @@ public sealed class IdentityUserServiceTests
         var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.ValidPassword, CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
-        _userManager.Verify(u => u.ResetAccessFailedCountAsync(user), Times.Once);
-        _userManager.Verify(u => u.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
+        _lockouts.Verify(l => l.ResetAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _lockouts.Verify(l => l.RecordFailedPasswordAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task VerifyPasswordAsync_RightPasswordWithTwoFactorOn_LeavesTheCountForTheCodes()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        user.TwoFactorEnabled = true;
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.ValidPassword)).ReturnsAsync(true);
+
+        (await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.ValidPassword, CancellationToken.None)).Succeeded.Should().BeTrue();
+
+        _lockouts.Verify(l => l.ResetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -461,7 +477,9 @@ public sealed class IdentityUserServiceTests
         var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.Passwords[0], CancellationToken.None);
 
         result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.PasswordIncorrectCode);
-        _userManager.Verify(u => u.AccessFailedAsync(user), Times.Once);
+        _lockouts.Verify(l => l.RecordFailedPasswordAsync(
+            user.Id, _options.Lockout.MaxFailedAccessAttempts, _options.Lockout.DefaultLockoutTimeSpan, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+        _userManager.Verify(u => u.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
     }
 
     [Test]
@@ -470,7 +488,8 @@ public sealed class IdentityUserServiceTests
         var user = AuthTestConstants.CreateValidUser();
         _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
         _userManager.Setup(u => u.CheckPasswordAsync(user, It.IsAny<string>())).ReturnsAsync(false);
-        _userManager.SetupSequence(u => u.IsLockedOutAsync(user)).ReturnsAsync(false).ReturnsAsync(true);
+        _lockouts.Setup(l => l.RecordFailedPasswordAsync(user.Id, It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TimeSpan.FromMinutes(5));
 
         var result = await _service.VerifyPasswordAsync(user.UserName!, AuthTestConstants.Passwords[0], CancellationToken.None);
 

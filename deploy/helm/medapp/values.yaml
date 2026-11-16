@@ -40,6 +40,13 @@ api:
   service:
     type: ClusterIP
     port: 80
+  # Microsoft Entra Workload ID, on AKS: the API signs in to Azure as a managed identity, with no stored secret (for
+  # dataProtection.keyVaultKeyUri). Set clientId to the identity's client ID, and the chart gives the API its own
+  # service account, <release>-api, annotated with it, and labels the pods so AKS hands them a token for it. The
+  # identity needs a federated credential for system:serviceaccount:<namespace>:<release>-api. Empty: the pods keep
+  # the namespace's default service account and get no Azure identity.
+  workloadIdentity:
+    clientId: ""
 
 ingress:
   enabled: false
@@ -81,6 +88,68 @@ backplane:
         memory: 32Mi
       limits:
         memory: 128Mi
+
+# Email: password resets, email address confirmations and security notices, sent by the API over SMTP (the "Email"
+# settings, MedApp.Infrastructure/Common/Email). Without a mail server (smtp.host, or mailpit.enabled) and a from
+# address, nothing is sent and the app hides its email features.
+email:
+  # The address people open MedApp at, which links in emails start with, e.g. https://medapp.example.org. It's never
+  # taken from a request's Host header. Empty: https://<ingress.host> when the ingress is on with a host, else none,
+  # and emails that need a link aren't sent. Set it when people reach MedApp some other way (another port, a proxy).
+  linkBaseUrl: ""
+  # The address emails come from. With mailpit.enabled, empty means medapp@localhost.
+  fromAddress: ""
+  # The name shown beside it. Empty: the app's default, MedApp.
+  fromName: ""
+  # The most emails each copy of the API sends in a clock hour; keep it under the mail provider's quota (with several
+  # copies, divided between them). A fifth is kept for security notices, which go out before links. Empty: the app's
+  # default (100).
+  maxPerHour: null
+  # The mail server, when it's outside the cluster (with mailpit.enabled, leave host empty: the chart points the API at
+  # Mailpit). The API's network policy then lets it reach public addresses (networkPolicy.internet) on this port, or
+  # with networkPolicy.fqdnEgress, this host alone (a name, not an IP address).
+  smtp:
+    host: ""
+    port: 587
+    # How the connection is secured: StartTls (the default here: TLS required, as on port 587), SslOnConnect (port
+    # 465), Auto (MailKit decides from the port, and may go without TLS) or None (never for a real server).
+    security: StartTls
+    # Empty: the app's default (30 seconds).
+    timeoutSeconds: null
+    # The user name to sign in with, with auth.enabled. Empty: the auth Secret's username key.
+    username: ""
+    # Signing in to the server, with a password from a Secret (key password, and username unless it's set above).
+    auth:
+      enabled: false
+      # An existing Secret with those keys. With neither this nor externalSecrets, the chart fails: it can't make up
+      # a mail server's password.
+      existingSecret: ""
+
+# Mailpit (axllent/mailpit) in the cluster: a mail catcher, for clusters that must not send real email, such as kind.
+# The API sends to it, and it keeps every email in a temporary database on a scratch volume (so a restart empties
+# it), relays nothing, and shows them in a web inbox that only kubectl port-forward reaches (README.md).
+mailpit:
+  enabled: false
+  # Pinned by digest (v1.33.0's index, for every platform), so a new node can't pull something else under the tag.
+  image: axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+  # The most emails it keeps; older ones are deleted.
+  maxMessages: 500
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+# ASP.NET Core's data protection keys, which seal password reset and email confirmation tokens. The API keeps them
+# in the database (DataProtectionKeys), so every copy shares them.
+dataProtection:
+  # A Key Vault key that wraps them (e.g. https://<vault>.vault.azure.net/keys/medapp-data-protection), so a copy of
+  # the database alone can't unseal them. The API signs in to Key Vault with DefaultAzureCredential: on AKS, through
+  # api.workloadIdentity. Its network policy then lets it reach public addresses on 443 (networkPolicy.internet), for
+  # Key Vault and Microsoft Entra ID, or with networkPolicy.fqdnEgress, the vault named here and Entra ID alone.
+  # Empty: the keys are stored unwrapped.
+  keyVaultKeyUri: ""
 
 # File attachments: the files staff attach to patients, procedures and stages (scans, photos, results, letters). Their
 # details are in the database; the files themselves go to Azure Blob Storage. The API gets an Azure Storage connection
@@ -156,6 +225,14 @@ externalSecrets:
     connection-string:
       key: medapp-backplane
       property: connection-string
+  # Only with email.smtp.auth.enabled (and no email.smtp.auth.existingSecret).
+  email:
+    username:
+      key: medapp-email
+      property: username
+    password:
+      key: medapp-email
+      property: password
   # Set account-key to null for an Azure Storage account (only Azurite needs it), and connection-string to null too
   # to run without file storage.
   attachments:
@@ -177,6 +254,33 @@ networkPolicy:
   # database: [{to: [{ipBlock: {cidr: 10.1.0.0/16}}], ports: [{port: 1433, protocol: TCP}]}], or an Azure Storage
   # account for attachments (port 443).
   extraEgress: []
+  # The internet, as NetworkPolicy peers, for what the API reaches by name: an external mail server (email.smtp.host,
+  # on its port only), and Key Vault and Microsoft Entra ID (dataProtection.keyVaultKeyUri, on 443 only). Policies
+  # can't name hosts, so the default is every address except the private, shared and link-local ranges, which keeps
+  # out the cluster's own pods and services and the cloud's instance metadata endpoint. Narrow it if the addresses
+  # you need are fixed. Unused unless one of those is set, and unused with fqdnEgress.
+  internet:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+          - 100.64.0.0/10
+          - 169.254.0.0/16
+  # Egress by name, for clusters whose Cilium enforces FQDN rules (on AKS, Advanced Container Networking Services'
+  # security, which deploy/azure turns on): a CiliumNetworkPolicy (cilium.io/v2) lets the API reach the mail server,
+  # Key Vault and Microsoft Entra ID by name, on their ports only, and the API's NetworkPolicy then leaves out its
+  # internet rules (networkPolicy.internet). Off by default: without Cilium the kind doesn't exist (kind's cluster
+  # has none), and without Cilium's DNS proxy the names never resolve to allowed addresses, so those connections fail.
+  fqdnEgress:
+    enabled: false
+    # Microsoft Entra ID, where the API swaps its workload identity token for one for Key Vault: the host in AKS's
+    # AZURE_AUTHORITY_HOST. Change it only for a sovereign cloud.
+    authorityHost: login.microsoftonline.com
+    # More Cilium egress rules for the API's pods, e.g. another name:
+    # [{toFQDNs: [{matchName: login.windows.net}], toPorts: [{ports: [{port: "443", protocol: TCP}]}]}].
+    extraEgress: []
 
 # SQL Server in the cluster, one pod with its data on a volume. Turn it off to use an external database, such as
 # Azure SQL, through database.existingSecret.

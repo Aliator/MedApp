@@ -1,9 +1,13 @@
-﻿using Azure.Storage.Blobs;
+﻿using Azure.Identity;
+using Azure.Storage.Blobs;
 using MedApp.Application.Activity.Repositories;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
+using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
+using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Demographics.Common;
 using MedApp.Application.Monitoring.Repositories;
@@ -13,10 +17,12 @@ using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Attachments;
 using MedApp.Infrastructure.Common.Authentication;
+using MedApp.Infrastructure.Common.Email;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Demographics;
 using MedApp.Infrastructure.Data.Repositories;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -34,10 +40,52 @@ public static class ServiceExtensions
         IConfiguration configuration)
     {
         services.AddDatabase(configuration);
+        services.AddDataProtectionKeys(configuration);
         services.AddIdentity(configuration);
+        services.AddEmail();
         services.AddRepositories();
         services.AddAttachmentStorage(configuration);
         services.AddDemographics(configuration);
+
+        return services;
+    }
+
+    /// <summary>The setting that turns on Key Vault protection of the data protection keys (off when empty).</summary>
+    public const string DataProtectionKeyVaultKeySetting = "DataProtection:KeyVaultKeyUri";
+
+    /// <summary>
+    /// ASP.NET Core's data protection keys, which seal reset and confirmation tokens, kept in the database
+    /// (<c>DataProtectionKeys</c>), so every copy of the API shares them: a link one copy makes opens on any other, and
+    /// survives a restart. On Azure, <see cref="DataProtectionKeyVaultKeySetting"/> names a Key Vault key that wraps
+    /// them, so a copy of the database alone can't unseal them; locally it's unset, and they're stored unwrapped.
+    /// </summary>
+    private static IServiceCollection AddDataProtectionKeys(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var dataProtection = services.AddDataProtection()
+            .SetApplicationName("MedApp")
+            .PersistKeysToDbContext<MedAppDbContext>();
+
+        if (configuration[DataProtectionKeyVaultKeySetting] is { Length: > 0 } keyUri)
+            dataProtection.ProtectKeysWithAzureKeyVault(new Uri(keyUri), new DefaultAzureCredential());
+
+        return services;
+    }
+
+    /// <summary>
+    /// Email: queued in memory (<see cref="EmailQueue"/>, the app's <see cref="IEmailSender"/>) and sent over SMTP in the
+    /// background (<see cref="EmailDispatcher"/>), from the "Email" settings. Without a mail server nothing is sent.
+    /// </summary>
+    private static IServiceCollection AddEmail(this IServiceCollection services)
+    {
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.Section);
+        services.AddOptions<EmailDeliveryOptions>().BindConfiguration(EmailDeliveryOptions.Section);
+
+        services.AddSingleton<EmailQueue>();
+        services.AddSingleton<IEmailSender>(provider => provider.GetRequiredService<EmailQueue>());
+        services.AddSingleton<IEmailTransport, SmtpEmailTransport>();
+        services.AddHostedService<EmailDispatcher>();
 
         return services;
     }
@@ -115,6 +163,9 @@ public static class ServiceExtensions
         services.AddScoped<IProcedureInsightsRepository, ProcedureInsightsRepository>();
         services.AddScoped<IUserSettingsRepository, UserSettingsRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
+        services.AddScoped<ISecuritySettingsRepository, SecuritySettingsRepository>();
+        services.AddScoped<IAccountLockoutRepository, AccountLockoutRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
         services.AddScoped<IActivityRepository, ActivityRepository>();
@@ -154,7 +205,13 @@ public static class ServiceExtensions
             // Refuses the most common passwords, beside the length and character rules (Identity settings).
             .AddPasswordValidator<CommonPasswordValidator>()
             .AddEntityFrameworkStores<MedAppDbContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            // Password reset links: 30 minutes (IdentityOptionsConfiguration points resets at it).
+            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProvider.ProviderName);
+
+        // Other tokens from the default provider (email confirmation links) last a day.
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = EmailTemplates.ConfirmLinkLifetime);
 
         services.AddScoped<IAuthenticationService, IdentityAuthenticationService>();
         services.AddScoped<ISessionService, SessionService>();
@@ -163,6 +220,10 @@ public static class ServiceExtensions
         services.AddScoped<IIdentityUserService, IdentityUserService>();
         services.AddScoped<IIdentityRoleService, IdentityRoleService>();
         services.AddScoped<IIdentityTransactions, IdentityTransactions>();
+        services.AddScoped<ITwoFactorService, TwoFactorService>();
+        services.AddScoped<IAccountEmailService, AccountEmailService>();
+        services.AddScoped<IPasswordResetService, PasswordResetService>();
+        services.AddSingleton<IQrCodeRenderer, QrCodeRenderer>();
 
         services.AddScoped<IdentityUserService>();
         services.AddScoped<IdentityRoleService>();

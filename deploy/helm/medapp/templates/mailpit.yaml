@@ -1,0 +1,78 @@
+{{- if .Values.mailpit.enabled }}
+{{- $name := include "medapp.mailpitName" . }}
+# Mailpit, a mail catcher: the API sends every email here (api.yaml), and nothing leaves the cluster. It keeps them in
+# a temporary database on a scratch volume, so it's a Deployment with no persistent volume, and a restart empties it.
+# Its network policy lets only the API reach its SMTP port; its web inbox is reached with kubectl port-forward.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mailpit
+spec:
+  selector:
+    {{- include "medapp.selectorLabels" (list . "mailpit") | nindent 4 }}
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: smtp
+    # Only for kubectl port-forward (README.md): the network policy refuses every pod.
+    - name: http
+      port: 8025
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "mailpit") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "medapp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: mailpit
+    spec:
+      # The image has no user of its own (it would run as root), so any non-root one: it only writes to /tmp.
+      {{- include "medapp.podSecurity" (list . 1000) | nindent 6 }}
+      containers:
+        - name: mailpit
+          image: {{ .Values.mailpit.image }}
+          securityContext:
+            {{- include "medapp.containerSecurityContext" . | nindent 12 }}
+            runAsGroup: 1000
+          # No update check: it has no way out of the cluster anyway (its network policy).
+          args: ["--max", {{ .Values.mailpit.maxMessages | toString | quote }}, "--disable-version-check"]
+          ports:
+            - name: smtp
+              containerPort: 1025
+            - name: http
+              containerPort: 8025
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.mailpit.resources | nindent 12 }}
+          volumeMounts:
+            # The root filesystem is read-only; Mailpit's temporary database goes here.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+{{- end }}

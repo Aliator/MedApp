@@ -31,6 +31,8 @@ public sealed class LoginHandlerRefusedAccountTests
         _fixture.Inject(_authService.Object);
         _fixture.Inject(new Mock<ISessionService>().Object);
         _fixture.Inject<IActivityLog>(_activity);
+        // An account without two-factor authentication, which signs in with its password alone.
+        _fixture.Inject(new Mock<MedApp.Application.Common.Identity.ITwoFactorService>().Object);
     }
 
     private static LoginCommand Command() => new("tried-name", "Synthetic-Password-1", ApiTestConstants.IpAddress, ApiTestConstants.UserAgent);

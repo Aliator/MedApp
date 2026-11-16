@@ -7,7 +7,7 @@ const whoami = (body: unknown, status = 200) => {
   return new QueryClient().fetchQuery(whoamiQuery);
 };
 
-const signedOut = {isAuthenticated: false, username: '', roles: [], isAdmin: false, mustChangePassword: false};
+const signedOut = {isAuthenticated: false, username: '', roles: [], isAdmin: false, mustChangePassword: false, mustSetUpTwoFactor: false};
 
 describe('whoamiQuery', () => {
   it('reads who is signed in, and whether they are an admin whatever the case of the role', async () => {
@@ -17,6 +17,7 @@ describe('whoamiQuery', () => {
       roles: ['admin', 'User'],
       isAdmin: true,
       mustChangePassword: false,
+      mustSetUpTwoFactor: false,
     });
   });
 
@@ -27,11 +28,27 @@ describe('whoamiQuery', () => {
       roles: ['User'],
       isAdmin: false,
       mustChangePassword: true,
+      mustSetUpTwoFactor: false,
+    });
+  });
+
+  it('says when an admin must set up two-factor authentication', async () => {
+    expect(await whoami({isAuthenticated: true, name: 'test-admin', roles: ['Admin'], mustSetUpTwoFactor: true})).toMatchObject({
+      isAdmin: true,
+      mustChangePassword: false,
+      mustSetUpTwoFactor: true,
     });
   });
 
   it('takes an account the API sends without a name or roles as a user with none', async () => {
-    expect(await whoami({isAuthenticated: true})).toEqual({isAuthenticated: true, username: '', roles: [], isAdmin: false, mustChangePassword: false});
+    expect(await whoami({isAuthenticated: true})).toEqual({
+      isAuthenticated: true,
+      username: '',
+      roles: [],
+      isAdmin: false,
+      mustChangePassword: false,
+      mustSetUpTwoFactor: false,
+    });
   });
 
   it('is signed out when the API says so, or cannot answer', async () => {

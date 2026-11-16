@@ -22,6 +22,14 @@ ingress:
     # A self-signed certificate from cert-manager (local-cluster.yaml), so browsers warn about it.
     clusterIssuer: medapp-local
 
+# Email goes to Mailpit in the cluster, which catches it all: nothing is ever sent. Its inbox is reached with
+# kubectl port-forward (README.md). Links in emails open the https address, where sign-in works.
+mailpit:
+  enabled: true
+email:
+  linkBaseUrl: https://localhost:8443
+  fromAddress: medapp@kind.local
+
 # Attachments' files in Azurite, Azure Storage's emulator, in the cluster (the chart's default), where Azure uses a
 # storage account.
 attachments:

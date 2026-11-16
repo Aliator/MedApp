@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Authentication;
 using MedApp.Domain.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
@@ -52,8 +52,20 @@ public sealed class SessionService(
             user.Id,
             user.UserName ?? string.Empty,
             roles.ToArray(),
-            user.MustChangePassword);
+            user.MustChangePassword,
+            await MustSetUpTwoFactorAsync(user, roles, ct));
     }
+
+    /// <summary>
+    /// Whether the user is an admin without two-factor while admins must use it, so they're held to setting it up
+    /// (<c>TwoFactorSetupRequired</c>). The setting is read only for such an admin, so other requests cost nothing more.
+    /// </summary>
+    private async Task<bool> MustSetUpTwoFactorAsync(ApplicationUser user, IList<string> roles, CancellationToken ct) =>
+        !user.TwoFactorEnabled
+        && roles.Contains(FirstAdminSetup.AdminRole, StringComparer.OrdinalIgnoreCase)
+        && await context.SecuritySettings
+            .AsNoTracking()
+            .AnyAsync(settings => settings.Id == SecuritySettings.SingletonId && settings.RequireTwoFactorForAdmins, ct);
 
     public async Task<UserSession?> GetActiveSessionAsync(
         Guid sessionId,

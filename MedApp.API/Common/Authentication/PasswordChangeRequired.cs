@@ -1,62 +1,29 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedApp.API.Common.Authentication;
 
 /// <summary>
 /// Holds a user who must change the password an admin gave them (their session's
-/// <see cref="SessionAuthenticationDefaults.MustChangePasswordClaim"/>) to that one task: every other <c>/api</c>
-/// request, the notifications hub included, is refused with a 403 <see cref="ProblemDetails"/> whose <c>code</c> is
-/// <see cref="Code"/>. They may only ask who they are, sign in again (which replaces the session), sign out, read their own UI settings (so the page shows in their
-/// theme), and change their own password. Pages and static files pass, because the web app sends them to its
-/// change-password page. Runs after authentication, so it sees the user, and before authorization.
+/// <see cref="SessionAuthenticationDefaults.MustChangePasswordClaim"/>) to that one task (an <see cref="AccountHold"/>):
+/// every other <c>/api</c> request, the notifications hub included, is refused with a 403 <see cref="ProblemDetails"/>
+/// whose <c>code</c> is <see cref="Code"/>. Beyond what every hold allows (asking who they are, their own UI settings,
+/// signing in again and out), they may change their own password. Pages and static files pass, because the web app sends
+/// them to its change-password page. It comes before <see cref="TwoFactorSetupRequired"/>: the password first.
 /// </summary>
-public sealed class PasswordChangeRequired(RequestDelegate next)
+public sealed class PasswordChangeRequired(RequestDelegate next) : AccountHold(next)
 {
     public const string Title = "Password change required";
     public const string Code = "password_change_required";
 
-    private const string ProblemJson = "application/problem+json";
+    protected override string HoldTitle => Title;
+    protected override string HoldCode => Code;
+    protected override string HoldDetail => "Choose your own password before doing anything else.";
 
-    public async Task InvokeAsync(HttpContext context)
-    {
-        if (!context.Request.Path.StartsWithSegments("/api")
-            || context.User.Identity?.IsAuthenticated != true
-            || !context.User.MustChangePassword()
-            || IsAllowed(context))
-        {
-            await next(context);
-            return;
-        }
+    protected override bool Applies(ClaimsPrincipal user) => user.MustChangePassword();
 
-        var problem = new ProblemDetails
-        {
-            Status = StatusCodes.Status403Forbidden,
-            Title = Title,
-            Detail = "Choose your own password before doing anything else.",
-            Extensions = { ["code"] = Code }
-        };
-
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        // Given to the write itself: it sets the content type, and would replace one set before it.
-        await context.Response.WriteAsJsonAsync(problem, options: null, contentType: ProblemJson);
-    }
-
-    /// <summary>The requests a user who must change their password may still make.</summary>
-    private static bool IsAllowed(HttpContext context)
-    {
-        var request = context.Request;
-        var path = request.Path.Value ?? string.Empty;
-
-        if (HttpMethods.IsGet(request.Method))
-            return Is(path, "/api/auth/whoami") || Is(path, "/api/auth/me/settings");
-
-        // Signing in (as anyone) checks the posted password afresh and replaces this session, so it gives nothing
-        // away; without it, a browser still holding a forced session couldn't sign in again. Signing out ends it.
-        if (HttpMethods.IsPost(request.Method))
-            return Is(path, "/api/auth/login") || Is(path, "/api/auth/logout");
-
-        return HttpMethods.IsPut(request.Method) && IsOwnPasswordChange(context, path);
-    }
+    protected override bool AllowsForTask(HttpContext context, string path) =>
+        HttpMethods.IsPut(context.Request.Method) && IsOwnPasswordChange(context, path);
 
     /// <summary>
     /// <c>PUT /api/auth/users/{username}/update-password</c> for the signed-in user's own name, compared as the
@@ -74,8 +41,4 @@ public sealed class PasswordChangeRequired(RequestDelegate next)
                && Is(segments[5], "update-password")
                && AuthPolicies.IsOwnUsername(context, context.User);
     }
-
-    // Routing ignores case, so the allowlist does too.
-    private static bool Is(string value, string expected) =>
-        string.Equals(value, expected, StringComparison.OrdinalIgnoreCase);
 }

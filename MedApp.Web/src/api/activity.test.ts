@@ -53,6 +53,21 @@ describe('describeActivity', () => {
   it('says why a sign-in was refused', () => {
     expect(describe_('SignInFailed', {reason: 'LockedOut'})).toBe('Account locked');
     expect(describe_('SignInFailed', {reason: 'InvalidCredentials'})).toBe('Wrong username or password');
+    expect(describe_('SignInFailed', {reason: 'InvalidCode', secondStep: true})).toBe('Wrong authenticator code');
+    expect(describe_('SignInFailed', {reason: 'ChallengeExpired'})).toBe('Code step timed out');
+    expect(describe_('SignInFailed', {reason: 'TooManyCodes', secondStep: true})).toBe('Too many codes for the account');
+    expect(describe_('SignedIn', {secondStep: 'recoveryCode'})).toBe('With a recovery code');
+    expect(describe_('SignedIn', {secondStep: 'authenticator'})).toBe('With an authenticator code');
+    expect(describe_('SignedIn', {})).toBe('');
+    expect(describe_('RecoveryCodeUsed', {codesLeft: 9})).toBe('9 left');
+    expect(describe_('RecoveryCodeUsed', {})).toBe('');
+    expect(describe_('PasswordResetRequested', {matched: true})).toBe('Link sent');
+    expect(describe_('PasswordResetRequested', {matched: false})).toBe('No account matched');
+    expect(describe_('PasswordResetRequested', {})).toBe('');
+    expect(describe_('TwoFactorRequirementChanged', {requireTwoFactorForAdmins: true})).toBe('Required for admins');
+    expect(describe_('TwoFactorRequirementChanged', {requireTwoFactorForAdmins: false})).toBe('Not required');
+    expect(describe_('TwoFactorRequirementChanged', {})).toBe('');
+    expect(activityActionLabel('TwoFactorChallenged')).toBe('Code asked for');
   });
 
   it('gives roles changed, added and removed', () => {

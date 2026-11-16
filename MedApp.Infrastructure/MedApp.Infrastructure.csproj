@@ -27,6 +27,10 @@
 
     <ItemGroup>
       <FrameworkReference Include="Microsoft.AspNetCore.App" />
+      <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Keys" Version="1.6.5" />
+      <PackageReference Include="Azure.Identity" Version="1.21.0" />
+      <PackageReference Include="MailKit" Version="4.18.2" />
+      <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.15" />
       <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
       <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.15" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.15" />
@@ -35,6 +39,7 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
+      <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.2.1" />
       <!-- Thumbnails of uploaded images (MIT licence). The Linux build has no dependencies on the image's libraries. -->
       <PackageReference Include="SkiaSharp" Version="3.119.4" />
       <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />

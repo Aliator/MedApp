@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using MedApp.Application.Authentication.TwoFactor.Repositories;
+using FluentAssertions;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Identity;
@@ -19,7 +20,7 @@ public sealed class IdentityUserServicePasswordTests
         userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
         userManager.Setup(u => u.GeneratePasswordResetTokenAsync(user)).ReturnsAsync("synthetic-token");
         userManager.Setup(u => u.ResetPasswordAsync(user, "synthetic-token", It.IsAny<string>())).ReturnsAsync(IdentityResult.Success);
-        var service = new IdentityUserService(userManager.Object, Options.Create(new IdentityOptions { Password = rules }));
+        var service = new IdentityUserService(userManager.Object, Options.Create(new IdentityOptions { Password = rules }), Mock.Of<IAccountLockoutRepository>(), TimeProvider.System);
 
         var response = await service.ResetUserPasswordAsync(user.UserName!, CancellationToken.None);
 
