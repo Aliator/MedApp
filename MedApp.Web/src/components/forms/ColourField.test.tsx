@@ -15,6 +15,12 @@ describe('ColourField', () => {
     expect(onChange).toHaveBeenCalledWith('#2a3550');
   });
 
+  it('shows a warning under the colour when it has one', async () => {
+    renderWithApp(<ColourField label="Cards" value="#25252a" onChange={() => {}} warning="Hard to read." />);
+
+    expect(await screen.findByText('Hard to read.')).toBeInTheDocument();
+  });
+
   it('shades under the pointer, as list rows do', async () => {
     const {user} = renderWithApp(<ColourField label="Cards" value="#25252a" onChange={() => {}} />);
     const field = (await screen.findByLabelText(/Cards/)).closest<HTMLElement>('[style*="border-radius"]')!;

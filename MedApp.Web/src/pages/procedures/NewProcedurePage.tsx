@@ -4,6 +4,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {fieldStatus} from '../../api/errors';
 import {patientQuery} from '../../api/patients';
 import {procedureTemplatesQuery, useCreateProcedure, type ProcedureDetailsInput, type ProcedureTemplate} from '../../api/procedures';
@@ -39,6 +40,7 @@ export function NewProcedurePage({patientId}: NewProcedurePageProps) {
   const navigate = useNavigate();
   const isNarrow = useIsNarrow();
   const create = useCreateProcedure();
+  const announce = useAnnounce();
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const templates = useQuery(procedureTemplatesQuery());
   const [templateId, setTemplateId] = useState('');
@@ -64,7 +66,10 @@ export function NewProcedurePage({patientId}: NewProcedurePageProps) {
     create.mutate(
       {patientId, templateId: templateId || undefined, ...details, dueDate: details.dueDate || undefined},
       {
-        onSuccess: (procedure) => void navigate({to: '/procedures/$id', params: {id: procedure.id ?? ''}}),
+        onSuccess: (procedure) => {
+          announce('Procedure created');
+          void navigate({to: '/procedures/$id', params: {id: procedure.id ?? ''}});
+        },
         onError: (error) => {
           setProblem(saveProblem(error, 'add', 'procedure'));
           setIsConfirming(false);

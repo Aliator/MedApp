@@ -1,6 +1,7 @@
-import {act, screen} from '@testing-library/react';
+import {act, fireEvent, screen} from '@testing-library/react';
 import {useState} from 'react';
 import {renderWithApp, isDisabled, openDialog} from '../../test/render';
+import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {ConfirmDialog} from './ConfirmDialog';
 
 const base = {title: 'Delete user', message: 'This cannot be undone.', onConfirm: () => {}, onCancel: () => {}};
@@ -58,6 +59,37 @@ describe('ConfirmDialog', () => {
     await user.click(await screen.findByRole('button', {name: /close/i}));
 
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('confirms on Ctrl+S in a dialog that is a form, only when it could be confirmed', async () => {
+    const onConfirm = vi.fn();
+    const dialog = (props: {hasSaveShortcut?: boolean; confirmDisabled?: boolean}) => (
+      <SaveShortcutProvider>
+        <ConfirmDialog {...base} isOpen onConfirm={onConfirm} {...props}>
+          <input aria-label="Name" />
+        </ConfirmDialog>
+      </SaveShortcutProvider>
+    );
+    const pressIn = async () => {
+      const field = await screen.findByLabelText('Name');
+      field.focus();
+      return fireEvent.keyDown(field, {key: 's', ctrlKey: true});
+    };
+
+    // An "are you sure?" dialog wants a deliberate answer.
+    let view = renderWithApp(dialog({}));
+    expect(await pressIn()).toBe(true);
+    view.unmount();
+
+    // A form, but one that can't be confirmed yet: nothing, and no browser Save page dialog either.
+    view = renderWithApp(dialog({hasSaveShortcut: true, confirmDisabled: true}));
+    expect(await pressIn()).toBe(false);
+    expect(onConfirm).not.toHaveBeenCalled();
+    view.unmount();
+
+    renderWithApp(dialog({hasSaveShortcut: true}));
+    await pressIn();
+    expect(onConfirm).toHaveBeenCalledOnce();
   });
 
   it('can disable confirming', async () => {

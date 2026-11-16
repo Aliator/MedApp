@@ -670,7 +670,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Description.** The audit log, or a stage's "finished by", names someone other than the person who did the work.
 
 **Causes:**
-- **No idle timeout:** a session lasts a fixed 8 hours, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
+- **No idle timeout:** a session lasts 8 hours from sign-in, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
+- **A session can be extended (since #63):** five minutes before the end, a warning offers "Stay signed in", which extends the session to 8 hours from then, up to 24 hours from sign-in (`UserSession.Extend`). Whoever is at the screen can press it, so an unattended session can now be kept for up to 24 hours instead of 8. The warning is for the fixed limit (WCAG 2.2.1), not an idle timeout. **A change to this hazard's cause, for the clinical safety officer to assess.**
 - **Passwords only,** with no multi-factor authentication (risk S8), and shared or passed-on passwords.
 - **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
 
@@ -686,7 +687,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Initial risk:** Significant, Medium: **2**.
 
 **Further controls:**
-- **An idle timeout,** with a warning. Protective; **planned** (step 2); later.
+- **An idle timeout,** with a warning. Protective; **planned** (step 2); later. (The warning before the fixed limit, added in #63, is not this control.)
+- **End a user's other sessions** on a password change, a reset and a role change. Protective; **in progress** (the security baseline branch); later.
 - **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
