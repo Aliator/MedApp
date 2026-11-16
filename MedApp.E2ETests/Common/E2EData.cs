@@ -12,6 +12,12 @@ public sealed class E2EData
     /// <summary>A synthetic name no other test or run uses, e.g. "E2E Patient 3f9c1a2b".</summary>
     public static string UniqueName(string kind) => $"E2E {kind} {Guid.NewGuid().ToString("N")[..8]}";
 
+    /// <summary>
+    /// A password for an account a test makes, new each time so none is ever in the source: upper and lower case, a
+    /// digit and a symbol, as the Identity rules need. Never put it in a message or a name.
+    /// </summary>
+    public static string NewPassword() => $"E2e-{Guid.NewGuid():N}";
+
     public void OnCleanUp(string what, Func<Task> cleanUp) => _cleanUps.Push((what, cleanUp));
 
     public async Task CleanUpAsync()

@@ -11,8 +11,8 @@ public sealed class UserTests : E2ETest
     /// <summary>The dialog's Done ignores presses for a second after the password appears (a double-click guard).</summary>
     private const int DoneHoldMs = 1100;
 
-    /// <summary>The password the new user chooses: synthetic, and meets the Identity rules.</summary>
-    private const string ChosenPassword = "E2e-Chosen-Passw0rd";
+    /// <summary>The password the new user chooses: made for each run (never in the source), and meets the Identity rules.</summary>
+    private static readonly string ChosenPassword = E2EData.NewPassword();
 
     /// <summary>
     /// A new account, from start to finish: the admin adds it and sees its first password once, gives it a role, then

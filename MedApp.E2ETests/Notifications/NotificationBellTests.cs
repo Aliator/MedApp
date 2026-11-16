@@ -8,8 +8,6 @@ namespace MedApp.E2ETests.Notifications;
 [TestFixture]
 public sealed class NotificationBellTests : E2ETest
 {
-    private const string ChosenPassword = "E2e-Chosen-Passw0rd";
-
     [Test]
     public async Task AssignedByAnotherAdmin_ShowsLiveInTheBellAndOpensTheProcedure()
     {
@@ -69,7 +67,8 @@ public sealed class NotificationBellTests : E2ETest
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
 
         var firstSession = await SignInToApiAsync(username, firstPassword);
-        await firstSession.UpdateOwnPasswordAsync(username, firstPassword, ChosenPassword);
-        return (username, await SignInToApiAsync(username, ChosenPassword));
+        var chosenPassword = E2EData.NewPassword();
+        await firstSession.UpdateOwnPasswordAsync(username, firstPassword, chosenPassword);
+        return (username, await SignInToApiAsync(username, chosenPassword));
     }
 }

@@ -18,7 +18,12 @@ public sealed class E2ESession
     {
         if (string.IsNullOrEmpty(E2ESettings.Username) || string.IsNullOrEmpty(E2ESettings.Password))
         {
-            Assert.Ignore("Set E2E_USERNAME and E2E_PASSWORD to run the end-to-end tests (see MedApp.E2ETests/README.md).");
+            const string message = "Set E2E_USERNAME and E2E_PASSWORD to run the end-to-end tests (see MedApp.E2ETests/README.md).";
+            // In CI (GitHub sets CI=true) a missing credential is a broken job, not a reason to skip: a green run must
+            // have run the journeys. Locally, without them, the suite is skipped.
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+                Assert.Fail(message);
+            Assert.Ignore(message);
         }
 
         using var playwright = await Playwright.CreateAsync();

@@ -44,6 +44,9 @@ public abstract class E2ETest : PageTest
         SetDefaultExpectTimeout(10_000);
         Context.SetDefaultTimeout(15_000);
 
+        if (E2ESettings.TraceDirectory is not null)
+            await Context.Tracing.StartAsync(new TracingStartOptions { Screenshots = true, Snapshots = true });
+
         _request = await NewApiContextAsync(E2ESettings.StorageStatePath);
         Api = new E2EApi(_request);
         Data = new E2EData();
@@ -52,6 +55,15 @@ public abstract class E2ETest : PageTest
     [TearDown]
     public async Task CleanUpAsync()
     {
+        try
+        {
+            await SaveTraceIfFailedAsync();
+        }
+        catch (PlaywrightException)
+        {
+            // A trace is a help, not part of the test.
+        }
+
         try
         {
             // Null when the set-up itself failed.
@@ -63,6 +75,23 @@ public abstract class E2ETest : PageTest
             if (_request is not null)
                 await _request.DisposeAsync();
         }
+    }
+
+    /// <summary>With tracing on (<see cref="E2ESettings.TraceDirectory"/>), keeps the trace of a failed test only.</summary>
+    private async Task SaveTraceIfFailedAsync()
+    {
+        if (E2ESettings.TraceDirectory is not { } directory)
+            return;
+
+        if (TestContext.CurrentContext.Result.Outcome.Status != NUnit.Framework.Interfaces.TestStatus.Failed)
+        {
+            await Context.Tracing.StopAsync();
+            return;
+        }
+
+        Directory.CreateDirectory(directory);
+        var name = string.Concat(TestContext.CurrentContext.Test.Name.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
+        await Context.Tracing.StopAsync(new TracingStopOptions { Path = Path.Combine(directory, $"{name}.zip") });
     }
 
     /// <summary>An API context: signed in from a saved session, or signed out (null).</summary>
