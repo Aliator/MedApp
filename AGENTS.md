@@ -93,6 +93,7 @@ To add a feature end to end:
 
 - Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/procedures/patient-procedures/search` and `GET api/procedures/audit/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and in unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
+- **The exception is a feed:** a patient's timeline (`GET api/patients/{id}/timeline`) pages by cursor (keyset) rather than by page number, so entries added meanwhile don't shift the pages. It orders by `AtUtc` then `Id`, both descending; a page's `NextCursor` encodes its last entry's pair, and the next page starts after it (`PatientTimelineSearch`, `TimelineCursor`).
 - `GET api/patients` and `GET api/auth/users` return everything. Only the deprecated Blazor client uses them; prefer the search endpoints.
 
 ### Mapping
@@ -101,7 +102,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`
-  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`
+  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `TimelineMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
 - **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a generated password, the signed-in user's claims) may be built where they're made.
@@ -125,6 +126,17 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - **Definitions and templates in use are archived, not deleted;** deleting one that's in use is a 409. Patients with procedures can't be deleted (409).
 - Status numbers are stored, so never renumber `PatientProcedureStatus` or `PatientProcedureAuditAction`.
 
+### Patient timeline
+
+The patient page shows a **timeline**: everything that happened to the patient's procedures, in one feed, built from the procedure audit log (`MedApp.Application/Procedures/Timeline`).
+- **Endpoints, for staff:** `GET api/patients/{id}/timeline` (a page of entries, newest first, with `Kinds` and `ProcedureIds` filters and a `Before` cursor) and `GET api/patients/{id}/timeline/overview` (the open and blocked procedures, soonest due first and overdue flagged, and the procedures to filter by). Both are 404 for an unknown patient.
+- **Kinds** (`PatientTimelineKind`) group the audit actions for filtering: Created, Stages (started, finished, unlocked), Notes, Assignments, Blocks (to or from Blocked), Status, DueDates (a details edit that includes the due date), Details and Deleted. `PatientTimelineKinds` works them out the same way in memory and in SQL, reading markers in the entry's JSON details. They aren't stored, so they can be regrouped freely; a change to how `ProcedureAudit` writes details must keep its tests passing.
+- **What each person sees is decided on the server** (`GetPatientTimelineQuery.IsAdmin`, from the caller's role), because the audit log itself is admin-only and keeps old values:
+  - **Staff** see entries only for procedures that still exist. Each shows the kind, who, when and the procedure (a link), and only values the procedure page shows anyway: statuses, priorities, due dates, the template and who was assigned. **Never** free text from the log: no notes text (stage or procedure), no old or new titles, no block or cancel reasons; for those they get only which field changed.
+  - **Admins** see everything, including entries for deleted procedures (labelled as deleted, with the title they had when deleted) and the free-text values.
+  - Keep this when adding a field to `PatientTimelineEntryResponse`: a value from the audit details that the procedure page doesn't already show staff goes to admins only (`TimelineMapper`'s `PublicValueFields` is the allowlist for edited fields).
+- An entry carries the procedure's title now, or, once it's deleted, the title recorded in the entry.
+
 ### Notifications
 
 - A handler tells someone about something with `INotificationSender.SendAsync(new Notification { … })` (`MedApp.Application/Notifications/Common`), after its own change is saved. It stores the notification, then pushes it live to every page that user has open.
@@ -147,7 +159,7 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients (with their timeline, which shows staff less than admins: see [Patient timeline](#patient-timeline)), and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
