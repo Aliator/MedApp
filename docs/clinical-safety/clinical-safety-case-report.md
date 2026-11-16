@@ -79,7 +79,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Audit entries outlive deletion of the procedure (no foreign keys), and keep the username and title as they were | `PatientProcedureAuditEntry`; ADR-7 in `docs/architecture.md` |
 | Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
 
-**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times are shown an hour out in summer at `88dc1fa` (H-12; fix in PR #62).
+**Limits:** changes to templates and stage definitions aren't audited (H-13). Since roadmap step 7, patient changes (which fields, not their values) and reads are recorded in the activity log (H-03). Times are shown an hour out in summer at `88dc1fa` (H-12; fix in PR #62).
 
 ### Claim 3: Due dates mean the same thing everywhere
 
@@ -122,7 +122,7 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 |---|---|---|---|---|---|
 | H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner; date of birth in lists |
 | H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner; patient named in confirmations |
-| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | None (patient audit planned, step 7) |
+| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | Patient changes recorded (fields, not old values; step 7) |
 | H-04 | An overdue procedure is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Tasks; an unassigned-and-due view; local review process |
 | H-05 | A blocked procedure is forgotten | 3 | 2 | 2 | A "past due date" flag on blocked procedures; started work counted on My Tasks |
 | H-06 | A stage is finished in error | 2 | 2 | 2 | None |
@@ -138,7 +138,7 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 | H-16 | The screen shows out-of-date information | 2 | 2 | 2 | None |
 | H-17 | Stage instructions aren't read | 2 | 2 | 2 | None |
 | H-18 | A change is recorded under the wrong person's name | 2 | 2 | 2 | None |
-| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | None |
+| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
 
@@ -176,7 +176,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
 | Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. |
-| Patient changes and deletions aren't audited | H-03 | Known (risk S2). Planned, step 7. |
+| Patient changes and deletions are recorded without their old values | H-03 | Known (risk S2). Who, when and which fields since step 7; old values planned (step 7). |
 
 [For each release: list the open defects from the issue tracker that have a clinical impact.]
 

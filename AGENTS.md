@@ -75,7 +75,7 @@ MedApp.Application/<Area>/Queries/<Get...>/
 To add a feature end to end:
 1. Add or update the entity in `Domain`. Add or update its `IEntityTypeConfiguration` in `Infrastructure/Data/Configurations/<Area>/`, which `ApplyConfigurationsFromAssembly` picks up automatically.
 2. Add request/response DTOs in `Contracts/<Area>/{Requests,Responses}/`.
-3. Add the command/query, handler and validator in `Application`. MediatR handlers and validators are registered by assembly scanning, so no DI changes are needed for them.
+3. Add the command/query, handler and validator in `Application`. MediatR handlers and validators are registered by assembly scanning, so no DI changes are needed for them. A handler that reads or changes patient data records it in the activity log (see [Activity log and patient privacy](#activity-log-and-patient-privacy)).
 4. For a new repository, put the interface in `Application/<Area>/Repositories/` and the implementation in `Infrastructure/Data/Repositories/`. Register it in `AddRepositories()` in `MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs`.
 5. In the controller action, map the request into a command, call `mediator.Send(...)` and return the result. Keep business logic out of controllers.
 6. If the schema changed, add an EF migration and review it (see [Migrations](#migrations)). Migrations are **not** applied at startup.
@@ -92,8 +92,9 @@ To add a feature end to end:
 
 ### Lists
 
-- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/procedures/patient-procedures/search` and `GET api/procedures/audit/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
+- Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/procedures/patient-procedures/search`, `GET api/procedures/audit/search`, `GET api/activity/search` and `GET api/patients/retention-review` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and in unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
+  - The one exception is the retention review: SQL narrows it to patients last changed long enough ago, then the schedule's rules, which depend on each patient's age, sort and page it in memory (`SearchRetentionReviewHandler`).
 - `GET api/patients` and `GET api/auth/users` return everything. Only the deprecated Blazor client uses them; prefer the search endpoints.
 
 ### Mapping
@@ -135,6 +136,21 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - `GET api/notifications` returns the newest and the unread count. `POST api/notifications/read` marks them all read, and `POST api/notifications/{id}/read` marks one.
 - Being assigned a procedure is the only kind so far (not when you assign yourself). Kind numbers are stored, so never renumber `NotificationKind`. Notifications have no foreign keys, like the audit log.
 
+### Activity log and patient privacy
+
+Roadmap step 7. What it records and why is in `docs/governance/` (the data inventory, the DPIA and the rights procedure).
+- **The activity log** (`ActivityEntry`, written through `IActivityLog` in `MedApp.Application/Activity/Common`) is separate from the procedure audit. It records who read or changed patient data, sign-ins (and refused ones), sign-outs, and account and role changes, with the address the request came from.
+  - **Reads:** a handler that returns a patient's data calls `RecordViewsAsync`: `PatientViewed` for the patient's page, `PatientListed` for each patient in a list's results (patient search, retention review), `ProcedureViewed` for a procedure's page. A repeat of the same view by the same person within `Activity:ViewWindowMinutes` (5) adds nothing, so the log stays a readable size.
+  - **Changes to a patient:** build the entry with `activityLog.Entry(...)` and pass it to the repository method (`AddAsync`, `UpdateAsync`, `DeleteAsync`, `IPatientRecordRepository.SaveAsync`), which saves both in one `SaveChangesAsync`, so no change can miss the log.
+  - **Details never hold a patient's details or clinical text:** the names of the fields changed, never their values; the names of the search filters used, never the terms. Reasons an admin types are the only free text, and anonymising a patient replaces them.
+  - **Who:** the actor (user and address) comes from `IActivityContext` (`HttpActivityContext` in the API), not from the command. Procedure commands still take a `ProcedureActor`.
+  - Action numbers are stored, so never renumber `ActivityAction`. The log has no foreign keys, like the audit log.
+  - `GET api/activity/search` (admins) searches it; a patient's page shows its latest entries about them as the access report.
+- **Restricted and disputed records** (Articles 18 and 16): admins set them with a reason (`PUT api/patients/{id}/restriction` and `.../dispute`). A restricted or anonymised record can't be changed, nor can its procedures: `PatientRules.EnsureCanChange` (409), which `GetForUpdateOrThrowAsync` applies to every procedure change. A procedure's response says why in `ReadOnlyReason`, with every `Can...` flag false. Disputed is a banner only.
+- **Everything about a patient** is loaded by `IPatientRecordRepository` (`PatientRecordRepository`) for the subject access export (`GET api/patients/{id}/export`, admins, `no-store`, itself logged) and for anonymisation. **A new table that holds patient data must be added there,** so both cover it.
+- **Anonymisation** (`POST api/patients/{id}/anonymise`, admins, `PatientAnonymiser`) replaces the identifying details and free text with placeholders in place, across every table, and keeps the IDs and structure. It needs the patient's full name typed as confirmation and a reason, and it's refused while a procedure is under way or the record is restricted. Deleting a patient is unchanged.
+- **Retention** (`RetentionOptions`, the `Retention` section of `appsettings.json`; `RetentionSchedule`): `GET api/patients/retention-review` lists the records past their minimum period; an admin reviews, keeps (`POST api/patients/{id}/retention/keep`, with a reason and a review date up to two years ahead) or anonymises. **Nothing is ever deleted automatically.**
+
 ### Migrations
 
 - Migrations live in `MedApp.Infrastructure/Migrations/` with `MedAppDbContextModelSnapshot.cs`. They are a single linear history starting at `InitialCreate`. Always add a new migration on top, and never edit or delete one that has been applied to a database.
@@ -148,7 +164,7 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, the activity log, and a patient's export, restriction, dispute, anonymisation and retention review. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
@@ -225,6 +241,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - Put shared test data in `MedApp.UnitTests/Common/Constants/*TestConstants.cs`, and add new constants there rather than inlining magic values.
 - Use synthetic data only. This is a medical app, so never put realistic patient PII in tests, seeds or fixtures.
 - Procedure handler tests derive from `ProcedureHandlerTestBase` (mocked repository and username lookup, fixed clock), and build procedures with `ProceduresTestConstants.CreateProcedure`.
+- Handlers that write the activity log get a `RecordingActivityLog` (`_fixture.Inject<IActivityLog>(...)`), which makes entries as the real one does and keeps what's recorded, so tests can check the entries.
 
 ## CI
 

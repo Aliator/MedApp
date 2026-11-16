@@ -32,6 +32,22 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 - **A customisable home screen.** Let each person arrange their home screen from "widgets" they choose, move and resize: for example today's calendar, My Tasks, overdue work, recent notifications, and the admin insights charts. The layout is saved with their account, like their other settings, and admins can set a default for everyone. Moving and resizing needs a keyboard and click alternative to dragging (WCAG 2.5.7).
 - **Find accounts still using `DefaultPassword1`.** Accounts created before #53 got that published password, and may still have it; until this check exists, an admin should reset their passwords or ask their users to change them. Add a one-off check that tests each account's hash with Identity's `PasswordHasher.VerifyHashedPassword` (no side effects, and SQL can't do it because the hashes are salted), then for each match sets a generated password (or locks it), revokes its sessions and lists the usernames. As a `medapp-dev` tool for local databases, and as an admin report or API command (like `create-first-admin`) for deployed ones (PR #53 review, finding 1).
 
+## Privacy (the rest of roadmap step 7)
+
+The first part is built: the activity log and access report, the subject access export, restricted and disputed flags, anonymisation, the retention review, and clearing browser storage at sign-out (`AGENTS.md`, Activity log and patient privacy). Still to do, roughly in order of need (`docs/governance/README.md` has the full list):
+
+- **Automatic purging of operational data:** sessions and sign-in events at 12 months, notifications at 6 months, as a job that runs once across the API copies, logging counts. The activity log's own retention: its sign-in entries at 12 months, its patient entries with the patient's record.
+- **Note versions** in their own table, with the procedure audit pointing at them instead of copying notes into `Details` (DPIA risk 4), and the old values of patient edits.
+- **A tamper-evident activity log:** ledger tables, and streaming the log to the log workspace (step 5).
+- **Access reviews and alerts:** a periodic review of who can sign in, an alert when one account opens an unusual number of records, a "what has this person seen" report, and an `Auditor` role.
+- **The client's address behind proxies:** record the browser's address, not the ingress's or the page server's, by trusting forwarded headers from the ingress and passing the address through server rendering.
+- **Restriction hiding patients from lists** except for named roles; a second person approving an anonymisation.
+- **A clinician review step in the export,** to hold back what meets the serious harm test, and a PDF.
+- **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
+- **Saved searches that name a patient,** removed on anonymisation or destruction.
+- **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).
+- **Contact preferences** and a National Data Opt-out flag.
+
 ## Deployment
 
 - **Kubernetes, with Helm, Argo CD and Azure.** Run MedApp on Kubernetes, step by step. Done so far:

@@ -143,20 +143,22 @@
 **Causes:**
 - Any staff member can edit any patient, and the change overwrites the old values (`UpdatePatientHandler`).
 - Any staff member can permanently delete a patient who has no procedures (`DeletePatientHandler`).
-- Neither is audited: only procedures are (`docs/architecture.md`, risk S2).
+- Since roadmap step 7 (branch `feature/privacy-features`), both are recorded in the activity log, with who, when and which fields changed, but **not the old values** (the log holds no patient details by design), so what a field said before can't be recovered from it.
 
-**Effect.** All of that patient's procedures now show the new, wrong details. Nobody can tell when it changed or what it was. A deleted patient's record is gone.
+**Effect.** All of that patient's procedures now show the new, wrong details. An admin can see who changed which fields and when (the activity log, and the patient's access report), but not what they said before. A deleted patient's record is gone.
 
 **Possible harm.** Wrong-patient errors (H-01) on every procedure of that patient; a patient lost from follow-up. One patient; Considerable.
 
 **Existing controls:**
 - A patient with procedures can't be deleted (409; `DeletePatientHandler`).
 - Procedure audit entries keep the patient's ID, so procedures can still be traced to the patient row.
+- Patient creates, edits (the fields changed) and deletes are recorded in the activity log with the user, time and address, in the same save as the change (`UpdatePatientHandler`, `DeletePatientHandler`, `PatientRepository`; step 7).
+- A restricted record can't be edited or deleted, nor its procedures changed (`PatientRules`; step 7), and a disputed one carries a banner saying what the patient disputes.
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Audit patient changes** (create, edit, delete) with old and new values. Protective; **planned** (step 7); later. Rated 2 today, but the CSO may bring it forward.
+- **Audit patient changes** (create, edit, delete). Protective; **built** (step 7) for who, when and which fields. **Still planned:** keeping the old values (a version table, step 7); later. Rated 2 today, but the CSO may bring it forward.
 - **Make deleting a patient admin-only.** Protective; **planned** (step 2); later.
 - **Show "details changed on {date}"** on the patient banner for a recent change. Protective; **proposed**; later.
 
@@ -705,7 +707,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Causes:**
 - **Procedures:** an admin can delete a cancelled or archived procedure, with its stages and assignments (`DeletePatientProcedureHandler`). Its stage notes then survive only as text inside audit entries, which only admins can read.
-- **Patients:** any staff member can delete a patient without procedures (H-03).
+- **Patients:** any staff member can delete a patient without procedures (H-03); since step 7, the deletion is recorded in the activity log.
+- **Anonymisation (step 7):** an admin can anonymise a patient's record, which replaces their name, email and every note, procedure title and reason (in the record, its audit trail and notifications) with placeholders, and keeps only the year of birth. It's meant for records past their retention period. Done on the wrong patient, or too early, the clinical content is gone from the live system (backups keep it until they expire).
 
 **Effect.** The record of what was done, or of the patient, is no longer where staff look for it.
 
@@ -715,11 +718,14 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - Only cancelled or archived procedures can be deleted, only by admins, after a confirmation that names the procedure and patient (`ProcedureWorkflow.CanBeDeleted`; `ProcedurePage.tsx`).
 - The audit log keeps the deletion and every earlier change, including the old and new text of every notes save, with no foreign keys, so it outlives the procedure (`PatientProcedureAuditEntry`).
 - A patient with procedures can't be deleted.
+- Anonymising is admin-only; it needs the patient's full name typed, and a reason, which the activity log keeps with the admin's name; it's refused while any of the patient's procedures is under way or the record is restricted; the dialog shows the patient's name and date of birth, and says it can't be undone (`AnonymisePatientHandler`, `AnonymiseDialog`; step 7). An admin can export the whole record first (step 7).
+- The retention review lists only records past their minimum period, and nothing is deleted automatically (step 7).
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **planned** (step 7); later.
+- **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **partly built** (step 7: a review list from configurable periods, keep or anonymise, no automatic deletion); per-template classes and a destruction log **planned**; later.
+- **A second person to approve an anonymisation** (and a destruction), as the retention schedule's "approved by a named person" asks. Protective; **proposed**; later.
 - **Admin-only patient deletion.** Protective; **planned** (step 2); later.
 
 **At first live use:** Considerable, Low: **2**.

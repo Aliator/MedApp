@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
-| **Assessed** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed |
+| **Version** | 0.2 (draft), 16 November 2026: the measures roadmap step 7's privacy features put in place |
+| **Assessed** | MedApp on `main` as of 16 November 2026, with branch `feature/privacy-features` (roadmap step 7), and its Azure design (`deploy/azure`), which has not been deployed |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Before the first real patient data; then before each roadmap step that changes the processing (4, 5, 7, 8 and 9); and at least every 12 months |
@@ -15,7 +15,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 ## Summary
 
 - **A DPIA is mandatory.** MedApp is designed for processing health data, a special category, and across customers it's large scale (Article 35(3)(b)).
-- **Today's high risks:** any staff member can see any patient, and reads aren't recorded; sign-in is by password only; patient records can be deleted without trace; nothing is ever deleted on a schedule; there's no monitoring to notice a breach; backups have never been restored; and on Azure the app would use the database administrator's login.
+- **Today's high risks:** any staff member can see any patient (reads are now recorded, and admins can see who opened a record, but nothing restricts or alerts on it); sign-in is by password only; any staff member can still delete a patient with no procedures (now recorded in the activity log); nothing is ever deleted on a schedule; there's no monitoring to notice a breach; backups have never been restored; and on Azure the app would use the database administrator's login.
 - **Conclusion: MedApp must not hold real patient data until the measures marked "before go-live" in section 6 are in place.** That's roadmap steps 2, 4, 5 and 7, **plus the patient banner from step 6**, which together make it ready for a first pilot. The banner is in the gate because risk 8 (notes written on the wrong patient's record) stays high until it's built; the rest of step 6 isn't needed for the gate. With these measures, every risk in this assessment is reduced to low or medium, so **prior consultation with the ICO (Article 36) isn't expected to be needed.** If any high residual risk remains at go-live, including risk 8 if the banner isn't built, the processing must not start without consulting the ICO.
 
 ## Step 1: The need for a DPIA
@@ -35,7 +35,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
 - **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Admins assign work, unlock finished stages, read the audit log, and manage accounts.
 - **Sharing:** none outside the customer. Within the customer, every staff user can see every patient (section 5, risk 1).
-- **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Nothing is deleted on a schedule.
+- **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Admins can anonymise a patient's record in place (identifying details and free text replaced, the structure kept). Nothing is deleted on a schedule: records past their retention period are listed for an admin to review.
 - **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
 
@@ -82,10 +82,10 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 | **Does the processing achieve the purpose?** | Yes. Coordinating a procedure's stages needs the patient's identity, the procedure, and notes on each stage. |
 | **Is there a less intrusive way?** | Paper or spreadsheets hold the same data with weaker access control and no audit. A system without patient identity can't coordinate care for a person. |
 | **Minimisation** | **The patient record is deliberately small:** name, date of birth and email; no address, phone, NHS number or sex. The patient banner and identity checks that step 9 adds will need more, each justified then. **Free text isn't limited**, and the audit copies it (risks 3 and 4). |
-| **Accuracy** | Staff can edit patients and procedures. Finished stages lock, and only an admin can unlock them, which is audited. Patient edits aren't audited (risk 7). |
-| **Retention** | Proposed periods in [retention-schedule.md](retention-schedule.md), based on the Records Management Code. Not enforced (risk 5). |
+| **Accuracy** | Staff can edit patients and procedures. Finished stages lock, and only an admin can unlock them, which is audited. Patient edits are recorded in the activity log (which fields changed, not their values), and an admin can mark a record as disputed by the patient. |
+| **Retention** | Periods in [retention-schedule.md](retention-schedule.md), based on the Records Management Code. Clinical records past their period are listed for review (keep with a reason, or anonymise); operational data isn't purged yet (risk 5). |
 | **Transparency** | Template privacy notices for customers to give patients and staff ([privacy-notice-patients-template.md](privacy-notice-patients-template.md), [privacy-notice-staff-template.md](privacy-notice-staff-template.md)). |
-| **Rights** | Supported partly by the product and partly by hand today; planned in step 7 ([data-subject-rights.md](data-subject-rights.md)). |
+| **Rights** | Supported by the product: a subject access export, restriction and dispute flags, anonymisation; the clinician review of an export is by hand ([data-subject-rights.md](data-subject-rights.md)). |
 | **Processors** | The supplier, under an Article 28 agreement ([dpa-template.md](dpa-template.md)); Microsoft as a sub-processor ([sub-processors.md](sub-processors.md)). |
 | **International transfers** | None by the supplier; UK hosting ([international-transfers.md](international-transfers.md)). |
 | **Function creep** | The supplier commits to no use of its own. Any new purpose needs a DPIA update first. |
@@ -105,7 +105,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 The one exception is risk 18, scored low today because it can't happen while each customer has its own deployment; it's rescored at step 8.
 
-Likelihood is judged for MedApp **as it is today**, if it held real patient data.
+Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, before roadmap step 7's privacy features**, if it held real patient data. Step 6 gives the residual risk with the measures in place since, including step 7's (marked "In place (step 7)").
 
 | # | Risk to individuals | Source of the risk | Likelihood | Severity | Overall |
 |---|---|---|---|---|---|
@@ -146,12 +146,13 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Every API endpoint that reaches patient or account data requires a signed-in session and a role (`Staff` or `Admin`); only sign-in, sign-out and `whoami` don't; the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
 | Only admins can read the audit log | In place | `MedApp.API/Controllers/ProcedureAuditController.cs` |
 | Every change to a procedure is recorded with who and when | In place | `MedApp.Application/Procedures/Common/ProcedureChange.cs` |
-| **Record every read of patient data** (patient viewed, searched with the terms, procedure viewed, exported) | Planned, step 7. **Before go-live** | |
-| Access reports ("who has seen this patient", "what has this person seen"), an `Auditor` role, unusual-access alerts, periodic access reviews | Planned, steps 4 and 7. **Before go-live** (reports and review) | |
+| **Record every read of patient data** in the activity log: patient viewed, shown in search results, searched (the filters used and how many matched, not the terms), procedure viewed, exported; once per person every 5 minutes | In place (step 7) | `MedApp.Application/Activity/Common/ActivityLog.cs`; `GetPatientByIdHandler`, `SearchPatientsHandler`, `GetPatientProcedureByIdHandler`, `ExportPatientHandler` |
+| "Who has accessed this patient": the access report on the patient's page, and the activity log searchable by patient, user, address, action and date (admins) | In place (step 7) | `MedApp.Web/src/components/patients/PatientAccessReport.tsx`; `MedApp.Web/src/pages/activity/ActivityLogPage.tsx` |
+| "What has this person seen" as a report (today a search of the activity log by username), an `Auditor` role, unusual-access alerts, periodic access reviews, a tamper-evident (ledger) log | Planned, steps 4 and 7. **Before go-live** (periodic review) | |
 | Restrict access by site, team or care relationship | Planned, step 8 (sites); customers decide who gets accounts until then | |
 | Customer measures: accounts only for staff who need them; staff told that access is monitored; disciplinary policy | The customer's | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 
-**Residual risk:** now **high**; after step 7 **medium** (detectable and deterred, but still possible); after step 8 **low to medium**.
+**Residual risk:** now **medium** (reads are recorded and can be reported, so snooping is detectable and deterred, but still possible); after step 8 **low to medium**.
 
 ### Risk 2: account takeover
 
@@ -182,6 +183,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | The audit trail is admin-only and kept with the record | In place | As risk 1 |
+| Anonymising a patient replaces the copies of notes, titles and reasons in their audit entries with placeholders | In place (step 7) | `MedApp.Application/Patients/Common/PatientAnonymiser.cs` |
 | Keep note versions in their own table, and have the audit refer to versions, so correction, retention and erasure apply in one place | Planned, step 7. **Before go-live** | |
 
 **Residual risk:** now **high**; after **low**.
@@ -191,7 +193,8 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | A retention schedule | Draft | [retention-schedule.md](retention-schedule.md) |
-| A retention engine: a due-for-review list, admin approval, destruction or anonymisation, a destruction log; short fixed periods for sessions and notifications | Planned, step 7. **Before go-live** (sessions and notifications at least; clinical records won't reach their minimum period for years) | |
+| A due-for-review list from configurable periods (adults 8 years, children to 25 or 26), where an admin keeps a record with a reason and a review date, or anonymises it; nothing is deleted automatically | In place (step 7) | `MedApp.Application/Patients/Common/RetentionSchedule.cs`; `MedApp.Web/src/pages/retention/RetentionReviewPage.tsx` |
+| The rest of the retention engine: retention classes per template, destruction, a destruction log, legal hold; short fixed periods for sessions, sign-in events and notifications | Planned, step 7. **Before go-live** (sessions and notifications at least; clinical records won't reach their minimum period for years) | |
 | Backups expire on a fixed cycle | Planned, step 5 | |
 
 **Residual risk:** now **high**; after **low**.
@@ -202,9 +205,11 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 |---|---|---|
 | Staff can view and correct patients and procedures | In place | |
 | An interim, documented manual procedure for exports, run by the supplier on the customer's written instruction | Procedure written | [data-subject-rights.md](data-subject-rights.md) |
-| A subject access export (JSON and PDF), restriction and dispute flags, archiving in place of deletion, an erasure workflow | Planned, step 7. **Before go-live** (export) | |
+| A subject access export of everything held (details, procedures, stages, notes, assignments, the procedure history, the access log, notifications) as JSON and a printable page, itself recorded | In place (step 7) | `GET api/patients/{id}/export`; `MedApp.Web/src/pages/patients/PatientExportPage.tsx` |
+| Restricted (no changes, with a banner) and disputed (a banner) flags, set by admins with a reason; anonymisation with a typed confirmation and a reason, refused while procedures are under way | In place (step 7) | `SetPatientFlagHandler`, `PatientRules`, `AnonymisePatientHandler` |
+| A clinician review step in the export for the serious harm test; archiving in place of deletion; restriction hiding the patient from lists | Planned, step 7 | |
 
-**Residual risk:** now **medium** with the manual procedure; after **low**.
+**Residual risk:** now **low** (the clinician review is done by hand before an export is given out); after **low**.
 
 ### Risk 7: lost or untraced changes to patients and accounts
 
@@ -213,10 +218,11 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | A patient with procedures can't be deleted | In place | `MedApp.Application/Patients/Commands/DeletePatient/DeletePatientHandler.cs` |
 | Deleting a user needs the admin's own password | In place | `AuthController.cs` |
 | Make patient deletion admin-only | Planned, step 2. **Before go-live** | |
-| Audit patient creates, edits (before and after) and deletes, and account and role changes; replace deletion with archiving | Planned, step 7. **Before go-live** | |
+| Record patient creates, edits (the fields changed; not their values, so the log holds no patient details) and deletes, and account, password and role changes, in the activity log, with who and from which address | In place (step 7) | `CreatePatientHandler`, `UpdatePatientHandler`, `DeletePatientHandler`; the account and role handlers in `MedApp.Application/Authentication` |
+| Keep the old values of an edit in a version table; replace deletion with archiving | Planned, step 7 | |
 | Backups to recover from a mistaken delete | In place in design (7 days); 35 days planned, step 5 | `deploy/azure/main.bicep` |
 
-**Residual risk:** now **high**; after **low**.
+**Residual risk:** now **medium** (every change is recorded with who and when, though an old value can't be recovered from the log); after **low**.
 
 ### Risk 8: wrong patient
 
@@ -245,12 +251,12 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Rendered pages sent with `Cache-Control: no-store`; the password responses too | In place | `MedApp.API/ServerRendering/SsrPages.cs`; `AuthController.cs` |
 | Signing out clears the query cache; the session cookie is HttpOnly and expires after 8 hours | In place | `MedApp.Web/src/auth/auth.ts` |
 | An idle timeout (30 minutes to start) with a warning | Planned, step 2. **Before go-live** | |
-| Clear `localStorage` at sign-out | Planned, step 7. **Before go-live** | |
-| Keep identifying filters (name, email, date of birth) out of the URL, in session storage or the router's state, while page, sort and status stay in it | Planned, step 7. **Before go-live** | `MedApp.Web/src/pages/listSearch.ts` |
+| Clear the app's `localStorage` and `sessionStorage` at sign-out, but for the purely visual settings; the account keeps the rest for the next sign-in | In place (step 7) | `MedApp.Web/src/app/settingsStore.ts` (`clearStorageAtSignOut`) |
+| Keep identifying filters (name, email, date of birth) out of the URL | **Not planned:** the product owner decided on 16 November 2026 to keep list filters in the URL, because shareable list links are a feature. The customer measures below carry this part of the risk | `MedApp.Web/src/pages/listSearch.ts` |
 | Staff rules: sign out and lock the screen; don't search by patient name on a shared computer where others use the same browser profile | Template | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | Customer measures: screen locks, no shared logins, separate browser profiles or history cleared on shared computers | The customer's | |
 
-**Residual risk:** now **high**; after **low**. History already recorded before step 7 stays in browsers until it's cleared or expires.
+**Residual risk:** now **high** (no idle timeout yet); after **medium**, because patient searches stay in the browser's history unless the customer's measures (separate profiles, cleared history) are followed.
 
 ### Risk 11: web attacks
 

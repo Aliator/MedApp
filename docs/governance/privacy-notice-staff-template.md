@@ -19,7 +19,7 @@
 > **What MedApp holds about you:**
 > - **Your account:** your username, your roles (staff or admin), and your password, stored only in a scrambled form (a "hash") that nobody can read back.
 > - **Your sign-ins:** each time you sign in, the time, your device's IP address, and your browser and operating system. MedApp also counts failed sign-ins, and locks an account for 5 minutes after 5 failures.
-> - **What you do:** every change you make to a procedure is recorded with your name and the time: for example starting or finishing a stage, the notes you write (old and new text), and status changes. [Once MedApp records access: which patient records you open and the searches you make.] *Include the sentence in brackets only once MedApp records access to records (roadmap step 7).*
+> - **What you do:** every change you make to a procedure is recorded with your name and the time: for example starting or finishing a stage, the notes you write (old and new text), and status changes. MedApp also records which patient records and procedures you open, the patients your searches show you and which search fields you used (not what you typed), changes to patients' details, and when you sign in and out, with your computer's network address.
 > - **Your settings:** your display preferences, accessibility settings and saved searches. They're stored with your account so they follow you between computers, and in your browser.
 > - **Your notifications:** for example when someone assigns you a procedure.
 >
@@ -48,6 +48,6 @@ Give these to every member of staff with a MedApp account. They support the DPIA
 - **Write only what's needed** in notes, titles and reasons: no unnecessary details about other people, and no identifying details in procedure titles beyond what's needed.
 - **Sign out** when you leave a shared computer, and lock your screen when you step away.
 - **Don't save searches by patient name** on a shared computer.
-- **Patient searches stay in the browser's history** (the search terms are part of the page address) until MedApp keeps them out of it (roadmap step 7). On a shared computer, use your own browser profile, or clear the history when you finish. *Delete this rule once step 7 is done.*
+- **Patient searches stay in the browser's history** (the search terms are part of the page address, so lists can be shared as links). On a shared computer, use your own browser profile, or clear the history when you finish. Signing out removes your saved searches and pins from the browser.
 - **Don't copy patient information** out of MedApp into email, messages, documents or AI tools.
 - **Report** anything that looks wrong (records you shouldn't see, changes you didn't make) to [contact] at once.
