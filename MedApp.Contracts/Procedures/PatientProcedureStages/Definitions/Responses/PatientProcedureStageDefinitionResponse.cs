@@ -6,6 +6,13 @@ public sealed class PatientProcedureStageDefinitionResponse
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Instructions { get; set; } = string.Empty;
+
+    /// <summary>The SNOMED CT concept the stage records, or null.</summary>
+    public string? SnomedCode { get; set; }
+
+    /// <summary>Its display term, or null.</summary>
+    public string? SnomedTerm { get; set; }
+
     public bool IsArchived { get; set; }
 
     /// <summary>How many templates use it. A definition in use by a template or procedure can only be archived.</summary>

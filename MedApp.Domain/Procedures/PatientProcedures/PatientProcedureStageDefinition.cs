@@ -11,6 +11,15 @@ public sealed class PatientProcedureStageDefinition
 
     public string Instructions { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The SNOMED CT concept the stage records (its SCTID), or null. Typed by an admin and checked for format only
+    /// (<see cref="Terminology.SnomedCt"/>): there's no terminology server.
+    /// </summary>
+    public string? SnomedCode { get; set; }
+
+    /// <summary>The concept's display term, as the admin typed it; set exactly when <see cref="SnomedCode"/> is.</summary>
+    public string? SnomedTerm { get; set; }
+
     /// <summary>Archived definitions can't be added to templates. A definition in use is archived, never deleted.</summary>
     public bool IsArchived { get; set; }
 }

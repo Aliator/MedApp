@@ -34,7 +34,7 @@ Every organisation with access to NHS patient data and systems must complete the
 | A data flow map and information asset register | Draft | [data-inventory.md](data-inventory.md) |
 | Lawful bases recorded | Draft | [roles-and-lawful-bases.md](roles-and-lawful-bases.md) |
 | Rights requests handled on time | Draft | [data-subject-rights.md](data-subject-rights.md); MedApp has a subject access export, restriction and dispute flags, and anonymisation (step 7); the clinician review is by hand |
-| Data quality and accuracy | Have (partly) | Validation on every command; finished stages lock; unlocks audited |
+| Data quality and accuracy | Have (partly) | Validation on every command, including the NHS number's check digit, and no NHS number on two patients (branch `feature/nhs-integrations`); finished stages lock; unlocks audited. Gap: NHS numbers aren't traced with PDS (step 9) |
 | Retention schedule, and disposal with a record of destruction | Draft; partly enforced: a review list, keep or anonymise, each logged (step 7); destruction and purging a gap | [retention-schedule.md](retention-schedule.md) |
 | National Data Opt-out compliance | Have (not applicable) | [nhs-context.md](nhs-context.md), section 2: direct care only |
 

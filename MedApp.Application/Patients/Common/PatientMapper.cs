@@ -16,6 +16,7 @@ public static class PatientMapper
         patient.DateOfBirth,
         patient.Email)
     {
+        NhsNumber = patient.NhsNumber,
         IsRestricted = patient.RestrictedAtUtc is not null,
         RestrictionReason = patient.RestrictionReason,
         RestrictedAtUtc = patient.RestrictedAtUtc,

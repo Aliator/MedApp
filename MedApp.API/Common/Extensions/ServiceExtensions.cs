@@ -1,6 +1,7 @@
 ﻿using FluentValidation.AspNetCore;
 using MedApp.API.Common.Authentication;
 using MedApp.API.Common.RateLimiting;
+using MedApp.API.Fhir;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
@@ -8,6 +9,7 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MedApp.API.Common.Extensions;
 
@@ -80,6 +82,9 @@ public static class ServiceExtensions
             .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(
                 SessionAuthenticationDefaults.Scheme,
                 _ => { });
+
+        // A refused FHIR request gets an OperationOutcome; every other path is refused as before.
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, FhirAuthorizationResultHandler>();
 
         services.AddAuthorization(options =>
         {

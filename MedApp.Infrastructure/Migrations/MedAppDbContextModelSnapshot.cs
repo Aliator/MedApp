@@ -202,6 +202,11 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("NhsNumber")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
                     b.Property<DateTime?>("RestrictedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -223,6 +228,10 @@ namespace MedApp.Infrastructure.Migrations
                         .HasColumnType("rowversion");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NhsNumber")
+                        .IsUnique()
+                        .HasFilter("[NhsNumber] IS NOT NULL");
 
                     b.ToTable("Patients", (string)null);
                 });
@@ -418,6 +427,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("PatientProcedureId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(18)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(18)");
+
+                    b.Property<string>("SnomedTerm")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<Guid>("StageDefinitionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -465,6 +483,15 @@ namespace MedApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(18)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(18)");
+
+                    b.Property<string>("SnomedTerm")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.HasKey("Id");
 

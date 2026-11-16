@@ -1,4 +1,5 @@
 ﻿using MedApp.API.Common.Authentication;
+using MedApp.API.Fhir;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
@@ -62,7 +63,9 @@ public static class ApplicationBuilderExtensions
         app.MapControllers();
         app.MapHub<NotificationsHub>(NotificationsHub.Path);
 
-        // An /api path that matches no endpoint is a 404, not the React app's index.html.
+        // An /api path that matches no endpoint is a 404, not the React app's index.html; under the FHIR API, a 404
+        // OperationOutcome, as FHIR clients expect.
+        app.Map("/api/fhir/{**path}", FhirJson.NotFoundAsync);
         app.Map("/api/{**path}", () => Results.NotFound());
 
         // Any other path (that isn't a file) is one of the app's pages (e.g. /patients/{id}): rendered on the server

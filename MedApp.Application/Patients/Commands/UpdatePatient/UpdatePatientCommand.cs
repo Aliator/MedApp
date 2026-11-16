@@ -8,5 +8,7 @@ public sealed record UpdatePatientCommand(
     string? FirstName,
     string? LastName,
     DateOnly? DateOfBirth,
-    string? Email
+    string? Email,
+    // Null leaves it as it is; empty (or spaces) removes it.
+    string? NhsNumber = null
 ) : IRequest<PatientResponse?>;

@@ -39,6 +39,18 @@ describe('PatientsListPage', () => {
     expect(screen.getByText('60 matching patients')).toBeInTheDocument();
   });
 
+  it('shows each NHS number grouped, or a dash for none, and searches by NHS number', async () => {
+    // Synthetic test number (the 999 range is never issued to real patients).
+    const {fetch} = renderList({nhs: '999 000'}, pageOf([{...freya, nhsNumber: '9990000018'}, priya], 1));
+
+    expect(await screen.findByText('999 000 0018')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', {name: 'NHS Number'})).toBeInTheDocument();
+    expect(screen.getAllByRole('row')[2]).toHaveTextContent('—');
+    expect(calls(fetch)).toEqual(['GET /api/patients/search?PageSize=10&Page=1&Sort=name&Ascending=true&NhsNumber=999000']);
+    expect(searchBar()).toHaveTextContent(/NHS number: contains\s*999 000/);
+    expect(screen.getByText('1 matching patient')).toBeInTheDocument();
+  });
+
   it('changes page, and goes back to page 1 when the sort changes', async () => {
     const {user, onSearchChange} = renderList({last: 'Ahmed'});
 

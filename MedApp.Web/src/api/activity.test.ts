@@ -18,8 +18,8 @@ describe('activityActionLabel', () => {
 
 describe('describeActivity', () => {
   it('names the fields an edit changed, never their values', () => {
-    expect(describe_('PatientUpdated', {fields: ['firstName', 'email', 'dateOfBirth', 'somethingElse']})).toBe(
-      'Changed first name, email, date of birth, somethingElse',
+    expect(describe_('PatientUpdated', {fields: ['firstName', 'email', 'dateOfBirth', 'nhsNumber', 'somethingElse']})).toBe(
+      'Changed first name, email, date of birth, NHS number, somethingElse',
     );
     expect(describe_('PatientUpdated', {fields: []})).toBe('Nothing changed');
     expect(describe_('PatientUpdated', {})).toBe('Nothing changed');
@@ -31,6 +31,18 @@ describe('describeActivity', () => {
     );
     expect(describe_('PatientsSearched', {filters: ['all'], resultCount: 40})).toBe('All patients: 40 found');
     expect(describe_('PatientsSearched', {filters: ['email']})).toBe('By email');
+    expect(describe_('PatientsSearched', {filters: ['nhsNumber'], resultCount: 1})).toBe('By NHS number: 1 found');
+  });
+
+  it('says when a search came through the FHIR API', () => {
+    expect(describe_('PatientsSearched', {filters: ['nhsNumber'], resultCount: 0, via: 'fhir'})).toBe('By NHS number (FHIR API): 0 found');
+  });
+
+  it('says whether an NHS number look-up found anyone', () => {
+    expect(activityActionLabel('DemographicsLookedUp')).toBe('NHS number looked up');
+    expect(describe_('DemographicsLookedUp', {found: true})).toBe('Found');
+    expect(describe_('DemographicsLookedUp', {found: false})).toBe('Nobody found');
+    expect(describe_('DemographicsLookedUp', {})).toBe('');
   });
 
   it('says why a sign-in was refused', () => {

@@ -60,6 +60,8 @@ public sealed class CreatePatientProcedureHandler(
                     Name = map.StageDefinition.Name,
                     Description = map.StageDefinition.Description,
                     Instructions = map.StageDefinition.Instructions,
+                    SnomedCode = map.StageDefinition.SnomedCode,
+                    SnomedTerm = map.StageDefinition.SnomedTerm,
                     CreatedAt = now,
                     LastUpdated = now
                 })
@@ -77,6 +79,6 @@ public sealed class CreatePatientProcedureHandler(
 
         await repository.AddAsync(procedure, change.AuditEntries, cancellationToken);
 
-        return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, ProcedureMapper.PatientName(patient));
+        return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, patient: patient);
     }
 }
