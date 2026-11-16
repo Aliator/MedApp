@@ -47,6 +47,10 @@ public sealed class PatientProcedureStageConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.IsLocked)
             .HasDefaultValue(false);
 
+        // Copied from the stage definition when the procedure is created.
+        builder.Property(x => x.VisitRequirement)
+            .HasDefaultValue(VisitRequirement.None);
+
         builder.HasOne(x => x.PatientProcedure)
             .WithMany(x => x.Stages)
             .HasForeignKey(x => x.PatientProcedureId)

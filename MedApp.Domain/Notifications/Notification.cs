@@ -23,6 +23,9 @@ public sealed class Notification
     /// <summary>The procedure it's about, if any, for a link to it.</summary>
     public Guid? ProcedureId { get; init; }
 
+    /// <summary>The appointment it's about, if any, for a link to it.</summary>
+    public Guid? AppointmentId { get; init; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     /// <summary>When the user marked it read; null while unread.</summary>

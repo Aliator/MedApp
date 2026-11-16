@@ -21,6 +21,9 @@ public sealed class PatientProcedureStage
     public string Description { get; set; } = string.Empty;
     public string Instructions { get; set; } = string.Empty;
 
+    /// <summary>Copied from the stage definition: whether the stage involves a visit (an appointment).</summary>
+    public VisitRequirement VisitRequirement { get; set; }
+
     /// <summary>The staff member's notes for this stage, editable until it's finished (or while an admin has it unlocked).</summary>
     public string Notes { get; set; } = string.Empty;
 

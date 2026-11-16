@@ -11,6 +11,9 @@ public sealed class PatientProcedureStageDefinition
 
     public string Instructions { get; set; } = string.Empty;
 
+    /// <summary>Whether the stage involves a visit; copied onto each procedure's stage when it's created.</summary>
+    public VisitRequirement VisitRequirement { get; set; }
+
     /// <summary>Archived definitions can't be added to templates. A definition in use is archived, never deleted.</summary>
     public bool IsArchived { get; set; }
 }
