@@ -22,7 +22,7 @@
 
 - **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
 - **The safety position at `88dc1fa`:**
-  - 21 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
+  - 22 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
   - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
   - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
@@ -79,7 +79,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Audit entries outlive deletion of the procedure (no foreign keys), and keep the username and title as they were | `PatientProcedureAuditEntry`; ADR-7 in `docs/architecture.md` |
 | Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
 
-**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
+**Limits:** changes to templates and stage definitions aren't audited (H-13). Since roadmap step 7, patient changes (which fields, not their values) and reads are recorded in the activity log (H-03). Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
 
 ### Claim 3: Due dates mean the same thing everywhere
 
@@ -122,7 +122,7 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 |---|---|---|---|---|---|
 | H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner; date of birth in lists |
 | H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner; patient named in confirmations |
-| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | None (patient audit planned, step 7) |
+| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | Patient changes recorded (fields, not old values; step 7) |
 | H-04 | An overdue procedure is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Tasks; an unassigned-and-due view; local review process |
 | H-05 | A blocked procedure is forgotten | 3 | 2 | 2 | A "past due date" flag on blocked procedures; started work counted on My Tasks |
 | H-06 | A stage is finished in error | 2 | 2 | 2 | None |
@@ -138,9 +138,10 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 | H-16 | The screen shows out-of-date information | 2 | 2 | 2 | None |
 | H-17 | Stage instructions aren't read | 2 | 2 | 2 | None |
 | H-18 | A change is recorded under the wrong person's name | 2 | 2 | 2 | None |
-| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | None |
+| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
+| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
 
 [CSO: confirm or change each rating, and record the reasons for any change.]
 
@@ -176,7 +177,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
 | Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. Sessions now end when a password is changed or reset, and an admin can sign a user out everywhere (`feature/security-baseline`, not yet merged). |
-| Patient changes and deletions aren't audited | H-03 | Known (risk S2). Planned, step 7. |
+| Patient changes and deletions are recorded without their old values | H-03 | Known (risk S2). Who, when and which fields since step 7; old values planned (step 7). |
 
 [For each release: list the open defects from the issue tracker that have a clinical impact.]
 

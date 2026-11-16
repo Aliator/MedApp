@@ -24,7 +24,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > Your information is stored in the UK. [Company name] and its hosting provider, Microsoft, can reach it only to run and support the system, under contracts that bind them to our instructions and to confidentiality. [Company name]'s support staff look at records only when we ask them to, under a written policy. In rare cases Microsoft's support engineers may do so from outside the UK, under the safeguards UK law requires.
 >
-> In our organisation, our staff who have a MedApp account can see your record. [We record who looks at your record, and we check these records regularly.] *Include the sentence in brackets only once MedApp records access to records (roadmap step 7).*
+> In our organisation, our staff who have a MedApp account can see your record. [We record who looks at your record, and we check these records regularly.] *MedApp records access to records (roadmap step 7). Include the sentence in brackets once your organisation checks those records regularly.*
 
 ## Section B: a full notice
 

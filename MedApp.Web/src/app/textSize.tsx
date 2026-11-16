@@ -11,7 +11,7 @@ export const TEXT_SIZES = [
 
 export type TextSize = (typeof TEXT_SIZES)[number]['value'];
 
-const STORAGE_KEY = defineSetting('medapp.textSize');
+const STORAGE_KEY = defineSetting('medapp.textSize', {keepOnSignOut: true});
 
 function parseTextSize(stored: string | null): TextSize {
   return TEXT_SIZES.find((size) => size.value === stored)?.value ?? 'standard';

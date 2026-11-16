@@ -90,6 +90,8 @@ public sealed class DemoDataTools
             await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
             // Children before parents: procedure → patient and stage/map → definition don't cascade.
             await db.PatientProcedureAuditEntries.ExecuteDeleteAsync(cancellationToken);
+            // The activity log is about the patients and accounts being wiped, so it goes with them.
+            await db.ActivityEntries.ExecuteDeleteAsync(cancellationToken);
             await db.PatientProcedureAssignments.ExecuteDeleteAsync(cancellationToken);
             await db.PatientProcedureStages.ExecuteDeleteAsync(cancellationToken);
             await db.PatientProcedures.ExecuteDeleteAsync(cancellationToken);

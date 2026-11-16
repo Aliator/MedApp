@@ -4,7 +4,9 @@ using MedApp.API.Common.RateLimiting;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Notifications.Common;
+using MedApp.Application.Patients.Common;
 using Microsoft.AspNetCore.Authentication;
 
 namespace MedApp.API.Common.Extensions;
@@ -49,6 +51,13 @@ public static class ServiceExtensions
 
         services.AddSingleton<ISessionCookieService, SessionCookieService>();
         services.AddApiAuthentication();
+
+        // The activity log's actor is the request's signed-in user and address; its settings, and the retention
+        // schedule's periods, come from configuration.
+        services.AddHttpContextAccessor();
+        services.AddScoped<IActivityContext, HttpActivityContext>();
+        services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
+        services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
 
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.
         services.AddOptions<SecurityHeadersOptions>().BindConfiguration(SecurityHeadersOptions.Section);

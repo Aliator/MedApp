@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {json, mockFetch, renderApp, renderWithApp} from '../../test/render';
+import {calls, json, mockApi, mockFetch, renderApp, renderWithApp} from '../../test/render';
 import {LoginPage, parseLoginSearch} from './LoginPage';
 
 describe('LoginPage', () => {
@@ -50,6 +50,37 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/procedures'));
+  });
+
+  it("brings back the account's settings first (signing out cleared them here), so it opens the account's start page", async () => {
+    mockApi({
+      'POST /api/auth/login': () => json({sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'}),
+      'GET /api/auth/whoami': () => json({isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']}),
+      'GET /api/auth/me/settings': () => json({settings: JSON.stringify({'medapp.startPage': 'patients'})}),
+    });
+    const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-admin');
+    await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
+    expect(localStorage.getItem('medapp.startPage')).toBe('patients');
+  });
+
+  it("doesn't ask for the settings of someone who must change their password first", async () => {
+    const fetch = mockApi({
+      'POST /api/auth/login': () => json({sessionId: '00000000-0000-0000-0000-000000000001', expiresAtUtc: '2030-01-01T00:00:00Z'}),
+      'GET /api/auth/whoami': () => json({isAuthenticated: true, name: 'test-new-user', roles: ['User'], mustChangePassword: true}),
+    });
+    const {user} = renderWithApp(<LoginPage />, {path: '/login'});
+
+    await user.type(await screen.findByLabelText(/username/i), 'test-new-user');
+    await user.type(screen.getByLabelText(/^password/i), 'Synthetic-Passw0rd');
+    await user.click(screen.getByRole('button', {name: /sign in/i}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('GET /api/auth/whoami'));
+    expect(calls(fetch)).not.toContain('GET /api/auth/me/settings');
   });
 
   it.each([

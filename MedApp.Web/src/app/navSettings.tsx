@@ -1,5 +1,5 @@
 import {createContext, useCallback, useContext, useMemo, type ReactNode} from 'react';
-import {defineSetting, useAppSetting} from './settingsStore';
+import {appSettings, defineSetting, useAppSetting} from './settingsStore';
 
 /**
  * How long the pointer rests on a folded side nav icon (a half view) before its row comes out (Account Settings,
@@ -51,6 +51,13 @@ const NavSettingsContext = createContext<NavSettingsContextValue | null>(null);
 
 const delayMs = (delay: FlyoutDelay) => FLYOUT_DELAYS.find((option) => option.value === delay)!.ms;
 const startPath = (page: StartPage) => START_PAGES.find((option) => option.value === page)!.path;
+
+/**
+ * Where sign-in opens, from the settings as they are now (outside React): for signing in, once the account's
+ * settings are loaded, since signing out clears them from the browser.
+ */
+export const currentStartPagePath = (): StartPath =>
+  START_PAGES.find((option) => option.value === appSettings.get(START_PAGE_KEY))?.path ?? '/';
 
 /**
  * How the side nav behaves (Account Settings), kept in this browser: whether its clicks close an open half view

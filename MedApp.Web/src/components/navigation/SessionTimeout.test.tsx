@@ -119,7 +119,9 @@ describe('SessionTimeout', () => {
     expect(await within(openDialog()!).findByText('Your session could not be extended. Please try again.')).toBeInTheDocument();
   });
 
-  it('goes to the login page, saying why, once the session has ended', async () => {
+  it('goes to the login page, saying why, once the session has ended, clearing the storage as signing out does', async () => {
+    localStorage.setItem('medapp.favourites', '{}');
+    localStorage.setItem('medapp.colorMode', 'dark');
     let answers = 0;
     mockApi({[SESSION]: () => (answers++ === 0 ? session(30) : unauthorized())});
     const {router} = renderTimeout();
@@ -130,6 +132,8 @@ describe('SessionTimeout', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(router.state.location.search).toEqual({expired: true});
+    await waitFor(() => expect(localStorage.getItem('medapp.favourites')).toBeNull());
+    expect(localStorage.getItem('medapp.colorMode')).toBe('dark');
   });
 
   it('ends it too when the check at the end fails some other way, after trying again', async () => {

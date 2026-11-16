@@ -48,7 +48,9 @@ public sealed class IdentityAuthenticationServiceTests
 
         var act = async () => await _service.ValidateCredentialsAsync(user.UserName!, AuthTestConstants.Passwords[0]);
 
-        (await act.Should().ThrowAsync<AccountLockedOutException>()).Which.MinutesLeft.Should().Be(5);
+        var thrownLocked = (await act.Should().ThrowAsync<AccountLockedOutException>()).Which;
+        thrownLocked.MinutesLeft.Should().Be(5);
+        thrownLocked.UserId.Should().Be(user.Id, "the activity log records which account was tried");
         _userManager.Verify(u => u.CheckPasswordAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()), Times.Never);
         _userManager.Verify(u => u.AccessFailedAsync(It.IsAny<ApplicationUser>()), Times.Never);
     }
@@ -74,7 +76,7 @@ public sealed class IdentityAuthenticationServiceTests
 
         var act = async () => await _service.ValidateCredentialsAsync(user.UserName!, AuthTestConstants.Passwords[0]);
 
-        await act.Should().ThrowAsync<InvalidCredentialsException>();
+        (await act.Should().ThrowAsync<InvalidCredentialsException>()).Which.UserId.Should().Be(user.Id);
         _userManager.Verify(u => u.AccessFailedAsync(user), Times.Once);
         _userManager.Verify(u => u.ResetAccessFailedCountAsync(It.IsAny<ApplicationUser>()), Times.Never);
     }
@@ -89,8 +91,9 @@ public sealed class IdentityAuthenticationServiceTests
 
         var act = async () => await _service.ValidateCredentialsAsync(user.UserName!, AuthTestConstants.Passwords[0]);
 
-        (await act.Should().ThrowAsync<AccountLockedOutException>())
-            .Which.Message.Should().Be("This account is locked after too many wrong passwords. Try again in 5 minutes.");
+        var thrown = (await act.Should().ThrowAsync<AccountLockedOutException>()).Which;
+        thrown.Message.Should().Be("This account is locked after too many wrong passwords. Try again in 5 minutes.");
+        thrown.UserId.Should().Be(user.Id);
         _userManager.Verify(u => u.AccessFailedAsync(user), Times.Once);
     }
 
@@ -117,7 +120,7 @@ public sealed class IdentityAuthenticationServiceTests
                 AuthTestConstants.Usernames[0],
                 AuthTestConstants.Passwords[0]);
 
-        await act.Should().ThrowAsync<InvalidCredentialsException>();
+        (await act.Should().ThrowAsync<InvalidCredentialsException>()).Which.UserId.Should().BeNull();
     }
 
     [Test]
