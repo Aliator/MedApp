@@ -32,9 +32,9 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > **Who we are.** [Customer name], [address], is responsible for your information (the "controller"). Our data protection officer is [DPO name], [DPO contact]. [Our Caldicott Guardian is [name].]
 >
-> **What we hold about you.** Your name, date of birth and email address; the procedures you are having with us, and their dates and progress; and notes our staff write about your care. [Add anything else you hold in other systems.]
+> **What we hold about you.** Your name, date of birth and email address, and your NHS number [if you record it]; the procedures you are having with us, and their dates and progress; and notes our staff write about your care. [Add anything else you hold in other systems.]
 >
-> **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you].
+> **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you]. [*Only once MedApp is connected to it:* We may check your name and date of birth against the NHS's national record of patients' details (the Personal Demographics Service), using your NHS number.]
 >
 > **Why we use it.** To provide and coordinate your care, to keep an accurate record of it, and to make sure the right staff do the right things at the right time.
 >

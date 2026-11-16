@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-04, intended purpose and qualification as a medical device |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56), reassessed for branch `feature/nhs-integrations` (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes on stage definitions and a demographics lookup) |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code and `docs/architecture.md`. Not yet reviewed by a person. |
 | **Decision owner** | [Manufacturer's accountable owner] |
@@ -20,6 +20,7 @@ This document sets out what MedApp is for, and whether that makes it a medical d
 - **Why:** it records and coordinates the steps of a procedure that staff have chosen. It doesn't diagnose, monitor, calculate, score, prioritise, triage or recommend anything from patient data. In the MHRA's words, it "just follows the path of a procedure/treatment - there are no decisions".
 - **It is still health IT that supports direct care.** Not being a device doesn't take it out of clinical risk management. DCB0129 applies to the manufacturer, and DCB0160 to each organisation that deploys it.
 - **It can change.** The decision holds only while the product keeps to its intended purpose. The [conditions that would change it](#what-would-change-the-decision) are listed below, and any feature that meets one triggers a new assessment before it's merged.
+- **Reassessed for branch `feature/nhs-integrations`:** the NHS number and its check, the patient banner, the read-only FHIR API, SNOMED CT codes on stage definitions and the demographics (PDS) lookup add no calculation, decision support or clinical logic, so **the decision is unchanged** ([below](#reassessment-the-nhs-number-fhir-snomed-ct-and-pds)).
 - **Status:** provisional. The accountable owner signs it, and the Clinical Safety Officer (CSO) and, ideally, a regulatory adviser confirm it ([sign-off](#sign-off)).
 
 ## Intended purpose
@@ -38,9 +39,9 @@ The MHRA's guidance on intended purpose asks for four things: the product's stru
 
 | Element | What it is for MedApp |
 |---|---|
-| **Function: inputs** | Patient details typed by staff (first and last name, date of birth, email). Templates and stage definitions written by administrators (names, descriptions, instructions). For each procedure: a template, a title, notes, a due date (a whole day) and a priority, all chosen by staff; then stage notes, and the actions start, finish, assign, unassign, block, cancel, complete, archive and unlock. |
-| **Function: processing** | It copies the template's stages onto the procedure; enforces the order of stages and the locks; moves the status as stages are started and finished; compares the due date with today's date; and records each change in the audit log. None of this uses the content of clinical data. |
-| **Function: outputs** | Lists and pages showing patients, procedures, stages, notes, who did what and when, status, due date and an "overdue" badge; task lists; in-app notifications about the workflow (today, only when someone is assigned a procedure; reminders about due dates staff set are planned); the audit log. |
+| **Function: inputs** | Patient details typed by staff (first and last name, date of birth, email, and optionally the NHS number), or filled from an NHS number by a demographics lookup when one is set up. Templates and stage definitions written by administrators (names, descriptions, instructions, and optionally a SNOMED CT code with its display term). For each procedure: a template, a title, notes, a due date (a whole day) and a priority, all chosen by staff; then stage notes, and the actions start, finish, assign, unassign, block, cancel, complete, archive and unlock. |
+| **Function: processing** | It copies the template's stages onto the procedure; enforces the order of stages and the locks; moves the status as stages are started and finished; compares the due date with today's date; checks an NHS number's check digit and a SNOMED CT code's format; and records each change in the audit log. None of this uses the content of clinical data. |
+| **Function: outputs** | Lists and pages showing patients, procedures, stages, notes, who did what and when, status, due date and an "overdue" badge; task lists; in-app notifications about the workflow (today, only when someone is assigned a procedure; reminders about due dates staff set are planned); the audit log; a patient banner on the pages about one patient; and a read-only FHIR API that returns a patient's details unchanged. |
 | **Where it sits in the care pathway** | Alongside the organisation's own clinical systems, as a shared checklist and task list for the administrative and clinical steps of a procedure. It doesn't replace the electronic patient record, the patient administration system, scheduling or clinical decision-making. |
 | **Intended users** | Trained staff of health and care organisations: clinical and administrative staff (role `User`), and administrators (role `Admin`) who manage accounts, templates and assignments. Not patients or the public. |
 | **Intended population** | The organisation's patients, of any age. MedApp makes no decision about any patient, so it has no clinical population restriction. |
@@ -50,7 +51,7 @@ The MHRA's guidance on intended purpose asks for four things: the product's stru
 
 These go in the instructions for use and the contract, so the intended purpose can't be read more widely:
 - **Not for decisions:** it must not be used to decide whether, when or how to treat a patient. Stage instructions are the organisation's own text, displayed as written.
-- **Not the identity record:** patients must be identified at the point of care by the organisation's own positive identification process, not by MedApp alone. MedApp has no NHS number yet.
+- **Not the identity record:** patients must be identified at the point of care by the organisation's own positive identification process, not by MedApp alone. MedApp can hold a patient's NHS number, but doesn't trace it with the Personal Demographics Service (PDS), so it never confirms the number is the patient's.
 - **Not for time-critical work:** a procedure becomes overdue only after the end of its due day, UK time, and any reminder about it is best effort.
 - **Not a clinical alerting or monitoring system:** notifications are about the workflow (who is assigned, and dates staff set), never about clinical values. Today they're in-app only, for assignments only, and best effort.
 - **Not for medicines:** no doses, prescriptions or administration records.
@@ -83,7 +84,7 @@ They can say that it records and coordinates procedure workflow, keeps an audit 
 | Step | Question | Answer for MedApp | Why |
 |---|---|---|---|
 | 1 | Is it a computer program or a functional document? | Yes | Stand-alone web software. |
-| 2 | Is it part of a system, or does it work with a medical device? | No | No device integration, no imports from devices or laboratory systems, no integrations at all (`docs/architecture.md`, section 3.3). |
+| 2 | Is it part of a system, or does it work with a medical device? | No | No device integration, and no imports from devices or laboratory systems (`docs/architecture.md`, section 3.3). Its only interfaces are a read-only FHIR API that returns patients' details as stored, and a demographics lookup with only an offline stub; neither involves a medical device. |
 | 3 | Does it have a medical purpose? | No | Every function is administrative or records data without change. See the table below. |
 | 4 | Does it work with data obtained in vitro? | No | No laboratory data. |
 | Result | | **Not a medical device** | |
@@ -102,6 +103,11 @@ They can say that it records and coordinates procedure workflow, keeps an audit 
 | **Assignment, task lists and notifications** | `AssignPatientProcedureHandler`, `MyTasksPage.tsx`, `NotificationSender` | No | Work allocation by administrators, and a message that it happened. |
 | **Audit log** | `ProcedureChange.Audit`, `PatientProcedureAuditEntry` | No | Record keeping. |
 | **Search, sort, filters and saved searches** | `ProcedureSearch`, `PatientSearch` | No | Simple search on fields staff entered, with user-chosen order. |
+| **NHS number and its check** (branch `feature/nhs-integrations`) | `NhsNumbers`, `NhsNumberRules` | No | An identifier. The Modulus 11 check is a format check on the number itself, like a bank account's check digit: it says nothing about the patient's health. |
+| **Patient banner** | `PatientBanner.tsx` | No | Shows who the patient is (name, date of birth and age, NHS number). Age is worked out from the date of birth for display, and drives nothing. |
+| **Read-only FHIR API** | `FhirController`, `FhirPatientMapper` | No | Returns a patient's identifying details, as stored, in the UK Core Patient shape: stores and transmits data without change. No clinical data, and nothing is inferred. |
+| **SNOMED CT codes on stage definitions** | `SnomedCt`, `SnomedRules` | No | A label an admin types for a stage, with its display term; only its format is checked. MedApp never chooses, interprets or acts on a code. |
+| **Demographics lookup (PDS)** | `IPersonalDemographicsService`, `LookUpDemographicsHandler` | No | Fills a patient's name and date of birth from an NHS number, for staff to check and save. Administrative identification; only an offline stub exists. |
 
 ### Northern Ireland and the EU
 
@@ -116,7 +122,18 @@ In Northern Ireland, and in the EU, the EU Medical Device Regulation (2017/745) 
 
 ## The decision
 
-> **MedApp, at `main` `88dc1fa`, used for the intended purpose in this document, is not a medical device under UK MDR 2002.** It records and coordinates the administrative and clinical workflow steps of a procedure, and doesn't interpret clinical data, prioritise patients or recommend treatment. It is health IT that supports direct care, so the manufacturer applies DCB0129 to it, and each deploying organisation applies DCB0160.
+> **MedApp, at `main` `88dc1fa` and with branch `feature/nhs-integrations`, used for the intended purpose in this document, is not a medical device under UK MDR 2002.** It records and coordinates the administrative and clinical workflow steps of a procedure, and doesn't interpret clinical data, prioritise patients or recommend treatment. It is health IT that supports direct care, so the manufacturer applies DCB0129 to it, and each deploying organisation applies DCB0160.
+
+### Reassessment: the NHS number, FHIR, SNOMED CT and PDS
+
+Branch `feature/nhs-integrations` (16 November 2026) adds five things from roadmap step 9. Each was checked against [the conditions below](#what-would-change-the-decision):
+- **The NHS number and its validation:** the check digit is a format check, not a clinical one. A wrong number is a wrong-patient hazard (`hazard-log.md`, H-01), not a device function.
+- **The patient banner:** displays identity only.
+- **The FHIR API:** read-only, patients only, and the data goes out as stored. It moves data "without change" in the MHRA's terms, and MedApp doesn't transform or interpret it.
+- **SNOMED CT codes:** labels typed by admins on stage definitions, copied onto procedures. The software never chooses a code from clinical data, and nothing acts on one.
+- **The PDS lookup:** fills identifying details for staff to confirm, from an offline stub today.
+
+**None adds a calculation, a score, decision support, prioritising, an alert from clinical values, or a medical claim, so the decision is unchanged.** The rows in [Roadmap features to watch](#roadmap-features-to-watch) for these features still apply to what comes next: codes chosen by the software, or the FHIR API transforming or interpreting data, would need a new assessment.
 
 It is a decision about this product and this intended purpose. A customer who uses MedApp outside its intended purpose takes on that use; the MHRA notes that using a product for a medical purpose doesn't by itself make it a device, but the hazard log assumes the intended use.
 
@@ -143,14 +160,14 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 | Feature | Stays outside the device definition if | Becomes a device question if |
 |---|---|---|
 | **Structured stage fields** (checkboxes, choices, dates, numbers, signatures) | They only record what staff enter, and show it back unchanged. | A field is validated against a clinical range, a value is calculated or scored, a value changes what happens next, or a value is flagged as abnormal. |
-| **NHS number and PDS lookup** | It identifies the patient. | Never, on its own. |
-| **SNOMED CT and OPCS-4 codes on templates** | They label the procedure. | Codes are chosen by the software from clinical data. |
+| **NHS number and PDS lookup** (the number and an offline lookup built on branch `feature/nhs-integrations`) | It identifies the patient. | Never, on its own. |
+| **SNOMED CT and OPCS-4 codes on templates** (SNOMED CT codes on stage definitions built on branch `feature/nhs-integrations`) | They label the procedure. | Codes are chosen by the software from clinical data. |
 | **Reporting and dashboards** | They count workflow (open work, time in stage, overdue work). | They predict or rank patients by clinical risk. |
 | **Overdue, blocked and unlocked notifications, email and escalation** | They're about the workflow and dates staff set. | They're triggered by clinical values. |
 | **Waiting-list tracking (RTT clocks, breaches)** | Clocks and breach dates follow the national rules, and priority stays clinician-assigned. | The software sets or suggests clinical priority. |
 | **Digital consent and documents** | They store and display forms. | They assess capacity, risk or suitability. |
 | **Patient questionnaires and a portal** | Answers are stored and shown to staff. | Answers are scored, triaged or trigger clinical advice. |
-| **FHIR API and EPR integration** | Data moves without change. | MedApp transforms or interprets the data clinically. |
+| **FHIR API and EPR integration** (a read-only Patient API built on branch `feature/nhs-integrations`) | Data moves without change. | MedApp transforms or interprets the data clinically. |
 
 ### The change-control rule
 
@@ -173,3 +190,4 @@ From `docs/architecture.md`, step 9 and "Features worth adding":
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft, for `main` at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: the intended purpose allows workflow reminders about dates staff set, so planned overdue notifications don't contradict it; all eight statuses listed; the change-control rule is in `AGENTS.md` | AI coding agent, for review |
+| 0.3 | 16 November 2026 | Reassessed for branch `feature/nhs-integrations` (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes, a demographics lookup): no calculation, decision support or clinical logic, so the decision is unchanged; the intended purpose's parts and the function table updated | AI coding agent, for review |

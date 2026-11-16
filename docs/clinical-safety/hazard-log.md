@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.3, draft |
+| **Version** | 0.4, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62 |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-01, H-02 and H-13 updated for branch `feature/nhs-integrations` (the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -33,8 +33,8 @@
 
 | ID | Hazard | Initial risk | At first live use | Residual risk | Needs a product change? | Status |
 |---|---|---|---|---|---|---|
-| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
+| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
 | [H-03](#h-03-a-patients-details-are-changed-or-deleted-without-trace) | A patient's details are changed or deleted without trace | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-04](#h-04-an-overdue-procedure-is-missed) | An overdue procedure is missed | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
 | [H-05](#h-05-a-blocked-procedure-is-forgotten) | A blocked procedure is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
@@ -59,6 +59,8 @@
 
 **At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
 
+**The patient banner,** the main control for H-01 and H-02, is built on branch `feature/nhs-integrations`, with the NHS number. It doesn't change any rating yet: the initial ratings are for `88dc1fa`, and the "at first live use" ratings already assumed it. Those two ratings now depend on the CSO verifying the banner, and on the other controls marked "before first live use" (the date of birth in lists, the patient's name in the page title and in the confirmations), which aren't built.
+
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
 ---
@@ -68,8 +70,10 @@
 **Description.** A member of staff opens, and records work on, a procedure that belongs to a different patient from the one in front of them, believing it's the right one.
 
 **Causes:**
-- Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`).
-- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`).
+- Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`). **Since branch `feature/nhs-integrations`,** a patient can have an NHS number, optional and unique, so two records with the same number are refused; but two patients with the same name and date of birth, or one patient recorded twice with the number on only one record, still aren't caught. There's still no local hospital number.
+- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`). Branch `feature/nhs-integrations` adds the patient banner above it (further controls); the title is unchanged.
+- **A wrong NHS number** (branch `feature/nhs-integrations`): one mistyped, or the right digits typed on the wrong patient's record. The Modulus 11 check digit catches any single mistyped digit and most swapped pairs, but not a valid number that belongs to someone else. Nothing traces numbers with PDS, so MedApp never confirms that a number is the patient's (the FHIR API says so: "02 Number present but not traced"). The banner then shows a precise-looking identifier that's wrong, and another system reading the patient through the FHIR API could match them to the wrong person.
+- **The demographics lookup** fills a patient's name and date of birth from an NHS number, so a wrong number can fill in another person's details. Today it's off by default, and its only source is an offline stub of four synthetic people; the real PDS isn't connected.
 - Task lists and procedure lists show the patient's name only (`MyTasksPage.tsx`, `ProceduresListPage.tsx`). Search matches on part of a name (`ProcedureSearch.Filter`).
 - Two pages can be open side by side (half views), and procedures can be pinned in the side navigation.
 
@@ -87,16 +91,17 @@
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **planned** (roadmap step 6); **before first live use**.
-- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use.
-- **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design; **planned** (step 9); later.
+- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`): `SURNAME, Forename` in bold, the date of birth with the age, and the NHS number as `XXX XXX XXXX` (or "No NHS number"), with tokens for a restricted, disputed or anonymised record; always visible and not foldable, under the page header of the patient's page, the patient's procedures, the procedure page, Edit Procedure and New Procedure; it wraps in a narrow window or half view. Procedure responses carry the patient, so the procedure pages need no second read to show it. **Before first live use,** to be verified by the CSO. A dialog over the page can hide the banner, so dialogs that change a procedure rely on naming the patient themselves (H-02's confirmations).
+- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
+- **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design. **Built in part** on branch `feature/nhs-integrations`: the number is optional, checked with its check digit on the server and in the form, unique across the deployment (within an organisation once step 8 adds them), and searchable; an exact duplicate number is refused with a 409. **Still planned** (step 9): a duplicate check on name and date of birth, and merging; later.
+- **Trace NHS numbers with PDS,** so a number is confirmed to be the patient's, and have the lookup show who it found and ask staff to confirm before it fills the form. Protective; **planned** (step 9, after NHS England's onboarding); before the real PDS is connected.
 - **Train staff** to check the banner against the patient before recording work. Information; transferred.
 
-**At first live use:** Major, Very low: **2**.
+**At first live use:** Major, Very low: **2**. Unchanged by branch `feature/nhs-integrations`: this rating already assumed the banner, and it holds only once the CSO has verified it and the proposed controls above are built.
 
-**Residual risk:** Major, Very low: **2**.
+**Residual risk:** Major, Very low: **2**. The NHS number makes two patients harder to confuse, but adds the wrong-number cause above, which tracing with PDS controls; on balance the rating is unchanged.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the other controls needed before first live use aren't built.
 
 ---
 
@@ -123,16 +128,16 @@
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **The patient banner** from H-01. Protective; **planned** (step 6); before first live use.
-- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use.
+- **The patient banner** from H-01. Protective; **built** on branch `feature/nhs-integrations`, on the procedure page, Edit Procedure and New Procedure (so a procedure is created under the patient's banner); before first live use, to be verified by the CSO.
+- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
 - **An "entered in error" action** for stage notes and procedures, which strikes the entry through, keeps it in the record and asks for a reason, instead of only overwriting or deleting. Design; **proposed**; later.
 - **Train staff** to correct a wrong entry with a note saying so, never by deleting it. Information; transferred.
 
-**At first live use:** Considerable, Low: **2**.
+**At first live use:** Considerable, Low: **2**. As for H-01, this already assumed the banner, and holds once the CSO has verified it and the confirmations name the patient.
 
 **Residual risk:** Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the confirmations aren't changed yet.
 
 ---
 
@@ -507,6 +512,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No second check:** there's no approval or clinical review step in MedApp.
 - **No history:** changes to templates and stage definitions aren't audited and have no versions. Nobody can see who changed what, or what a template said when a procedure was created from it, beyond the copy on the procedure itself.
 - Admin is also the role that manages users, so the people who can edit clinical content aren't necessarily clinicians (`docs/architecture.md`, step 4, splits these roles).
+- **SNOMED CT codes** (branch `feature/nhs-integrations`): a stage definition can carry a SNOMED CT code with a display term the admin types, copied onto procedures' stages. Only the code's format is checked (`SnomedCt`): nothing checks that the concept exists, is active, or means what the term says, so a code and its term can disagree. MedApp does nothing with the code, so today a wrong one only misleads someone reading it; once codes leave MedApp (step 9's FHIR resources for procedures), another system could act on one.
 
 **Effect.** Every procedure created afterwards misses a step, does them in the wrong order, or shows wrong instructions, and staff follow it because MedApp enforces the order.
 
@@ -527,6 +533,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **A local template governance process:** clinical sign-off before a template is used. Information; transferred; before first live use.
 - **Versions:** each template change makes a new version; procedures record the version they came from. Design; **proposed**; later.
 - **A separate role** for template administration. Protective; **planned** (step 4); later.
+- **Check SNOMED CT codes with a terminology server:** that the concept exists and is active, with its preferred term shown beside the admin's. Protective; **planned** (`docs/todo.md`); before codes leave MedApp in the FHIR API.
 
 **At first live use:** Catastrophic, Very low: **3**. Needs the CSO's written justification for first live use.
 
@@ -809,6 +816,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Completing a procedure with a stage unfinished or unlocked.** Designed out: `ChangePatientProcedureStatusHandler` refuses it (`AllStagesFinished`).
 - **One user's data in another's server-rendered page.** A security and privacy risk rather than a clinical one, controlled by a new query cache per request (`createSsrRouter`; `docs/architecture.md`, section 5.8). Left to the security work in step 2.
 - **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`).
+- **The FHIR API sending wrong data** (branch `feature/nhs-integrations`). It's read-only, and returns the patient's details as stored, with no clinical content and no logic, to staff who could see the same on the patient's page; nothing in MedApp changes because of it. Its one clinical risk, another system matching the wrong person by a wrong NHS number, is under H-01. Each receiving system assesses its own use under DCB0129 and DCB0160.
+- **The NHS number check refusing a valid number.** Staff can't save it, so the record goes without it until it's fixed: no worse than before the number existed. The check is unit tested with valid and invalid numbers.
 
 ## Change log
 
@@ -817,3 +826,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
+| 0.4 | 16 November 2026 | Branch `feature/nhs-integrations`: the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed | AI coding agent, for review |

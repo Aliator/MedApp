@@ -19,7 +19,7 @@
 > **What MedApp holds about you:**
 > - **Your account:** your username, your roles (staff or admin), and your password, stored only in a scrambled form (a "hash") that nobody can read back.
 > - **Your sign-ins:** each time you sign in, the time, your device's IP address, and your browser and operating system. MedApp also counts failed sign-ins, and locks an account for 5 minutes after 5 failures.
-> - **What you do:** every change you make to a procedure is recorded with your name and the time: for example starting or finishing a stage, the notes you write (old and new text), and status changes. MedApp also records which patient records and procedures you open, the patients your searches show you and which search fields you used (not what you typed), changes to patients' details, and when you sign in and out, with your computer's network address.
+> - **What you do:** every change you make to a procedure is recorded with your name and the time: for example starting or finishing a stage, the notes you write (old and new text), and status changes. MedApp also records which patient records and procedures you open, the patients your searches show you and which search fields you used (not what you typed), including through MedApp's FHIR interface, when you look up an NHS number (not the number), changes to patients' details, and when you sign in and out, with your computer's network address.
 > - **Your settings:** your display preferences, accessibility settings and saved searches. They're stored with your account so they follow you between computers, and in your browser.
 > - **Your notifications:** for example when someone assigns you a procedure.
 >

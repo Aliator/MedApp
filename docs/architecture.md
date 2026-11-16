@@ -209,9 +209,9 @@ flowchart LR
 These are outside the system today, and nothing in the code integrates with them:
 - **No single sign-on** for app users (no OpenID Connect or SAML); accounts are local, with passwords.
 - **No email or SMS.** "Forgot password?" on the sign-in page is a stand-in that says a link was sent but sends nothing (`MedApp.Web/src/pages/login/ForgotPasswordDialog.tsx`). Notifications are in-app only.
-- **No clinical integrations:** no HL7 or FHIR, no electronic health record, no lab or imaging systems, no NHS number lookup.
+- **No clinical integrations:** no HL7 v2, no electronic health record, no lab or imaging systems, and no connection to NHS England's PDS. Branch `feature/nhs-integrations` adds a read-only FHIR API for patients, used with a staff session (no system clients yet), and an NHS number lookup that only has an offline stub of synthetic numbers ([step 9](#step-9-the-features-buyers-expect)).
 - **No scheduling, billing or patient portal.**
-- **No structured clinical data.** Notes are free text (Markdown).
+- **No structured clinical data.** Notes are free text (Markdown). Stage definitions can carry a SNOMED CT code as a label (branch `feature/nhs-integrations`); it's shown, and nothing acts on it.
 - **No file uploads.**
 
 ---
@@ -481,11 +481,11 @@ erDiagram
 
 | Entity | Key fields | Notes |
 |---|---|---|
-| `Patient` | first and last name, date of birth (`DateOnly`), email | Can't be deleted while it has procedures (409). |
+| `Patient` | first and last name, date of birth (`DateOnly`), email, NHS number (optional, 10 digits) | Can't be deleted while it has procedures (409). The NHS number is unique when present (a filtered unique index; branch `feature/nhs-integrations`). |
 | `PatientProcedure` | title, notes (Markdown), `DueDateUtc`, priority, status, `BlockedFromStatus`, `TemplateId` and `TemplateName` | Created only from a template. Keeps the template's name, in case the template changes. |
-| `PatientProcedureStage` | order, a **snapshot** of the definition's name, description and instructions; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished procedure. |
+| `PatientProcedureStage` | order, a **snapshot** of the definition's name, description, instructions and SNOMED CT code and term; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished procedure. |
 | `PatientProcedureAssignment` | user, assigned by, assigned at | Drives task lists and notifications, not permissions. |
-| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), `IsArchived` | Archived, not deleted, once in use. |
+| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), optional SNOMED CT code and display term, `IsArchived` | Archived, not deleted, once in use. The code's format is checked, never whether the concept exists. |
 | `PatientProcedureStageTemplate` and `…TemplateMap` | name, `IsArchived`; ordered definitions | A definition may appear more than once (for example a consultation before and after). |
 | `PatientProcedureAuditEntry` | procedure ID and title, patient ID, stage ID and name, action, user ID and username, `AtUtc`, details (JSON) | No foreign keys, so the history outlives deletes. |
 | `Notification` | user, kind, title, message, procedure ID, created, read at | No foreign keys, like the audit log. |
@@ -528,7 +528,7 @@ stateDiagram-v2
 
 ### 5.7 The API surface
 
-57 HTTP endpoints in seven controllers, plus the SignalR hub. "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
+57 HTTP endpoints in seven controllers at #53, plus the SignalR hub (rows marked with a branch came later). "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
 
 | Area | Endpoints | Who |
 |---|---|---|
@@ -546,6 +546,8 @@ stateDiagram-v2
 | Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures and the log's free text) |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
+| FHIR (branch `feature/nhs-integrations`) | `GET api/fhir/Patient/{id}`; `GET api/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number\|{number}`. Read-only FHIR R4 in the UK Core shape, `application/fhir+json`, errors as OperationOutcomes | Staff |
+| Demographics (branch `feature/nhs-integrations`) | `GET api/demographics/status`; `POST api/demographics/lookup` (the NHS number in the body). Off unless `Pds:Mode` is set; only an offline stub exists | Staff |
 
 `GET api/patients` and `GET api/auth/users` return every row. Only the deprecated Blazor client uses them, and the UI parity tool's sign-in step uses `GET api/patients`; the React app uses the search endpoints. Swagger is served only in Development.
 
@@ -1237,6 +1239,7 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | ADR-20 | **Health checks on their own port, 8081** (#48) | Kubernetes needs HTTP probes, which shouldn't be public. | On the app's port, hidden by ingress rules; TCP probes only (as before #48). | The public can't reach them. But 8081 also serves the whole app, so the Service and the network policy are what keep it private. |
 | ADR-21 | **On Azure: Cilium for network policy, private Azure SQL, OIDC and workload identity, and SQL authentication as a first step** (#52) | The chart relies on NetworkPolicies being enforced; Azure's own policy manager can't be enabled on new subscriptions (`docs/reviews/azure.md`). | Passwordless SQL from the start. | No stored cloud secrets. The app signs in to Azure SQL as the server admin until passwordless SQL and a least-privilege user are done. |
 | ADR-22 | **.NET Aspire for development, with SQL Server in a persistent container** (Q1, Q2; #26) | One command for the whole stack, and a database close to production's. | LocalDB (the old way); docker-compose. | Simple start-up and a dashboard; needs Docker Desktop and its licence; migrations are still applied by hand. |
+| ADR-23 | **Hand-built FHIR resources, not the Firely SDK** (branch `feature/nhs-integrations`) | A read-only FHIR R4 API in the UK Core shape, with three resource shapes (Patient, Bundle, OperationOutcome). | Firely's `Hl7.Fhir.R4`, whose BSD-3-Clause licence was acceptable. | No large dependency for three shapes, and the JSON is plain System.Text.Json (`FhirJson`). Nothing checks the resources against the profiles yet; revisit with more resources (CarePlan, Task) or when profile validation is needed. |
 
 ---
 
@@ -1821,7 +1824,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
-**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`).
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`). The patient banner, the control for the wrong-patient hazards (H-01, H-02), is built on branch `feature/nhs-integrations`, also awaiting the CSO's verification.
 
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 
@@ -2012,6 +2015,15 @@ Not built yet: note versions, the ledger table and streaming the log, unusual-ac
 
 **Goal:** Turn a procedure checklist into something buyers recognise as a clinical workflow product: real patient identity, structured stages, standard interoperability, documents, reporting and communications.
 
+**Status:** the first part is built (branch `feature/nhs-integrations`, 16 November 2026), ahead of steps 6 and 8, with `docs/governance/` and `docs/clinical-safety/` updated for it:
+- **The NHS number** on a patient: optional, checked with its Modulus 11 check digit on the server and in the form, unique when present (across the deployment until step 8), shown as `XXX XXX XXXX`, searchable, in the export and removed by anonymisation. Logged as a field and filter name, never the number.
+- **The patient banner** (step 6's control for hazards H-01 and H-02): the name, date of birth with age, and NHS number, always visible, on the patient, procedure, Edit Procedure and New Procedure pages. Built, not yet verified by a CSO.
+- **A read-only FHIR R4 API in the UK Core shape:** `Patient` by ID, and by NHS number as a searchset Bundle, for signed-in staff, logged like the pages. Hand-built resources, not the Firely SDK.
+- **SNOMED CT codes on stage definitions,** with the admin's display term, copied onto procedures' stages. Format checked only.
+- **A demographics lookup** behind `IPersonalDemographicsService`, off by default, with only an offline stub of synthetic 999 numbers; the forms offer Look up when it's on.
+
+Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR API reports numbers as "not traced"), validation against the UK Core profiles, OAuth for systems, the other FHIR resources, SNOMED CT and OPCS-4 on templates, a terminology server, duplicate checks beyond an exact NHS number, a local hospital number and the other patient details, Always Encrypted for the NHS number, and the rest of the scope below (`docs/todo.md`, Patient identity and interoperability). The medical device decision is unchanged (`docs/clinical-safety/intended-purpose-and-device-decision.md`).
+
 **Why now:**
 - **What comparable products offer** as standard:
   - configurable forms and templates
@@ -2183,7 +2195,7 @@ These go beyond step 9, ranked by how often comparable products offer them and h
 | **NHS England MFA policy** | Passwords only | 4 |
 | **UK Medical Devices Regulations 2002 and MHRA guidance** | Not assessed. Today's features look like workflow, not a device | 6 |
 | **CQC Regulation 17** (private providers) | Finished stages lock, and changes to procedures are audited. Concurrent edits can overwrite each other | 6, 7 |
-| **NHS number (ISB 0149), PDS, FHIR UK Core, SNOMED CT, OPCS-4** | None | 9 |
+| **NHS number (ISB 0149), PDS, FHIR UK Core, SNOMED CT, OPCS-4** | On branch `feature/nhs-integrations`: a validated NHS number, a read-only FHIR Patient in the UK Core shape (not yet validated against the profiles), and SNOMED CT codes on stage definitions (format checked only). No PDS connection, tracing or OPCS-4 | 9 |
 | **CIS2 and other SSO** | Local passwords only | 4, 8 |
 | **WCAG 2.2 AA** | axe audit passes in every theme; statement at `/accessibility`; manual screen reader pass and session timeout warning outstanding | 2, 6 |
 | **OWASP ASVS 5.0 Level 2** | Not assessed. Strong in places: output escaping, cookie flags, same-origin hosting | 2, 4, 7 |

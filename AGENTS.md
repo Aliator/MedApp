@@ -110,6 +110,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper`, `AuditEntryMapper`
   - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `TimelineMapper`
+  - `FhirPatientMapper` (a patient as a UK Core Patient) and `DemographicsMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
 - **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a generated password, the signed-in user's claims) may be built where they're made.
@@ -160,9 +161,10 @@ The patient page shows a **timeline**: everything that happened to the patient's
 
 Roadmap step 7. What it records and why is in `docs/governance/` (the data inventory, the DPIA and the rights procedure).
 - **The activity log** (`ActivityEntry`, written through `IActivityLog` in `MedApp.Application/Activity/Common`) is separate from the procedure audit. It records who read or changed patient data, sign-ins (and refused ones), sign-outs, and account and role changes, with the address the request came from.
-  - **Reads:** a handler that returns a patient's data calls `RecordViewsAsync`: `PatientViewed` for the patient's page, `PatientListed` for each patient in a list's results (patient search, retention review), `ProcedureViewed` for a procedure's page. A repeat of the same view by the same person within `Activity:ViewWindowMinutes` (5) adds nothing, so the log stays a readable size.
+  - **Reads:** a handler that returns a patient's data calls `RecordViewsAsync`: `PatientViewed` for the patient's page (and a FHIR read), `PatientListed` for each patient in a list's results (patient search, retention review, a FHIR search), `ProcedureViewed` for a procedure's page. A repeat of the same view by the same person within `Activity:ViewWindowMinutes` (5) adds nothing, so the log stays a readable size.
+  - **Lookups outside MedApp:** a demographics (PDS) lookup records `DemographicsLookedUp`, with whether anyone was found, never the NHS number.
   - **Changes to a patient:** build the entry with `activityLog.Entry(...)` and pass it to the repository method (`AddAsync`, `UpdateAsync`, `DeleteAsync`, `IPatientRecordRepository.SaveAsync`), which saves both in one `SaveChangesAsync`, so no change can miss the log.
-  - **Details never hold a patient's details or clinical text:** the names of the fields changed, never their values; the names of the search filters used, never the terms. Reasons an admin types are the only free text, and anonymising a patient replaces them.
+  - **Details never hold a patient's details or clinical text:** the names of the fields changed, never their values; the names of the search filters used, never the terms (an NHS number is a term like any other: `nhsNumber`, never the number). Reasons an admin types are the only free text, and anonymising a patient replaces them.
   - **Who:** the actor (user and address) comes from `IActivityContext` (`HttpActivityContext` in the API), not from the command. Procedure commands still take a `ProcedureActor`.
   - Action numbers are stored, so never renumber `ActivityAction`. The log has no foreign keys, like the audit log.
   - `GET api/activity/search` (admins) searches it; a patient's page shows its latest entries about them as the access report.
@@ -170,6 +172,27 @@ Roadmap step 7. What it records and why is in `docs/governance/` (the data inven
 - **Everything about a patient** is loaded by `IPatientRecordRepository` (`PatientRecordRepository`) for the subject access export (`GET api/patients/{id}/export`, admins, `no-store`, itself logged) and for anonymisation. **A new table that holds patient data must be added there,** so both cover it.
 - **Anonymisation** (`POST api/patients/{id}/anonymise`, admins, `PatientAnonymiser`) replaces the identifying details and free text with placeholders in place, across every table, and keeps the IDs and structure. It needs the patient's full name typed as confirmation and a reason, and it's refused while a procedure is under way or the record is restricted. Deleting a patient is unchanged.
 - **Retention** (`RetentionOptions`, the `Retention` section of `appsettings.json`; `RetentionSchedule`): `GET api/patients/retention-review` lists the records past their minimum period; an admin reviews, keeps (`POST api/patients/{id}/retention/keep`, with a reason and a review date up to two years ahead) or anonymises. **Nothing is ever deleted automatically.**
+
+### NHS number, FHIR and SNOMED CT
+
+Roadmap step 9's first part. What's built and what's left is in `docs/architecture.md` (step 9) and `docs/todo.md`.
+- **The NHS number** (`Patient.NhsNumber`) is optional, stored as its 10 digits with no spaces (`varchar(10)`), and unique when present (the filtered unique index `IX_Patients_NhsNumber`). It's unique across the deployment until step 8 makes it unique within an organisation.
+  - `NhsNumbers` (`MedApp.Domain/Patients`) removes spaces, checks the Modulus 11 check digit and formats it; `NhsNumberRules` (`MedApp.Application/Patients/Common`) is the validation rule for every command that takes one. Accept it with or without spaces; show it as `XXX XXX XXXX`.
+  - Another patient with the number is a 409 (`ConflictException`), also when two saves race: the repository turns the unique index's violation into the same 409.
+  - On update, null leaves it unchanged and empty removes it.
+  - `GET api/patients/search` filters by it (`NhsNumber`: numbers containing the digits typed, spaces ignored).
+  - The export includes it, and anonymisation removes it (`PatientAnonymiser`). **Always Encrypted for it isn't done** (`docs/todo.md`).
+  - **Keep it out of new URLs** (a path or a query string): request logs and traces record URLs. Send it in a body, as the demographics lookup does. The FHIR search's query string still carries it, as FHIR defines it, and so does the patients list's filter, which stays in the URL by the product owner's decision on list filters (`docs/todo.md`).
+- **The FHIR API** (`FhirController` at `api/fhir`; `MedApp.API/Fhir`, `MedApp.Application/Fhir`, DTOs in `MedApp.Contracts/Fhir`) is read-only FHIR R4 in the UK Core profiles' shape, patients only: `GET api/fhir/Patient/{id}`, and `GET api/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number|{number}` (a searchset Bundle; another system matches nothing; no identifier or an invalid number is a 400).
+  - **Hand-built DTOs, not the Firely SDK.** Its licence (BSD-3-Clause) was fine; its size and dependencies weren't worth it for three resource shapes. Revisit when the API needs more resources (CarePlan, Task) or validation against the profiles.
+  - **Return resources through `FhirResult`** (`FhirJson`): `application/fhir+json`, `Cache-Control: no-store`, and no nulls or empty arrays, which FHIR JSON never holds (leave a list null rather than empty).
+  - **Errors are OperationOutcomes, never ProblemDetails:** `FhirExceptionFilter` makes 400 `invalid` and 404 `not-found`, and `FhirAuthorizationResultHandler` 401 `login` and 403 `forbidden`. The forced password change's 403 stays the API's ProblemDetails.
+  - **Who:** the Staff policy, with the session cookie; no OAuth clients for other systems yet.
+  - **Logged as the pages are:** a read records `PatientViewed`; a search records `PatientsSearched` (filters `["nhsNumber"]`, the count, `via: "fhir"`) and `PatientListed` for each patient found.
+  - The NHS number's verification status is always `02` ("Number present but not traced"), because MedApp doesn't trace numbers with PDS.
+- **SNOMED CT codes on stage definitions** (`SnomedCode` and `SnomedTerm`, both or neither): `SnomedCt` (`MedApp.Domain/Terminology`) checks the format only (a concept's SCTID: 6 to 18 digits, no leading zero, partition `00` or `10`, a Verhoeff check digit), through `SnomedRules`. There's no terminology server, so nothing checks that the concept exists or is active, or that the admin's term matches it. They're copied onto a procedure's stages when it's created, like the name, description and instructions.
+- **The demographics lookup (PDS)** is `IPersonalDemographicsService`, chosen by `Pds:Mode`: `Off` by default (`NoPersonalDemographicsService`), or `Offline` (`OfflinePersonalDemographicsService`, four synthetic 999 people). `GET api/demographics/status` says whether there's one; `POST api/demographics/lookup` (`{ nhsNumber }` in the body, never the URL) looks someone up (staff, `no-store`; 400 for an invalid number, 404 when nobody has it or there's no lookup). **The real PDS FHIR API isn't wired in:** it needs NHS England's onboarding (`docs/todo.md`).
+- **Medical device decision:** all four only identify, label or move data without change, so the decision is unchanged (`docs/clinical-safety/intended-purpose-and-device-decision.md`). Anything that interprets codes or chooses them from clinical data needs a new assessment.
 
 ### Migrations
 
@@ -190,7 +213,7 @@ Roadmap step 7. What it records and why is in `docs/governance/` (the data inven
   - **The forced password change page has no timeout warning.** `/change-password` is outside the signed-in layout, and `PasswordChangeRequired` doesn't allow the session endpoints, deliberately: that page ends at the session's normal expiry, without a warning, and its change then fails, so its user signs in again.
   - A session isn't yet ended by a lockout, a password change, a reset or a role change (risk S5); the security baseline work is adding that.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients (with their timeline, which shows staff less than admins: see [Patient timeline](#patient-timeline)), and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, the activity log, and a patient's export, restriction, dispute, anonymisation and retention review. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients (with their timeline, which shows staff less than admins: see [Patient timeline](#patient-timeline)), the FHIR API and the demographics lookup, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, the activity log, and a patient's export, restriction, dispute, anonymisation and retention review. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.
@@ -238,7 +261,7 @@ All UI work goes in `MedApp.Web`. Its conventions are in `MedApp.Web/AGENTS.md`,
 - seed synthetic patients
 - check migrations and row counts
 - snapshot and restore the whole local database
-- reset everything to the standard synthetic demo data set (`reset_demo_data`)
+- reset everything to the standard synthetic demo data set (`reset_demo_data`, which gives most patients an NHS number from the 999 test range)
 
 It only runs against a local database: by default the AppHost's SQL container, using the password from the AppHost's user secrets, so the AppHost must have run once. It protects `admin`, and destructive tools need `confirm: true`.
 - **Before a destructive experiment:** take a `save_snapshot`.
@@ -266,6 +289,7 @@ It only runs against a local database: by default the AppHost's SQL container, u
 - Test names follow `Method_Scenario_ExpectedResult`, for example `Handle_PatientDoesNotExist_ReturnsNull`.
 - Put shared test data in `MedApp.UnitTests/Common/Constants/*TestConstants.cs`, and add new constants there rather than inlining magic values.
 - Use synthetic data only. This is a medical app, so never put realistic patient PII in tests, seeds or fixtures.
+  - **NHS numbers come only from the 999 range** (`999 xxx xxxx` with a valid check digit), which is never issued to real people. Never a number outside it, even a made-up one, as it could be someone's.
 - Procedure handler tests derive from `ProcedureHandlerTestBase` (mocked repository and username lookup, fixed clock), and build procedures with `ProceduresTestConstants.CreateProcedure`.
 - Handlers that write the activity log get a `RecordingActivityLog` (`_fixture.Inject<IActivityLog>(...)`), which makes entries as the real one does and keeps what's recorded, so tests can check the entries.
 

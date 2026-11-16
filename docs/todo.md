@@ -38,6 +38,23 @@ The first part is built: the activity log and access report, the subject access 
 - **Saved searches that name a patient,** removed on anonymisation or destruction.
 - **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).
 - **Contact preferences** and a National Data Opt-out flag.
+- **Always Encrypted for the NHS number** (deterministic, so lookups by exact value still work), which step 7 planned once the number existed. It exists now (branch `feature/nhs-integrations`), protected only by TDE like the rest. Its partial-match search (the list's NHS number filter, which matches numbers containing the digits typed) would have to become an exact match.
+
+## Patient identity and interoperability (the rest of roadmap step 9's first part)
+
+Built on branch `feature/nhs-integrations` (`AGENTS.md`, NHS number, FHIR and SNOMED CT): an optional, validated, unique NHS number; the patient banner; a read-only FHIR R4 Patient API in the UK Core shape; SNOMED CT codes on stage definitions; and a demographics lookup with only an offline stub. Still to do:
+
+- **The real PDS lookup.** Wire `IPersonalDemographicsService` to the PDS FHIR API ([NHS England](https://digital.nhs.uk/developer/api-catalogue/personal-demographics-service-fhir)). It needs NHS England's onboarding first ([onboarding process](https://digital.nhs.uk/developer/guides-and-documentation/onboarding-process)): a CIS2 integration for health workers' access, or an application-restricted API key through the API platform; a DSPT submission; a DCB0129 hazard log; risk logs for each access mode; a penetration test; and a connection agreement. Then trace numbers, so the FHIR API can report them as verified, not "02 Number present but not traced". Update the data inventory, DPIA and ROPA first: NHS England becomes a source of patient data.
+- **Validate the FHIR API against the UK Core profiles** with a FHIR validator (the HL7 validator, or Firely's), in CI, before any system relies on it. The resources are hand-built and haven't been checked yet.
+- **FHIR access for other systems:** OAuth 2.0 client credentials (SMART Backend Services), with a client per system and its own scopes, instead of a signed-in member of staff's session cookie. The activity log then records the client, not a person.
+- **More FHIR resources:** the procedure as a CarePlan or ServiceRequest, stages as Tasks, templates as PlanDefinitions, the audit as AuditEvents, and a CapabilityStatement; webhooks for status changes. Revisit the Firely SDK in place of hand-built DTOs then.
+- **SNOMED CT on templates and OPCS-4 codes,** as step 9 plans (a procedure concept on each template), and the codes in the FHIR resources once procedures are exposed.
+- **A terminology server** (the NHS England Terminology Server) to check that a SNOMED CT concept exists and is active, and to offer its preferred term, instead of the format check and the admin's own term. Inactive concepts need a periodic check too.
+- **A duplicate-patient check** when a patient is added or edited: today only an exact duplicate NHS number is refused. Warn about the same name and date of birth, or a near match, and let an admin merge duplicates.
+- **The rest of hazards H-01 and H-02's controls** (`docs/clinical-safety/hazard-log.md`): the date of birth beside the patient's name in task and procedure lists; the patient's name in the procedure page's title; the patient named in the Save Notes and Finish Stage confirmations. Then the CSO verifies the banner and these together.
+- **The rest of step 9's patient details:** a local hospital number (with its assigning organisation), sex and gender as the NHS Data Dictionary defines them, address, phone, registered GP practice (ODS code), and a deceased flag. Each one updates the data inventory and the DPIA first.
+- **NHS number unique within an organisation,** not the deployment, with multi-tenancy (step 8).
+- **Keep the NHS number out of URLs,** where request logs, traces and the ingress's access logs can record it: the FHIR search takes it in its query string. Support FHIR's `POST Patient/_search`, which keeps the parameters in the body (the demographics lookup is already a POST). The patient list's NHS number filter stays in the URL by the product owner's decision on list filters (DPIA risk 10).
 
 ## Deployment
 
