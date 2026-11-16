@@ -71,6 +71,7 @@ public sealed class PasswordChangeRequiredTests
 
     [TestCase("GET", "/api/auth/whoami")]
     [TestCase("GET", "/API/Auth/WhoAmI")]
+    [TestCase("POST", "/api/auth/login")]
     [TestCase("POST", "/api/auth/logout")]
     [TestCase("GET", "/api/auth/me/settings")]
     public async Task InvokeAsync_MustChangePassword_AllowsTheAllowlist(string method, string path)
@@ -108,6 +109,7 @@ public sealed class PasswordChangeRequiredTests
     [TestCase("PUT", "/api/auth/me/settings", null)]
     [TestCase("POST", "/api/auth/whoami", null)]
     [TestCase("GET", "/api/auth/logout", null)]
+    [TestCase("GET", "/api/auth/login", null)]
     [TestCase("GET", "/api", null)]
     [TestCase("GET", "/api/no-such-endpoint", null)]
     // Someone else's password, by route value or by a name that differs only in case.

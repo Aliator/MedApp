@@ -1,6 +1,6 @@
 import {screen, waitFor} from '@testing-library/react';
 import {calls, findAlert, json, mockApi, mustChangePasswordUser, renderWithApp} from '../../test/render';
-import {RequiredPasswordChangePage} from './RequiredPasswordChangePage';
+import {NO_ROLE, RequiredPasswordChangePage} from './RequiredPasswordChangePage';
 
 const OWN_PASSWORD = `/api/auth/users/${mustChangePasswordUser.username}/update-password`;
 
@@ -101,6 +101,23 @@ describe('RequiredPasswordChangePage', () => {
     await fill(user, 'Wrong-Synthetic1', 'Chosen-Synthetic1', 'Chosen-Synthetic1');
 
     await findAlert('Current password is incorrect.');
+  });
+
+  it('says an account with no role needs one from an admin, when the API refuses the change by role', async () => {
+    mockApi({[`PUT ${OWN_PASSWORD}`]: () => new Response(null, {status: 403})});
+    const {user} = render();
+
+    await fill(user, 'Given-Synthetic1', 'Chosen-Synthetic1', 'Chosen-Synthetic1');
+
+    await findAlert(NO_ROLE);
+    expect(NO_ROLE).toBe('This account has no role yet. Ask an admin to give it one, then sign in again.');
+  });
+
+  it('asks for the password they were given by name', async () => {
+    mockApi({});
+    render();
+
+    expect(await screen.findByLabelText(/^password you were given/i)).toHaveAttribute('placeholder', 'Enter the password you were given');
   });
 
   it('signs out', async () => {

@@ -19,6 +19,9 @@ const columnStyle: CSSProperties = {width: '100%', maxWidth: 440};
 
 const TITLE = 'Choose your password';
 
+/** The API refuses a password change from an account with no role (a new account an admin hasn't given one yet). */
+export const NO_ROLE = 'This account has no role yet. Ask an admin to give it one, then sign in again.';
+
 /**
  * The page someone lands on when they sign in with a password an admin gave them (a new account, or a reset): they
  * must choose their own before anything else, and the API refuses everything else until they do. It sits outside the
@@ -29,7 +32,7 @@ export function RequiredPasswordChangePage() {
   const me = useCurrentUser();
   const enterApp = useEnterApp();
   const logout = useLogout();
-  const form = usePasswordChangeForm({username: me.username, onChanged: enterApp});
+  const form = usePasswordChangeForm({username: me.username, onChanged: enterApp, forbiddenMessage: NO_ROLE});
   usePageTitle(TITLE, true);
 
   return (
@@ -57,7 +60,12 @@ export function RequiredPasswordChangePage() {
                 form.validation && <ValidationAlert errors={form.validation} fields={PASSWORD_CHANGE_FIELDS} />
               )}
 
-              <PasswordChangeFields form={form} currentLabel="Password you were given" size="lg" />
+              <PasswordChangeFields
+                form={form}
+                currentLabel="Password you were given"
+                currentPlaceholder="Enter the password you were given"
+                size="lg"
+              />
 
               <Button type="submit" label="Change password" variant="primary" size="lg" isLoading={form.isPending} />
               <Button label="Sign out" variant="ghost" size="lg" onClick={() => logout.mutate()} isLoading={logout.isPending} />

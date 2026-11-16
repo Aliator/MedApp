@@ -6,7 +6,7 @@ namespace MedApp.API.Common.Authentication;
 /// Holds a user who must change the password an admin gave them (their session's
 /// <see cref="SessionAuthenticationDefaults.MustChangePasswordClaim"/>) to that one task: every other <c>/api</c>
 /// request, the notifications hub included, is refused with a 403 <see cref="ProblemDetails"/> whose <c>code</c> is
-/// <see cref="Code"/>. They may only ask who they are, sign out, read their own UI settings (so the page shows in their
+/// <see cref="Code"/>. They may only ask who they are, sign in again (which replaces the session), sign out, read their own UI settings (so the page shows in their
 /// theme), and change their own password. Pages and static files pass, because the web app sends them to its
 /// change-password page. Runs after authentication, so it sees the user, and before authorization.
 /// </summary>
@@ -50,8 +50,10 @@ public sealed class PasswordChangeRequired(RequestDelegate next)
         if (HttpMethods.IsGet(request.Method))
             return Is(path, "/api/auth/whoami") || Is(path, "/api/auth/me/settings");
 
+        // Signing in (as anyone) checks the posted password afresh and replaces this session, so it gives nothing
+        // away; without it, a browser still holding a forced session couldn't sign in again. Signing out ends it.
         if (HttpMethods.IsPost(request.Method))
-            return Is(path, "/api/auth/logout");
+            return Is(path, "/api/auth/login") || Is(path, "/api/auth/logout");
 
         return HttpMethods.IsPut(request.Method) && IsOwnPasswordChange(context, path);
     }

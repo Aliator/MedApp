@@ -34,18 +34,26 @@ export class ApiError extends Error {
    * (e.g. "This patient has 2 procedures, so they can't be deleted.").
    */
   readonly title?: string;
+  /** The ProblemDetails `code` the API sent, if any, e.g. `password_change_required` on a 403. */
+  readonly code?: string;
 
-  constructor(status: number, message?: string, title?: string) {
+  constructor(status: number, message?: string, title?: string, code?: string) {
     super(message ?? `The request failed (${status}).`);
     this.name = 'ApiError';
     this.status = status;
     this.title = title;
+    this.code = code;
   }
 }
 
 /** The `title` of a ProblemDetails body, if the body is one. */
 export function problemTitle(body: unknown): string | undefined {
   return isRecord(body) && typeof body.title === 'string' && body.title ? body.title : undefined;
+}
+
+/** The `code` extension of a ProblemDetails body, if the body is one and has it. */
+export function problemCode(body: unknown): string | undefined {
+  return isRecord(body) && typeof body.code === 'string' && body.code ? body.code : undefined;
 }
 
 /** `Request.FirstName` or `FirstName` → `firstName`; an empty key is a general error. */

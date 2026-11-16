@@ -1,9 +1,10 @@
 import {screen, waitFor} from '@testing-library/react';
-import {json, mockApi, renderWithApp} from '../../test/render';
+import {pageNavigation} from '../../api/client';
+import {findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {PASSWORD_CHANGE_FIELDS, PasswordChangeFields, usePasswordChangeForm} from './PasswordChangeFields';
 
-function Harness({onChanged, currentLabel}: {onChanged?: () => void; currentLabel?: string}) {
-  const form = usePasswordChangeForm({username: 'test-user', onChanged});
+function Harness({onChanged, currentLabel, forbiddenMessage}: {onChanged?: () => void; currentLabel?: string; forbiddenMessage?: string}) {
+  const form = usePasswordChangeForm({username: 'test-user', onChanged, forbiddenMessage});
   return (
     <form onSubmit={form.submit}>
       <PasswordChangeFields form={form} currentLabel={currentLabel} />
@@ -58,6 +59,27 @@ describe('PasswordChangeFields', () => {
     expect(screen.getByText('Synthetic new problem.')).toBeInTheDocument();
     expect(screen.getByLabelText(/^current password/i)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText(/^new password/i)).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('says what it is told for a refusal by role', async () => {
+    mockApi({'PUT /api/auth/users/*': () => new Response(null, {status: 403})});
+    const {user} = renderWithApp(<Harness forbiddenMessage="Synthetic no-role message." />);
+
+    await fill(user, /^current password/i, ['Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1']);
+
+    await findAlert('Synthetic no-role message.');
+  });
+
+  it('keeps its usual words for a 403 that says the password must be changed', async () => {
+    // The client would leave for the change-password page on that code; here it stays, so the form shows it.
+    vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
+    mockApi({'PUT /api/auth/users/*': () => json({title: 'Password change required', status: 403, code: 'password_change_required'}, 403)});
+    const {user} = renderWithApp(<Harness forbiddenMessage="Synthetic no-role message." />);
+
+    await fill(user, /^current password/i, ['Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1']);
+
+    await findAlert('You do not have permission to update this password.');
+    vi.restoreAllMocks();
   });
 
   it('works without anything to do once changed', async () => {

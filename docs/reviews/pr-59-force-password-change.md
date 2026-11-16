@@ -85,7 +85,7 @@ A password an admin generates (a new account, or a reset) now has to be replaced
 
 ## Findings
 
-Most severe first. None is high or critical. All seven were open when this review was written.
+Most severe first. None is high or critical. All seven were open when this review was written; each says below what happened to it.
 
 ### 1. A page already open when its user's password is reset isn't sent to change it, and its live connection stays open
 
@@ -98,7 +98,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - `MedApp.API/Common/Authentication/PasswordChangeRequired.cs:20-29`: checks HTTP requests only; `MedApp.API/Notifications/NotificationsHub.cs:12-13`: authorised at connect
   - `MedApp.Web/src/app/LiveNotifications.tsx:38-42`: an arriving notification refreshes the bell and is announced to screen readers
 - **Fix:** in the browser, one response middleware on the API client: a 403 whose body has `code: "password_change_required"` sends the page to `/change-password` with a full load (sketch under Detail). The server then renders it with a fresh whoami, and the old page's hub connection closes with it. Add a test in `client.test.ts`. For a client that ignores it, the open socket remains (Remaining risks); closing it would need the API to track each user's hub connections and abort them on a reset.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** The API client (`MedApp.Web/src/api/client.ts`) has a response middleware, in the browser only: a 403 whose problem `code` is `password_change_required` sends the page to `/change-password` with a full load (not when it's already there). Server rendering is unaffected. `ApiError` now carries the problem's `code` (`problemCode`). Tested in `client.test.ts` and `errors.test.ts`. A client that ignores it keeps an open hub socket (Remaining risks).
 
 ### 2. Signing in again from a browser that still holds a forced session is refused, as "Invalid credentials"
 
@@ -112,7 +112,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - `MedApp.Web/src/pages/login/LoginPage.tsx:33-35`: any other failure reads "Invalid credentials"
   - the probe: `POST /api/auth/login` with the forced cookie, 403 `password_change_required`
 - **Fix:** allow `POST api/auth/login` in `IsAllowed` (diff under Detail), with a test case in `PasswordChangeRequiredTests`, and add it to the lists in `AGENTS.md:156`, `docs/architecture.md:1006` and the class's summary. Signing in proves the password afresh and replaces the session, so it gives a forced user nothing new. Optionally, `/login` could also send a signed-in visitor on to `/`.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** `PasswordChangeRequired.IsAllowed` allows `POST api/auth/login`, with a test case (and `GET api/auth/login` among the refusals); `AGENTS.md`, `docs/architecture.md` and the class's summary list it.
 
 ### 3. The branch no longer merges cleanly into `main`
 
@@ -120,7 +120,7 @@ Most severe first. None is high or critical. All seven were open when this revie
 - **What could go wrong:** #57 and #58 were merged after this branch was cut. #57 rewrote the Features list in `docs/todo.md` around the two items this PR deletes, so the PR can't be merged until that's resolved. This review's row in `docs/reviews/README.md` will collide the same way with the #57 and #58 rows `main` added below the #56 row.
 - **Evidence:** `git merge-tree --write-tree HEAD origin/main` reports `CONFLICT (content): Merge conflict in docs/todo.md`; `git diff 88dc1fa origin/main -- docs/todo.md docs/reviews/README.md`.
 - **Fix:** merge `origin/main` into the branch. In `docs/todo.md`, keep `main`'s new Features items and drop the two this PR finishes ("Force a password change…" and "`medapp-dev`'s `create_user`…"). In `docs/reviews/README.md`, keep the #57 and #58 rows, then this one. Then let CI run again on the merge.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** `origin/main` (#57 and #58) merged into the branch. `docs/todo.md` keeps `main`'s new Features items and drops the two this PR finishes; `docs/reviews/README.md` lists #57, #58, then #59.
 
 ### 4. Nothing committed tests the pipeline order the own-password exception depends on
 
@@ -132,7 +132,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - `MedApp.API/Common/Extensions/ApplicationBuilderExtensions.cs:45-50`: no `UseRouting()`
   - `docs/architecture.md:1153` already records that nothing tests the assembled pipeline
 - **Fix:** commit a pipeline test like this review's probe, in `MedApp.IntegrationTests` (empty today): `WebApplicationFactory` with `ISessionService` and `IIdentityUserService` faked, and two raw requests, a forced user's own `PUT …/update-password` (expect 204) and another user's (expect 403). It would also guard finding 2's fix and the hub's refusal.
-- **What happened to it:** open.
+- **What happened to it:** **Deferred.** The integration test suite is being built on another branch; the pipeline test (a forced user's own `PUT …/update-password` gets 204, another user's 403, plus sign-in and the hub) will be added there after this merges.
 
 ### 5. On kind, the exempt first admin's password is generated by a script and stays in the secret store
 
@@ -140,7 +140,7 @@ Most severe first. None is high or critical. All seven were open when this revie
 - **What could go wrong:** the exemption rests on the first admin's password being "chosen by whoever deploys and kept in the secret store" (`FirstAdminSetup.cs:70-71`, `AGENTS.md:157`). On kind it isn't chosen: `up.sh` generates it and prints the `kubectl` command that reads it back. It's handed on like any generated password, and since nothing makes the admin change it, it keeps working for anyone who can read that secret, for as long as the deployment lives. That's the very risk this PR removes for every other account.
 - **Evidence:** `deploy/kind/up.sh:104-107` and `:173`; `MedApp.Infrastructure/Common/Identity/FirstAdminSetup.cs:70-78`; `AGENTS.md:157`.
 - **Fix:** either set `MustChangePassword = true` for the first admin too, so the stored password only gets them to the change page (the secret then no longer signs anyone in, and re-running `create-first-admin` is unaffected, as it only acts on an empty database); or keep the exemption and reword the justification to say the password sits in the secret store until changed, adding it to Remaining risks in `docs/architecture.md`.
-- **What happened to it:** open.
+- **What happened to it:** **Kept, and the reason reworded.** The first admin stays exempt. `FirstAdminSetup.cs` and `AGENTS.md` now say its password comes from the secret store, set by whoever deploys, and that on kind `up.sh` generates it and it can be read back from the cluster's store, which is acceptable for a local cluster. The risk is recorded under Remaining risks.
 
 ### 6. A new account has no role, and without one the change page can't succeed
 
@@ -151,7 +151,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - `MedApp.API/Controllers/AuthController.cs:152-154`: `Staff` and `SelfUserOnly` on the own-password change
   - `MedApp.Web/src/components/forms/PasswordChangeFields.tsx:17-18`: the 403 message
 - **Fix:** have the create dialog take the roles (User ticked by default) and set them straight after creating, or, at least, word a 403 on this page as "Your account has no role yet. Ask an admin to give it one."
-- **What happened to it:** open.
+- **What happened to it:** **Mitigated, behaviour unchanged.** A new account still has no role until an admin gives it one. On the change-password page, a 403 that isn't `password_change_required` now reads "This account has no role yet. Ask an admin to give it one, then sign in again." (`usePasswordChangeForm`'s `forbiddenMessage`), with tests on the page and the shared form.
 
 ### 7. Docs and the parity screens lag the change
 
@@ -167,7 +167,7 @@ Most severe first. None is high or critical. All seven were open when this revie
   - in step 6, add that whoami reports it and the guard redirects
   - add a parity screen for `/change-password` (it needs a forced account of its own, made from the Users page)
   - let `PasswordChangeFields` take the placeholder with the label
-- **What happened to it:** open.
+- **What happened to it:** **Fixed, except the parity screen.** `docs/architecture.md`'s pipeline table (step 8 is now "Authentication, password change, authorisation") and the session walk-through (steps 4 and 6) describe the claim, the middleware and the redirect. `PasswordChangeFields` takes a `currentPlaceholder` ("Enter the password you were given" on the change page), and `deploy/azure/README.md` has its final newline back. **To do:** a UI parity screen for `/change-password`, which needs a forced account of its own.
 
 ## Remaining risks
 
@@ -177,6 +177,8 @@ Most severe first. None is high or critical. All seven were open when this revie
 - **Two tabs:** a tab opened before the change keeps its cached whoami, so its change page still asks for the given password, now wrong, until it's reloaded.
 - **No password history:** a later change can go back to the given password.
 - **medapp-dev's all-or-nothing `create_user` is reasoned, not tested:** the tool has no tests and wasn't run against a database here.
+- **The first admin on kind keeps a readable password:** it's exempt from the forced change, and on kind `up.sh` generates its password, which stays readable in the cluster's secret store and keeps working until the admin changes it. Accepted for a local cluster (finding 5); a deployment whose secret store is shared more widely should have the admin change it after the first sign-in.
+- **No UI parity screen for `/change-password`** yet: it needs a forced account of its own (finding 7).
 - **Not seen in a browser:** no UI parity screenshots or axe audit were run for this review, and the PR doesn't say they were.
 
 ## Say it like this

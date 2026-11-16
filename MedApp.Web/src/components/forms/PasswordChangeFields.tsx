@@ -1,6 +1,7 @@
 import {TextInput, type TextInputSize} from '@astryxdesign/core/TextInput';
 import {useState, type FormEvent} from 'react';
 import {ApiError, ApiValidationError, fieldStatus, type ValidationErrors} from '../../api/errors';
+import {PASSWORD_CHANGE_REQUIRED} from '../../api/client';
 import {useChangePassword} from '../../api/users';
 
 /** The request fields a password change's 400 can name, which show their messages on the inputs. */
@@ -8,9 +9,11 @@ export const PASSWORD_CHANGE_FIELDS = ['oldPassword', 'newPassword'] as const;
 
 const EMPTY = {current: '', next: '', confirm: ''};
 
-/** Why a password change failed, in the Blazor page's words. */
-function changeError(error: unknown): string {
+/** Why a password change failed, in the Blazor page's words, or `forbidden` for a refusal by role. */
+function changeError(error: unknown, forbidden?: string): string {
   if (error instanceof ApiError) {
+    // Refused by role (an account with none), not because the password must be changed first.
+    if (error.status === 403 && forbidden && error.code !== PASSWORD_CHANGE_REQUIRED) return forbidden;
     switch (error.status) {
       case 401:
         return 'Current password is incorrect.';
@@ -45,7 +48,16 @@ export interface PasswordChangeForm {
  * passwords match) and blanks are made here. Use it with `PasswordChangeFields`, for any page where people change
  * their own password: Account Settings, and the change a generated password forces at sign-in.
  */
-export function usePasswordChangeForm({username, onChanged}: {username: string; onChanged?: () => void | Promise<void>}): PasswordChangeForm {
+export function usePasswordChangeForm({
+  username,
+  onChanged,
+  forbiddenMessage,
+}: {
+  username: string;
+  onChanged?: () => void | Promise<void>;
+  /** What to say when the API refuses the change by role (a 403 that isn't `password_change_required`). */
+  forbiddenMessage?: string;
+}): PasswordChangeForm {
   const change = useChangePassword();
   const [fields, setFields] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +81,7 @@ export function usePasswordChangeForm({username, onChanged}: {username: string; 
           setFields(EMPTY);
           await onChanged?.();
         },
-        onError: (e) => (e instanceof ApiValidationError ? setValidation(e.errors) : setError(changeError(e))),
+        onError: (e) => (e instanceof ApiValidationError ? setValidation(e.errors) : setError(changeError(e, forbiddenMessage))),
       },
     );
   };
@@ -79,8 +91,10 @@ export function usePasswordChangeForm({username, onChanged}: {username: string; 
 
 export interface PasswordChangeFieldsProps {
   form: PasswordChangeForm;
-  /** What the current password is called, e.g. "The password you were given". */
+  /** What the current password is called, e.g. "Password you were given". */
   currentLabel?: string;
+  /** The current password's placeholder, to go with `currentLabel`. */
+  currentPlaceholder?: string;
   size?: TextInputSize;
 }
 
@@ -88,7 +102,12 @@ export interface PasswordChangeFieldsProps {
  * The three inputs of a password change (current, new, confirm), with the server's messages on the first two. Put
  * them in the page's own form or `FormCard`, with `usePasswordChangeForm` behind them.
  */
-export function PasswordChangeFields({form, currentLabel = 'Current password', size}: PasswordChangeFieldsProps) {
+export function PasswordChangeFields({
+  form,
+  currentLabel = 'Current password',
+  currentPlaceholder = 'Enter your current password',
+  size,
+}: PasswordChangeFieldsProps) {
   const {fields, set, validation} = form;
   return (
     <>
@@ -97,7 +116,7 @@ export function PasswordChangeFields({form, currentLabel = 'Current password', s
         type="password"
         value={fields.current}
         onChange={set('current')}
-        placeholder="Enter your current password"
+        placeholder={currentPlaceholder}
         autoComplete="current-password"
         isRequired
         status={fieldStatus(validation, 'oldPassword')}

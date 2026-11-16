@@ -68,7 +68,9 @@ public sealed class FirstAdminSetup(
             }
 
             // Not made to change its password (MustChangePassword stays false), unlike accounts an admin creates: this
-            // password isn't generated and handed on, but chosen by whoever deploys and kept in the secret store.
+            // password isn't handed on by an admin, but comes from the secret store, set by whoever deploys. On kind,
+            // up.sh generates it and it can be read back from the cluster's store, which is acceptable for a local
+            // cluster.
             var admin = new ApplicationUser
             {
                 UserName = username,
