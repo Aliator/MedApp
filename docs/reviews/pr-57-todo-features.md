@@ -85,7 +85,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
   - multi-tenancy, `docs/todo.md:68`, against step 8, `docs/architecture.md:1945-1992`
   - the order: `docs/architecture.md:2014` ("after tenancy and the clinical safety system, each feature is built once") and `:1992` ("Adding tenancy after step 9's features costs more")
 - **Fix:** give each overlapping item a pointer and the roadmap's must-haves, for example "(roadmap step 9, item 4, in `docs/architecture.md`: malware scanning, audited downloads)". Or keep here only what the roadmap lacks (appointments tied to stages, the timeline, the home screen, per-person settings) and add the rest to the roadmap. Either way, say whether these come before or after step 8.
-- **What happened to it:** open, for the PR.
+- **What happened to it:** partly fixed in the PR: the insights, email and attachments items now point at their roadmap step. The order relative to multi-tenancy was left to the roadmap.
 
 ### 2. The email item leaves out what reset links and safe emails need
 
@@ -102,7 +102,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
   - `MedApp.Application/Procedures/PatientProcedures/Commands/AssignPatientProcedure/AssignPatientProcedureHandler.cs:47` (`Title = procedure.Title`); `docs/architecture.md:1105`, `:1926` and `:2045`
   - `AGENTS.md:154`
 - **Fix:** add to the item: "Needs an email address on each staff account (and on the Users page's create form), data protection keys shared between copies (roadmap step 2), and emails that only say something happened, with a link: never a procedure title or patient details. The welcome email sends a single-use set-your-password link, not the password."
-- **What happened to it:** open, for the PR.
+- **What happened to it:** fixed in the PR: the email item now notes the missing email addresses, the shared data protection keys, no clinical free text in emails, and no password in a welcome email.
 
 ### 3. A timeline built from the audit log would show admin-only history to all staff
 
@@ -113,7 +113,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
   - `AGENTS.md:150` (patients: staff; the procedure audit log: admin only); `MedApp.API/Controllers/ProcedureAuditController.cs:20`
   - `MedApp.Application/Procedures/Common/ProcedureChange.cs:79` (the notes, from and to); `MedApp.Domain/Procedures/PatientProcedures/PatientProcedureAuditEntry.cs:4-5` and `:16`; `docs/architecture.md:1105`
 - **Fix:** add the access rule to the item, for example: "Staff see what happened, who did it and when, without old notes text or deleted procedures. Admins, and the roadmap's `Auditor` role (`docs/architecture.md:1736`), see everything." Opening the timeline is also a read of patient data, which the roadmap's step 7 audits.
-- **What happened to it:** open, for the PR.
+- **What happened to it:** fixed in the PR: the timeline item says staff see only what they can see today, and the audit log stays admin-only. The timeline being built follows that rule.
 
 ### 4. File attachments don't say how uploaded files are served safely
 
@@ -125,7 +125,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
   - no Content Security Policy or `nosniff` header in `MedApp.API`; `docs/architecture.md:1545-1547` lists both as still to do
   - `docs/architecture.md:2042` (malware scanning and audited downloads)
 - **Fix:** add: "Files checked by content against an allow-list and scanned for malware; downloads sent with `Content-Disposition: attachment` and `nosniff`; previews only for images and PDFs, or from a separate origin; every download audited (roadmap step 9, item 4)."
-- **What happened to it:** open, for the PR.
+- **What happened to it:** fixed in the PR: the attachments item now asks for safe serving (download by default, `nosniff`, no inline SVG or HTML), malware scanning and audited downloads.
 
 ### 5. The long-term goal mixes two hosting models, and doesn't meet the roadmap
 
@@ -135,7 +135,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
   - **The roadmap goes the other way.** Its step 8 already plans multi-tenancy, with a dedicated deployment as an option, for fixed tables; per-company fields and renamed records would change that design. Its steps 6 and 9 take MedApp further into clinical specifics: the NHS number on the patient, FHIR UK Core, SNOMED CT, and an intended purpose (what the software is for, which decides whether it's a medical device) written for one product. A generic engine in which Patient can become Animal pulls the core the other way, so step 9's patient identity work would put NHS-only fields into the core that the platform wants generic.
 - **Evidence:** `docs/todo.md:66` and `:68`; `docs/architecture.md:1945-1992` (step 8) and `:1974` (the dedicated option); `:1817` and `:1856` (step 6, the intended purpose); `:2017` (step 9, patient identity)
 - **Fix:** pick one model: one shared deployment with settings per company (keep multi-tenancy first, drop "the build"), or a deployment per company (say so, and drop "inside one deployment"). Then add a line such as "Builds on roadmap step 8; the medical pack keeps the clinical specifics of steps 6 and 9." Or move the goal into `docs/architecture.md`, beside the roadmap.
-- **What happened to it:** open, for the PR.
+- **What happened to it:** fixed in the PR: the long-term item now says to decide between a deployment for each company and multi-tenancy (step 8).
 
 ### 6. The to-do list's own description no longer fits it
 
@@ -143,7 +143,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
 - **What could go wrong:** line 3 says the list holds "Smaller improvements to pick up later", deleted once merged. It now holds features of months each, and a goal that never merges. Features mixes them with follow-up fixes (the forced password change, the `DefaultPassword1` check, a `medapp-dev` bug, a duplicate label), and the quick fixes now sit under seven large features. Two lines of `docs/architecture.md` describe the list as it was: "Smaller open items", and a summary of its features list that names only what #53 left (already behind since #55).
 - **Evidence:** `docs/todo.md:3`, `:15-36` and `:58`; `docs/architecture.md:1387` and `:2473`
 - **Fix:** reword line 3 (for example "Open work outside the phased plans: fixes, features and longer-term goals"); split Features into "Fixes and follow-ups" and "New features", fixes first; give "Long term" a line saying its items stay until they're dropped. Then update `docs/architecture.md:1387` and `:2473` to match.
-- **What happened to it:** open, for the PR.
+- **What happened to it:** partly fixed in the PR: the list's opening line no longer says "smaller". The handbook's description of the list is left as it is.
 
 ### 7. Dropping "More notifications" loses detail the roadmap points to
 
@@ -154,7 +154,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
   - **Where the setting lives.** It must be on the server, where only admins can change it. In the user's own settings (one JSON object that each person saves whole), anyone could undo an admin's choice for themselves.
 - **Evidence:** `docs/architecture.md:2045`; `docs/todo.md:29`; the removed line (`main`'s `docs/todo.md:21`); `MedApp.API/Common/Extensions/ServiceExtensions.cs:30` (the only hosted service); `MedApp.Domain/Authentication/UserSettings.cs:3-6` and `:13-17`
 - **Fix:** in the item, say who is told for each event (assignees, and perhaps admins for blocked work); add "a scheduled check for overdue work that runs once across copies (a lease, or a Kubernetes CronJob)" and "kept apart from each person's own settings". Optionally keep the new kinds as their own, smaller item.
-- **What happened to it:** open, for the PR.
+- **What happened to it:** partly fixed in the PR: the notification settings item now notes the once-only scheduled job and keeps admins' choices apart from personal settings. The handbook's pointer is left.
 
 ### 8. Two features rely on dragging alone
 
@@ -162,7 +162,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
 - **What could go wrong:** files are attached "by dragging them in", and widgets are moved and resized. WCAG 2.2 AA, MedApp's aim, needs another way for each: success criterion 2.5.7 (Dragging Movements) asks for a single click or tap instead, and 2.1.1 for keyboard access to everything. The axe audit can't tell whether a drag has an alternative, so a drag-only build would pass it, and still shut out anyone using a keyboard, a switch or a screen reader.
 - **Evidence:** `docs/todo.md:31` and `:32`; `docs/todo.md:7`; `MedApp.Web/AGENTS.md:35`
 - **Fix:** add "with a file picker too" and "with buttons and the keyboard to move and resize".
-- **What happened to it:** open, for the PR.
+- **What happened to it:** fixed in the PR: the attachments and home screen items ask for a click or keyboard alternative to dragging.
 
 ### 9. Email and file storage are new outside connections the items don't plan for
 
@@ -170,7 +170,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
 - **What could go wrong:** the chart lets the API connect out only to DNS, the database and the backplane, and every container's filesystem is read-only, so files can't go on local disk. The first deploy with email or attachments fails on its first send or upload, unless the chart, kind and the AppHost (with a local stand-in for each, such as Azurite or a mail catcher) change with it. An email provider and Blob Storage also join the list of outside services that handle patient data (roadmap step 3).
 - **Evidence:** `deploy/helm/medapp/templates/networkpolicy.yaml:7-8` and `:27-48`; `deploy/helm/medapp/templates/_helpers.tpl:72`; `AGENTS.md:35`; `docs/architecture.md:1725`
 - **Fix:** add to each item: "a chart change (the connection out, and its secret), and a local stand-in in the AppHost and on kind".
-- **What happened to it:** open, for the PR.
+- **What happened to it:** left for the builds: development uses local stand-ins (Mailpit for email, Azurite for files), and the chart's network policy gets the new connections when those features land.
 
 ### 10. The PR conflicts with #58, and its description is behind
 
@@ -178,7 +178,7 @@ Most severe first: four medium and six low. None is high or critical. All are op
 - **What could go wrong:** #58 deletes the duplicate-label item, and this PR deletes the line right after it. Git can't merge the two on its own, so whichever merges second stops on a conflict, and a careless resolution brings a deleted item back. Separately, the PR description lists six features (not the home screen) and doesn't mention dropping "More notifications", so the merged PR describes less than it changed.
 - **Evidence:** `git merge-tree --write-tree 78abce1 e6f8699` reports "CONFLICT (content): Merge conflict in docs/todo.md"; `main`'s `docs/todo.md:20-21`; the PR description.
 - **Fix:** after the first of the two merges, merge `main` into the other and keep both deletions. Update the description: seven features, and "More notifications" folded into the notification settings item.
-- **What happened to it:** open, for the PR.
+- **What happened to it:** handled at merge: #58 merges first, then this branch is brought up to date. The PR description is updated.
 
 ## Remaining risks
 
