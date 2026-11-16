@@ -366,7 +366,11 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
   const onColumnPointerUp = () => {
     if (!isSelecting.current) return;
     isSelecting.current = false;
-    if (pending) commit(pending);
+    if (!pending) return;
+    // Just after the browser has finished with this press: a menu opened from the selection (the Calendar page's Book
+    // or Block) would otherwise take the release, and the click after it, as a press outside it, and close at once.
+    const selected = pending;
+    window.setTimeout(() => commit(selected), 0);
   };
 
   // Dragging an item.
