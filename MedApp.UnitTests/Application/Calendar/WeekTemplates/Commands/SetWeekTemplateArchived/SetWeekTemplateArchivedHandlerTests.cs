@@ -31,13 +31,15 @@ public sealed class SetWeekTemplateArchivedHandlerTests : CalendarSetupHandlerTe
         var template = GivenTemplate(wasArchived);
         GivenWeekTemplateUsage(WeekTemplateId, new WeekTemplateUsage(2, true));
 
-        var response = await Handler.Handle(new SetWeekTemplateArchivedCommand(WeekTemplateId, archive), Token);
+        var response = await Handler.Handle(new SetWeekTemplateArchivedCommand(WeekTemplateId, archive, StaffActor), Token);
 
         template.IsArchived.Should().Be(archive);
         response.IsArchived.Should().Be(archive);
         response.Days[0].DayTemplateName.Should().Be(DayTemplateName);
         response.StaffCount.Should().Be(2);
         response.CanBeDeleted.Should().BeFalse();
+        response.OwnerUserId.Should().Be(StaffUserId);
+        response.CanEdit.Should().BeTrue();
         Repository.Verify(r => r.GetWeekTemplateForUpdateAsync(WeekTemplateId, Today, Token), Times.Once);
         Repository.Verify(r => r.SaveWeekTemplateAsync(template, null, Token), Times.Once);
         Repository.Verify(r => r.GetWeekTemplateUsageAsync(It.IsAny<IEnumerable<Guid>>(), Today, Token), Times.Once);
@@ -49,7 +51,7 @@ public sealed class SetWeekTemplateArchivedHandlerTests : CalendarSetupHandlerTe
     {
         GivenTemplate(archived);
 
-        var response = await Handler.Handle(new SetWeekTemplateArchivedCommand(WeekTemplateId, archived), Token);
+        var response = await Handler.Handle(new SetWeekTemplateArchivedCommand(WeekTemplateId, archived, StaffActor), Token);
 
         response.IsArchived.Should().Be(archived);
         response.CanBeDeleted.Should().BeTrue();
@@ -58,9 +60,34 @@ public sealed class SetWeekTemplateArchivedHandlerTests : CalendarSetupHandlerTe
     }
 
     [Test]
+    public async Task Handle_AdminArchivesSomeoneElses_SavesIt()
+    {
+        var template = GivenTemplate(false);
+
+        var response = await Handler.Handle(new SetWeekTemplateArchivedCommand(WeekTemplateId, true, AdminActor), Token);
+
+        template.IsArchived.Should().BeTrue();
+        response.CanEdit.Should().BeTrue();
+        Repository.Verify(r => r.SaveWeekTemplateAsync(template, null, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_OtherStaffArchivesSomeoneElses_ThrowsForbiddenAndSavesNothing()
+    {
+        var template = GivenTemplate(false);
+
+        var act = () => Handler.Handle(new SetWeekTemplateArchivedCommand(WeekTemplateId, true, OtherStaffActor), Token);
+
+        await act.Should().ThrowAsync<ForbiddenException>().WithMessage(CalendarActor.NotYourTemplates);
+        template.IsArchived.Should().BeFalse();
+        Repository.Verify(r => r.SaveWeekTemplateAsync(
+            It.IsAny<WeekTemplate>(), It.IsAny<TemplateHistoryChange<WeekTemplateDay>?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Handle_TemplateDoesNotExist_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new SetWeekTemplateArchivedCommand(Guid.NewGuid(), true), Token);
+        var act = () => Handler.Handle(new SetWeekTemplateArchivedCommand(Guid.NewGuid(), true, StaffActor), Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }

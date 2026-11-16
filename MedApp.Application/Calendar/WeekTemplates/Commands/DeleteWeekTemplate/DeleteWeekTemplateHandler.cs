@@ -12,6 +12,7 @@ public sealed class DeleteWeekTemplateHandler(ICalendarSetupRepository repositor
     {
         var today = UkTime.Today(timeProvider);
         var template = await repository.GetWeekTemplateOrThrowAsync(request.WeekTemplateId, today, cancellationToken);
+        request.Actor.EnsureCanChangeTemplatesOf(template.OwnerUserId);
 
         var usage = (await repository.GetWeekTemplateUsageAsync([template.Id], today, cancellationToken))
             .GetValueOrDefault(template.Id, WeekTemplateUsage.None);

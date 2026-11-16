@@ -161,6 +161,32 @@ public sealed class ApplyDayTemplateHandlerTests : StaffCalendarHandlerTestBase
     }
 
     [Test]
+    public async Task Handle_SomeoneElsesDayTemplate_ThrowsNotFound()
+    {
+        GivenDayTemplate(CreateDayTemplate(OtherDayTemplateId, ownerUserId: OtherStaffUserId));
+
+        var act = () => _handler.Handle(new ApplyDayTemplateCommand(StaffUserId, NextMonday, OtherDayTemplateId, StaffActor), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"Day template '{OtherDayTemplateId}' isn't one of this person's templates.");
+        SetupRepository.Verify(r => r.GetDayTemplateAsync(OtherDayTemplateId, Today, Token), Times.Once);
+        VerifyNotLocked();
+        _added.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Handle_AdminWithTheirOwnDayTemplateOnSomeoneElsesCalendar_ThrowsNotFound()
+    {
+        // An admin may change anyone's calendar, but only with that person's own day templates.
+        GivenDayTemplate(CreateDayTemplate(OtherDayTemplateId, ownerUserId: AdminUserId));
+
+        var act = () => _handler.Handle(new ApplyDayTemplateCommand(StaffUserId, NextMonday, OtherDayTemplateId, AdminActor), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+        VerifyNotLocked();
+    }
+
+    [Test]
     public async Task Handle_ArchivedDayTemplate_ThrowsConflict()
     {
         GivenDayTemplate(CreateDayTemplate(OtherDayTemplateId, isArchived: true));

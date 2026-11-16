@@ -95,18 +95,20 @@ public static class CalendarTestConstants
         IsArchived = true
     };
 
-    /// <summary>A day template (archived or not), with no blocks.</summary>
-    public static DayTemplate CreateDayTemplate(Guid? id = null, bool isArchived = false) => new()
+    /// <summary>A day template (archived or not), <see cref="StaffUserId"/>'s by default, with no blocks.</summary>
+    public static DayTemplate CreateDayTemplate(Guid? id = null, bool isArchived = false, Guid? ownerUserId = null) => new()
     {
         Id = id ?? DayTemplateId,
+        OwnerUserId = ownerUserId ?? StaffUserId,
         Name = DayTemplateName,
         IsArchived = isArchived
     };
 
-    /// <summary>A week template (archived or not), with no days.</summary>
-    public static WeekTemplate CreateWeekTemplate(Guid? id = null, bool isArchived = false) => new()
+    /// <summary>A week template (archived or not), <see cref="StaffUserId"/>'s by default, with no days.</summary>
+    public static WeekTemplate CreateWeekTemplate(Guid? id = null, bool isArchived = false, Guid? ownerUserId = null) => new()
     {
         Id = id ?? WeekTemplateId,
+        OwnerUserId = ownerUserId ?? StaffUserId,
         Name = WeekTemplateName,
         IsArchived = isArchived
     };

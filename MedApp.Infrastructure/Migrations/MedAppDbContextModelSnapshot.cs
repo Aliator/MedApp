@@ -586,9 +586,12 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("OwnerUserId", "Name")
                         .IsUnique();
 
                     b.ToTable("DayTemplates", (string)null);
@@ -677,9 +680,12 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("OwnerUserId", "Name")
                         .IsUnique();
 
                     b.ToTable("WeekTemplates", (string)null);

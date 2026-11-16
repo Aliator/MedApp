@@ -12,6 +12,7 @@ public sealed class SetWeekTemplateArchivedHandler(ICalendarSetupRepository repo
     {
         var today = UkTime.Today(timeProvider);
         var template = await repository.GetWeekTemplateForUpdateOrThrowAsync(request.WeekTemplateId, today, cancellationToken);
+        request.Actor.EnsureCanChangeTemplatesOf(template.OwnerUserId);
 
         if (template.IsArchived != request.IsArchived)
         {
@@ -19,6 +20,6 @@ public sealed class SetWeekTemplateArchivedHandler(ICalendarSetupRepository repo
             await repository.SaveWeekTemplateAsync(template, null, cancellationToken);
         }
 
-        return await CalendarSetupMapper.ToResponseAsync(template, repository, today, cancellationToken);
+        return await CalendarSetupMapper.ToResponseAsync(template, repository, today, canEdit: true, cancellationToken);
     }
 }

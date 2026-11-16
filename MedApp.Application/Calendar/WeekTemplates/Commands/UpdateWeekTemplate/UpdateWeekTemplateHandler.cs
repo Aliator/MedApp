@@ -13,18 +13,20 @@ public sealed class UpdateWeekTemplateHandler(ICalendarSetupRepository repositor
     {
         var today = UkTime.Today(timeProvider);
         var template = await repository.GetWeekTemplateForUpdateOrThrowAsync(request.WeekTemplateId, today, cancellationToken);
+        request.Actor.EnsureCanChangeTemplatesOf(template.OwnerUserId);
 
         var name = request.Name.Trim();
         if (name != template.Name)
         {
-            if (await repository.WeekTemplateNameExistsAsync(name, template.Id, cancellationToken))
+            if (await repository.WeekTemplateNameExistsAsync(template.OwnerUserId, name, template.Id, cancellationToken))
                 throw new ConflictException($"A week template called '{name}' already exists.");
 
             template.Name = name;
         }
 
         var days = request.Days();
-        await TemplateChecks.CheckDayTemplatesAsync(repository, days, TemplateChecks.DayTemplatesIn(template), cancellationToken);
+        await TemplateChecks.CheckDayTemplatesAsync(
+            repository, template.OwnerUserId, days, TemplateChecks.DayTemplatesIn(template), cancellationToken);
 
         var change = TemplateHistory.Replace(
             template.Days,
@@ -36,6 +38,6 @@ public sealed class UpdateWeekTemplateHandler(ICalendarSetupRepository repositor
         await repository.SaveWeekTemplateAsync(template, change.HasChanges ? change : null, cancellationToken);
 
         var saved = await repository.GetWeekTemplateOrThrowAsync(template.Id, today, cancellationToken);
-        return await CalendarSetupMapper.ToResponseAsync(saved, repository, today, cancellationToken);
+        return await CalendarSetupMapper.ToResponseAsync(saved, repository, today, canEdit: true, cancellationToken);
     }
 }

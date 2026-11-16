@@ -57,9 +57,10 @@ public sealed class CalendarSetupMapperTests
         var future = CreateTemplateBlock(10, 11, validFrom: Today.AddDays(1));
         var template = BuildDayTemplate([training, closed, lunch, future], isArchived: true);
 
-        var response = CalendarSetupMapper.ToResponse(template, new DayTemplateUsage(2, true), Today);
+        var response = CalendarSetupMapper.ToResponse(template, new DayTemplateUsage(2, true), Today, canEdit: true);
 
         response.Id.Should().Be(DayTemplateId);
+        response.OwnerUserId.Should().Be(StaffUserId);
         response.Name.Should().Be(DayTemplateName);
         response.IsArchived.Should().BeTrue();
         response.Blocks.Select(b => b.Id).Should().Equal(lunch.Id, training.Id);
@@ -74,7 +75,7 @@ public sealed class CalendarSetupMapperTests
         var second = CreateTemplateBlock(12, 13, Training);
         var ordered = new[] { first, second }.OrderBy(b => b.Id).Select(b => b.Id).ToList();
 
-        var response = CalendarSetupMapper.ToResponse(BuildDayTemplate([second, first]), DayTemplateUsage.None, Today);
+        var response = CalendarSetupMapper.ToResponse(BuildDayTemplate([second, first]), DayTemplateUsage.None, Today, canEdit: true);
 
         response.Blocks.Select(b => b.Id).Should().Equal(ordered);
     }
@@ -84,10 +85,22 @@ public sealed class CalendarSetupMapperTests
     [TestCase(3, true, false)]
     public void ToResponse_DayTemplate_CanBeDeletedOnlyWhenNeverUsed(int weekTemplates, bool hasBeenUsed, bool canBeDeleted)
     {
-        var response = CalendarSetupMapper.ToResponse(BuildDayTemplate(), new DayTemplateUsage(weekTemplates, hasBeenUsed), Today);
+        var response = CalendarSetupMapper.ToResponse(BuildDayTemplate(), new DayTemplateUsage(weekTemplates, hasBeenUsed), Today, canEdit: true);
 
         response.WeekTemplateCount.Should().Be(weekTemplates);
         response.CanBeDeleted.Should().Be(canBeDeleted);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ToResponse_DayTemplate_CopiesItsOwnerAndWhetherItCanBeEdited(bool canEdit)
+    {
+        var template = BuildDayTemplate(ownerUserId: OtherStaffUserId);
+
+        var response = CalendarSetupMapper.ToResponse(template, DayTemplateUsage.None, Today, canEdit);
+
+        response.OwnerUserId.Should().Be(OtherStaffUserId);
+        response.CanEdit.Should().Be(canEdit);
     }
 
     [Test]
@@ -128,11 +141,26 @@ public sealed class CalendarSetupMapperTests
             .ReturnsAsync(new Dictionary<Guid, DayTemplateUsage> { [DayTemplateId] = new(1, true) });
         using var cts = new CancellationTokenSource();
 
-        var response = await CalendarSetupMapper.ToResponseAsync(BuildDayTemplate(), repository.Object, Today, cts.Token);
+        var response = await CalendarSetupMapper.ToResponseAsync(BuildDayTemplate(), repository.Object, Today, canEdit: true, cts.Token);
 
         response.WeekTemplateCount.Should().Be(1);
         response.CanBeDeleted.Should().BeFalse();
         repository.Verify(r => r.GetDayTemplateUsageAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == DayTemplateId), Today, cts.Token), Times.Once);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task ToResponseAsync_DayTemplate_PassesOnWhetherItCanBeEdited(bool canEdit)
+    {
+        var repository = new Mock<ICalendarSetupRepository>();
+        repository
+            .Setup(r => r.GetDayTemplateUsageAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, DayTemplateUsage>());
+
+        var response = await CalendarSetupMapper.ToResponseAsync(BuildDayTemplate(), repository.Object, Today, canEdit, CancellationToken.None);
+
+        response.OwnerUserId.Should().Be(StaffUserId);
+        response.CanEdit.Should().Be(canEdit);
     }
 
     [Test]
@@ -143,7 +171,7 @@ public sealed class CalendarSetupMapperTests
             .Setup(r => r.GetDayTemplateUsageAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, DayTemplateUsage>());
 
-        var response = await CalendarSetupMapper.ToResponseAsync(BuildDayTemplate(), repository.Object, Today, CancellationToken.None);
+        var response = await CalendarSetupMapper.ToResponseAsync(BuildDayTemplate(), repository.Object, Today, canEdit: true, CancellationToken.None);
 
         response.WeekTemplateCount.Should().Be(0);
         response.CanBeDeleted.Should().BeTrue();
@@ -164,9 +192,10 @@ public sealed class CalendarSetupMapperTests
             CreateLoadedWeekDay(DayOfWeek.Friday, theatreDay, validFrom: Today.AddDays(1))
         ], isArchived: true);
 
-        var response = CalendarSetupMapper.ToResponse(template, new WeekTemplateUsage(4, true), Today);
+        var response = CalendarSetupMapper.ToResponse(template, new WeekTemplateUsage(4, true), Today, canEdit: true);
 
         response.Id.Should().Be(WeekTemplateId);
+        response.OwnerUserId.Should().Be(StaffUserId);
         response.Name.Should().Be(WeekTemplateName);
         response.IsArchived.Should().BeTrue();
         response.Days.Select(d => d.DayOfWeek).Should().Equal("Monday", "Tuesday", "Wednesday", "Thursday", "Friday");
@@ -174,6 +203,18 @@ public sealed class CalendarSetupMapperTests
         response.Days.Select(d => d.DayTemplateName).Should().Equal(OtherDayTemplateName, null, DayTemplateName, null, null);
         response.StaffCount.Should().Be(4);
         response.CanBeDeleted.Should().BeFalse();
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ToResponse_WeekTemplate_CopiesItsOwnerAndWhetherItCanBeEdited(bool canEdit)
+    {
+        var template = BuildWeekTemplate(ownerUserId: OtherStaffUserId);
+
+        var response = CalendarSetupMapper.ToResponse(template, WeekTemplateUsage.None, Today, canEdit);
+
+        response.OwnerUserId.Should().Be(OtherStaffUserId);
+        response.CanEdit.Should().Be(canEdit);
     }
 
     [Test]
@@ -187,7 +228,7 @@ public sealed class CalendarSetupMapperTests
             CreateLoadedWeekDay(DayOfWeek.Tuesday, clinicDay, validFrom: LongAgo)
         ]);
 
-        var response = CalendarSetupMapper.ToResponse(template, WeekTemplateUsage.None, Today);
+        var response = CalendarSetupMapper.ToResponse(template, WeekTemplateUsage.None, Today, canEdit: true);
 
         response.Days[1].DayTemplateId.Should().Be(OtherDayTemplateId);
     }
@@ -198,7 +239,7 @@ public sealed class CalendarSetupMapperTests
         var day = CreateWeekDay(DayOfWeek.Monday);
         day.DayTemplate = null!;
 
-        var response = CalendarSetupMapper.ToResponse(BuildWeekTemplate([day]), WeekTemplateUsage.None, Today);
+        var response = CalendarSetupMapper.ToResponse(BuildWeekTemplate([day]), WeekTemplateUsage.None, Today, canEdit: true);
 
         response.Days[0].DayTemplateId.Should().Be(DayTemplateId);
         response.Days[0].DayTemplateName.Should().BeNull();
@@ -215,11 +256,26 @@ public sealed class CalendarSetupMapperTests
             .ReturnsAsync(new Dictionary<Guid, WeekTemplateUsage> { [WeekTemplateId] = new(2, true) });
         using var cts = new CancellationTokenSource();
 
-        var response = await CalendarSetupMapper.ToResponseAsync(BuildWeekTemplate(), repository.Object, Today, cts.Token);
+        var response = await CalendarSetupMapper.ToResponseAsync(BuildWeekTemplate(), repository.Object, Today, canEdit: true, cts.Token);
 
         response.StaffCount.Should().Be(2);
         response.CanBeDeleted.Should().BeFalse();
         repository.Verify(r => r.GetWeekTemplateUsageAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == WeekTemplateId), Today, cts.Token), Times.Once);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task ToResponseAsync_WeekTemplate_PassesOnWhetherItCanBeEdited(bool canEdit)
+    {
+        var repository = new Mock<ICalendarSetupRepository>();
+        repository
+            .Setup(r => r.GetWeekTemplateUsageAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, WeekTemplateUsage>());
+
+        var response = await CalendarSetupMapper.ToResponseAsync(BuildWeekTemplate(), repository.Object, Today, canEdit, CancellationToken.None);
+
+        response.OwnerUserId.Should().Be(StaffUserId);
+        response.CanEdit.Should().Be(canEdit);
     }
 
     [Test]
@@ -230,7 +286,7 @@ public sealed class CalendarSetupMapperTests
             .Setup(r => r.GetWeekTemplateUsageAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, WeekTemplateUsage>());
 
-        var response = await CalendarSetupMapper.ToResponseAsync(BuildWeekTemplate(), repository.Object, Today, CancellationToken.None);
+        var response = await CalendarSetupMapper.ToResponseAsync(BuildWeekTemplate(), repository.Object, Today, canEdit: true, CancellationToken.None);
 
         response.StaffCount.Should().Be(0);
         response.CanBeDeleted.Should().BeTrue();

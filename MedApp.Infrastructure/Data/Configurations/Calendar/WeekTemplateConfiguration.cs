@@ -19,7 +19,9 @@ public sealed class WeekTemplateConfiguration : IEntityTypeConfiguration<WeekTem
         builder.Property(x => x.IsArchived)
             .HasDefaultValue(false);
 
-        builder.HasIndex(x => x.Name)
+        // Each member of staff has their own templates (no foreign key to the users table for OwnerUserId), and names
+        // are unique per owner.
+        builder.HasIndex(x => new { x.OwnerUserId, x.Name })
             .IsUnique();
 
         // A week template owns its days (every version of them).
