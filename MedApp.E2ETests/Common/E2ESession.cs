@@ -1,6 +1,10 @@
+using MedApp.E2ETests.Common;
 using Microsoft.Playwright;
 
-namespace MedApp.E2ETests.Common;
+// In the root namespace, so it runs once before every test in the assembly (a SetUpFixture covers only its own
+// namespace and those under it).
+// ReSharper disable once CheckNamespace
+namespace MedApp.E2ETests;
 
 /// <summary>
 /// Signs in once per test run, through the API the app uses, and saves the session cookie for every signed-in
@@ -14,7 +18,12 @@ public sealed class E2ESession
     {
         if (string.IsNullOrEmpty(E2ESettings.Username) || string.IsNullOrEmpty(E2ESettings.Password))
         {
-            Assert.Ignore("Set E2E_USERNAME and E2E_PASSWORD to run the end-to-end tests (see MedApp.E2ETests/README.md).");
+            const string message = "Set E2E_USERNAME and E2E_PASSWORD to run the end-to-end tests (see MedApp.E2ETests/README.md).";
+            // In CI (GitHub sets CI=true) a missing credential is a broken job, not a reason to skip: a green run must
+            // have run the journeys. Locally, without them, the suite is skipped.
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+                Assert.Fail(message);
+            Assert.Ignore(message);
         }
 
         using var playwright = await Playwright.CreateAsync();
@@ -32,5 +41,23 @@ public sealed class E2ESession
 
         Directory.CreateDirectory(Path.GetDirectoryName(E2ESettings.StorageStatePath)!);
         await request.StorageStateAsync(new APIRequestContextStorageStateOptions { Path = E2ESettings.StorageStatePath });
+    }
+
+    /// <summary>Signs the shared session out when the run ends, so runs don't leave sessions behind.</summary>
+    [OneTimeTearDown]
+    public async Task SignOutAsync()
+    {
+        if (!File.Exists(E2ESettings.StorageStatePath))
+            return;
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var request = await playwright.APIRequest.NewContextAsync(new APIRequestNewContextOptions
+        {
+            BaseURL = E2ESettings.BaseUrl,
+            IgnoreHTTPSErrors = true,
+            StorageStatePath = E2ESettings.StorageStatePath,
+        });
+        await request.PostAsync("/api/auth/logout");
+        File.Delete(E2ESettings.StorageStatePath);
     }
 }
