@@ -7,9 +7,11 @@ import {AppProviders} from '../app/AppProviders';
 import {whoamiQuery, type CurrentUser} from '../auth/auth';
 import {routeTree} from '../routeTree.gen';
 
-export const adminUser: CurrentUser = {isAuthenticated: true, username: 'test-admin', roles: ['Admin', 'User'], isAdmin: true};
-export const staffUser: CurrentUser = {isAuthenticated: true, username: 'test-user', roles: ['User'], isAdmin: false};
-export const signedOutUser: CurrentUser = {isAuthenticated: false, username: '', roles: [], isAdmin: false};
+export const adminUser: CurrentUser = {isAuthenticated: true, username: 'test-admin', roles: ['Admin', 'User'], isAdmin: true, mustChangePassword: false};
+export const staffUser: CurrentUser = {isAuthenticated: true, username: 'test-user', roles: ['User'], isAdmin: false, mustChangePassword: false};
+/** A staff member signed in with a password an admin gave them, which they must change before anything else. */
+export const mustChangePasswordUser: CurrentUser = {...staffUser, username: 'test-new-user', mustChangePassword: true};
+export const signedOutUser: CurrentUser = {isAuthenticated: false, username: '', roles: [], isAdmin: false, mustChangePassword: false};
 
 function testQueryClient(user?: CurrentUser) {
   const queryClient = new QueryClient({defaultOptions: {queries: {retry: false}, mutations: {retry: false}}});
