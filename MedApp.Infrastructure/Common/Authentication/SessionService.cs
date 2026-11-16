@@ -1,4 +1,4 @@
-﻿﻿using MedApp.Application.Common.Authentication;
+﻿using MedApp.Application.Common.Authentication;
 using MedApp.Domain.Authentication;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
@@ -69,5 +69,28 @@ public sealed class SessionService(
 
         session.Revoke(DateTime.UtcNow);
         await context.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> RevokeUserSessionsAsync(
+        Guid userId,
+        Guid? exceptSessionId = null,
+        CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        var sessions = await context.UserSessions
+            .Where(candidate => candidate.UserId == userId
+                                && candidate.RevokedAtUtc == null
+                                && candidate.ExpiresAtUtc > now
+                                && (exceptSessionId == null || candidate.Id != exceptSessionId))
+            .ToListAsync(ct);
+
+        if (sessions.Count == 0)
+            return 0;
+
+        foreach (var session in sessions)
+            session.Revoke(now);
+
+        await context.SaveChangesAsync(ct);
+        return sessions.Count;
     }
 }

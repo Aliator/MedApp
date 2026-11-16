@@ -44,6 +44,14 @@ public static class AuthTestConstants
     public static readonly Guid SessionId =
         Guid.Parse("11111111-1111-1111-1111-111111111111");
 
+    /// <summary>The user whose sessions a change ends (Usernames[1]).</summary>
+    public static readonly Guid SessionUserId =
+        Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+    /// <summary>Usernames[1] as the read service returns them, with these roles.</summary>
+    public static global::MedApp.Contracts.Authentication.Responses.UserResponse SessionUser(params string[] roles) =>
+        new(SessionUserId, Usernames[1], roles);
+
     public static readonly DateTime SessionExpiresAtUtc =
         new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
