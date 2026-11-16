@@ -149,3 +149,24 @@ export function formatTime(isoUtc: string): string {
   const date = parseUtc(isoUtc);
   return Number.isNaN(date.getTime()) ? isoUtc : UK_TIME.format(date);
 }
+
+const UK_SHORT_DAY = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'Europe/London',
+});
+
+/**
+ * An appointment's time in the UK: "Mon 23 Nov 2026, 10:00", or with its end, "Mon 23 Nov 2026, 10:00 to 10:30" (an
+ * appointment starts and ends on the same day). Put together from its parts, like `formatDayHeading`, so the server
+ * and the browser agree. The start itself if unreadable.
+ */
+export function formatAppointmentTime(startUtc: string, endUtc?: string | null): string {
+  const start = parseUtc(startUtc);
+  if (Number.isNaN(start.getTime())) return startUtc;
+  const part = Object.fromEntries(UK_SHORT_DAY.formatToParts(start).map(({type, value}) => [type, value]));
+  const end = endUtc ? ` to ${formatTime(endUtc)}` : '';
+  return `${part.weekday} ${part.day} ${part.month} ${part.year}, ${UK_TIME.format(start)}${end}`;
+}

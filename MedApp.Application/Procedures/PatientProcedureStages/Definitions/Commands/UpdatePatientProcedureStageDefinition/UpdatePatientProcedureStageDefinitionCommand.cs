@@ -11,5 +11,6 @@ public sealed record UpdatePatientProcedureStageDefinitionCommand(
     string? Instructions,
     // The code and term change together: null leaves both, an empty code removes both.
     string? SnomedCode = null,
-    string? SnomedTerm = null)
+    string? SnomedTerm = null,
+    string? VisitRequirement = null)
     : IRequest<PatientProcedureStageDefinitionResponse>;

@@ -28,7 +28,13 @@ public sealed class DeletePatientHandler(IPatientRepository repository, IActivit
             throw new ConflictException(
                 $"This patient has {procedureCount} procedure{(procedureCount == 1 ? "" : "s")}, so they can't be deleted.");
 
-        // So are the files attached to them: they must be deleted first (which is audited).
+        // So do appointments, whatever their status.
+        var appointmentCount = await repository.CountAppointmentsAsync(request.Id, cancellationToken);
+        if (appointmentCount > 0)
+            throw new ConflictException(
+                $"This patient has {appointmentCount} appointment{(appointmentCount == 1 ? "" : "s")}, so they can't be deleted.");
+
+        // Nor can one with files attached: they must be deleted first (which is audited).
         var fileCount = await attachments.CountForPatientAsync(request.Id, cancellationToken);
         if (fileCount > 0)
             throw new ConflictException(

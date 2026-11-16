@@ -108,7 +108,8 @@ export function whyCantChange(patient: Pick<Patient, 'isRestricted' | 'isAnonymi
 
 /**
  * Refreshes everything a change to a patient's flags or record touches: the patient (with its new state from the
- * response), the lists, their procedures (which become read-only with them) and the activity log.
+ * response), the lists, their procedures and appointments (which become read-only with them, so the calendars too)
+ * and the activity log.
  */
 function useAfterPatientChange(id: string) {
   const queryClient = useQueryClient();
@@ -117,6 +118,8 @@ function useAfterPatientChange(id: string) {
     await Promise.all([
       queryClient.invalidateQueries({queryKey: ['patients']}),
       queryClient.invalidateQueries({queryKey: ['procedures']}),
+      queryClient.invalidateQueries({queryKey: ['appointments']}),
+      queryClient.invalidateQueries({queryKey: ['calendar']}),
       queryClient.invalidateQueries({queryKey: ['activity']}),
     ]);
   };

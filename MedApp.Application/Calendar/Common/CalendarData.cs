@@ -1,0 +1,39 @@
+using MedApp.Domain.Appointments;
+using MedApp.Domain.Calendar;
+
+namespace MedApp.Application.Calendar.Common;
+
+/// <summary>
+/// Everything that puts something on one member of staff's calendar over a range of UK dates, as the repository loads
+/// it (<c>ICalendarRepository.GetCalendarDataAsync</c>), for <see cref="CalendarProjection"/> and
+/// <see cref="CalendarClashes"/>. Dated rows are those valid on any date in the range.
+/// </summary>
+/// <param name="StaffWeekTemplates">The person's default week template rows, each with its week template.</param>
+/// <param name="WeekTemplateDays">The days of those week templates.</param>
+/// <param name="DayTemplateBlocks">
+/// The blocks of every day template those days or the range's overrides use, each with its activity type.
+/// </param>
+/// <param name="DayOverrides">Dates using a day template of their own (or none).</param>
+/// <param name="BlockExceptions">Template blocks left off a date (changed or removed that day).</param>
+/// <param name="Blocks">Stored blocks in the range, each with its activity type.</param>
+/// <param name="Appointments">
+/// The person's Booked, Attended and Did not attend appointments in the range, with their patient, procedure and stage.
+/// </param>
+/// <param name="DayTemplateNames">The names of the day templates the days and overrides use, by ID.</param>
+public sealed record CalendarData(
+    Guid StaffUserId,
+    DateOnly From,
+    DateOnly To,
+    IReadOnlyList<StaffWeekTemplate> StaffWeekTemplates,
+    IReadOnlyList<WeekTemplateDay> WeekTemplateDays,
+    IReadOnlyList<DayTemplateBlock> DayTemplateBlocks,
+    IReadOnlyList<CalendarDayOverride> DayOverrides,
+    IReadOnlyList<CalendarBlockException> BlockExceptions,
+    IReadOnlyList<CalendarBlock> Blocks,
+    IReadOnlyList<Appointment> Appointments,
+    IReadOnlyDictionary<Guid, string> DayTemplateNames)
+{
+    /// <summary>Nothing on the calendar: no templates, blocks or appointments.</summary>
+    public static CalendarData Empty(Guid staffUserId, DateOnly from, DateOnly to) =>
+        new(staffUserId, from, to, [], [], [], [], [], [], [], new Dictionary<Guid, string>());
+}

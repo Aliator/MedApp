@@ -89,12 +89,16 @@ function StageInstructions({stage, folding}: {stage: ProcedureStage; folding?: I
   );
 }
 
-/** A stage's title: its number and name, as headers and the current stage show it. */
-export function StageTitle({stage}: {stage: ProcedureStage}) {
+/**
+ * A stage's title: its number and name, as headers and the current stage show it, and its state; `extra` adds more
+ * after them (its visit, `StageVisitTokens`). It wraps in a narrow space.
+ */
+export function StageTitle({stage, extra}: {stage: ProcedureStage; extra?: ReactNode}) {
   return (
-    <HStack gap={3} vAlign="center">
+    <HStack gap={3} vAlign="center" wrap="wrap">
       <Text type="body" size="lg" weight="bold">{`${stage.stageOrder}. ${stage.name}`}</Text>
       <StageStateTokens stage={stage} />
+      {extra}
     </HStack>
   );
 }
@@ -146,6 +150,8 @@ export interface StageListProps {
   onStageOpenChange?: (stageId: string, isOpen: boolean) => void;
   /** Whether each stage's instructions are open, held by the page. Without it, they start folded. */
   instructions?: InstructionsFolding;
+  /** More for a stage's title, after its state, e.g. its visit (`StageVisitTokens`). */
+  renderVisit?: (stage: ProcedureStage) => ReactNode;
   /** Each stage's files, under its notes; nothing shows none. */
   renderFiles?: (stage: ProcedureStage) => ReactNode;
 }
@@ -162,6 +168,7 @@ export function StageList({
   openStageIds,
   onStageOpenChange,
   instructions,
+  renderVisit,
   renderFiles,
 }: StageListProps) {
   return (
@@ -175,7 +182,7 @@ export function StageList({
               isOpen={openStageIds ? openStageIds.includes(stage.id ?? '') : undefined}
               onOpenChange={openStageIds ? (isOpen) => onStageOpenChange?.(stage.id ?? '', isOpen) : undefined}
               chevronPosition="end"
-              trigger={<StageTitle stage={stage} />}>
+              trigger={<StageTitle stage={stage} extra={renderVisit?.(stage)} />}>
               <StageDetails stage={stage} work={renderWork?.(stage)} instructions={instructions} files={renderFiles?.(stage)} />
             </Collapsible>
           </Section>

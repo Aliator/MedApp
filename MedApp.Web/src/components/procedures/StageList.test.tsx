@@ -169,6 +169,12 @@ describe('StageList, held by the page', () => {
     expect(instructions.onOpenChange).toHaveBeenCalledWith(held[1], false);
   });
 
+  it("adds the stage's visit to its title", async () => {
+    renderWithApp(<StageList stages={held} renderVisit={(s) => <span>Visit for {s.name}</span>} />);
+
+    expect(await screen.findByRole('button', {name: /^1\. Consultation.*Visit for Consultation/})).toBeInTheDocument();
+  });
+
   it("shows the stage's own work in place of its notes", async () => {
     renderWithApp(<StageList stages={held} renderWork={(s) => <p>Work for {s.name}</p>} />);
 

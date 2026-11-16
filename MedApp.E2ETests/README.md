@@ -12,6 +12,8 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | `Tasks/MyTasksTests` | A procedure assigned to you in My Tasks, under Not started, then Started, and opening it. |
 | `Auth/TwoFactorTests` | Two-factor authentication: a member of staff sets up an authenticator app in Account Settings, Security (the key is read from the page, and codes made from it as an app makes them), sees their recovery codes once, then signs in again with their password and a code. Needs no email, so it runs against the production image as CI starts it. |
 | `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
+| `Calendar/BookingTests` | Booking an appointment from the patient page (with you, 30 minutes, the first free day and time), finding it on your Calendar that day, opening it and cancelling it with a reason. |
+| `Calendar/StageVisitTests` | The visit rule: a stage that requires a visit shows it needs booking; an admin's Finish Stage asks "Finish without a visit?" with a reason; the stage finishes, its requested visit comes off Needs booking, and the patient's timeline says it was finished without a visit, and why. |
 | `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
 | `Security/ContentSecurityPolicyTests` | Each main page (home, patients, procedures, My Tasks, account, users, insights) is rendered on the server with its own response's CSP nonce, which the API passes to the page server, in its container or beside it. Skipped against the development server, which sends no policy. |
 
@@ -48,6 +50,7 @@ The whole suite takes about a minute. The tests write to the database the app us
 - the audit log entries of the procedures they made (by design: the audit log outlives deletes)
 - the notification the bell test sends (marked read)
 - the session rows of the accounts they made and deleted (none can be used: their users are gone)
+- the appointments they made, cancelled (the app never deletes appointments), with their history, and so the `E2E …` patients they were for: a patient who has had an appointment can't be deleted
 
 A run that's cancelled or crashes before its clean-up (against a deployment, through `e2e.yml`, say) can also leave what it made: `E2E …` patients, stages and templates, and `e2e-…` accounts, one of them an admin. Their passwords are random for the run, but delete them by hand.
 

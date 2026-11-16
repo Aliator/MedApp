@@ -5,17 +5,20 @@ import {Link} from '@astryxdesign/core/Link';
 import {MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Section} from '@astryxdesign/core/Section';
 import {VStack} from '@astryxdesign/core/Stack';
-import {Text} from '@astryxdesign/core/Text';
+import {Heading, Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
+import {patientAppointmentsQuery, type Appointment} from '../../api/appointments';
 import {ApiError} from '../../api/errors';
 import {patientQuery, useSetPatientFlag, whyCantChange, type Patient} from '../../api/patients';
 import {NO_TIMELINE_FILTERS, type TimelineFilters} from '../../api/timeline';
 import {useCurrentUser} from '../../auth/auth';
+import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {Attachments} from '../../components/attachments/Attachments';
 import {useAttachmentsState} from '../../components/attachments/useAttachmentsState';
 import {Page, useIsNarrow} from '../../components/pages/Page';
+import {AppointmentList} from '../../components/procedures/AppointmentList';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {PatientAccessReport} from '../../components/patients/PatientAccessReport';
@@ -30,7 +33,7 @@ import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
-import {ageOn, formatDate} from '../../utils/dates';
+import {ageOn, formatDate, parseUtc} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
@@ -66,6 +69,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   const [open, setOpen] = useState({details: true, files: true, timeline: true});
   // Files on their way, held here so they carry on when the window switches between one card and two.
   const attachments = useAttachmentsState();
+  const [isBooking, setIsBooking] = useState(false);
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
 
   useEffect(() => {
@@ -73,7 +77,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
   }, [error, navigate]);
 
   const timeline = <PatientTimeline patientId={id} filters={filters} onFiltersChange={setFilters} />;
-  const actions = patient && <Actions patient={patient} isAdmin={me.isAdmin} onProblem={setProblem} />;
+  const actions = patient && <Actions patient={patient} isAdmin={me.isAdmin} onBook={() => setIsBooking(true)} onProblem={setProblem} />;
   // Everything attached to the patient, anywhere; what's added here is attached to the patient themselves. Nothing
   // can be added or deleted while the record is restricted or anonymised.
   const isLocked = patient !== undefined && whyCantChange(patient) !== null;
@@ -102,7 +106,8 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
             </VStack>
           )
         )
-      }>
+      }
+      dialogs={patient && <BookAppointmentDialog isOpen={isBooking} onClose={() => setIsBooking(false)} patient={{...patient, id}} />}>
       {patient &&
         (isNarrow ? (
           // One card: the details, the files, then the timeline, each folding; they scroll together.
@@ -159,22 +164,94 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
 }
 
 /**
- * Procedures and Edit Patient (not while the record is restricted or anonymised, when it can't be changed), and an
- * admin's Privacy menu.
+ * Book Appointment, Procedures and Edit Patient (not booking or editing while the record is restricted or anonymised,
+ * when it can't be changed), and an admin's Privacy menu.
  */
-function Actions({patient, isAdmin, onProblem}: {patient: Patient; isAdmin: boolean; onProblem: (problem: SaveProblem) => void}) {
+function Actions({
+  patient,
+  isAdmin,
+  onBook,
+  onProblem,
+}: {
+  patient: Patient;
+  isAdmin: boolean;
+  onBook: () => void;
+  onProblem: (problem: SaveProblem) => void;
+}) {
+  const canChange = whyCantChange(patient) === null;
   return (
     <>
       {isAdmin && <PrivacyActions patient={patient} onProblem={onProblem} />}
+      {canChange && <Button label="Book Appointment" variant="secondary" icon={<Icon icon={AppIcon.Book} />} onClick={onBook} />}
       <Button label="Procedures" variant="secondary" icon={<Icon icon={AppIcon.Procedures} />} href={`/patients/${patient.id}/procedures`} />
-      {whyCantChange(patient) === null && (
+      {canChange && (
         <Button label="Edit Patient" variant="secondary" icon={<Icon icon={AppIcon.Edit} />} href={`/patients/${patient.id}/edit`} />
       )}
     </>
   );
 }
 
-/** Who the patient is, how to contact them, and their record's ID. */
+/** How many past appointments the patient page lists, under the upcoming ones. */
+export const PAST_APPOINTMENTS_SHOWN = 3;
+
+const startTime = (a: Appointment) => (a.startUtc ? parseUtc(a.startUtc).getTime() : 0);
+const lastChange = (a: Appointment) => (a.startUtc ? startTime(a) : parseUtc(a.lastUpdated ?? '').getTime() || 0);
+
+/**
+ * The patient's appointments, in two parts: what's still to happen (Booked, soonest first, then Needs booking), then
+ * the last few that are over (attended, missed or cancelled), newest first. Each opens on the Calendar.
+ */
+export function splitAppointments(appointments: readonly Appointment[]) {
+  const upcoming = [
+    ...appointments.filter((a) => a.status === 'Booked').sort((a, b) => startTime(a) - startTime(b)),
+    ...appointments.filter((a) => a.status === 'Requested'),
+  ];
+  const past = appointments.filter((a) => a.status !== 'Booked' && a.status !== 'Requested').sort((a, b) => lastChange(b) - lastChange(a));
+  return {upcoming, past: past.slice(0, PAST_APPOINTMENTS_SHOWN), morePast: Math.max(0, past.length - PAST_APPOINTMENTS_SHOWN)};
+}
+
+function PatientAppointments({patientId}: {patientId: string}) {
+  const {data, isPending, isError} = useQuery(patientAppointmentsQuery(patientId));
+  if (isError) return <AlertMessage message="The appointments could not be loaded. Please try again." />;
+  if (isPending)
+    return (
+      <Text type="body" color="secondary">
+        Loading appointments...
+      </Text>
+    );
+  const {upcoming, past, morePast} = splitAppointments(data.items ?? []);
+  if (upcoming.length === 0 && past.length === 0)
+    return (
+      <Text type="body" color="secondary">
+        No appointments yet.
+      </Text>
+    );
+  return (
+    <VStack gap={4}>
+      {upcoming.length > 0 ? (
+        <AppointmentList appointments={upcoming} showProcedure label="Upcoming appointments" />
+      ) : (
+        <Text type="body" color="secondary">
+          Nothing booked or waiting to be booked.
+        </Text>
+      )}
+      {past.length > 0 && (
+        <VStack gap={2}>
+          {/* Cancelled ones may have been for a later day, so not just "Earlier". */}
+          <Heading level={3}>Past and cancelled</Heading>
+          <AppointmentList appointments={past} showProcedure label="Past and cancelled appointments" />
+          {morePast > 0 && (
+            <Text type="supporting" color="secondary">
+              {`And ${morePast} more: the timeline has them all.`}
+            </Text>
+          )}
+        </VStack>
+      )}
+    </VStack>
+  );
+}
+
+/** Who the patient is, how to contact them, their appointments, and their record's ID. */
 function PatientDetails({patient}: {patient: Patient}) {
   const age = patient.dateOfBirth ? ageOn(patient.dateOfBirth) : null;
   return (
@@ -191,6 +268,9 @@ function PatientDetails({patient}: {patient: Patient}) {
           <Link href={`mailto:${patient.email}`}>{patient.email}</Link>
         </MetadataListItem>
       </ViewSection>
+      <CardSection title="Appointments">
+        <PatientAppointments patientId={patient.id ?? ''} />
+      </CardSection>
       <ViewSection title="Record Information" useGrid={false}>
         <MetadataListItem label="Patient ID">
           <Text type="code">{patient.id}</Text>

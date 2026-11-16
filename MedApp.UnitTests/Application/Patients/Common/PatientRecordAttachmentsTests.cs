@@ -56,6 +56,8 @@ public sealed class PatientRecordAttachmentsTests
             Procedures = record.Procedures,
             ProcedureHistory = [.. record.ProcedureHistory, audit],
             Activity = record.Activity,
+            Appointments = record.Appointments,
+            AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications,
             Attachments = [live, deleted],
         }, live, deleted, procedure);
@@ -148,7 +150,8 @@ public sealed class PatientRecordAttachmentsTests
         var withOdd = new PatientRecord
         {
             Patient = record.Patient, Procedures = record.Procedures, ProcedureHistory = record.ProcedureHistory,
-            Activity = record.Activity, Notifications = record.Notifications, Attachments = [live, odd],
+            Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
+            Notifications = record.Notifications, Attachments = [live, odd],
         };
 
         PatientAnonymiser.Apply(withOdd, AnonymisedAt);

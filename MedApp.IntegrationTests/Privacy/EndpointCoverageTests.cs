@@ -43,6 +43,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/procedures/patient-procedures/search"] = Records("PatientListed"),
         ["api/fhir/Patient/{id}"] = Records("PatientViewed"),
         ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
+        ["api/appointments/{id:guid}"] = Records("PatientViewed"),
+        ["api/appointments/search"] = Records("PatientListed"),
+        ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar
         ["api/attachments"] = Records("AttachmentsViewed"),
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the procedure audit log
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
@@ -72,6 +75,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/auth/users/{username}"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/{username}/roles"] = Nothing("staff accounts, not patients"),
         ["api/auth/roles"] = Nothing("role names"),
+        ["api/calendar/staff"] = Nothing("staff accounts and their default weeks, not patients"),
+        ["api/calendar/staff/{userId:guid}/week-template"] = Nothing("a member of staff's default week: configuration"),
         ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 
         // Configuration.
@@ -79,6 +84,12 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/procedures/patient-procedure-stage/definitions/{id:guid}"] = Nothing("stage definitions: configuration"),
         ["api/procedures/patient-procedure-stage/templates"] = Nothing("templates: configuration"),
         ["api/procedures/patient-procedure-stage/templates/{id:guid}"] = Nothing("templates: configuration"),
+        ["api/calendar/activity-types"] = Nothing("calendar activity types: configuration"),
+        ["api/calendar/activity-types/{id:guid}"] = Nothing("calendar activity types: configuration"),
+        ["api/calendar/day-templates"] = Nothing("calendar day templates: configuration"),
+        ["api/calendar/day-templates/{id:guid}"] = Nothing("calendar day templates: configuration"),
+        ["api/calendar/week-templates"] = Nothing("calendar week templates: configuration"),
+        ["api/calendar/week-templates/{id:guid}"] = Nothing("calendar week templates: configuration"),
 
         // Infrastructure.
         ["/api/notifications/hub"] = Nothing("the live notifications connection (it carries notifications already stored)"),
@@ -118,6 +129,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {old.Id}");
         // A synthetic NHS number (the 999 range), so the FHIR search finds them.
         await ExecuteSqlAsync($"UPDATE Patients SET NhsNumber = '9990000018' WHERE Id = {patientId}");
+        // An appointment with the admin, so their calendar names the patient.
+        var day = NextWorkingDay();
+        var appointment = await BookNewAppointmentAsync(admin, patientId, adminId, UkAt(day, 9));
         var file = await UploadAttachmentOkAsync(admin, $"procedureId={procedure.Id}", SyntheticPdf, "synthetic.pdf");
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
@@ -133,6 +147,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ("/api/procedures/patient-procedures/search", "PatientListed", patientId),
             ($"/api/fhir/Patient/{patientId}", "PatientViewed", patientId),
             ("/api/fhir/Patient?identifier=https%3A%2F%2Ffhir.nhs.uk%2FId%2Fnhs-number%7C9990000018", "PatientListed", patientId),
+            (AppointmentUrl(appointment.Id), "PatientViewed", patientId),
+            ("/api/appointments/search", "PatientListed", patientId),
+            ($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}", "PatientListed", patientId),
             ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),
             ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
         };

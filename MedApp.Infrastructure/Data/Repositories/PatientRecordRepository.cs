@@ -40,13 +40,29 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
             .ToListAsync(ct);
 
-        // Notifications point at procedures, including ones since deleted, which only the audit still names.
+        var appointments = await Tracking(context.Appointments, forUpdate)
+            .Where(a => a.PatientId == patientId)
+            .OrderBy(a => a.CreatedAtUtc).ThenBy(a => a.Id)
+            .ToListAsync(ct);
+
+        var appointmentHistory = await Tracking(context.AppointmentEvents, forUpdate)
+            .Where(e => e.PatientId == patientId)
+            .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
+            .ToListAsync(ct);
+
+        // Notifications point at procedures, including ones since deleted, which only the audit still names, or at
+        // appointments.
         var procedureIds = procedures.Select(p => p.Id)
             .Concat(history.Select(e => e.PatientProcedureId))
             .Distinct()
             .ToList();
+        var appointmentIds = appointments.Select(a => a.Id)
+            .Concat(appointmentHistory.Select(e => e.AppointmentId))
+            .Distinct()
+            .ToList();
         var notifications = await Tracking(context.Notifications, forUpdate)
-            .Where(n => n.ProcedureId != null && procedureIds.Contains(n.ProcedureId.Value))
+            .Where(n => (n.ProcedureId != null && procedureIds.Contains(n.ProcedureId.Value))
+                        || (n.AppointmentId != null && appointmentIds.Contains(n.AppointmentId.Value)))
             .OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id)
             .ToListAsync(ct);
 
@@ -62,6 +78,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Procedures = procedures,
             ProcedureHistory = history,
             Activity = activity,
+            Appointments = appointments,
+            AppointmentHistory = appointmentHistory,
             Notifications = notifications,
             Attachments = attachments
         };

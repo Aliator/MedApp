@@ -1,7 +1,7 @@
 import {Badge} from '@astryxdesign/core/Badge';
 import {Button} from '@astryxdesign/core/Button';
 import {Heading} from '@astryxdesign/core/Heading';
-import {Icon} from '@astryxdesign/core/Icon';
+import {Icon, type IconType} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {Popover} from '@astryxdesign/core/Popover';
@@ -14,15 +14,29 @@ import {notificationsQuery, useMarkNotificationsRead, type AppNotification} from
 import {timeAgo} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 
-const procedureHref = (notification: AppNotification) =>
-  notification.procedureId ? `/procedures/${notification.procedureId}` : undefined;
+/** Where a notification leads: an appointment opens on the calendar, a procedure on its page. */
+const hrefOf = (notification: AppNotification) =>
+  notification.appointmentId
+    ? `/calendar?appointment=${notification.appointmentId}`
+    : notification.procedureId
+      ? `/procedures/${notification.procedureId}`
+      : undefined;
+
+/** Each kind's icon, beside its title, so what happened shows at a glance. */
+const KIND_ICONS: Record<string, IconType> = {
+  ProcedureAssigned: AppIcon.Assign,
+  AppointmentBooked: AppIcon.AppointmentBooked,
+  AppointmentRescheduled: AppIcon.Book,
+  AppointmentCancelled: AppIcon.StatusCancelled,
+};
 
 /** The bell's label: what it is, and how many are unread. */
 const bellLabel = (unread: number) => (unread === 0 ? 'Notifications' : `Notifications, ${unread} unread`);
 
 /**
  * The bell beside the MedApp heading: the signed-in user's notifications, with a count of the unread ones. It
- * opens a list of the newest (a procedure's opens it, and marks it read), and Mark all read. New ones arrive live
+ * opens a list of the newest (a procedure's opens it, an appointment's opens it on the calendar, and either marks it
+ * read), and Mark all read. New ones arrive live
  * (`LiveNotifications`), so the count and list change without a reload.
  */
 export function NotificationBell() {
@@ -55,14 +69,15 @@ export function NotificationBell() {
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
 
-  // Following a notification's link marks it read (and any others about the same procedure), and closes the list.
+  // Following a notification's link marks it read (and any others about the same procedure or appointment), and
+  // closes the list.
   // Caught on the way down, as a linked row takes no click handler of its own.
   const followLink = (event: MouseEvent) => {
     const href = (event.target as HTMLElement).closest('a')?.getAttribute('href');
     if (!href) return;
     for (const notification of items) {
       // Only by id: none would mark them all.
-      if (!notification.isRead && notification.id && href === procedureHref(notification))
+      if (!notification.isRead && notification.id && href === hrefOf(notification))
         markRead.mutate(notification.id);
     }
     setIsOpen(false);
@@ -83,7 +98,7 @@ export function NotificationBell() {
       {items.length === 0 ? (
         <VStack padding={3} paddingBlockStart={0}>
           <Text type="body" color="secondary">
-            Nothing yet. You’ll see it here when someone assigns you to a procedure.
+            Nothing yet. You’ll see it here when someone assigns you to a procedure, or books, moves or cancels an appointment with you.
           </Text>
         </VStack>
       ) : (
@@ -92,8 +107,9 @@ export function NotificationBell() {
             {items.map((notification) => (
               <ListItem
                 key={notification.id}
-                href={procedureHref(notification)}
+                href={hrefOf(notification)}
                 align="first-line"
+                startContent={KIND_ICONS[notification.kind ?? ''] && <Icon icon={KIND_ICONS[notification.kind ?? '']} color="secondary" />}
                 label={
                   <Text type="body" weight={notification.isRead ? 'normal' : 'semibold'} maxLines={2}>
                     {notification.title}

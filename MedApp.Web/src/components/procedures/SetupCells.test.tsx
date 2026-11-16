@@ -20,11 +20,14 @@ describe('SetupCells', () => {
       <>
         <SetupNameCell name="Consent" secondary="Informed consent has been obtained." />
         <SetupNameCell name="Review" />
+        <SetupNameCell name="Scan" token={<SetupStatusToken isArchived />} />
       </>,
     );
 
     expect(await screen.findByText('Consent')).toBeInTheDocument();
     expect(screen.getByText('Informed consent has been obtained.')).toBeInTheDocument();
     expect(screen.getByText('Review')).toBeInTheDocument();
+    // A token beside the name.
+    expect(screen.getByText('Scan').parentElement).toHaveTextContent('ScanArchived');
   });
 });

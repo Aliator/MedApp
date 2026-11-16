@@ -1,11 +1,13 @@
 ﻿using Azure.Identity;
 using Azure.Storage.Blobs;
 using MedApp.Application.Activity.Repositories;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
+using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
@@ -163,6 +165,10 @@ public static class ServiceExtensions
         services.AddScoped<IProcedureInsightsRepository, ProcedureInsightsRepository>();
         services.AddScoped<IUserSettingsRepository, UserSettingsRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();
+        services.AddScoped<ICalendarRepository, CalendarRepository>();
+        services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<ICalendarLock, CalendarLock>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
         services.AddScoped<ISecuritySettingsRepository, SecuritySettingsRepository>();
         services.AddScoped<IAccountLockoutRepository, AccountLockoutRepository>();

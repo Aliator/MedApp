@@ -149,11 +149,20 @@ public abstract class E2ETest : PageTest
 
     /// <summary>
     /// A synthetic patient, deleted after the test, with any procedures made for them (cancelled and deleted first).
+    /// A patient who has had an appointment can't be deleted (the app never deletes appointments): their open ones are
+    /// cancelled instead, and the patient stays.
     /// </summary>
     protected async Task<PatientResponse> CreatePatientAsync(string firstName = "Grace")
     {
         var patient = await Api.CreatePatientAsync(firstName, E2EData.UniqueName("Patient"), new DateOnly(1984, 3, 21));
-        Data.OnCleanUp($"patient {patient.LastName}", () => Api.DeletePatientAsync(patient.Id));
+        Data.OnCleanUp($"patient {patient.LastName}", async () =>
+        {
+            var appointments = await Api.AppointmentsOfPatientAsync(patient.Id);
+            foreach (var appointment in appointments.Where(a => a.CanCancel))
+                await Api.CancelAppointmentAsync(appointment.Id, "End-to-end test clean-up.");
+            if (appointments.Count == 0)
+                await Api.DeletePatientAsync(patient.Id);
+        });
         Data.OnCleanUp($"the procedures of {patient.LastName}", async () =>
         {
             foreach (var procedure in await Api.ProceduresOfPatientAsync(patient.Id))
@@ -163,13 +172,19 @@ public abstract class E2ETest : PageTest
     }
 
     /// <summary>A template of new stages, deleted after the test with its stages (after any procedures made from it).</summary>
+    protected Task<(PatientProcedureStageTemplateResponse Template, IReadOnlyList<PatientProcedureStageDefinitionResponse> Stages)>
+        CreateTemplateAsync(int stageCount) =>
+        CreateTemplateAsync([.. Enumerable.Repeat("None", stageCount)]);
+
+    /// <summary>The same, with a stage for each visit requirement given (None, Suggested or Required), in order.</summary>
     protected async Task<(PatientProcedureStageTemplateResponse Template, IReadOnlyList<PatientProcedureStageDefinitionResponse> Stages)>
-        CreateTemplateAsync(int stageCount)
+        CreateTemplateAsync(params string[] visitRequirements)
     {
         var stages = new List<PatientProcedureStageDefinitionResponse>();
-        for (var i = 1; i <= stageCount; i++)
+        for (var i = 1; i <= visitRequirements.Length; i++)
         {
-            var stage = await Api.CreateStageDefinitionAsync(E2EData.UniqueName($"Stage {i}"), $"Synthetic instructions for stage {i}.");
+            var stage = await Api.CreateStageDefinitionAsync(
+                E2EData.UniqueName($"Stage {i}"), $"Synthetic instructions for stage {i}.", visitRequirements[i - 1]);
             Data.OnCleanUp($"stage {stage.Name}", () => Api.DeleteStageDefinitionAsync(stage.Id));
             stages.Add(stage);
         }

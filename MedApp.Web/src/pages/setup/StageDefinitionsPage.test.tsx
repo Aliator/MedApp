@@ -13,6 +13,7 @@ const definitions = [
     name: 'Consent',
     description: 'Consent recorded.',
     instructions: 'Give the patient a copy.',
+    visitRequirement: 'Required',
     snomedCode: '71388002',
     snomedTerm: 'Procedure',
     isArchived: false,
@@ -39,7 +40,11 @@ describe('StageDefinitionsPage', () => {
 
     await screen.findByText('Consent');
     const rows = screen.getAllByRole('row');
-    expect(rows.slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)).toEqual(['BiopsySample taken.', 'ConsentConsent recorded.']);
+    // Consent involves a visit, and says so beside its name.
+    expect(rows.slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)).toEqual([
+      'BiopsySample taken.',
+      'ConsentVisit requiredConsent recorded.',
+    ]);
     expect(within(await rowOf('Consent')).getByText('2 templates')).toBeInTheDocument();
     expect(within(await rowOf('Biopsy')).getByText('No templates')).toBeInTheDocument();
     expect(screen.queryByText('Old triage')).not.toBeInTheDocument();
@@ -66,6 +71,9 @@ describe('StageDefinitionsPage', () => {
     await user.type(dialog.getByRole('textbox', {name: /Name/}), 'Scan');
     await user.type(dialog.getByRole('textbox', {name: /Description/}), 'Imaging done.');
     await typeRichText(dialog.getByRole('textbox', {name: /Instructions/}), 'Book the scanner.');
+    // No visit unless chosen.
+    expect(dialog.getByRole('radio', {name: /^None/})).toBeChecked();
+    await user.click(dialog.getByRole('radio', {name: /^Suggested/}));
     await user.click(dialog.getByRole('button', {name: 'Add Stage'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -75,6 +83,7 @@ describe('StageDefinitionsPage', () => {
       instructions: 'Book the scanner.',
       snomedCode: '',
       snomedTerm: '',
+      visitRequirement: 'Suggested',
     });
     await expectAnnounced('Stage added');
   });
@@ -88,6 +97,7 @@ describe('StageDefinitionsPage', () => {
     await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage'}));
     const dialog = within(openDialog()!);
     expect(richText(dialog.getByRole('textbox', {name: /Instructions/}))).toBe('Give the patient a copy.');
+    expect(dialog.getByRole('radio', {name: /^Required/})).toBeChecked();
     await user.type(dialog.getByRole('textbox', {name: /Name/}), '!');
     await user.click(dialog.getByRole('button', {name: 'Save'}));
 
@@ -96,6 +106,7 @@ describe('StageDefinitionsPage', () => {
       name: 'Consent!',
       description: 'Consent recorded.',
       instructions: 'Give the patient a copy.',
+      visitRequirement: 'Required',
       snomedCode: '71388002',
       snomedTerm: 'Procedure',
     });

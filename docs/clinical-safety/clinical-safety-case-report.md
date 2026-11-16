@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-03, clinical safety case report (DCB0129) |
-| **Version** | 0.5, draft |
+| **Version** | 0.7, draft |
 | **Date** | 16 November 2026 |
 | **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56), with file attachments (branch `feature/file-attachments`) added in version 0.4. |
 | **Manufacturer** | [Manufacturer name] |
@@ -20,13 +20,14 @@
 
 ## 1. Summary
 
-- **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates, attached documents and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
+- **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates, attached documents and an audit trail, and books staff time for patients' appointments on staff calendars. It isn't a medical device (`intended-purpose-and-device-decision.md`, which checked the decision again for scheduling).
 - **The safety position at `88dc1fa`:**
-  - 29 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects. H-23 to H-28 came with file attachments, and H-29 with admins' monitoring rules.
+  - 36 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects. H-23 to H-28 came with file attachments, H-29 with admins' monitoring rules, and H-30 to H-36 with staff calendars and appointments (drafts whose ratings are left for the CSO).
   - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
   - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21). File attachments add two more at 3: a file on the wrong record (H-23) and malware in a file (H-25).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
   - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
+  - **Staff calendars and appointments** add seven draft hazards, H-30 to H-36, whose ratings are left for the CSO. On their draft estimates, four start at 3 (a needed visit that doesn't happen, H-30; a stage finished without its visit, H-32; the wrong patient booked, H-34; a cancellation not passed on to the patient, H-36), and all come down to 2 at first live use with their "before first live use" controls. They aren't counted in the figures above.
 - **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, and the CSO has to justify accepting H-07, H-10 and H-13 at 3 (the go-live rule, `clinical-risk-management-plan.md` section 4.4). MedApp has never been used with real patients, so there is no live use to stop.
 - **[CSO's conclusion: to be written by the CSO.]**
 
@@ -35,8 +36,8 @@
 | | |
 |---|---|
 | **Version** | [Release], built from commit [SHA]; this draft: `88dc1fa` |
-| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, procedures and stages (download only, not yet scanned for malware); the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1) |
-| **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] |
+| **What's in it** | Patients; procedures from templates; stages worked in order, finished and locked, unlocked by admins; status workflow; due dates and overdue; assignments and My Tasks; assignment notifications (each person can turn them off) and admins' monitoring notifications; files attached to patients, procedures and stages (download only, not yet scanned for malware); the procedure audit log; administration of users, stage definitions and templates (`docs/architecture.md`, section 1.1). With staff calendars (`feature/staff-calendars`): staff calendars with blocked time and day and week templates; appointments (requested, booked, attended, did not attend, cancelled) and their history; the Needs booking list; stage visits (none, suggested or required) and the required-visit rule with its admin bypass; appointment notifications |
+| **Changes since the last safety case** | None: this is the first. [For later releases: the pull requests with a clinical impact, and their clinical safety sections.] Staff calendars and appointments are the first such change: their hazards are H-30 to H-36, and the device decision was checked for them (`intended-purpose-and-device-decision.md`, version 0.6). |
 | **Where it runs** | [Customer deployment, or the manufacturer's hosted service on Azure UK South.] Today it has run only in development and on a local test cluster. |
 | **Who uses it** | Trained clinical and administrative staff of the deploying organisation, and its administrators |
 
@@ -112,13 +113,26 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 
 **Limits:** there's no monitoring, so failures go unnoticed (H-10); the live connection stops retrying after about 42 seconds (H-09). Storage that fails is reported as a 503 within about a minute (2 retries, 30 seconds a try), but nothing checks it before staff meet it (H-28).
 
-### Claim 6: The residual risk of the release is acceptable
+### Claim 6: Appointments are booked at the time intended, without clashes, and required visits are enforced by the server
+
+| Evidence (to collect once built) | Where |
+|---|---|
+| Times are stored and sent in UTC and shown in UK time; template times are UK clock times turned into UTC for each date; the browser does no time zone arithmetic | `UkTime`, `CalendarProjection`; `docs/calendar-plan.md`, decision 3 |
+| Bookings and blocks outside the working day, at weekends or in the past are refused | `WorkingHours.WhyOutside`; decisions 2 and 17 |
+| Overlaps are refused with a 409, and two bookings racing for one slot can't both succeed (a lock per member of staff) | `CalendarClashes`, `ICalendarLock`; decision 6 |
+| A stage whose visit is required can't be finished by staff without an Attended appointment; an admin's bypass is recorded with its reason | `ProcedureWorkflow.WhyStageNeedsVisit`; decision 24 |
+| Every change to an appointment is kept in its history | `AppointmentChange`, `AppointmentEvent`; decision 19 |
+| Tests | Unit tests for `WorkingHours`, `TemplateHistory`, `CalendarProjection` (with a clock change), `CalendarClashes`, `AppointmentWorkflow` and the visit rule; integration tests for clashes (with two bookings racing), the visit rule and the admin bypass, projection across a clock change, and the status changes (plan, section 7) |
+
+**Limits:** MedApp doesn't contact patients, so cancellations and changes rely on the organisation (H-36); nothing flags a Requested appointment that has waited too long (H-30); a template change can overlap appointments already booked, which is shown but not resolved (H-31, H-35).
+
+### Claim 7: The residual risk of the release is acceptable
 
 **Not yet supported.** Today one hazard is at 4 and fourteen at 3 (thirteen once H-12's fix is verified); at first live use, three would stay at 3. See [section 7](#7-outstanding-hazards-and-defects).
 
 ## 6. Hazards and their risk
 
-From `hazard-log.md`, version 0.7. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
+From `hazard-log.md`, version 0.9. H-30 to H-36 are drafts whose ratings are left for the CSO; the figures shown for them are the log's draft estimates, in brackets. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
@@ -143,7 +157,7 @@ From `hazard-log.md`, version 0.7. **At first live use** counts only the control
 | H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
-| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
+| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way and open appointments when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
 | H-23 | A file is attached to the wrong patient, procedure or stage | 3 | 2 | 2 | Patient banner (built, to verify); the patient and target named before files are sent |
 | H-24 | A document or result is missing, and nobody knows | 2 | 2 | 2 | None |
 | H-25 | An attached file carries malware | 3 | 2 | 2 | Malware scanning on upload (brought forward from step 9), or no file storage |
@@ -151,8 +165,15 @@ From `hazard-log.md`, version 0.7. **At first live use** counts only the control
 | H-27 | An out-of-date or duplicate document is relied on | 2 | 2 | 2 | None |
 | H-28 | File storage is unavailable | 2 | 2 | 2 | Monitoring that includes storage; downtime procedure covers documents |
 | H-29 | An admin relies on a monitoring rule to follow up clinical work | 2 | 2 | 2 | Information: monitoring is a supervision aid, not how clinical follow-up is assured |
+| H-30 | A visit the patient needs doesn't happen | (3) | (2) | (2) | Flag or notify Requested appointments waiting too long and Did not attend not rebooked; a Needs booking count; local process |
+| H-31 | A member of staff is double-booked | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified |
+| H-32 | A stage is finished without the visit it needed | (3) | (2) | (2) | A report of stages finished without a visit, reviewed locally; patient, stage and appointment named in the confirmations; clinical sign-off of which stages need a visit |
+| H-33 | An appointment is at the wrong time | (2) | (2) | (2) | Full date and day in confirmations; end-to-end tests outside UK time and on clock-change days |
+| H-34 | The wrong patient or procedure is booked | (3) | (2) | (2) | Date of birth in the patient picker and confirmations; the patient's name, date of birth and NHS number in the booking and appointment dialogs (built, to verify) |
+| H-35 | An appointment is left without its member of staff | (2) | (2) | (2) | Overlaps from a template change listed and the staff notified; removing every role refused with upcoming bookings (built, to verify); local absence process |
+| H-36 | A cancelled or moved appointment isn't passed on to the patient | (3) | (2) | (2) | "Has the patient been told?" recorded on cancel and move; local process for telling patients |
 
-[CSO: confirm or change each rating, and record the reasons for any change.]
+[CSO: confirm or change each rating, and record the reasons for any change. Assign ratings to H-30 to H-36.]
 
 ## 7. Outstanding hazards and defects
 
@@ -177,6 +198,10 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | H-21 | 3 | 2 | | | |
 | H-23 | 3 | 2 | | | |
 | H-25 | 3 | 2 (with scanning) | [Controls verified / not verified] | | |
+| H-30 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-32 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-34 | [CSO to assign; draft 3] | [draft 2] | | | |
+| H-36 | [CSO to assign; draft 3] | [draft 2] | | | |
 
 ### Known defects with a clinical impact
 
@@ -200,7 +225,11 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 
 This report holds only if each deploying organisation:
 - **identifies patients** at the point of care by its own positive identification process;
-- **governs its templates:** clinical sign-off of each template and stage definition before use, and review when a template changes;
+- **governs its templates:** clinical sign-off of each template and stage definition before use, including which stages involve a visit and whether it's suggested or required, and review when a template changes;
+- **sets up its calendars:** activity types, day and week templates and each person's default week, and records staff absence in MedApp so appointments aren't booked over it;
+- **books and follows up visits:** reviews the Needs booking list and Did not attend appointments on a set schedule, and keeps MedApp's calendar as the diary for the appointments it holds;
+- **tells patients about their appointments,** and about every cancellation and change, by its own process: MedApp doesn't contact patients;
+- **reviews stages finished without a visit,** and limits the admin bypass to cases with a recorded reason;
 - **trains its staff** in MedApp, including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks must be set to all open work to show everything assigned to them;
 - **has at least two admins,** so assignment and unlocking never wait on one person;
 - **reassigns a leaver's open procedures** before their account is removed;
@@ -234,3 +263,5 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62 | AI coding agent, for review |
 | 0.4 | 16 November 2026 | File attachments: H-23 to H-28 in the summary, the hazard table and the outstanding hazards; their evidence in claims 2 and 5; their known defects; two new assumptions | AI coding agent, for review |
 | 0.5 | 16 November 2026 | Merged with admins' monitoring (PR #84): H-29 in the hazard table and the count. After the review of #85: H-28's defect (a 500 after minutes of retries) fixed | AI coding agent, for review |
+| 0.6 | 16 November 2026 | The privacy features (PR #68): H-22 and H-19's anonymisation control in the hazard summary. Made in `main` without a new version; recorded here when staff calendars merged it | AI coding agent, for review |
+| 0.7 | 16 November 2026 | Staff calendars and appointments: what's in the release, a claim for booking times, clashes and the visit rule, the draft hazards H-30 to H-36 (ratings left for the CSO), and the assumptions about calendar setup, visits and telling patients. On merging file attachments: H-23 to H-29 with the calendar hazards in the count and the tables. On merging email and two-factor sign-in (#86): the hazard log's version 0.9 cited, with no change to the hazards or counts | AI coding agent, for review |

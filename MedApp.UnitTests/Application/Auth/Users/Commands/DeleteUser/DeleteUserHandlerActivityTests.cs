@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Common.Identity;
 using MedApp.Domain.Activity;
@@ -27,6 +28,8 @@ public sealed class DeleteUserHandlerActivityTests
         _activity = new RecordingActivityLog();
         _fixture.Inject(_users.Object);
         _fixture.Inject<IActivityLog>(_activity);
+        // The account has no upcoming appointments (a loose mock counts none), so nothing stops the delete.
+        _fixture.Inject(new Mock<IAppointmentRepository>().Object);
     }
 
     private static DeleteUserCommand Command() => new("old-user", "test.admin", "Synthetic-Password-1");

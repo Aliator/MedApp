@@ -16,7 +16,8 @@ public static class NotificationMapper
         notification.Message,
         notification.ProcedureId,
         notification.CreatedAtUtc,
-        notification.ReadAtUtc is not null);
+        notification.ReadAtUtc is not null,
+        notification.AppointmentId);
 
     /// <summary>A user's notification choices: their own, or the defaults (everything) when they've never chosen.</summary>
     public static NotificationPreferencesResponse ToResponse(NotificationPreferences preferences) =>

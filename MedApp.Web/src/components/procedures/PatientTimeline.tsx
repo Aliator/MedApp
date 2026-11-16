@@ -39,6 +39,7 @@ import {OverdueToken, StatusToken} from './ProcedureCells';
 const KIND_ICONS: Record<TimelineKind, IconType> = {
   Created: AppIcon.Add,
   Stages: AppIcon.Success,
+  Appointments: AppIcon.AppointmentBooked,
   Notes: AppIcon.Notes,
   Assignments: AppIcon.Assign,
   Blocks: AppIcon.StatusBlocked,
@@ -54,6 +55,18 @@ function entryIcon(entry: TimelineEntry): IconType {
   switch (entry.action) {
     case 'StageStarted':
       return AppIcon.StatusInProgress;
+    case 'StageFinished':
+      return entry.finishedWithoutVisit ? AppIcon.Warning : AppIcon.Success;
+    case 'AppointmentRequested':
+      return AppIcon.NeedsBooking;
+    case 'AppointmentAttended':
+      return AppIcon.Success;
+    case 'AppointmentDidNotAttend':
+      return AppIcon.AppointmentDidNotAttend;
+    case 'AppointmentCancelled':
+      return AppIcon.StatusCancelled;
+    case 'AppointmentNotesUpdated':
+      return AppIcon.Notes;
     case 'StageUnlocked':
       return AppIcon.Unlock;
     case 'Unassigned':
@@ -77,7 +90,8 @@ export interface PatientTimelineProps {
 }
 
 /**
- * A patient's timeline: everything that happened to their procedures, from the procedure audit log, in one feed.
+ * A patient's timeline: everything that happened to their procedures and appointments, from the procedure audit log
+ * and the appointment history, in one feed.
  * At the top, what's due (open procedures by due date, overdue flagged); then filter chips by kind and by
  * procedure; then the feed, newest first, grouped by UK day, with "Load more" for older entries (keyset paging on
  * the server). Each entry says when, who, what and which procedure (a link to it). Files attached to or deleted from
@@ -281,7 +295,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
     return (
       <EmptyState
         title={isFiltered ? 'Nothing matches these filters' : 'Nothing has happened yet'}
-        description={isFiltered ? 'Choose other kinds or procedures, or show everything.' : "Changes to the patient's procedures will show here."}
+        description={isFiltered ? 'Choose other kinds or procedures, or show everything.' : "Changes to the patient's procedures and appointments will show here."}
         isCompact
         actions={isFiltered ? <Button label="Show Everything" variant="secondary" onClick={() => onFiltersChange(NO_TIMELINE_FILTERS)} /> : undefined}
       />
@@ -326,7 +340,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
 /** The element on each entry that can take the focus (after "Load more"). */
 const entryAnchor = (id: string) => `timeline-entry-${id}`;
 
-/** One entry: its icon, what happened, then which procedure, when and who. */
+/** One entry: its icon, what happened, then which procedure (an appointment may have none), when and who. */
 function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
   const {title, detail} = describeTimelineEntry(entry);
   return (
@@ -349,8 +363,8 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
             </Text>
           )}
           <HStack gap={2} vAlign="center" wrap="wrap">
-            {/* A patient's own file has no procedure: its detail says "To the patient". */}
-            {isPatientEntry(entry) ? null : entry.isProcedureDeleted ? (
+            {/* No procedure to link to: an appointment not for one, or a patient's own file (its detail says "To the patient"). */}
+            {!entry.procedureId || isPatientEntry(entry) ? null : entry.isProcedureDeleted ? (
               <>
                 <Text type="supporting" color="secondary" maxLines={1}>
                   {entry.procedureTitle}

@@ -108,4 +108,13 @@ describe('PatientBanner', () => {
     expect(await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(screen.getByText('NHS No. 999 000 0018')).toBeInTheDocument();
   });
+
+  it('shows the same details when compact, as in a dialog', async () => {
+    renderWithApp(<PatientBanner patient={{...freya, isRestricted: true}} isCompact />);
+
+    const region = await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'});
+    expect(within(region).getByText('Born 1 December 1976 (49 years)')).toBeInTheDocument();
+    expect(within(region).getByText('NHS No. 999 000 0018')).toBeInTheDocument();
+    expect(within(region).getByText('Restricted')).toBeInTheDocument();
+  });
 });

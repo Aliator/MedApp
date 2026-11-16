@@ -1,5 +1,6 @@
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -31,7 +32,10 @@ public static class PrivacyTestConstants
         return patient;
     }
 
-    /// <summary>A patient's record holding one of each kind of thing about them, with the procedures given.</summary>
+    /// <summary>
+    /// A patient's record holding one of each kind of thing about them, with the procedures given. With a procedure, it
+    /// has one appointment, for the first procedure's first stage, with notes, cancelled with a reason, and its history.
+    /// </summary>
     public static PatientRecord CreateRecord(Patient? patient = null, params PatientProcedure[] procedures)
     {
         patient ??= PatientsTestConstants.CreateValidPatient();
@@ -40,6 +44,8 @@ public static class PrivacyTestConstants
             procedure.Patient = patient;
             procedure.PatientId = patient.Id;
         }
+
+        var appointments = procedures.Take(1).Select(p => CreateAppointment(patient, p)).ToList();
 
         return new PatientRecord
         {
@@ -71,6 +77,8 @@ public static class PrivacyTestConstants
                     PatientId = patient.Id
                 }
             ],
+            Appointments = appointments,
+            AppointmentHistory = appointments.SelectMany(a => CreateAppointmentHistory(a, procedures[0])).ToList(),
             Notifications = procedures
                 .Select(p => new Notification
                 {
@@ -85,6 +93,43 @@ public static class PrivacyTestConstants
                 .ToList()
         };
     }
+
+    /// <summary>An appointment for the procedure's first stage, with notes, cancelled with a reason.</summary>
+    private static Appointment CreateAppointment(Patient patient, PatientProcedure procedure) => new()
+    {
+        Id = Guid.NewGuid(),
+        PatientId = patient.Id,
+        Patient = patient,
+        ProcedureId = procedure.Id,
+        StageId = procedure.Stages.OrderBy(s => s.StageOrder).FirstOrDefault()?.Id,
+        Status = AppointmentStatus.Cancelled,
+        Notes = NotesText,
+        CancelReason = Reason,
+        CreatedAtUtc = ProceduresTestConstants.Now.AddDays(-5),
+        CreatedByUserId = ProceduresTestConstants.Staff.UserId,
+        LastUpdated = ProceduresTestConstants.Now.AddDays(-4)
+    };
+
+    /// <summary>The appointment's notes being written, then its cancellation.</summary>
+    private static IEnumerable<AppointmentEvent> CreateAppointmentHistory(Appointment appointment, PatientProcedure procedure) =>
+    [
+        new AppointmentEvent
+        {
+            Id = Guid.NewGuid(), AppointmentId = appointment.Id, PatientId = appointment.PatientId, ProcedureId = procedure.Id,
+            ProcedureTitle = procedure.Title, Action = AppointmentEventAction.NotesUpdated,
+            UserId = ProceduresTestConstants.Staff.UserId, Username = ProceduresTestConstants.Staff.Username,
+            AtUtc = ProceduresTestConstants.Now.AddDays(-5),
+            Details = $$"""{"from":"","to":"{{NotesText}}"}"""
+        },
+        new AppointmentEvent
+        {
+            Id = Guid.NewGuid(), AppointmentId = appointment.Id, PatientId = appointment.PatientId, ProcedureId = procedure.Id,
+            ProcedureTitle = procedure.Title, Action = AppointmentEventAction.Cancelled,
+            UserId = ProceduresTestConstants.Staff.UserId, Username = ProceduresTestConstants.Staff.Username,
+            AtUtc = ProceduresTestConstants.Now.AddDays(-4),
+            Details = $$"""{"reason":"{{Reason}}","automatic":false}"""
+        }
+    ];
 
     /// <summary>A retention candidate, last changed on <paramref name="lastUpdatedUtc"/>.</summary>
     public static RetentionCandidate CreateCandidate(

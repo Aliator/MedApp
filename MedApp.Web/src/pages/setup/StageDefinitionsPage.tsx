@@ -3,6 +3,7 @@ import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Grid} from '@astryxdesign/core/Grid';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
+import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
@@ -17,7 +18,9 @@ import {
   useStageDefinitionActions,
   type StageDefinition,
   type StageDefinitionInput,
+  type VisitRequirement,
 } from '../../api/procedureSetup';
+import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
@@ -40,7 +43,23 @@ type DialogState =
   | {kind: 'archive' | 'delete'; definition: StageDefinition}
   | null;
 
-const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: '', snomedCode: '', snomedTerm: ''};
+const EMPTY: StageDefinitionInput = {name: '', description: '', instructions: '', snomedCode: '', snomedTerm: '', visitRequirement: 'None'};
+
+/** The Visit choices, each saying what it means for staff finishing the stage (decisions 22 to 25). */
+const VISIT_CHOICES: {value: VisitRequirement; label: string; description: string}[] = [
+  {value: 'None', label: 'None', description: 'No appointment needed.'},
+  {value: 'Suggested', label: 'Suggested', description: 'Staff confirm if they finish it without an attended appointment.'},
+  {
+    value: 'Required',
+    label: 'Required',
+    description: "It can't be finished until an appointment is marked Attended; an admin can override.",
+  },
+];
+
+/** A definition's visit requirement, as one of the choices (None for anything else). */
+const visitRequirementOf = (definition: StageDefinition): VisitRequirement =>
+  VISIT_CHOICES.find((choice) => choice.value === definition.visitRequirement)?.value ?? 'None';
+
 const FIELDS = Object.keys(EMPTY);
 
 export interface StageDefinitionsPageProps {
@@ -52,8 +71,9 @@ const templatesUsing = (n: number) => (n === 0 ? 'No templates' : `${n} ${n === 
 
 /**
  * Stage definitions (admin, decision 17): the reusable steps templates are built from. Admins add and edit them
- * (name, description, instructions, and the SNOMED CT concept it records), archive ones no longer wanted (kept by the templates and procedures that have
- * them, but not offered for new templates), restore them, and delete ones no template has used (decision 11).
+ * (name, description, instructions, the SNOMED CT concept it records, and whether it involves a visit), archive ones no
+ * longer wanted (kept by the templates and procedures that have them, but not offered for new templates), restore them,
+ * and delete ones no template has used (decision 11).
  * A procedure keeps its own copy of each stage, so editing a definition changes templates, not existing procedures.
  */
 export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsPageProps) {
@@ -80,6 +100,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             instructions: definition.instructions ?? '',
             snomedCode: definition.snomedCode ?? '',
             snomedTerm: definition.snomedTerm ?? '',
+            visitRequirement: visitRequirementOf(definition),
           }
         : EMPTY,
     );
@@ -116,7 +137,9 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       key: 'name',
       header: 'Stage',
       width: proportional(3, {minWidth: 120}),
-      renderCell: (d) => <SetupNameCell name={d.name ?? ''} secondary={d.description} />,
+      renderCell: (d) => (
+        <SetupNameCell name={d.name ?? ''} secondary={d.description} token={<VisitRequirementToken requirement={d.visitRequirement} />} />
+      ),
     },
     {key: 'snomed', header: 'SNOMED CT', width: pixel(180), renderCell: (d) => <SnomedCell code={d.snomedCode} term={d.snomedTerm} />},
     {key: 'templates', header: 'Used in', width: pixel(140), renderCell: (d) => <Text type="body">{templatesUsing(d.templateCount ?? 0)}</Text>},
@@ -245,6 +268,16 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
                   status={fieldStatus(problem.validation, 'snomedTerm')}
                 />
               </Grid>
+              <RadioList
+                label="Visit"
+                description="Whether the stage involves an appointment with the patient. New procedures ask for one to be booked when they reach it."
+                value={form.visitRequirement}
+                onChange={(value) => setForm((current) => ({...current, visitRequirement: value as VisitRequirement}))}
+                status={fieldStatus(problem.validation, 'visitRequirement')}>
+                {VISIT_CHOICES.map((choice) => (
+                  <RadioListItem key={choice.value} value={choice.value} label={choice.label} description={choice.description} />
+                ))}
+              </RadioList>
             </VStack>
           </ConfirmDialog>
 

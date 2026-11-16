@@ -2,8 +2,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
-using MedApp.Domain.Notifications;
 using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Appointments;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Patients.Common;
@@ -16,8 +17,10 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
 /// <item>Procedure titles become the template's name; procedure and stage notes become <see cref="RemovedText"/>.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
-/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (monitoring's "Stage
-/// finished"), which never held the procedure's title; their messages hold no free text either.</item>
+/// <item>Appointments' notes and cancellation reasons, and their history's procedure titles, notes and reasons, are replaced the same way.</item>
+/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (the appointment
+/// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
+/// either.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -83,6 +86,21 @@ public static class PatientAnonymiser
 
         foreach (var entry in record.Activity)
             entry.Details = ScrubDetails(entry.Details, isNotesChange: false);
+
+        foreach (var appointment in record.Appointments)
+        {
+            appointment.Notes = Removed(appointment.Notes);
+            if (appointment.CancelReason is not null)
+                appointment.CancelReason = Removed(appointment.CancelReason);
+        }
+
+        foreach (var entry in record.AppointmentHistory)
+        {
+            // An appointment not for a procedure has no title to replace.
+            if (entry.ProcedureId is { } procedureId)
+                entry.ProcedureTitle = titles.GetValueOrDefault(procedureId, ProcedureTitle);
+            entry.Details = ScrubDetails(entry.Details, entry.Action == AppointmentEventAction.NotesUpdated);
+        }
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.ProcedureId is { } id ? titles.GetValueOrDefault(id, ProcedureTitle) : ProcedureTitle;

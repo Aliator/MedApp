@@ -11,4 +11,6 @@ public sealed class CreatePatientProcedureStageDefinitionRequest
 
     /// <summary>The concept's display term, as the admin types it. Given exactly when <see cref="SnomedCode"/> is.</summary>
     public string? SnomedTerm { get; set; }
+    /// <summary>Whether the stage involves a visit: None (the default), Suggested or Required.</summary>
+    public string VisitRequirement { get; set; } = "None";
 }

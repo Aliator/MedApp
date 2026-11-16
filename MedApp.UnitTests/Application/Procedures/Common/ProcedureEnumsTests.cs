@@ -35,4 +35,21 @@ public sealed class ProcedureEnumsTests
     {
         ProcedureEnums.IsStatus(value).Should().Be(expected);
     }
+
+    [TestCase("Required", true)]
+    [TestCase("suggested", true)]
+    [TestCase("None", true)]
+    [TestCase("Sometimes", false)]
+    [TestCase("2", false)]
+    [TestCase(null, false)]
+    public void IsVisitRequirement_Value_AcceptsOnlyVisitRequirementNames(string? value, bool expected)
+    {
+        ProcedureEnums.IsVisitRequirement(value).Should().Be(expected);
+    }
+
+    [Test]
+    public void VisitRequirementNames_ListsEveryNameInOrder()
+    {
+        ProcedureEnums.VisitRequirementNames.Should().Be("None, Suggested, Required");
+    }
 }

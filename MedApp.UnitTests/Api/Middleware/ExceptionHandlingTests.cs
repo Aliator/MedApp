@@ -57,9 +57,9 @@ public sealed class ExceptionHandlingTests
     {
         yield return new TestCaseData(new NotFoundException("Synthetic problem."), StatusCodes.Status404NotFound);
         yield return new TestCaseData(new ConflictException("Synthetic problem."), StatusCodes.Status409Conflict);
+        yield return new TestCaseData(new ForbiddenException("Synthetic problem."), StatusCodes.Status403Forbidden);
         yield return new TestCaseData(new InvalidCredentialsException(), StatusCodes.Status401Unauthorized);
         yield return new TestCaseData(new AccountLockedOutException(5), StatusCodes.Status423Locked);
-        yield return new TestCaseData(new ForbiddenException("Synthetic problem."), StatusCodes.Status403Forbidden);
         yield return new TestCaseData(new FileTooLargeException(), StatusCodes.Status413PayloadTooLarge);
         yield return new TestCaseData(new UnsupportedFileTypeException("Synthetic problem."), StatusCodes.Status415UnsupportedMediaType);
         yield return new TestCaseData(new MalwareDetectedException(), StatusCodes.Status422UnprocessableEntity);

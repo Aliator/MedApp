@@ -60,4 +60,12 @@ public sealed class TimelineCursorTests
     {
         TimelineCursor.TryDecode(new string('A', 101), out _).Should().BeFalse();
     }
+
+    [Test]
+    public void After_AppointmentEvent_IsItsTimeAndId()
+    {
+        var entry = CreateAppointmentEvent(MedApp.Domain.Appointments.AppointmentEventAction.Booked, Now);
+
+        TimelineCursor.After(entry).Should().Be(new TimelineCursor(Now, entry.Id));
+    }
 }

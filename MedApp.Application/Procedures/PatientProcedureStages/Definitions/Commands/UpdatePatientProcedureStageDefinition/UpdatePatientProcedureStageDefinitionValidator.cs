@@ -1,4 +1,5 @@
 using FluentValidation;
+using MedApp.Application.Procedures.Common;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.UpdatePatientProcedureStageDefinition;
 
@@ -32,5 +33,9 @@ public sealed class UpdatePatientProcedureStageDefinitionValidator : AbstractVal
             .WithMessage("Instructions must not exceed 2000 characters.");
 
         this.AddSnomedRules(x => x.SnomedCode, x => x.SnomedTerm);
+        RuleFor(x => x.VisitRequirement)
+            .Must(ProcedureEnums.IsVisitRequirement)
+            .When(x => x.VisitRequirement is not null)
+            .WithMessage($"Visit requirement must be one of: {ProcedureEnums.VisitRequirementNames}.");
     }
 }

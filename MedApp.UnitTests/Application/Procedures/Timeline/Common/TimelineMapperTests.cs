@@ -6,6 +6,7 @@ using MedApp.Domain.Procedures.PatientProcedures;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 using static MedApp.UnitTests.Common.Constants.TimelineTestConstants;
 using Action = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditAction;
+using MedApp.Domain.Appointments;
 
 namespace MedApp.UnitTests.Application.Procedures.Timeline.Common;
 
@@ -270,4 +271,220 @@ public sealed class TimelineMapperTests
             ["priority"] = new { from = "Medium", to = "High" },
         },
     }));
+
+    private static PatientTimelineEntryResponse MapAppointment(AppointmentEvent entry, bool isAdmin, bool procedureExists = true) =>
+        TimelineMapper.ToResponse(new AppointmentTimelineRow(entry, procedureExists, procedureExists ? CurrentTitle : null), isAdmin);
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ToResponse_AppointmentEntry_MapsWhenWhoWhatTheProcedureNowAndTheAppointment(bool isAdmin)
+    {
+        var entry = CreateAppointmentEvent(AppointmentEventAction.Booked, Now);
+
+        var response = MapAppointment(entry, isAdmin);
+
+        response.Should().BeEquivalentTo(new PatientTimelineEntryResponse
+        {
+            Id = entry.Id,
+            Kind = "Appointments",
+            Action = "AppointmentBooked",
+            AtUtc = Now,
+            Username = Staff.Username,
+            ProcedureId = ProcedureId,
+            ProcedureTitle = CurrentTitle,
+            IsProcedureDeleted = false,
+            StageName = AppointmentStageName,
+            AppointmentId = AppointmentId,
+            AppointmentStartUtc = Now.AddDays(1),
+            AppointmentEndUtc = Now.AddDays(1).AddMinutes(30),
+            AppointmentStaffUsername = OtherUsername,
+            IsAutomatic = false,
+        });
+    }
+
+    [Test]
+    public void ToResponse_AppointmentNotForAProcedure_HasNoProcedureAndIsNotDeleted()
+    {
+        var entry = CreateAppointmentEvent(AppointmentEventAction.Booked, Now, withProcedure: false);
+
+        var response = TimelineMapper.ToResponse(new AppointmentTimelineRow(entry, false, null), isAdmin: false);
+
+        response.ProcedureId.Should().BeNull();
+        response.ProcedureTitle.Should().BeNull();
+        response.IsProcedureDeleted.Should().BeFalse();
+        response.StageName.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResponse_AppointmentOfADeletedProcedure_UsesTheTitleAtTheTimeAndSaysSo()
+    {
+        var entry = CreateAppointmentEvent(AppointmentEventAction.Booked, Now, procedureId: DeletedProcedureId, procedureTitle: DeletedTitle);
+
+        var response = MapAppointment(entry, isAdmin: true, procedureExists: false);
+
+        response.ProcedureId.Should().Be(DeletedProcedureId);
+        response.ProcedureTitle.Should().Be(DeletedTitle);
+        response.IsProcedureDeleted.Should().BeTrue();
+    }
+
+    [Test]
+    public void ToResponse_AutomaticRequest_SaysSo()
+    {
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.Requested, Now, "{\"automatic\":true}"), false);
+
+        response.Action.Should().Be("AppointmentRequested");
+        response.IsAutomatic.Should().BeTrue();
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ToResponse_Rescheduled_GivesThePreviousTimeAndStaffToEveryone(bool isAdmin)
+    {
+        var details = "{\"previousStartUtc\":\"2026-06-14T09:30:00Z\",\"previousEndUtc\":\"2026-06-14T10:00:00Z\","
+                      + "\"previousStaffUserId\":\"" + Staff.UserId + "\",\"previousStaffUsername\":\"" + Staff.Username + "\"}";
+
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.Rescheduled, Now, details), isAdmin);
+
+        response.Action.Should().Be("AppointmentRescheduled");
+        response.PreviousStartUtc.Should().Be(new DateTime(2026, 6, 14, 9, 30, 0, DateTimeKind.Utc));
+        response.PreviousStartUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        response.PreviousStaffUsername.Should().Be(Staff.Username);
+    }
+
+    [TestCase("\"2026-06-14T10:30:00+01:00\"")]
+    [TestCase("\"2026-06-14T09:30:00\"")]
+    [TestCase("\"2026-06-14T09:30:00.0000000Z\"")]
+    public void ToResponse_RescheduledTimeWrittenAnyWay_IsReadAsUtc(string written)
+    {
+        var details = "{\"previousStartUtc\":" + written + "}";
+
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.Rescheduled, Now, details), false);
+
+        response.PreviousStartUtc.Should().Be(new DateTime(2026, 6, 14, 9, 30, 0, DateTimeKind.Utc));
+        response.PreviousStartUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [TestCase("{}")]
+    [TestCase("{\"previousStartUtc\":null,\"previousStaffUsername\":null}")]
+    [TestCase("{\"previousStartUtc\":\"not a time\"}")]
+    [TestCase("{\"previousStartUtc\":12}")]
+    public void ToResponse_RescheduledFromNothingOrUnreadable_HasNoPreviousTime(string details)
+    {
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.Rescheduled, Now, details), false);
+
+        response.PreviousStartUtc.Should().BeNull();
+        response.PreviousStaffUsername.Should().BeNull();
+    }
+
+    [TestCase(AppointmentEventAction.Attended, "AppointmentAttended", "Booked")]
+    [TestCase(AppointmentEventAction.DidNotAttend, "AppointmentDidNotAttend", "Attended")]
+    public void ToResponse_Outcome_GivesTheStatusBefore(AppointmentEventAction action, string expectedAction, string previous)
+    {
+        var response = MapAppointment(CreateAppointmentEvent(action, Now, "{\"previousStatus\":\"" + previous + "\"}"), false);
+
+        response.Action.Should().Be(expectedAction);
+        response.FromStatus.Should().Be(previous);
+    }
+
+    [Test]
+    public void ToResponse_CancelledForAnAdmin_IncludesTheReason()
+    {
+        var details = "{\"reason\":\"" + CancelReasonText + "\",\"automatic\":true}";
+
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.Cancelled, Now, details), true);
+
+        response.Action.Should().Be("AppointmentCancelled");
+        response.Reason.Should().Be(CancelReasonText);
+        response.IsAutomatic.Should().BeTrue();
+    }
+
+    [Test]
+    public void ToResponse_CancelledForStaff_LeavesTheReasonOut()
+    {
+        var details = "{\"reason\":\"" + CancelReasonText + "\",\"automatic\":false}";
+
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.Cancelled, Now, details), false);
+
+        response.Reason.Should().BeNull();
+        response.IsAutomatic.Should().BeFalse();
+    }
+
+    [Test]
+    public void ToResponse_AppointmentNotesForAnAdmin_IncludeTheOldAndNewText()
+    {
+        var details = "{\"from\":\"\",\"to\":\"" + NotesText + "\"}";
+
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.NotesUpdated, Now, details), true);
+
+        response.Action.Should().Be("AppointmentNotesUpdated");
+        response.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new PatientTimelineChangeResponse { Field = "appointmentNotes", From = string.Empty, To = NotesText });
+    }
+
+    [Test]
+    public void ToResponse_AppointmentNotesForStaff_SayOnlyThatTheyChanged()
+    {
+        var details = "{\"from\":\"" + NotesText + "\",\"to\":\"" + NotesText + " (edited)\"}";
+
+        var response = MapAppointment(CreateAppointmentEvent(AppointmentEventAction.NotesUpdated, Now, details), false);
+
+        response.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new PatientTimelineChangeResponse { Field = "appointmentNotes", From = null, To = null });
+    }
+
+    [TestCase("not json")]
+    [TestCase("[1,2]")]
+    [TestCase("{}")]
+    public void ToResponse_AppointmentDetailsUnreadable_MapsTheEntryWithoutThem(string details)
+    {
+        foreach (var action in Enum.GetValues<AppointmentEventAction>())
+        {
+            var response = MapAppointment(CreateAppointmentEvent(action, Now, details), true);
+
+            response.Action.Should().Be("Appointment" + action);
+            response.IsAutomatic.Should().BeFalse();
+            response.Reason.Should().BeNull();
+            response.FromStatus.Should().BeNull();
+            response.PreviousStartUtc.Should().BeNull();
+            response.Changes.Where(c => c.From is not null || c.To is not null).Should().BeEmpty();
+        }
+    }
+
+    [Test]
+    public void ToResponse_StageFinishedWithoutVisitForAnAdmin_IncludesTheReason()
+    {
+        var response = Map(StageFinishedWithoutVisit(VisitRequirement.Required), true);
+
+        response.FinishedWithoutVisit.Should().BeTrue();
+        response.VisitRequirement.Should().Be("Required");
+        response.Reason.Should().Be(WithoutVisitReason);
+    }
+
+    [Test]
+    public void ToResponse_StageFinishedWithoutVisitForStaff_SaysSoWithoutTheReason()
+    {
+        var response = Map(StageFinishedWithoutVisit(VisitRequirement.Suggested), false);
+
+        response.FinishedWithoutVisit.Should().BeTrue();
+        response.VisitRequirement.Should().Be("Suggested");
+        response.Reason.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResponse_StageFinishedWithItsVisit_SaysNothingAboutVisits()
+    {
+        var response = Map(CreateEntry(Action.StageFinished, Now, "{\"withoutVisit\":false,\"reason\":\"x\"}"), true);
+
+        response.FinishedWithoutVisit.Should().BeFalse();
+        response.VisitRequirement.Should().BeNull();
+        response.Reason.Should().BeNull();
+    }
+
+    /// <summary>The StageFinished entry of a stage finished without its visit, with a reason, as the handler records it.</summary>
+    private static PatientProcedureAuditEntry StageFinishedWithoutVisit(VisitRequirement requirement)
+    {
+        var change = new ProcedureChange(CreateProcedure(PatientProcedureStatus.InProgress), Admin, Now);
+        change.FinishStage(change.Procedure.StageAt(1), new FinishedWithoutVisit(requirement, WithoutVisitReason));
+        return change.AuditEntries.Single(e => e.Action == Action.StageFinished);
+    }
 }

@@ -21,7 +21,12 @@ import {
   RiArrowUpSLine,
   RiAttachment2,
   RiBarChartBoxLine,
+  RiCalendar2Line,
+  RiCalendarCheckLine,
+  RiCalendarCloseLine,
   RiCalendarLine,
+  RiCalendarScheduleLine,
+  RiCalendarTodoLine,
   RiCheckboxBlankCircleLine,
   RiCheckboxCircleLine,
   RiCheckLine,
@@ -62,6 +67,7 @@ import {
   RiNotification3Line,
   RiPaletteLine,
   RiPlayCircleLine,
+  RiPriceTag3Line,
   RiQuestionLine,
   RiRadarLine,
   RiPencilLine,
@@ -195,6 +201,18 @@ export const AppIcon = {
   Unlock: remix(RiLockUnlockLine),
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),
+  // Staff calendars and appointments
+  /** The Needs booking list (Requested appointments), and the Needs booking status. */
+  NeedsBooking: remix(RiCalendarTodoLine),
+  AppointmentBooked: remix(RiCalendarCheckLine),
+  AppointmentDidNotAttend: remix(RiCalendarCloseLine),
+  /** Booking an appointment. */
+  Book: remix(RiCalendarScheduleLine),
+  /** Blocked time on a calendar. */
+  BlockTime: remix(RiHourglassLine),
+  /** Calendar setup (admin): day and week templates, and activity types. */
+  CalendarTemplates: remix(RiCalendar2Line),
+  ActivityTypes: remix(RiPriceTag3Line),
   // Attached files: adding and downloading them, and each type's icon where there's no thumbnail
   Attachment: remix(RiAttachment2),
   Upload: remix(RiUpload2Line),

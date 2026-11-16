@@ -100,6 +100,24 @@ public sealed class IdentityReadService(
             .ToDictionaryAsync(u => u.Id, u => u.UserName!, ct);
     }
 
+    public async Task<IReadOnlyList<(Guid UserId, string Username)>> GetStaffAsync(CancellationToken ct)
+    {
+        // Staff are users with either role (the Staff policy); someone with both is listed once.
+        var staff = new Dictionary<Guid, string>();
+        foreach (var role in FirstAdminSetup.Roles)
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var user in await userManager.GetUsersInRoleAsync(role))
+                staff[user.Id] = user.UserName!;
+        }
+
+        return staff
+            .OrderBy(s => s.Value, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(s => s.Key)
+            .Select(s => (s.Key, s.Value))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<UserResponse>> GetUsersAsync(CancellationToken ct)
     {
         var users = await userManager.Users

@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Common.Exceptions;
+﻿using MedApp.Application.Appointments.Common;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.SearchPatients;
@@ -6,7 +7,6 @@ using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -40,10 +40,19 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     public async Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken) =>
         await context.PatientProcedures.CountAsync(p => p.PatientId == patientId, cancellationToken);
 
+    public async Task<int> CountAppointmentsAsync(Guid patientId, CancellationToken cancellationToken) =>
+        await context.Appointments.CountAsync(a => a.PatientId == patientId, cancellationToken);
+
     public async Task<int> CountProceduresUnderWayAsync(Guid patientId, CancellationToken cancellationToken)
     {
         var closed = ProcedureWorkflow.ClosedStatuses.ToList();
         return await context.PatientProcedures.CountAsync(p => p.PatientId == patientId && !closed.Contains(p.Status), cancellationToken);
+    }
+
+    public async Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken)
+    {
+        var open = AppointmentWorkflow.OpenStatuses.ToList();
+        return await context.Appointments.CountAsync(a => a.PatientId == patientId && open.Contains(a.Status), cancellationToken);
     }
 
     public async Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken)
@@ -128,8 +137,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         {
             await context.SaveChangesOrConflictAsync(cancellationToken);
         }
-        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 } sql
-                                          && sql.Message.Contains(NhsNumberIndex, StringComparison.Ordinal))
+        catch (DbUpdateException e) when (e.IsViolationOf(NhsNumberIndex))
         {
             throw new ConflictException(NhsNumberRules.InUse);
         }

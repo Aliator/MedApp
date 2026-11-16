@@ -76,6 +76,19 @@ describe('StageWork', () => {
     expect(handlers.onSaveNotes).toHaveBeenCalledWith('Seen in clinic. Plan agreed.');
   });
 
+  it('saves nothing on Ctrl+S while a save is under way', async () => {
+    const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
+    renderWithApp(
+      <SaveShortcutProvider>
+        <StageWork stage={stage()} isAdmin={false} isBusy {...handlers} />
+      </SaveShortcutProvider>,
+    );
+
+    fireEvent.keyDown(await screen.findByRole('textbox', {name: 'Notes'}), {key: 's', ctrlKey: true});
+
+    expect(handlers.onSaveNotes).not.toHaveBeenCalled();
+  });
+
   it('finishes the stage with the notes as typed', async () => {
     const {user, onFinish} = renderWork();
 
@@ -160,5 +173,26 @@ describe('StageWork fitting its notes box', () => {
     // It tries for a few frames, then gives up.
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(onFitNotes).not.toHaveBeenCalled();
+  });
+
+  it('shows its visit above the notes, and says why it cannot be finished yet', async () => {
+    const handlers = {onStart: vi.fn(), onSaveNotes: vi.fn(), onFinish: vi.fn(), onUnlock: vi.fn()};
+    const {user} = renderWithApp(
+      <StageWork
+        stage={stage()}
+        isAdmin={false}
+        isBusy={false}
+        visit={<p>The visit</p>}
+        finishDisabledReason="Needs an attended visit first"
+        {...handlers}
+      />,
+    );
+
+    expect(await screen.findByText('The visit')).toBeInTheDocument();
+    expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
+    const finish = screen.getByRole('button', {name: 'Finish Stage'});
+    expect(isDisabled(finish)).toBe(true);
+    await user.click(finish);
+    expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 });

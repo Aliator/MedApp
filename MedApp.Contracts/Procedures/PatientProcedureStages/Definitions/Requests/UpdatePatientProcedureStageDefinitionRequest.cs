@@ -15,4 +15,6 @@ public sealed class UpdatePatientProcedureStageDefinitionRequest
 
     /// <summary>The concept's display term, given with <see cref="SnomedCode"/>.</summary>
     public string? SnomedTerm { get; set; }
+    /// <summary>None, Suggested or Required. Procedures already created keep their stages' copy.</summary>
+    public string? VisitRequirement { get; set; }
 }

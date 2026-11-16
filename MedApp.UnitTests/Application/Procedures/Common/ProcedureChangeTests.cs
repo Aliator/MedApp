@@ -3,6 +3,8 @@ using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using System.Text.Json;
+using MedApp.Domain.Appointments;
 
 namespace MedApp.UnitTests.Application.Procedures.Common;
 
@@ -286,5 +288,204 @@ public sealed class ProcedureChangeTests
         entry.Username.Should().Be(Staff.Username);
         entry.AtUtc.Should().Be(Now);
         entry.Details.Should().Be("{}");
+    }
+
+    private static Appointment RequestedFor(PatientProcedure procedure, PatientProcedureStage stage) => new()
+    {
+        Id = Guid.NewGuid(),
+        PatientId = procedure.PatientId,
+        ProcedureId = procedure.Id,
+        StageId = stage.Id,
+        Status = AppointmentStatus.Requested,
+        IsAutomatic = true,
+        CreatedAtUtc = Now.AddDays(-1),
+        CreatedByUserId = Staff.UserId,
+        LastUpdated = Now.AddDays(-1)
+    };
+
+    [Test]
+    public void RequestVisit_Stage_AsksForAnAutomaticRequestedAppointmentWithItsHistory()
+    {
+        var procedure = CreateProcedure(Status.Assigned);
+        var stage = procedure.StageAt(1);
+        var change = ChangeOf(procedure);
+
+        var appointment = change.RequestVisit(stage);
+
+        change.NewAppointments.Should().ContainSingle().Which.Should().BeSameAs(appointment);
+        appointment.Should().Match<Appointment>(a =>
+            a.PatientId == procedure.PatientId
+            && a.ProcedureId == procedure.Id
+            && a.StageId == stage.Id
+            && a.Status == AppointmentStatus.Requested
+            && a.IsAutomatic
+            && a.StaffUserId == null
+            && a.StartUtc == null
+            && a.CreatedAtUtc == Now
+            && a.CreatedByUserId == Staff.UserId);
+        var entry = change.AppointmentEvents.Should().ContainSingle().Subject;
+        entry.AppointmentId.Should().Be(appointment.Id);
+        entry.Action.Should().Be(AppointmentEventAction.Requested);
+        entry.ProcedureTitle.Should().Be(ProcedureTitle);
+        entry.StageName.Should().Be(ConsultationStage);
+        entry.Details.Should().Be("{\"automatic\":true}");
+        change.HasChanges.Should().BeTrue();
+        change.AuditEntries.Should().BeEmpty();
+    }
+
+    [Test]
+    public void CancelRequestedVisit_Requested_CancelsItAutomaticallyWithTheReason()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var appointment = RequestedFor(procedure, procedure.StageAt(1));
+        var change = ChangeOf(procedure);
+
+        change.CancelRequestedVisit(appointment, ProcedureChange.StageFinishedReason);
+
+        appointment.Status.Should().Be(AppointmentStatus.Cancelled);
+        appointment.CancelReason.Should().Be("The stage was finished.");
+        appointment.LastUpdated.Should().Be(Now);
+        var entry = change.AppointmentEvents.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(AppointmentEventAction.Cancelled);
+        entry.StageName.Should().Be(ConsultationStage);
+        var details = JsonDocument.Parse(entry.Details).RootElement;
+        details.GetProperty("reason").GetString().Should().Be("The stage was finished.");
+        details.GetProperty("automatic").GetBoolean().Should().BeTrue();
+    }
+
+    [TestCase(AppointmentStatus.Booked)]
+    [TestCase(AppointmentStatus.Attended)]
+    [TestCase(AppointmentStatus.Cancelled)]
+    public void CancelRequestedVisit_NotRequested_LeavesItAlone(AppointmentStatus status)
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var appointment = RequestedFor(procedure, procedure.StageAt(1));
+        appointment.Status = status;
+        var change = ChangeOf(procedure);
+
+        change.CancelRequestedVisit(appointment, ProcedureChange.ProcedureCancelledReason);
+
+        appointment.Status.Should().Be(status);
+        change.HasChanges.Should().BeFalse();
+    }
+
+    [Test]
+    public void FinishStage_WithoutItsVisit_RecordsTheRequirementAndReason()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var stage = procedure.StageAt(1);
+        stage.VisitRequirement = VisitRequirement.Required;
+        var change = ChangeOf(procedure, Admin);
+
+        change.FinishStage(stage, new FinishedWithoutVisit(VisitRequirement.Required, Reason));
+
+        var finished = change.AuditEntries.Single(e => e.Action == PatientProcedureAuditAction.StageFinished);
+        finished.Details.Should().Be($"{{\"withoutVisit\":true,\"visitRequirement\":\"Required\",\"reason\":\"{Reason}\"}}");
+    }
+
+    [Test]
+    public void FinishStage_SuggestedVisitWithoutAReason_LeavesTheReasonOut()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var change = ChangeOf(procedure);
+
+        change.FinishStage(procedure.StageAt(1), new FinishedWithoutVisit(VisitRequirement.Suggested, null));
+
+        change.AuditEntries.Single(e => e.Action == PatientProcedureAuditAction.StageFinished)
+            .Details.Should().Be("{\"withoutVisit\":true,\"visitRequirement\":\"Suggested\"}");
+    }
+
+    [Test]
+    public void FinishStage_WithItsVisit_HasNoDetails()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var change = ChangeOf(procedure);
+
+        change.FinishStage(procedure.StageAt(1));
+
+        change.AuditEntries.Single(e => e.Action == PatientProcedureAuditAction.StageFinished).Details.Should().Be("{}");
+    }
+
+    [Test]
+    public void Entries_AuditAndAppointmentHistory_ShareOneTickOrder()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        var first = procedure.StageAt(1);
+        var appointment = RequestedFor(procedure, first);
+        var change = ChangeOf(procedure);
+
+        change.FinishStage(first);
+        change.CancelRequestedVisit(appointment, ProcedureChange.StageFinishedReason);
+        change.RequestVisit(procedure.StageAt(2));
+
+        change.AuditEntries.Select(e => e.AtUtc).Concat(change.AppointmentEvents.Select(e => e.AtUtc))
+            .Should().OnlyHaveUniqueItems();
+        change.AppointmentEvents.Select(e => e.AtUtc).Should().BeInAscendingOrder();
+        change.AppointmentEvents[0].AtUtc.Should().BeAfter(change.AuditEntries[^1].AtUtc);
+    }
+
+    [Test]
+    public void StageVisits_CurrentStageWithAVisit_AsksForIt()
+    {
+        var procedure = CreateProcedure(Status.Assigned);
+        procedure.StageAt(1).VisitRequirement = VisitRequirement.Suggested;
+        var change = ChangeOf(procedure);
+
+        var requested = StageVisits.RequestForCurrentStage(change, []);
+
+        requested.Should().NotBeNull();
+        requested!.StageId.Should().Be(procedure.StageAt(1).Id);
+        change.NewAppointments.Should().ContainSingle();
+    }
+
+    [Test]
+    public void StageVisits_CurrentStageWithoutAVisit_AsksForNothing()
+    {
+        var change = ChangeOf(CreateProcedure(Status.Assigned));
+
+        StageVisits.RequestForCurrentStage(change, []).Should().BeNull();
+        change.HasChanges.Should().BeFalse();
+    }
+
+    [TestCase(AppointmentStatus.Requested, false)]
+    [TestCase(AppointmentStatus.Booked, false)]
+    [TestCase(AppointmentStatus.Attended, false)]
+    [TestCase(AppointmentStatus.DidNotAttend, true)]
+    [TestCase(AppointmentStatus.Cancelled, true)]
+    public void StageVisits_StageAlreadyHasAnAppointment_AsksOnlyIfItIsntOpenOrAttended(AppointmentStatus status, bool asks)
+    {
+        var procedure = CreateProcedure(Status.Assigned);
+        procedure.StageAt(1).VisitRequirement = VisitRequirement.Required;
+        var existing = RequestedFor(procedure, procedure.StageAt(1));
+        existing.Status = status;
+        var change = ChangeOf(procedure);
+
+        var requested = StageVisits.RequestForCurrentStage(change, [existing]);
+
+        (requested is not null).Should().Be(asks);
+    }
+
+    [Test]
+    public void StageVisits_CalledTwice_AsksOnce()
+    {
+        var procedure = CreateProcedure(Status.Assigned);
+        procedure.StageAt(1).VisitRequirement = VisitRequirement.Required;
+        var change = ChangeOf(procedure);
+
+        StageVisits.RequestForCurrentStage(change, []);
+        StageVisits.RequestForCurrentStage(change, []);
+
+        change.NewAppointments.Should().ContainSingle();
+    }
+
+    [TestCase(Status.Blocked)]
+    [TestCase(Status.Cancelled)]
+    [TestCase(Status.Completed)]
+    public void StageVisits_ProcedureBlockedOrClosed_AsksForNothing(Status status)
+    {
+        var procedure = CreateProcedure(status);
+        procedure.StageAt(1).VisitRequirement = VisitRequirement.Required;
+
+        StageVisits.RequestForCurrentStage(ChangeOf(procedure), []).Should().BeNull();
     }
 }

@@ -8,5 +8,6 @@ public sealed record CreatePatientProcedureStageDefinitionCommand(
     string Description,
     string Instructions,
     string? SnomedCode = null,
-    string? SnomedTerm = null)
+    string? SnomedTerm = null,
+    string VisitRequirement = "None")
     : IRequest<PatientProcedureStageDefinitionResponse>;
