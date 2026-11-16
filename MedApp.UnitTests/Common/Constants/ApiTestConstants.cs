@@ -25,6 +25,15 @@ public static class ApiTestConstants
             ],
             "Session"));
 
+    /// <summary>A signed-in user, with the ID of the session they came with.</summary>
+    public static ClaimsPrincipal SignedInWithSession(params string[] roles)
+    {
+        var user = SignedIn(roles);
+        ((ClaimsIdentity)user.Identity!).AddClaim(
+            new Claim(MedApp.API.Common.Authentication.SessionAuthenticationDefaults.SessionIdClaim, SessionId.ToString()));
+        return user;
+    }
+
     /// <summary>A signed-in user who must change the password an admin gave them before doing anything else.</summary>
     public static ClaimsPrincipal MustChangePassword(params string[] roles)
     {
