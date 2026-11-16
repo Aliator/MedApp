@@ -1,4 +1,5 @@
-﻿using MedApp.Domain.Authentication;
+﻿using MedApp.Domain.Attachments;
+using MedApp.Domain.Authentication;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -24,6 +25,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureStageTemplate> PatientProcedureStageTemplates => Set<PatientProcedureStageTemplate>();
     public DbSet<PatientProcedureStageTemplateMap> PatientProcedureStageTemplateItems => Set<PatientProcedureStageTemplateMap>();
     public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
 
     /// <summary>Times are stored as UTC, and read back marked as UTC (<see cref="UtcDateTimeConverter"/>).</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

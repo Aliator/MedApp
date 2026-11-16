@@ -25,7 +25,7 @@ public sealed class GetPatientTimelineHandler(
         {
             // The search already leaves deleted procedures out for staff; this makes sure nothing slips through.
             Items = page
-                .Where(row => request.IsAdmin || row.CurrentProcedureTitle is not null)
+                .Where(row => request.IsAdmin || row.CurrentProcedureTitle is not null || row.IsAboutPatient)
                 .Select(row => TimelineMapper.ToResponse(row, request.IsAdmin))
                 .ToList(),
             NextCursor = rows.Count > request.PageSize ? TimelineCursor.After(page[^1].Entry).Encode() : null,

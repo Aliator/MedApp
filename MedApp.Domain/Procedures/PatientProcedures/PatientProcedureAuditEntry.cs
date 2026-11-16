@@ -6,8 +6,15 @@ namespace MedApp.Domain.Procedures.PatientProcedures;
 /// </summary>
 public sealed class PatientProcedureAuditEntry
 {
+    /// <summary>
+    /// The <see cref="PatientProcedureId"/> of an entry about the patient rather than one of their procedures: a file
+    /// attached to the patient themselves. Such entries have no procedure title or stage.
+    /// </summary>
+    public static readonly Guid NoProcedure = Guid.Empty;
+
     public Guid Id { get; init; }
 
+    /// <summary>The procedure it's about, or <see cref="NoProcedure"/> for an entry about the patient's own file.</summary>
     public Guid PatientProcedureId { get; init; }
 
     /// <summary>The procedure's title at the time, so the entry still reads well after the procedure is deleted.</summary>
