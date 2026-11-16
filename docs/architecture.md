@@ -532,7 +532,7 @@ stateDiagram-v2
 | Area | Endpoints | Who |
 |---|---|---|
 | Sign-in | `POST api/auth/login`, `POST api/auth/logout`, `GET api/auth/whoami` | Anyone |
-| Users | `POST api/auth/users` (a username only; returns the generated first password, once); `GET api/auth/users`, `users/search`, `users/{username}`; `PUT users/{username}/reset-password`; `DELETE users/{username}` (with the admin's own password) | Admin |
+| Users | `POST api/auth/users` (a username only; returns the generated first password, once); `GET api/auth/users`, `users/search`, `users/{username}`; `PUT users/{username}/reset-password`; `POST users/{username}/sign-out-everywhere` (ends every session they have); `DELETE users/{username}` (with the admin's own password) | Admin |
 | Roles | `GET`/`POST api/auth/roles`; `DELETE roles/{roleName}`; `POST roles/assign`, `roles/revoke`; `GET`/`PUT users/{username}/roles` | Admin |
 | Own password | `PUT api/auth/users/{username}/update-password` | Staff, and only for your own username (`SelfUserOnly`) |
 | Own settings | `GET`/`PUT api/auth/me/settings` | Staff |
@@ -655,7 +655,7 @@ sequenceDiagram
 6. **In the React app.** The `whoami` query (`GET api/auth/whoami`, always 200, saying whether you're signed in, with which roles, and whether you must change your password) feeds the `_app` route guard, which sends anyone who must change their password to `/change-password`. A page already open when that happens finds out from its next API call's 403 `password_change_required`, and the API client sends it there with a full page load.
 7. **Sign-out.** `POST api/auth/logout` marks the session revoked and deletes the cookie.
 
-What this doesn't do (see [11.1](#111-security-and-privacy)): there's no idle timeout or sliding expiry; changing or resetting a password doesn't end existing sessions; and old session rows are never deleted.
+What this doesn't do (see [11.1](#111-security-and-privacy)): there's no idle timeout or sliding expiry; before `feature/security-baseline`, changing or resetting a password didn't end existing sessions (now a change ends the user's other sessions, and a reset or a change of roles all of them); and old session rows are never deleted.
 
 ### 6.2 A server-rendered page request
 
