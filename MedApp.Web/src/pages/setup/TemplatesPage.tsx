@@ -168,6 +168,8 @@ export function TemplatesPage({search, onSearchChange}: TemplatesPageProps) {
               placeholder="Search templates by name, or filter by status..."
               textKey="name"
               favourites={SETUP_FAVOURITES}
+              // Each quick filter's name is its token's (Status: is Active), so it isn't repeated beside the star.
+              namesQuickFilters={false}
             />
           }
           pagination={{
