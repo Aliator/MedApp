@@ -13,7 +13,8 @@ using MediatR;
 namespace MedApp.Application.Patients.Commands.AnonymisePatient;
 
 /// <summary>
-/// Anonymises a patient's record across every table in one save, with an activity log entry giving the reason
+/// Anonymises a patient's record across every table in one save, with an activity log entry giving the reason (one of
+/// <see cref="AnonymisationReason"/>, so it holds no patient details) and an optional note
 /// (<see cref="PatientAnonymiser"/>). Refused (409) while any of their procedures is under way, while the record is
 /// restricted, or if it's already anonymised; and (400) unless the confirmation is the patient's full name.
 /// </summary>
@@ -48,7 +49,12 @@ public sealed partial class AnonymisePatientHandler(
         PatientAnonymiser.Apply(record, timeProvider.GetUtcNow().UtcDateTime);
 
         await repository.SaveAsync(
-            activityLog.Entry(ActivityAction.PatientAnonymised, patient.Id, new { reason = request.Reason.Trim(), procedureCount = record.Procedures.Count }),
+            activityLog.Entry(ActivityAction.PatientAnonymised, patient.Id, new
+            {
+                reason = ProcedureEnums.Parse<AnonymisationReason>(request.Reason).ToString(),
+                note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+                procedureCount = record.Procedures.Count
+            }),
             cancellationToken);
 
         return PatientMapper.ToResponse(patient);

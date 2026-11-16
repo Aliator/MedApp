@@ -49,4 +49,33 @@ public sealed class PatientMapperTests
         PatientMapper.FullName(PatientsTestConstants.CreateValidPatient())
             .Should().Be($"{PatientsTestConstants.ValidFirstName} {PatientsTestConstants.ValidLastName}");
     }
+
+    [Test]
+    public void ToFlags_CopiesEveryFlagAndReason()
+    {
+        var patient = PrivacyTestConstants.CreateRestrictedPatient();
+        patient.DisputedAtUtc = PrivacyTestConstants.FlaggedAtUtc;
+        patient.DisputeReason = "Disputed";
+
+        PatientMapper.ToFlags(patient).Should().BeEquivalentTo(new
+        {
+            IsRestricted = true,
+            RestrictionReason = PrivacyTestConstants.Reason,
+            RestrictedAtUtc = (DateTime?)PrivacyTestConstants.FlaggedAtUtc,
+            IsDisputed = true,
+            DisputeReason = "Disputed",
+            DisputedAtUtc = (DateTime?)PrivacyTestConstants.FlaggedAtUtc,
+            IsAnonymised = false,
+            AnonymisedAtUtc = (DateTime?)null
+        });
+        PatientMapper.ToFlags(PrivacyTestConstants.CreateAnonymisedPatient()).IsAnonymised.Should().BeTrue();
+    }
+
+    [Test]
+    public void ToLabel_IsTheIdAndName()
+    {
+        var id = Guid.NewGuid();
+
+        PatientMapper.ToLabel(id, "Freya Ahmed").Should().Be(new MedApp.Contracts.Patients.Responses.PatientLabelResponse(id, "Freya Ahmed"));
+    }
 }

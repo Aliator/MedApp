@@ -216,6 +216,12 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateOnly?>("RetentionKeptUntil")
                         .HasColumnType("date");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.HasKey("Id");
 
                     b.ToTable("Patients", (string)null);

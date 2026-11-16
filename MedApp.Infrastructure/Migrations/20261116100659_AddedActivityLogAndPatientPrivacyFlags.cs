@@ -56,6 +56,14 @@ namespace MedApp.Infrastructure.Migrations
                 type: "date",
                 nullable: true);
 
+            migrationBuilder.AddColumn<byte[]>(
+                name: "RowVersion",
+                table: "Patients",
+                type: "rowversion",
+                rowVersion: true,
+                nullable: false,
+                defaultValue: new byte[0]);
+
             migrationBuilder.CreateTable(
                 name: "ActivityEntries",
                 columns: table => new
@@ -124,6 +132,10 @@ namespace MedApp.Infrastructure.Migrations
 
             migrationBuilder.DropColumn(
                 name: "RetentionKeptUntil",
+                table: "Patients");
+
+            migrationBuilder.DropColumn(
+                name: "RowVersion",
                 table: "Patients");
         }
     }

@@ -145,4 +145,69 @@ public sealed class SetPatientFlagHandlerTests
         response.Id.Should().Be(patient.Id);
         _repository.Verify(r => r.UpdateAsync(It.IsAny<Patient>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Test]
+    public async Task Handle_RestrictWithProceduresUnderWay_Unconfirmed_IsAValidationErrorOnTheConfirmation()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+
+        var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+
+        var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
+        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenProcedures));
+        failure.ErrorMessage.Should().Contain("2 procedures under way").And.Contain("blocking and cancelling");
+        patient.RestrictedAtUtc.Should().BeNull();
+        _repository.Verify(r => r.UpdateAsync(It.IsAny<Patient>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithOneProcedureUnderWay_SaysIt()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Single().ErrorMessage.Should().Contain("1 procedure under way").And.Contain("work on it stops");
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithProceduresUnderWay_Confirmed_RestrictsWithoutCounting()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking", ConfirmOpenProcedures: true), CancellationToken.None);
+
+        patient.RestrictedAtUtc.Should().NotBeNull();
+        _repository.Verify(r => r.CountProceduresUnderWayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithNothingUnderWay_NeedsNoConfirmation_AndPassesTheToken()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        using var cts = new CancellationTokenSource();
+
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), cts.Token);
+
+        patient.RestrictedAtUtc.Should().NotBeNull();
+        _repository.Verify(r => r.CountProceduresUnderWayAsync(patient.Id, cts.Token), Times.Once);
+    }
+
+    [TestCase(PatientFlag.Disputed, true)]
+    [TestCase(PatientFlag.Restricted, false)]
+    public async Task Handle_DisputingOrLifting_NeverAsksForTheConfirmation(PatientFlag flag, bool set)
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        patient.RestrictedAtUtc = PrivacyTestConstants.FlaggedAtUtc;
+        Given(patient);
+        _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, flag, set, "Because"), CancellationToken.None);
+
+        _repository.Verify(r => r.CountProceduresUnderWayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

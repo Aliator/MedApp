@@ -45,20 +45,67 @@ public sealed class PatientExportMapperTests
         export.ExportedBy.Should().Be("exporter");
         export.Patient.Id.Should().Be(record.Patient.Id);
         export.Procedures.Select(p => p.Id).Should().Equal(earlier.Id, later.Id);
-        export.Procedures.Should().AllSatisfy(p => p.PatientName.Should().Be(PatientMapper.FullName(record.Patient)));
-        export.Procedures[1].Stages.Should().HaveCount(3);
-        export.ProcedureHistory.Should().HaveCount(2);
-        export.AccessLog.Should().ContainSingle().Which.PatientName.Should().Be(PatientMapper.FullName(record.Patient));
+        var exported = export.Procedures[1];
+        exported.Title.Should().Be(later.Title);
+        exported.TemplateName.Should().Be(TemplateName);
+        exported.Status.Should().Be("Completed");
+        exported.Priority.Should().Be(later.Priority.ToString());
+        exported.DueDate.Should().Be(DueDates.ToUkDate(later.DueDateUtc));
+        exported.Notes.Should().Be(later.Notes);
+        exported.AssignedTo.Should().Equal(ProcedureMapper.DeletedUser);
+        exported.Stages.Select(s => s.Order).Should().Equal(1, 2, 3);
+        exported.Stages[0].Name.Should().Be(later.Stages[0].Name);
+        exported.Stages[0].FinishedAtUtc.Should().Be(later.Stages[0].CompletedAtUtc);
+        exported.Stages[0].StartedBy.Should().NotBeNull();
+        export.Procedures[0].Stages.Should().BeEmpty();
+        export.Procedures[0].AssignedTo.Should().BeEmpty();
+
+        var history = export.ProcedureHistory.Should().HaveCount(2).And.Subject.First();
+        history.Username.Should().Be(Staff.Username);
+        history.Action.Should().Be("Created");
+        history.ProcedureTitle.Should().Be(record.ProcedureHistory[0].ProcedureTitle);
+        history.Details.Should().Be(record.ProcedureHistory[0].Details);
+        var access = export.AccessLog.Should().ContainSingle().Subject;
+        access.Username.Should().Be(Staff.Username);
+        access.Action.Should().Be("PatientViewed");
+        access.AtUtc.Should().Be(record.Activity[0].AtUtc);
 
         var notification = export.Notifications[1];
-        notification.Id.Should().Be(record.Notifications[1].Id);
         notification.Kind.Should().Be(nameof(NotificationKind.ProcedureAssigned));
         notification.Username.Should().Be(ProcedureMapper.DeletedUser, "the lookup didn't know them");
         notification.Title.Should().Be(record.Notifications[1].Title);
         notification.Message.Should().Be(record.Notifications[1].Message);
         notification.ProcedureId.Should().Be(earlier.Id);
         notification.CreatedAtUtc.Should().Be(record.Notifications[1].CreatedAtUtc);
-        notification.ReadAtUtc.Should().Be(Now);
+    }
+
+    [Test]
+    public void ToResponse_NamesStaffByUsernameOnly_LeavingOutTheirIdsAddressesAndReadTimes()
+    {
+        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress, finishedStages: 1));
+        record.Notifications[0].ReadAtUtc = Now;
+        var entry = record.Activity[0];
+        var withAddress = new MedApp.Domain.Activity.ActivityEntry
+        {
+            Id = entry.Id, AtUtc = entry.AtUtc, Action = entry.Action, UserId = entry.UserId, Username = entry.Username,
+            IpAddress = "192.0.2.77", PatientId = entry.PatientId
+        };
+        var withAddressRecord = new PatientRecord
+        {
+            Patient = record.Patient,
+            Procedures = record.Procedures,
+            ProcedureHistory = record.ProcedureHistory,
+            Activity = [withAddress],
+            Notifications = record.Notifications
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            PatientExportMapper.ToResponse(withAddressRecord, Usernames, Now, "exporter"),
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+        json.Should().NotContain("192.0.2.77").And.NotContain("ipAddress").And.NotContain("userId").And.NotContain("readAtUtc");
+        json.Should().NotContain(Staff.UserId.ToString()).And.NotContain(Admin.UserId.ToString());
+        json.Should().Contain(Staff.Username);
     }
 
     [Test]

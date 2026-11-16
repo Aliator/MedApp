@@ -36,4 +36,11 @@ public sealed class Patient
 
     /// <summary>Why the record is being kept past its retention period.</summary>
     public string? RetentionKeptReason { get; set; }
+
+    /// <summary>
+    /// The database's version of the row, a concurrency token: a save made from a copy read before someone else's save
+    /// is refused (409) rather than writing old values back over theirs, such as undoing a restriction or an
+    /// anonymisation.
+    /// </summary>
+    public byte[] RowVersion { get; set; } = [];
 }

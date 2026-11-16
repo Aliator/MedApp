@@ -9,6 +9,7 @@ using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Queries.GetPatientById;
+using MedApp.Application.Patients.Queries.GetPatientLabels;
 using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
@@ -46,6 +47,17 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
 
     
+    /// <summary>
+    /// Patients' names only, for the side nav's pins (at most 20). Not recorded in the activity log: a pin's label isn't
+    /// a view of the record. Patients that no longer exist are left out.
+    /// </summary>
+    [HttpGet("labels")]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientLabelResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    public async Task<IActionResult> GetPatientLabels([FromQuery] List<Guid>? ids, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetPatientLabelsQuery(ids ?? []), ct));
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -166,7 +178,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SetRestriction(Guid id, [FromBody] SetPatientFlagRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Restricted, request.Set, request.Reason), ct));
+        Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Restricted, request.Set, request.Reason, request.ConfirmOpenProcedures), ct));
 
     /// <summary>Marks the record as disputed by the patient (Article 16), with what they dispute, or clears it.</summary>
     [HttpPut("{id:guid}/dispute")]
@@ -189,7 +201,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AnonymisePatient(Guid id, [FromBody] AnonymisePatientRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new AnonymisePatientCommand(id, request.Reason ?? string.Empty, request.Confirmation ?? string.Empty), ct));
+        Ok(await mediator.Send(new AnonymisePatientCommand(id, request.Reason ?? string.Empty, request.Note, request.Confirmation ?? string.Empty), ct));
 
     /// <summary>
     /// The patients whose records are past their retention period and due for review, the longest overdue first.

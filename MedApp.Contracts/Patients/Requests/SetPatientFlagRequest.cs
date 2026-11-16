@@ -11,4 +11,10 @@ public sealed class SetPatientFlagRequest
 
     /// <summary>Why; shown on the patient's banner while the flag is set, and kept in the activity log.</summary>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// For restricting a record with procedures under way: the admin confirms that their work stops while it's
+    /// restricted (they can still be blocked or cancelled). Without it, restricting such a record is a 400.
+    /// </summary>
+    public bool ConfirmOpenProcedures { get; set; }
 }

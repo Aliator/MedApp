@@ -78,9 +78,9 @@ public sealed class PatientPrivacyEndpointsTests
         using var cts = new CancellationTokenSource();
 
         var result = await Controller(mediator).AnonymisePatient(
-            RecordId, new AnonymisePatientRequest { Reason = "Why", Confirmation = "Test Patient" }, cts.Token);
+            RecordId, new AnonymisePatientRequest { Reason = "ErasureRequest", Note = "Ticket 12", Confirmation = "Test Patient" }, cts.Token);
 
-        mediator.Request.Should().Be(new AnonymisePatientCommand(RecordId, "Why", "Test Patient"));
+        mediator.Request.Should().Be(new AnonymisePatientCommand(RecordId, "ErasureRequest", "Ticket 12", "Test Patient"));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(patient);
     }
@@ -92,7 +92,7 @@ public sealed class PatientPrivacyEndpointsTests
 
         await Controller(mediator).AnonymisePatient(RecordId, new AnonymisePatientRequest { Reason = null!, Confirmation = null! }, CancellationToken.None);
 
-        mediator.Request.Should().Be(new AnonymisePatientCommand(RecordId, string.Empty, string.Empty));
+        mediator.Request.Should().Be(new AnonymisePatientCommand(RecordId, string.Empty, null, string.Empty));
     }
 
     [Test]

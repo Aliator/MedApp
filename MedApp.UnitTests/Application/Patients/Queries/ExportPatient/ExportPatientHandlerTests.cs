@@ -60,7 +60,8 @@ public sealed class ExportPatientHandlerTests
         entry.Action.Should().Be(ActivityAction.PatientExported);
         entry.PatientId.Should().Be(record.Patient.Id);
         export.AccessLog.Should().HaveCount(2);
-        export.AccessLog.Last().Id.Should().Be(entry.Id);
+        export.AccessLog.Last().Action.Should().Be(nameof(ActivityAction.PatientExported));
+        export.AccessLog.Last().AtUtc.Should().Be(entry.AtUtc);
         export.ExportedBy.Should().Be(ActivityTestConstants.Username);
         export.ExportedAtUtc.Should().Be(ActivityTestConstants.Now);
         export.Patient.Id.Should().Be(record.Patient.Id);

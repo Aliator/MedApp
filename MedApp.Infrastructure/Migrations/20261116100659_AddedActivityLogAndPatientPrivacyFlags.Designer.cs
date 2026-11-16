@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261116092248_AddedActivityLogAndPatientPrivacyFlags")]
+    [Migration("20261116100659_AddedActivityLogAndPatientPrivacyFlags")]
     partial class AddedActivityLogAndPatientPrivacyFlags
     {
         /// <inheritdoc />
@@ -218,6 +218,12 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<DateOnly?>("RetentionKeptUntil")
                         .HasColumnType("date");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.HasKey("Id");
 

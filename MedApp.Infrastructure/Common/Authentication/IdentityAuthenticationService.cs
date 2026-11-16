@@ -30,7 +30,7 @@ public sealed class IdentityAuthenticationService(
             await userManager.AccessFailedAsync(user);
             if (await userManager.IsLockedOutAsync(user))
                 throw await LockedOut(user);
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException(user.Id);
         }
 
         await userManager.ResetAccessFailedCountAsync(user);
@@ -44,6 +44,6 @@ public sealed class IdentityAuthenticationService(
     {
         var end = await userManager.GetLockoutEndDateAsync(user);
         var left = end is { } until ? until - timeProvider.GetUtcNow() : TimeSpan.Zero;
-        return new AccountLockedOutException(Math.Max(1, (int)Math.Ceiling(left.TotalMinutes)));
+        return new AccountLockedOutException(Math.Max(1, (int)Math.Ceiling(left.TotalMinutes)), user.Id);
     }
 }

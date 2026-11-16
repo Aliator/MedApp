@@ -62,7 +62,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
     public async Task SaveAsync(ActivityEntry activity, CancellationToken ct)
     {
         context.ActivityEntries.Add(activity);
-        await context.SaveChangesAsync(ct);
+        await context.SaveChangesOrConflictAsync(ct);
     }
 
     private static IQueryable<T> Tracking<T>(DbSet<T> set, bool forUpdate) where T : class =>

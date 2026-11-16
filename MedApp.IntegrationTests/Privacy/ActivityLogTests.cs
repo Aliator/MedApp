@@ -92,7 +92,19 @@ public sealed class ActivityLogTests : IntegrationTest
         var failed = entries.Should().ContainSingle(e => e.Action == "SignInFailed").Subject;
         failed.Username.Should().Be(AdminUsername);
         failed.Details.Should().Contain("InvalidCredentials");
+        failed.UserId.Should().Be(await GetUserIdAsync(_admin, AdminUsername), "the account tried exists");
         entries.Should().Contain(e => e.Action == "SignedIn" && e.Username == AdminUsername);
+    }
+
+    [Test]
+    public async Task SigningIn_UnknownUsername_RecordsNoAccount()
+    {
+        var refused = await NewClient().PostAsJsonAsync("/api/auth/login", new LoginRequest("nobody-by-this-name", WrongPassword));
+        refused.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        var failed = (await ActivityAsync("Actions=SignInFailed")).Should().ContainSingle().Subject;
+        failed.Username.Should().Be("nobody-by-this-name");
+        failed.UserId.Should().BeNull();
     }
 
     [Test]
