@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Contracts.Calendar.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -101,6 +102,13 @@ public sealed class E2EApi(IAPIRequestContext request)
     /// <summary>Cancels an appointment (the app never deletes them). Only Requested and Booked ones can be.</summary>
     public async Task CancelAppointmentAsync(Guid id, string reason) =>
         await SendAsync<AppointmentResponse>("POST", $"/api/appointments/{id}/cancel", new { reason });
+
+    /// <summary>One person's calendar from one UK day to another (at most 31): its blocks, appointments and meetings.</summary>
+    public async Task<CalendarResponse> CalendarAsync(Guid staffUserId, DateOnly from, DateOnly to) =>
+        await SendAsync<CalendarResponse>("GET", $"/api/calendar?staffUserId={staffUserId}&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+    /// <summary>Cancels (deletes) a meeting, as an admin. Nothing happens if it's gone already.</summary>
+    public Task CancelMeetingAsync(Guid id) => DeleteIfThereAsync($"/api/calendar/meetings/{id}");
 
     public async Task<WhoAmIResponse> WhoAmIAsync() => await SendAsync<WhoAmIResponse>("GET", "/api/auth/whoami");
 
