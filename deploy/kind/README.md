@@ -2,7 +2,7 @@
 
 Step 1 of the Kubernetes plan (`docs/todo.md`): MedApp in a local cluster made by [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker), as close to production as one machine allows.
 - **The chart:** it's deployed with the app's Helm chart (`deploy/helm/medapp`), locked down as it would be anywhere.
-- **The image:** the API runs from its production image (`MedApp.API/Dockerfile`: the API, the built React app, Node to render its pages and the migrations bundle), with SQL Server beside it.
+- **The image:** the API runs from its production image (`MedApp.API/Dockerfile`: the API, the built React app, Node to render its pages and the migrations bundle), with SQL Server beside it. Each API pod runs the image twice: the API, and beside it the page server (`node /app/ssr/server.mjs`), with none of the API's secrets.
 - **Attachments' files** go to Azurite, Azure Storage's emulator, in the cluster, where Azure uses a storage account. It runs with a random account key from the secret store, not the emulator's published one.
 - **What a real cluster would provide:**
   - **Traefik** as the ingress controller.
@@ -39,13 +39,15 @@ Then open **http://localhost:8080**, or **https://localhost:8443**, where the br
 `up.sh` does the rest:
 1. Creates the cluster if it's missing.
 2. Installs Traefik, cert-manager and External Secrets Operator, and sets up the local issuer and secret store (`local-cluster.yaml`).
-3. Fills the store with random passwords (and Azurite's account key), once.
+3. Fills the store with random passwords (and Azurite's account key). Each entry is made only if it's missing, and never changed once it exists.
 4. Builds the API's image and loads it into the cluster, tagged by the image's ID.
 5. Installs or upgrades the chart with `values.yaml`. The chart's migrations Job brings the database up to date and makes the first admin.
 
 Run it again after a code change: a changed image gets a new tag, and Helm rolls it out. The database is kept unless you pass `--demo-data`, which replaces it.
 
 To have the cluster follow git instead, use `up.sh --argocd`: Argo CD deploys the image the Publish workflow built from `main`. See `deploy/argocd/README.md`.
+
+**A change that adds a secret store entry** (as attachments added `medapp-attachments`, Azurite's key and the API's connection string to it) needs `up.sh` run again on an existing cluster. With Argo CD, run `up.sh --argocd` **before the change merges**: Argo CD syncs each merge on its own, but only `up.sh` fills the store. Without the entry, the new ExternalSecret can't sync, and Argo CD's sync stops there (the Secrets are its first wave), before the migrations and the new API. The script adds only what's missing, and changes no existing entry or password.
 
 `deploy/kind/down.sh` deletes the cluster, its database, its attachments' files and its secret store. The AppHost's dev database isn't affected.
 

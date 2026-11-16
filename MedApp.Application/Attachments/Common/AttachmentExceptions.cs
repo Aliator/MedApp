@@ -11,6 +11,10 @@ public sealed class UnsupportedFileTypeException(string message) : Exception(mes
 public sealed class MalwareDetectedException()
     : Exception("The file failed its malware scan, so it wasn't attached.");
 
+/// <summary>File storage is set up but isn't answering, or failed (503). Uploads and downloads can be tried again later.</summary>
+public sealed class StorageUnavailableException(Exception inner)
+    : Exception("File storage isn't available just now, so the file couldn't be stored or read. Try again in a few minutes.", inner);
+
 /// <summary>No file storage is set up for this deployment, so files can't be uploaded or downloaded (503).</summary>
 public sealed class FileStorageUnavailableException()
     : Exception("File storage isn't set up, so files can't be attached or downloaded.");

@@ -18,8 +18,11 @@ namespace MedApp.Application.Attachments.Commands.UploadAttachment;
 /// its patient's record can be changed (not restricted or anonymised: <see cref="PatientRules"/>), and it allows new
 /// files; the body is copied to a temporary file (<see cref="IUploadStaging"/>), counting its size and
 /// hashing it as it goes, so 20 MB is never held in memory; its type is found from its contents
-/// (<see cref="FileTypeSniffer"/>); it's scanned for malware; it's stored, with a thumbnail if it's an image; then its
-/// record and audit entry are saved together. If anything after storing fails, the stored bytes are deleted again.
+/// (<see cref="FileTypeSniffer"/>, at most two at a time: <see cref="FileWorkLimiter"/>); it's scanned for malware;
+/// what it's attached to is checked again, since the upload may have taken a minute (still there, the record still
+/// changeable, the stage or procedure still taking files); it's stored, with a thumbnail if it's an image; then its
+/// record and audit entry are saved together. If anything after storing fails, the stored bytes are deleted again,
+/// within <see cref="CleanUpTimeout"/>.
 /// </summary>
 public sealed class UploadAttachmentHandler(
     IAttachmentRepository attachments,
@@ -34,6 +37,9 @@ public sealed class UploadAttachmentHandler(
 {
     private const int BufferSize = 81920;
 
+    /// <summary>How long deleting a failed upload's bytes may take before it's left for later.</summary>
+    public static readonly TimeSpan CleanUpTimeout = TimeSpan.FromSeconds(10);
+
     public async Task<AttachmentResponse> Handle(UploadAttachmentCommand request, CancellationToken cancellationToken)
     {
         if (!fileStore.IsConfigured)
@@ -41,23 +47,23 @@ public sealed class UploadAttachmentHandler(
         if (request.ContentLength > AttachmentLimits.MaxFileBytes)
             throw new FileTooLargeException();
 
-        var target = await AttachmentTargets.ResolveAsync(
-            request.PatientId, request.ProcedureId, request.StageId, patients, procedures, attachments, cancellationToken);
-        PatientRules.EnsureCanChange(target.Owner);
-        if (target.WhyFilesCantChange() is { } reason)
-            throw new ConflictException(reason);
+        await CheckTargetAsync(request, cancellationToken);
 
         var fileName = AttachmentFileName.Clean(request.FileName)
                        ?? throw new ArgumentException("The validator checks the file has a name.", nameof(request));
 
         await using var staged = staging.Create();
         var (size, sha256) = await StageAsync(request.Content, staged, cancellationToken);
-        var type = FileTypeSniffer.Identify(staged, fileName);
+        var type = await FileWorkLimiter.RunAsync(() => FileTypeSniffer.Identify(staged, fileName), cancellationToken);
 
         staged.Position = 0;
         var scanStatus = await scanner.ScanAsync(staged, cancellationToken);
         if (scanStatus == AttachmentScanStatus.Infected)
             throw new MalwareDetectedException();
+
+        // Read again, fresh: the record may have been restricted, anonymised or deleted, or the stage finished, while
+        // the file arrived. This narrows the window to the time it takes to store the file.
+        var target = await CheckTargetAsync(request, cancellationToken);
 
         var id = Guid.NewGuid();
         var hasThumbnail = false;
@@ -98,6 +104,20 @@ public sealed class UploadAttachmentHandler(
                 await DeleteQuietlyAsync(AttachmentStorageKeys.Thumbnail(id));
             throw;
         }
+    }
+
+    /// <summary>
+    /// What the file is attached to, or a 404 if it's gone, or a 409 if the patient's record can't change
+    /// (<see cref="PatientRules"/>) or it doesn't take files now.
+    /// </summary>
+    private async Task<AttachmentTarget> CheckTargetAsync(UploadAttachmentCommand request, CancellationToken ct)
+    {
+        var target = await AttachmentTargets.ResolveAsync(
+            request.PatientId, request.ProcedureId, request.StageId, patients, procedures, attachments, ct);
+        PatientRules.EnsureCanChange(target.Owner);
+        if (target.WhyFilesCantChange() is { } reason)
+            throw new ConflictException(reason);
+        return target;
     }
 
     /// <summary>
@@ -150,9 +170,11 @@ public sealed class UploadAttachmentHandler(
 
     private async Task DeleteQuietlyAsync(string key)
     {
+        // Not with the request's token (it may be why this failed), but not for ever either.
+        using var timeout = new CancellationTokenSource(CleanUpTimeout);
         try
         {
-            await fileStore.DeleteAsync(key, CancellationToken.None);
+            await fileStore.DeleteAsync(key, timeout.Token);
         }
         catch (Exception)
         {

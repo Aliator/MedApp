@@ -8,7 +8,7 @@ This folder is MedApp's clinical risk management file under DCB0129, the NHS sta
 
 - **Drafted on 16 November 2026,** against `main` at `88dc1fa`, by an AI coding agent for the manufacturer, from the code and the handbook. Revised the same day after the review of #60 (`docs/reviews/pr-60-clinical-safety.md`), and again for file attachments (hazards H-23 to H-28).
 - **Nothing here is approved.** No Clinical Safety Officer (CSO) has been appointed, and no clinician has reviewed it. The ratings are estimates for the CSO to confirm.
-- **Updated for branch `feature/nhs-integrations`** (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes and a demographics lookup): the banner, the main control for H-01 and H-02, is built and awaits the CSO's verification; H-01 and H-13 have new causes; no rating changed; and the device decision is unchanged (CS-04, version 0.3; version 0.4 adds file attachments, also without changing it).
+- **Updated for branch `feature/nhs-integrations`** (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes and a demographics lookup): the banner, the main control for H-01 and H-02, is built and awaits the CSO's verification; H-01 and H-13 have new causes; no rating changed; and the device decision is unchanged (CS-04, version 0.3; versions 0.4 and 0.5 add admins' monitoring and file attachments, also without changing it).
 - **MedApp has never been used with real patients.** The drafts conclude that it isn't ready to be, until the controls marked "before first live use" in the hazard log are in place and the CSO has justified the hazards that stay at 3.
 
 ## The documents
@@ -16,7 +16,7 @@ This folder is MedApp's clinical risk management file under DCB0129, the NHS sta
 | ID | Document | What it's for | For |
 |---|---|---|---|
 | CS-01 | [clinical-risk-management-plan.md](clinical-risk-management-plan.md) | How clinical risk is managed: scope, roles (with the CSO), the process, DCB0129's consequence table and 5×5 risk matrix, acceptability and the go-live rule, incidents, the release gate, and when the file is reviewed | The manufacturer and its CSO |
-| CS-02 | [hazard-log.md](hazard-log.md) | 28 hazards in the system as it is, each with causes, effects, existing controls linked to the code, further controls, and three ratings: today, at first live use, and residual | The CSO; deploying organisations |
+| CS-02 | [hazard-log.md](hazard-log.md) | 29 hazards in the system as it is, each with causes, effects, existing controls linked to the code, further controls, and three ratings: today, at first live use, and residual | The CSO; deploying organisations |
 | CS-03 | [clinical-safety-case-report.md](clinical-safety-case-report.md) | The safety case report template, filled as far as the current system allows: claims, evidence, outstanding hazards and defects, assumptions | Each release; deploying organisations; DTAC |
 | CS-04 | [intended-purpose-and-device-decision.md](intended-purpose-and-device-decision.md) | The intended purpose, and the reasoning that MedApp isn't a medical device under UK MDR 2002, with what would change that | The accountable owner; the CSO; buyers |
 | CS-05 | [dcb0160-deploying-organisations.md](dcb0160-deploying-organisations.md) | What a customer must do under DCB0160, what the manufacturer gives them, the controls transferred to them, and a starter hazard log. Not to be given to a customer until the manufacturer's CSO has signed it | Deploying organisations' CSOs |

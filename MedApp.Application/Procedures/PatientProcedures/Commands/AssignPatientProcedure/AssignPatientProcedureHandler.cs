@@ -1,5 +1,6 @@
 ﻿using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
@@ -13,6 +14,7 @@ public sealed class AssignPatientProcedureHandler(
     IPatientProcedureRepository repository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<AssignPatientProcedureCommand, PatientProcedureResponse>
 {
@@ -50,6 +52,9 @@ public sealed class AssignPatientProcedureHandler(
                 CreatedAtUtc = now
             }, cancellationToken);
         }
+
+        // Then the admins watching, after the person it's about.
+        await procedureMonitor.NotifyAsync(change, cancellationToken);
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }

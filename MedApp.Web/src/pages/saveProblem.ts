@@ -9,7 +9,7 @@ export interface SaveProblem {
 export const NO_PROBLEM: SaveProblem = {validation: null, message: null};
 
 /** What's being saved, as the messages name it. */
-export type SaveSubject = 'patient' | 'procedure' | 'stage' | 'template';
+export type SaveSubject = 'patient' | 'procedure' | 'stage' | 'template' | 'rule';
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */
 export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 'archive' | 'restore', subject: SaveSubject = 'patient'): SaveProblem {

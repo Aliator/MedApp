@@ -27,7 +27,7 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 | [data-inventory.md](data-inventory.md) | Every field of personal data MedApp stores, from the code, and every place it goes: database, blob storage for attached files, browser, staff computers' downloads, logs, backups, GitHub; the data flows | Supplier, customers, assessors |
 | [ropa.md](ropa.md) | The supplier's record of processing: as processor (Article 30(2)) and as controller of its own business data (Article 30(1)) | Supplier, ICO |
 | [ropa-customer-template.md](ropa-customer-template.md) | Entries for customers to copy into their own record of processing | Customers |
-| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 23 risks with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
+| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 24 risks (including the NHS number, attached files and the monitoring of staff) with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
 | [retention-schedule.md](retention-schedule.md) | How long each kind of data is kept, following the NHS Records Management Code of Practice; review before destruction; backups; exit; **what MedApp must build** to enforce it | Supplier, customers |
 
 ### Contracts and suppliers

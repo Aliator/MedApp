@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
+using MedApp.Domain.Notifications;
+using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Patients.Common;
@@ -14,7 +16,8 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
 /// <item>Procedure titles become the template's name; procedure and stage notes become <see cref="RemovedText"/>.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
-/// <item>Notifications about the procedures take the new titles.</item>
+/// <item>Notifications about the procedures take the new titles, except those whose title is fixed (monitoring's "Stage
+/// finished"), which never held the procedure's title; their messages hold no free text either.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
 /// purge of deleted files.</item>
@@ -41,9 +44,11 @@ public static class PatientAnonymiser
 
     /// <summary>
     /// Anonymises the record. <paramref name="by"/> is who's doing it, recorded as having deleted the files still
-    /// live; without one, they're deleted by nobody in particular.
+    /// live; without one, they're deleted by nobody in particular. Returns the audit entries for those deletions
+    /// (<see cref="PatientProcedureAuditAction.AttachmentDeleted"/>, with the file's new name), for the caller to save
+    /// with the record.
     /// </summary>
-    public static void Apply(PatientRecord record, DateTime nowUtc, ActivityActor? by = null)
+    public static IReadOnlyList<PatientProcedureAuditEntry> Apply(PatientRecord record, DateTime nowUtc, ActivityActor? by = null)
     {
         var patient = record.Patient;
         patient.FirstName = FirstName;
@@ -79,9 +84,11 @@ public static class PatientAnonymiser
         foreach (var entry in record.Activity)
             entry.Details = ScrubDetails(entry.Details, isNotesChange: false);
 
-        foreach (var notification in record.Notifications)
+        foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.ProcedureId is { } id ? titles.GetValueOrDefault(id, ProcedureTitle) : ProcedureTitle;
 
+        var deletions = new List<PatientProcedureAuditEntry>();
+        var actor = new ProcedureActor(by?.UserId ?? Guid.Empty, by?.Username ?? string.Empty);
         foreach (var attachment in record.Attachments)
         {
             attachment.FileName = FileName + (AttachmentFileTypes.FromContentType(attachment.ContentType)?.Extensions[0] ?? string.Empty);
@@ -91,7 +98,16 @@ public static class PatientAnonymiser
             attachment.DeletedAtUtc = nowUtc;
             attachment.DeletedByUserId = by?.UserId;
             attachment.DeletedByUsername = by?.Username;
+
+            // Audited like any other deletion, each a tick after the last so they keep their order.
+            var procedure = record.Procedures.FirstOrDefault(p => p.Id == attachment.ProcedureId);
+            var stage = procedure?.Stages.FirstOrDefault(s => s.Id == attachment.StageId);
+            var target = new AttachmentTarget(attachment.PatientId, procedure, stage);
+            deletions.Add(AttachmentAudit.Entry(
+                attachment, target, actor, PatientProcedureAuditAction.AttachmentDeleted, nowUtc.AddTicks(deletions.Count)));
         }
+
+        return deletions;
     }
 
     /// <summary>

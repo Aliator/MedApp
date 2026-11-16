@@ -45,9 +45,10 @@ var web = builder.AddViteApp("web", "../MedApp.Web")
     .WithReference(api)
     .WaitFor(api);
 
-// In production the API serves the built React app from its wwwroot, on the same origin as /api (plan Q4), and runs
-// Node to render its pages on the server. MedApp.API/Dockerfile builds both into one image, from the repo root, so
-// the Vite dev server is for development only.
+// In production the API serves the built React app from its wwwroot, on the same origin as /api (plan Q4), and Node
+// renders its pages on the server (/app/ssr in the image: started by the API, or in Kubernetes a container of its
+// own). MedApp.API/Dockerfile builds them into one image, from the repo root, so the Vite dev server is for
+// development only.
 api.PublishAsDockerFile(container => container.WithDockerfile("..", "MedApp.API/Dockerfile"));
 web.ExcludeFromManifest();
 

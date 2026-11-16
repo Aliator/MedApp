@@ -1,12 +1,14 @@
 {{- /*
 Each part of MedApp accepts and makes only the connections it needs; everything else to and from its pods is
-refused. The API's own Node renderer calls it on 127.0.0.1, inside the pod, which no policy affects.
+refused. The API and its page server (the pages container, or a Node the API starts itself) talk on 127.0.0.1,
+inside the pod, which no policy affects. Policies apply to a pod, not a container, so the page server may make the
+API's connections too (DNS, the database, the backplane, Azurite), though it has none of their passwords or keys.
 */}}
 {{- if .Values.networkPolicy.enabled }}
 {{- $dns := dict "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" "kube-system")) "podSelector" (dict "matchLabels" (dict "k8s-app" "kube-dns")))) "ports" (list (dict "port" 53 "protocol" "UDP") (dict "port" 53 "protocol" "TCP")) }}
-# The API: requests only from the ingress controller (and the kubelet's probes, which policies don't block); out to
-# DNS and the parts of MedApp it uses (the database, Valkey and Azurite, when they run in the cluster), plus
-# networkPolicy.extraEgress.
+# The API: requests only from the ingress controller, on the app's port (and the kubelet's probes, on the health
+# ports, which policies don't block); out to DNS and the parts of MedApp it uses (the database, Valkey and Azurite,
+# when they run in the cluster), plus networkPolicy.extraEgress.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

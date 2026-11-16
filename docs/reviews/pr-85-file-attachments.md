@@ -91,7 +91,7 @@ The PR lets staff attach files (scans, photos, results, letters) to a patient, a
 
 ## Findings
 
-Most severe first. Two are high, three medium and six low. None was fixed at the time of this review.
+Most severe first. Two are high, three medium and six low. All eleven were open when this review was written; all eleven are now fixed, as each one's "What happened to it" says.
 
 ### 1. A crafted 1 MB JPEG gets a copy of the API killed for memory
 
@@ -113,6 +113,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
   - **Limit concurrency:** a `SemaphoreSlim` (say 2) around thumbnail making and ZIP inspection, so a burst can't add up.
   - **Bound the ZIP before opening it:** read the end-of-central-directory record's entry count first and refuse a `.docx` with more than a few thousand parts (real ones have tens).
   - **Test it:** a unit test with a progressive JPEG header claiming 24,000 by 24,000 (the generator in Detail is 20 lines) that must return null quickly. Correct `AGENTS.md` and the class comment, and add the cause to H-10.
+- **What happened to it:** fixed. `SkiaThumbnailGenerator` reads the image's header first and makes no thumbnail (the upload still succeeds, without a preview) when the **source** is over 24 megapixels or over 10,000 pixels on either side, so a progressive JPEG's full-size coefficients are never allocated. A `SemaphoreSlim(2)` limits thumbnail making and ZIP inspection to two at a time per API copy. A `.docx` whose central directory lists more than 5,000 entries is refused, the count read from the end-of-central-directory record (ZIP64's when present) before the archive is opened (`FileTypeSniffer.MaxZipEntries`). H-10 has hostile files as a cause, with these controls (hazard log 0.7).
 
 ### 2. The first deploy to kind after merging stalls: the secret store has no attachments secret
 
@@ -130,6 +131,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
   - `AGENTS.md:474`: the merge flow's deploy check looks at Publish only
   - On this machine: `kubectl -n medapp-vault get secrets` lists `medapp-backplane`, `medapp-db` and `medapp-first-admin` only.
 - **Fix:** before merging, run `deploy/kind/up.sh --argocd` once against the existing cluster (it adds the missing entry and changes nothing else that exists), and say so in the PR description and in the kind and Argo CD READMEs: a change that adds a store entry needs the script run before it merges. Make the merge flow's step 8 also check that Argo CD's sync of the merge commit succeeded. Optionally, mark the API's `ConnectionStrings__Attachments` reference `optional: true`, so a missing secret means "no file storage" (a 503) rather than an API that can't start.
+- **What happened to it:** fixed. The API's reference to the attachments secret is now `optional: true`, so without it the API starts with no file storage and attachments answer 503, rather than pods stopping at `CreateContainerConfigError`. `deploy/kind/up.sh`'s store step is idempotent (it adds only the entries that are missing), and the kind README and the handbook (6.6) say to re-run it after an upgrade that adds a secret. The merge flow's step 8 in `AGENTS.md` now also checks that Argo CD's `medapp` Application on kind synced the merge commit. The coordinator creates the store's `medapp-attachments` entry on this machine's cluster before merging.
 
 ### 3. Downloading a file pushes back the patient's retention review
 
@@ -144,6 +146,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
   - `MedApp.Application/Patients/Common/RetentionSchedule.cs:25-28`
   - `docs/governance/retention-schedule.md:26-28`: "the date the patient's record was last changed"
 - **Fix:** leave `AttachmentDownloaded` out of both subqueries (`&& a.Action != PatientProcedureAuditAction.AttachmentDownloaded`), with a test that a download after the cut-off still lists the patient. Adding and deleting a file are changes to the record and can keep counting.
+- **What happened to it:** fixed. The retention review leaves read-only audit actions (`AttachmentDownloaded`) out of both subqueries, so a download no longer moves the conclusion of treatment; adding and deleting a file still count. A test checks that a download after the cut-off still lists the patient. The retention schedule says a download or view doesn't move it.
 
 ### 4. The security baseline's documents still say MedApp has no file uploads
 
@@ -154,6 +157,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
   - `docs/security/threat-model.md`: no upload or attachment threat among T-01 to T-46
   - `AGENTS.md:281`: "A change to authentication, sessions, headers or a data flow should update both."
 - **Fix:** fill in V5 from the code (5.1.1 documented types and size: met; 5.2.1: partly, finding 1; 5.2.2 content and extension checked: met; 5.2.3: partly, no entry-count limit; 5.3.1 never run: met; 5.3.2 storage keys from IDs only: met; 5.4.1 and 5.4.2 `Content-Disposition` with both names: met; 5.4.3 malware scanning: planned), correct 1.1.1, update the summary counts, and add threats for hostile files (availability), malware to workstations, the storage account and its key, and Azurite's plain http in the cluster.
+- **What happened to it:** fixed. The ASVS checklist's V5 is filled in from the code: 8 met (5.1.1, 5.2.1, 5.2.2, 5.2.3, 5.3.1, 5.3.2, 5.4.1, 5.4.2) and 5.4.3 planned (the scanner). 5.2.1 and 5.2.3 are met with finding 1's bounds, the 20 MiB request limit, and nothing unpacked but `[Content_Types].xml` and the `.rels` parts, at most 64 KB each. Row 1.1.1 now says the upload's `X-File-Name` header is percent-decoded once, in `AttachmentResponseHeaders.DecodeFileName`; 1.3.4 and 1.5.1 are corrected too; the summary is now 105 met, 52 partly met, 19 planned, 2 accepted and 75 not applicable. The threat model has the files and the storage key as assets, data flows DF12 and DF13, and five threats: T-47 (hostile files exhausting memory), T-48 (malware passed to workstations), T-49 (active content in the allowed types), T-50 (the storage account and its key) and T-51 (Azurite's plain http inside the kind cluster).
 
 ### 5. The branch conflicts with `main` in 17 files, so CI has never run
 
@@ -168,6 +172,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
   - **The migration:** #84's `AddedMonitoringRules` (11:42:24) sorts before `AddedAttachments` (11:48:44), so the order holds, but this migration's designer model doesn't include #84's tables. The repository's practice is to re-create the branch's migration after merging `main` (as #69 did).
 - **Evidence:** `git merge-tree --write-tree --name-only e8d55ce origin/main`; `gh pr view 85 --json mergeable,mergeStateStatus` (`CONFLICTING`, `DIRTY`); no workflow run for `e8d55ce`. The full list is in Detail.
 - **Fix:** merge `main`, keeping both sides in the anonymiser (the fixed-title filter and the file loop) and the procedure delete handler (the file count before the change, the monitor call after it); renumber this PR's hazard log entry to 0.7 and DPIA entry to 0.5; re-create `AddedAttachments` on top of `AddedMonitoringRules` and check `has-pending-model-changes`; regenerate `schema.d.ts`; then let CI run and read every job.
+- **What happened to it:** fixed. `main` was merged again (#83, the page server sidecar, and #84, admin monitoring), keeping both sides in the anonymiser and the procedure delete handler, and `AddedAttachments` was re-created after `AddedMonitoringRules`. This PR's hazard log entry is 0.7 and its DPIA entry 0.5; its risk and hazard numbers (22 and 23, H-23 to H-28) stay, beside #84's risk 24 and H-29. With the conflicts gone, CI runs on the branch.
 
 ### 6. An upload in progress isn't checked again, so a file can land on a record that changed meanwhile
 
@@ -180,6 +185,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
   - All need two people acting on the same record within one upload, so they're rare.
 - **Evidence:** `MedApp.Application/Attachments/Commands/UploadAttachment/UploadAttachmentHandler.cs:44-48` (the checks), `:54` (the body read, after them), `:89` (the save, with no check); `MedApp.Infrastructure/Data/Repositories/AttachmentRepository.cs:12-17`.
 - **Fix:** after staging, resolve the target again and repeat `EnsureCanChange` and `WhyFilesCantChange` before storing the blob. That narrows the window from the upload's length to milliseconds; closing it fully would need the save to re-read the patient's flags in the same transaction.
+- **What happened to it:** fixed. After staging, the upload resolves its target again and repeats the checks just before storing the blob: the target still exists, the record isn't restricted or anonymised, and the stage or procedure still takes files. That narrows the window from the upload's length to milliseconds; closing it fully would need the save to re-read the patient's flags in the same transaction, which is left. H-23 and the DPIA (risk 6) say so.
 
 ### 7. Staged uploads outlive a crash, in the pod's `/tmp`
 
@@ -187,6 +193,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
 - **What could go wrong:** the staging class says each temporary file is "deleted as soon as its stream is disposed, or by the system if the process dies first". On Windows that's true. On Linux, where the image runs, .NET's `DeleteOnClose` deletes the file when the stream is disposed, so a process that's killed (finding 1's crash, or any out-of-memory kill) leaves the file behind. In Kubernetes `/tmp` is an `emptyDir`, which survives container restarts and lasts as long as the pod. So whole copies of patients' files, up to 20 MiB each, sit on the node's disk outside retention, anonymisation and the export, and they count towards the 1 GiB limit, past which the kubelet evicts the pod. It's like a note meant to go in the shredder when the meeting ends, left on the table when the fire alarm empties the room.
 - **Evidence:** `MedApp.Infrastructure/Attachments/TempFileUploadStaging.cs:8` (the claim), `:20` (`DeleteOnClose`); `deploy/helm/medapp/templates/api.yaml:137` (`sizeLimit: 1Gi`). Reproduced: after the kill, `ls /tmp` showed `medapp-upload-….tmp`, 1,125,118 bytes, mode 0600.
 - **Fix:** on Linux, delete the path straight after opening it (`File.Delete(path)` once the `FileStream` exists): the open handle keeps the bytes readable until it's closed, and nothing is left if the process dies. Sweep stale `medapp-upload-*.tmp` files at start-up as well, and correct the comment.
+- **What happened to it:** fixed. On Linux the staged file is unlinked straight after it's opened, so the open handle keeps the bytes until it's closed and nothing is left if the process dies; stale `medapp-upload-*.tmp` files are swept when the API starts. The class comment and the data inventory's `/tmp` row are corrected.
 
 ### 8. The type check stops file formats, not active content inside the allowed ones
 
@@ -194,6 +201,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
 - **What could go wrong:** "Macros refused" is accurate, but a Word document doesn't need macros to be dangerous. A `.docx` with a remote template (template injection, a common way to fetch macros after the file is opened), an external OLE link to a `\\server\share` path (which can leak the user's Windows credentials hash when opened), or an embedded OLE object passes, and so does a PDF with JavaScript, a launch action or embedded files, since only its first five bytes are checked. Browsers never run them here (the headers do their job), but the hazard log's H-25 counts the type list as a control against malware reaching a workstation. Protected View, which Office applies to downloaded files, and the malware scanner required before first live use are the real controls.
 - **Evidence:** `MedApp.Application/Attachments/Common/FileTypeSniffer.cs:150-167` (only `vbaProject.bin` and the declared content types are checked), `:76-77` (PDF by prefix); `docs/clinical-safety/hazard-log.md` H-25's existing controls. A scratch `.docx` with all three features was accepted as a Word document (Detail).
 - **Fix:** refuse a `.docx` with any `TargetMode="External"` relationship in its `.rels` parts, or with parts under `word/embeddings/` or `word/activeX/`; refuse PDFs containing `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile` or `/RichMedia` (a byte search; false positives are acceptable here). Or say in H-25 that active content in allowed types is left to the scanner.
+- **What happened to it:** fixed. A `.docx` with any external relationship (`TargetMode="External"` in a `.rels` part), embedded objects (`word/embeddings/`) or ActiveX (`word/activeX/`) is refused, and so is a PDF containing `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile` or `/RichMedia` (a byte search). Everything else is left to the malware scanner, as H-25's controls and DPIA risk 22 now say; threat T-49 records what a literal byte search can't see.
 
 ### 9. When storage hangs, an upload can take many minutes to fail, and fails as a 500
 
@@ -201,6 +209,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
 - **What could go wrong:** the blob client is made with the SDK's defaults: 3 retries with backoff and 100 seconds per try. If the storage account stops answering (a dropped private endpoint, a firewall change), an upload waits through all of that, then the clean-up deletes the blob (and the thumbnail) with `CancellationToken.None`, waiting through the same retries again, while the staged file sits in `/tmp`. The request ends as a generic 500. H-28 already records the 500 and proposes a 503; the length of the wait isn't recorded anywhere.
 - **Evidence:** `MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs:62` (no `BlobClientOptions`); `MedApp.Infrastructure/Attachments/BlobFileStore.cs:38` (only 404 handled); `UploadAttachmentHandler.cs:96-98`, `:155`.
 - **Fix:** set `BlobClientOptions.Retry` (for example 2 retries and a 20 to 30 second network timeout), map other storage failures to `FileStorageUnavailableException` (503) as H-28 proposes, and give the clean-up its own short timeout.
+- **What happened to it:** fixed. The blob client has explicit retries (2) and a 30-second network timeout; other storage failures are a 503 (`StorageUnavailableException`, "File storage isn't available"), no longer a 500; and the clean-up after a failed upload has its own 10-second bound. H-28's known defect is recorded as fixed in the hazard log, the safety case report and the DPIA (risk 14).
 
 ### 10. Anonymising deletes files without audit entries
 
@@ -208,6 +217,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
 - **What could go wrong:** `AGENTS.md` says adding, deleting and downloading a file are audit entries. The anonymiser soft-deletes every live file, recording the admin on the file, but writes no `AttachmentDeleted` entry, so the patient's timeline and the audit log show files attached and never removed. The activity log's `PatientAnonymised` entry is the only record of when they went.
 - **Evidence:** `MedApp.Application/Patients/Common/PatientAnonymiser.cs:85-95`; `AGENTS.md` (Attachments, "Audit").
 - **Fix:** add an `AttachmentDeleted` entry per file the anonymiser deletes (its `fileName` already scrubbed), or say in `AGENTS.md` and the DPIA that anonymisation's deletions are recorded only on the files and in the activity log.
+- **What happened to it:** fixed. The anonymiser writes an `AttachmentDeleted` audit entry for each file it deletes, with the file's name already scrubbed, so the timeline and the audit log show the files going.
 
 ### 11. The restriction guard's convention test now lets any handler through that calls `EnsureCanChange` anywhere
 
@@ -215,6 +225,7 @@ Most severe first. Two are high, three medium and six low. None was fixed at the
 - **What could go wrong:** the test stops procedure commands from skipping the guard that checks the patient's record. It used to make one named exception (creating a procedure); now any handler that calls `PatientRules.EnsureCanChange` anywhere passes, so a future procedure command that loads the procedure without the guard and checks the wrong patient, or checks on only one branch, passes too.
 - **Evidence:** `MedApp.UnitTests/Application/Procedures/Common/ProcedureRestrictionGuardConventionTests.cs:69-71`.
 - **Fix:** list `UploadAttachmentHandler` and `DeleteAttachmentHandler` by name beside `CreatePatientProcedureHandler`, as `DownloadAttachmentHandler` already is.
+- **What happened to it:** fixed. The convention test lists `UploadAttachmentHandler` and `DeleteAttachmentHandler` by name, beside `CreatePatientProcedureHandler` and `DownloadAttachmentHandler`.
 
 ## Remaining risks
 

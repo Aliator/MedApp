@@ -171,6 +171,27 @@ public sealed class PatientAnonymiserTests
         noProcedure.Title.Should().Be(PatientAnonymiser.ProcedureTitle);
     }
 
+    [Test]
+    public void Apply_MonitoringNotification_KeepsItsFixedTitleAndMessage()
+    {
+        var procedure = CreateProcedure(Status.Completed);
+        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var monitoring = new Notification
+        {
+            Id = Guid.NewGuid(),
+            Kind = NotificationKind.MonitoredStageFinished,
+            Title = "Stage finished",
+            Message = "test.staff finished a stage on a Medium priority Test template procedure.",
+            ProcedureId = procedure.Id,
+        };
+        record = WithNotifications(record, monitoring);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt);
+
+        monitoring.Title.Should().Be("Stage finished");
+        monitoring.Message.Should().Be("test.staff finished a stage on a Medium priority Test template procedure.");
+    }
+
     private static JsonNode Parse(string json) => JsonNode.Parse(json)!;
 
     private static PatientRecord WithHistory(PatientRecord record, PatientProcedureAuditEntry entry) => new()

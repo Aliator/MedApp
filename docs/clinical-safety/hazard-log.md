@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.6, draft |
+| **Version** | 0.7, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-23 to H-28 added for file attachments (branch `feature/file-attachments`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -61,10 +61,11 @@
 | [H-26](#h-26-a-file-is-deleted-by-mistake) | A file is deleted by mistake | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-27](#h-27-an-out-of-date-or-duplicate-document-is-relied-on) | An out-of-date or duplicate document is relied on | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-28](#h-28-file-storage-is-unavailable) | File storage is unavailable | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Operational, before first live use | Open |
+| [H-29](#h-29-an-admin-relies-on-a-monitoring-rule-to-follow-up-clinical-work) | An admin relies on a monitoring rule to follow up clinical work | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Information before first live use; an outbox later | Open |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
-**File attachments** (version 0.6) add six hazards, rated with the controls on the `feature/file-attachments` branch: two at 3, a file on the wrong record (H-23) and malware in a file (H-25), and four at 2 (H-24, H-26, H-27 and H-28). That makes fourteen at 3 on the initial ratings, thirteen with H-12's fix. Both new ones come down to 2 at first live use, H-25 only if malware scanning is built before then.
+**File attachments** (version 0.7) add six hazards, rated with the controls on the `feature/file-attachments` branch: two at 3, a file on the wrong record (H-23) and malware in a file (H-25), and four at 2 (H-24, H-26, H-27 and H-28). That makes fourteen at 3 on the initial ratings, thirteen with H-12's fix. Both new ones come down to 2 at first live use, H-25 only if malware scanning is built before then.
 
 **At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
 
@@ -380,13 +381,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No email:** notifications are in-app only. Someone who isn't signed in learns of it only at their next sign-in.
 - **My Tasks hides it if it's already under way.** My Tasks opens on "Not started" (H-04), so a procedure handed over part-way through, for example from a colleague who's off sick, doesn't show there by default. The colleague who opens My Tasks sees "Nothing waiting to be started".
 - **Nothing tells someone they've been unassigned,** and nothing tells anyone about a procedure assigned to someone who's away.
+- **The person has switched assignment notifications off** (Account Settings, Notifications; `NotificationPreferences`). Then nothing is stored or pushed, and with My Tasks on its default filter, work handed over part-way through shows nowhere.
 
 **Effect.** Work waits until the person next opens MedApp and finds it, or longer.
 
 **Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
-- Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`).
+- Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`), **unless the person has switched assignment notifications off**, when none is stored.
+- The switch's own help text says to work from My Tasks with its filter on all open work, so work already under way shows (`NotificationSettings.tsx`).
 - My Tasks lists every open procedure assigned to you once its filter is set to "Started" or to all (`MyTasksPage.tsx`); by default it shows only those not yet started.
 - With two copies of the API, notifications reach browsers on either, through the Valkey backplane (`SignalRBackplane`; 8 of 8 delivered in testing, `docs/architecture.md`, section 6.4).
 - When the connection comes back, the list is refreshed (`connection.onreconnected`).
@@ -418,6 +421,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - A failed deploy: every merge deploys (risk D1).
 - The organisation's own network or devices.
 - File storage alone can fail while the rest works: H-28.
+- **A hostile file uploaded as an attachment** (branch `feature/file-attachments`): an image whose header claims a huge size (a 1 MB progressive JPEG claiming 24,000 by 24,000 pixels needs over a gigabyte to decode for its thumbnail), a Word file whose table of contents lists hundreds of thousands of entries, or many such uploads at once, could take an API copy past its memory limit, so that the kernel kills it with every request it was serving. Two such uploads could take both copies down. Controlled since the review of #85 (existing controls).
 
 **Effect.** Staff can't see who's assigned to what, which stage a procedure is at, its notes or its due date. Work is done without recording it, or not done.
 
@@ -428,6 +432,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - A failed migration stops the rollout and leaves the old version running (ADR-10).
 - Server rendering falls back to rendering in the browser if Node fails (`SsrPages`).
 - Rollback is a revert on `main` (`AGENTS.md`).
+- **Hostile files are bounded:** the thumbnail generator reads the image's header first and makes no thumbnail (the upload still succeeds, without a preview) when the source is over 24 megapixels or over 10,000 pixels on either side (`SkiaThumbnailGenerator`); a `.docx` whose ZIP table of contents lists more than 5,000 entries is refused, the count read from the end-of-central-directory record before the archive is opened (`FileTypeSniffer`); at most two thumbnails or Word inspections run at a time per API copy (a `SemaphoreSlim(2)`); and a request is at most 20 MiB.
 
 **Initial risk:** Major, Medium: **3**.
 
@@ -881,6 +886,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Existing controls:**
 - A file is attached to whatever the page shows: the patient page attaches to the patient, a procedure page to the procedure, and a stage's area to that stage. The patient page lists every file of the patient, each saying what it's attached to (`ViewPatientPage.tsx`, `Attachments.tsx`).
 - Each file shows who attached it and when, and the upload is audited and shown on the patient's timeline as "a file was attached" (`AttachmentAudit`, `TimelineMapper`).
+- **The target is checked again once the upload is staged,** just before it's stored: it still exists, the record isn't restricted or anonymised, and the stage or procedure still takes files (`UploadAttachmentHandler`). That narrows the window in which a record that changed during a slow upload could take the file to milliseconds; closing it fully would need the save to re-read the record in the same transaction.
 - A wrong file can be deleted at once by whoever attached it, or by an admin, wherever it is; it's then hidden from staff and can't be downloaded, and the deletion is audited (`DeleteAttachmentHandler`).
 - **Transferred:** positive patient identification, and checking the identifiers printed on a document against the patient before acting on it.
 
@@ -953,6 +959,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Existing controls:**
 - **A short list of types,** found from each file's contents, never its name or the browser's type, with the name's extension matching: PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain text. Macro-enabled Word, SVG and HTML are refused, as is anything else (`FileTypeSniffer`, `UploadAttachmentValidator`).
+- **The commonest active content is refused too:** a `.docx` with any external relationship (`TargetMode="External"` in a `.rels` part: a remote template, an external link to a share), embedded objects (`word/embeddings/`) or ActiveX (`word/activeX/`); and a PDF containing `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile` or `/RichMedia`, found by a byte search, so a harmless PDF that merely mentions one is refused as well (`FileTypeSniffer`). **Everything else is left to the malware scanner:** an exploit in an image decoder or in a PDF's own structure isn't caught by type checks.
 - **Nothing is shown or run in the app:** every file is sent as a download, with headers that stop a browser showing or running it on MedApp's site (`AttachmentResponseHeaders`). The only images shown in pages are thumbnails the server re-encodes (`SkiaThumbnailGenerator`).
 - **"Not scanned"** is shown on every file, with a note saying what it means (`Attachments.tsx`).
 - **Transferred:** up-to-date anti-malware, PDF readers and Office on every computer that opens files, with macros off.
@@ -988,7 +995,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Existing controls:**
 - Deleting asks for confirmation, naming the file (`Attachments.tsx`, `ConfirmDialog`).
-- Who deleted it, and when, is kept on the file and in the audit log, and shows on the patient's timeline (`AttachmentAudit`).
+- Who deleted it, and when, is kept on the file and in the audit log, and shows on the patient's timeline (`AttachmentAudit`); that includes the files anonymisation deletes, each with its own audit entry (its name already replaced, `PatientAnonymiser`).
 - The contents are kept, so the supplier can recover a file on the customer's instruction ([support-access-policy.md](../governance/support-access-policy.md)).
 - **Transferred:** the master copy of a document is in the organisation's own systems.
 
@@ -1048,14 +1055,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Causes:**
 - The storage (Azure Blob Storage, or Azurite in the cluster) is down, unreachable, or misconfigured; or its key was rotated without redeploying (`deploy/azure/README.md`, Passwords).
 - **Nothing checks it:** readiness doesn't test storage, and there's no monitoring (H-10).
-- A deployment can run with no file storage at all; then every upload and download is refused (`UnconfiguredFileStore`).
+- A deployment can run with no file storage at all; then every upload and download is refused (`UnconfiguredFileStore`). In Kubernetes the API's reference to the attachments secret is optional, so a missing secret (for example a kind cluster whose secret store wasn't refreshed with `deploy/kind/up.sh` after upgrading) leaves the API running with no file storage, rather than unable to start.
 
-**Effect.** Uploads and downloads fail while everything else works: with no storage set up, with a clear 503 ("File storage isn't set up"); with storage set up but failing, with a general server error once the storage client has given up retrying (`BlobFileStore` handles only "not found"). Staff can't open a letter or result they need, or can't attach one.
+**Effect.** Uploads and downloads fail while everything else works, with a 503: "File storage isn't set up" when there's none, and "File storage isn't available" (`StorageUnavailableException`) when it's set up but failing. Staff can't open a letter or result they need, or can't attach one.
 
 **Possible harm.** Delayed care for the patients whose documents are needed while it lasts. Minor injury from which recovery isn't expected in the short term, multiple patients, in the worst credible case: Considerable.
 
 **Existing controls:**
-- The rest of MedApp keeps working, and a failed upload or download is an error, never a wrong or empty file; a deployment without storage says so (`FileStorageUnavailableException`, mapped to 503 by `ExceptionHandling`).
+- The rest of MedApp keeps working, and a failed upload or download is an error, never a wrong or empty file; both kinds of failure are a 503 that says what's wrong (`FileStorageUnavailableException`, `StorageUnavailableException`, mapped by `ExceptionHandling`).
+- **A failure is quick:** the blob client makes 2 retries with a 30-second network timeout, and cleaning up after a failed upload has its own 10-second bound, so an upload doesn't hang for minutes when storage stops answering.
 - On Azure, the files are zone-redundant, so one zone's outage doesn't stop them (`deploy/azure/main.bicep`).
 - **Transferred:** the master copies in the organisation's own systems; the downtime procedure (H-10).
 
@@ -1063,8 +1071,41 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Further controls:**
 - **Monitoring and alerts that include storage,** and readiness that reports it. Protective; **planned** (step 5, with H-10's monitoring); before first live use.
-- **Report a storage failure as "file storage is unavailable, try again later"** (503), as for a deployment without storage, instead of a general server error. Protective; **proposed**; later.
+- **Report a storage failure as a 503,** as for a deployment without storage, instead of a general server error. Protective; **built** after the review of #85 (above).
 - **The downtime procedure says where to find documents** when MedApp's files can't be opened. Information; transferred; before first live use.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-29: An admin relies on a monitoring rule to follow up clinical work
+
+**Description.** An admin sets a monitoring rule (Administration, Monitoring) to be told when something happens, for example "anyone blocks an Urgent procedure", and relies on it to follow the work up, but isn't told.
+
+**Causes:**
+- **Monitoring is best effort.** Notifications are sent after the change is saved, outside its transaction: a failure is only logged, and a crash between the save and the send loses the notification for good (`ProcedureMonitor`).
+- **A rule stops silently** when its owner loses the Admin role, when it's switched off, or when the account, template or stage it names is deleted (it then matches nothing).
+- **Only eight actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires.
+- **Live delivery** has H-09's causes: pushes are best effort, the browser stops reconnecting after a while, and there's no email.
+
+**Effect.** A blocked, cancelled or re-dated Urgent procedure isn't followed up by the person who expected to hear of it.
+
+**Possible harm.** Delayed care for one patient. Considerable.
+
+**Existing controls:**
+- **The intended purpose says it:** monitoring rules are supervision of work, not clinical alerting, and "must not be relied on to make sure anything clinical happens" (`intended-purpose-and-device-decision.md`).
+- **The work is visible anyway:** the procedures list, My Tasks, the overdue badge and the patient's timeline show every blocked, cancelled and re-dated procedure, whatever the rules.
+- The notifications that are sent are stored, so they show at the next page load.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Information:** in training and the instructions for use, monitoring is described as a supervision aid, never as the way clinical follow-up is assured; follow-up is through the lists, My Tasks and local procedures. Information; **proposed**; before first live use (it costs nothing); transferred.
+- **An outbox,** so a notification can't be lost between the save and the send. Protective; **proposed**; later.
 
 **At first live use:** Considerable, Low: **2**.
 
@@ -1094,4 +1135,5 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
 | 0.4 | 16 November 2026 | The privacy features (PR #68): H-03 and H-19's new controls and causes (anonymisation, the retention review's adult and children periods only), and new hazard H-22 (restricting a record delays care under way), after the review of #68 | AI coding agent, for review |
 | 0.5 | 16 November 2026 | The NHS integrations (PR #69): the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed. After the review of #69: the banner on every page about one patient, and the lookup's confirmation on Edit Patient | AI coding agent, for review |
-| 0.6 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. Merged with 0.4 and 0.5: H-23 has the built patient banner as a control, and the restriction guard and anonymisation are causes in H-23, H-24 and H-26. No earlier rating changed | AI coding agent, for review |
+| 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Tasks on all open work; new hazard H-29 (relying on best-effort monitoring for clinical follow-up; H-29 because the attachments branch takes H-23 to H-28). No existing rating changed | AI coding agent, for review |
+| 0.7 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. H-23 has the built patient banner (PR #69) as a control, and the restriction guard and anonymisation (PR #68) are causes in H-22, H-23, H-24 and H-26. After the review of #85: hostile images and archives as a cause of H-10, with their bounds; the upload re-checked after staging (H-23); active content in Word and PDF files refused (H-25); storage failures bounded and a 503 (H-28, its defect fixed); anonymisation's file deletions audited (H-26). No earlier rating changed | AI coding agent, for review |

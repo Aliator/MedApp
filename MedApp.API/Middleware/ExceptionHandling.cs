@@ -67,6 +67,10 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status503ServiceUnavailable, ex.Message);
         }
+        catch (StorageUnavailableException ex) when (!context.Response.HasStarted)
+        {
+            await WriteProblem(context, StatusCodes.Status503ServiceUnavailable, ex.Message);
+        }
     }
 
     private static async Task WriteValidationProblem(

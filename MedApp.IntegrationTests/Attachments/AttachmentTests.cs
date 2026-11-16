@@ -341,6 +341,45 @@ public sealed class AttachmentTests : IntegrationTest
     }
 
     [Test]
+    public async Task RetentionReview_ADownloadAfterTheCutOff_DoesNotMoveTheConclusionOfTreatment()
+    {
+        // A record last changed ten years ago, with a file attached then: it's due for review.
+        var admin = await SignInAsAdminAsync();
+        var patient = await CreatePatientAsync(admin);
+        var file = await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "old-letter.pdf");
+        await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {patient.Id}");
+        await ExecuteSqlAsync($"UPDATE PatientProcedureAuditEntries SET AtUtc = DATEADD(year, -10, SYSUTCDATETIME()) WHERE PatientId = {patient.Id}");
+
+        // Reading the letter now (to decide whether to keep the record) is a read, not a change.
+        await (await admin.GetAsync($"/api/attachments/{file.Id}/content")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var listed = await (await admin.GetAsync("/api/patients/retention-review?PageSize=100"))
+            .ReadAsAsync<MedApp.Contracts.Common.PagedResponse<MedApp.Contracts.Patients.Responses.RetentionReviewItemResponse>>();
+
+        listed.Items.Should().Contain(i => i.PatientId == patient.Id);
+
+        // Attaching another file is a change, so it takes the record off the list.
+        await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "new-letter.pdf");
+        (await (await admin.GetAsync("/api/patients/retention-review?PageSize=100"))
+                .ReadAsAsync<MedApp.Contracts.Common.PagedResponse<MedApp.Contracts.Patients.Responses.RetentionReviewItemResponse>>())
+            .Items.Should().NotContain(i => i.PatientId == patient.Id);
+    }
+
+    [Test]
+    public async Task Anonymise_AuditsEachFileItDeletes()
+    {
+        var admin = await SignInAsAdminAsync();
+        var patient = await CreatePatientAsync(admin, firstName: "Ann", lastName: "Synthetic");
+        await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "letter.pdf");
+
+        await (await admin.PostAsJsonAsync($"/api/patients/{patient.Id}/anonymise",
+                new MedApp.Contracts.Patients.Requests.AnonymisePatientRequest { Reason = "ErasureRequest", Confirmation = "Ann Synthetic" }))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var deletions = (await AuditAsync(patient.Id)).Where(e => e.Action == PatientProcedureAuditAction.AttachmentDeleted).ToList();
+        deletions.Should().ContainSingle().Which.Details.Should().Contain("\"fileName\":\"Anonymised file.pdf\"");
+    }
+
+    [Test]
     public async Task Api_WithoutFileStorage_RefusesUploadsWith503AndStillLists()
     {
         await using var api = new MedAppApiFactory(TestEnvironment.ConnectionString);

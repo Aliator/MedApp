@@ -9,15 +9,24 @@ namespace MedApp.Infrastructure.Attachments;
 /// decoded, turned upright (a photo's EXIF orientation), shrunk to fit <see cref="IThumbnailGenerator.MaxSide"/> and
 /// encoded again, so it carries none of the original's metadata (location, camera, comments).
 /// <para>
-/// Decoding is bounded, since an image's header can claim any size: a JPEG is decoded already scaled down (1/2, 1/4 or
-/// 1/8), and anything that would still be over <see cref="MaxDecodedPixels"/> gets no thumbnail. So does anything it
-/// can't read; that's never an error, as the file itself is still attached.
+/// An image's header can claim any size, and a small file can claim a huge one. Decoding scaled down doesn't bound the
+/// memory on its own: a progressive JPEG holds its coefficients at full size whatever the scale (about 2 bytes a
+/// pixel), and a PNG decodes at full size. So the header is read first, and an image whose <b>own</b> size is over
+/// <see cref="MaxSourcePixels"/>, or either side over <see cref="MaxSourceSide"/>, gets no thumbnail; neither does
+/// anything it can't read. That's never an error: the file itself is still attached, without a preview. At most
+/// <see cref="FileWorkLimiter.MaxConcurrent"/> thumbnails are made at once in each copy of the API.
 /// </para>
 /// </summary>
 public sealed class SkiaThumbnailGenerator(ILogger<SkiaThumbnailGenerator> logger) : IThumbnailGenerator
 {
-    /// <summary>The most pixels decoded for one thumbnail: 24 million, about 96 MB of memory while it's made.</summary>
-    public const long MaxDecodedPixels = 24_000_000;
+    /// <summary>
+    /// The largest source image a thumbnail is made of: 24 million pixels (a 24-megapixel photo), at most about 96 MB
+    /// decoded (or 48 MB of a progressive JPEG's coefficients). Two at once stay well inside the API's 1 GiB.
+    /// </summary>
+    public const long MaxSourcePixels = 24_000_000;
+
+    /// <summary>The longest side of a source image a thumbnail is made of.</summary>
+    public const int MaxSourceSide = 10_000;
 
     private const int JpegQuality = 80;
 
@@ -26,11 +35,16 @@ public sealed class SkiaThumbnailGenerator(ILogger<SkiaThumbnailGenerator> logge
         if (!type.CanHaveThumbnail)
             return Task.FromResult<byte[]?>(null);
 
+        return FileWorkLimiter.RunAsync(() => CreateSafely(image, type, ct), ct);
+    }
+
+    private byte[]? CreateSafely(Stream image, AttachmentFileType type, CancellationToken ct)
+    {
         try
         {
             ct.ThrowIfCancellationRequested();
             image.Position = 0;
-            return Task.FromResult(Create(image, type));
+            return Create(image, type);
         }
         catch (OperationCanceledException)
         {
@@ -40,20 +54,26 @@ public sealed class SkiaThumbnailGenerator(ILogger<SkiaThumbnailGenerator> logge
         {
             // A damaged or hostile image: no thumbnail, and nothing worse.
             logger.LogWarning(e, "Couldn't make a thumbnail of a {ContentType} image.", type.ContentType);
-            return Task.FromResult<byte[]?>(null);
+            return null;
         }
     }
+
+    /// <summary>Whether an image this size may be decoded for a thumbnail (its own size, from its header).</summary>
+    public static bool IsSmallEnough(int width, int height) =>
+        width > 0 && height > 0 && width <= MaxSourceSide && height <= MaxSourceSide
+        && (long)width * height <= MaxSourcePixels;
 
     private static byte[]? Create(Stream image, AttachmentFileType type)
     {
         using var stream = new SKManagedStream(image, disposeManagedStream: false);
         using var codec = SKCodec.Create(stream);
-        if (codec is null || codec.Info.Width <= 0 || codec.Info.Height <= 0)
+        // The source's own size, from its header, before anything is decoded (see the class comment).
+        if (codec is null || !IsSmallEnough(codec.Info.Width, codec.Info.Height))
             return null;
 
         var longest = Math.Max(codec.Info.Width, codec.Info.Height);
         var decodeSize = codec.GetScaledDimensions(Math.Min(1f, (float)IThumbnailGenerator.MaxSide / longest));
-        if (decodeSize.Width <= 0 || decodeSize.Height <= 0 || (long)decodeSize.Width * decodeSize.Height > MaxDecodedPixels)
+        if (decodeSize.Width <= 0 || decodeSize.Height <= 0)
             return null;
 
         var decodeInfo = new SKImageInfo(decodeSize.Width, decodeSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul);

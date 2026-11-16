@@ -297,7 +297,8 @@ public sealed class UploadAttachmentHandlerTests : AttachmentHandlerTestBase
         var act = () => Handler.Handle(Upload(PngHeader, patientId: patient.Id, fileName: "photo.png"), CancellationToken.None);
 
         await act.Should().ThrowAsync<IOException>().WithMessage("Synthetic storage failure.");
-        failing.Verify(s => s.DeleteAsync(It.Is<string>(k => k.StartsWith("files/")), CancellationToken.None), Times.Once);
+        // Not the request's token, but a bounded one of its own.
+        failing.Verify(s => s.DeleteAsync(It.Is<string>(k => k.StartsWith("files/")), It.Is<CancellationToken>(t => t.CanBeCanceled)), Times.Once);
         Added.Should().BeEmpty();
     }
 

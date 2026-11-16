@@ -3,7 +3,10 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Notifications.Commands.MarkNotificationsRead;
+using MedApp.Application.Notifications.Commands.UpdateMyNotificationPreferences;
+using MedApp.Application.Notifications.Queries.GetMyNotificationPreferences;
 using MedApp.Application.Notifications.Queries.GetMyNotifications;
+using MedApp.Contracts.Notifications.Requests;
 using MedApp.Application.Procedures.Audit.Queries.SearchProcedureAudit;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Notifications.Responses;
@@ -93,5 +96,32 @@ public sealed class NotificationsControllerTests
 
         mediator.Request.Should().Be(new MarkNotificationsReadCommand(UserId, RecordId));
         result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Test]
+    public async Task GetMyPreferences_ReturnsTheSignedInUsersChoices()
+    {
+        var preferences = new NotificationPreferencesResponse(false);
+        var mediator = new RecordingMediator(_ => preferences);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).GetMyPreferences(cts.Token);
+
+        mediator.Request.Should().Be(new GetMyNotificationPreferencesQuery(UserId));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(preferences);
+    }
+
+    [Test]
+    public async Task UpdateMyPreferences_SavesTheSignedInUsersChoices()
+    {
+        var preferences = new NotificationPreferencesResponse(false);
+        var mediator = new RecordingMediator(_ => preferences);
+
+        var result = await Controller(mediator).UpdateMyPreferences(
+            new UpdateNotificationPreferencesRequest { ProcedureAssigned = false }, CancellationToken.None);
+
+        mediator.Request.Should().Be(new UpdateMyNotificationPreferencesCommand(UserId, false));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(preferences);
     }
 }

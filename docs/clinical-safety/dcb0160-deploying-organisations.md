@@ -39,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 28 hazards: `hazard-log.md` |
+| The hazard log | Draft, 29 hazards: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |

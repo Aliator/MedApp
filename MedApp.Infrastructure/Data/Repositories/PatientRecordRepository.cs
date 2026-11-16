@@ -1,6 +1,7 @@
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Procedures.PatientProcedures;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -64,6 +65,12 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Notifications = notifications,
             Attachments = attachments
         };
+    }
+
+    public async Task SaveAsync(ActivityEntry activity, IReadOnlyCollection<PatientProcedureAuditEntry> audit, CancellationToken ct)
+    {
+        context.PatientProcedureAuditEntries.AddRange(audit);
+        await SaveAsync(activity, ct);
     }
 
     public async Task SaveAsync(ActivityEntry activity, CancellationToken ct)

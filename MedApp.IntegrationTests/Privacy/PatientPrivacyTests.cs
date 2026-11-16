@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using MedApp.Contracts.Notifications.Responses;
+using MedApp.Contracts.Monitoring.Requests;
 using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Common;
@@ -138,6 +140,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
                 Priority = "High",
             }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
+        // Another admin watching cancellations, so they have a monitoring notification about this procedure too.
+        var watcher = await CreateStaffAsync(AdminRole, UserRole);
+        (await watcher.Client.PostAsJsonAsync("/api/monitoring/rules", new SaveMonitoringRuleRequest { Event = "ProcedureCancelled" }))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
         // Assigned, so the staff member has a notification with the procedure's title.
         (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
         // Every reason an admin can type, with the canary in it.
@@ -187,6 +193,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
                      (_admin, $"/api/attachments?patientId={patient.Id}&includeDeleted=true"),
                      (_admin, $"/api/attachments?procedureId={procedure.Id}&includeDeleted=true"),
                      (staff.Client, "/api/notifications"),
+                     (watcher.Client, "/api/notifications"),
                      (staff.Client, $"/api/procedures/patient-procedures/search?PatientId={patient.Id}&Statuses=Cancelled"),
                  })
         {
@@ -206,6 +213,11 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .ReadAsAsync<MedApp.Contracts.Attachments.Responses.AttachmentListResponse>()).Items.Should().BeEmpty();
         (await _admin.GetAsync($"/api/attachments/{files[0].Id}/content")).StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await UploadAttachmentAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, "after.pdf")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        // The monitoring notification never held free text, keeps its fixed title, and isn't in the patient's export.
+        (await (await _admin.GetAsync($"{PatientUrl(patient.Id)}/export")).Content.ReadAsStringAsync())
+            .Should().NotContain("MonitoredProcedureCancelled").And.NotContain(watcher.Username);
+        var watched = await (await watcher.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
+        watched.Items.Should().ContainSingle().Which.Title.Should().Be("Procedure cancelled");
 
         var log = await (await _admin.GetAsync($"/api/activity/search?PatientId={patient.Id}&Actions=PatientAnonymised"))
             .ReadAsAsync<PagedResponse<ActivityEntryResponse>>();
