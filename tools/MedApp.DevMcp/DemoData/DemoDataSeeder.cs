@@ -58,7 +58,8 @@ public static class DemoDataSeeder
         Mark("accounts");
         var (definitions, templates) = await CreatePathwaysAsync(services, timeline, ct);
         var calendars = await DemoCalendars.CreateAsync(services, staff, timeline, random, ct);
-        var rules = await DemoMonitoring.CreateAsync(services, staff, templates, timeline, ct);
+        var templateIds = templates.ToDictionary(t => t.Key, t => t.Value.Id);
+        var rules = await DemoMonitoring.CreateAsync(services, staff, templateIds, timeline, ct);
 
         var plans = ProcedurePlans.Create(timeline, random);
         var patients = new DemoPatients(timeline, random);
@@ -74,7 +75,7 @@ public static class DemoDataSeeder
             Random = random,
             Calendars = calendars,
             Staff = staff,
-            TemplateIds = templates,
+            Templates = templates,
             Definitions = definitions,
             Rules = rules,
         };
@@ -165,7 +166,7 @@ public static class DemoDataSeeder
     }
 
     /// <summary>The stage definitions and templates, written as an admin set them up when the clinic started.</summary>
-    private static async Task<(Dictionary<string, PatientProcedureStageDefinition> Definitions, Dictionary<Pathway, Guid> Templates)> CreatePathwaysAsync(
+    private static async Task<(Dictionary<string, PatientProcedureStageDefinition> Definitions, Dictionary<Pathway, PatientProcedureStageTemplate> Templates)> CreatePathwaysAsync(
         SeedServices services, DemoTimeline timeline, CancellationToken ct)
     {
         var definitions = DemoPathways.Definitions.ToDictionary(d => d.Name, d => new PatientProcedureStageDefinition
@@ -188,6 +189,8 @@ public static class DemoDataSeeder
             Maps = p.Stages.Select((s, i) => new PatientProcedureStageTemplateMap
             {
                 StageDefinitionId = definitions[s.Definition].Id,
+                // Loaded, as the create handler reads the template: procedures are made from it (ProcedureCreation).
+                StageDefinition = definitions[s.Definition],
                 StageOrder = i + 1,
             }).ToList(),
         });
@@ -200,6 +203,6 @@ public static class DemoDataSeeder
             await db.SaveChangesAsync(ct);
         });
 
-        return (definitions, templates.ToDictionary(t => t.Key, t => t.Value.Id));
+        return (definitions, templates);
     }
 }

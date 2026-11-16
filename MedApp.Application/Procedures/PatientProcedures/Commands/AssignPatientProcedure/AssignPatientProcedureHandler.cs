@@ -5,7 +5,6 @@ using MedApp.Application.Notifications.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
-using MedApp.Domain.Notifications;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
@@ -39,19 +38,8 @@ public sealed class AssignPatientProcedureHandler(
         await repository.SaveAsync(change.AuditEntries, cancellationToken);
 
         // Tell them, unless they assigned themselves (they know already).
-        if (request.UserId != request.Actor.UserId)
-        {
-            await notificationSender.SendAsync(new Notification
-            {
-                Id = Guid.NewGuid(),
-                UserId = request.UserId,
-                Kind = NotificationKind.ProcedureAssigned,
-                Title = procedure.Title,
-                Message = $"{request.Actor.Username} assigned you to this procedure.",
-                ProcedureId = procedure.Id,
-                CreatedAtUtc = now
-            }, cancellationToken);
-        }
+        if (AssignmentNotifications.For(procedure, request.UserId, request.Actor, now) is { } notification)
+            await notificationSender.SendAsync(notification, cancellationToken);
 
         // Then the admins watching, after the person it's about.
         await procedureMonitor.NotifyAsync(change, cancellationToken);

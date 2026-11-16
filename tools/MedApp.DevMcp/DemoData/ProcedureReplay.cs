@@ -3,7 +3,6 @@ using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
-using AuditAction = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditAction;
 using Priority = MedApp.Domain.Procedures.PatientProcedures.PatientProcedurePriority;
 using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
 
@@ -13,8 +12,10 @@ namespace MedApp.DevMcp.DemoData;
 /// Replays one procedure's history, change by change, through the app's own rules, as its handlers apply them:
 /// <see cref="ProcedureChange"/> for the statuses, stages, assignments and the audit; <see cref="StageVisits"/> for the
 /// visits a stage asks for when it becomes current; <see cref="AppointmentChange"/> for booking, moving, cancelling
-/// and recording appointments; <see cref="AppointmentNotifications"/>, the assignment notification and the monitor's
-/// matching for what staff are told. Each visit is booked into a free time on the calendar of the person working on
+/// and recording appointments; <see cref="ProcedureCreation"/>, <see cref="StageFinishing"/> and
+/// <see cref="ProcedureDetails"/> for what the create, finish and edit handlers do around them;
+/// <see cref="AppointmentNotifications"/>, <see cref="AssignmentNotifications"/> and the monitor's own matching for what
+/// staff are told. Each visit is booked into a free time on the calendar of the person working on
 /// the stage. Nothing is saved here: the results are kept until the replay is accepted.
 /// </summary>
 public sealed class ProcedureReplay
@@ -25,6 +26,8 @@ public sealed class ProcedureReplay
     private readonly DateTime _now;
     private readonly double _waitScale;
     private readonly PatientProcedure _procedure;
+    private readonly string _templateName;
+    private readonly DateOnly _dueDate;
     private readonly List<PatientProcedureStage> _stages;
 
     private readonly List<PatientProcedureAuditEntry> _audit = [];
@@ -62,42 +65,12 @@ public sealed class ProcedureReplay
             _followUpNurse = _secondAssignee;
         }
 
-        var id = Guid.NewGuid();
-        var due = DueDates.ToUkDate(plan.CreatedUtc).AddDays(7 * (plan.Urgent ? plan.Spec.UrgentDueWeeks : plan.Spec.DueWeeks));
-        // A copy of the template's stages, as CreatePatientProcedureHandler makes it.
-        _procedure = new PatientProcedure
-        {
-            Id = id,
-            PatientId = plan.Patient.Id,
-            TemplateId = world.TemplateIds[plan.Pathway],
-            TemplateName = plan.Spec.TemplateName,
-            Title = plan.Kind.Title,
-            Notes = NoteBuilder.ProcedureNote(plan.NoteContext(), _random),
-            DueDateUtc = DueDates.EndOfDayUtc(due),
-            Priority = plan.Priority,
-            Status = Status.Unassigned,
-            CreatedAt = plan.CreatedUtc,
-            LastUpdated = plan.CreatedUtc,
-            Stages = plan.Spec.Stages.Select((spec, index) =>
-            {
-                var definition = world.Definitions[spec.Definition];
-                return new PatientProcedureStage
-                {
-                    Id = Guid.NewGuid(),
-                    PatientProcedureId = id,
-                    StageDefinitionId = definition.Id,
-                    StageOrder = index + 1,
-                    Name = definition.Name,
-                    Description = definition.Description,
-                    Instructions = definition.Instructions,
-                    SnomedCode = definition.SnomedCode,
-                    SnomedTerm = definition.SnomedTerm,
-                    VisitRequirement = definition.VisitRequirement,
-                    CreatedAt = plan.CreatedUtc,
-                    LastUpdated = plan.CreatedUtc,
-                };
-            }).ToList(),
-        };
+        var template = world.Templates[plan.Pathway];
+        _templateName = template.Name;
+        _dueDate = DueDates.ToUkDate(plan.CreatedUtc).AddDays(7 * (plan.Urgent ? plan.Spec.UrgentDueWeeks : plan.Spec.DueWeeks));
+        // A copy of the template's stages, made as CreatePatientProcedureHandler makes it.
+        _procedure = ProcedureCreation.FromTemplate(
+            template, plan.Patient.Id, plan.Kind.Title, NoteBuilder.ProcedureNote(plan.NoteContext(), _random), _dueDate, plan.Priority, plan.CreatedUtc);
         _stages = _procedure.Stages.OrderBy(s => s.StageOrder).ToList();
     }
 
@@ -138,18 +111,8 @@ public sealed class ProcedureReplay
         _floor = created;
         var creator = Creator();
 
-        Change(creator, created, change =>
-        {
-            change.Audit(AuditAction.Created, new
-            {
-                template = _plan.Spec.TemplateName,
-                dueDate = DueDates.ToUkDate(_procedure.DueDateUtc),
-                priority = _procedure.Priority.ToString(),
-                stageCount = _procedure.Stages.Count,
-            });
-            // The first stage's visit, if it involves one.
-            StageVisits.RequestForCurrentStage(change, []);
-        });
+        // Its Created audit entry, and the first stage's visit if it involves one, as CreatePatientProcedureHandler records them.
+        Change(creator, created, change => ProcedureCreation.Record(change, _templateName, _dueDate));
 
         // An admin assigns it, usually within a day or so; the newest are sometimes still waiting.
         var assignAt = Working(created.AddDays(0.02 + _random.NextDouble() * 1.5));
@@ -439,31 +402,22 @@ public sealed class ProcedureReplay
     }
 
     /// <summary>
-    /// Finishes a stage as FinishProcedureStageHandler does: a Required visit must have been attended (or an admin
-    /// finishes without it, with a reason); the stage's Requested appointments are cancelled; the next stage's visit is
-    /// asked for.
+    /// Finishes a stage as FinishProcedureStageHandler does (<see cref="StageFinishing"/>): a Required visit must have
+    /// been attended (or an admin finishes without it, with a reason); the stage's Requested appointments are
+    /// cancelled; the next stage's visit is asked for.
     /// </summary>
     private void Finish(PatientProcedureStage stage, StaffMember worker, DateTime at, string? reason)
     {
         Change(worker, at, change =>
         {
-            var next = _stages.FirstOrDefault(s => s.StageOrder > stage.StageOrder && !s.IsCompleted);
+            var next = StageFinishing.NextStage(_procedure, stage);
             var appointments = _appointments.Where(a => a.StageId == stage.Id || (next is not null && a.StageId == next.Id)).ToList();
-            var stageAppointments = appointments.Where(a => a.StageId == stage.Id).ToList();
 
-            if (ProcedureWorkflow.WhyStageNeedsVisit(stage, stageAppointments) is { } needsVisit && reason is null)
+            if (ProcedureWorkflow.WhyStageNeedsVisit(stage, appointments.Where(a => a.StageId == stage.Id).ToList()) is { } needsVisit && reason is null)
                 throw new InvalidOperationException($"Seeding went wrong: {needsVisit}");
 
-            var withoutVisit = ProcedureWorkflow.FinishesWithoutVisit(stage, stageAppointments)
-                ? new FinishedWithoutVisit(stage.VisitRequirement, reason)
-                : null;
-            if (withoutVisit is { Requirement: VisitRequirement.Required })
+            if (StageFinishing.Finish(change, stage, appointments, reason) is { Requirement: VisitRequirement.Required })
                 Bypasses++;
-
-            change.FinishStage(stage, withoutVisit);
-            foreach (var appointment in stageAppointments)
-                change.CancelRequestedVisit(appointment, ProcedureChange.StageFinishedReason);
-            StageVisits.RequestForCurrentStage(change, appointments);
         });
     }
 
@@ -513,48 +467,21 @@ public sealed class ProcedureReplay
         if (at < _world.Timeline.NotificationsFromUtc)
             return;
 
-        if (assignee.Id != admin.Id && _world.WantsAssignmentNotifications(assignee, at))
-            _notifications.Add(new Notification
-            {
-                Id = Guid.NewGuid(),
-                UserId = assignee.Id,
-                Kind = NotificationKind.ProcedureAssigned,
-                Title = _procedure.Title,
-                Message = $"{admin.Username} assigned you to this procedure.",
-                ProcedureId = _procedure.Id,
-                CreatedAtUtc = at,
-            });
+        if (AssignmentNotifications.For(_procedure, assignee.Id, admin.Actor, at) is { } notification && _world.Delivers(notification, at))
+            _notifications.Add(notification);
 
         _notifications.AddRange(_world.Monitor(_procedure, change.AuditEntries, admin.Id, at));
     }
 
-    /// <summary>A details edit, as UpdatePatientProcedureHandler records it: what changed, from and to.</summary>
+    /// <summary>A details edit, as UpdatePatientProcedureHandler makes and records it (<see cref="ProcedureDetails"/>).</summary>
     private void EditDetails(StaffMember who, DateTime at, string? notes = null, DateOnly? due = null, Priority? priority = null)
     {
         if (at >= _now || !ProcedureWorkflow.CanEditDetails(_procedure))
             return;
 
-        var changes = new Dictionary<string, object>();
-        if (notes is { } n && n != _procedure.Notes)
-        {
-            changes["notes"] = new { from = _procedure.Notes, to = n };
-            _procedure.Notes = n;
-        }
-
-        if (due is { } d && d != DueDates.ToUkDate(_procedure.DueDateUtc))
-        {
-            changes["dueDate"] = new { from = DueDates.ToUkDate(_procedure.DueDateUtc), to = d };
-            _procedure.DueDateUtc = DueDates.EndOfDayUtc(d);
-        }
-
-        if (priority is { } p && p != _procedure.Priority)
-        {
-            changes["priority"] = new { from = _procedure.Priority.ToString(), to = p.ToString() };
-            _procedure.Priority = p;
-        }
-
+        var changes = ProcedureDetails.Apply(_procedure, null, notes, due, priority);
         if (changes.Count > 0)
-            Change(who, at, change => change.Audit(AuditAction.DetailsUpdated, new { changes }));
+            Change(who, at, change => ProcedureDetails.Record(change, changes));
     }
 
     private void MaybeProgressNote(PatientProcedureStage stage, StaffMember worker, DateTime startedAt, NoteContext context)
