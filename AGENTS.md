@@ -106,7 +106,7 @@ To add a feature end to end:
 Domain entities become `Contracts` responses through **hand-written static mappers**, one per area. Don't use a mapping library (no AutoMapper or Mapster).
 - **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
 - **Mappers so far:**
-  - `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`
+  - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper`, `AuditEntryMapper`
   - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
@@ -120,6 +120,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Procedures are the exception:** handlers load a tracked procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(auditEntries)` saves the change and its audit entries in one `SaveChangesAsync`. That way EF works out which stages and assignments changed, and no change can miss the audit log.
 - Pass `CancellationToken` all the way through. The tests check that it is passed on.
 - IDs are `Guid`s generated in handlers (`Guid.NewGuid()`). Timestamps are UTC (`CreatedAt`, `LastUpdated`), set in handlers.
+- **Times are stored and sent as UTC, with a `Z`.** SQL Server's `datetime2` keeps no time zone, so `UtcDateTimeConverter` (every `DateTime` and `DateTime?`, in `MedAppDbContext.ConfigureConventions`) marks what EF reads as UTC; without it the JSON has no `Z` and browsers read the time as their local time, an hour out in British Summer Time. The web app formats times in UK time (`formatDateTime` in `MedApp.Web/src/utils/dates.ts`), and reads one without a `Z` as UTC too. Due dates and dates of birth are dates, not times, and are never shifted. `dueDateUtc` is a moment, the end of the due day (UK time) in UTC, for comparing with now; show `dueDate`.
 - Handlers and validators that need "now" take a `TimeProvider` (registered in `AddApplication`); tests pass a `FixedTimeProvider`.
 
 ### Procedures
@@ -152,6 +153,12 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 ### Auth
 
 - On login, a `UserSession` row is created and its ID goes into an HttpOnly cookie. `SessionAuthenticationHandler` checks the cookie on every request and builds claims, including roles.
+- **Sessions last 8 hours** from sign-in (`UserSession.Lifetime`), and can be extended to 24 hours at most (`MaxLifetime`; over 20 hours, so WCAG 2.2.1 allows the hard limit). Using the app doesn't extend one; only asking does:
+  - `GET api/auth/session` returns the signed-in session's `SessionResponse`: `expiresAtUtc`, `expiresInSeconds` (by the server's clock, so a device with a wrong clock still counts down right) and `canExtend`. Reading it never extends it.
+  - `POST api/auth/session/extend` ("Stay signed in") moves the expiry to 8 hours from now, but never past 24 hours from sign-in and never earlier than it was, and sends the cookie again with the new expiry (the cookie expires with the session).
+  - Both take the session from the cookie, are open to anyone signed in (`[Authorize]`, no role needed), are sent `no-store`, and are a 401 once the session has ended. `SessionTimeout` in `MedApp.Web` uses them for the warning before a session times out.
+  - **The forced password change page has no timeout warning.** `/change-password` is outside the signed-in layout, and `PasswordChangeRequired` doesn't allow the session endpoints, deliberately: that page ends at the session's normal expiry, without a warning, and its change then fails, so its user signs in again.
+  - A session isn't yet ended by a lockout, a password change, a reset or a role change (risk S5); the security baseline work is adding that.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
 - The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, and the procedure audit log. There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).

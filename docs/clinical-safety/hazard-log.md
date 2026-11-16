@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62 |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -44,7 +44,7 @@
 | [H-09](#h-09-a-member-of-staff-doesnt-learn-of-work-assigned-to-them) | A member of staff doesn't learn of work assigned to them | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
 | [H-10](#h-10-medapp-is-unavailable) | MedApp is unavailable | Major, Medium: **3** | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
 | [H-11](#h-11-due-dates-dont-mean-what-staff-think) | Due dates don't mean what staff think | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-12](#h-12-times-are-shown-an-hour-out) | Times are shown an hour out | Considerable, High: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** (fix in PR #62, open) | Open |
+| [H-12](#h-12-times-are-shown-an-hour-out) | Times are shown an hour out | Considerable, High: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** (built in PR #62; to verify) | Open |
 | [H-13](#h-13-a-template-or-stage-definition-has-wrong-content) | A template or stage definition has wrong content | Catastrophic, Low: **4** | Catastrophic, Very low: **3** | Catastrophic, Very low: **3** | **Yes, before first live use** | Open |
 | [H-14](#h-14-a-correction-to-a-template-doesnt-reach-procedures-already-under-way) | A correction to a template doesn't reach procedures already under way | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 | [H-15](#h-15-two-people-edit-the-same-procedure-at-once) | Two people edit the same procedure at once | Considerable, Medium: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
@@ -55,7 +55,7 @@
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 
-**Today:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5.
+**Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
 **At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
 
@@ -464,7 +464,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-12: Times are shown an hour out
 
-**The cause is confirmed, and a fix is in PR #62 (open, `fix/utc-times`).** The ratings below are for `88dc1fa`, before that fix. When it merges, re-rate H-12 and update the README's main findings, CS-03's defects table and the handbook's step 6 status line together.
+**The cause is confirmed, and the defect is fixed by PR #62.** The initial rating below is for `88dc1fa`, before that fix; the fix is recorded as a further control, and the residual rating takes it into account. The CSO verifies it before first live use (see Residual risk).
 
 **Description.** The time a stage was started or finished, a procedure was created or changed, a person was assigned, or an audit entry was made is shown wrongly: an hour early during British Summer Time on a UK browser, and by the browser's offset from UTC elsewhere.
 
@@ -486,13 +486,13 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Initial risk:** Considerable, High: **3**.
 
 **Further controls:**
-- **Fix it:** mark every `DateTime` read from the database as UTC, read any time without an offset as UTC in the web app, and test with times that have no `Z`. Design; **proposed**, and built in PR #62 (a model-wide `UtcDateTimeConverter`, `parseUtc` in the web app, and web tests run in `America/New_York`); **before first live use**.
+- **Fix it:** mark every `DateTime` read from the database as UTC, read any time without an offset as UTC in the web app, and test with times that have no `Z`. Design; **built** in PR #62: a model-wide `UtcDateTimeConverter` marks every time read from the database as UTC (and turns a local time into UTC when writing), so the API's JSON ends in `Z`; `parseUtc` reads a time without a zone as UTC in the web app; .NET tests check every `DateTime` in the model has the converter and that the API's controller and hub JSON end in `Z`; the web tests run in `America/New_York`, so a time misread as local fails them in summer and winter; **before first live use**, to be verified by the CSO.
 
 **At first live use:** Considerable, Very low: **2**.
 
-**Residual risk:** Considerable, Very low: **2**.
+**Residual risk:** Considerable, Very low: **2**. With the fix built, what's left is a future change that brings the defect back: a new way of reading or sending times that bypasses EF or the web app's date helpers. The tests above and the rules in `AGENTS.md` and `MedApp.Web/AGENTS.md` control that. Not yet done: seeing the fix end to end, against SQL Server and in a browser during British Summer Time. A related cause not fixed by #62: "today" in the web app is the machine's day, and server rendering runs in UTC, so between 23:00 and midnight UTC in summer the server's day and the browser's can differ (`todayIso`; a to-do).
 
-**Owner:** [CSO], with the maintainer. **Status:** Open (fix in PR #62).
+**Owner:** [CSO], with the maintainer. **Status:** Open: the defect is fixed by PR #62; the fix awaits the CSO's verification.
 
 ---
 
@@ -670,7 +670,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Description.** The audit log, or a stage's "finished by", names someone other than the person who did the work.
 
 **Causes:**
-- **No idle timeout:** a session lasts a fixed 8 hours, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
+- **No idle timeout:** a session lasts 8 hours from sign-in, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
+- **A session can be extended (since #63):** five minutes before the end, a warning offers "Stay signed in", which extends the session to 8 hours from then, up to 24 hours from sign-in (`UserSession.Extend`). Whoever is at the screen can press it, so an unattended session can now be kept for up to 24 hours instead of 8. The warning is for the fixed limit (WCAG 2.2.1), not an idle timeout. **A change to this hazard's cause, for the clinical safety officer to assess.**
 - **Passwords only,** with no multi-factor authentication (risk S8), and shared or passed-on passwords.
 - **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
 
@@ -686,7 +687,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Initial risk:** Significant, Medium: **2**.
 
 **Further controls:**
-- **An idle timeout,** with a warning. Protective; **planned** (step 2); later.
+- **An idle timeout,** with a warning. Protective; **planned** (step 2); later. (The warning before the fixed limit, added in #63, is not this control.)
+- **End a user's other sessions** on a password change, a reset and a role change. Protective; **in progress** (the security baseline branch); later.
 - **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
@@ -808,3 +810,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
+| 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |

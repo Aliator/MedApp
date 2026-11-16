@@ -12,8 +12,9 @@ interface AnnouncerContextValue {
 const AnnouncerContext = createContext<AnnouncerContextValue | null>(null);
 
 /**
- * Screen reader announcements (Account Settings, Accessibility): a hidden live region that says which page opened
- * and what a list found, things sighted people see change but a screen reader wouldn't mention.
+ * Screen reader announcements (Account Settings, Accessibility): a hidden live region that says which page opened,
+ * what a list found, and that a form was saved or a stage finished: things sighted people see change but a screen
+ * reader wouldn't mention.
  */
 export function AnnouncerProvider({children}: {children: ReactNode}) {
   const {flags} = useAccessibility();

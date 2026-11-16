@@ -69,7 +69,7 @@ See [sub-processors.md](sub-processors.md). Today: Microsoft (Azure). GitHub hol
 A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the code, and marks what's planned.
 
 **In place in the code and the deployment design:**
-- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long; two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management and audit log.
+- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management and audit log.
 - **Audit:** every change to a procedure is recorded with who, when and what, in the same database transaction, and kept after deletes.
 - **Transport:** TLS to the ingress, HSTS, and TLS to Azure SQL.
 - **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server.
