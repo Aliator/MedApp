@@ -26,7 +26,9 @@ The first part is built: the activity log and access report, the subject access 
 - **Note versions** in their own table, with the procedure audit pointing at them instead of copying notes into `Details` (DPIA risk 4), and the old values of patient edits.
 - **A tamper-evident activity log:** ledger tables, and streaming the log to the log workspace (step 5).
 - **Access reviews and alerts:** a periodic review of who can sign in, an alert when one account opens an unusual number of records, a "what has this person seen" report, and an `Auditor` role.
-- **The client's address behind proxies:** record the browser's address, not the ingress's or the page server's, by trusting forwarded headers from the ingress and passing the address through server rendering.
+- **The browser's address for pages rendered on the server:** requests from the browser already record its address (the chart turns on forwarded headers for the ingress), but a page rendered on the server calls the API from Node, so its reads record the loopback address. Pass the browser's address through server rendering, trusted only with the page server's key.
+- **A scheduled job for operational data:** purge sign-in events (including refused sign-ins) and sessions at 12 months and notifications at 6 months, once across the API copies (a lease or a Kubernetes CronJob), logging counts; the activity log's patient entries go with the patient's record. There is no scheduled job in MedApp yet.
+- **Sign-in rate limiting** is in the security baseline (PR #67); refused sign-ins are logged meanwhile, so a flood of them is visible.
 - **Restriction hiding patients from lists** except for named roles; a second person approving an anonymisation.
 - **A clinician review step in the export,** to hold back what meets the serious harm test, and a PDF.
 - **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.

@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.3, draft |
+| **Version** | 0.4, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62 |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -54,6 +54,7 @@
 | [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-22](#h-22-care-under-way-is-delayed-because-the-patients-record-is-restricted) | Care under way is delayed because the patient's record is restricted | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later (a local procedure before first live use) | Open |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -153,7 +154,8 @@
 - A patient with procedures can't be deleted (409; `DeletePatientHandler`).
 - Procedure audit entries keep the patient's ID, so procedures can still be traced to the patient row.
 - Patient creates, edits (the fields changed) and deletes are recorded in the activity log with the user, time and address, in the same save as the change (`UpdatePatientHandler`, `DeletePatientHandler`, `PatientRepository`; step 7).
-- A restricted record can't be edited or deleted, nor its procedures changed (`PatientRules`; step 7), and a disputed one carries a banner saying what the patient disputes.
+- A restricted record can't be edited or deleted, nor its procedures changed but for blocking or cancelling (`PatientRules`; step 7; its own hazard is H-22), and a disputed one carries a banner saying what the patient disputes, on the patient's, procedures' and edit pages.
+- Two saves of the same patient at once can't silently undo each other: the second, made from an older copy, is refused (a row version, step 7).
 
 **Initial risk:** Considerable, Low: **2**.
 
@@ -721,7 +723,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - The audit log keeps the deletion and every earlier change, including the old and new text of every notes save, with no foreign keys, so it outlives the procedure (`PatientProcedureAuditEntry`).
 - A patient with procedures can't be deleted.
 - Anonymising is admin-only; it needs the patient's full name typed, and a reason, which the activity log keeps with the admin's name; it's refused while any of the patient's procedures is under way or the record is restricted; the dialog shows the patient's name and date of birth, and says it can't be undone (`AnonymisePatientHandler`, `AnonymiseDialog`; step 7). An admin can export the whole record first (step 7).
-- The retention review lists only records past their minimum period, and nothing is deleted automatically (step 7).
+- The retention review lists records past the **adult or children** minimum period only, and nothing is deleted automatically (step 7). It doesn't know the longer specialty classes (mental health 20 years, maternity 25, oncology 30), so a specialty record can be listed years before its period ends: the Retention Review page and the anonymise dialog warn about this, the retention schedule tells customers to set `Retention:AdultYears` to the longest class they use until classes exist, and a specialty record listed early is kept (Keep, with the class as the reason).
 
 **Initial risk:** Considerable, Low: **2**.
 
@@ -803,6 +805,40 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
+## H-22: Care under way is delayed because the patient's record is restricted
+
+**Description.** An admin restricts a patient's record (UK GDPR Article 18), for example while the patient contests their recorded details, and the procedures under way for that patient can't be worked on until the restriction is lifted.
+
+**Causes:**
+- **Restriction freezes the record and its procedures** (`PatientRules.EnsureCanChange`, applied to every procedure change by `GetForUpdateOrThrowAsync`): no stage can be started, written up or finished, and nothing can be assigned, while the record is restricted.
+- **A restriction can last weeks** while the contested details are checked, and only an admin can lift it.
+- **The admin restricting may not be the clinician working the procedures,** and may not know what's due.
+
+**Effect.** The next stages of a procedure under way (pre-assessment, consent, a follow-up) can't be recorded, and the procedure goes overdue with nothing staff can do but wait for an admin.
+
+**Possible harm.** Delayed care for that patient. Considerable.
+
+**Existing controls (step 7, PR #68):**
+- **The admin must confirm:** restricting a record with procedures under way shows how many there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`).
+- **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue.
+- **Everyone sees why:** the procedure page, the patient's pages and their procedures show the restricted banner with its reason, and the procedure page says that only blocking and cancelling are possible.
+- Lifting the restriction is one admin action, recorded with a reason.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Let an admin record the patient's consent, or another lawful basis, for treatment to continue** (Article 18(2)), with the restriction then stopping only edits to the contested details. Design; **proposed**; later. A clinical safety decision.
+- **Tell the procedures' assignees** when their patient's record is restricted. Protective; **proposed**; later.
+- **A local procedure for restriction requests:** the admin checks with the clinician responsible for the patient's care before restricting, and agrees how care continues. Information; transferred; before first live use.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
@@ -817,3 +853,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
+| 0.4 | 16 November 2026 | The privacy features (PR #68): H-03 and H-19's new controls and causes (anonymisation, the retention review's adult and children periods only), and new hazard H-22 (restricting a record delays care under way), after the review of #68 | AI coding agent, for review |

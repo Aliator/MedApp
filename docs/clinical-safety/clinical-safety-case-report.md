@@ -22,7 +22,7 @@
 
 - **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
 - **The safety position at `88dc1fa`:**
-  - 21 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
+  - 22 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
   - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
   - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
@@ -141,6 +141,7 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 | H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | Anonymisation guarded: typed name, reason, refused while procedures are under way (step 7) |
 | H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
 | H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
+| H-22 | Care under way is delayed because the patient's record is restricted | 2 | 2 | 2 | Confirming the procedures under way when restricting; blocking and cancelling still allowed; banners; a local procedure for restriction requests |
 
 [CSO: confirm or change each rating, and record the reasons for any change.]
 

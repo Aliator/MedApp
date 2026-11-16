@@ -146,13 +146,13 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 | Every API endpoint that reaches patient or account data requires a signed-in session and a role (`Staff` or `Admin`); only sign-in, sign-out and `whoami` don't; the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
 | The full audit trail is admin-only; staff see a per-patient timeline without its free text (no notes, titles or reasons; old and new due dates, priorities and statuses, past assignees and recorded usernames are shown) | In place | `MedApp.API/Controllers/ProcedureAuditController.cs`, `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs` |
 | Every change to a procedure is recorded with who and when | In place | `MedApp.Application/Procedures/Common/ProcedureChange.cs` |
-| **Record every read of patient data** in the activity log: patient viewed, shown in search results, searched (the filters used and how many matched, not the terms), procedure viewed, exported; once per person every 5 minutes | In place (step 7) | `MedApp.Application/Activity/Common/ActivityLog.cs`; `GetPatientByIdHandler`, `SearchPatientsHandler`, `GetPatientProcedureByIdHandler`, `ExportPatientHandler` |
+| **Record the reads of patient data** in the activity log, once per person every 5 minutes: a patient's record, timeline and its overview opened (viewed); each patient on a page of patient search, procedure search or retention review results (listed); searches (the filters used and how many matched, not the terms); a procedure opened; exports. **Not recorded per patient:** the deprecated list of every patient (`GET api/patients`, used only by the retired Blazor client), which records one "searched: all" entry; the side nav's pin labels, for records the user already opened; and the admin-only audit and activity logs themselves. A test lists every endpoint with what it records | In place (step 7) | `MedApp.Application/Activity/Common/ActivityLog.cs`; the patient, procedure, timeline, retention and export handlers; `MedApp.IntegrationTests/Privacy/EndpointCoverageTests.cs` |
 | "Who has accessed this patient": the access report on the patient's page, and the activity log searchable by patient, user, address, action and date (admins) | In place (step 7) | `MedApp.Web/src/components/patients/PatientAccessReport.tsx`; `MedApp.Web/src/pages/activity/ActivityLogPage.tsx` |
 | "What has this person seen" as a report (today a search of the activity log by username), an `Auditor` role, unusual-access alerts, periodic access reviews, a tamper-evident (ledger) log | Planned, steps 4 and 7. **Before go-live** (periodic review) | |
 | Restrict access by site, team or care relationship | Planned, step 8 (sites); customers decide who gets accounts until then | |
 | Customer measures: accounts only for staff who need them; staff told that access is monitored; disciplinary policy | The customer's | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 
-**Residual risk:** now **medium** (reads are recorded and can be reported, so snooping is detectable and deterred, but still possible); after step 8 **low to medium**.
+**Residual risk:** now **medium** (every read through the current app's pages is recorded and can be reported, so snooping is detectable and deterred, though still possible, and the log isn't yet tamper-evident); after step 8 **low to medium**.
 
 ### Risk 2: account takeover
 
@@ -205,7 +205,7 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 |---|---|---|
 | Staff can view and correct patients and procedures | In place | |
 | An interim, documented manual procedure for exports, run by the supplier on the customer's written instruction | Procedure written | [data-subject-rights.md](data-subject-rights.md) |
-| A subject access export of everything held (details, procedures, stages, notes, assignments, the procedure history, the access log, notifications) as JSON and a printable page, itself recorded | In place (step 7) | `GET api/patients/{id}/export`; `MedApp.Web/src/pages/patients/PatientExportPage.tsx` |
+| A subject access export of everything held (details, procedures, stages, notes, assignments, the procedure history, the access log, notifications) as JSON and a printable page with the same content, itself recorded; staff appear by username only, without their account IDs, network addresses or read times | In place (step 7) | `GET api/patients/{id}/export`; `MedApp.Web/src/pages/patients/PatientExportPage.tsx` |
 | Restricted (no changes, with a banner) and disputed (a banner) flags, set by admins with a reason; anonymisation with a typed confirmation and a reason, refused while procedures are under way | In place (step 7) | `SetPatientFlagHandler`, `PatientRules`, `AnonymisePatientHandler` |
 | A clinician review step in the export for the serious harm test; archiving in place of deletion; restriction hiding the patient from lists | Planned, step 7 | |
 
@@ -218,7 +218,7 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 | A patient with procedures can't be deleted | In place | `MedApp.Application/Patients/Commands/DeletePatient/DeletePatientHandler.cs` |
 | Deleting a user needs the admin's own password | In place | `AuthController.cs` |
 | Make patient deletion admin-only | Planned, step 2. **Before go-live** | |
-| Record patient creates, edits (the fields changed; not their values, so the log holds no patient details) and deletes, and account, password and role changes, in the activity log, with who and from which address | In place (step 7) | `CreatePatientHandler`, `UpdatePatientHandler`, `DeletePatientHandler`; the account and role handlers in `MedApp.Application/Authentication` |
+| Record patient creates, edits (the fields changed; not their values, so the log holds no patient details) and deletes, and account, password and role changes, in the activity log, with who and from which address; a row version on each patient, so a save from an older copy is refused rather than silently undoing a later change (such as a restriction or an anonymisation) | In place (step 7) | `CreatePatientHandler`, `UpdatePatientHandler`, `DeletePatientHandler`; the account and role handlers in `MedApp.Application/Authentication` |
 | Keep the old values of an edit in a version table; replace deletion with archiving | Planned, step 7 | |
 | Backups to recover from a mistaken delete | In place in design (7 days); 35 days planned, step 5 | `deploy/azure/main.bicep` |
 

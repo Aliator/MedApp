@@ -76,7 +76,7 @@ The PR adds roadmap step 7's first privacy features: an activity log of who read
 
 ## Findings
 
-Most severe first. None is high or critical. All fifteen were open when this review was written.
+Most severe first. None is high or critical. All fifteen were open when this review was written; each one's outcome is under "What happened to it".
 
 ### 1. Pinned patients and procedures are recorded as "viewed" whenever the side nav loads their names
 
@@ -89,7 +89,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
   - `docs/governance/privacy-notice-staff-template.md`: "MedApp also records which patient records and procedures you open"
   - No test covers what the nav's lookups record.
 - **Fix:** give the nav a lookup that returns only labels and doesn't record a view, for example `GET api/patients/labels?ids=…` and one for procedures, recording `PatientListed` (de-duplicated, as search results are) or nothing. Add an API test that it writes no `PatientViewed`, and a web test that the nav uses it.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** The side nav takes its pins' labels from two new lookups, `GET api/patients/labels` and `GET api/procedures/patient-procedures/labels` (names and titles only, at most 20 IDs), which record nothing; it no longer calls the record endpoints. Integration tests check the lookups write no entry; web tests check the nav uses them and never the record endpoints. The staff privacy notice says pinned names aren't recorded.
 
 ### 2. Restricting a record freezes its procedures mid-treatment, and no hazard covers it
 
@@ -102,7 +102,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
   - `docs/clinical-safety/hazard-log.md:156`
   - `AnonymisePatientHandler.cs:38-42` (refused while procedures are under way)
 - **Fix:** add a hazard for care delayed because a restricted record can't be worked, with its controls. Show the number of procedures under way in the restrict dialog and make the admin confirm it. At least allow a restricted record's procedures to be blocked or cancelled with a reason. Consider letting an admin record consent for treatment to continue, with the restriction then stopping only edits to the patient's details. Which of these is a clinical safety decision.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed, as decided by the coordinator.** The restrict dialog shows how many procedures are under way and needs an explicit confirmation, and the API refuses the restriction without it (`ConfirmOpenProcedures`, a 400). While a record is restricted its procedures can still be blocked or cancelled with a reason (`GetForPauseOrThrowAsync`, `PatientRules.PausesWhileRestricted`), and the procedure page offers just those; everything else stays frozen. New hazard H-22 in `hazard-log.md` (and the safety case report and DCB0160 guide) for the CSO, with recording consent to continue (Article 18(2)) proposed as a further control.
 
 ### 3. The retention review treats every record as adult-general or child, so specialty records are listed 12 to 22 years early
 
@@ -114,7 +114,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
   - `MedApp.Web/src/pages/retention/RetentionReviewPage.tsx:112, 164`; `AnonymiseDialog.tsx:62` (no warning)
   - `docs/clinical-safety/hazard-log.md:724`: "The retention review lists only records past their minimum period"
 - **Fix:** until classes exist, say on the page and in the anonymise dialog that only the adult and children periods are applied, and that a record in a longer class must be kept (Keep, with the class as the reason). Tell customers in the schedule to set `Retention:AdultYears` to their longest class meanwhile. Correct the hazard log's line. Classes per template are already on the to-do list.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed, as decided.** The Retention Review page and the anonymise dialog warn that only the adult and children periods are applied, that specialty records (mental health, maternity, oncology) must be kept longer, and that `Retention:AdultYears` should be set to the longest class used; the retention schedule says the same, and the hazard log's H-19 line is corrected. Classes per template stay on the to-do list.
 
 ### 4. The JSON export gives the patient staff network addresses, internal IDs and read times that the printable page doesn't show
 
@@ -126,7 +126,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
   - `MedApp.Web/src/pages/patients/PatientExportPage.tsx:31-38` (downloads the whole response), `:89-93` (the warning), `:216-237` (the page shows username and time only)
   - `MedApp.IntegrationTests/Privacy/PatientPrivacyTests.cs:124-140` checks what's in the export, not what's left out
 - **Fix:** give the export its own access entry without the address and user ID, and notifications without read times, keeping usernames (staff act under them professionally). Keep the full entries in the activity log for admins. Make the JSON match the page, and test that the export holds no `ipAddress`.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** The export has its own types: access entries, history entries, procedures and notifications name staff by username only, with no account IDs, network addresses or notification read times, and the JSON holds exactly what the printable page shows. An integration test checks the raw export holds no `ipAddress`, `userId` or `readAtUtc`.
 
 ### 5. "Every read is recorded" isn't true yet: procedure lists, the list of all patients and the timeline aren't recorded per patient
 
@@ -143,7 +143,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
   - `docs/governance/dpia.md:18, 149, 155`; `docs/clinical-safety/clinical-safety-case-report.md:82`; `AGENTS.md:163`
   - The table of read endpoints under Detail.
 - **Fix:** record `PatientListed` for each patient on a page of procedure search results, and for every patient `GET api/patients` returns (or retire that endpoint: only the deprecated client uses it); record opening a timeline as a view. Otherwise narrow the docs to what's recorded and keep risk 1 at high. A test listing every endpoint that returns patient data, with what it records, would stop the next one slipping through.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed, as decided.** The procedure search records `PatientListed` for each patient on the page (de-duplicated), and the timeline and its overview record `PatientViewed` (de-duplicated). `GET api/patients` keeps one "all" entry, and the docs now say so. `EndpointCoverageTests` lists every GET endpoint with what it records, calls each recording one, and fails on any endpoint it doesn't know. The DPIA's risk 1 measure now says exactly what is and isn't recorded.
 
 ### 6. The disputed banner shows only on the patient's page
 
@@ -151,7 +151,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** `PatientFlagBanners` is meant "for every page about the patient", and the rights procedure says every member of staff sees a dispute on a banner. It's used only on View Patient. The procedure page shows a restricted or anonymised reason but nothing about a dispute (the procedure response doesn't carry it), and neither do Edit Patient, the patient's procedures or the lists. Staff who work from My Tasks go straight to the procedure page and don't see that the patient disputes, say, a recorded allergy.
 - **Evidence:** `MedApp.Web/src/components/patients/PatientFlagBanners.tsx:17-20`; `ViewPatientPage.tsx:93` (its only use); `ProcedurePage.tsx` (the `readOnlyReason` message only); `MedApp.Web/AGENTS.md:31`; `docs/governance/data-subject-rights.md:38`; `docs/clinical-safety/hazard-log.md:156`.
 - **Fix:** add the patient's flags (with the dispute's reason) to the procedure response and show the banners on the procedure, edit and patient-procedures pages; or correct the docs.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** The procedure response carries the patient's flags (`PatientFlags`), and the banners show on the procedure, edit and patient-procedures pages as well as the patient's own.
 
 ### 7. A save already under way can undo a restriction or an anonymisation
 
@@ -159,7 +159,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** patient writes load the row without tracking and save it with `Update`, which writes every column, and there's no concurrency check. If an edit, a flag change or a keep decision loaded the patient just before another admin anonymised or restricted it, its save writes the old values back: the name, email and full date of birth return and `AnonymisedAtUtc` is null again (the procedures stay scrubbed), or `RestrictedAtUtc` is null and the record can be changed. Rare, but silent. Like two people saving the same form: the second one's old copy wins. This is the known "last save wins" (risk R8), now reaching the privacy flags.
 - **Evidence:** `MedApp.Infrastructure/Data/Repositories/PatientRepository.cs:85-90`; `UpdatePatientHandler.cs:21, 56`; `SetPatientFlagHandler.cs:21, 65`; `KeepPatientRecordHandler.cs:20, 30`; `PatientConfiguration.cs` (no concurrency token).
 - **Fix:** a `rowversion` concurrency token on `Patient` (409 on a conflict); or, for edits and flags, update only the changed columns with `ExecuteUpdate` and `WHERE AnonymisedAtUtc IS NULL` (and `RestrictedAtUtc IS NULL` for edits).
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** `Patient` has a `rowversion` concurrency token (`RowVersion`, in the re-scaffolded migration); a save from an older copy is refused with a 409 and a message saying someone else changed the record (`SaveChangesOrConflictAsync`), which the pages show. An integration test saves two copies and checks the second is refused and the first kept.
 
 ### 8. Anonymisation keeps its own reason, and enough detail to point back at the patient
 
@@ -167,7 +167,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** every reason recorded earlier is replaced, but the `PatientAnonymised` entry is written afterwards with the reason as typed. An admin who puts the patient's name in the reason ("anonymised at [name]'s request after a complaint") leaves it in the log for good, and `AGENTS.md` says anonymising replaces reasons, with no exception. The record also keeps the year of birth, every procedure's template, the exact time of every stage and who did it. In a small clinic, someone who knows a patient had a knee replacement on a given day can find the record. By the ICO's test (could a motivated intruder re-identify it?), that's pseudonymised, still personal data, rather than anonymous, and the docs don't say so.
 - **Evidence:** `AnonymisePatientHandler.cs:48-52`; `PatientAnonymiser.cs:34-71`; `AGENTS.md:165`; `AnonymiseDialog.tsx:72-81`; `docs/governance/retention-schedule.md:113`.
 - **Fix:** make the reason a choice (past its retention period, an erasure request, created in error) with an optional note the dialog says must hold no patient details. Say in `AGENTS.md` and the retention schedule that the result is pseudonymised and stays personal data while the patient ID and dates remain.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** The anonymisation reason is a choice (`AnonymisationReason`: past its retention period, an erasure request, created in error) with an optional note the dialog says must hold no patient details. `AGENTS.md`, the rights procedure, the retention schedule and the dialog say the result is pseudonymised and stays personal data.
 
 ### 9. Refused sign-ins: rows anyone can add, kept for ever, holding whatever was typed as the username
 
@@ -175,7 +175,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** each refused sign-in writes a row. There's no rate limit, no retention, and for unknown usernames no lockout, so a script can add rows without limit without signing in, and fill the log admins have to read. The username tried is stored and shown to admins, so a password typed into the username box by mistake ends up in the log. And `UserId` is null for every refused sign-in, though the entity's and actor's comments say it's null only for accounts that don't exist, so filtering by user misses refused attempts on a real account.
 - **Evidence:** `MedApp.Application/Authentication/Sessions/Commands/Login/LoginHandler.cs:54-60` (`new ActivityActor(null, …)`); `MedApp.Domain/Activity/ActivityEntry.cs:16`; `ActivityActor.cs:5`; no rate limiter anywhere in `MedApp.API`; `docs/governance/retention-schedule.md`, section 3 (sign-in events at 12 months, not built).
 - **Fix:** record the user ID when the account exists; add a rate limiter on `POST api/auth/login` (ASP.NET Core's, by address); purge sign-in events at 12 months, as the schedule says; consider recording only that an unknown username was tried.
-- **What happened to it:** open.
+- **What happened to it:** **Partly fixed, as decided.** A refused sign-in records the account's ID when the username exists. Rate limiting is in the security baseline (PR #67) and not built here; purging sign-in events at 12 months needs a scheduled job, which MedApp doesn't have yet: both are in `docs/todo.md`.
 
 ### 10. medapp-dev doesn't start: the activity log needs a service it doesn't register
 
@@ -183,7 +183,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** the dev tool calls `AddApplication`, which now registers `IActivityLog`, which needs an `IActivityContext`; only the API provides one. The tool checks its services at start-up (it runs as Development), so it stops before serving anything, naming every patient, account and role command. It already stopped on `main`, for a missing `INotificationPublisher` (since live notifications were added), so this PR adds a second gap: fixing the first won't bring the tool back. The PR edits `DemoDataTools` without running it.
 - **Evidence:** the run under Detail; `tools/MedApp.DevMcp/Program.cs:51-52`; `MedApp.Application/Common/Extensions/ServiceExtensions.cs` ("the host provides IActivityContext"); `MedApp.API/Common/Extensions/ServiceExtensions.cs:52`.
 - **Fix:** in the tool, register an `IActivityContext` whose actor is the tool (no user ID, no address) and a no-op `INotificationPublisher`, and add a test that builds the tool's services with validation on.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** `medapp-dev` registers its own `IActivityContext` (actor `medapp-dev`) and a no-op `INotificationPublisher` (`DevMcpServices`, which also fixes the gap `main` already had). `DevMcpServicesTests` builds its services with `ValidateOnBuild`. The tool was started against a throwaway LocalDB database: `initialize`, `create_patient` (which wrote a `PatientCreated` entry by `medapp-dev`) and `get_status` all answered.
 
 ### 11. A pin or setting changed just before signing out, or whose save failed, is lost
 
@@ -191,7 +191,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** settings reach the account 800 ms after the last change. Signing out leaves the signed-in layout, which cancels a pending save, and then clears the browser. Before this PR, pins lived only in the browser and survived sign-out. Now a pin made just before signing out, or while the account couldn't be reached (a failed save is ignored, and nothing is saved before the account's settings have loaded), is gone from both places. Rare, but a quiet change to a feature meant to stay as it was.
 - **Evidence:** `MedApp.Web/src/app/SettingsSync.tsx:30-41`; `MedApp.Web/src/auth/auth.ts:126-135`; `MedApp.Web/src/components/navigation/pins.ts:14, 76-82`.
 - **Fix:** save any pending change before signing out (in `useLogout`, before leaving the layout), and test pin-then-sign-out.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** Signing out first flushes any settings change still waiting to be saved to the account, then signs out and clears the browser; a web test pins and signs out at once and checks the save goes before the sign-out.
 
 ### 12. Retention dates: deleted procedures don't count, and leap-day birthdays come a day early
 
@@ -199,7 +199,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** the conclusion of treatment is the latest change to the record or to a procedure that still exists. An archived procedure that an admin then deletes no longer counts, though its audit entries remain. A patient registered at 16 and treated until 17½, whose archived procedure was later deleted, counts as 16 at the conclusion, and is listed at 25 instead of 26. Separately, `DateOnly.AddYears` puts a 29 February birthday on 28 February in other years, while in England such a birthday falls on 1 March, so those records are listed a day early, and ages tip a day early at the 17 and 18 boundaries.
 - **Evidence:** `MedApp.Infrastructure/Data/Repositories/PatientRepository.cs:64-83`; `RetentionSchedule.cs:22-48`; `DeletePatientProcedureHandler` (the audit stays).
 - **Fix:** include the patient's latest procedure audit entry (by `PatientId`, which outlives deletion) in the conclusion; treat a 29 February birthday as 1 March in other years; test both.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** The conclusion of treatment counts the patient's latest procedure audit entry, which outlives a deleted procedure, and a 29 February birthday falls on 1 March in other years (`RetentionSchedule.AddYears`), for ages and due dates; unit tests cover both.
 
 ### 13. Retention Review's row buttons don't say which patient, and a failed flag change loses the reason
 
@@ -207,7 +207,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** each row has Review, Keep and Anonymise buttons with the same names in every row. Tabbing through, a screen reader hears "Anonymise, button" with no patient, so acting on the wrong row is easy, though the dialog then names the patient. Review also repeats the name's link. When setting a flag fails, the dialog closes and the typed reason is lost, with the error on the page rather than on the field (`errors` is never passed).
 - **Evidence:** `MedApp.Web/src/pages/retention/RetentionReviewPage.tsx:101-107`; `ViewPatientPage.tsx:195-207`; `PatientFlagDialog.tsx` (the `errors` prop).
 - **Fix:** give each button an accessible name that includes the patient's name ("Keep the record of [name]"), or move the actions into a row menu as other lists do; keep the flag dialog open on an error and pass the field errors.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** Retention Review's buttons are named for their patient for screen readers ("Keep the record of …"), and the flag dialog stays open on an error, keeping the reason and showing the field errors.
 
 ### 14. The tests guard the restriction by convention, and the canary doesn't reach every table
 
@@ -215,7 +215,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
 - **What could go wrong:** the restriction holds for every procedure command because each loads through `GetForUpdateOrThrowAsync`. Tests check notes, delete and create; a new handler that called `GetForUpdateAsync` directly would bypass the guard and nothing would fail. The anonymisation integration test puts its canary in names, titles, notes and a cancel reason, but not in a restriction, dispute or keep reason, or a notification title (there's no assignment), so those are checked only in memory. Nothing tests what the side nav records (finding 1), what the export leaves out (finding 4), or what a stale save writes back (finding 7).
 - **Evidence:** `MedApp.UnitTests/Application/Procedures/Common/ProcedurePatientRestrictionTests.cs:74-114`; `MedApp.IntegrationTests/Privacy/PatientPrivacyTests.cs:69-121`.
 - **Fix:** a test that no handler but the extension calls `GetForUpdateAsync` (by reflection), or a restriction test per command; put the canary in every free-text field the anonymiser covers, assign the procedure, and check `GET api/activity/search` and `GET api/notifications` for it too.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** `ProcedureRestrictionGuardConventionTests` reads the Application assembly's IL: only the two guards may call `GetForUpdateAsync`, and every procedure command must use one. The anonymisation integration test's canary now also goes into a restriction, dispute and keep reason and a notification title (the procedure is assigned), and checks the activity log, the assignee's notifications and the export.
 
 ### 15. Docs that don't match the code
 
@@ -224,7 +224,7 @@ Most severe first. None is high or critical. All fifteen were open when this rev
   - `MedApp.API/Common/Authentication/HttpActivityContext.cs:6-10`, `docs/todo.md:34` and `docs/governance/dspt-readiness.md:71` say that behind the ingress the address recorded is the ingress's. The chart already sets `ASPNETCORE_FORWARDEDHEADERS_ENABLED` (`deploy/helm/medapp/templates/api.yaml:82-84`, which makes ASP.NET Core take the client's address from the ingress's `X-Forwarded-For`), so requests from the browser carry the browser's address; only pages rendered on the server record the loopback address, as `docs/governance/data-subject-rights.md:74` correctly says.
   - `docs/architecture.md:1253` (Traceability) still says "Patients and accounts aren't audited; reads aren't logged."
 - **Fix:** correct each.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed.** `HttpActivityContext`, `docs/todo.md` and the DSPT readiness map now say that browser requests record the browser's address (the chart's forwarded headers) and only pages rendered on the server record the loopback address; the handbook's traceability row no longer says patients and reads aren't audited.
 
 ## Remaining risks
 
