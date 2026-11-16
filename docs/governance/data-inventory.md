@@ -36,7 +36,8 @@ Every place MedApp stores or sends personal data, field by field, from the code.
 | Where | What | Personal data | Kept for |
 |---|---|---|---|
 | **The session cookie** `medapp.session` | The session's ID | Pseudonymous identifier for a staff user | Until the session ends (8 hours at most) |
-| **Browser `localStorage`** (`medapp.*` keys, `MedApp.Web/src/app`) | The account's settings (colour mode, colours, text size, list settings, accessibility), saved searches (`medapp.favourites`), and pinned patients and procedures as IDs | Saved search terms can be patient names; pinned items are IDs | Until cleared. **Signing out doesn't clear it today** (roadmap step 7). |
+| **Browser `localStorage`** (`medapp.*` keys, `MedApp.Web/src/app`) | The account's settings (colour mode, colours, text size, list settings, accessibility), saved searches (`medapp.favourites`), and pinned patients and procedures as IDs (`medapp.pinnedPatients.<username>`, `MedApp.Web/src/components/navigation/pins.ts`) | Saved search terms can be patient names; pinned items are IDs; the pin keys contain the username | Until cleared. **Signing out doesn't clear it today** (roadmap step 7). Full list: [cookies-and-storage.md](cookies-and-storage.md). |
+| **Browser `sessionStorage`** (`medapp.halfView`) | The page open in the half view | Can include a patient or procedure ID | Until the tab closes |
 | **The browser's memory** (TanStack Query cache) | Data of the pages viewed | Patients, procedures | Until sign-out, which clears it, or the tab closes |
 | **Server-rendered pages** | HTML with the page's data | Patients, procedures | Not kept: sent with `Cache-Control: no-store` (`MedApp.API/ServerRendering/SsrPages.cs`) |
 | **The Node page server** | Renders each page in memory, with a new router and cache per request | Transient | Not kept |
