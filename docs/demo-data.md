@@ -8,16 +8,22 @@ Everything is invented: names, `@example.com` patient emails, `@clinic.example` 
 
 1. Start the AppHost once (`dotnet run --project MedApp.AppHost`), so the SQL Server and Azurite containers exist.
 2. Build the tool: `dotnet build tools/MedApp.DevMcp`.
-3. Ask for `reset_demo_data` with `confirm: true` and `keepUsers: ["dev-parity"]`. It saves a `pre-reset-<timestamp>` snapshot first, and takes about 30 seconds.
+3. Ask for `reset_demo_data` with `confirm: true` and `keepUsers: ["dev-parity"]`. It saves a `pre-reset-<timestamp>` snapshot first, and takes 30 seconds to a minute.
 4. **Keep its summary.** It holds:
    - the generated passwords (`accounts`), and the two-factor account's key and recovery codes (`twoFactor`)
    - `tour`: the records named in this page (blocked procedures, the unlocked stage, the diary), which depend on the day it runs
    - `privacy`: the restricted, disputed, kept and due records
+   - `today`: who signed in today, and the locked account
    - the counts
 
-**Times are relative to now,** so the data always looks current. "The diary day" is today, or Monday when it's run at a weekend.
+**Every patient's name is unique,** so searching the patients list for a name from the summary finds that one record.
 
-**Files** are attached only when Azurite answers on `127.0.0.1:14331` (the AppHost's, from this branch on). Otherwise the summary says files were skipped, and everything else is the same. A snapshot loaded into kind (`deploy/kind/README.md`) has the files' records but not their bytes, which stay in the AppHost's Azurite.
+**Times are relative to now,** so the data always looks current, and a few things depend on when it's run:
+- **The diary day** is today, or Monday when it's run at a weekend.
+- **Today's sign-ins** happen on a working day from 07:30. Run at a weekend, or before 07:30, nobody has signed in today, so there are no live sessions.
+- **The locked account** (`c.dunmore`) is locked out whenever it's run: wrong passwords can come on any day.
+
+**Files** are attached only when Azurite answers on `127.0.0.1:14331`, where the AppHost publishes it. Otherwise the summary says files were skipped, and everything else is the same. A snapshot loaded into kind (`deploy/kind/README.md`) has the files' records but not their bytes, which stay in the AppHost's Azurite.
 
 ## The people
 
@@ -92,10 +98,11 @@ On a dozen procedures and patients: referral letters, pre-op bloods reports, ECG
 - **Day templates:** clinic day, theatre day, endoscopy list, admin day, half day (morning) and day off, each with lunch and blocks for the role.
 - **Activity types** the clinic added: MDT meeting, ward round, teaching, supervision and off duty.
 - **Exceptions:**
+  - **Leave and training days** have no day template (as "This day's template: none" saves), then one block for the day: the app refuses a whole-day block over a template's lunch
   - `k.ellison` has a week's annual leave next month, and next Tuesday uses the theatre day template (covering recovery)
   - `a.pemberton` has a day's leave this week
   - `d.ashworth` has a training day next Wednesday
-  - `r.calloway`'s lunch is moved on the day after the diary day
+  - `r.calloway`'s lunch is moved on the day after the diary day, into free time (13:45 if it's free)
   - `s.brightwell`'s admin time was removed on the day before, and an appointment booked in its place
 - **Needs booking:** visits recently asked for, and a few asked for long ago and never booked.
 - **Appointment history:** booked, moved (rescheduled), cancelled by the patient or because the clinician couldn't make it, did not attend, notes added and edited.
@@ -131,7 +138,8 @@ Each combination of period and template looks different. Roughly, for a run in N
 ### Users and security (as `admin`)
 
 - **Users:** `c.dunmore` is locked out until tomorrow evening (Unlock); `e.rowntree` was created this week; `j.whitlock` has two-factor; most have a confirmed `@clinic.example` address, `e.rowntree`'s isn't confirmed, and `c.dunmore` has none.
-- **Sign out everywhere:** most staff signed in today, so they have live sessions.
+- **Sign out everywhere:** on a working day from 07:30, the staff who've worked today have signed in, so they have live sessions. At a weekend, or earlier in the morning, nobody has.
+- **Security** (Admin settings): the admins' sign-in rules are back to a new database's (none), whatever they were before the reset.
 - **The activity log** (60 days):
   - sign-ins and sign-outs on working days, some refused, and a few for names no account has
   - the locked account's run of wrong passwords
@@ -148,16 +156,19 @@ Six imported records are due: five adults treated 9 to 12 years ago, and one chi
 
 The plan left these open; this is what the seed does.
 
-- **Size:** about 280 patients rather than 250, so that the 650 or so procedures the weekly volumes call for come to two or three a patient. A patient with one procedure is likelier to get another than one with three.
+- **Size:** the weekly volumes decide it: about 650 to 670 procedures, each going to someone already registered six times in ten (a patient with one procedure is likelier to get another than one with three), so 230 or so patients have procedures. With 14 waiting for a referral and 12 imported records, that's about 260 patients in all (259 to 268 in four runs from late October to late November 2026); it varies a little with the day it's run.
 - **History before the last 26 weeks** is at a fifth of the usual volume.
 - **The new day-case pathway** launched 10 weeks ago; its 2024 predecessor ran at 5 a week until then. Its procedures were replayed until they all finished more than four weeks ago (but for three stragglers, made deliberately slow).
 - **The leaver** led only procedures that closed before they left; a procedure that wouldn't have was replayed with another lead.
 - **Imported records** (the retention review's) have no audit history and no visits: they predate the app, whose history starts when it was used. Their stages' visit requirement is None, as the migration left existing stages.
 - **Notifications** are made for the last 30 days only; older ones would long have been read.
 - **Files on stages** go only on stages still under way, since the app allows files on a stage only while it can be edited; documents from finished stages (consent copies, bloods reports) are on the procedure.
-- **Today's sessions** come from the app's own sign-in command, so they start when the seed runs and last eight hours.
-- **The locked account's lockout** is the app's own (after five wrong passwords), stretched to tomorrow evening: the app's five minutes would pass before anyone opened the Users page.
+- **Today's sessions** come from the app's own sign-in command, at the moment each person started work today, and last eight hours. Only on working days from 07:30, as in the history.
+- **The locked account's lockout** is the app's own (after five wrong passwords, 20 minutes before the run), stretched to tomorrow evening: the app's five minutes would pass before anyone opened the Users page. It happens whatever the day.
 - **Email** goes nowhere: the seed's email sender drops every message, while the app's commands still record the address requests and confirmations.
 - **SNOMED CT codes** are on Referral received, Triage, Consultation, Follow-up, Physiotherapy session and Discharge, the concepts certain enough to use; the others are blank.
 - **An "Off duty" activity type and a "Day off" day template** were added, so part-time afternoons and days off can't be booked.
 - **At a weekend** the diary day is the next Monday, since nothing can be booked on a weekend.
+- **Leave** is stored as the app would let someone record it: the day set to no day template, then the leave as one block.
+- **Patients' names** are unique, so the summary can name a record by name alone. Real clinics have namesakes; a demo can't afford to open the wrong one.
+- **History respects when each patient existed:** nobody views, lists, books or changes a patient before they were registered, and nobody sees the anonymised record afterwards.
