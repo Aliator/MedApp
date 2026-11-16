@@ -1,8 +1,5 @@
 using AutoFixture;
 using FluentAssertions;
-using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
-using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
@@ -17,18 +14,19 @@ using static MedApp.UnitTests.Common.Constants.AuthTestConstants;
 namespace MedApp.UnitTests.Application.Auth.Session.Commands;
 
 /// <summary>
-/// The account changes that end a user's sessions: changing their own password (all but the session it came from),
-/// an admin's reset (all), a change of roles (all but the one making it, if it's theirs), and signing out everywhere.
+/// The account changes that end a user's sessions: changing their own password (all but the session it came from), an
+/// admin's reset (all), and signing out everywhere. A change of roles ends none: roles are read on every request. The
+/// password change and the reset end them in the same transaction as the change.
 /// </summary>
 [TestFixture]
 public sealed class EndingSessionsTests
 {
     private IFixture _fixture = null!;
     private Mock<IIdentityUserService> _users = null!;
-    private Mock<IIdentityRoleService> _roles = null!;
     private Mock<IIdentityReadService> _read = null!;
     private Mock<ISessionService> _sessions = null!;
     private CancellationTokenSource _cts = null!;
+    private PassThroughIdentityTransactions _transactions = null!;
 
     private string Target => Usernames[1];
 
@@ -37,14 +35,14 @@ public sealed class EndingSessionsTests
     {
         _fixture = AutoFixtureFactory.Create();
         _users = new Mock<IIdentityUserService>();
-        _roles = new Mock<IIdentityRoleService>();
         _read = new Mock<IIdentityReadService>();
         _sessions = new Mock<ISessionService>();
         _fixture.Inject(_users.Object);
-        _fixture.Inject(_roles.Object);
         _fixture.Inject(_read.Object);
         _fixture.Inject(_sessions.Object);
         _cts = new CancellationTokenSource();
+        _transactions = new PassThroughIdentityTransactions();
+        _fixture.Inject<IIdentityTransactions>(_transactions);
 
         _read.Setup(r => r.GetUserAsync(Target, It.IsAny<CancellationToken>())).ReturnsAsync(SessionUser("User"));
     }
@@ -70,6 +68,21 @@ public sealed class EndingSessionsTests
 
         result.Succeeded.Should().BeTrue();
         VerifyEnded(except: SessionId);
+        _transactions.Runs.Should().Be(1);
+        _transactions.LastToken.Should().Be(_cts.Token);
+    }
+
+    [Test]
+    public async Task UpdateUserPassword_EndingSessionsFails_FailsTheWholeTransaction()
+    {
+        _users.Setup(u => u.UpdateUserPasswordAsync(Target, Passwords[0], Passwords[1], _cts.Token)).ReturnsAsync(IdentityResult.Success);
+        _sessions.Setup(s => s.RevokeUserSessionsAsync(SessionUserId, SessionId, _cts.Token)).ThrowsAsync(new TimeoutException());
+
+        var act = () => _fixture.Create<UpdateUserPasswordHandler>()
+            .Handle(new UpdateUserPasswordCommand(Target, Passwords[0], Passwords[1], SessionId), _cts.Token);
+
+        // Thrown inside the transaction's work, so IdentityTransactions rolls the password change back with it.
+        await act.Should().ThrowAsync<TimeoutException>();
     }
 
     [Test]
@@ -94,6 +107,7 @@ public sealed class EndingSessionsTests
 
         result.GeneratedPassword.Should().Be(Passwords[1]);
         VerifyEnded(except: null);
+        _transactions.Runs.Should().Be(1);
     }
 
     [Test]
@@ -102,92 +116,10 @@ public sealed class EndingSessionsTests
         _users.Setup(u => u.ResetUserPasswordAsync(Target, _cts.Token))
             .ReturnsAsync(new ResetUserPasswordResponse(null, [IdentityErrors.UserNotFound]));
 
-        await _fixture.Create<ResetUserPasswordHandler>().Handle(new ResetUserPasswordCommand(Target), _cts.Token);
+        var result = await _fixture.Create<ResetUserPasswordHandler>().Handle(new ResetUserPasswordCommand(Target), _cts.Token);
 
-        VerifyNoneEnded();
-    }
-
-    [Test]
-    public async Task SetUserRoles_RolesChanged_EndsEverySessionTheyHave()
-    {
-        _roles.Setup(r => r.SetRolesAsync(Target, It.IsAny<IReadOnlyCollection<string>>(), _cts.Token)).ReturnsAsync(IdentityResult.Success);
-
-        var result = await _fixture.Create<SetUserRolesHandler>()
-            .Handle(new SetUserRolesCommand(Target, ["Admin", "User"], Usernames[0]), _cts.Token);
-
-        result.Succeeded.Should().BeTrue();
-        VerifyEnded(except: null);
-    }
-
-    [Test]
-    public async Task SetUserRoles_TheRolesTheyHad_EndsNothing()
-    {
-        _roles.Setup(r => r.SetRolesAsync(Target, It.IsAny<IReadOnlyCollection<string>>(), _cts.Token)).ReturnsAsync(IdentityResult.Success);
-
-        // The same role, in another case: Identity matches role names ignoring case.
-        await _fixture.Create<SetUserRolesHandler>().Handle(new SetUserRolesCommand(Target, ["user"], Usernames[0]), _cts.Token);
-
-        VerifyNoneEnded();
-    }
-
-    [Test]
-    public async Task SetUserRoles_Refused_EndsNothing()
-    {
-        _roles.Setup(r => r.SetRolesAsync(Target, It.IsAny<IReadOnlyCollection<string>>(), _cts.Token))
-            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.RoleNotFound));
-
-        await _fixture.Create<SetUserRolesHandler>().Handle(new SetUserRolesCommand(Target, ["Auditor"], Usernames[0]), _cts.Token);
-
-        VerifyNoneEnded();
-    }
-
-    [Test]
-    public async Task SetUserRoles_NoSuchUser_EndsNothing()
-    {
-        _read.Setup(r => r.GetUserAsync(Target, It.IsAny<CancellationToken>())).ReturnsAsync((UserResponse?)null);
-        _roles.Setup(r => r.SetRolesAsync(Target, It.IsAny<IReadOnlyCollection<string>>(), _cts.Token))
-            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.UserNotFound));
-
-        await _fixture.Create<SetUserRolesHandler>().Handle(new SetUserRolesCommand(Target, ["Admin"], Usernames[0]), _cts.Token);
-
-        VerifyNoneEnded();
-    }
-
-    [Test]
-    public async Task AssignRole_Assigned_EndsTheirSessionsButTheOneMakingTheChange()
-    {
-        _roles.Setup(r => r.AssignRoleAsync(Target, "Admin", _cts.Token)).ReturnsAsync(new IdentityRole<Guid>("Admin"));
-
-        var role = await _fixture.Create<AssignRoleHandler>().Handle(new AssignRoleCommand(Target, "Admin", SessionId), _cts.Token);
-
-        role.Should().NotBeNull();
-        VerifyEnded(except: SessionId);
-    }
-
-    [Test]
-    public async Task AssignRole_NothingChanged_EndsNothing()
-    {
-        await _fixture.Create<AssignRoleHandler>().Handle(new AssignRoleCommand(Target, "Admin", SessionId), _cts.Token);
-
-        VerifyNoneEnded();
-    }
-
-    [Test]
-    public async Task RevokeRole_Revoked_EndsTheirSessionsButTheOneMakingTheChange()
-    {
-        _roles.Setup(r => r.RevokeRoleAsync(Target, "Admin", _cts.Token)).ReturnsAsync(new IdentityRole<Guid>("Admin"));
-
-        var role = await _fixture.Create<RevokeRoleHandler>().Handle(new RevokeRoleCommand(Target, "Admin", SessionId), _cts.Token);
-
-        role.Should().NotBeNull();
-        VerifyEnded(except: SessionId);
-    }
-
-    [Test]
-    public async Task RevokeRole_NothingChanged_EndsNothing()
-    {
-        await _fixture.Create<RevokeRoleHandler>().Handle(new RevokeRoleCommand(Target, "Admin", SessionId), _cts.Token);
-
+        result.GeneratedPassword.Should().BeNull();
+        result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.UserNotFoundCode);
         VerifyNoneEnded();
     }
 
