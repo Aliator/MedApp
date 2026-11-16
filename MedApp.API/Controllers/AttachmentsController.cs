@@ -11,6 +11,7 @@ using MedApp.Contracts.Attachments.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 
 namespace MedApp.API.Controllers;
 
@@ -44,11 +45,12 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     /// <summary>
     /// Attaches a file to one patient, procedure or stage. The body is the file's bytes
     /// (<c>application/octet-stream</c>), at most 20 MB; its name is in the <c>X-File-Name</c> header, percent-encoded.
-    /// Its type is found from its contents: PDF, PNG, JPEG, HEIC/HEIF, Word (.docx) or plain text (.txt).
+    /// Its type is found from its contents: PDF, PNG, JPEG, HEIC/HEIF, Word (.docx) or plain text (.txt). Any other
+    /// request type is a 415: a page on another site can't send this one without asking first (CORS), which nothing
+    /// allows.
     /// </summary>
     [HttpPost]
     [RequestSizeLimit(AttachmentLimits.MaxFileBytes)]
-    [Consumes("application/octet-stream")]
     [ProducesResponseType(typeof(AttachmentResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -62,6 +64,10 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
         [FromHeader(Name = AttachmentResponseHeaders.FileNameHeader)] string? fileName,
         CancellationToken ct)
     {
+        if (!MediaTypeHeaderValue.TryParse(Request.ContentType, out var bodyType)
+            || !bodyType.MediaType.Equals(UploadContentType, StringComparison.OrdinalIgnoreCase))
+            throw new UnsupportedFileTypeException($"Send the file's bytes as {UploadContentType}.");
+
         var attachment = await mediator.Send(new UploadAttachmentCommand(
             target.PatientId,
             target.ProcedureId,
@@ -108,6 +114,8 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
         AttachmentResponseHeaders.Apply(Response, download);
         return new FileStreamResult(download.Content, download.ContentType);
     }
+
+    private const string UploadContentType = "application/octet-stream";
 
     private bool IsAdmin => User.IsInRole("Admin");
 }

@@ -46,6 +46,7 @@ public sealed class AttachmentsControllerTests
         {
             context.Request.Body = body;
             context.Request.ContentLength = 3;
+            context.Request.ContentType = "application/octet-stream";
         });
 
         var result = await controller.Upload(new AttachmentTargetRequest { StageId = RecordId }, "r%C3%A9sum%C3%A9.pdf", CancellationToken.None);
@@ -54,6 +55,21 @@ public sealed class AttachmentsControllerTests
         var createdResult = result.Should().BeOfType<CreatedResult>().Subject;
         createdResult.Location.Should().Be($"/api/attachments/{OtherId}/content");
         createdResult.Value.Should().Be(created);
+    }
+
+    [TestCase(null)]
+    [TestCase("application/json")]
+    [TestCase("multipart/form-data; boundary=x")]
+    [TestCase("not a type")]
+    public async Task Upload_AnyOtherBodyType_ThrowsUnsupportedWithoutSendingIt(string? contentType)
+    {
+        var mediator = new RecordingMediator();
+        var controller = new AttachmentsController(mediator).WithRequest(SignedIn("User"), context => context.Request.ContentType = contentType);
+
+        var act = () => controller.Upload(new AttachmentTargetRequest { PatientId = RecordId }, "a.pdf", CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnsupportedFileTypeException>().WithMessage("Send the file's bytes as application/octet-stream.");
+        mediator.Sent.Should().BeEmpty();
     }
 
     [Test]
