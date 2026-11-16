@@ -66,7 +66,7 @@ Most severe first. None is high or critical. All three were open when this revie
   - the comments at `MedApp.Web/src/pages/setup/StageDefinitionsPage.tsx:257` and `TemplatesPage.tsx:171` ("Each quick filter's name is its token's"), and `MedApp.Web/AGENTS.md:25`
   - `tools/ui-parity/screens.ts:247`
 - **Fix:** an empty search reads as "everything" almost anywhere, so accepting this is reasonable; then say so. In both comments: "Each quick filter's name is its token's (Status: is Active), and All's is the empty bar, so it isn't repeated beside the star." In `MedApp.Web/AGENTS.md:25`: "…when each quick filter's name just repeats what its bar shows". If the cue matters, the rule inside the star (see Design choices) would keep "All" named and hide only "Active" and "Archived".
-- **What happened to it:** open.
+- **What happened to it:** accepted, and reworded. An empty bar already reads as everything, so the comments in both setup pages and `MedApp.Web/AGENTS.md` now say that All's name is the empty bar.
 
 ### 2. A saved search that matches a quick filter is named one way on screen and another to screen readers
 
@@ -80,7 +80,7 @@ Most severe first. None is high or critical. All three were open when this revie
   - `ListFavourites.tsx:84` and `:112-114`: saving is refused only when a saved search matches
   - the code is from #55; this PR brings it to three more lists, and saving a quick filter under a name of its own is most likely on the procedures list
 - **Fix:** prefer the saved search's name in both places, as it was chosen on purpose. At `ListFavourites.tsx:82`, `const showing = savedShowing ?? quickShowing;` (sketch under Detail). Then the label and the star agree whenever a label shows, on every list. Add a `ListFavourites` test with a saved search that has a quick filter's values and `namesQuickFilters: false`, expecting the label and the star's name both to say the saved name. Or refuse to save a quick filter's search ("Already a quick filter").
-- **What happened to it:** open.
+- **What happened to it:** fixed in the PR: `showing` now prefers the saved search's name, so the label and the star's accessible name agree. A new `ListFavourites` test covers a saved search with a quick filter's filters.
 
 ### 3. The documented rule doesn't match which lists turn the names off
 
@@ -92,7 +92,7 @@ Most severe first. None is high or critical. All three were open when this revie
   - `MedApp.Web/src/pages/audit/AuditLogPage.tsx:33-39`
   - the line this PR removes from `docs/todo.md` (line 20 on `main`), the only place besides the #55 review that described the rule inside the star
 - **Fix:** state the rule the code follows. For example: "…which a list turns off when it starts, or can start, on a quick filter its bar already shows as a token: My Tasks, the procedures lists, Stage definitions and Templates". Or turn the names off on Users too, if the duplicate after a pick matters as much as at the start. If the rule inside the star is still wanted for mixed lists like the audit log, keep a to-do line for it.
-- **What happened to it:** open.
+- **What happened to it:** fixed in the PR: `MedApp.Web/AGENTS.md` now states the rule as it's applied (a list that starts, or can start, on a quick filter its bar already shows). The Users and audit log lists keep their labels, because they don't start filtered.
 
 ## Remaining risks
 
