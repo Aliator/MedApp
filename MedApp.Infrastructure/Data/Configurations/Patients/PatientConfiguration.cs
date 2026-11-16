@@ -36,5 +36,14 @@ public sealed class PatientConfiguration : IEntityTypeConfiguration<Patient>
 
         builder.Property(x => x.LastUpdated)
             .IsRequired();
+
+        builder.Property(x => x.RestrictionReason)
+            .HasMaxLength(500);
+
+        builder.Property(x => x.DisputeReason)
+            .HasMaxLength(500);
+
+        builder.Property(x => x.RetentionKeptReason)
+            .HasMaxLength(500);
     }
 }

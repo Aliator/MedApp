@@ -1,6 +1,9 @@
 ﻿using MedApp.Application.Common.Paging;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,12 +11,13 @@ namespace MedApp.Infrastructure.Data.Repositories;
 
 public sealed class PatientRepository(MedAppDbContext context) : IPatientRepository
 {
-    public async Task AddAsync(Patient patient, CancellationToken cancellationToken)
+    public async Task AddAsync(Patient patient, ActivityEntry activity, CancellationToken cancellationToken)
     {
         context.Patients.Add(patient);
+        context.ActivityEntries.Add(activity);
         await context.SaveChangesAsync(cancellationToken);
     }
-    
+
     public async Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return await context.Patients
@@ -48,13 +52,44 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         return new PagedResult<Patient>(items, totalCount);
     }
 
-    public async Task UpdateAsync(Patient patient, CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        var list = ids.ToList();
+        return await context.Patients
+            .AsNoTracking()
+            .Where(p => list.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.FirstName + " " + p.LastName, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RetentionCandidate>> GetRetentionCandidatesAsync(DateTime changedBeforeUtc, CancellationToken cancellationToken)
+    {
+        var closed = ProcedureWorkflow.ClosedStatuses.ToList();
+
+        return await context.Patients
+            .AsNoTracking()
+            .Where(p => p.AnonymisedAtUtc == null && p.LastUpdated <= changedBeforeUtc)
+            .Where(p => !context.PatientProcedures.Any(pp =>
+                pp.PatientId == p.Id && (!closed.Contains(pp.Status) || pp.LastUpdated > changedBeforeUtc)))
+            .Select(p => new RetentionCandidate(
+                p.Id,
+                p.FirstName,
+                p.LastName,
+                p.DateOfBirth,
+                p.LastUpdated,
+                context.PatientProcedures.Where(pp => pp.PatientId == p.Id).Max(pp => (DateTime?)pp.LastUpdated),
+                p.RetentionKeptUntil,
+                p.RetentionKeptReason))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Patient patient, ActivityEntry activity, CancellationToken cancellationToken)
     {
         context.Patients.Update(patient);
+        context.ActivityEntries.Add(activity);
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id, ActivityEntry activity, CancellationToken cancellationToken)
     {
         var patient = await context.Patients.FindAsync([id], cancellationToken);
 
@@ -64,6 +99,7 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         }
 
         context.Patients.Remove(patient);
+        context.ActivityEntries.Add(activity);
         await context.SaveChangesAsync(cancellationToken);
     }
 }

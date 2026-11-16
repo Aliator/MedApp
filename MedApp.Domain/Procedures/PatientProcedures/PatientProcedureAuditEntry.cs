@@ -11,7 +11,7 @@ public sealed class PatientProcedureAuditEntry
     public Guid PatientProcedureId { get; init; }
 
     /// <summary>The procedure's title at the time, so the entry still reads well after the procedure is deleted.</summary>
-    public string ProcedureTitle { get; init; } = string.Empty;
+    public string ProcedureTitle { get; set; } = string.Empty;
 
     public Guid PatientId { get; init; }
 
@@ -31,5 +31,5 @@ public sealed class PatientProcedureAuditEntry
     public DateTime AtUtc { get; init; }
 
     /// <summary>What changed, as JSON: from/to values, the notes text, a reason, and so on.</summary>
-    public string Details { get; init; } = "{}";
+    public string Details { get; set; } = "{}";
 }

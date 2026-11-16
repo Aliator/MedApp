@@ -1,4 +1,5 @@
-﻿using MedApp.Domain.Authentication;
+﻿using MedApp.Domain.Activity;
+using MedApp.Domain.Authentication;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -23,6 +24,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureStageTemplate> PatientProcedureStageTemplates => Set<PatientProcedureStageTemplate>();
     public DbSet<PatientProcedureStageTemplateMap> PatientProcedureStageTemplateItems => Set<PatientProcedureStageTemplateMap>();
     public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
+    public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

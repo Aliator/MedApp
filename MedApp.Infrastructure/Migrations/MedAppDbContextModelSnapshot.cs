@@ -22,6 +22,55 @@ namespace MedApp.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("MedApp.Domain.Activity.ActivityEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<Guid?>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TargetUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtUtc");
+
+                    b.HasIndex("PatientId", "AtUtc");
+
+                    b.HasIndex("UserId", "Action", "PatientId", "AtUtc");
+
+                    b.ToTable("ActivityEntries", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Authentication.UserSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -119,11 +168,21 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("AnonymisedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("DateOfBirth")
                         .HasColumnType("date");
+
+                    b.Property<string>("DisputeReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("DisputedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -142,6 +201,20 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RestrictedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RestrictionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RetentionKeptReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateOnly?>("RetentionKeptUntil")
+                        .HasColumnType("date");
 
                     b.HasKey("Id");
 

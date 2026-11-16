@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -38,6 +39,9 @@ public static class ProcedureMapper
         string? patientName = null)
     {
         var current = ProcedureWorkflow.CurrentStage(procedure);
+        // A restricted or anonymised patient's procedures can't change, so nothing on them is offered.
+        var readOnlyReason = PatientRules.WhyCantChange(procedure.Patient);
+        var canChange = readOnlyReason is null;
 
         return new PatientProcedureResponse
         {
@@ -59,11 +63,14 @@ public static class ProcedureMapper
             CurrentStageId = current?.Id,
             CompletedStageCount = procedure.Stages.Count(s => s.IsCompleted),
             StageCount = procedure.Stages.Count,
-            AllowedStatusChanges = ProcedureWorkflow.AllowedStatusChanges(procedure).Select(s => s.ToString()).ToList(),
-            CanWorkOnStages = ProcedureWorkflow.CanWorkOnStages(procedure),
-            CanEditDetails = ProcedureWorkflow.CanEditDetails(procedure),
-            CanChangeAssignments = ProcedureWorkflow.CanChangeAssignments(procedure),
-            CanBeDeleted = ProcedureWorkflow.CanBeDeleted(procedure),
+            AllowedStatusChanges = canChange
+                ? ProcedureWorkflow.AllowedStatusChanges(procedure).Select(s => s.ToString()).ToList()
+                : [],
+            CanWorkOnStages = canChange && ProcedureWorkflow.CanWorkOnStages(procedure),
+            CanEditDetails = canChange && ProcedureWorkflow.CanEditDetails(procedure),
+            CanChangeAssignments = canChange && ProcedureWorkflow.CanChangeAssignments(procedure),
+            CanBeDeleted = canChange && ProcedureWorkflow.CanBeDeleted(procedure),
+            ReadOnlyReason = readOnlyReason,
             Stages = procedure.Stages
                 .OrderBy(s => s.StageOrder)
                 .Select(s => new PatientProcedureStageResponse
@@ -78,8 +85,8 @@ public static class ProcedureMapper
                     State = ProcedureWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,
                     IsLocked = s.IsLocked,
-                    CanEdit = ProcedureWorkflow.CanEditStage(procedure, s),
-                    CanUnlock = ProcedureWorkflow.CanUnlockStage(procedure, s),
+                    CanEdit = canChange && ProcedureWorkflow.CanEditStage(procedure, s),
+                    CanUnlock = canChange && ProcedureWorkflow.CanUnlockStage(procedure, s),
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),

@@ -45,6 +45,12 @@ public sealed class PatientProcedureResponse
     /// <summary>Only Cancelled and Archived procedures can be deleted (by an admin).</summary>
     public bool CanBeDeleted { get; set; }
 
+    /// <summary>
+    /// Why nothing about the procedure can be changed now, because its patient's record is restricted or anonymised;
+    /// null when it can. While it's set, every Can... flag is false.
+    /// </summary>
+    public string? ReadOnlyReason { get; set; }
+
     public List<PatientProcedureStageResponse> Stages { get; set; } = [];
     public List<PatientProcedureAssignmentResponse> Assignments { get; set; } = [];
 }
