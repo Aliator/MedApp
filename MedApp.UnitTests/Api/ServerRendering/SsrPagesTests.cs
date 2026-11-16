@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using FluentAssertions;
+using MedApp.API.Middleware;
 using MedApp.API.ServerRendering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -92,6 +93,30 @@ public sealed class SsrPagesTests
         forwarded.Headers.GetValues("Accept-Language").Should().Equal("en-GB");
         forwarded.Headers.GetValues("X-Forwarded-Proto").Should().Equal("https");
         forwarded.Headers.GetValues("X-Forwarded-Host").Should().Equal("medapp.test");
+    }
+
+    [Test]
+    public async Task Handle_PageHasANonce_PassesItToTheRenderer()
+    {
+        var context = Page();
+        var environment = new Mock<IWebHostEnvironment>();
+        environment.SetupGet(e => e.EnvironmentName).Returns("Production");
+        await new SecurityHeaders(_ => Task.CompletedTask, environment.Object, Options.Create(new SecurityHeadersOptions())).InvokeAsync(context);
+
+        await Handle(context);
+
+        var forwarded = _renderer.Requests.Should().ContainSingle().Subject;
+        forwarded.Headers.GetValues(SsrPages.NonceHeader).Should().Equal(SecurityHeaders.GetNonce(context));
+        // The policy with that nonce stays on the page the renderer sent back.
+        context.Response.Headers.ContentSecurityPolicy.ToString().Should().Contain($"'nonce-{SecurityHeaders.GetNonce(context)}'");
+    }
+
+    [Test]
+    public async Task Handle_NoNonce_SendsNone()
+    {
+        await Handle(Page());
+
+        _renderer.Requests.Should().ContainSingle().Which.Headers.Contains(SsrPages.NonceHeader).Should().BeFalse();
     }
 
     [Test]

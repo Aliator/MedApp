@@ -9,6 +9,10 @@ public static class ApplicationBuilderExtensions
 {
     public static WebApplication UseApi(this WebApplication app)
     {
+        // First, so every response carries them: nosniff, no framing, the referrer and permissions policies, no-store
+        // on /api, and the Content Security Policies (with the page's nonce, which SsrPages passes to the renderer).
+        app.UseMiddleware<SecurityHeaders>();
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -41,6 +45,9 @@ public static class ApplicationBuilderExtensions
         app.UseStaticFiles();
 
         app.UseMiddleware<ExceptionHandling>();
+
+        // Sign-in throttling (LoginThrottling): before authentication, so a refused attempt costs no session lookup.
+        app.UseRateLimiter();
 
         app.UseAuthentication();
         // A user with a password an admin gave them can only change it (and sign out) until they do.
