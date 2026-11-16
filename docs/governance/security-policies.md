@@ -55,10 +55,10 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | **Synthetic data only** in code, tests, seeds, fixtures and screenshots | In place (convention, `AGENTS.md`) |
 | **Secrets never in git;** generated or chosen and kept in a secret store | In place |
 | **A human approves** each change before merge | **Not yet:** the repository needs no approvals. Add a required reviewer, at least for production deploys (step 2) |
-| **Dependencies with known licences,** an SBOM, and licence checks | Planned (step 1) |
-| **Static analysis** (CodeQL), dependency review, image scanning, a ZAP scan | Planned (step 2) |
-| **Actions and images pinned by digest,** and provenance attestations | Planned (step 2) |
-| **A threat model** and an **ASVS Level 2** checklist | Planned (step 2) |
+| **Dependencies with known licences,** an SBOM, and licence checks | Partly: an SBOM is attested with every published image. Licence checks planned (step 1) |
+| **Static analysis** (CodeQL), dependency review, image scanning, a ZAP scan | In place, except the ZAP scan (step 2): `.github/workflows/codeql.yml`, and `main.yml`'s `dependency-review` and `image` jobs |
+| **Actions and images pinned by digest,** and provenance attestations | Partly: actions pinned by commit SHA, and provenance attestations on every published image. Images by digest, and verifying attestations before deploy, planned (step 2) |
+| **A threat model** and an **ASVS Level 2** checklist | In place: `docs/security/threat-model.md` and `docs/security/asvs.md` |
 | **Privacy by design:** any change that alters what personal data is held, who can see it, where it goes or how long it's kept updates `docs/governance/` (at least [data-inventory.md](data-inventory.md) and the DPIA) in the same pull request | In place: a step in `AGENTS.md`'s feature checklist, and a check in every merge review |
 | **Clinical safety review** of changes to clinical workflow | Planned (step 6) |
 
@@ -79,7 +79,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | **Base images and the runtime** (.NET, Node, SQL Server, Valkey) | Rebuilt at least monthly, and at once for a critical fix |
 | **AKS** | Patch upgrades and node images automatic (`deploy/azure/main.bicep`); a maintenance window to be set (step 5) |
 | **Company devices** | Automatic updates; operating systems and apps on supported versions only (Cyber Essentials) |
-| **How vulnerabilities are found** | Today: NuGet and npm audit warnings, and reviews. Planned: Dependabot, CodeQL, image scanning (step 2); a yearly penetration test (steps 7 and 10) |
+| **How vulnerabilities are found** | Today: Dependabot; CodeQL; dependency review; NuGet and npm audits that fail on high and critical advisories; a Trivy scan of the image; and reviews. Planned: a yearly penetration test (steps 7 and 10) |
 | **Reporting a vulnerability** | A `SECURITY.md` with a contact and a disclosure process (planned, step 1) |
 
 ## 7. Business continuity and disaster recovery

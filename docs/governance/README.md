@@ -95,7 +95,7 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 | Keep identifying filters (name, email, date of birth) out of the URL, so they don't land in browser history; page, sort and status stay in it | 7 | DPIA risk 10; data inventory |
 | No patient identifiers in notifications | 7 | DPIA risk 3 |
 | MFA, SSO, account deactivation, a chosen first admin name | 4 | DPIA risk 2; DSPT standard 4 |
-| An idle timeout; sessions ended on password change; hashed session tokens; security headers; throttling; patient deletion admin-only | 2 | DPIA risks 2, 10, 11 and 7 |
+| An idle timeout; hashed session tokens; patient deletion admin-only (done in step 2's first part: security headers, throttling, sessions ended on password and role changes) | 2 | DPIA risks 2, 10, 11 and 7 |
 | A least-privilege, passwordless database identity; monitoring and alerts; 35-day and long-term backups, geo-redundant in the UK; restore drills; an Azure Policy allowing only UK regions; a cluster-wide Cilium policy so only the API and the migrations Job reach the database's private endpoint; Customer Lockbox; just-in-time admin access; out-of-hours cover | 5 | DPIA risks 12 to 17; transfers; support access |
 | A patient banner (in the go-live gate); optimistic concurrency | 6 | DPIA risks 8 and 9 |
 | A deceased flag | 9 | Retention periods after death |
