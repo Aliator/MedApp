@@ -29,6 +29,7 @@ public sealed class AuthorisationTests : IntegrationTest
         yield return Case("POST", "/api/auth/users");
         yield return Case("PUT", "/api/auth/users/someone/roles");
         yield return Case("PUT", "/api/auth/users/someone/reset-password");
+        yield return Case("POST", "/api/auth/users/someone/sign-out-everywhere");
         yield return Case("DELETE", "/api/auth/users/someone");
         yield return Case("GET", "/api/auth/roles");
         yield return Case("POST", $"{stages}/definitions");
@@ -97,8 +98,10 @@ public sealed class AuthorisationTests : IntegrationTest
         var admin = await SignInAsAdminAsync();
         await (await admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([])))
             .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        // Changing their roles ended their session, so they sign in again, with none.
+        var signedInAgain = await SignInAsync(staff.Username, staff.Password);
 
-        var response = await SendAsync(staff.Client, method, url);
+        var response = await SendAsync(signedInAgain, method, url);
 
         await response.ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         (await response.Content.ReadAsStringAsync()).Should().NotContain(PasswordChangeRequired.Code);
