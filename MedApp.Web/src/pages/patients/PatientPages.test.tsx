@@ -122,6 +122,16 @@ describe('AddPatientPage', () => {
 });
 
 describe('EditPatientPage', () => {
+  it.each([
+    ['restricted', {isRestricted: true}, "This patient's record is restricted, so it can't be changed until an admin lifts the restriction."],
+    ['anonymised', {isAnonymised: true}, "This patient's record has been anonymised, so it can't be changed."],
+  ])('says before anyone tries that a %s record cannot be changed', async (_, flags, message) => {
+    mockApi({[`GET /api/patients/${id}`]: () => json({...freya, ...flags})});
+    renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+
+    expect(await findAlert(message)).toBeInTheDocument();
+  });
+
   it('saves changes after confirming, then shows the patient', async () => {
     const fetch = mockApi({
       [`GET /api/patients/${id}`]: () => json(freya),

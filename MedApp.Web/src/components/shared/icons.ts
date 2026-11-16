@@ -30,7 +30,9 @@ import {
   RiErrorWarningLine,
   RiEyeLine,
   RiFileList3Line,
+  RiFileSearchLine,
   RiHistoryLine,
+  RiHourglassLine,
   RiHomeLine,
   RiInboxUnarchiveLine,
   RiForbidLine,
@@ -151,6 +153,9 @@ export const AppIcon = {
   AuditLog: remix(RiHistoryLine),
   Archive: remix(RiArchiveLine),
   Restore: remix(RiInboxUnarchiveLine),
+  // Privacy (admin): the activity log, and records past their retention period
+  ActivityLog: remix(RiFileSearchLine),
+  Retention: remix(RiHourglassLine),
   // Account Settings: changing the app's colours
   Colours: remix(RiPaletteLine),
   // Half views: two pages side by side

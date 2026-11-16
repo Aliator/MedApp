@@ -2,7 +2,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
 import {ApiError} from '../../api/errors';
-import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
+import {patientQuery, useDeletePatient, useUpdatePatient, whyCantChange, type Patient, type PatientInput} from '../../api/patients';
 import {patientProcedureCountQuery} from '../../api/procedures';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
@@ -89,8 +89,11 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
+        ) : problem.message ? (
+          <AlertMessage message={problem.message} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          // A restricted or anonymised record can't be changed: the API refuses, so say so before anyone tries.
+          whyCantChange(patient) && <AlertMessage status="warning" message={whyCantChange(patient)!} />
         )
       }
       dialogs={

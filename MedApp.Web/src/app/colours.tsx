@@ -74,7 +74,7 @@ export function themeOf(mode: ColorMode, colours: ModeColours): ColourTheme | nu
   return COLOUR_THEMES.find((theme) => same(theme[mode], colours)) ?? null;
 }
 
-const STORAGE_KEY = defineSetting('medapp.colours');
+const STORAGE_KEY = defineSetting('medapp.colours', {keepOnSignOut: true});
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** The remembered colours (JSON), with the defaults for anything not set or not a colour. */

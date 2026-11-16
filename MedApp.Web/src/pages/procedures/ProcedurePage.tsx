@@ -201,8 +201,11 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           <AlertMessage message="Procedure not found. It may have been deleted." />
         ) : error ? (
           <AlertMessage message="The procedure could not be loaded. Please try again." />
+        ) : actionError ? (
+          <AlertMessage message={actionError} />
         ) : (
-          actionError && <AlertMessage message={actionError} />
+          // The patient's record is restricted or anonymised, so nothing here can change (and nothing is offered).
+          procedure?.readOnlyReason && <AlertMessage status="warning" message={procedure.readOnlyReason} />
         )
       }
       actions={

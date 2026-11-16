@@ -35,10 +35,79 @@ function writeStorage(key: string, value: string | null) {
 
 const notify = (set: Set<Listener>) => set.forEach((listener) => listener());
 
-/** Declares a setting kept with the account. Returns its key, for the module to use. */
-export function defineSetting(key: string): string {
+/** The prefix of every key the app keeps in the browser's storage. */
+export const STORAGE_PREFIX = 'medapp.';
+
+/** Settings that stay in this browser after sign-out: purely how the app looks, so the sign-in page looks the same. */
+const keptOnSignOut = new Set<string>();
+
+/**
+ * Declares a setting kept with the account. Returns its key, for the module to use. `keepOnSignOut` is only for
+ * purely visual preferences (colours, text size, accessibility); everything else is cleared from this browser at
+ * sign-out, and comes back from the account at the next sign-in.
+ */
+export function defineSetting(key: string, {keepOnSignOut = false}: {keepOnSignOut?: boolean} = {}): string {
   keys.add(key);
+  if (keepOnSignOut) keptOnSignOut.add(key);
   return key;
+}
+
+/** The app's keys (`medapp.…`) in one of the browser's stores; none if it can't be read. */
+function appKeys(storage: () => Storage): string[] {
+  try {
+    const store = storage();
+    return Array.from({length: store.length}, (_, i) => store.key(i)).filter(
+      (key): key is string => key !== null && key.startsWith(STORAGE_PREFIX),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function removeFrom(storage: () => Storage, key: string) {
+  try {
+    storage().removeItem(key);
+  } catch {
+    // Storage blocked: there's nothing in it to clear.
+  }
+}
+
+/**
+ * Signing out on a shared computer leaves nothing of the user's behind in this browser (ASVS V14.3.1): every
+ * `medapp.` key in localStorage and sessionStorage is removed (saved searches, pins, list and navigation preferences,
+ * the half view), except the purely visual settings declared with `keepOnSignOut`. Settings in use go back to their
+ * defaults at once, without being saved to the account, which still has them for the next sign-in.
+ */
+export function clearStorageAtSignOut() {
+  for (const key of appKeys(() => localStorage)) if (!keptOnSignOut.has(key)) removeFrom(() => localStorage, key);
+  for (const key of appKeys(() => sessionStorage)) removeFrom(() => sessionStorage, key);
+  let isChanged = false;
+  for (const key of keys) {
+    if (keptOnSignOut.has(key) || values.get(key) === null) continue;
+    values.set(key, null);
+    isChanged = true;
+  }
+  if (isChanged) notify(listeners);
+}
+
+/** A setting changed in another tab of this browser shows here too (not saved again: that tab saves it). */
+function onOtherTabChange(event: StorageEvent) {
+  if (event.storageArea !== null && event.storageArea !== localStorage) return;
+  if (event.key === null) {
+    values.clear();
+    notify(listeners);
+  } else if (keys.has(event.key)) {
+    values.set(event.key, event.newValue);
+    notify(listeners);
+  }
+}
+
+let isWatchingOtherTabs = false;
+
+function watchOtherTabs() {
+  if (isWatchingOtherTabs || typeof window === 'undefined') return;
+  isWatchingOtherTabs = true;
+  window.addEventListener('storage', onOtherTabChange);
 }
 
 export const appSettings = {
@@ -57,6 +126,7 @@ export const appSettings = {
   },
 
   subscribe(listener: Listener) {
+    watchOtherTabs();
     listeners.add(listener);
     return () => listeners.delete(listener);
   },

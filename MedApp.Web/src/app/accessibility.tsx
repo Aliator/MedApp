@@ -68,7 +68,7 @@ export type AccessibilitySetting = (typeof ACCESSIBILITY_SETTINGS)[number]['key'
 export type AccessibilityFlags = Record<AccessibilitySetting, boolean>;
 
 /** The settings changed from their defaults, as JSON: `{"highContrast": true, …}`. */
-const STORAGE_KEY = defineSetting('medapp.accessibility');
+const STORAGE_KEY = defineSetting('medapp.accessibility', {keepOnSignOut: true});
 
 function parseChoices(stored: string | null): Partial<AccessibilityFlags> {
   try {

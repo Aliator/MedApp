@@ -2,7 +2,11 @@ import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {adminUser, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
-import {pinsKey} from './pins';
+import {PINS_KEY} from './pins';
+
+/** The pinned IDs of one kind, as the account's settings keep them. */
+const pinnedIds = (kind: 'patients' | 'procedures') =>
+  ((JSON.parse(localStorage.getItem(PINS_KEY) ?? '{}') as Record<string, string[]>)[kind] ?? []);
 
 describe('isCurrentSection', () => {
   it.each([
@@ -25,6 +29,8 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'Stages'})).toHaveAttribute('href', '/admin/stages');
     expect(screen.getByRole('link', {name: /templates/i})).toHaveAttribute('href', '/admin/templates');
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
+    expect(screen.getByRole('link', {name: /activity log/i})).toHaveAttribute('href', '/admin/activity');
+    expect(screen.getByRole('link', {name: /retention review/i})).toHaveAttribute('href', '/admin/retention');
     expect(screen.getByText('test-admin')).toBeInTheDocument();
     expect(screen.getByText('Administrator')).toBeInTheDocument();
   });
@@ -35,6 +41,8 @@ describe('AppSideNav', () => {
     expect(await screen.findByRole('link', {name: /patients/i})).toHaveAttribute('href', '/patients');
     expect(screen.queryByRole('link', {name: /^users$/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /audit log/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /activity log/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /retention review/i})).not.toBeInTheDocument();
     expect(screen.getByText('User')).toBeInTheDocument();
   });
 
@@ -71,6 +79,32 @@ describe('AppSideNav', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(logouts()).toHaveLength(1);
     await waitFor(() => expect(queryClient.getQueryData(['patients'])).toBeUndefined());
+  });
+
+  it("clears the user's storage at sign-out, keeping only how the app looks", async () => {
+    const patient = 'a0000000-0000-4000-8000-000000000001';
+    localStorage.setItem('medapp.favourites', JSON.stringify({patients: {saved: [{id: 'f1', name: 'Synthetic', values: {last: 'Synthetic'}}]}}));
+    localStorage.setItem(PINS_KEY, JSON.stringify({patients: [patient]}));
+    localStorage.setItem('medapp.pinnedPatients.test-admin', JSON.stringify([patient]));
+    localStorage.setItem('medapp.colorMode', 'dark');
+    localStorage.setItem('medapp.textSize', 'large');
+    localStorage.setItem('other.app', 'untouched');
+    sessionStorage.setItem('medapp.halfView', `/patients/${patient}`);
+    mockFetch(() => new Response(null, {status: 204}));
+    const {user, router} = renderWithApp(<AppSideNav />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: /logout/i}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    await waitFor(() => expect(localStorage.getItem('medapp.favourites')).toBeNull());
+    expect(localStorage.getItem(PINS_KEY)).toBeNull();
+    expect(localStorage.getItem('medapp.pinnedPatients.test-admin')).toBeNull();
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+    expect(localStorage.getItem('medapp.colorMode')).toBe('dark');
+    expect(localStorage.getItem('medapp.textSize')).toBe('large');
+    expect(localStorage.getItem('other.app')).toBe('untouched');
+    sessionStorage.clear();
   });
 
   it('has no light/dark mode button (it moved to Account Settings)', async () => {
@@ -132,7 +166,7 @@ describe('AppSideNav pinned patients', () => {
   };
 
   function renderAt(path: string, pinned: string[] = []) {
-    if (pinned.length) localStorage.setItem(pinsKey('patients', staffUser.username), JSON.stringify(pinned));
+    if (pinned.length) localStorage.setItem(PINS_KEY, JSON.stringify({patients: pinned}));
     mockApi({
       'GET /api/patients/*': (request) => {
         const id = new URL(request.url).pathname.split('/').pop()!;
@@ -152,7 +186,7 @@ describe('AppSideNav pinned patients', () => {
     expect(screen.queryByRole('button', {name: 'Freya Ahmed options'})).not.toBeInTheDocument();
     await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Pin'));
 
-    expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]);
+    expect(pinnedIds('patients')).toEqual([patientId]);
     await user.unhover(screen.getByRole('link', {name: 'Freya Ahmed'}));
     expect(await rowMenuItem(user, 'Freya Ahmed', 'Unpin')).toBeInTheDocument();
   });
@@ -191,7 +225,7 @@ describe('AppSideNav pinned patients', () => {
     await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Unpin'));
 
     expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([]);
+    expect(pinnedIds('patients')).toEqual([]);
   });
 
   it('stops pinning at five, saying why', async () => {
@@ -215,7 +249,7 @@ describe('AppSideNav pinned patients', () => {
     renderAt('/procedures', [patientId, gone]);
 
     await screen.findByRole('link', {name: 'Freya Ahmed'});
-    await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]));
+    await waitFor(() => expect(pinnedIds('patients')).toEqual([patientId]));
   });
 });
 
@@ -238,7 +272,7 @@ describe('AppSideNav pinned procedures', () => {
   };
 
   function renderAt(path: string, pinned: string[] = []) {
-    if (pinned.length) localStorage.setItem(pinsKey('procedures', staffUser.username), JSON.stringify(pinned));
+    if (pinned.length) localStorage.setItem(PINS_KEY, JSON.stringify({procedures: pinned}));
     mockApi({
       'GET /api/procedures/patient-procedures/*': (request) => {
         const id = new URL(request.url).pathname.split('/').pop()!;
@@ -260,7 +294,7 @@ describe('AppSideNav pinned procedures', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     await user.click(await rowMenuItem(user, 'FA TKR', 'Pin', 'Total knee replacement for Freya Ahmed'));
 
-    expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]);
+    expect(pinnedIds('procedures')).toEqual([knee]);
   });
 
   it('keeps pinned procedures under Procedures on other pages, apart from pinned patients', async () => {
@@ -268,7 +302,7 @@ describe('AppSideNav pinned procedures', () => {
 
     expect(await screen.findByRole('link', {name: 'FA TKR'})).not.toHaveAttribute('aria-current');
     expect(await screen.findByRole('link', {name: 'PA B'})).toBeInTheDocument();
-    expect(localStorage.getItem(pinsKey('patients', staffUser.username))).toBeNull();
+    expect(pinnedIds('patients')).toEqual([]);
   });
 
   it('drops a pinned procedure that no longer exists', async () => {
@@ -276,7 +310,7 @@ describe('AppSideNav pinned procedures', () => {
     renderAt('/', [knee, gone]);
 
     await screen.findByRole('link', {name: 'FA TKR'});
-    await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]));
+    await waitFor(() => expect(pinnedIds('procedures')).toEqual([knee]));
   });
 });
 

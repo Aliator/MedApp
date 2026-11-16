@@ -37,6 +37,14 @@ const procedure = {
 };
 
 describe('ProcedurePage', () => {
+  it("says why nothing can be changed while the patient's record is restricted", async () => {
+    const reason = "This patient's record is restricted, so it can't be changed until an admin lifts the restriction.";
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, readOnlyReason: reason})});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    expect(await findAlert(reason)).toBeInTheDocument();
+  });
+
   it('shows the procedure, its details and its stages', async () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});

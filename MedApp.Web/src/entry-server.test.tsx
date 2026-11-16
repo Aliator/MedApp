@@ -13,6 +13,7 @@ const MANIFEST: RouterManifest = {
 
 const json = (body: unknown) => new Response(JSON.stringify(body), {headers: {'content-type': 'application/json'}});
 const signedIn = {isAuthenticated: true, name: 'test-user', roles: ['User']};
+const signedInAdmin = {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']};
 const patient = {
   id: '0000000d-0000-0000-0000-000000000001',
   firstName: 'Test',
@@ -117,6 +118,66 @@ describe('server rendering', () => {
     expect(requests.every((r) => r.headers.get('x-medapp-ssr-key') === 'test-key')).toBe(true);
     const search = requests.find((r) => new URL(r.url).pathname === '/api/patients/search')!;
     expect(new URL(search.url).searchParams.get('PageSize')).toBe('25');
+  });
+
+  it("renders a patient's export for an admin with it in the page, asking for it (and so recording it) once", async () => {
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/patients/${patient.id}/export`]: {exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient},
+    });
+
+    const response = await page(`/patients/${patient.id}/export`, 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Patient Record Export');
+    expect(html).toContain('test.patient@example.org');
+    expect(requests.filter((r) => new URL(r.url).pathname.endsWith('/export'))).toHaveLength(1);
+  });
+
+  it("renders a patient's page for an admin with their access report, and for staff without asking for it", async () => {
+    const routes = {
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/patients/${patient.id}`]: patient,
+      '/api/activity/search': {
+        items: [{id: 'e1', action: 'PatientViewed', username: 'access.checker', atUtc: '2026-11-15T10:00:00Z', details: '{}'}],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+    };
+    api({...routes, '/api/auth/whoami': signedInAdmin});
+    expect(await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text()).toContain('access.checker');
+
+    const requests = api({...routes, '/api/auth/whoami': signedIn});
+    const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
+    expect(html).toContain('test.patient@example.org');
+    expect(html).not.toContain('access.checker');
+    expect(requests.some((r) => new URL(r.url).pathname === '/api/activity/search')).toBe(false);
+  });
+
+  it('renders the activity log for an admin', async () => {
+    api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/activity/search': {
+        items: [{id: 'e1', action: 'SignInFailed', username: 'synthetic.tryer', ipAddress: '192.0.2.44', atUtc: '2026-11-15T10:00:00Z', details: '{}'}],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+    });
+
+    const html = await (await page('/admin/activity', 'medapp_session=abc')).text();
+
+    expect(html).toContain('Activity Log');
+    expect(html).toContain('192.0.2.44');
   });
 
   it('still renders the page when its data fails, for it to show its error', async () => {

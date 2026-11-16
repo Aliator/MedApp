@@ -35,8 +35,9 @@ describe('RequiredPasswordChangePage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({oldPassword: 'Given-Synthetic1', newPassword: 'Chosen-Synthetic1'});
-    // The cached whoami (which said they must change it) is gone, so it's asked again.
-    await waitFor(() => expect(calls(fetch)).toEqual([`PUT ${OWN_PASSWORD}`, 'GET /api/auth/whoami']));
+    // The cached whoami (which said they must change it) is gone, so it's asked again; then the account's settings
+    // (signing out cleared them from this browser) are loaded before the start page opens.
+    await waitFor(() => expect(calls(fetch)).toEqual([`PUT ${OWN_PASSWORD}`, 'GET /api/auth/whoami', 'GET /api/auth/me/settings']));
   });
 
   it('opens the start page chosen in Account Settings', async () => {

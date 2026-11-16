@@ -1,7 +1,9 @@
 import {queryOptions, useMutation, useQueryClient, useSuspenseQuery, type QueryClient} from '@tanstack/react-query';
 import {redirect, useNavigate} from '@tanstack/react-router';
 import {api, unwrap} from '../api/client';
-import {useNavSettings} from '../app/navSettings';
+import {settingsQuery} from '../api/settings';
+import {currentStartPagePath} from '../app/navSettings';
+import {appSettings, clearStorageAtSignOut} from '../app/settingsStore';
 
 export interface CurrentUser {
   isAuthenticated: boolean;
@@ -82,11 +84,28 @@ export interface LoginInput {
 export function useEnterApp() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const {startPagePath} = useNavSettings();
   return async () => {
     queryClient.removeQueries({queryKey: whoamiQuery.queryKey});
-    await navigate({to: startPagePath});
+    await loadAccountSettings(queryClient);
+    await navigate({to: currentStartPagePath()});
   };
+}
+
+/**
+ * The account's settings, before going into the app: signing out clears them from this browser (all but the visual
+ * ones), so this brings back the account's start page and the rest. Not for someone who must change their password
+ * first, whom the API refuses everything else. If they can't be loaded, this browser's settings stay as they are, and
+ * `SettingsSync` tries again inside the app.
+ */
+async function loadAccountSettings(queryClient: QueryClient) {
+  try {
+    const me = await queryClient.fetchQuery(whoamiQuery);
+    if (!me.isAuthenticated || me.mustChangePassword) return;
+    const saved = await queryClient.fetchQuery(settingsQuery);
+    if (saved) appSettings.load(saved);
+  } catch {
+    // Not loaded: the app starts with this browser's settings.
+  }
 }
 
 /** Signs in, then goes to the start page (`useEnterApp`). */
@@ -99,8 +118,10 @@ export function useLogin() {
 }
 
 /**
- * Signs out and goes to the login page. Local state is cleared even if the API call fails, as in the Blazor app.
- * The cache is cleared after leaving the signed-in layout, so its components don't refetch while still mounted.
+ * Signs out and goes to the login page. Local state is cleared even if the API call fails, as in the Blazor app:
+ * the query cache, and the app's browser storage but for the purely visual settings (`clearStorageAtSignOut`), so
+ * nothing of the user's is left on a shared computer. Both are cleared after leaving the signed-in layout, so its
+ * components don't refetch, or save settings to the account, while still mounted.
  */
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -110,6 +131,7 @@ export function useLogout() {
     onSettled: async () => {
       await navigate({to: '/login'});
       queryClient.clear();
+      clearStorageAtSignOut();
     },
   });
 }

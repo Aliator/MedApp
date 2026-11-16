@@ -1,5 +1,5 @@
 import {renderToString} from 'react-dom/server';
-import {appSettings, defineSetting, ServerSettingsContext, useAppSetting} from './settingsStore';
+import {appSettings, clearStorageAtSignOut, defineSetting, ServerSettingsContext, useAppSetting} from './settingsStore';
 
 function Shows({setting}: {setting: string}) {
   const [value] = useAppSetting(setting);
@@ -64,6 +64,117 @@ describe('appSettings', () => {
     appSettings.load({...appSettings.snapshot(), [key]: 'off'});
     expect(listener).toHaveBeenCalledOnce();
     expect(appSettings.get(key)).toBe('off');
+    unsubscribe();
+  });
+});
+
+describe('clearStorageAtSignOut', () => {
+  const visual = defineSetting('medapp.testVisual', {keepOnSignOut: true});
+  const other = defineSetting('medapp.testOther');
+
+  afterEach(() => sessionStorage.clear());
+
+  it("removes the app's keys from both stores, keeping only the visual settings and other apps' keys", () => {
+    localStorage.setItem(visual, 'dark');
+    localStorage.setItem(other, 'saved search');
+    localStorage.setItem('medapp.pinnedPatients.test-user', '["p1"]');
+    localStorage.setItem('another.app', 'theirs');
+    sessionStorage.setItem('medapp.halfView', '/patients');
+    sessionStorage.setItem('another.app', 'theirs');
+
+    clearStorageAtSignOut();
+
+    expect(localStorage.getItem(visual)).toBe('dark');
+    expect(localStorage.getItem(other)).toBeNull();
+    expect(localStorage.getItem('medapp.pinnedPatients.test-user')).toBeNull();
+    expect(localStorage.getItem('another.app')).toBe('theirs');
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+    expect(sessionStorage.getItem('another.app')).toBe('theirs');
+  });
+
+  it('puts settings in use back to their defaults at once, without saving that to the account', () => {
+    appSettings.set(visual, 'dark');
+    appSettings.set(other, 'saved search');
+    const listener = vi.fn();
+    const saver = vi.fn();
+    const unsubscribe = appSettings.subscribe(listener);
+    const stopSaving = appSettings.onLocalChange(saver);
+
+    clearStorageAtSignOut();
+
+    expect(appSettings.get(other)).toBeNull();
+    expect(appSettings.get(visual)).toBe('dark');
+    expect(listener).toHaveBeenCalledOnce();
+    expect(saver).not.toHaveBeenCalled();
+
+    // Nothing left to clear: nobody is told again.
+    clearStorageAtSignOut();
+    expect(listener).toHaveBeenCalledOnce();
+    unsubscribe();
+    stopSaving();
+  });
+
+  it('does nothing harmful when storage is blocked', () => {
+    localStorage.setItem(other, 'saved search');
+    vi.spyOn(Storage.prototype, 'key').mockImplementation(() => {
+      throw new Error('Storage is blocked.');
+    });
+
+    expect(() => clearStorageAtSignOut()).not.toThrow();
+  });
+
+  it('carries on when a key cannot be removed', () => {
+    localStorage.setItem(other, 'saved search');
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('Storage is blocked.');
+    });
+
+    expect(() => clearStorageAtSignOut()).not.toThrow();
+    expect(appSettings.get(other)).toBeNull();
+  });
+});
+
+describe('appSettings, with other tabs', () => {
+  const key = defineSetting('medapp.testShared');
+
+  it('shows a setting changed in another tab, without saving it again', () => {
+    const listener = vi.fn();
+    const saver = vi.fn();
+    const unsubscribe = appSettings.subscribe(listener);
+    const stopSaving = appSettings.onLocalChange(saver);
+
+    window.dispatchEvent(new StorageEvent('storage', {key, newValue: 'from the other tab', storageArea: localStorage}));
+
+    expect(appSettings.get(key)).toBe('from the other tab');
+    expect(listener).toHaveBeenCalledOnce();
+    expect(saver).not.toHaveBeenCalled();
+    unsubscribe();
+    stopSaving();
+  });
+
+  it("ignores keys that aren't settings, and the other store", () => {
+    appSettings.set(key, 'here');
+    const listener = vi.fn();
+    const unsubscribe = appSettings.subscribe(listener);
+
+    window.dispatchEvent(new StorageEvent('storage', {key: 'medapp.notASetting', newValue: 'x', storageArea: localStorage}));
+    window.dispatchEvent(new StorageEvent('storage', {key, newValue: 'x', storageArea: sessionStorage}));
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(appSettings.get(key)).toBe('here');
+    unsubscribe();
+  });
+
+  it('reads everything again when another tab clears storage', () => {
+    appSettings.set(key, 'here');
+    const listener = vi.fn();
+    const unsubscribe = appSettings.subscribe(listener);
+    localStorage.clear();
+
+    window.dispatchEvent(new StorageEvent('storage', {key: null, storageArea: localStorage}));
+
+    expect(listener).toHaveBeenCalledOnce();
+    expect(appSettings.get(key)).toBeNull();
     unsubscribe();
   });
 });
