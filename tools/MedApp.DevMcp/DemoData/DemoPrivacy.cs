@@ -39,18 +39,18 @@ public static class DemoPrivacy
                 .Concat(world.AppointmentEvents.Where(e => e.PatientId == patientId).Select(e => e.AtUtc))
                 .DefaultIfEmpty(DateTime.MinValue).Max();
         bool HasUpcoming(Guid patientId) =>
-            world.Appointments.Any(a => a.PatientId == patientId && a.Status is AppointmentStatus.Booked or AppointmentStatus.Requested);
+            world.Appointments.Any(a => a.PatientId == patientId && a.Status == AppointmentStatus.Booked && a.StartUtc > now);
 
         var active = patients.All.Where(p => p.Role == PatientRole.Active && p.Id != Guid.Empty).ToList();
         var flagged = new List<PatientSeed>();
 
-        // Restricted, with a procedure under way (quiet for a fortnight, nothing booked): staff can still block or cancel it.
+        // Restricted, with a procedure under way (quiet for a week, nothing booked ahead): staff can still block or cancel it.
         var withOpenWork = active.Where(p =>
                 world.Procedures.Any(x => x.PatientId == p.Id && x.Status is Domain.Procedures.PatientProcedures.PatientProcedureStatus.InProgress)
-                && LastActivity(p.Id) < now.AddDays(-12) && !HasUpcoming(p.Id))
+                && LastActivity(p.Id) < now.AddDays(-7) && !HasUpcoming(p.Id))
             .OrderBy(_ => random.Next()).FirstOrDefault();
         if (withOpenWork is not null)
-            await Flag(withOpenWork, PatientFlag.Restricted, Later(LastActivity(withOpenWork.Id).AddDays(2), now.AddDays(-9)),
+            await Flag(withOpenWork, PatientFlag.Restricted, Later(LastActivity(withOpenWork.Id).AddDays(1), now.AddDays(-5)),
                 "The patient has asked us to restrict use of their record while a complaint about how it was shared is looked into.");
 
         // Restricted, everything closed.
