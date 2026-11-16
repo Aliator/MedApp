@@ -27,7 +27,7 @@ export function ViewCard({children, footerActions, showFooter = true, fill = fal
         </StackItem>
         {showFooter && footerActions && (
           <Section variant="muted" padding={4}>
-            <HStack gap={2} vAlign="center" hAlign="end">
+            <HStack gap={2} vAlign="center" hAlign="end" wrap="wrap">
               {footerActions}
             </HStack>
           </Section>
