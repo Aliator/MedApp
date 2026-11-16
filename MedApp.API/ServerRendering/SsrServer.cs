@@ -12,18 +12,33 @@ namespace MedApp.API.ServerRendering;
 /// <summary>The page-rendering server, as page requests and the API's https redirect see it.</summary>
 public interface ISsrServer
 {
-    /// <summary>Where the Node server is, once it's running; null until then, or if it isn't.</summary>
+    /// <summary>
+    /// Where the Node server is: a page server of its own (<see cref="SsrOptions.ServerUrl"/>), or the one the API
+    /// started, once it's running. Null if there's neither.
+    /// </summary>
     Uri? Address { get; }
 
-    /// <summary>Whether a request is the Node server's own call to the API: from this machine, with its key.</summary>
+    /// <summary>
+    /// Whether a request is the Node server's own call to the API: from this machine, with the key the API gave it.
+    /// Only a page server the API started has the key.
+    /// </summary>
     bool IsFromRenderer(HttpContext context);
 }
 
 /// <summary>
-/// Starts the Node server that renders pages (MedApp.Web's <c>server/server.mjs</c>, published to
-/// <c>wwwroot/ssr/</c>) once the API is listening, on a free port on this machine only, and stops it with the API.
-/// It tells the server where the API is (to fetch a page's data) and gives it a key for those calls (see
-/// <see cref="IsFromRenderer"/>). If the server can't start or stops, pages fall back to client-side rendering.
+/// The Node server that renders pages (MedApp.Web's <c>server/server.mjs</c>, in the image's <c>/app/ssr/</c>).
+/// <list type="bullet">
+/// <item>
+/// With <see cref="SsrOptions.ServerUrl"/> set, it runs on its own (in Kubernetes, the Helm chart's pages container,
+/// beside the API in its pod, with none of the API's secrets or settings): its address is that, and nothing is
+/// started here. That server has no key, so its calls to the API are ordinary requests (see <see cref="IsFromRenderer"/>).
+/// </item>
+/// <item>
+/// Otherwise (<c>docker run</c>, CI's end-to-end tests), the API starts it once it's listening, on a free port on
+/// this machine only, and stops it with the API. It tells the server where the API is (to fetch a page's data) and
+/// gives it a key for those calls. If the server can't start or stops, pages fall back to client-side rendering.
+/// </item>
+/// </list>
 /// </summary>
 public sealed class SsrServer(
     IOptions<SsrOptions> options,
@@ -39,7 +54,8 @@ public sealed class SsrServer(
     /// The API's environment variables the Node server gets, if they're set: only what Node and the OS need to run,
     /// find certificates and format dates. Not the rest, which holds the API's secrets (its connection strings), so they
     /// can't leak from Node by accident (e.g. into its logs). It isn't isolation: Node runs as the same user, so code in
-    /// it could still read the API's environment from /proc; that would take a separate (sidecar) container.
+    /// it could still read the API's environment from /proc. In Kubernetes the page server runs in a container of its
+    /// own instead (<see cref="SsrOptions.ServerUrl"/>), which is.
     /// </summary>
     private static readonly string[] InheritedVariables =
     [
@@ -72,10 +88,25 @@ public sealed class SsrServer(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var settings = options.Value;
-        var script = Path.Combine(environment.WebRootPath ?? string.Empty, settings.ScriptPath);
-        if (!settings.Enabled || environment.WebRootPath is null || !File.Exists(script))
+        if (!settings.Enabled)
         {
-            logger.LogInformation("Server-side rendering is off ({Script} not found, or Ssr:Enabled is false): pages render in the browser.", script);
+            logger.LogInformation("Server-side rendering is off (Ssr:Enabled is false): pages render in the browser.");
+            return;
+        }
+
+        // A page server of its own (the pages container, in Kubernetes): nothing to start. Until it answers, pages
+        // fall back to the client-rendered app, as they do whenever it fails.
+        if (settings.ExternalServer() is { } external)
+        {
+            _address = external;
+            logger.LogInformation("Server-side rendering by the page server at {Address}.", external);
+            return;
+        }
+
+        var script = Path.Combine(environment.ContentRootPath ?? string.Empty, settings.ScriptPath);
+        if (environment.ContentRootPath is null || !File.Exists(script))
+        {
+            logger.LogInformation("Server-side rendering is off ({Script} not found, and no Ssr:ServerUrl): pages render in the browser.", script);
             return;
         }
 

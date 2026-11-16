@@ -16,18 +16,18 @@ namespace MedApp.UnitTests.Api.ServerRendering;
 [TestFixture]
 public sealed class SsrServerTests
 {
-    private string _webRoot = null!;
+    private string _contentRoot = null!;
 
     [SetUp]
-    public void SetUp() => _webRoot = Directory.CreateTempSubdirectory("medapp-ssr-tests").FullName;
+    public void SetUp() => _contentRoot = Directory.CreateTempSubdirectory("medapp-ssr-tests").FullName;
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_webRoot, recursive: true);
+    public void TearDown() => Directory.Delete(_contentRoot, recursive: true);
 
-    private SsrServer CreateServer(SsrOptions? options = null, string? webRoot = null)
+    private SsrServer CreateServer(SsrOptions? options = null)
     {
         var environment = new Mock<IWebHostEnvironment>();
-        environment.SetupGet(e => e.WebRootPath).Returns(webRoot ?? _webRoot);
+        environment.SetupGet(e => e.ContentRootPath).Returns(_contentRoot);
         return new SsrServer(
             Options.Create(options ?? new SsrOptions()),
             environment.Object,
@@ -159,11 +159,16 @@ public sealed class SsrServerTests
         server.Address.Should().BeNull();
     }
 
+    private async Task BuiltServer()
+    {
+        Directory.CreateDirectory(Path.Combine(_contentRoot, "ssr"));
+        await File.WriteAllTextAsync(Path.Combine(_contentRoot, "ssr", "server.mjs"), "// synthetic");
+    }
+
     [Test]
     public async Task ExecuteAsync_TurnedOff_StaysOffEvenWithABuiltServer()
     {
-        Directory.CreateDirectory(Path.Combine(_webRoot, "ssr"));
-        await File.WriteAllTextAsync(Path.Combine(_webRoot, "ssr", "server.mjs"), "// synthetic");
+        await BuiltServer();
         var server = CreateServer(new SsrOptions { Enabled = false });
 
         await server.StartAsync(CancellationToken.None);
@@ -173,7 +178,59 @@ public sealed class SsrServerTests
     }
 
     [Test]
-    public async Task ExecuteAsync_NoWebRoot_StaysOff()
+    public async Task ExecuteAsync_ServerInWebRootOnly_StaysOff()
+    {
+        // The old layout (wwwroot/ssr/server.mjs): the script is looked for in the content root, outside wwwroot.
+        Directory.CreateDirectory(Path.Combine(_contentRoot, "wwwroot", "ssr"));
+        await File.WriteAllTextAsync(Path.Combine(_contentRoot, "wwwroot", "ssr", "server.mjs"), "// synthetic");
+        var server = CreateServer();
+
+        await server.StartAsync(CancellationToken.None);
+        await server.ExecuteTask!;
+
+        server.Address.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_PageServerOfItsOwn_UsesItsAddressWithoutStartingNode()
+    {
+        // A built server too, which the API would otherwise start. Starting it would wait for the API to be
+        // listening, which this test's API never is, so ExecuteTask finishing shows nothing was started.
+        await BuiltServer();
+        var server = CreateServer(new SsrOptions { ServerUrl = PageServerUrl });
+
+        await server.StartAsync(CancellationToken.None);
+        await server.ExecuteTask!;
+
+        server.Address.Should().Be(new Uri(PageServerAddress));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_PageServerOfItsOwn_ItsCallsAreNotTheRenderers()
+    {
+        // It's given no key, so its calls to the API are ordinary requests, even from loopback.
+        var server = CreateServer(new SsrOptions { ServerUrl = PageServerUrl });
+
+        await server.StartAsync(CancellationToken.None);
+        await server.ExecuteTask!;
+
+        server.IsFromRenderer(Request(IPAddress.Loopback, null)).Should().BeFalse();
+        server.IsFromRenderer(Request(IPAddress.Loopback, RendererKey)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_PageServerOfItsOwnButTurnedOff_StaysOff()
+    {
+        var server = CreateServer(new SsrOptions { ServerUrl = PageServerUrl, Enabled = false });
+
+        await server.StartAsync(CancellationToken.None);
+        await server.ExecuteTask!;
+
+        server.Address.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_NoContentRoot_StaysOff()
     {
         var environment = new Mock<IWebHostEnvironment>();
         var server = new SsrServer(

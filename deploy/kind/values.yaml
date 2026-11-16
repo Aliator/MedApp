@@ -7,6 +7,10 @@ image:
 # Two copies, as production would run, with live notifications shared through the backplane (Valkey).
 api:
   replicas: 2
+  # The page server in a container of its own beside the API, in each pod, with none of the API's secrets (the
+  # chart's default, set here so kind keeps rendering pages as production does).
+  pageServer:
+    enabled: true
 
 ingress:
   enabled: true
