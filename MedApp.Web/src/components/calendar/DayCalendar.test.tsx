@@ -34,10 +34,13 @@ describe('DayCalendar', () => {
     // Blocked time is shown, but isn't a button.
     expect(await screen.findByText('Lunch, 12:00 to 13:00')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: /^Lunch/})).not.toBeInTheDocument();
+    // The card's title dates the day, so the grid doesn't head its column again (it's still named for screen readers).
+    expect(screen.queryByText('Monday')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', {name: 'Monday 23 November, today'})).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', {name: /^Test Patient, Knee review/}));
     await waitFor(() => expect(router.state.location.pathname).toBe('/procedures/procedure-1'));
-    await user.click(screen.getByRole('button', {name: /^Test Patient, Appointment/}));
+    await user.click(screen.getByRole('button', {name: /^Test Patient, appointment/}));
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients/patient-7'));
   });
 

@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
-import {calendarDay, STAFF_ME, testBlock, ukTime} from '../../test/calendar';
+import {calendarDay, STAFF_ME, testAppointment, testBlock, ukTime} from '../../test/calendar';
 import {expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
 import {BlockDialog, type BlockDialogProps} from './BlockDialog';
@@ -54,7 +54,11 @@ describe('BlockDialog', () => {
 
     await user.click(dialog().getByRole('combobox', {name: /Activity/}));
     expect(screen.queryByRole('option', {name: 'Old'})).not.toBeInTheDocument();
+    // Each activity shows in its colour, as on the calendar.
+    expect(screen.getByRole('option', {name: 'Lunch'}).querySelector('.astryx-token')).toHaveAttribute('data-color', 'green');
+    expect(screen.getByRole('option', {name: 'Training'}).querySelector('.astryx-token')).toHaveAttribute('data-color', 'purple');
     await user.click(screen.getByRole('option', {name: 'Training'}));
+    expect(dialog().getByRole('combobox', {name: /Activity/}).closest('.astryx-selector')!.querySelector('.astryx-token')).toHaveAttribute('data-color', 'purple');
     await user.type(dialog().getByRole('textbox', {name: /Note/}), 'Fire safety');
     await user.click(dialog().getByRole('button', {name: 'Block Time'}));
 
@@ -83,6 +87,37 @@ describe('BlockDialog', () => {
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /Activity/})).toHaveTextContent('Lunch'));
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('17:00');
     expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('18:00');
+  });
+
+  it("starts a new block in the first free time on the calendar, ending an hour later or where the next thing starts", async () => {
+    // Today, from 10:05: 10:15 is taken by a block, so it starts at 10:30, and ends at 11:00, where an appointment starts.
+    vi.setSystemTime(new Date('2026-11-23T10:05:00Z'));
+    const calendar = {
+      blocks: [testBlock(MONDAY, '10:00', '10:30')],
+      appointments: [
+        testAppointment({date: MONDAY, start: '11:00', end: '11:30'}),
+        // A cancelled one gives its time back.
+        testAppointment({id: 'cancelled', date: MONDAY, start: '10:30', end: '11:00', status: 'Cancelled'}),
+      ],
+    };
+    const {unmount} = renderDialog({calendar});
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Activity/})).toHaveTextContent('Lunch'));
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('10:30');
+    expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('11:00');
+    unmount();
+
+    // Another day starts from 08:00; with nothing in the way it's an hour long.
+    const {unmount: unmountTuesday} = renderDialog({date: '2026-11-24', calendar: {blocks: [testBlock('2026-11-24', '08:00', '08:45')], appointments: []}});
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Activity/})).toHaveTextContent('Lunch'));
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('08:45');
+    expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('09:45');
+    unmountTuesday();
+
+    // Nothing free: as without the calendar, the next 15 minutes from now.
+    renderDialog({calendar: {blocks: [testBlock(MONDAY, '08:00', '18:00')], appointments: []}});
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Activity/})).toHaveTextContent('Lunch'));
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('10:15');
+    expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('11:15');
   });
 
   it('starts on the first day that is not past, keeps the length when the start moves, and flags an end before the start', async () => {

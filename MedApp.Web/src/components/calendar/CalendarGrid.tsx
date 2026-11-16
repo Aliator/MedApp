@@ -4,10 +4,11 @@ import {ClickableCard} from '@astryxdesign/core/ClickableCard';
 import {Icon} from '@astryxdesign/core/Icon';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
-import {useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type Ref} from 'react';
+import {useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {formatCalendarDay, formatShortDay, formatTimeRange, intervalOf, SLOT_MINUTES} from '../../utils/calendarSlots';
+import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, SLOT_MINUTES} from '../../utils/calendarSlots';
 import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
@@ -39,6 +40,11 @@ export interface CalendarGridProps {
   selectionRef?: Ref<HTMLElement>;
   /** Opening a day from its column's heading, e.g. a week view going to that day. */
   onDayOpen?: (date: string) => void;
+  /**
+   * Leaves out the row of day headings, where something above already names the day (Home's day calendar). Each
+   * day's column is still named for screen readers.
+   */
+  isHeadingHidden?: boolean;
 }
 
 const MINUTE = 60_000;
@@ -145,8 +151,10 @@ interface Drag {
 /**
  * A day or a week of a member of staff's calendar as a time grid (docs/calendar-plan.md, decision 28): 08:00 to 18:00
  * in 15-minute rows, hour labels down the side, appointments and blocked time placed by their times. Past days and
- * times are dimmed, today's column is tinted, and a line shows the time now (both once it's in the browser).
- * Weekends show as narrow greyed columns that do nothing.
+ * times are dimmed, today's column is tinted, and a line shows the time now (both once it's in the browser), drawn
+ * behind items so their text stays readable, with a dot at the column's edge. Weekends show as narrow greyed columns
+ * that do nothing. A week's columns are headed by their days; a single day, which the page around it already dates,
+ * by its weekday only.
  *
  * Use it for any calendar of days: the Calendar page (selecting free time, opening and dragging items), Home's day
  * calendar (read-only), or anything else that shows a person's time. It knows nothing of the API beyond the days: its
@@ -158,7 +166,7 @@ interface Drag {
  *
  * Astryx has no time grid, so its cells are plain elements styled with theme tokens; items are Astryx cards.
  */
-export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onItemMove, selection, selectionRef, onDayOpen}: CalendarGridProps) {
+export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onItemMove, selection, selectionRef, onDayOpen, isHeadingHidden = false}: CalendarGridProps) {
   const now = useNow();
   const hintId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -456,32 +464,35 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
         Arrow keys move between free times. Shift with the up or down arrow selects more. Enter selects.
       </VisuallyHidden>
       <div className="mc-scroll">
-        <div className="mc-head">
-          <div className="mc-gutter" aria-hidden />
-          {layouts.map((l) => {
-            const weekend = !l.day.isWorkingDay;
-            const name = isOneDay ? formatCalendarDay(l.date) : formatShortDay(l.date);
-            return (
-              <div key={l.date} className="mc-head-cell" data-weekend={weekend || undefined} data-today={l.day.isToday || undefined}>
-                {onDayOpen && !weekend && !isOneDay ? (
-                  <Button
-                    label={name}
-                    // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
-                    aria-label={`${name}${l.day.isToday ? ', today' : ''}: show the day`}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDayOpen(l.date)}
-                  />
-                ) : (
-                  <Text type={weekend ? 'supporting' : 'body'} weight={weekend ? 'normal' : 'semibold'} color={l.day.isToday ? 'accent' : weekend ? 'secondary' : 'primary'} maxLines={1}>
-                    {weekend ? formatShortDay(l.date).split(' ')[0] : name}
-                  </Text>
-                )}
-                {l.day.isToday && !isOneDay && <span className="mc-today-mark" aria-hidden />}
-              </div>
-            );
-          })}
-        </div>
+        {!isHeadingHidden && (
+          <div className="mc-head">
+            <div className="mc-gutter" aria-hidden />
+            {layouts.map((l) => {
+              const weekend = !l.day.isWorkingDay;
+              // A single day is dated by the page around it (its subtitle, or a card's title), so it's headed by its weekday.
+              const name = isOneDay ? formatWeekday(l.date) : formatShortDay(l.date);
+              return (
+                <div key={l.date} className="mc-head-cell" data-weekend={weekend || undefined} data-today={l.day.isToday || undefined}>
+                  {onDayOpen && !weekend && !isOneDay ? (
+                    <Button
+                      label={name}
+                      // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
+                      aria-label={`${name}${l.day.isToday ? ', today' : ''}: show the day`}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDayOpen(l.date)}
+                    />
+                  ) : (
+                    <Text type={weekend ? 'supporting' : 'body'} weight={weekend ? 'normal' : 'semibold'} color={l.day.isToday ? 'accent' : weekend ? 'secondary' : 'primary'} maxLines={1}>
+                      {weekend && !isOneDay ? formatShortDay(l.date).split(' ')[0] : name}
+                    </Text>
+                  )}
+                  {l.day.isToday && !isOneDay && <span className="mc-today-mark" aria-hidden />}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="mc-body">
           <div className="mc-gutter" aria-hidden>
             {hourLabels.map((h) => (
@@ -496,6 +507,10 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
             const weekend = !l.day.isWorkingDay;
             const dayName = formatCalendarDay(l.date);
             const placed = placedByDay[day];
+            const nowTop =
+              l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.rows * SLOT
+                ? `${((nowMs - l.start) / (l.rows * SLOT)) * 100}%`
+                : null;
             const shownSelection =
               pending && pending.day === day
                 ? rangeOf(pending)
@@ -564,6 +579,14 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                     </Text>
                   </span>
                 )}
+                {/* The time now: a line behind the items (before them, and under them in the CSS), so it never runs through their
+                    text, and a dot at the column's edge over everything. */}
+                {nowTop !== null && (
+                  <>
+                    <span className="mc-now" style={{top: nowTop}} aria-hidden />
+                    <span className="mc-now-dot" style={{top: nowTop}} aria-hidden />
+                  </>
+                )}
                 {placed.map((p) => (
                   <GridItem
                     key={p.item.key}
@@ -582,9 +605,6 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                       {formatTimeRange(ghost.startUtc, ghost.endUtc)}
                     </Text>
                   </span>
-                )}
-                {l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.rows * SLOT && (
-                  <span className="mc-now" style={{top: `${((nowMs - l.start) / (l.rows * SLOT)) * 100}%`}} aria-hidden />
                 )}
               </div>
             );
@@ -606,7 +626,20 @@ function rangeStyle(l: DayLayout, startUtc: string, endUtc: string) {
 const stripe = (colour: string) =>
   `light-dark(var(--color-background-${colour}), color-mix(in srgb, var(--color-background-${colour}) 50%, transparent))`;
 
-/** One item: a card in its colour (appointments tinted, blocks striped and quieter), as many lines as fit. */
+/**
+ * How an item's text fits its height, in rows (15 minutes each): `tiny` (under 10 minutes) shows none, its words only in
+ * its tooltip and accessible name; `short` (10 to 15 minutes) one small, tight line; otherwise one line a row.
+ */
+function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
+  // A little leeway, so 10 minutes (two thirds of a row) counts as short whatever the rounding.
+  if (rowsTall < 2 / 3 - 0.01) return 'tiny';
+  return rowsTall < 1 - 0.01 ? 'short' : 'rows';
+}
+
+/**
+ * One item: a card in its colour (appointments tinted, blocks striped and quieter), as many lines as fit, always in the
+ * same order: its name, then what it's for, then its time. One under 10 minutes, too short for any text, has a tooltip.
+ */
 function GridItem({
   placed,
   rows,
@@ -625,6 +658,7 @@ function GridItem({
   onPointerUp: (event: PointerEvent) => void;
 }) {
   const {item, top, height, column, columns} = placed;
+  const fit = itemFit(height * rows);
   const lines = Math.max(1, Math.round(height * rows));
   const isAppointment = item.kind === 'appointment';
   const time = formatTimeRange(item.startUtc, item.endUtc);
@@ -650,46 +684,62 @@ function GridItem({
           backgroundImage: `repeating-linear-gradient(135deg, ${stripe(item.colour)} 0 var(--spacing-1-5), transparent var(--spacing-1-5) var(--spacing-3))`,
         }),
   };
-  const content = (
-    <VStack gap={0} hAlign="stretch">
-      {lines === 1 ? (
-        <Text type="supporting" color="primary" maxLines={1}>
-          <Text type="inherit" weight="semibold">
-            {item.label}
-          </Text>
-          {item.sublabel ? `, ${item.sublabel}` : `, ${time}`}
+  const flag = item.isFlagged && <Icon icon={AppIcon.Warning} size="xsm" color="warning" />;
+  // One line: the name, then what it's for, or the time when it says nothing more.
+  const oneLine = (type: 'supporting' | 'inherit') => (
+    <HStack gap={1} vAlign="center">
+      {flag}
+      <Text type={type} color="primary" maxLines={1}>
+        <Text type="inherit" weight="semibold">
+          {item.label}
         </Text>
-      ) : (
-        <>
-          <HStack gap={1} vAlign="center">
-            {item.isFlagged && <Icon icon={AppIcon.Warning} size="xsm" color="warning" />}
-            <Text type="supporting" color="primary" weight="semibold" maxLines={1}>
-              {item.label}
-            </Text>
-          </HStack>
-          {lines >= 3 && item.sublabel && (
-            <Text type="supporting" color="primary" maxLines={Math.max(1, lines - 2)}>
-              {item.sublabel}
-            </Text>
-          )}
-          <Text type="supporting" color="primary" maxLines={1}>
-            {lines === 2 && item.sublabel ? `${time}, ${item.sublabel}` : time}
-          </Text>
-        </>
-      )}
-    </VStack>
+        {item.sublabel ? `, ${item.sublabel}` : `, ${time}`}
+      </Text>
+    </HStack>
   );
+  const content =
+    fit === 'tiny' ? null : fit === 'short' ? (
+      // Too short for a line of supporting text: a smaller one, set tight.
+      <VStack gap={0} hAlign="stretch" className="mc-item-short">
+        {oneLine('inherit')}
+      </VStack>
+    ) : (
+      <VStack gap={0} hAlign="stretch">
+        {lines === 1 ? (
+          oneLine('supporting')
+        ) : (
+          <>
+            <HStack gap={1} vAlign="center">
+              {flag}
+              <Text type="supporting" color="primary" weight="semibold" maxLines={1}>
+                {item.label}
+              </Text>
+            </HStack>
+            {lines >= 3 && item.sublabel && (
+              <Text type="supporting" color="primary" maxLines={Math.max(1, lines - 2)}>
+                {item.sublabel}
+              </Text>
+            )}
+            <Text type="supporting" color="primary" maxLines={1}>
+              {lines === 2 && item.sublabel ? `${item.sublabel}, ${time}` : time}
+            </Text>
+          </>
+        )}
+      </VStack>
+    );
   const variant = isAppointment ? item.colour : 'default';
+  // Too short for any text: what it is shows on hover and focus.
+  const withTooltip = (card: ReactElement) => (fit === 'tiny' ? <Tooltip content={item.description}>{card}</Tooltip> : card);
   if (!onOpen) {
     // Nothing to open: shown as a plain card, named by its description.
-    return (
-      <Card variant={variant} padding={0} data-kind={item.kind} style={style}>
+    return withTooltip(
+      <Card variant={variant} padding={0} data-kind={item.kind} data-fit={fit} style={style}>
         <VisuallyHidden>{item.description}</VisuallyHidden>
         <span aria-hidden>{content}</span>
-      </Card>
+      </Card>,
     );
   }
-  return (
+  return withTooltip(
     <ClickableCard
       label={item.description}
       variant={variant}
@@ -699,9 +749,10 @@ function GridItem({
       onPointerMove={onPointerDown ? onPointerMove : undefined}
       onPointerUp={onPointerDown ? onPointerUp : undefined}
       data-kind={item.kind}
+      data-fit={fit}
       style={style}>
       {content}
-    </ClickableCard>
+    </ClickableCard>,
   );
 }
 
@@ -730,6 +781,7 @@ const GRID_CSS = `
 .medapp-calendar .mc-selection, .medapp-calendar .mc-ghost { position: absolute; inset-inline: var(--spacing-0-5); z-index: 3; box-sizing: border-box; padding-inline: var(--spacing-1-5); overflow: hidden; pointer-events: none; border-radius: var(--radius-inner); }
 .medapp-calendar .mc-selection { background: var(--color-accent-muted); border: 1px solid var(--color-accent); }
 .medapp-calendar .mc-ghost { background: var(--color-background-popover); border: 2px dashed var(--color-accent); box-shadow: var(--shadow-med, none); }
-.medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 4; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }
-.medapp-calendar .mc-now::before { content: ''; position: absolute; inset-inline-start: calc(-1 * var(--spacing-1)); inset-block-start: calc(-1 * var(--spacing-1) + 1px); inline-size: var(--spacing-2); block-size: var(--spacing-2); border-radius: var(--radius-full); background: var(--color-icon-error); }
+.medapp-calendar .mc-item-short { font-size: var(--font-size-xs); line-height: 1; padding-block-start: var(--spacing-0-5); }
+.medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 0; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }
+.medapp-calendar .mc-now-dot { position: absolute; inset-inline-start: calc(-1 * var(--spacing-1)); z-index: 4; margin-block-start: calc(-1 * var(--spacing-1) + 1px); inline-size: var(--spacing-2); block-size: var(--spacing-2); border-radius: var(--radius-full); background: var(--color-icon-error); pointer-events: none; }
 `;

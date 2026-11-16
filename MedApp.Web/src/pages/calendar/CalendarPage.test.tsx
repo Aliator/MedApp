@@ -170,12 +170,19 @@ describe('CalendarPage', () => {
   });
 
   it('books or blocks from New, without the grid', async () => {
-    const {user} = renderPage();
+    // Before the working day, with its first half hour blocked and an appointment at 09:00.
+    const {user} = renderPage({
+      calendar: {blocks: [testBlock(MONDAY, '08:00', '08:30')], appointments: [testAppointment({date: MONDAY, start: '09:00', end: '09:30'})]},
+    });
 
+    await screen.findByRole('button', {name: /^Test Patient/});
     await user.click(await screen.findByRole('button', {name: 'New'}));
     await user.click(await screen.findByRole('menuitem', {name: 'Block time'}));
     expect(await screen.findByRole('heading', {name: 'Block Time'})).toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Monday 23 November');
+    // It starts in the first free time, and ends where the appointment starts.
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('08:30');
+    expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('09:00');
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
 
     await user.click(screen.getByRole('button', {name: 'New'}));

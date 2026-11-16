@@ -68,13 +68,66 @@ describe('CalendarGrid', () => {
     await user.keyboard('{Enter}');
     expect(onItemOpen).toHaveBeenCalledWith(block);
 
-    // A 15-minute appointment shows on one line.
-    expect(screen.getByRole('button', {name: 'Test Patient, Appointment, 10:00 to 10:15, Booked'}).closest('[data-kind]')).toHaveTextContent(
-      'Test Patient, Appointment',
-    );
+    // A 15-minute appointment shows on one line; one that isn't for a procedure shows whose it is, and when.
+    const shortCard = screen.getByRole('button', {name: 'Test Patient, appointment, 10:00 to 10:15, Booked'}).closest('[data-kind]');
+    expect(shortCard).toHaveTextContent('Test Patient, 10:00 to 10:15');
+    expect(shortCard).not.toHaveTextContent('Appointment');
     // Times under something aren't free.
     expect(screen.queryByRole('button', {name: 'Monday 23 November, 09:15, free'})).not.toBeInTheDocument();
     expect(slot('Monday 23 November, 10:00, free')).toBeInTheDocument();
+  });
+
+  it('orders the lines of a card the same way, whatever its height: who, what for, then when', async () => {
+    atMondayMorning();
+    const half = appointmentItem(testAppointment({id: 'half', date: MONDAY, start: '09:00', end: '09:30'}));
+    const hour = appointmentItem(testAppointment({id: 'hour', date: MONDAY, start: '10:00', end: '11:00'}));
+    const block = blockItem(testBlock(MONDAY, '12:00', '12:30', {overlapsAppointment: true}));
+    const quiet = blockItem(testBlock(MONDAY, '13:00', '13:30', {blockId: 'quiet'}));
+    renderGrid({items: [half, hour, block, quiet]});
+
+    const lines = (name: RegExp) =>
+      Array.from(screen.getByRole('button', {name}).closest('[data-kind]')!.querySelectorAll('.astryx-text'))
+        .filter((t) => !t.parentElement?.closest('.astryx-text'))
+        .map((t) => t.textContent);
+    expect(await screen.findByRole('button', {name: /09:00 to 09:30/})).toBeInTheDocument();
+    expect(lines(/09:00 to 09:30/)).toEqual(['Test Patient', 'Knee review: Assessment, 09:00 to 09:30']);
+    expect(lines(/10:00 to 11:00/)).toEqual(['Test Patient', 'Knee review: Assessment', '10:00 to 11:00']);
+    // A flagged block shows its warning beside its name; one without a note shows its time.
+    expect(screen.getByRole('button', {name: /^Lunch, 12:00/}).closest('[data-kind]')!.querySelector('svg')).not.toBeNull();
+    expect(lines(/^Lunch, 13:00/)).toEqual(['Lunch', '13:00 to 13:30']);
+  });
+
+  it('keeps items shorter than 15 minutes legible: a small line, or only a tooltip when too short for one', async () => {
+    atMondayMorning();
+    const ten = appointmentItem(testAppointment({id: 'ten', date: MONDAY, start: '09:00', end: '09:10'}));
+    const five = blockItem(testBlock(MONDAY, '12:00', '12:05', {overlapsAppointment: true}));
+    const {user} = renderGrid({items: [ten, five]});
+
+    const tenCard = (await screen.findByRole('button', {name: 'Test Patient, Knee review: Assessment, 09:00 to 09:10, Booked'})).closest('[data-kind]')!;
+    expect(tenCard).toHaveAttribute('data-fit', 'short');
+    expect(tenCard.querySelector('.mc-item-short')).toHaveTextContent('Test Patient, Knee review: Assessment');
+
+    const fiveButton = screen.getByRole('button', {name: 'Lunch, 12:00 to 12:05, overlaps an appointment'});
+    const fiveCard = fiveButton.closest('[data-kind]')!;
+    expect(fiveCard).toHaveAttribute('data-fit', 'tiny');
+    expect(fiveCard.textContent).toBe('');
+    await user.hover(fiveButton);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Lunch, 12:00 to 12:05, overlaps an appointment');
+  });
+
+  it('shows read-only items too short for text with a tooltip, named for screen readers', async () => {
+    atMondayMorning();
+    const five = {...blockItem(testBlock(MONDAY, '12:00', '12:05')), isReadOnly: true};
+    renderWithApp(<CalendarGrid label="Today" days={[calendarDay(MONDAY, MONDAY)]} items={[five]} onItemOpen={vi.fn()} isHeadingHidden />);
+
+    await screen.findByRole('group', {name: 'Today'});
+    const card = document.querySelector('[data-kind="block"]')!;
+    expect(card).toHaveAttribute('data-fit', 'tiny');
+    expect(within(card as HTMLElement).getByText('Lunch, 12:00 to 12:05')).toBeInTheDocument();
+    expect(within(card as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
+    // Its column heading is left out: something above names the day.
+    expect(document.querySelector('.mc-head')).toBeNull();
+    expect(column('Monday 23 November, today')).toBeInTheDocument();
   });
 
   it('puts items that overlap side by side', async () => {
@@ -169,7 +222,20 @@ describe('CalendarGrid', () => {
     expect(column('Monday 23 November')).toHaveAttribute('data-past', 'true');
     expect(screen.queryByRole('button', {name: 'Tuesday 24 November, 10:00, free'})).not.toBeInTheDocument();
     expect(slot('Tuesday 24 November, 10:15, free')).toHaveAttribute('tabindex', '0');
-    expect(document.querySelector('.mc-now')).not.toBeNull();
+    // The line for now is under the items (before them), so it never runs through their text; its dot is over them.
+    const now = document.querySelector('.mc-now')!;
+    expect(now).not.toBeNull();
+    expect(now.parentElement!.querySelector('.mc-now-dot')).not.toBeNull();
+  });
+
+  it('draws the line for now behind items', async () => {
+    atMondayMorning('2026-11-23T09:10:00Z');
+    renderGrid({items: [appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '09:30'}))]});
+
+    const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest('[data-kind]')!;
+    const now = document.querySelector('.mc-now')!;
+    expect(now.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('.medapp-calendar style')!.textContent).toMatch(/\.mc-now \{[^}]*z-index: 0;/);
   });
 
   it('opens scrolled to an hour before now when today is shown and under way, and only the first time', async () => {
@@ -219,8 +285,10 @@ describe('CalendarGrid', () => {
     await user.click(await screen.findByRole('button', {name: /^Test Patient/}));
     expect(onItemOpen).toHaveBeenCalled();
     expect(screen.queryAllByRole('button', {name: /, free$/})).toHaveLength(0);
-    // One day is headed in full.
-    expect(screen.getByText('Monday 23 November')).toBeInTheDocument();
+    // One day is headed by its weekday: the page around it gives the date.
+    expect(screen.getByText('Monday')).toBeInTheDocument();
+    expect(screen.queryByText('Monday 23 November')).not.toBeInTheDocument();
+    expect(column('Monday 23 November, today')).toBeInTheDocument();
   });
 
   it('shows a held selection, and opens a day from its heading', async () => {

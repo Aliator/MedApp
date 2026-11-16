@@ -22,7 +22,7 @@ export interface CalendarGridItem {
   colour: TokenColor;
   /** The first line: a patient's name, an activity. */
   label: string;
-  /** The second line: what it's for, a block's note. */
+  /** The second line: what it's for (nothing for an appointment that isn't for a procedure), a block's note. */
   sublabel?: string | null;
   /** Everything about it, in words: its accessible name, and its tooltip. */
   description: string;
@@ -52,8 +52,10 @@ export const blockKey = (block: CalendarBlock) => `block-${block.blockId ?? `${b
 export function appointmentItem(appointment: Appointment): CalendarGridItem {
   const start = appointment.startUtc ?? '';
   const end = appointment.endUtc ?? '';
-  const purpose = appointmentPurpose(appointment);
   const status = appointment.status ?? '';
+  const patient = appointment.patientName ?? '';
+  // One that isn't for a procedure has nothing more to say on its card than whose it is.
+  const purpose = appointment.procedureTitle ? appointmentPurpose(appointment) : null;
   return {
     key: appointmentKey(appointment.id),
     kind: 'appointment',
@@ -61,9 +63,9 @@ export function appointmentItem(appointment: Appointment): CalendarGridItem {
     startUtc: start,
     endUtc: end,
     colour: APPOINTMENT_STATUS_COLOURS[status] ?? 'blue',
-    label: appointment.patientName ?? '',
+    label: patient,
     sublabel: purpose,
-    description: `${appointment.patientName ?? ''}, ${purpose}, ${formatTimeRange(start, end)}, ${appointmentStatusLabel(status)}`,
+    description: `${patient}, ${purpose ?? 'appointment'}, ${formatTimeRange(start, end)}, ${appointmentStatusLabel(status)}`,
     isMovable: appointment.canReschedule === true,
   };
 }

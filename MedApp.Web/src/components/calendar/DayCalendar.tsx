@@ -104,7 +104,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
               </Section>
             )}
             <StackItem size="fill">
-              <CalendarGrid label={`${calendar.data?.staffUsername ?? ''}'s calendar, ${formatCalendarDay(date)}`} days={[day]} items={items} onItemOpen={open} />
+              <CalendarGrid label={`${calendar.data?.staffUsername ?? ''}'s calendar, ${formatCalendarDay(date)}`} days={[day]} items={items} onItemOpen={open} isHeadingHidden />
             </StackItem>
           </>
         )}

@@ -6,6 +6,7 @@ import {
   dayOfWeek,
   formatCalendarDay,
   formatShortDay,
+  formatWeekday,
   formatTimeRange,
   freeStarts,
   freeStartsByDay,
@@ -176,6 +177,7 @@ describe('words', () => {
   it('names days and times as UK readers expect', () => {
     expect(formatCalendarDay(MONDAY)).toBe('Monday 23 November');
     expect(formatShortDay(MONDAY)).toBe('Mon 23');
+    expect(formatWeekday(MONDAY)).toBe('Monday');
     expect(formatTimeRange(ukTime(MONDAY, '09:00'), ukTime(MONDAY, '09:30'))).toBe('09:00 to 09:30');
   });
 });

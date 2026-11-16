@@ -47,7 +47,9 @@ describe('NeedsBookingPage', () => {
     expect(screen.getByText('Overdue')).toBeInTheDocument();
     expect(screen.getByText('Automatic')).toBeInTheDocument();
     expect(screen.getByText('Appointment')).toBeInTheDocument();
-    expect(screen.getByText('None')).toBeInTheDocument();
+    // No procedure, so no due date: a dash, as other lists show a missing value.
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('None')).not.toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/appointments/search?Statuses=Requested&Page=1&PageSize=10&Sort=dueDate&Ascending=true');
   });
 

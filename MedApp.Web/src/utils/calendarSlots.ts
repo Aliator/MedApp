@@ -150,6 +150,11 @@ export function formatCalendarDay(date: string): string {
   return `${part.weekday} ${part.day} ${part.month}`;
 }
 
+/** A calendar day's weekday, in full: "Monday". */
+export function formatWeekday(date: string): string {
+  return dayParts(DAY_NAME, date).weekday;
+}
+
 /** A calendar day, short, for a column or a button: "Mon 23". */
 export function formatShortDay(date: string): string {
   const part = dayParts(SHORT_DAY_NAME, date);

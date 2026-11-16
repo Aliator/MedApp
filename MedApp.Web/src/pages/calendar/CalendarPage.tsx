@@ -318,6 +318,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             date={blocking?.selection?.date ?? (days.some((d) => d.date === date && d.isWorkingDay && !d.isPast) ? date : undefined)}
             startUtc={blocking?.selection?.startUtc}
             endUtc={blocking?.selection?.endUtc}
+            calendar={calendar.data}
             onClose={() => setBlocking(null)}
           />
           <AppointmentDialog appointment={search.appointment ? linkedAppointment : null} onClose={() => go({appointment: undefined})} />

@@ -1,22 +1,31 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector} from '@astryxdesign/core/Selector';
+import {Selector, SelectorOption} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {useQuery} from '@tanstack/react-query';
 import {useRef, useState} from 'react';
-import {activityTypesQuery, useCalendarActions, type CalendarBlock, type CalendarDay} from '../../api/calendar';
+import {activityTypesQuery, useCalendarActions, type Calendar, type CalendarBlock, type CalendarDay} from '../../api/calendar';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
-import {formatCalendarDay, formatTimeRange, minutesBetween, SLOT_MINUTES, addMinutes} from '../../utils/calendarSlots';
-import {formatTime} from '../../utils/dates';
+import {
+  addMinutes,
+  busyTimes,
+  formatCalendarDay,
+  formatTimeRange,
+  minutesBetween,
+  overlaps,
+  SLOT_MINUTES,
+  type Interval,
+} from '../../utils/calendarSlots';
+import {formatTime, parseUtc} from '../../utils/dates';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
-import {ActivityToken, activityColour} from './CalendarTokens';
+import {ActivityToken} from './CalendarTokens';
 
 export interface BlockDialogProps {
   isOpen: boolean;
@@ -33,6 +42,11 @@ export interface BlockDialogProps {
   endUtc?: string;
   /** Whether it can be changed (the calendar's owner or an admin, not on a past day); otherwise it's only shown. */
   canEdit?: boolean;
+  /**
+   * What's already on the calendar (its blocks and appointments), when it's loaded: a new block without a time then
+   * starts in the first free time instead of on top of something.
+   */
+  calendar?: Pick<Calendar, 'blocks' | 'appointments'>;
 }
 
 /** The fields a 400 can name, shown on the fields themselves. */
@@ -57,18 +71,39 @@ export function BlockDialog(props: BlockDialogProps) {
   return <BlockForm key={session} {...props} />;
 }
 
+const MINUTE = 60_000;
+/** A block's default length: an hour. */
+const DEFAULT_LENGTH = 4 * SLOT_MINUTES;
+
 /**
- * Where a new block starts when nothing chose a time: the start of the working day, or on today the next
- * 15-minute step from now, so it isn't offered in time that has gone (an hour before the end at the latest).
+ * Where a new block starts and ends when nothing chose a time, in minutes from the start of the working day.
+ *
+ * It starts at the start of the working day, or on today the next 15-minute step from now, so it isn't offered in time
+ * that has gone. Knowing what's already on the calendar (`busy`), it starts at the first 15 minutes from there that are
+ * free, and ends an hour later or where the next thing starts, whichever is sooner. Otherwise, or when nothing is free,
+ * it's an hour from that start (an hour before the end of the day at the latest).
  */
-function firstStartFromNow(day: CalendarDay | undefined, dayMinutes: number, now: Date = new Date()): number {
-  if (!day?.isToday || !day.workStartUtc) return 0;
-  const passed = minutesBetween(day.workStartUtc, now.toISOString());
-  const next = Math.ceil(passed / SLOT_MINUTES) * SLOT_MINUTES;
-  return Math.min(Math.max(next, 0), Math.max(dayMinutes - 4 * SLOT_MINUTES, 0));
+function defaultTimes(day: CalendarDay | undefined, dayMinutes: number, busy: Interval[] | undefined, now: Date = new Date()) {
+  const fallback = (start: number) => ({start, end: Math.min(start + DEFAULT_LENGTH, dayMinutes)});
+  if (!day?.workStartUtc) return fallback(0);
+  const dayStart = day.workStartUtc;
+  const from = day.isToday ? Math.max(Math.ceil(minutesBetween(dayStart, now.toISOString()) / SLOT_MINUTES) * SLOT_MINUTES, 0) : 0;
+  const latest = Math.max(dayMinutes - DEFAULT_LENGTH, 0);
+  if (!busy) return fallback(Math.min(from, latest));
+  const base = parseUtc(dayStart).getTime();
+  const at = (minutes: number) => base + minutes * MINUTE;
+  for (let start = from; start + SLOT_MINUTES <= dayMinutes; start += SLOT_MINUTES) {
+    const slot = {start: at(start), end: at(start + SLOT_MINUTES)};
+    if (busy.some((b) => overlaps(slot, b))) continue;
+    // Nothing overlaps its first 15 minutes, so anything in the next hour starts after them.
+    const hour = {start: slot.start, end: at(Math.min(start + DEFAULT_LENGTH, dayMinutes))};
+    const next = Math.min(hour.end, ...busy.filter((b) => overlaps(hour, b)).map((b) => b.start));
+    return {start, end: start + Math.round((next - slot.start) / MINUTE)};
+  }
+  return fallback(Math.min(from, latest));
 }
 
-function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, endUtc, canEdit = true}: BlockDialogProps) {
+function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, endUtc, canEdit = true, calendar}: BlockDialogProps) {
   const announce = useAnnounce();
   const actions = useCalendarActions();
   const activityTypes = useQuery({...activityTypesQuery, enabled: isOpen});
@@ -81,8 +116,14 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
   const dayMinutes = day?.workStartUtc && day.workEndUtc ? minutesBetween(day.workStartUtc, day.workEndUtc) : 600;
 
   const offsetOf = (iso: string | null | undefined) => (iso && dayStart ? minutesBetween(dayStart, iso) : null);
-  const [start, setStart] = useState(() => offsetOf(block?.startUtc ?? startUtc) ?? firstStartFromNow(day, dayMinutes));
-  const [end, setEnd] = useState(() => offsetOf(block?.endUtc ?? endUtc) ?? Math.min(start + 4 * SLOT_MINUTES, dayMinutes));
+  const [initial] = useState(() => {
+    const chosen = {start: offsetOf(block?.startUtc ?? startUtc), end: offsetOf(block?.endUtc ?? endUtc)};
+    if (chosen.start !== null && chosen.end !== null) return {start: chosen.start, end: chosen.end};
+    const times = defaultTimes(day, dayMinutes, calendar ? busyTimes(calendar) : undefined);
+    return {start: chosen.start ?? times.start, end: chosen.end ?? times.end};
+  });
+  const [start, setStart] = useState(initial.start);
+  const [end, setEnd] = useState(initial.end);
   const [activityTypeId, setActivityTypeId] = useState(block?.activityTypeId ?? '');
   const [note, setNote] = useState(block?.note ?? '');
   const [problem, setProblem] = useState<{validation: ValidationErrors | null; message: string | null}>({validation: null, message: null});
@@ -91,6 +132,7 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
   const content = useRef<HTMLDivElement>(null);
 
   const activities = (activityTypes.data ?? []).filter((a) => !a.isArchived || a.id === block?.activityTypeId);
+  const colourOf = (id: string) => activities.find((a) => a.id === id)?.colour;
   // The first activity is the default for a new block.
   const activityId = activityTypeId || (block ? '' : (activities[0]?.id ?? ''));
 
@@ -229,11 +271,10 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
                 onChange={setActivityTypeId}
                 isLoading={activityTypes.isLoading}
                 status={fieldStatus(problem.validation, 'activityTypeId')}
-                options={activities.map((a) => ({
-                  value: a.id ?? '',
-                  label: a.name ?? '',
-                  icon: <Icon icon={AppIcon.BlockTime} color={activityColour(a.colour)} />,
-                }))}
+                options={activities.map((a) => ({value: a.id ?? '', label: a.name ?? ''}))}
+                // Each activity in its colour, as it shows on the calendar.
+                renderOption={(option) => <SelectorOption label={<ActivityToken name={option.label ?? ''} colour={colourOf(option.value)} />} />}
+                renderValue={(option) => <ActivityToken name={option.label ?? ''} colour={colourOf(option.value)} />}
               />
               <Selector
                 label="Day"

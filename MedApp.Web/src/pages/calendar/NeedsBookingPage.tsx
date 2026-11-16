@@ -100,7 +100,7 @@ export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps
       header: 'Due',
       sortable: true,
       width: pixel(112),
-      renderCell: (a) => (a.procedureDueDate ? <DueDateCell dueDate={a.procedureDueDate} isOverdue={a.procedureDueDate < today} /> : <TextCell text="None" />),
+      renderCell: (a) => (a.procedureDueDate ? <DueDateCell dueDate={a.procedureDueDate} isOverdue={a.procedureDueDate < today} /> : <TextCell text="—" />),
     },
     {
       key: 'Requested',
