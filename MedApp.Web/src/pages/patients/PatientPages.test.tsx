@@ -129,7 +129,7 @@ describe('ViewPatientPage: appointments', () => {
       'Not booked yet',
     ]);
     expect(upcoming.getAllByText('Knee review, Assessment')).toHaveLength(2);
-    const earlier = within(screen.getByRole('list', {name: 'Earlier appointments'}));
+    const earlier = within(screen.getByRole('list', {name: 'Past and cancelled appointments'}));
     expect(earlier.getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual([
       '/calendar?appointment=past-4',
       '/calendar?appointment=past-3',

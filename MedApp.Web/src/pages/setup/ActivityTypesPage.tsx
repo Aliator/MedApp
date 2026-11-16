@@ -44,6 +44,9 @@ interface ActivityForm {
 
 const FIELDS = ['name', 'colour'];
 
+/** The colour choices' layout: rows that wrap, a little apart. */
+const COLOUR_CHOICES = {flexWrap: 'wrap', rowGap: 'var(--spacing-2)', columnGap: 'var(--spacing-4)'} as const;
+
 /** A palette colour's name, as people say it: "Green", "Grey". */
 export function colourName(colour: string | null | undefined): string {
   if (colour === 'gray') return 'Grey';
@@ -210,6 +213,8 @@ export function ActivityTypesPage({search, onSearchChange}: ActivityTypesPagePro
                 label="Colour"
                 description="How its blocks look on calendars."
                 orientation="horizontal"
+                // Ten colours don't fit on one line of the dialog: they wrap, in rows.
+                controlStyle={COLOUR_CHOICES}
                 value={form.colour}
                 onChange={(colour) => setForm((current) => ({...current, colour: asColour(colour)}))}
                 status={fieldStatus(problem.validation, 'colour')}>

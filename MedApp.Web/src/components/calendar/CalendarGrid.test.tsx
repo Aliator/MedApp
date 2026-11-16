@@ -172,6 +172,44 @@ describe('CalendarGrid', () => {
     expect(document.querySelector('.mc-now')).not.toBeNull();
   });
 
+  it('opens scrolled to an hour before now when today is shown and under way, and only the first time', async () => {
+    // Columns 880px tall, as a browser would lay them out (jsdom lays out nothing).
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('mc-col') ? 880 : 0;
+      },
+    });
+    try {
+      // 11:30: 10:30 is a quarter of the way through the working day.
+      atMondayMorning('2026-11-23T11:30:00Z');
+      const {rerender} = renderGrid();
+      await screen.findByRole('group', {name: 'Monday 23 November, today'});
+      const scroller = document.querySelector<HTMLElement>('.mc-scroll')!;
+      expect(scroller.scrollTop).toBe(220);
+
+      scroller.scrollTop = 0;
+      rerender(<CalendarGrid label="test-user's calendar" days={week('2026-11-24')} items={[]} />);
+      expect(scroller.scrollTop).toBe(0);
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+    }
+  });
+
+  it("stays at the start of the day when it's early, or today isn't shown", async () => {
+    atMondayMorning('2026-11-23T08:30:00Z');
+    const {unmount} = renderGrid();
+    await screen.findByRole('group', {name: 'Monday 23 November, today'});
+    expect(document.querySelector<HTMLElement>('.mc-scroll')!.scrollTop).toBe(0);
+    unmount();
+
+    atMondayMorning('2026-11-30T11:30:00Z');
+    renderGrid({days: week('2026-11-30')});
+    await screen.findByRole('group', {name: "test-user's calendar"});
+    expect(document.querySelector<HTMLElement>('.mc-scroll')!.scrollTop).toBe(0);
+  });
+
   it('is read-only without onSelectRange: items still open', async () => {
     atMondayMorning();
     const appointment = appointmentItem(testAppointment({date: MONDAY}));
@@ -197,7 +235,7 @@ describe('CalendarGrid', () => {
 
     expect(await screen.findByText('14:00 to 15:00')).toBeInTheDocument();
     expect(selectionRef.current).toHaveTextContent('14:00 to 15:00');
-    await user.click(screen.getByRole('button', {name: 'Wednesday 25 November: show the day'}));
+    await user.click(screen.getByRole('button', {name: 'Wed 25: show the day'}));
     expect(onDayOpen).toHaveBeenCalledWith('2026-11-25');
   });
 

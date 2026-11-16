@@ -69,6 +69,22 @@ describe('BlockDialog', () => {
     });
   });
 
+  it("starts today's new block at the next 15 minutes from now, and an hour before the end at the latest", async () => {
+    vi.setSystemTime(new Date('2026-11-23T10:05:00Z'));
+    const {unmount} = renderDialog();
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Activity/})).toHaveTextContent('Lunch'));
+    expect(dialog().getByRole('combobox', {name: /Day/})).toHaveTextContent('Monday 23 November');
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('10:15');
+    expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('11:15');
+    unmount();
+
+    vi.setSystemTime(new Date('2026-11-23T17:40:00Z'));
+    renderDialog();
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Activity/})).toHaveTextContent('Lunch'));
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('17:00');
+    expect(dialog().getByRole('combobox', {name: /End/})).toHaveTextContent('18:00');
+  });
+
   it('starts on the first day that is not past, keeps the length when the start moves, and flags an end before the start', async () => {
     const {user} = renderDialog({days: DAYS.map((d, i) => (i === 0 ? {...d, isPast: true} : d))});
 

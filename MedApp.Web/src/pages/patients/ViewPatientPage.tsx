@@ -178,8 +178,9 @@ function PatientAppointments({patientId}: {patientId: string}) {
       )}
       {past.length > 0 && (
         <VStack gap={2}>
-          <Heading level={3}>Earlier</Heading>
-          <AppointmentList appointments={past} showProcedure label="Earlier appointments" />
+          {/* Cancelled ones may have been for a later day, so not just "Earlier". */}
+          <Heading level={3}>Past and cancelled</Heading>
+          <AppointmentList appointments={past} showProcedure label="Past and cancelled appointments" />
           {morePast > 0 && (
             <Text type="supporting" color="secondary">
               {`And ${morePast} more: the timeline has them all.`}

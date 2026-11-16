@@ -11,7 +11,7 @@ import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import type {ISODateString} from '@astryxdesign/core/Calendar';
 import {keepPreviousData, useQuery} from '@tanstack/react-query';
-import {useEffect, useRef, useState, type RefObject} from 'react';
+import {useEffect, useRef, useState, type CSSProperties, type RefObject} from 'react';
 import {appointmentQuery, appointmentsQuery, useAppointmentActions, type Appointment} from '../../api/appointments';
 import {
   calendarQuery,
@@ -29,6 +29,7 @@ import {BlockDialog} from '../../components/calendar/BlockDialog';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {CalendarGrid, type CalendarSelection} from '../../components/calendar/CalendarGrid';
 import {appointmentKey, blockKey, calendarItems, type CalendarGridItem} from '../../components/calendar/calendarItems';
+import {NO_FIELD_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
@@ -36,6 +37,12 @@ import {AppIcon} from '../../components/shared/icons';
 import {addDays, formatCalendarDay, formatTimeRange, nextWeekday, ukToday, weekStart} from '../../utils/calendarSlots';
 import {formatDate, formatDayHeading, ukDay, WEEK_STARTS_ON} from '../../utils/dates';
 import type {CalendarSearch} from './calendarSearch';
+
+/** The toolbar's date and whose-calendar fields: enough for "Mon, 16 Nov 2026" and a username. */
+const TOOLBAR_FIELD_WIDTH = 175;
+
+/** Text in the secondary colour shown in the primary one instead (the View control's unselected choices). */
+const PRIMARY_TEXT = {'--color-text-secondary': 'var(--color-text-primary)'} as CSSProperties;
 
 /** The days a Calendar page shows: its week (Monday to Sunday), or its one day. */
 export function calendarRange(date: string, view: 'day' | 'week'): {from: string; to: string} {
@@ -363,53 +370,61 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
         </>
       }>
       <VStack gap={4} height="100%">
-        <HStack gap={2} vAlign="end" wrap="wrap">
-          <HStack gap={1} vAlign="center">
-            <IconButton label={view === 'day' ? 'Previous day' : 'Previous week'} tooltip={view === 'day' ? 'Previous day' : 'Previous week'} icon={<Icon icon={AppIcon.ChevronLeft} />} variant="secondary" onClick={() => step(-1)} />
-            <Button label="Today" variant="secondary" isDisabled={date === today && search.date === undefined} onClick={() => go({date: undefined})} />
-            <IconButton label={view === 'day' ? 'Next day' : 'Next week'} tooltip={view === 'day' ? 'Next day' : 'Next week'} icon={<Icon icon={AppIcon.ChevronRight} />} variant="secondary" onClick={() => step(1)} />
+        {/* Two groups that wrap as wholes: getting about (left), and this calendar's templates (right). Its fields
+            never show an error, so they drop the line kept for one, and line up with the buttons. */}
+        <HStack gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            <HStack gap={1} vAlign="center">
+              <IconButton label={view === 'day' ? 'Previous day' : 'Previous week'} tooltip={view === 'day' ? 'Previous day' : 'Previous week'} icon={<Icon icon={AppIcon.ChevronLeft} />} variant="secondary" onClick={() => step(-1)} />
+              <Button label="Today" variant="secondary" isDisabled={date === today && search.date === undefined} onClick={() => go({date: undefined})} />
+              <IconButton label={view === 'day' ? 'Next day' : 'Next week'} tooltip={view === 'day' ? 'Next day' : 'Next week'} icon={<Icon icon={AppIcon.ChevronRight} />} variant="secondary" onClick={() => step(1)} />
+            </HStack>
+            <DateInput
+              label="Go to date"
+              isLabelHidden
+              value={date as ISODateString}
+              onChange={(value) => value && go({date: value === today ? undefined : value})}
+              weekStartsOn={WEEK_STARTS_ON}
+              format="date_weekday"
+              width={TOOLBAR_FIELD_WIDTH}
+            />
+            {!isNarrow && (
+              // Its unselected choices use the primary text colour: the secondary one is under 4.5:1 on its track.
+              <SegmentedControl label="View" value={view} onChange={(value) => go({view: value === 'day' ? 'day' : undefined})} style={PRIMARY_TEXT}>
+                <SegmentedControlItem value="day" label="Day" />
+                <SegmentedControlItem value="week" label="Week" />
+              </SegmentedControl>
+            )}
+            <Selector
+              label="Whose calendar"
+              isLabelHidden
+              value={staffUserId}
+              onChange={(value) => go({staff: value === myId ? undefined : value, appointment: undefined})}
+              options={staffOptions}
+              hasSearch={staffOptions.length > 8}
+              isLoading={staff.isLoading}
+              startIcon={AppIcon.Users}
+              width={TOOLBAR_FIELD_WIDTH}
+            />
           </HStack>
-          <DateInput
-            label="Go to date"
-            isLabelHidden
-            value={date as ISODateString}
-            onChange={(value) => value && go({date: value === today ? undefined : value})}
-            weekStartsOn={WEEK_STARTS_ON}
-            format="date_weekday"
-          />
-          {!isNarrow && (
-            <SegmentedControl label="View" value={view} onChange={(value) => go({view: value === 'day' ? 'day' : undefined})}>
-              <SegmentedControlItem value="day" label="Day" />
-              <SegmentedControlItem value="week" label="Week" />
-            </SegmentedControl>
-          )}
-          <Selector
-            label="Whose calendar"
-            isLabelHidden
-            value={staffUserId}
-            onChange={(value) => go({staff: value === myId ? undefined : value, appointment: undefined})}
-            options={staffOptions}
-            hasSearch={staffOptions.length > 8}
-            isLoading={staff.isLoading}
-            startIcon={AppIcon.Users}
-            width={220}
-          />
           <StackItem size="fill" />
-          {view === 'day' && canEdit && day?.isWorkingDay && !day.isPast && (
-            <DropdownMenu
-              button={{label: day.dayTemplateName ? `This day: ${day.dayTemplateName}` : "This day's template", variant: 'secondary'}}
-              items={templateItems}
-            />
-          )}
-          {canSetDefaultWeek && calendar.data && (
-            <DropdownMenu
-              button={{
-                label: `Default week: ${calendar.data.defaultWeekTemplateName ?? 'None'}`,
-                variant: 'secondary',
-              }}
-              items={weekItems}
-            />
-          )}
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            {view === 'day' && canEdit && day?.isWorkingDay && !day.isPast && (
+              <DropdownMenu
+                button={{label: day.dayTemplateName ? `This day: ${day.dayTemplateName}` : "This day's template", variant: 'secondary'}}
+                items={templateItems}
+              />
+            )}
+            {canSetDefaultWeek && calendar.data && (
+              <DropdownMenu
+                button={{
+                  label: `Default week: ${calendar.data.defaultWeekTemplateName ?? 'None'}`,
+                  variant: 'secondary',
+                }}
+                items={weekItems}
+              />
+            )}
+          </HStack>
         </HStack>
         <StackItem size="fill">
           <Card padding={0} width="100%" height="100%">

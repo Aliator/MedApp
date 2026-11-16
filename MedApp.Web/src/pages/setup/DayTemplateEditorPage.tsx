@@ -1,6 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
+import {Divider} from '@astryxdesign/core/Divider';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
@@ -217,7 +218,9 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
             .concat(activity?.isArchived ? [activity] : [])
             .map((a) => ({value: a.id ?? '', label: a.isArchived ? `${a.name} (archived)` : (a.name ?? '')}));
           return (
-            <VStack key={row.key} id={rowId(row.key)} role="group" aria-label={`Block ${i + 1}: ${activityName(row.activityTypeId)}, ${row.startTime} to ${row.endTime}`}>
+            <VStack key={row.key} gap={4} id={rowId(row.key)} role="group" aria-label={`Block ${i + 1}: ${activityName(row.activityTypeId)}, ${row.startTime} to ${row.endTime}`}>
+              {/* A line between blocks, as each one's fields wrap onto two lines in a narrow card. */}
+              {i > 0 && <Divider />}
               <HStack gap={2} vAlign="start" wrap="wrap">
                 <StackItem size="fill">
                   <Selector
@@ -259,9 +262,9 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
                     containerStyle={{minWidth: 160}}
                   />
                 </StackItem>
-                <VStack gap={0} hAlign="end">
-                  {/* Level with the fields, under their labels. */}
-                  <Text type="supporting" color="secondary" aria-hidden>
+                <VStack gap={1} hAlign="end">
+                  {/* Level with the fields, under their labels (a line of label text, as tall as theirs). */}
+                  <Text type="label" weight="semibold" aria-hidden>
                     {' '}
                   </Text>
                   <IconButton

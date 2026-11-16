@@ -15,7 +15,7 @@ export interface FoldingSection {
 
 export interface FoldingCardProps {
   sections: FoldingSection[];
-  /** Buttons in a footer pinned to the bottom, aligned to the end. */
+  /** Buttons in a footer pinned to the bottom, aligned to the end (wrapping onto another line when they don't fit). */
   footerActions?: ReactNode;
 }
 
@@ -48,7 +48,7 @@ export function FoldingCard({sections, footerActions}: FoldingCardProps) {
         </StackItem>
         {footerActions && (
           <Section variant="muted" padding={4} dividers={['top']}>
-            <HStack gap={2} vAlign="center" hAlign="end">
+            <HStack gap={2} vAlign="center" hAlign="end" wrap="wrap">
               {footerActions}
             </HStack>
           </Section>

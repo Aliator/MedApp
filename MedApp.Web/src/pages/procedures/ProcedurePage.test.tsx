@@ -688,7 +688,7 @@ describe('ProcedurePage: visits and appointments', () => {
     expect(await findAlert('Too early.')).toBeInTheDocument();
   });
 
-  it('books an appointment for the procedure from the footer, and closes the booking', async () => {
+  it('books an appointment for the procedure from its Appointments, and closes the booking', async () => {
     const {user} = renderVisit(working(), []);
 
     await user.click(await screen.findByRole('button', {name: 'Book Appointment'}));

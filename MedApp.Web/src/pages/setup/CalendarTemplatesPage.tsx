@@ -25,6 +25,7 @@ import {ActivityToken} from '../../components/calendar/CalendarTokens';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
+import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
@@ -510,7 +511,8 @@ function StaffDefaultsList({search, onSearchChange, onError}: ListProps) {
           value={s.weekTemplateId ?? NO_WEEK}
           isDisabled={savingFor === s.userId}
           onChange={(value) => choose(s, value)}
-          containerStyle={{width: '100%'}}
+          // Level with the name beside it: it never shows an error, so it drops the line kept for one.
+          containerStyle={{width: '100%', maxWidth: 360, ...NO_STATUS_LINE}}
         />
       ),
     },

@@ -115,7 +115,7 @@ describe('CalendarPage', () => {
     await user.click(screen.getByRole('button', {name: 'Previous week'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({date: MONDAY});
 
-    await user.click(await screen.findByRole('button', {name: 'Wednesday 25 November: show the day'}));
+    await user.click(await screen.findByRole('button', {name: 'Wed 25: show the day'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({date: '2026-11-25', view: 'day'});
     expect(await screen.findByText('My calendar · Wednesday 25 November 2026')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Next day'}));

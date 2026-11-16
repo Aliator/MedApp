@@ -400,11 +400,13 @@ function BookingForm({
               {weekDays.map((d) => {
                 const count = free[d.date ?? '']?.length ?? 0;
                 const words = d.isPast ? 'Past' : count === 0 ? 'Full' : `${count} free`;
+                const isChosen = d.date === day;
                 return (
                   <ToggleButton
                     key={d.date}
-                    label={`${formatCalendarDay(d.date ?? '')}, ${count === 0 ? (d.isPast ? 'past' : 'nothing free') : `${count} free ${count === 1 ? 'time' : 'times'}`}`}
-                    isPressed={d.date === day}
+                    // The words people see, in order (WCAG 2.5.3, label in name): "Mon 23, 35 free times".
+                    label={`${formatShortDay(d.date ?? '')}, ${count === 0 ? words : `${count} free ${count === 1 ? 'time' : 'times'}`}`}
+                    isPressed={isChosen}
                     isDisabled={count === 0}
                     // Two lines (the day, then how many times are free): a button's own height fits one.
                     style={{inlineSize: '100%', blockSize: 'auto', paddingBlock: 'var(--spacing-1-5)'}}
@@ -416,7 +418,9 @@ function BookingForm({
                       <Text type="body" weight="semibold" maxLines={1}>
                         {formatShortDay(d.date ?? '')}
                       </Text>
-                      <Text type="supporting" color="secondary" maxLines={1}>
+                      {/* A space between the lines: none shows in the stack, but the button's text reads "Mon 23 35 free". */}{' '}
+                      {/* The chosen day's shading leaves secondary text under 4.5:1, so it's primary there. */}
+                      <Text type="supporting" color={isChosen ? 'primary' : 'secondary'} maxLines={1}>
                         {words}
                       </Text>
                     </VStack>

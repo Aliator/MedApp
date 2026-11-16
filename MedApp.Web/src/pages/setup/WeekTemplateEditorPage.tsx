@@ -1,7 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Selector} from '@astryxdesign/core/Selector';
-import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
@@ -184,35 +184,26 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
         </FormSection>
         <FormSection title="Days" useGrid={false}>
           <VStack gap={2}>
+            {/* Above the days, so every day's field is the same width. */}
+            <HStack hAlign="end">
+              <Button
+                label="Same Every Day"
+                tooltip="Use Monday's day template for Tuesday to Friday too"
+                variant="secondary"
+                isDisabled={save.isPending || isSameEveryDay}
+                onClick={sameEveryDay}
+              />
+            </HStack>
             {WEEKDAYS.map(({key, name: dayName}) => (
-              <HStack key={key} gap={2} vAlign="start" wrap="wrap">
-                <StackItem size="fill">
-                  <Selector
-                    label={dayName}
-                    description={blocksSummary(days[key] === NONE ? undefined : byId.get(days[key]))}
-                    options={optionsFor(days[key])}
-                    value={days[key]}
-                    onChange={(value) => setDays((current) => ({...current, [key]: value}))}
-                    isDisabled={save.isPending}
-                    containerStyle={{minWidth: 200}}
-                  />
-                </StackItem>
-                {key === 'monday' && (
-                  <VStack gap={0}>
-                    {/* Level with the field, under its label and description. */}
-                    <Text type="supporting" color="secondary" aria-hidden>
-                      {' '}
-                    </Text>
-                    <Button
-                      label="Same Every Day"
-                      tooltip="Use Monday's day template for Tuesday to Friday too"
-                      variant="secondary"
-                      isDisabled={save.isPending || isSameEveryDay}
-                      onClick={sameEveryDay}
-                    />
-                  </VStack>
-                )}
-              </HStack>
+              <Selector
+                key={key}
+                label={dayName}
+                description={blocksSummary(days[key] === NONE ? undefined : byId.get(days[key]))}
+                options={optionsFor(days[key])}
+                value={days[key]}
+                onChange={(value) => setDays((current) => ({...current, [key]: value}))}
+                isDisabled={save.isPending}
+              />
             ))}
             {['Saturday', 'Sunday'].map((dayName) => (
               <VStack key={dayName} gap={1}>

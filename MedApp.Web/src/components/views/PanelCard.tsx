@@ -84,7 +84,7 @@ export interface PanelCardProps {
    * parts: it gets the card's remaining height (`height="100%"`) and nothing outside those parts moves.
    */
   isBodyScrollable?: boolean;
-  /** Buttons in a footer pinned to the bottom, aligned to the end. */
+  /** Buttons in a footer pinned to the bottom, aligned to the end (wrapping onto another line when they don't fit). */
   footerActions?: ReactNode;
   /** Makes the header bar clickable. Put a control for it in `headerActions` too, so the keyboard can reach it. */
   onHeaderClick?: () => void;
@@ -119,7 +119,7 @@ export function PanelCard({
         </StackItem>
         {footerActions && (
           <Section variant="muted" padding={4} dividers={['top']}>
-            <HStack gap={2} vAlign="center" hAlign="end">
+            <HStack gap={2} vAlign="center" hAlign="end" wrap="wrap">
               {footerActions}
             </HStack>
           </Section>

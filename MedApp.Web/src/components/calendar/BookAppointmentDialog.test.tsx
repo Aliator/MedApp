@@ -58,7 +58,7 @@ describe('BookAppointmentDialog', () => {
     expect(dialog().getByText('Test Patient')).toBeInTheDocument();
     expect(dialog().getByText('Knee review: Assessment')).toBeInTheDocument();
     // The first working day with a free time is chosen; the morning's first hour is taken by a block.
-    const monday = await dialog().findByRole('button', {name: 'Monday 23 November, 35 free times'});
+    const monday = await dialog().findByRole('button', {name: 'Mon 23, 35 free times'});
     expect(monday).toHaveAttribute('aria-pressed', 'true');
     const morning = dialog().getByRole('group', {name: 'Morning times on Monday 23 November'});
     expect(within(morning).queryByRole('button', {name: '08:45'})).not.toBeInTheDocument();
@@ -329,18 +329,18 @@ describe('BookAppointmentDialog', () => {
 
     await screen.findByRole('dialog');
     expect(await dialog().findByText('Week of Monday 30 November')).toBeInTheDocument();
-    expect(await dialog().findByRole('button', {name: 'Monday 30 November, 39 free times'})).toBeInTheDocument();
+    expect(await dialog().findByRole('button', {name: 'Mon 30, 39 free times'})).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/calendar?StaffUserId=${STAFF_ME.userId}&From=2026-11-23&To=2026-11-27`);
 
     await user.click(dialog().getByRole('button', {name: 'Previous week'}));
     expect(await dialog().findByText(/Nothing is free this week for test-user/)).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Previous week'}))).toBe(true);
     expect(dialog().getByText(/Nothing is free this week for test-user/)).toBeInTheDocument();
-    expect(isDisabled(dialog().getByRole('button', {name: 'Friday 27 November, nothing free'}))).toBe(true);
-    expect(dialog().getByRole('button', {name: 'Monday 23 November, past'})).toBeInTheDocument();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Fri 27, Full'}))).toBe(true);
+    expect(dialog().getByRole('button', {name: 'Mon 23, Past'})).toBeInTheDocument();
 
     await user.click(dialog().getByRole('button', {name: 'Next week'}));
-    await user.click(await dialog().findByRole('button', {name: 'Tuesday 1 December, 39 free times'}));
+    await user.click(await dialog().findByRole('button', {name: 'Tue 1, 39 free times'}));
     expect(dialog().getByRole('group', {name: 'Morning times on Tuesday 1 December'})).toBeInTheDocument();
   });
 
@@ -373,7 +373,7 @@ describe('BookAppointmentDialog', () => {
     await user.click(dialog().getByRole('combobox', {name: /With/}));
     await user.click(screen.getByRole('option', {name: 'b.staff'}));
 
-    expect(await dialog().findByRole('button', {name: 'Monday 23 November, 23 free times'})).toBeInTheDocument();
+    expect(await dialog().findByRole('button', {name: 'Mon 23, 23 free times'})).toBeInTheDocument();
     expect(dialog().queryByRole('group', {name: /Morning times/})).not.toBeInTheDocument();
     expect(dialog().getByText('Choose a time, or add it to Needs booking to book later.')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/calendar?StaffUserId=${STAFF_OTHER.userId}&From=2026-11-23&To=2026-11-27`);

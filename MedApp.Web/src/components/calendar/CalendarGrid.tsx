@@ -43,6 +43,8 @@ export interface CalendarGridProps {
 
 const MINUTE = 60_000;
 const SLOT = SLOT_MINUTES * MINUTE;
+/** How much of today before now stays in view when the grid opens on it. */
+const SCROLL_LEAD = 60 * MINUTE;
 /** Rows in a working day (08:00 to 18:00), when a day doesn't say. */
 const DEFAULT_ROWS = 40;
 
@@ -185,6 +187,22 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
   const placedByDay = useMemo(() => layouts.map((l) => placeItems(items.filter((i) => i.date === l.date), l)), [layouts, items]);
 
   const nowMs = now ?? undefined;
+
+  // Opens on the part of today that matters: once the time is known (after mount), with today shown and the day under
+  // way, it scrolls so an hour before now is at the top. Only the first time; moving through days leaves it alone.
+  const hasScrolledToNow = useRef(false);
+  useEffect(() => {
+    if (hasScrolledToNow.current || nowMs === undefined) return;
+    hasScrolledToNow.current = true;
+    const index = layouts.findIndex((l) => l.day.isToday);
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const column = columnRefs.current[index];
+    if (index < 0 || !scroller || !column) return;
+    const today = layouts[index];
+    const fraction = (nowMs - SCROLL_LEAD - today.start) / (today.rows * SLOT);
+    if (fraction > 0) scroller.scrollTop = Math.min(fraction, 1) * column.offsetHeight;
+  }, [nowMs, layouts]);
+
   /** A slot that can be selected: free, on a day that can be, and not started yet. */
   const isFree = (day: number, row: number) => {
     const l = layouts[day];
@@ -448,7 +466,8 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                 {onDayOpen && !weekend && !isOneDay ? (
                   <Button
                     label={name}
-                    aria-label={`${formatCalendarDay(l.date)}${l.day.isToday ? ', today' : ''}: show the day`}
+                    // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
+                    aria-label={`${name}${l.day.isToday ? ', today' : ''}: show the day`}
                     variant="ghost"
                     size="sm"
                     onClick={() => onDayOpen(l.date)}
@@ -583,6 +602,10 @@ function rangeStyle(l: DayLayout, startUtc: string, endUtc: string) {
   return {top: `${((t.start - l.start) / span) * 100}%`, height: `${((t.end - t.start) / span) * 100}%`};
 }
 
+/** A block's stripe colour: its activity's background, and half of it in dark mode. */
+const stripe = (colour: string) =>
+  `light-dark(var(--color-background-${colour}), color-mix(in srgb, var(--color-background-${colour}) 50%, transparent))`;
+
 /** One item: a card in its colour (appointments tinted, blocks striped and quieter), as many lines as fit. */
 function GridItem({
   placed,
@@ -608,7 +631,8 @@ function GridItem({
   const style = {
     position: 'absolute' as const,
     top: `${top * 100}%`,
-    height: `${height * 100}%`,
+    // A hair shorter, so items one after another (10:00 to 10:30, then 10:30) don't run together.
+    height: `calc(${height * 100}% - var(--spacing-0-5))`,
     insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
     inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
     zIndex: isAppointment ? 2 : 1,
@@ -622,7 +646,8 @@ function GridItem({
     ...(isAppointment
       ? {}
       : {
-          backgroundImage: `repeating-linear-gradient(135deg, var(--color-background-${item.colour}) 0 var(--spacing-1-5), transparent var(--spacing-1-5) var(--spacing-3))`,
+          // Quieter stripes in dark mode, where the full colour behind the text is busy.
+          backgroundImage: `repeating-linear-gradient(135deg, ${stripe(item.colour)} 0 var(--spacing-1-5), transparent var(--spacing-1-5) var(--spacing-3))`,
         }),
   };
   const content = (

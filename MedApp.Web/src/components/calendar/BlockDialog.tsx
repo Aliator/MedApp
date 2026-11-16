@@ -57,6 +57,17 @@ export function BlockDialog(props: BlockDialogProps) {
   return <BlockForm key={session} {...props} />;
 }
 
+/**
+ * Where a new block starts when nothing chose a time: the start of the working day, or on today the next
+ * 15-minute step from now, so it isn't offered in time that has gone (an hour before the end at the latest).
+ */
+function firstStartFromNow(day: CalendarDay | undefined, dayMinutes: number, now: Date = new Date()): number {
+  if (!day?.isToday || !day.workStartUtc) return 0;
+  const passed = minutesBetween(day.workStartUtc, now.toISOString());
+  const next = Math.ceil(passed / SLOT_MINUTES) * SLOT_MINUTES;
+  return Math.min(Math.max(next, 0), Math.max(dayMinutes - 4 * SLOT_MINUTES, 0));
+}
+
 function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, endUtc, canEdit = true}: BlockDialogProps) {
   const announce = useAnnounce();
   const actions = useCalendarActions();
@@ -70,8 +81,8 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
   const dayMinutes = day?.workStartUtc && day.workEndUtc ? minutesBetween(day.workStartUtc, day.workEndUtc) : 600;
 
   const offsetOf = (iso: string | null | undefined) => (iso && dayStart ? minutesBetween(dayStart, iso) : null);
-  const [start, setStart] = useState(offsetOf(block?.startUtc ?? startUtc) ?? 0);
-  const [end, setEnd] = useState(offsetOf(block?.endUtc ?? endUtc) ?? start + 4 * SLOT_MINUTES);
+  const [start, setStart] = useState(() => offsetOf(block?.startUtc ?? startUtc) ?? firstStartFromNow(day, dayMinutes));
+  const [end, setEnd] = useState(() => offsetOf(block?.endUtc ?? endUtc) ?? Math.min(start + 4 * SLOT_MINUTES, dayMinutes));
   const [activityTypeId, setActivityTypeId] = useState(block?.activityTypeId ?? '');
   const [note, setNote] = useState(block?.note ?? '');
   const [problem, setProblem] = useState<{validation: ValidationErrors | null; message: string | null}>({validation: null, message: null});

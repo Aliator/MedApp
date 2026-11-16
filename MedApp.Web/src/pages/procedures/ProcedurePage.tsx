@@ -525,7 +525,24 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           )}
         </DetailPart>
         <DetailPart title="Appointments" isOpen={open.appointments} onToggle={() => toggle('appointments')}>
-          {appointmentsList(procedure)}
+          {/* Booking sits with the appointments, not in the footer, which has no room for another button. */}
+          <VStack gap={3}>
+            {appointmentsList(procedure)}
+            {!CLOSED_FOR_BOOKING.includes(procedure.status ?? '') && (
+              <HStack>
+                <Button
+                  label="Book Appointment"
+                  variant="secondary"
+                  icon={<Icon icon={AppIcon.Book} />}
+                  onClick={() => {
+                    setActionError(null);
+                    setBooking({});
+                  }}
+                  isDisabled={isBusy}
+                />
+              </HStack>
+            )}
+          </VStack>
         </DetailPart>
         <DetailPart title="Assigned staff" isOpen={open.assignedStaff} onToggle={() => toggle('assignedStaff')}>
           <AssigneeList
@@ -578,7 +595,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     return user.isAdmin && (procedure.canChangeAssignments ?? false);
   }
 
-  /** Edit Details, View Patient, and for admins Assign Staff and the procedure's Audit Log. */
+  /** Edit Details, View Patient, and for admins Assign Staff and the procedure's Audit Log. Book Appointment is under Appointments. */
   function footer(procedure: Procedure) {
     return (
       <>
@@ -599,18 +616,6 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             onClick={() => {
               setActionError(null);
               setDialog({kind: 'assign'});
-            }}
-            isDisabled={isBusy}
-          />
-        )}
-        {!CLOSED_FOR_BOOKING.includes(procedure.status ?? '') && (
-          <Button
-            label="Book Appointment"
-            variant="secondary"
-            icon={<Icon icon={AppIcon.Book} />}
-            onClick={() => {
-              setActionError(null);
-              setBooking({});
             }}
             isDisabled={isBusy}
           />

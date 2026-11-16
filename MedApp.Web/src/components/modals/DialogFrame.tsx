@@ -61,7 +61,10 @@ export function DialogFrame({
             <LayoutFooter>
               <HStack gap={2} vAlign="center" hAlign="end" wrap={footerStart ? 'wrap' : 'nowrap'}>
                 {footerStart && <StackItem size="fill">{footerStart}</StackItem>}
-                {footer}
+                {/* One group, so on a narrow window the buttons move under the summary together, not one at a time. */}
+                <HStack gap={2} vAlign="center" hAlign="end" wrap="wrap">
+                  {footer}
+                </HStack>
               </HStack>
             </LayoutFooter>
           ) : undefined
