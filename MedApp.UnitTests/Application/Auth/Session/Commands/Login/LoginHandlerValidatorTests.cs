@@ -60,4 +60,13 @@ public sealed class LoginHandlerValidatorTests
         result.Errors.Should().Contain(e 
             => e.PropertyName == nameof(LoginCommand.Password));
     }
+
+    [Test]
+    public void Validate_UsernameLongerThanAnyAccountsName_Fails()
+    {
+        var result = _validator.Validate(new LoginCommand(AuthTestConstants.TooLongUsername, AuthTestConstants.Passwords[0], null, null));
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.PropertyName == nameof(LoginCommand.Username) && e.ErrorMessage.Contains("256"));
+    }
 }

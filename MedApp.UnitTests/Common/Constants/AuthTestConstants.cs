@@ -27,6 +27,20 @@ public static class AuthTestConstants
 
     public const string ValidPassword = "ValidPassword1";
 
+    /// <summary>
+    /// Spellings of Usernames[0] that SQL Server's default collation matches to it, but no account can have: a byte order
+    /// mark in front, a NUL after, and a full-width first letter.
+    /// </summary>
+    public static readonly IReadOnlyList<string> UsernameVariants =
+    [
+        "\uFEFF" + Usernames[0],
+        Usernames[0] + "\0",
+        "\uFF55" + Usernames[0][1..],
+    ];
+
+    /// <summary>One character longer than any account's name can be.</summary>
+    public static readonly string TooLongUsername = new('a', 257);
+
     /// <summary>The first admin a deploy makes (FirstAdminSetup): synthetic.</summary>
     public const string FirstAdminUsername = "first-admin";
 

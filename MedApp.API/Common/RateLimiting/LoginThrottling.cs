@@ -98,9 +98,23 @@ public static class LoginThrottling
     {
         var settings = context.RequestServices.GetRequiredService<IOptions<LoginThrottlingOptions>>().Value;
         var seconds = RetryAfterSeconds(lease, settings.Window);
+        LogRefusal(context, "per-address", settings.PerClientPermitLimit, settings.Window);
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
         await context.Response.WriteAsJsonAsync(TooManyAttempts(seconds), options: null, contentType: ProblemJson, ct);
+    }
+
+    /// <summary>
+    /// Logs a refused sign-in at Warning, with which limit refused it and the client's key (its address, or its IPv6
+    /// network), never the username: so staff being throttled, and from where, can be seen and alerted on. Many from one
+    /// site's address at the start of a shift mean <c>LoginThrottling:PerClientPermitLimit</c> is too low for it.
+    /// </summary>
+    public static void LogRefusal(HttpContext context, string limit, int permitLimit, TimeSpan window)
+    {
+        var logger = context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger(typeof(LoginThrottling).FullName!);
+        logger?.LogWarning(
+            "Sign-in refused by the {Limit} limit ({PermitLimit} attempts in {Window}) for client {ClientKey}.",
+            limit, permitLimit, window, ClientKey(context.Connection.RemoteIpAddress));
     }
 }
