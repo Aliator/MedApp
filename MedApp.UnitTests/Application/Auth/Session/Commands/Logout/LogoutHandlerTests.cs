@@ -1,6 +1,10 @@
-﻿using MedApp.Application.Authentication.Sessions.Commands.Logout;
+﻿using FluentAssertions;
+using MedApp.Application.Activity.Common;
+using MedApp.Application.Authentication.Sessions.Commands.Logout;
 using MedApp.Application.Common.Authentication;
+using MedApp.Domain.Activity;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 
 namespace MedApp.UnitTests.Application.Auth.Session.Commands.Logout;
@@ -9,13 +13,15 @@ namespace MedApp.UnitTests.Application.Auth.Session.Commands.Logout;
 public sealed class LogoutHandlerTests
 {
     private Mock<ISessionService> _sessionService = null!;
+    private RecordingActivityLog _activity = null!;
     private LogoutHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
     {
         _sessionService = new Mock<ISessionService>();
-        _handler = new LogoutHandler(_sessionService.Object);
+        _activity = new RecordingActivityLog();
+        _handler = new LogoutHandler(_sessionService.Object, _activity);
     }
 
     [Test]
@@ -30,6 +36,7 @@ public sealed class LogoutHandlerTests
                 It.IsAny<Guid>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+        _activity.Recorded.Should().BeEmpty();
     }
 
     [Test]
@@ -47,6 +54,27 @@ public sealed class LogoutHandlerTests
     }
 
     [Test]
+    public async Task Handle_SignedIn_RecordsTheSignOut()
+    {
+        await _handler.Handle(new LogoutCommand(AuthTestConstants.SessionId), CancellationToken.None);
+
+        var entry = _activity.Recorded.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(ActivityAction.SignedOut);
+        entry.UserId.Should().Be(ActivityTestConstants.UserId);
+        entry.IpAddress.Should().Be(ActivityTestConstants.IpAddress);
+    }
+
+    [Test]
+    public async Task Handle_SessionAlreadyOver_RecordsNothing()
+    {
+        _activity.Actor = new ActivityActor(null, string.Empty, ActivityTestConstants.IpAddress);
+
+        await _handler.Handle(new LogoutCommand(AuthTestConstants.SessionId), CancellationToken.None);
+
+        _activity.Recorded.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task Handle_PassesCancellationToken()
     {
         using var cts = new CancellationTokenSource();
@@ -60,5 +88,6 @@ public sealed class LogoutHandlerTests
                 AuthTestConstants.SessionId,
                 cts.Token),
             Times.Once);
+        _activity.Tokens.Should().AllSatisfy(t => t.Should().Be(cts.Token));
     }
 }

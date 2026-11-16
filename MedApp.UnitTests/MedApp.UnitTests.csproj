@@ -40,6 +40,8 @@
         <ProjectReference Include="..\MedApp.Application\MedApp.Application.csproj" />
         <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
         <ProjectReference Include="..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
+        <!-- The dev MCP tool (not in the solution; CI builds it first): DevMcpServicesTests checks its services resolve. -->
+        <ProjectReference Include="..\tools\MedApp.DevMcp\MedApp.DevMcp.csproj" />
     </ItemGroup>
 
     <ItemGroup>

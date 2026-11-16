@@ -1,4 +1,5 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useMemo} from 'react';
+import {appSettings, defineSetting, useAppSetting} from '../../app/settingsStore';
 
 /** How many of each kind (patients, procedures) one user can pin in the side nav. */
 export const MAX_PINS = 5;
@@ -6,28 +7,42 @@ export const MAX_PINS = 5;
 export type PinKind = 'patients' | 'procedures';
 
 /**
- * Pins are kept in this browser, per user and kind, so staff sharing a computer each have their own. Only IDs
- * are stored, never names or other details; the side nav looks those up from the API.
+ * Pins are one of the account's settings (`settingsStore`), so they follow the user between browsers, and signing out
+ * clears them from this one: the next person on a shared computer doesn't see them. Only IDs are kept, never names
+ * or other details; the side nav looks those up from the API.
  */
-export const pinsKey = (kind: PinKind, username: string) =>
+export const PINS_KEY = defineSetting('medapp.pins');
+
+/**
+ * Where this browser kept a user's pins before they moved to the account (the key named the user). Anything found
+ * there is carried over to the account once; signing out removes it.
+ */
+export const legacyPinsKey = (kind: PinKind, username: string) =>
   `medapp.${kind === 'patients' ? 'pinnedPatients' : 'pinnedProcedures'}.${username}`;
+
+type AllPins = Record<PinKind, string[]>;
 
 const isId = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
-function read(key: string): string[] {
+/** A list of IDs, without repeats or anything that isn't one, and no more than MAX_PINS. */
+function ids(value: unknown): string[] {
+  return Array.isArray(value) ? [...new Set(value.filter(isId))].slice(0, MAX_PINS) : [];
+}
+
+function parse(stored: string | null): AllPins {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
-    return Array.isArray(parsed) ? [...new Set(parsed.filter(isId))].slice(0, MAX_PINS) : [];
+    const parsed = JSON.parse(stored ?? '{}') as Partial<Record<PinKind, unknown>> | null;
+    return {patients: ids(parsed?.patients), procedures: ids(parsed?.procedures)};
   } catch {
-    return [];
+    return {patients: [], procedures: []};
   }
 }
 
-function write(key: string, ids: string[]) {
+function readLegacy(kind: PinKind, username: string): string[] {
   try {
-    localStorage.setItem(key, JSON.stringify(ids));
+    return ids(JSON.parse(localStorage.getItem(legacyPinsKey(kind, username)) ?? '[]'));
   } catch {
-    // Storage can be unavailable (private browsing, blocked site data): the pins then last for this visit only.
+    return [];
   }
 }
 
@@ -43,38 +58,34 @@ export interface Pins {
 
 /**
  * The signed-in user's pinned patients or procedures: up to MAX_PINS of each, kept until unpinned, and in step
- * across this browser's tabs.
+ * across this browser's tabs. `username` is only for finding pins this browser kept before they moved to the account.
  */
 export function usePins(kind: PinKind, username: string): Pins {
-  const key = pinsKey(kind, username);
-  // The pins are held with the key they belong to, so a different user signing in on this browser reads their own.
-  const [held, setHeld] = useState(() => ({key, ids: read(key)}));
-  const ids = held.key === key ? held.ids : read(key);
+  const [stored, store] = useAppSetting(PINS_KEY);
+  const all = useMemo(() => parse(stored), [stored]);
+  const current = all[kind];
 
-  // Pinning in another tab shows here too.
+  // Pins this browser kept for the user before they were part of the account: carried over, the first time.
   useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === key) setHeld({key, ids: read(key)});
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [key]);
+    if (stored !== null) return;
+    const legacy = {patients: readLegacy('patients', username), procedures: readLegacy('procedures', username)};
+    if (legacy.patients.length || legacy.procedures.length) store(JSON.stringify(legacy));
+  }, [stored, store, username]);
 
+  // From the latest pins, not this render's, so several changes in a row (dropping gone ones) all count.
   const update = useCallback(
-    (change: (current: string[]) => string[]) =>
-      setHeld((current) => {
-        const next = change(current.key === key ? current.ids : read(key));
-        write(key, next);
-        return {key, ids: next};
-      }),
-    [key],
+    (change: (current: string[]) => string[]) => {
+      const latest = parse(appSettings.get(PINS_KEY));
+      store(JSON.stringify({...latest, [kind]: change(latest[kind])}));
+    },
+    [kind, store],
   );
 
   return {
-    ids,
-    isPinned: (id) => ids.includes(id),
-    isFull: ids.length >= MAX_PINS,
-    pin: (id) => update((current) => (current.includes(id) || current.length >= MAX_PINS ? current : [...current, id])),
-    unpin: (id) => update((current) => current.filter((pinned) => pinned !== id)),
+    ids: current,
+    isPinned: (id) => current.includes(id),
+    isFull: current.length >= MAX_PINS,
+    pin: (id) => update((pinned) => (pinned.includes(id) || pinned.length >= MAX_PINS ? pinned : [...pinned, id])),
+    unpin: (id) => update((pinned) => pinned.filter((p) => p !== id)),
   };
 }

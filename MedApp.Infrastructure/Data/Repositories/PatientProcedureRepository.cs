@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -63,6 +64,16 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
             .ToListAsync(ct);
 
         return new PagedResult<PatientProcedure>(page, totalCount);
+    }
+
+    public async Task<IReadOnlyList<ProcedureLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.ToList();
+        return await context.PatientProcedures
+            .AsNoTracking()
+            .Where(p => list.Contains(p.Id))
+            .Select(p => new ProcedureLabel(p.Id, p.Title, p.Patient.FirstName, p.Patient.LastName))
+            .ToListAsync(ct);
     }
 
     private static IQueryable<PatientProcedure> WithDetails(IQueryable<PatientProcedure> procedures) =>

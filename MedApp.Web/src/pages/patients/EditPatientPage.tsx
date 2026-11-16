@@ -7,6 +7,7 @@ import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type Pat
 import {patientProcedureCountQuery} from '../../api/procedures';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
@@ -97,8 +98,12 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
+        ) : problem.message ? (
+          <AlertMessage message={problem.message} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          // A restricted or anonymised record can't be changed: the API refuses, so its banners say so before anyone
+          // tries (and a disputed one says what the patient disputes).
+          <PatientFlagBanners patient={patient} />
         )
       }
       dialogs={

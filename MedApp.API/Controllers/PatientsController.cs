@@ -1,9 +1,15 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MedApp.Application.Patients.Commands.AnonymisePatient;
 using MedApp.Application.Patients.Commands.CreatePatient;
+using MedApp.Application.Patients.Commands.KeepPatientRecord;
+using MedApp.Application.Patients.Commands.SetPatientFlag;
+using MedApp.Application.Patients.Queries.ExportPatient;
+using MedApp.Application.Patients.Queries.SearchRetentionReview;
 using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.GetAllPatients;
 using MedApp.Application.Patients.Queries.GetPatientById;
+using MedApp.Application.Patients.Queries.GetPatientLabels;
 using MedApp.Application.Patients.Queries.SearchPatients;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
@@ -41,6 +47,17 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
 
 
     
+    /// <summary>
+    /// Patients' names only, for the side nav's pins (at most 20). Not recorded in the activity log: a pin's label isn't
+    /// a view of the record. Patients that no longer exist are left out.
+    /// </summary>
+    [HttpGet("labels")]
+    [ProducesResponseType(typeof(IReadOnlyList<PatientLabelResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    public async Task<IActionResult> GetPatientLabels([FromQuery] List<Guid>? ids, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetPatientLabelsQuery(ids ?? []), ct));
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -131,6 +148,82 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
         if (!deleted)
             return NotFound();
 
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Everything held about a patient, for a subject access request: details, procedures with stages, notes and
+    /// assignments, the history of changes, the access log and notifications. Recorded in the activity log, and never
+    /// cached.
+    /// </summary>
+    [HttpGet("{id:guid}/export")]
+    [ProducesResponseType(typeof(PatientExportResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ExportPatient(Guid id, CancellationToken ct)
+    {
+        var export = await mediator.Send(new ExportPatientQuery(id), ct);
+        Response.Headers.CacheControl = "no-store";
+        return Ok(export);
+    }
+
+    /// <summary>
+    /// Restricts the record (Article 18), so nothing about the patient or their procedures can be changed, or lifts
+    /// the restriction. Setting it needs a reason, shown on the patient's banner.
+    /// </summary>
+    [HttpPut("{id:guid}/restriction")]
+    [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetRestriction(Guid id, [FromBody] SetPatientFlagRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Restricted, request.Set, request.Reason, request.ConfirmOpenProcedures), ct));
+
+    /// <summary>Marks the record as disputed by the patient (Article 16), with what they dispute, or clears it.</summary>
+    [HttpPut("{id:guid}/dispute")]
+    [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetDispute(Guid id, [FromBody] SetPatientFlagRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetPatientFlagCommand(id, PatientFlag.Disputed, request.Set, request.Reason), ct));
+
+    /// <summary>
+    /// Anonymises the record: identifying details and free text become placeholders, and the rest stays. Confirmed by
+    /// the patient's full name. Refused while a procedure is under way or the record is restricted (409).
+    /// </summary>
+    [HttpPost("{id:guid}/anonymise")]
+    [ProducesResponseType(typeof(PatientResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AnonymisePatient(Guid id, [FromBody] AnonymisePatientRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new AnonymisePatientCommand(id, request.Reason ?? string.Empty, request.Note, request.Confirmation ?? string.Empty), ct));
+
+    /// <summary>
+    /// The patients whose records are past their retention period and due for review, the longest overdue first.
+    /// Nothing is ever deleted automatically.
+    /// </summary>
+    [HttpGet("retention-review")]
+    [ProducesResponseType(typeof(PagedResponse<RetentionReviewItemResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SearchRetentionReview([FromQuery] SearchRetentionReviewRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SearchRetentionReviewQuery(request.Page, request.PageSize, request.IncludeKept), ct));
+
+    /// <summary>Keeps a record past its retention period, with a reason, until a review date up to two years ahead.</summary>
+    [HttpPost("{id:guid}/retention/keep")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> KeepPatientRecord(Guid id, [FromBody] KeepPatientRecordRequest request, CancellationToken ct)
+    {
+        await mediator.Send(new KeepPatientRecordCommand(id, request.KeepUntil, request.Reason ?? string.Empty), ct);
         return NoContent();
     }
 }
