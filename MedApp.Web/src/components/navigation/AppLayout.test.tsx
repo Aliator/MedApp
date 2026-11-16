@@ -30,6 +30,35 @@ async function railRow(user: ReturnType<typeof userEvent.setup>, item: string) {
   return nav.getAllByRole('link', {name: item})[1];
 }
 
+describe('AppLayout scrollbar room', {timeout: 15_000}, () => {
+  beforeEach(() => sessionStorage.clear());
+
+  // jsdom has no layout, but it does apply the rule (`:has()` included), so its effect can be read as computed styles.
+  const gutterOf = (element: Element | null) => (element ? getComputedStyle(element).scrollbarGutter : 'missing');
+
+  it('keeps room for a scrollbar on both sides of the main area, so pages that scroll line up with pages that do not', async () => {
+    emptyApi();
+    renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    expect(document.querySelectorAll('[role="main"]')).toHaveLength(1);
+    expect(gutterOf(document.querySelector('[role="main"]'))).toBe('stable both-edges');
+  });
+
+  it('leaves the room to the halves in a half view, each keeping its own on both sides', async () => {
+    sessionStorage.setItem('medapp.halfView', '/admin/audit');
+    emptyApi();
+    renderApp({path: '/patients', user: adminUser});
+
+    await heading('Audit Log');
+    // The halves scroll, not the main area, so the main area keeps no room of its own (two gutters would be uneven).
+    expect(gutterOf(document.querySelector('[role="main"]'))).toBe('auto');
+    for (const half of ['Left half', 'Right half']) {
+      expect(gutterOf(document.querySelector(`[aria-label="${half}"]`))).toBe('stable both-edges');
+    }
+  });
+});
+
 // The whole app renders, and the first test loads its routes: more than the default 5s on a slow machine.
 describe('AppLayout half views', {timeout: 15_000}, () => {
   beforeEach(() => sessionStorage.clear());
