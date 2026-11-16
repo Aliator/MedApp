@@ -10,7 +10,8 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// Records to open when showing the app (see <c>docs/demo-data.md</c>): the names and titles depend on the day the
-/// seed runs, so the summary lists them. Patients are named as "First Last"; procedures as "Title, for First Last".
+/// seed runs, so the summary lists them. Patients are named as "First Last", which no other patient shares (see
+/// <see cref="DemoPatients"/>), so searching for the name finds the one record; procedures as "Title, for First Last".
 /// </summary>
 public static class DemoTour
 {

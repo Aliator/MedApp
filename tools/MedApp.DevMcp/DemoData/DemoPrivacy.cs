@@ -68,15 +68,19 @@ public static class DemoPrivacy
             "The patient disputes the recorded date of birth.",
             "The patient says the email address on file is not theirs.",
         };
-        var disputed = active.Except(flagged).OrderBy(_ => random.Next()).Take(2).ToList();
+        // Only of patients registered by then, as for everything else in the history.
+        var disputedAt = new[] { DemoTimeline.WorkingMoment(now.AddDays(-28), 11, 20), DemoTimeline.WorkingMoment(now.AddDays(-12), 11, 20) };
+        var disputed = active.Except(flagged).Where(p => p.IsOnSystemAt(disputedAt[0])).OrderBy(_ => random.Next()).Take(2).ToList();
         for (var i = 0; i < disputed.Count; i++)
-            await Flag(disputed[i], PatientFlag.Disputed, DemoTimeline.WorkingMoment(now.AddDays(i == 0 ? -28 : -12), 11, 20), disputeReasons[i]);
+            await Flag(disputed[i], PatientFlag.Disputed, disputedAt[i], disputeReasons[i]);
 
-        // Subject access exports, by an admin: the first disputed patient's, and another.
+        // Subject access exports, by an admin: the first disputed patient's, and another registered by then.
         var exports = 0;
-        foreach (var (patient, daysAgo) in disputed.Take(1).Select(p => (p, 27)).Append((active.Except(flagged).OrderBy(_ => random.Next()).First(), 9)))
+        var exportedAt = new[] { DemoTimeline.WorkingMoment(now.AddDays(-27), 14, 5), DemoTimeline.WorkingMoment(now.AddDays(-9), 14, 5) };
+        var other = active.Except(flagged).Where(p => p.IsOnSystemAt(exportedAt[1])).OrderBy(_ => random.Next()).First();
+        foreach (var (patient, at) in disputed.Take(1).Select(p => (p, exportedAt[0])).Append((other, exportedAt[1])))
         {
-            services.At(DemoTimeline.WorkingMoment(now.AddDays(-daysAgo), 14, 5), lead.ActivityActor);
+            services.At(at, lead.ActivityActor);
             await services.Run(sp => Mediator(sp).Send(new ExportPatientQuery(patient.Id), ct));
             exports++;
         }
@@ -86,9 +90,11 @@ public static class DemoPrivacy
         var anonymised = due.FirstOrDefault(p => !p.IsChildAt(now));
         if (anonymised is not null)
         {
-            services.At(DemoTimeline.WorkingMoment(now.AddDays(-21), 10, 40), lead.ActivityActor);
+            var anonymisedAt = DemoTimeline.WorkingMoment(now.AddDays(-21), 10, 40);
+            services.At(anonymisedAt, lead.ActivityActor);
             await services.Run(sp => Guards.Validated(() => Mediator(sp).Send(new AnonymisePatientCommand(
                 anonymised.Id, nameof(AnonymisationReason.RetentionPeriodEnded), "Reviewed at the records meeting.", anonymised.FullName), ct)));
+            anonymised.AnonymisedUtc = anonymisedAt;
         }
 
         var keepReasons = new[]

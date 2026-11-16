@@ -24,7 +24,10 @@ public enum PatientRole
     ImportedNotDue,
 }
 
-/// <summary>A synthetic patient: invented name, example.com email, and an NHS number from the 999 test range or none.</summary>
+/// <summary>
+/// A synthetic patient: an invented name no other patient has, an example.com email, and an NHS number from the 999
+/// test range or none.
+/// </summary>
 public sealed class PatientSeed
 {
     public required string FirstName { get; init; }
@@ -38,7 +41,14 @@ public sealed class PatientSeed
     public Guid Id { get; set; }
     public int Procedures { get; set; }
     public bool Restricted { get; set; }
+
+    /// <summary>When the record was anonymised (the retention review), if it was: from then on nobody sees it.</summary>
+    public DateTime? AnonymisedUtc { get; set; }
+
     public string FullName => $"{FirstName} {LastName}";
+
+    /// <summary>Whether the record was on the system at a moment: registered by then, and not yet anonymised.</summary>
+    public bool IsOnSystemAt(DateTime utc) => CreatedUtc <= utc && (AnonymisedUtc is null || utc < AnonymisedUtc);
 
     public bool IsChildAt(DateTime utc) => AgeAt(utc) < 18;
 
@@ -71,6 +81,7 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
         "Fletcher", "Gill", "Holt", "Marsden", "Pickering", "Quinn", "Sutton", "Varley", "Whitfield", "Yates",
     ];
 
+    private readonly HashSet<string> _names = [];
     private readonly HashSet<string> _emails = [];
     private int _nhsIndex;
 
@@ -96,8 +107,15 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
 
     private PatientSeed Add(DateOnly dateOfBirth, DateTime createdUtc, PatientRole role)
     {
-        var first = FirstNames[random.Next(FirstNames.Length)];
-        var last = LastNames[random.Next(LastNames.Length)];
+        // Every name is used once, so the summary and the tour can name a record and the patient search finds just it.
+        string first, last;
+        do
+        {
+            first = FirstNames[random.Next(FirstNames.Length)];
+            last = LastNames[random.Next(LastNames.Length)];
+        }
+        while (!_names.Add($"{first} {last}"));
+
         string email;
         do email = $"{Slug(first)}.{Slug(last)}{random.Next(10, 100)}@example.com";
         while (!_emails.Add(email));

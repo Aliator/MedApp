@@ -15,8 +15,9 @@ public static class DemoWipe
 
     /// <summary>
     /// Deletes every patient, procedure, appointment, calendar setup (but the seeded activity types), attached file's
-    /// record (not its bytes), audit and activity entry, session, notification, rule and choice, and every account
-    /// but the kept ones (with their settings and sign-in challenges). Returns the usernames removed.
+    /// record (not its bytes), audit and activity entry, session, notification, rule and choice, the admins' sign-in
+    /// rules (back to the defaults: none), and every account but the kept ones (with their settings and sign-in
+    /// challenges). Returns the usernames removed.
     /// </summary>
     public static async Task<List<string>> RunAsync(SeedServices services, IReadOnlySet<string> keep, CancellationToken ct)
     {
@@ -66,6 +67,9 @@ public static class DemoWipe
                 // Settings and sign-in challenges have no foreign key to their account: those of accounts going, go.
                 await db.UserSettings.Where(s => !kept.Contains(s.UserId)).ExecuteDeleteAsync(cancellationToken);
                 await db.SignInChallenges.Where(c => !kept.Contains(c.UserId)).ExecuteDeleteAsync(cancellationToken);
+                // The admins' sign-in rules go back to a new database's: no row, so every rule is off (SecuritySettings).
+                // Kept, a rule such as "require two-factor for admins" would hold admin (who has none) at sign-in.
+                await db.SecuritySettings.ExecuteDeleteAsync(cancellationToken);
                 await tx.CommitAsync(cancellationToken);
             }, ct);
         });
