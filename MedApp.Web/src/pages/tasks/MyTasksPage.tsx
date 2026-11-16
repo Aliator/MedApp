@@ -197,7 +197,8 @@ export interface MyTasksPageProps {
 
 /**
  * My Tasks: the signed-in user's unfinished procedures, as a list like the others: a power search across the top
- * (Not started to begin with; Not started and Started are favourites), sortable columns and page controls. The
+ * (Not started to begin with; Not started and Started are favourites, not named beside the star, as the bar's
+ * token already shows them), sortable columns and page controls. The
  * same in a half view.
  */
 export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
@@ -245,6 +246,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
             placeholder="Search my tasks by procedure, or filter by progress, patient, priority, due date..."
             textKey="title"
             favourites={FAVOURITES}
+            showsFavouriteName={false}
           />
         }
         sort={{column: sortColumn, ascending}}

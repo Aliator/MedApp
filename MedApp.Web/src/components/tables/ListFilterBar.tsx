@@ -95,6 +95,8 @@ export interface ListFilterBarProps {
    * shows none; a list that starts filtered (My Tasks on Not started) says, as its bar shows that filter.
    */
   isUnfiltered?: boolean;
+  /** Whether the name of the favourite the list is showing sits beside the star (`ListFavourites`); by default it does. */
+  showsFavouriteName?: boolean;
 }
 
 // Dates are whole days, kept in the URL as yyyy-mm-dd; PowerSearch holds a day as its midnight UTC in seconds
@@ -236,7 +238,18 @@ export function valuesFrom(fields: ListFilterField[], filters: readonly PowerSea
  *
  * Use it above a list's table, as wide as it (`DataTable`'s `search`), for the filters the list's API supports.
  */
-export function ListFilterBar({fields, values, onChange, label, placeholder, textKey, list, favourites, isUnfiltered}: ListFilterBarProps) {
+export function ListFilterBar({
+  fields,
+  values,
+  onChange,
+  label,
+  placeholder,
+  textKey,
+  list,
+  favourites,
+  isUnfiltered,
+  showsFavouriteName,
+}: ListFilterBarProps) {
   const config = useMemo(() => configFor(fields, textKey), [fields, textKey]);
   const filters = filtersFrom(fields, values);
   const bar = useRef<HTMLElement>(null);
@@ -261,6 +274,7 @@ export function ListFilterBar({fields, values, onChange, label, placeholder, tex
         normalize={(saved) => valuesFrom(fields, filtersFrom(fields, saved))}
         onApply={(saved) => onChange({...cleared(fields), ...saved})}
         isUnfiltered={isUnfiltered ?? filters.length === 0}
+        showsName={showsFavouriteName}
       />
     </HStack>
   );

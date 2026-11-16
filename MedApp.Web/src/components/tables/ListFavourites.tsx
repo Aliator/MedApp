@@ -31,6 +31,11 @@ export interface ListFavouritesProps {
   onApply: (values: FavouriteValues) => void;
   /** Whether the list opened with no filters in its URL: the moment it takes its starting search, if it has one. */
   isUnfiltered: boolean;
+  /**
+   * Whether the name of the favourite the list is showing sits beside the star (by default it does). A list whose
+   * bar already shows that filter as a token (My Tasks' progress) can leave it out; the star still says it.
+   */
+  showsName?: boolean;
 }
 
 /** A search, as a key that's the same for the same filters (whatever order, and leaving out unset ones). */
@@ -46,9 +51,9 @@ const nameOf = (name: string) => name.trim() || 'Untitled favourite';
 /**
  * The star beside a list's search: its quick look-ups, the searches you've saved (kept with your account), saving
  * the search you have, and managing them (rename, delete, and the one the list starts on). The name of the
- * favourite the list is showing, if any, sits beside the star.
+ * favourite the list is showing, if any, sits beside the star, unless `showsName` is off.
  */
-export function ListFavourites({list, quick = [], current, normalize, onApply, isUnfiltered}: ListFavouritesProps) {
+export function ListFavourites({list, quick = [], current, normalize, onApply, isUnfiltered, showsName = true}: ListFavouritesProps) {
   const favourites = useSavedFavourites(list);
   const [dialog, setDialog] = useState<'save' | 'manage' | null>(null);
   const [name, setName] = useState('');
@@ -114,7 +119,7 @@ export function ListFavourites({list, quick = [], current, normalize, onApply, i
 
   return (
     <HStack gap={2} vAlign="center">
-      {showing && <Token label={showing} color="blue" />}
+      {showsName && showing && <Token label={showing} color="blue" />}
       <DropdownMenu
         items={items}
         alignment="end"

@@ -51,6 +51,15 @@ describe('ListFavourites', () => {
     expect(within(menu).getByRole('menuitem', {name: /Save this search/, hidden: true})).toHaveAttribute('aria-disabled', 'true');
   });
 
+  it('leaves the name out beside the star when told to, while the star still says it', async () => {
+    localStorage.setItem(KEY, JSON.stringify({patients: {saved: [{id: 'f1', name: 'The Bennetts', values: {last: 'bennett'}}]}}));
+    renderFavourites({current: {last: 'bennett'}, showsName: false});
+
+    expect(await screen.findByRole('button', {name: 'Favourites (showing The Bennetts)'})).toBeInTheDocument();
+    // Only in the (closed) menu, under Your favourites.
+    expect(screen.queryAllByText('The Bennetts').filter((el) => !el.closest('[role="menu"]'))).toEqual([]);
+  });
+
   it('takes its starting search when the list opens with no filters', async () => {
     localStorage.setItem(KEY, JSON.stringify({patients: {saved: [{id: 'f1', name: 'Mine', values: {first: 'fr'}}], startId: 'f1'}}));
     const {onApply} = renderFavourites({isUnfiltered: true});
