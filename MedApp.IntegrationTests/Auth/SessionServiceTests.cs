@@ -79,7 +79,7 @@ public sealed class SessionServiceTests : IntegrationTest
     public async Task ValidateSessionAsync_ExpiredSession_ReturnsNull()
     {
         var login = await Sessions(s => s.CreateSessionAsync(_adminId, null, null));
-        await ExecuteSqlAsync($"UPDATE UserSessions SET ExpiresAtUtc = DATEADD(second, -1, SYSUTCDATETIME()) WHERE Id = {login.SessionId}");
+        await ExecuteSqlAsync($"UPDATE UserSessions SET ExpiresAtUtc = {DateTime.UtcNow.AddMinutes(-5)} WHERE Id = {login.SessionId}");
 
         (await Sessions(s => s.ValidateSessionAsync(login.SessionId))).Should().BeNull();
     }

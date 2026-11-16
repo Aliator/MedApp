@@ -93,7 +93,7 @@ public sealed class DueDateTests : IntegrationTest
         var overdue = await CreateProcedureAsync(_admin, _patientId, _templateId);
         await CreateProcedureAsync(_admin, _patientId, _templateId);
         // Due dates can't be set in the past, so move one back as time passing would.
-        await ExecuteSqlAsync($"UPDATE PatientProcedures SET DueDateUtc = DATEADD(day, -1, SYSUTCDATETIME()) WHERE Id = {overdue.Id}");
+        await ExecuteSqlAsync($"UPDATE PatientProcedures SET DueDateUtc = {DateTime.UtcNow.AddDays(-1)} WHERE Id = {overdue.Id}");
 
         var page = await SearchAsync("overdueOnly=true");
 

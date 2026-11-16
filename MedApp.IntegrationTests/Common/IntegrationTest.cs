@@ -82,8 +82,9 @@ public abstract class IntegrationTest
 
     /// <summary>
     /// Makes an account through the admin API, with the given roles, then has its user swap the generated password
-    /// for one of their own before anything else (as they'll have to once a first password must be changed), and signs
-    /// them in again with it.
+    /// for one of their own before anything else (every account an admin makes must), and signs them in again with it.
+    /// With no roles the account can't change its password (that needs the Staff policy), so it keeps the generated one
+    /// and stays held by the forced password change: give it a role, then remove it, to test the Staff policy itself.
     /// </summary>
     protected static async Task<StaffAccount> CreateStaffAsync(params string[] roles)
     {

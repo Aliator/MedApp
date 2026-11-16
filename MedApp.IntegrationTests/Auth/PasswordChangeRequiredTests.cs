@@ -49,6 +49,15 @@ public sealed class PasswordChangeRequiredTests : IntegrationTest
     }
 
     [Test]
+    public async Task ApiRequest_AccountWithNoRoleYet_IsHeldByTheForcedChange()
+    {
+        // With no role it can't change its password (that needs the Staff policy), so it stays held.
+        var forced = await CreateForcedUserAsync();
+
+        await ShouldBePasswordChangeRequiredAsync(await forced.Client.GetAsync("/api/patients/search"));
+    }
+
+    [Test]
     public async Task ApiRequest_UserAfterAnAdminResetTheirPassword_Returns403PasswordChangeRequired()
     {
         var staff = await CreateStaffAsync(UserRole);

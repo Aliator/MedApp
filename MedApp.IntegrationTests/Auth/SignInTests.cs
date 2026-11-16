@@ -117,7 +117,7 @@ public sealed class SignInTests : IntegrationTest
         var client = await SignInAsAdminAsync();
         await (await client.GetAsync(PatientsSearch)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        await ExecuteSqlAsync($"UPDATE UserSessions SET ExpiresAtUtc = DATEADD(minute, -1, SYSUTCDATETIME())");
+        await ExecuteSqlAsync($"UPDATE UserSessions SET ExpiresAtUtc = {DateTime.UtcNow.AddMinutes(-5)}");
 
         await (await client.GetAsync(PatientsSearch)).ShouldHaveStatusAsync(HttpStatusCode.Unauthorized);
     }
@@ -127,7 +127,7 @@ public sealed class SignInTests : IntegrationTest
     {
         var client = await SignInAsAdminAsync();
 
-        await ExecuteSqlAsync($"UPDATE UserSessions SET RevokedAtUtc = SYSUTCDATETIME()");
+        await ExecuteSqlAsync($"UPDATE UserSessions SET RevokedAtUtc = {DateTime.UtcNow}");
 
         await (await client.GetAsync(PatientsSearch)).ShouldHaveStatusAsync(HttpStatusCode.Unauthorized);
     }

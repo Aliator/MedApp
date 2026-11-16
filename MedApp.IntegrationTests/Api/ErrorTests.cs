@@ -62,13 +62,31 @@ public sealed class ErrorTests : IntegrationTest
         var response = await _staff.GetAsync(path);
 
         await response.ShouldHaveStatusAsync(HttpStatusCode.NotFound);
-        (await response.Content.ReadAsStringAsync()).Should().NotContain("<html");
+        (await response.Content.ReadAsStringAsync()).Should().NotContain(MedAppApiFactory.StubAppMarker);
     }
 
     [Test]
     public async Task ApiPath_MatchingNoEndpointSignedOut_Returns404()
     {
-        await (await NewClient().GetAsync("/api/no-such-endpoint")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        var response = await NewClient().GetAsync("/api/no-such-endpoint");
+
+        await response.ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        (await response.Content.ReadAsStringAsync()).Should().NotContain(MedAppApiFactory.StubAppMarker);
+    }
+
+    /// <summary>
+    /// The other side of the 404s above: any other path is one of the app's pages, so the app is there to fall back
+    /// to, and only the <c>/api</c> route keeps API paths from getting it.
+    /// </summary>
+    [TestCase("/patients/anything")]
+    [TestCase("/procedures/00000000-0000-0000-0000-000000000000")]
+    public async Task PagePath_AnyRoute_ReturnsTheApp(string path)
+    {
+        var response = await NewClient().GetAsync(path);
+
+        await response.ShouldHaveStatusAsync(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        (await response.Content.ReadAsStringAsync()).Should().Contain(MedAppApiFactory.StubAppMarker);
     }
 
     [Test]

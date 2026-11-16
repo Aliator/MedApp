@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using FluentAssertions;
+using MedApp.API.Common.Authentication;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.IntegrationTests.Common;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
@@ -87,11 +88,20 @@ public sealed class AuthorisationTests : IntegrationTest
     }
 
     [TestCaseSource(nameof(StaffEndpoints))]
-    public async Task StaffEndpoint_NoRoles_Returns403(string method, string url)
+    public async Task StaffEndpoint_RolesRemoved_Returns403FromTheStaffPolicy(string method, string url)
     {
-        var account = await CreateStaffAsync();
+        // Chose their own password, then lost their roles (a leaver, say): nothing holds them but the Staff policy.
+        // (An account that never had a role can't change its generated password, so the forced password change would
+        // answer first: PasswordChangeRequiredTests covers that.)
+        var staff = await CreateStaffAsync(UserRole);
+        var admin = await SignInAsAdminAsync();
+        await (await admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([])))
+            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
-        await (await SendAsync(account.Client, method, url)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+        var response = await SendAsync(staff.Client, method, url);
+
+        await response.ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+        (await response.Content.ReadAsStringAsync()).Should().NotContain(PasswordChangeRequired.Code);
     }
 
     [TestCaseSource(nameof(StaffEndpoints))]
