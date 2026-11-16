@@ -1,4 +1,5 @@
 using AutoFixture;
+using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -18,6 +19,9 @@ public abstract class ProcedureHandlerTestBase
     protected Mock<IPatientProcedureRepository> Repository { get; private set; } = null!;
     protected Mock<IIdentityReadService> Identity { get; private set; } = null!;
 
+    /// <summary>Attached files: none, unless a test says otherwise.</summary>
+    protected Mock<IAttachmentRepository> Attachments { get; private set; } = null!;
+
     /// <summary>Audit entries passed to AddAsync, SaveAsync or DeleteAsync.</summary>
     protected List<PatientProcedureAuditEntry> SavedAudit { get; } = [];
 
@@ -27,6 +31,7 @@ public abstract class ProcedureHandlerTestBase
         Fixture = AutoFixtureFactory.Create();
         Repository = new Mock<IPatientProcedureRepository>();
         Identity = new Mock<IIdentityReadService>();
+        Attachments = new Mock<IAttachmentRepository>();
         SavedAudit.Clear();
 
         Identity
@@ -51,6 +56,7 @@ public abstract class ProcedureHandlerTestBase
 
         Fixture.Inject(Repository.Object);
         Fixture.Inject(Identity.Object);
+        Fixture.Inject(Attachments.Object);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(ProceduresTestConstants.Now));
     }
 

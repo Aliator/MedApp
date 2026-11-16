@@ -1,5 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Commands.DeletePatient;
 using MedApp.Application.Patients.Repositories;
@@ -15,6 +16,7 @@ public sealed class DeletePatientHandlerTests
 {
     private IFixture _fixture = null!;
     private Mock<IPatientRepository> _repository = null!;
+    private Mock<IAttachmentRepository> _attachments = null!;
     private DeletePatientHandler _handler = null!;
 
     [SetUp]
@@ -24,6 +26,9 @@ public sealed class DeletePatientHandlerTests
 
         _repository = new Mock<IPatientRepository>();
         _fixture.Inject<IPatientRepository>(_repository.Object);
+
+        _attachments = new Mock<IAttachmentRepository>();
+        _fixture.Inject(_attachments.Object);
 
         _handler = _fixture.Create<DeletePatientHandler>();
     }
@@ -126,6 +131,24 @@ public sealed class DeletePatientHandlerTests
             Times.Never);
     }
 
+    [TestCase(1, "This patient has 1 file attached, so they can't be deleted. Delete the files first.")]
+    [TestCase(2, "This patient has 2 files attached*")]
+    public async Task Handle_PatientHasFiles_ThrowsConflictAndKeepsThePatient(int files, string message)
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        _repository
+            .Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(patient);
+        _attachments
+            .Setup(a => a.CountForPatientAsync(patient.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(files);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(message);
+        _repository.Verify(r => r.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Test]
     public async Task Handle_PassesCancellationToken_ToRepository()
     {
@@ -150,5 +173,6 @@ public sealed class DeletePatientHandlerTests
                 patient.Id,
                 cts.Token),
             Times.Once);
+        _attachments.Verify(a => a.CountForPatientAsync(patient.Id, cts.Token), Times.Once);
     }
 }
