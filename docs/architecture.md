@@ -1707,6 +1707,15 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 4: Strong sign-in: MFA, passkeys, SSO and the account lifecycle
 
+**Status:** a first part is built on `feature/email-2fa` (16 November 2026, from `5c6a0c5`; not merged yet), keeping sign-in exactly as it was for accounts that don't opt in:
+- **Done:**
+  - **Email:** an `IEmailSender` sending over SMTP with MailKit, from a background queue (best effort, logged); Mailpit catches it in development and kind; Azure Communication Services Email (UK data location) through its SMTP relay is in the Bicep. Plain, accessible HTML and text templates, with no clinical content and never a password.
+  - **Staff email addresses:** optional, set by an admin when creating an account or by the person in Account Settings, and used only once confirmed by an emailed link. Shown on the Users page.
+  - **A real password reset** in place of the stand-in dialog: "Forgot your password?" emails a single-use, 30-minute link to the confirmed address, with the same answer whatever matched, throttled per address and per username or address; the reset ends every session, clears a forced password change and emails a notice.
+  - **Data protection keys** shared in the database (`DataProtectionKeys`), wrapped by Key Vault on Azure, so a link from one pod opens on another (tested with two API instances).
+  - **Two-factor authentication** with an authenticator app (TOTP) through Identity's authenticator support: a QR code and the key, ten recovery codes, regenerable; sign-in in two steps through a short-lived, single-use challenge, with wrong codes counting towards the lockout; turning it off needs the password and a code; admins can reset someone's two-factor (ending their sessions); admins can require it for admin accounts, which holds an admin without it until they set it up (`TwoFactorSetupRequired`, beside the forced password change). Security notices by email for each change.
+- **Still to do in this step:** two-factor on by default and compulsory for admins from day one (today an admin turns the requirement on), passkeys, SSO, the account lifecycle (display name, deactivation, last sign-in), a named first admin, an Auditor role, hashed recovery codes, and the security events in the activity log (`ISecurityEventLog` writes them to the application log until then).
+
 **Goal:** Replace password-only sign-in with MFA, including phishing-resistant passkeys; add standard OIDC single sign-on; and give staff accounts a proper lifecycle.
 
 **Why now:**

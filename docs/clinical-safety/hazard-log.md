@@ -398,6 +398,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **One maintainer** (risk O1).
 - A failed deploy: every merge deploys (risk D1).
 - The organisation's own network or devices.
+- **For one member of staff (since `feature/email-2fa`): they can't sign in.** They've lost the phone with their authenticator app, or five wrong codes (or passwords) have locked their account for five minutes, or an admin who must use two-factor hasn't set it up and is held to doing so. A person locked out of a clinical system mid-shift can't record or look up work. **A new cause, for the clinical safety officer to assess.**
 
 **Effect.** Staff can't see who's assigned to what, which stage a procedure is at, its notes or its due date. Work is done without recording it, or not done.
 
@@ -408,6 +409,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - A failed migration stops the rollout and leaves the old version running (ADR-10).
 - Server rendering falls back to rendering in the browser if Node fails (`SsrPages`).
 - Rollback is a revert on `main` (`AGENTS.md`).
+- **For a member of staff locked out of their account** (`feature/email-2fa`): two-factor is optional, and off unless they turn it on; ten one-time recovery codes, shown at set-up with copy and download; an admin can reset someone's two-factor at once, from the Users page (recorded, and the owner is emailed); "Forgot your password?" works by email without an admin; a lockout lasts five minutes; requiring two-factor for admins can't be turned on by an admin who doesn't use it, and a held admin can set it up from the page they're sent to. Deploying organisations should make sure there's always an admin on duty who can reset another's two-factor, and that staff keep their recovery codes (a downtime procedure item, step 6).
 
 **Initial risk:** Major, Medium: **3**.
 
@@ -672,7 +674,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Causes:**
 - **No idle timeout:** a session lasts 8 hours from sign-in, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
 - **A session can be extended (since #63):** five minutes before the end, a warning offers "Stay signed in", which extends the session to 8 hours from then, up to 24 hours from sign-in (`UserSession.Extend`). Whoever is at the screen can press it, so an unattended session can now be kept for up to 24 hours instead of 8. The warning is for the fixed limit (WCAG 2.2.1), not an idle timeout. **A change to this hazard's cause, for the clinical safety officer to assess.**
-- **Passwords only,** with no multi-factor authentication (risk S8), and shared or passed-on passwords.
+- **Passwords only for most accounts:** two-factor authentication is available but optional (since `feature/email-2fa`; admins can require it for admin accounts), so a shared or passed-on password is still enough for most (risk S8).
 - **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
 
 **Effect.** It's unclear who did a step, which matters when someone needs to ask about it or when something went wrong.
@@ -691,7 +693,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Further controls:**
 - **An idle timeout,** with a warning. Protective; **planned** (step 2); later. (The warning before the fixed limit, added in #63, is not this control.)
 - **End a user's other sessions** on a password change and a reset. Protective; **in place** (`feature/security-baseline`, #67). A role change applies to the next request without ending sessions.
-- **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
+- **Multi-factor authentication** and single sign-on. Protective; an authenticator app with recovery codes, optional, which admins can require for admin accounts, is **in place** (`feature/email-2fa`); compulsory for everyone, passkeys and single sign-on are **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
 
@@ -813,3 +815,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
+| 0.4 | 16 November 2026 | `feature/email-2fa`: a new cause of H-10 (a member of staff locked out by two-factor or the lockout) with its controls (recovery codes, an admin reset, reset by email); optional two-factor added to H-18's controls. Ratings unchanged, for the CSO to assess | AI coding agent, for review |

@@ -28,7 +28,11 @@ Every place MedApp stores or sends personal data, field by field, from the code.
 | `Notification` (`Notifications`) | `UserId`, `Title` (the procedure's title), `Message` (for example "[username] assigned you to this procedure."), `ProcedureId`, `CreatedAtUtc`, `ReadAtUtc` | Staff; patients indirectly | Possibly: a procedure title can name a condition or treatment | `MedApp.Domain/Notifications/Notification.cs`; written by `AssignPatientProcedureHandler`. No foreign keys. |
 | `UserSession` (`UserSessions`) | `UserId`, `CreatedAtUtc`, `ExpiresAtUtc`, `RevokedAtUtc`, `CreatedByIp` (IP address), `UserAgent` (browser) | Staff | No | `MedApp.Domain/Authentication/UserSession.cs`. The row's ID is the session cookie's value. Rows are never deleted today. |
 | `UserSettings` (`UserSettings`) | `UserId`, `Json`, `UpdatedAtUtc` | Staff; patients indirectly | Possibly | `UserSettings.cs`. The JSON includes **saved searches ("favourites")**, whose terms can be patient names. |
-| ASP.NET Core Identity (`AspNetUsers`, `AspNetUserRoles`, `AspNetRoles` and the other Identity tables) | `UserName`, `NormalizedUserName`, `PasswordHash`, `SecurityStamp`, `AccessFailedCount`, `LockoutEnd`, `CreatedAt`; `Email` and `PhoneNumber` columns exist but MedApp doesn't fill them | Staff | No | `MedApp.Infrastructure/Common/Identity/ApplicationUser.cs`. Passwords are stored only as Identity's salted hashes. |
+| ASP.NET Core Identity (`AspNetUsers`, `AspNetUserRoles`, `AspNetRoles` and the other Identity tables) | `UserName`, `NormalizedUserName`, `PasswordHash`, `SecurityStamp`, `AccessFailedCount`, `LockoutEnd`, `CreatedAt`, `MustChangePassword`; **optionally a work email address** (`Email`, `EmailConfirmed`, and `PendingEmail` while a new one waits for its link to be opened); `TwoFactorEnabled`. The `PhoneNumber` column exists but MedApp doesn't fill it | Staff | No | `MedApp.Infrastructure/Common/Identity/ApplicationUser.cs`. Passwords are stored only as Identity's salted hashes. The email address is given by the staff member (Account Settings) or by an admin creating the account, and is used only for password reset links and security notices once confirmed. Admins see it on the Users page. |
+| Identity's user tokens (`AspNetUserTokens`) | For staff who turn on two-factor authentication: the authenticator key, the unused recovery codes, and the time step of the last code accepted | Staff | No | Stored as Identity stores them, in clear (the database is encrypted at rest on Azure). Removed when two-factor is turned off or an admin resets it (`TwoFactorService`). |
+| `SignInChallenge` (`SignInChallenges`) | `UserId`, a SHA-256 hash of the challenge token, `CreatedAtUtc`, `ExpiresAtUtc`, `FailedAttempts` | Staff | No | The second step of a sign-in with two-factor; deleted when used, and expired ones are deleted at the next sign-in. Kept at most 5 minutes in practice. |
+| `SecuritySettings` (`SecuritySettings`) | Whether admins must use two-factor; when it was last changed and by whom (a user ID) | Staff (the admin) | No | One row. |
+| ASP.NET Core data protection keys (`DataProtectionKeys`) | Cryptographic keys that seal reset and confirmation links | None | No | Wrapped with a Key Vault key on Azure. |
 | `PatientProcedureStageDefinition`, `PatientProcedureStageTemplate` and its map | Names, descriptions, instructions | None, by design | No | Configuration. Admins should not write patient or staff details into them. |
 
 ## 2. Outside the database
@@ -63,11 +67,13 @@ flowchart LR
       backups[("Azure SQL backups")]
       logs["Container logs; Log Analytics (planned)"]
     end
+    acs["Azure Communication Services Email (UK data location): staff emails only"]
     gh["GitHub: code and images, no customer data"]
     staff -->|"HTTPS: pages, /api, WebSocket"| ingress
     ingress -->|"HTTP inside the cluster"| api
     api -->|"TDS, encrypted"| sql
     api -->|"Redis protocol, not encrypted"| valkey
+    api -->|"SMTP with STARTTLS"| acs
     sql --> backups
     api --> logs
     gh -->|"image copied to the Azure registry"| api
@@ -79,12 +85,13 @@ flowchart LR
 | Ingress to API | The same | Plain HTTP inside the cluster; network policy allows only the ingress namespace | Built |
 | API to Azure SQL | All stored data | TLS (`Encrypt=True`), private endpoint, public access off | Built in Bicep; never deployed |
 | API to Valkey | Notifications | Password, not encrypted; network policy | Built |
+| API to the email service, then to the staff member's mailbox | A staff member's email address and username; a password reset or email confirmation link; or a notice that their password, email address or two-factor authentication changed. **Never patient data, clinical text or a password** (`EmailTemplates`) | SMTP with STARTTLS to Azure Communication Services (kind and development: Mailpit, which keeps mail in memory and sends nothing on) | Built; Azure part never deployed |
 | API to logs | Logs | Inside Azure | Logging built; export planned (step 5) |
 | GitHub to Azure | Container images | OIDC federation; an identity limited to the registry (`AcrPush`, which can push and pull images), with no access to the database or Key Vault | Built |
 | Customer to supplier support | Support requests | Email (planned helpdesk); **no patient data in tickets** ([support-access-policy.md](support-access-policy.md)) | Policy only |
 | Supplier to customer at exit | Full export | Planned: an encrypted export (roadmap steps 7 and 8) | Planned |
 
-**There are no other recipients.** MedApp has no integrations, email, SMS, analytics, advertising or third-party scripts today ([architecture handbook, 3.3](../architecture.md#33-scope-what-medapp-doesnt-do)).
+**There are no other recipients.** Apart from the staff emails above, MedApp has no integrations, SMS, analytics, advertising or third-party scripts today ([architecture handbook, 3.3](../architecture.md#33-scope-what-medapp-doesnt-do)).
 
 ## 4. Volumes (to fill per customer)
 
@@ -99,7 +106,7 @@ A single clinic may not be large scale on its own, but the supplier's processing
 ## 5. What will change
 
 The roadmap adds data. Each addition needs this inventory and the DPIA updated first:
-- **Step 4:** staff display name, email, job title, professional registration number, MFA secrets and passkeys, last sign-in time; an email provider (a new sub-processor).
+- **Step 4:** done on `feature/email-2fa`: an optional staff email address, authenticator keys and recovery codes, and Azure Communication Services Email as the email provider. Still to come: display name, job title, professional registration number, passkeys, last sign-in time.
 - **Step 7:** access audit (who viewed which patient, search terms), sign-in events with IP addresses, note versions, restriction and dispute flags, contact preferences, a destruction log.
 - **Step 8:** an organisation on every record.
 - **Step 9:** NHS number, local hospital number, sex and gender, address, phone, registered GP practice, a deceased flag, documents and images.

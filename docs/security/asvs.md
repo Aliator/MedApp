@@ -38,9 +38,9 @@ A few terms used throughout:
 
 ## Summary
 
-Of the 253 requirements, 83 don't apply to MedApp today: 33 because it has no OAuth, OIDC or other identity provider (V10 and 6.8), 9 because it has no MFA yet, 8 for file handling, 7 each for WebRTC and self-contained tokens, and 19 for things it doesn't use, such as LDAP, XML and GraphQL. Of the 170 that apply, **98 are met (58%)**, 52 partly met, 18 planned and 2 accepted as risks. At Level 1 alone, 36 of the 57 that apply are met, and the one planned is removing the password composition rules (6.2.5).
+Of the 253 requirements, 77 don't apply to MedApp today: 33 because it has no OAuth, OIDC or other identity provider (V10 and 6.8), 3 because it has no phone or out-of-band factors, 8 for file handling, 7 each for WebRTC and self-contained tokens, and 19 for things it doesn't use, such as LDAP, XML and GraphQL. Of the 176 that apply, **103 are met (59%)**, 53 partly met, 18 planned and 2 accepted as risks. (`feature/email-2fa` added optional two-factor authentication and a reset link by email, which brought six MFA rows into scope and met five of them.) At Level 1 alone, 36 of the 57 that apply are met, and the one planned is removing the password composition rules (6.2.5).
 
-The strongest chapters are encoding and sanitisation (V1), the browser protections this branch added (V3) and configuration (V13). The weakest are authentication (V6: no MFA, composition rules, no breached-password check), session management (V7: a GUID token, no idle timeout) and security logging (V16: sign-ins and refusals aren't recorded). The roadmap already plans most of what's missing; [Gaps, in priority order](#gaps-in-priority-order) lists the ones that matter most, and the ones the roadmap doesn't name yet.
+The strongest chapters are encoding and sanitisation (V1), the browser protections this branch added (V3) and configuration (V13). The weakest are authentication (V6: MFA optional rather than required, composition rules, no breached-password check), session management (V7: a GUID token, no idle timeout) and security logging (V16: sign-ins and refusals aren't recorded). The roadmap already plans most of what's missing; [Gaps, in priority order](#gaps-in-priority-order) lists the ones that matter most, and the ones the roadmap doesn't name yet.
 
 | Chapter | Met | Partly met | Planned | Accepted risk | Not applicable | Total |
 |---|---:|---:|---:|---:|---:|---:|
@@ -49,7 +49,7 @@ The strongest chapters are encoding and sanitisation (V1), the browser protectio
 | [V3 Web Frontend Security](#v3-web-frontend-security) | 14 | 4 | 0 | 0 | 1 | 19 |
 | [V4 API and Web Service](#v4-api-and-web-service) | 3 | 3 | 0 | 1 | 3 | 10 |
 | [V5 File Handling](#v5-file-handling) | 1 | 0 | 0 | 0 | 8 | 9 |
-| [V6 Authentication](#v6-authentication) | 12 | 6 | 4 | 0 | 13 | 35 |
+| [V6 Authentication](#v6-authentication) | 17 | 7 | 4 | 0 | 7 | 35 |
 | [V7 Session Management](#v7-session-management) | 8 | 5 | 3 | 0 | 2 | 18 |
 | [V8 Authorization](#v8-authorization) | 3 | 2 | 1 | 0 | 1 | 7 |
 | [V9 Self-contained Tokens](#v9-self-contained-tokens) | 0 | 0 | 0 | 0 | 7 | 7 |
@@ -61,9 +61,9 @@ The strongest chapters are encoding and sanitisation (V1), the browser protectio
 | [V15 Secure Coding and Architecture](#v15-secure-coding-and-architecture) | 7 | 6 | 0 | 0 | 0 | 13 |
 | [V16 Security Logging and Error Handling](#v16-security-logging-and-error-handling) | 7 | 4 | 5 | 0 | 0 | 16 |
 | [V17 WebRTC](#v17-webrtc) | 0 | 0 | 0 | 0 | 7 | 7 |
-| **All chapters** | **98** | **52** | **18** | **2** | **83** | **253** |
+| **All chapters** | **103** | **53** | **18** | **2** | **77** | **253** |
 | Of which Level 1 | 36 | 20 | 1 | 0 | 13 | 70 |
-| Of which Level 2 only | 62 | 32 | 17 | 2 | 70 | 183 |
+| Of which Level 2 only | 67 | 33 | 17 | 2 | 64 | 183 |
 
 ## V1 Encoding and Sanitization
 
@@ -188,15 +188,15 @@ MedApp has no file uploads or downloads, so almost all of this chapter doesn't a
 
 ## V6 Authentication
 
-[ASVS chapter](https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x15-V6-Authentication.md). 35 requirements at Levels 1 and 2: 12 met, 6 partly met, 4 planned, 13 not applicable.
+[ASVS chapter](https://github.com/OWASP/ASVS/blob/v5.0.0/5.0/en/0x15-V6-Authentication.md). 35 requirements at Levels 1 and 2: 17 met, 7 partly met, 4 planned, 7 not applicable.
 
-The weakest chapter, as the roadmap expects: passwords are the only factor (Step 4 adds MFA), composition rules remain (Step 2 removes them), and there's no breached-password check. The basics are sound: Identity's hashing, a common-password deny list, throttling and lockout, and generated first passwords that must be changed.
+Still the weakest chapter: two-factor authentication (an authenticator app, TOTP) exists but is optional, and required only for admins when an admin turns that on; passkeys and single sign-on are still Step 4; composition rules remain (Step 2 removes them), and there's no breached-password check. The basics are sound: Identity's hashing, a common-password deny list, throttling and lockout (which wrong codes count towards), generated first passwords that must be changed, and a single-use, 30-minute reset link to a confirmed address.
 
 | ID | Requirement (paraphrased) | L | Status | Evidence or reason |
 |---|---|---|---|---|
-| 6.1.1 | Documented defences against credential stuffing and brute force, including against malicious lockout | 1 | **Partly met** | Throttling and lockout are documented (`LoginThrottlingOptions`, `AGENTS.md` Auth with sizing guidance; `docs/security/threat-model.md`, T-01; `docs/architecture.md` 8.1). The controls don't prevent malicious lockout: anyone can lock a known username (such as `admin`, risk S16) for 5 minutes with 5 attempts, since the per-username limit equals the lockout count. |
+| 6.1.1 | Documented defences against credential stuffing and brute force, including against malicious lockout | 1 | **Partly met** | Throttling and lockout are documented (`LoginThrottlingOptions`, `AGENTS.md` Auth with sizing guidance; `docs/security/threat-model.md`, T-01; `docs/architecture.md` 8.1). Wrong two-factor codes count towards the same lockout, and with two-factor on a right password no longer clears the count, so codes can't be guessed by re-entering the password (`IdentityAuthenticationService`, `LoginTwoFactorHandler`, `TwoFactorTests`). Reset requests are throttled per address and per username or address (`ThrottleResetRequestsAttribute`). The controls don't prevent malicious lockout: anyone can lock a known username (such as `admin`, risk S16) for 5 minutes with 5 attempts, since the per-username limit equals the lockout count. |
 | 6.1.2 | Documented list of context-specific words to refuse in passwords | 2 | **Planned** | None. Step 2 (its aim of closing every Level 2 gap; not yet named in its scope). For example: MedApp, the customer's name, NHS, and ward and role names. |
-| 6.1.3 | Every authentication pathway documented, with its controls | 2 | Met | One pathway: username and password, then the session cookie (`docs/architecture.md` 6.1). The page server's key isn't authentication: it only skips the https redirect for Node's calls on loopback, and those calls still need the user's session (`SsrServer.IsFromRenderer`). |
+| 6.1.3 | Every authentication pathway documented, with its controls | 2 | Met | Three, in `AGENTS.md` Auth: username and password, then the session cookie; for an account with two-factor, the password gives a short-lived challenge and the code (or a recovery code) the session (`LoginHandler`, `LoginTwoFactorHandler`); and a forgotten password, reset by a single-use link to the confirmed address, which ends every session and doesn't bypass two-factor (`ForgotPasswordHandler`, `ResetPasswordHandler`). The page server's key isn't authentication: it only skips the https redirect for Node's calls on loopback, and those calls still need the user's session (`SsrServer.IsFromRenderer`). |
 | 6.2.1 | Passwords at least 8 characters (15 recommended) | 1 | Met | 8 (`Identity:PasswordRequiredLength`, `MedApp.API/appsettings.json`). Step 2 plans a longer minimum. |
 | 6.2.2 | Users can change their password | 1 | Met | `PUT api/auth/users/{username}/update-password` (`AuthController.UpdateUserPassword`) and the change-password page. |
 | 6.2.3 | Changing a password needs the current one and the new one | 1 | Met | `IdentityUserService.UpdateUserPasswordAsync` checks the current password first. |
@@ -211,17 +211,17 @@ The weakest chapter, as the roadmap expects: passwords are the only factor (Step
 | 6.2.12 | New passwords checked against breached passwords | 2 | **Partly met** | The NCSC list is the passwords most used in breaches, but there's no check against a full breach corpus (such as Have I Been Pwned's range API). Step 2. |
 | 6.3.1 | Brute-force controls in place, as documented | 1 | **Partly met** | Sign-in allows 30 attempts a minute per client address (IPv6 by /64) and 5 a minute per username, then answers 429 (`LoginThrottling`, `ThrottleLoginByUsernameAttribute`), with the client address from the forwarded headers behind the ingress (`LoginThrottlingTests`); a name no account could have is unknown without a lookup and gets no allowance of its own (`UsernameRules`); 5 wrong passwords lock an account for 5 minutes. Gaps: the counts are in each API copy's memory, so two copies allow twice as many; and the current-password check when changing a password is neither throttled nor counted towards lockout (`IdentityUserService.UpdateUserPasswordAsync`), so someone holding a session can guess its user's password without limit. |
 | 6.3.2 | No default accounts such as `admin` | 1 | **Partly met** | No account has a default password: the first admin's comes from a secret (`FirstAdminSetup`). But it's named `admin` wherever the chart generates it and in the Azure instructions, so its name is known (risk S16). Step 4 lets the first admin be named. |
-| 6.3.3 | Multi-factor authentication (MFA) | 2 | **Planned** | Passwords only. Step 4: authenticator apps (TOTP) and passkeys, compulsory for admins. |
-| 6.3.4 | No undocumented authentication pathways | 2 | Met | Only `POST api/auth/login` creates a session (`SessionService.CreateSessionAsync` is called only by `LoginHandler`). `medapp-dev`'s test admin exists only in local databases. |
+| 6.3.3 | Multi-factor authentication (MFA) | 2 | **Partly met** | An authenticator app (TOTP) through Identity's authenticator support, with recovery codes, optional for everyone (`TwoFactorService`, Account Settings, Security). Admins can require it for admin accounts (`SecuritySettings.RequireTwoFactorForAdmins`), which holds an admin without it until they set it up (`TwoFactorSetupRequired`). Missing: it's off by default, staff aren't required to use it, and there are no passkeys. Step 4. |
+| 6.3.4 | No undocumented authentication pathways | 2 | Met | Only `POST api/auth/login` (for an account without two-factor) and `POST api/auth/login/two-factor` create a session (`SessionService.CreateSessionAsync` is called only by `LoginHandler` and `LoginTwoFactorHandler`). A password reset ends sessions and creates none. `medapp-dev`'s test admin exists only in local databases. |
 | 6.4.1 | Generated first passwords random, policy-compliant, short-lived, and never long-term | 1 | **Partly met** | Generated from a cryptographic random number generator, at least 16 characters, meeting the policy (`IdentityUserService.GeneratePassword`), and must be changed at first sign-in (`PasswordChangeRequired`), so can't become long-term. But an unused one never expires, and the first admin isn't made to change theirs. |
 | 6.4.2 | No password hints or secret questions | 1 | Met | None. |
-| 6.4.3 | A secure forgotten-password process that doesn't bypass MFA | 2 | **Partly met** | An admin resets the password: a new generated one, every session ended, and a change forced at the next sign-in (`ResetUserPasswordHandler`). But the sign-in page's "Forgot password?" says a link was sent when nothing is (`src/pages/login/ForgotPasswordDialog.tsx`). Step 4 replaces it. |
-| 6.4.4 | Identity proofing when an MFA factor is lost | 2 | Not applicable | No MFA yet. Applies from Step 4. |
-| 6.5.1 | Lookup secrets, out-of-band codes and TOTPs usable only once | 2 | Not applicable | No MFA yet. Applies from Step 4. |
-| 6.5.2 | Low-entropy lookup secrets stored hashed and salted | 2 | Not applicable | No MFA yet. Applies from Step 4 (recovery codes). |
-| 6.5.3 | MFA secrets and seeds from a CSPRNG | 2 | Not applicable | No MFA yet. Applies from Step 4. |
-| 6.5.4 | Lookup secrets and out-of-band codes have at least 20 bits of entropy | 2 | Not applicable | No MFA yet. Applies from Step 4. |
-| 6.5.5 | Out-of-band codes and TOTPs have a defined, short lifetime | 2 | Not applicable | No MFA yet. Applies from Step 4. |
+| 6.4.3 | A secure forgotten-password process that doesn't bypass MFA | 2 | Met | "Forgot your password?" emails a link to the account's confirmed address, with the same answer whether or not anything matched; the link is Identity's reset token, single-use and valid for 30 minutes, in the URL's fragment; the new password must meet the rules, avoid the common ones and differ from the current one; every session ends, and the owner is told by email (`ForgotPasswordHandler`, `ResetPasswordHandler`, `PasswordResetService`, `PasswordResetTests`). Two-factor stays on: the next sign-in still needs a code. An admin can still reset a password instead (`ResetUserPasswordHandler`). |
+| 6.4.4 | Identity proofing when an MFA factor is lost | 2 | **Partly met** | Someone who has lost their app uses a recovery code; without those, an admin resets their two-factor, which ends every session, is recorded with the admin's name and emails the owner (`ResetUserTwoFactorHandler`). What the admin must check before resetting (seeing the person, or calling them back on a known number) isn't written down yet: it belongs in each customer's procedures. |
+| 6.5.1 | Lookup secrets, out-of-band codes and TOTPs usable only once | 2 | Met | Each authenticator code is accepted once: the step of the last one is kept, and an earlier or equal step is refused, guarded by Identity's concurrency stamp (`TwoFactorService.VerifyAuthenticatorCodeAsync`, `TwoFactorServiceTests`, `TwoFactorTests.SignIn_TheSameCodeTwice_IsRefusedTheSecondTime`). Recovery codes are removed when used (Identity's `RedeemTwoFactorRecoveryCodeAsync`). The sign-in challenge is deleted when used. |
+| 6.5.2 | Low-entropy lookup secrets stored hashed and salted | 2 | **Planned** | Recovery codes are stored as Identity stores them, in clear, in `AspNetUserTokens`. Hash them (a custom `IUserTwoFactorRecoveryCodeStore`), in a later step (`docs/todo.md`). The sign-in challenge, by contrast, is stored only as a SHA-256 hash. |
+| 6.5.3 | MFA secrets and seeds from a CSPRNG | 2 | Met | Identity makes the authenticator key (160 bits) and the recovery codes from `RandomNumberGenerator`; the sign-in challenge is 256 bits from `RandomNumberGenerator` (`SignInChallengeTokens`). |
+| 6.5.4 | Lookup secrets and out-of-band codes have at least 20 bits of entropy | 2 | Met | Recovery codes are 10 characters from Identity's 26-character alphabet, about 47 bits. |
+| 6.5.5 | Out-of-band codes and TOTPs have a defined, short lifetime | 2 | Met | Authenticator codes are valid for their 30-second step and one either side (`Totp.Window`); the sign-in challenge lasts 5 minutes and allows 5 wrong codes (`SignInChallenge`). |
 | 6.6.1 | Phone or SMS codes only with validated numbers and stronger options | 2 | Not applicable | No phone or SMS factors, and none planned (Step 4 plans TOTP and passkeys). |
 | 6.6.2 | Out-of-band codes bound to their own request | 2 | Not applicable | No out-of-band authentication. |
 | 6.6.3 | Out-of-band codes protected by rate limiting | 2 | Not applicable | No out-of-band authentication. |
@@ -335,7 +335,7 @@ MedApp writes no cryptography of its own: it uses .NET's libraries, Identity, Da
 
 | ID | Requirement (paraphrased) | L | Status | Evidence or reason |
 |---|---|---|---|---|
-| 11.1.1 | Documented key management policy and key lifecycle | 2 | **Planned** | None. Keys in use: TLS certificates (cert-manager), ASP.NET Core Data Protection keys (in memory, per pod; risk S10), the page server's key (per process), and Azure's own. Step 2 (not yet named in its scope; Step 5 adds a customer-managed key for the database's encryption). |
+| 11.1.1 | Documented key management policy and key lifecycle | 2 | **Planned** | None. Keys in use: TLS certificates (cert-manager), ASP.NET Core Data Protection keys (in the database since `feature/email-2fa`, shared by every pod, wrapped with a Key Vault key on Azure), the page server's key (per process), and Azure's own. Step 2 (not yet named in its scope; Step 5 adds a customer-managed key for the database's encryption). |
 | 11.1.2 | A maintained cryptographic inventory | 2 | **Planned** | None beyond the notes in `docs/architecture.md` 8.1. Step 2 (not yet named in its scope). |
 | 11.2.1 | Industry-validated cryptographic implementations | 2 | Met | Platform libraries only: .NET's `System.Security.Cryptography` (OpenSSL on Linux), ASP.NET Core Identity and Data Protection, Traefik's Go TLS, and Azure SQL's TLS and transparent data encryption (TDE). No custom cryptography. |
 | 11.2.2 | Crypto agility: algorithms, keys and passwords can be changed | 2 | Met | Identity's hash format is versioned, and rehashes a password at sign-in when the settings change; Data Protection's algorithms are configurable; TLS is set at the ingress; every secret can be replaced in Key Vault (`deploy/azure/README.md`, Passwords). |
@@ -475,7 +475,7 @@ MedApp has no WebRTC (real-time audio, video or data between browsers): no TURN 
 
 The Level 1 and 2 requirements not met that matter most for MedApp, most important first. "Not yet named" means step 2's scope should be extended to cover it.
 
-1. **No MFA** (6.3.3). Passwords are the only factor, for admins too. The ICO has fined health suppliers for missing MFA, and NHS buyers' DTAC and DSPT reviews ask for it. **Step 4.**
+1. **MFA is optional** (6.3.3, 6.5.2). An authenticator app (TOTP) can be set up by anyone and required for admins, but it's off by default, there are no passkeys, and recovery codes are stored in clear. The ICO has fined health suppliers for missing MFA, and NHS buyers' DTAC and DSPT reviews ask for it. **Step 4.**
 2. **Security events aren't recorded, and logs stay in the cluster** (16.3.1, 16.3.2, 16.3.3, 16.4.2, 16.4.3, 16.1.1). Sign-ins, failures, lockouts, throttling, refused requests and account changes leave no trace, so misuse can't be investigated. **Steps 7 and 5.**
 3. **The app uses the database's admin login** (13.2.1, 13.2.2, 13.3.2). Anyone who gets the API's environment, including code running in Node (risk S17), holds full control of the database. **Step 5** (workload identity and a data-only user); Step 2 for the Node sidecar.
 4. **Session tokens and lifecycle** (7.2.3, 11.5.1, 7.3.1, 7.1.1, 7.2.4, 7.4.1, 3.3.4, 15.3.1). The token is a 122-bit GUID stored in clear; there's no idle timeout; signing in again leaves the old session live; open live connections survive revocation; and the login response repeats the session ID in its body. **Step 2** for the token and the idle timeout; the other three are not yet named.

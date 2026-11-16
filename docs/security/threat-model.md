@@ -1,6 +1,6 @@
 # MedApp threat model
 
-**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`), on branch `feature/security-baseline`: `main` up to #64 (`f083ec3`, merged in) plus that branch's changes. It describes MedApp as built, not as planned: where a control is only planned, it says which roadmap step. Review it whenever a data flow, a trust boundary or a deployment changes, and at least once a year.
+**Status:** written 16 November 2026 for roadmap step 2 (`docs/architecture.md`), on branch `feature/security-baseline`: `main` up to #64 (`f083ec3`, merged in) plus that branch's changes. Updated on `feature/email-2fa` (16 November 2026) for email, password reset by link, and optional two-factor authentication (DF12, DF13, T-16 to T-19, T-35). It describes MedApp as built, not as planned: where a control is only planned, it says which roadmap step. Review it whenever a data flow, a trust boundary or a deployment changes, and at least once a year.
 
 **Method:** STRIDE, applied to each element of the data flows below:
 - **S**poofing: pretending to be someone or something else.
@@ -52,6 +52,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
  GitHub (repository, Actions) ──push image──▶ GHCR ──pull──▶ cluster nodes
          └──commit──▶ env/kind, env/azure ◀──watch── Argo CD ──apply──▶ cluster
  Key Vault / medapp-vault ──External Secrets──▶ Kubernetes Secrets ──env vars──▶ pods
+ API pod ──SMTP (STARTTLS)──▶ mail server (Mailpit in kind, Azure Communication Services) ──▶ staff mailboxes
 ```
 
 **Trust boundaries** (where data crosses from less trusted to more trusted):
@@ -77,6 +78,8 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | DF9 | Argo CD to the cluster | Manifests from `env/*` | In the cluster |
 | DF10 | Secret store to pods | Database, Valkey and first admin passwords | External Secrets; workload identity on Azure |
 | DF11 | Migrations Job to SQL Server | The schema, the first admin | As DF6 |
+| DF12 | API to the mail server to a staff mailbox | Reset and confirmation links (a token in the fragment), and security notices: the username and what changed, never clinical text or a password | SMTP with STARTTLS to Azure Communication Services; plain to Mailpit inside kind or the dev machine. Onward delivery to the mailbox is the mail providers' |
+| DF13 | Browser to API: second sign-in step (`POST api/auth/login/two-factor`) | The challenge from the password step and a code; back, the session cookie | As DF1 |
 
 ## 5. Threats
 
@@ -98,6 +101,10 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | T-12 | D | **Flooding** the API or the sign-in endpoint. | Sign-in throttling (above); resource limits on pods; two API copies. | No general rate limit per session (step 2, later), and none at the ingress. **Medium** for availability, low for data. |
 | T-13 | E | **Using an endpoint above your role.** | Role attributes on every controller action; `PasswordChangeRequired` holds anyone with a generated password to changing it. `AuthorisationTests` (#65) checks every admin-only and staff endpoint for each role and signed out, through the real pipeline, including the new sign-out-everywhere endpoint. | No fallback policy, so a new endpoint without an attribute would be open until the matrix gains it. `GET api/patients` and `GET api/auth/users` return everything (planned removal, step 2). **Low.** |
 | T-14 | E | **Keeping access after losing it:** a session that outlives a password change, a reset or a role change. | **New:** changing your own password ends your other sessions, and an admin's reset ends all of them, each in the same transaction as the change; an admin can sign a user out everywhere; deleting a user makes their sessions fail. Roles are re-read on every request, so a role change applies to the next request without ending the session. | An open live-notifications WebSocket isn't closed when its session ends: it keeps receiving notifications (procedure titles) until the page reloads or the connection drops (step 2, later). **Low.** |
+| T-16 | S | **Taking over an account through "Forgot your password?"** (a guessed or stolen link, a link to the wrong place, a link that works for ever). | The link goes only to the account's confirmed address; its token is Identity's, sealed with the data protection keys, bound to the account's security stamp (so it works once) and valid 30 minutes. It's in the URL's fragment, so it stays out of server logs and the Referer header. Links are built from `Email:LinkBaseUrl`, never the request's Host header. Two-factor stays on after a reset. Every session ends, and the owner is told. | Whoever controls the mailbox controls the password (as with any email reset); two-factor is what stops them. **Low** with two-factor, **medium** without. |
+| T-17 | I | **Learning which accounts and addresses exist** from the reset form, or flooding someone with emails. | The same 202 and message whatever matched; emails go through a background queue, so the time taken barely differs; requests throttled per address (30 a minute) and per username or address (3 in 15 minutes); a request is recorded without what was typed. | Each API copy counts on its own. **Low.** |
+| T-18 | S | **Guessing or replaying an authenticator code** once the password is known. | A 5-minute, single-use challenge, stored as a hash, allowing 5 wrong codes; wrong codes count towards the account's lockout, and a right password no longer clears the count until the code is right too; each code is accepted once (the step of the last one is kept); a code from a stolen session can't regenerate recovery codes or turn two-factor off without the password, and those count wrong codes too. | Two-factor is optional, so most accounts still have only a password (T-01). Recovery codes are stored in clear (ASVS 6.5.2). **Low** for accounts that use it. |
+| T-19 | E | **An admin without two-factor** while admins must use it. | `TwoFactorSetupRequired` holds them to setting it up from their next request, and it can't be turned off while required; turning the requirement on needs the admin's own two-factor first. An admin's reset of someone's two-factor ends their sessions, is recorded with the admin's name, and emails the owner. | The requirement covers admins only, and only when turned on. Admin reset relies on the admin checking who's asking (no written procedure yet). **Medium.** |
 | T-15 | R | **Denying an action:** "I didn't change that". | Procedures are audited with the user's ID and name, in the same save (`ProcedureChange`). | Patients, accounts, roles, sign-ins and these new session actions aren't audited (S2, step 7). **High** for accountability. |
 
 ### 5.2 The API and the page server (DF3)
@@ -121,6 +128,7 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 | T-32 | I | **Password hashes** taken from the database. | Identity's PBKDF2 hashes (salted, iterated). **New:** common passwords refused, so offline guessing of new passwords is harder. | Existing weak passwords stay until changed. **Low.** |
 | T-33 | E | **The app's database login** doing more than the app needs. | Network policies: only the API and the migrations Job reach SQL Server. | On Azure the app signs in as the server admin (S3, step 5). **High** before real data. |
 | T-34 | I, T | **Valkey traffic** read or forged inside the cluster. | Only the API reaches Valkey; it needs a password. | Plain text (S14). **Low.** |
+| T-35 | I, S | **The data protection keys** (which seal reset and confirmation tokens) taken with the database, then used to forge tokens. | On Azure they're wrapped with a Key Vault key the API's own identity can use (`DataProtection:KeyVaultKeyUri`), so a copy of the database alone can't unwrap them. Every pod shares them, so a link from one pod opens on another. | In kind and development they're stored unwrapped in the database (acceptable for local, synthetic data). Authenticator keys are stored in clear in `AspNetUserTokens`, as Identity stores them. **Low.** |
 
 ### 5.4 The pipeline and the platform (DF8 to DF10)
 
@@ -142,12 +150,13 @@ Each threat has an ID (`T-…`), the controls in place, and what's left, with a 
 - Ending sessions on a password change or reset, and signing a user out everywhere: T-03, T-14.
 - The common-password deny list (`CommonPasswordValidator`): T-01, T-32.
 - The pipeline: SHA-pinned actions, Dependabot, CodeQL, dependency review, npm and NuGet audits, Trivy, SBOM and provenance attestations: T-40 to T-43.
+- `feature/email-2fa`: optional two-factor authentication with recovery codes and an admin requirement (T-01, T-18, T-19); "Forgot your password?" by a single-use emailed link (T-16, T-17); data protection keys shared in the database and wrapped by Key Vault on Azure (T-35); security notices by email (DF12).
 
 ## 7. The biggest risks left
 
 1. **Accountability (T-15):** patients, accounts and sign-ins aren't audited (step 7).
 2. **The database login on Azure (T-33)** is the server admin (step 5).
-3. **Passwords only (T-01, T-03):** no MFA or SSO (step 4).
+3. **MFA optional (T-01, T-03, T-18):** an authenticator app is available and can be required for admins, but nobody else must use it; no passkeys or SSO (step 4).
 4. **Sessions (T-03, T-31, T-14):** no idle timeout, IDs not hashed at rest, the ID repeated in the login body, and live connections not closed on revocation (step 2, later).
 5. **Node in the API's container (T-23)** (step 2, later).
 6. **No fallback authorisation policy (T-13)** and the two return-everything endpoints (step 2, later).

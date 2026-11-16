@@ -34,14 +34,14 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 - **Collection:** the customer's staff type patients' details and clinical notes into MedApp in a browser. There's no import, integration or patient-facing access.
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
 - **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts.
-- **Sharing:** none outside the customer. Within the customer, every staff user can see every patient (section 5, risk 1).
+- **Sharing:** none outside the customer, except emails to staff (password reset links and notices of changes to their own sign-in), sent through Azure Communication Services Email; they carry a staff member's username and email address and never patient data. Within the customer, every staff user can see every patient (section 5, risk 1).
 - **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Nothing is deleted on a schedule.
 - **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
 
 ### Scope
 
-- **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, sessions with IP addresses and browsers, settings with saved searches; notifications. Field by field: [data-inventory.md](data-inventory.md).
+- **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, optional work email addresses, two-factor keys and recovery codes, sessions with IP addresses and browsers, settings with saved searches; notifications. Field by field: [data-inventory.md](data-inventory.md).
 - **Special category:** health data. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it.
 - **Volume:** per customer, [patients a year], [staff users]. Across customers, large scale.
 - **Retention:** proposed in [retention-schedule.md](retention-schedule.md); **not enforced today**.
@@ -162,11 +162,15 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Lockout after 5 failures for 5 minutes | In place | `MedApp.Infrastructure/Common/Authentication/IdentityAuthenticationService.cs`; `MedApp.API/appsettings.json` (`Identity`) |
 | Server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie named `__Host-medapp.session` outside development; roles re-read on every request; deleting a user ends their sessions; a password change ends the user's other sessions, and a reset all of them; admins can sign a user out everywhere | In place | `SessionAuthenticationHandler.cs`, `SessionCookieService.cs`, `SessionService.cs`, `UserSessions.cs`, `SignOutEverywhereHandler.cs` |
 | Sign-in throttling per address and per username, in front of the lockout; the 10,000 most common passwords refused | In place | `MedApp.API/Common/RateLimiting`, `CommonPasswordValidator.cs` |
-| MFA (TOTP and passkeys), compulsory for admins; SSO with the customer's identity provider; first admin with a chosen name | Planned, step 4. **Before go-live** | |
+| Two-factor authentication with an authenticator app (TOTP) and recovery codes, optional for everyone; admins can require it for admin accounts; failed codes count towards the lockout; admins can reset someone's two-factor (recorded, and the owner is emailed) | In place (`feature/email-2fa`) | `TwoFactorService.cs`, `LoginTwoFactorHandler.cs`, `TwoFactorSetupRequired.cs`, `SecuritySettings.cs` |
+| "Forgot your password?" by a single-use, 30-minute link to the staff member's confirmed work address, the same answer whether or not an account matched, every session ended, the owner told by email; it doesn't bypass two-factor | In place (`feature/email-2fa`) | `ForgotPasswordHandler.cs`, `ResetPasswordHandler.cs`, `PasswordResetService.cs` |
+| Two-factor compulsory for admins from day one (today an admin turns the requirement on), passkeys; SSO with the customer's identity provider; first admin with a chosen name | Planned, step 4. **Before go-live** | |
 | A breached-password check | Planned, step 2. **Before go-live** | |
 | Find and reset accounts that may still have `DefaultPassword1` | Planned (`docs/todo.md`). **Before go-live** (no such accounts exist in a new deployment) | |
 
-**Residual risk:** now **high**; after steps 2 and 4 **low**.
+**Residual risk:** now **high** while two-factor is optional (**medium** once a customer requires it for admins); after steps 2 and 4 **low**.
+
+**Staff email addresses** add a little personal data of staff (a work address, given by them or their admin) and a new recipient (the email service). They're used only to reset a forgotten password and to tell the person about changes to their own sign-in, so a compromised account is noticed. Emails never carry patient data, clinical free text (a notification's title is a procedure's title, so notifications are *not* emailed) or a password, and a welcome email is only a link to confirm the address. Customers should tell staff in their staff privacy notice ([privacy-notice-staff-template.md](privacy-notice-staff-template.md)).
 
 ### Risk 3: oversharing in free text
 
