@@ -43,7 +43,9 @@ public sealed class AttachmentStorageTests
 
             path = ((FileStream)stream).Name;
             Path.GetDirectoryName(path).Should().Be(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar));
-            File.Exists(path).Should().BeTrue();
+            // On Linux the name is unlinked as soon as the file is opened (the open handle keeps the data), so a crash
+            // leaves nothing behind; on Windows the file is deleted when the stream closes.
+            File.Exists(path).Should().Be(OperatingSystem.IsWindows());
         }
 
         File.Exists(path).Should().BeFalse();
