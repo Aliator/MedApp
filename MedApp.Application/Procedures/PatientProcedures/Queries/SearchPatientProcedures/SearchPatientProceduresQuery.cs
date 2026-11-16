@@ -10,6 +10,7 @@ namespace MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientP
 /// this search with <paramref name="AssignedToMe"/> and <paramref name="Started"/> set. <paramref name="Title"/>,
 /// <paramref name="TemplateName"/> and <paramref name="PatientName"/> each match one of what <paramref name="Search"/>
 /// matches; <paramref name="Priorities"/> is any of several, as <paramref name="Statuses"/> is.
+/// <paramref name="NobodyAssigned"/> keeps only procedures with no one assigned.
 /// </summary>
 public sealed record SearchPatientProceduresQuery(
     int Page,
@@ -32,5 +33,6 @@ public sealed record SearchPatientProceduresQuery(
     IReadOnlyList<string>? Priorities = null,
     string? Title = null,
     string? TemplateName = null,
-    string? PatientName = null)
+    string? PatientName = null,
+    bool NobodyAssigned = false)
     : IRequest<PagedResponse<PatientProcedureSummaryResponse>>;

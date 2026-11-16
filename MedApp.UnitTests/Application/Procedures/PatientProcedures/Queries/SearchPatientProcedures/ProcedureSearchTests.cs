@@ -151,6 +151,12 @@ public sealed class ProcedureSearchTests
     }
 
     [Test]
+    public void Filter_NobodyAssigned_ReturnsOnlyProceduresWithNoAssignees()
+    {
+        Procedures().Filter(CreateSearchQuery() with { NobodyAssigned = true }, Now).Should().Equal(Unassigned);
+    }
+
+    [Test]
     public void Filter_UnknownStatusesAndPriorities_AreIgnored()
     {
         var everyOpen = Procedures().Filter(CreateSearchQuery(), Now).ToList();
