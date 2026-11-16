@@ -65,6 +65,19 @@ describe('BarChart', () => {
     expect(screen.getByText('Completed')).toBeInTheDocument();
   });
 
+  it('keeps many columns visible: closer together and without their outline, which would cover most of them', () => {
+    givenWidth(508);
+    const halfYear = Array.from({length: 26}, (_, i) => ({week: `w${i}`, created: 2 + (i % 3), completed: 1}));
+    const {container: many} = render(<BarChart data={halfYear} categoryKey="week" series={TWO} layout="columns" description="26 weeks" />);
+    const {container: few} = render(<BarChart data={weeks} categoryKey="week" series={TWO} layout="columns" description="2 weeks" />);
+
+    const outlines = (container: HTMLElement) => [...container.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('stroke-width'));
+    expect(bars(many)).toHaveLength(52);
+    expect(new Set(outlines(many))).toEqual(new Set(['0']));
+    // Two weeks have room: the usual 2 px outline keeps neighbouring bars apart.
+    expect(new Set(outlines(few))).toEqual(new Set(['2']));
+  });
+
   it('stacks the series into one bar per item', () => {
     givenWidth();
     const {container} = render(<BarChart data={weeks} categoryKey="week" series={TWO} isStacked description="Stacked" />);

@@ -148,6 +148,19 @@ Most severe first. None is high or critical.
 - **Fix:** say in `ChartCard`'s comment what fits (Standard text, a column chart, up to 8 bars). In `AGENTS.md:47`, say that Insights is a scrolling column of fixed-height cards: an exception to "the page never scrolls", kept because four charts don't fit one window.
 - **What happened to it:** fixed in the PR. `ChartCard`'s comment says what fits (Standard text, a column chart, up to 8 bars). `MedApp.Web/AGENTS.md` names Insights as the exception to "the page never scrolls", and describes `isBodyKeyboardScrollable`.
 
+## Added after the review
+
+One change went into the PR after this review, so it wasn't part of it. It was checked when it was added.
+
+- **Thin columns stay visible.** Found while checking the fixes: at 26 weeks, "Created and completed" looked empty.
+  - **The cause:** its 52 columns, in half a page, came out about 2 px wide. Recharts gives each week's pair half the week's space (a quarter is a gap on either side) and puts 4 px between the pair. The 2 px outline around each bar, drawn in the card's colour to keep neighbours apart, then covered most of what was left. This was the same before this PR.
+  - **The change** (`BarChart.tsx`): when columns would come out under 8 px wide, they get tighter spacing (10% either side, 1 px within a pair) and no outline. That's like closing up the gaps on a crowded shelf instead of shrinking the books.
+  - **Measured in the running app:**
+    - **26 weeks:** 7 px columns, in a wide and a narrow window.
+    - **12 weeks:** 15 px with the tight spacing in a wide window. In a narrow one, the usual spacing still gives 8 px.
+    - **4 weeks:** 24 px with the outline, as before.
+  - **The test:** a `BarChart` test checks that 26 weeks of columns drop the outline and 2 weeks keep it.
+
 ## Remaining risks
 
 - **Insights can't be used at 400% zoom (from before this PR).** At 320 x 256 CSS pixels (WCAG 1.4.10's test: 1280 x 1024 at 400%), the header and filters take the whole window. The scrolling area is 0 px high and the document doesn't scroll, so no tile or chart can be reached. The cards don't affect that area's height, so this PR neither causes nor fixes it. Other `fill` pages probably share it; not checked.
