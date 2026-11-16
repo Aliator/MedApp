@@ -48,6 +48,8 @@ public sealed class AuthController(
     /// </summary>
     [HttpPost("login")]
     [Tags("Login")]
+    // A username and a password: anything bigger is refused (413) before it's read.
+    [RequestSizeLimit(16 * 1024)]
     [EnableRateLimiting(LoginThrottling.Policy)]
     [ThrottleLoginByUsername]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
@@ -311,7 +313,7 @@ public sealed class AuthController(
     public async Task<IActionResult> AssignRole(AssignRoleRequest request)
     {
         var role = await mediator.Send(
-            new AssignRoleCommand(request.Username, request.Role, User.GetSessionId()));
+            new AssignRoleCommand(request.Username, request.Role));
 
         if (role is null)
             return BadRequest();
@@ -349,7 +351,7 @@ public sealed class AuthController(
     public async Task<IActionResult> RevokeRole(RevokeRoleRequest request)
     {
         var role = await mediator.Send(
-            new RevokeRoleCommand(request.Username, request.Role, User.GetSessionId()));
+            new RevokeRoleCommand(request.Username, request.Role));
 
         if (role is null)
             return BadRequest();

@@ -56,7 +56,7 @@ How MedApp is built. Most of this is already in place, in `AGENTS.md` and CI.
 | **Secrets never in git;** generated or chosen and kept in a secret store | In place |
 | **A human approves** each change before merge | **Not yet:** the repository needs no approvals. Add a required reviewer, at least for production deploys (step 2) |
 | **Dependencies with known licences,** an SBOM, and licence checks | Partly: an SBOM is attested with every published image. Licence checks planned (step 1) |
-| **Static analysis** (CodeQL), dependency review, image scanning, a ZAP scan | In place, except the ZAP scan (step 2): `.github/workflows/codeql.yml`, and `main.yml`'s `dependency-review` and `image` jobs |
+| **Static analysis** (CodeQL), dependency review, image scanning, a ZAP scan | In place, except the ZAP scan (step 2): `.github/workflows/codeql.yml`, and `main.yml`'s `dependency-review` and `image` jobs. Dependency review, Dependabot alerts and security updates rely on the repository's dependency graph, which is on (`docs/todo.md`, Repository settings) |
 | **Actions and images pinned by digest,** and provenance attestations | Partly: actions pinned by commit SHA, and provenance attestations on every published image. Images by digest, and verifying attestations before deploy, planned (step 2) |
 | **A threat model** and an **ASVS Level 2** checklist | In place: `docs/security/threat-model.md` and `docs/security/asvs.md` |
 | **Privacy by design:** any change that alters what personal data is held, who can see it, where it goes or how long it's kept updates `docs/governance/` (at least [data-inventory.md](data-inventory.md) and the DPIA) in the same pull request | In place: a step in `AGENTS.md`'s feature checklist, and a check in every merge review |

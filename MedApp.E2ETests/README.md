@@ -12,12 +12,13 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | `Tasks/MyTasksTests` | A procedure assigned to you in My Tasks, under Not started, then Started, and opening it. |
 | `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
 | `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
+| `Security/ContentSecurityPolicyTests` | Each main page (home, patients, procedures, My Tasks, account, users, insights) is rendered on the server with its own response's CSP nonce, which the API passes to the page server, in its container or beside it. Skipped against the development server, which sends no policy. |
 
 ## What's here
 
 | File | Purpose |
 |---|---|
-| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and procedures. |
+| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It fails any test whose pages break the Content Security Policy (a `securitypolicyviolation` listener on every page, reported through the console), so a refused script or connection fails the suite against the production image even when the journey still works. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and procedures. |
 | `Common/E2ESession.cs` | Signs in once per run through `POST /api/auth/login`, saves the session for every signed-in test, and signs it out at the end. |
 | `Common/E2EApi.cs` | The app's API, for a test's setup, its checks and its clean-up. |
 | `Common/E2EData.cs` | Unique synthetic names, and the clean-ups a test registers, run newest first when it ends, pass or fail. |

@@ -96,6 +96,8 @@ public sealed class AuthControllerTests
 
         login.GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName.Should().Be(LoginThrottling.Policy);
         login.GetCustomAttribute<ThrottleLoginByUsernameAttribute>().Should().NotBeNull();
+        // A username and a password: Kestrel refuses a bigger body (413) before it's read, or counted.
+        ((Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata)login.GetCustomAttribute<RequestSizeLimitAttribute>()!).MaxRequestBodySize.Should().Be(16 * 1024);
     }
 
     [Test]
@@ -467,19 +469,6 @@ public sealed class AuthControllerTests
         mediator.Request.Should().Be(new AssignRoleCommand(OtherUsername, "Admin"));
         assigned.Should().BeOfType<NoContentResult>();
         refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
-    public async Task AssignRoleAndRevokeRole_FromASession_SendIt()
-    {
-        var assigning = new RecordingMediator(_ => new IdentityRole<Guid>("Admin"));
-        var revoking = new RecordingMediator(_ => new IdentityRole<Guid>("Admin"));
-
-        await new AuthController(assigning, _cookies.Object).WithRequest(SignedInWithSession("Admin")).AssignRole(new AssignRoleRequest(OtherUsername, "Admin"));
-        await new AuthController(revoking, _cookies.Object).WithRequest(SignedInWithSession("Admin")).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
-
-        assigning.Request.Should().Be(new AssignRoleCommand(OtherUsername, "Admin", SessionId));
-        revoking.Request.Should().Be(new RevokeRoleCommand(OtherUsername, "Admin", SessionId));
     }
 
     [Test]

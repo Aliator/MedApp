@@ -79,12 +79,10 @@ public sealed class UserTests : IntegrationTest
 
         await response.ShouldHaveStatusAsync(HttpStatusCode.NoContent);
         (await RolesOfAsync(staff.Username)).Should().BeEquivalentTo([AdminRole]);
-        // The change ended their session; signed in again, they have the new roles.
-        (await (await staff.Client.GetAsync("/api/auth/whoami")).ReadAsAsync<WhoAmIResponse>()).IsAuthenticated.Should().BeFalse();
-        var signedInAgain = await SignInAsync(staff.Username, staff.Password);
-        var me = await (await signedInAgain.GetAsync("/api/auth/whoami")).ReadAsAsync<WhoAmIResponse>();
+        // The session picks the new roles up on its next request.
+        var me = await (await staff.Client.GetAsync("/api/auth/whoami")).ReadAsAsync<WhoAmIResponse>();
         me.Roles.Should().BeEquivalentTo([AdminRole]);
-        await (await signedInAgain.GetAsync("/api/auth/users/search")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await staff.Client.GetAsync("/api/auth/users/search")).ShouldHaveStatusAsync(HttpStatusCode.OK);
     }
 
     [Test]
@@ -99,9 +97,7 @@ public sealed class UserTests : IntegrationTest
         await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([])))
             .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
         (await RolesOfAsync(staff.Username)).Should().BeEmpty();
-        await (await staff.Client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.Unauthorized);
-        await (await (await SignInAsync(staff.Username, staff.Password)).GetAsync("/api/patients/search"))
-            .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+        await (await staff.Client.GetAsync("/api/patients/search")).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
     }
 
     [Test]

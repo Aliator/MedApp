@@ -175,7 +175,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | Deleting an account leaves its open procedures assigned to it, on nobody's task list | H-21 | Known. Refusing the delete, or requiring reassignment first, proposed before first live use. |
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
-| Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. Sessions now end when a password or roles change, and an admin can sign a user out everywhere (`feature/security-baseline`, not yet merged). |
+| Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. Sessions now end when a password is changed or reset, and an admin can sign a user out everywhere (`feature/security-baseline`, not yet merged). |
 | Patient changes and deletions aren't audited | H-03 | Known (risk S2). Planned, step 7. |
 
 [For each release: list the open defects from the issue tracker that have a clinical impact.]

@@ -98,10 +98,8 @@ public sealed class AuthorisationTests : IntegrationTest
         var admin = await SignInAsAdminAsync();
         await (await admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([])))
             .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
-        // Changing their roles ended their session, so they sign in again, with none.
-        var signedInAgain = await SignInAsync(staff.Username, staff.Password);
 
-        var response = await SendAsync(signedInAgain, method, url);
+        var response = await SendAsync(staff.Client, method, url);
 
         await response.ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         (await response.Content.ReadAsStringAsync()).Should().NotContain(PasswordChangeRequired.Code);

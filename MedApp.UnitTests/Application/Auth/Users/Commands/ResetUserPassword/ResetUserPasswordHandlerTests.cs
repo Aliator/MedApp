@@ -24,6 +24,7 @@ public sealed class ResetUserPasswordHandlerTests
 
         _service = new Mock<IIdentityUserService>();
         _fixture.Inject<IIdentityUserService>(_service.Object);
+        _fixture.Inject<IIdentityTransactions>(new PassThroughIdentityTransactions());
 
         _handler = _fixture.Create<ResetUserPasswordHandler>();
     }

@@ -3,7 +3,9 @@ using System.Text.Json;
 using FluentAssertions;
 using MedApp.API.Common.RateLimiting;
 using MedApp.Contracts.Authentication.Requests;
+using MedApp.UnitTests.Common.Constants;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -12,6 +14,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using static MedApp.UnitTests.Common.Constants.ApiTestConstants;
 
@@ -23,6 +26,7 @@ public sealed class LoginThrottlingTests
     private const string OtherIpAddress = "192.0.2.20";
 
     private ServiceProvider _services = null!;
+    private RecordingLoggerProvider _logs = null!;
     private RequestDelegate _pipeline = null!;
 
     [SetUp]
@@ -36,8 +40,10 @@ public sealed class LoginThrottlingTests
                 ["LoginThrottling:Window"] = "00:01:00",
             })
             .Build();
+        _logs = new RecordingLoggerProvider();
         _services = new ServiceCollection()
-            .AddLogging()
+            .AddLogging(logging => logging.AddProvider(_logs))
+            .AddSingleton(Options.Create(new IdentityOptions()))
             .AddSingleton<IConfiguration>(configuration)
             .AddLoginThrottling()
             .BuildServiceProvider();
@@ -54,7 +60,11 @@ public sealed class LoginThrottlingTests
     }
 
     [TearDown]
-    public void TearDown() => _services.Dispose();
+    public void TearDown()
+    {
+        _services.Dispose();
+        _logs.Dispose();
+    }
 
     private async Task<HttpContext> SignIn(string ipAddress = IpAddress)
     {
@@ -94,6 +104,8 @@ public sealed class LoginThrottlingTests
         var problem = Problem(refused);
         problem.Status.Should().Be(StatusCodes.Status429TooManyRequests);
         problem.Title.Should().StartWith("Too many sign-in attempts.");
+        _logs.Warnings.Should().ContainSingle()
+            .Which.Should().Be($"Sign-in refused by the per-address limit (2 attempts in 00:01:00) for client {IpAddress}.");
     }
 
     [Test]
@@ -169,12 +181,12 @@ public sealed class LoginThrottlingTests
     }
 
     [Test]
-    public async Task ThrottleByUsername_OverTheLimit_IsRefusedWhateverTheCaseOrSpaces()
+    public async Task ThrottleByUsername_OverTheLimit_IsRefusedWhateverTheCaseOrTrailingSpaces()
     {
         await ThrottleByUsername(new LoginRequest(Username, Password));
         await ThrottleByUsername(new LoginRequest(Username.ToUpperInvariant(), Password));
 
-        var (context, ran) = await ThrottleByUsername(new LoginRequest($" {Username} ", Password));
+        var (context, ran) = await ThrottleByUsername(new LoginRequest($"{Username}  ", Password));
 
         ran.Should().BeFalse();
         var result = context.Result.Should().BeOfType<ObjectResult>().Subject;
@@ -208,10 +220,74 @@ public sealed class LoginThrottlingTests
     }
 
     [Test]
+    public async Task ThrottleByUsername_OverTheLimit_LogsTheClientButNeverTheUsername()
+    {
+        for (var i = 0; i < 3; i++)
+            await ThrottleByUsername(new LoginRequest(Username, Password));
+
+        var warning = _logs.Warnings.Should().ContainSingle().Subject;
+        warning.Should().StartWith("Sign-in refused by the per-username limit (2 attempts in 00:01:00) for client ");
+        warning.Should().NotContain(Username);
+    }
+
+    [Test]
+    public async Task ThrottleByUsername_LongerThanAnyAccountsName_IsLeftToValidationAndNeverCounted()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            var (_, ran) = await ThrottleByUsername(new LoginRequest(AuthTestConstants.TooLongUsername, Password));
+            ran.Should().BeTrue();
+        }
+    }
+
+    [TestCaseSource(typeof(AuthTestConstants), nameof(AuthTestConstants.UsernameVariants))]
+    public async Task ThrottleByUsername_CharactersNoAccountHas_AreLeftToSignInAndNeverCounted(string variant)
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            var (_, ran) = await ThrottleByUsername(new LoginRequest(variant, Password));
+            ran.Should().BeTrue();
+        }
+    }
+
+    [TestCase("ＡＤＭＩＮ", "ADMIN")]
+    [TestCase(" admin ", "ADMIN")]
+    [TestCase("ﬁle", "FILE")]
+    public void UsernameKey_IsTrimmedCompatibilityFormIgnoringCase(string username, string expected)
+    {
+        LoginUsernameLimiter.Key(username).Should().Be(expected);
+    }
+
+    [Test]
     public void UsernameLimiter_UsesTheWindowFromSettings()
     {
         using var limiter = new LoginUsernameLimiter(Options.Create(new LoginThrottlingOptions { Window = TimeSpan.FromSeconds(30) }));
 
         limiter.Window.Should().Be(TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>Keeps every warning logged, formatted.</summary>
+    private sealed class RecordingLoggerProvider : ILoggerProvider
+    {
+        public List<string> Warnings { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => new Logger(this);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class Logger(RecordingLoggerProvider provider) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                if (logLevel == LogLevel.Warning)
+                    provider.Warnings.Add(formatter(state, exception));
+            }
+        }
     }
 }

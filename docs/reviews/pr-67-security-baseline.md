@@ -93,7 +93,7 @@ The PR adds the first part of roadmap step 2: browser security headers and a Con
 
 ## Findings
 
-Most severe first. One is high, two are medium and six are low. All nine were open when this review was written. Line numbers are the merged branch's (`73cc2c3`); only `docs/architecture.md`'s differ from `49b06a0`, by one.
+Most severe first. One is high, two are medium and six are low. All nine were open when this review was written; each one's outcome is under it. Line numbers are the merged branch's (`73cc2c3`); only `docs/architecture.md`'s differ from `49b06a0`, by one.
 
 ### 1. `dependency-review` fails on every pull request: the repository's dependency graph is off
 
@@ -105,7 +105,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `gh api repos/Aliator/MedApp`: `dependabot_security_updates: disabled`; `gh api repos/Aliator/MedApp/vulnerability-alerts`: 404 (alerts off)
   - `.github/dependabot.yml:1-4`; `docs/security/threat-model.md:130` (T-41); `docs/security/asvs.md:422` (15.2.1); `docs/governance/security-policies.md:59` ("In place")
 - **Fix:** in the repository's Settings, Advanced Security: turn on the dependency graph, Dependabot alerts and Dependabot security updates (free for a public repository), then re-run the job. Record the three settings beside the required checks in `docs/todo.md`'s "Repository settings" line, so a new fork or a restored repository gets them. Consider making `dependency-review` a required check once it's green.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The coordinator turned on the dependency graph, Dependabot alerts and Dependabot security updates, and the re-run `dependency-review` job passed. The settings are recorded in `docs/todo.md`'s Repository settings line (with secret scanning, push protection, and CodeQL's default setup kept off), and the docs that relied on them now say so: `threat-model.md` T-41, `asvs.md` 15.2.1, `security-policies.md` and `dependabot.yml`'s header comment. Making `dependency-review` a required check is left on the to-do list.
 
 ### 2. The per-username counter keeps every name it's given, of any length, for about a minute
 
@@ -119,7 +119,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `deploy/helm/medapp/values.yaml:20-21`: the API's 1 GiB memory limit
   - measured (Detail): 30 keys of 10,000,000 characters kept 610 MB after a full garbage collection, and 572 MB 15 seconds later
 - **Fix:** bound it in three places (diff under Detail): `[RequestSizeLimit(16 * 1024)]` on `AuthController.Login`, so a huge body is refused before it's read; `MaximumLength(256)` on `LoginValidator`'s username (the column's length); and in the filter, leave a name over 256 characters to validation instead of counting it. Add a test that a 257-character name isn't kept by the limiter.
-- **What happened to it:** open.
+- **What happened to it:** fixed as suggested. `[RequestSizeLimit(16 * 1024)]` on `AuthController.Login` (Kestrel answers 413 before reading the body; TestServer doesn't enforce it, so a unit test checks the attribute's value); `MaximumLength(256)` in `LoginValidator` (`UsernameRules.MaxLength`, a 400, tested in `LoginHandlerValidatorTests` and `LoginThrottlingTests` through the API); and the filter counts only a name that could be an account's (`UsernameRules.CouldExist`), so a 257-character name is never kept (`ThrottleByUsername_LongerThanAnyAccountsName_IsLeftToValidationAndNeverCounted`).
 
 ### 3. Changing someone's roles now signs them out, which the stated scope said wouldn't change
 
@@ -134,7 +134,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
 - **Fix:** a decision either way:
   - **keep the old behaviour** (preferred, given the scope): remove the three `EndSessions`/`RevokeUserSessions` calls from the role handlers and restore `UserTests`' "picks the new roles up on its next request". Password changes, resets and Sign out everywhere keep ending sessions; those are what ASVS 7.4.3 and 7.4.5 ask for.
   - **or keep it as a deliberate exception:** say so in the PR's scope statement and in the hazard log, add "Saving signs them out everywhere if their roles change" to the Edit Roles dialog, and end sessions on `DeleteRole` too.
-- **What happened to it:** open.
+- **What happened to it:** fixed by keeping the old behaviour, as decided for the owner. The three role handlers (`SetUserRoles`, `AssignRole`, `RevokeRole`) and their commands are back as they are on `main`, with no session ending, and `UserTests`' "the session picks the new roles up on its next request" is restored, as is the authorisation matrix's "roles removed, 403" on the same session. Password changes, resets and Sign out everywhere still end sessions. `AGENTS.md`, the handbook (6.1, 8.1, S5, step 2's status), the threat model (T-14), the checklist (V7 intro, 8.3.2), the hazard log (H-18), the safety case, and the governance pack (DPIA, DPA, README) say so.
 
 ### 4. The per-username limit can be dodged with characters the database ignores
 
@@ -145,7 +145,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `MedApp.Infrastructure/Common/Authentication/IdentityAuthenticationService.cs:21`: `FindByNameAsync(username)` with the name as sent
   - the probe (Detail): `NCHAR(65279) + N'ADMIN'`, `N'ADMIN' + NCHAR(0)` and `NCHAR(65313) + N'DMIN'` all equal `N'ADMIN'`; zero-width space, zero-width non-joiner and soft hyphen don't
 - **Fix:** treat a username with any character outside Identity's `User.AllowedUserNameCharacters` (letters, digits and `-._@+`, which every account already meets) as unknown, with the usual 401, before the lookup in `IdentityAuthenticationService` and before the limiter counts it, so these variants never reach the database and the login's answers don't change. At the least, normalise the key the way the database compares: `Normalize(NormalizationForm.FormKC)`, then drop control and format characters (`UnicodeCategory.Control`, `UnicodeCategory.Format`), then upper-case.
-- **What happened to it:** open.
+- **What happened to it:** fixed. A name with any character outside Identity's `User.AllowedUserNameCharacters` (ignoring trailing spaces, which SQL Server ignores too, so a name typed with one signs in as before) is unknown, the usual 401, before the lookup (`IdentityAuthenticationService`) and is never counted by the limiter (`UsernameRules.CouldExist`, shared by both). The limiter key is also NFKC-normalised (`LoginUsernameLimiter.Key`). Tests: the byte order mark, NUL and full-width cases in `UsernameRulesTests`, `IdentityAuthenticationServiceTests` (no lookup) and the filter's unit tests, and through the API in `LoginThrottlingTests` (eight attempts at each variant, then the admin still signs in).
 
 ### 5. Changing an account and ending its sessions are two saves
 
@@ -158,7 +158,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `MedApp.Infrastructure/Common/Authentication/SessionService.cs:101-122`
   - `docs/security/asvs.md:120` (2.3.3)
 - **Fix:** run both steps in one transaction with `IIdentityTransactions.RunAsync` (both use the request's `MedAppDbContext`), or, for the reset, catch and log a failure to end sessions and still return the password, so the admin can use Sign out everywhere. Add it to `docs/todo.md` if it's left.
-- **What happened to it:** documented in the PR (ASVS 2.3.3); not on the to-do list.
+- **What happened to it:** fixed. The password change and the reset each run the change and the session ending in one `IIdentityTransactions.RunAsync` (`UpdateUserPasswordHandler`, `ResetUserPasswordHandler`); a failure in the second step rolls back the first. A unit test checks that a failure to end sessions fails the whole transaction. `SetUserRolesHandler` no longer ends sessions (finding 3). ASVS 2.3.3 is updated.
 
 ### 6. Three new CI gates can turn every pull request, and Publish, red overnight, with no documented way through
 
@@ -169,7 +169,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `.github/workflows/main.yml:28-31` (`npm audit`) and `:107-115` (Trivy's gate)
   - `AGENTS.md`, CI: "a newly published advisory fails the build until the package is updated"
 - **Fix:** document the escape hatches in `AGENTS.md`'s supply chain rules: `<NuGetAuditSuppress Include="<advisory URL>" />` in the one affected `csproj`, with a comment and a date; an npm `overrides` entry or a documented exception; and a `.trivyignore` entry with `exp:<date>`. Each one should name the to-do it expires with.
-- **What happened to it:** open.
+- **What happened to it:** fixed in the docs. `AGENTS.md`'s supply chain rules say how to accept one known issue for a short, dated time, with a `docs/todo.md` entry it expires with: `NuGetAuditSuppress` in the one affected csproj, an npm `overrides` entry (or a commented narrowing of the audit), and a `.trivyignore` line with `exp:<date>` passed to both Trivy runs.
 
 ### 7. A whole site behind one address shares 30 sign-ins a minute, and refusals leave no trace
 
@@ -180,7 +180,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `MedApp.API/Common/RateLimiting/LoginThrottling.cs:36` and `:97-105`: the refusal, not logged
   - `MedApp.API/Common/RateLimiting/ThrottleLoginByUsernameAttribute.cs:33-40`: the same
 - **Fix:** log each refusal at Warning with which limit refused it and the client key (never the username), so it's visible and alertable; and add sizing guidance where the setting is documented (for example, raise `LoginThrottling:PerClientPermitLimit` for a site with many staff behind one address), with the step to take if staff report the message.
-- **What happened to it:** open.
+- **What happened to it:** fixed. Each refusal, by either limit, is logged at Warning with the limit and the client's key, never the username (`LoginThrottling.LogRefusal`), and tested. `AGENTS.md`'s Auth section has the sizing guidance: when to raise `LoginThrottling:PerClientPermitLimit` for a site behind one address, and what to do when staff report the message.
 
 ### 8. The tests don't pin some of what the security rests on
 
@@ -195,7 +195,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - `MedApp.E2ETests` (no `securitypolicyviolation` or console check anywhere in it)
   - `MedApp.UnitTests/Api/RateLimiting/LoginThrottlingTests.cs:108-116` (`ClientKey` only) and `:171-185`
 - **Fix:** add a browser-sent `X-MedApp-Csp-Nonce` to `Handle_NoNonce_SendsNone` and assert it isn't forwarded; in the E2E base fixture, listen for `securitypolicyviolation` events (or CSP console errors) on every page and fail the test on one; add an integration test with `ForwardedHeaders` on and an `X-Forwarded-For` header; add the long-name and variant cases with findings 2 and 4.
-- **What happened to it:** open.
+- **What happened to it:** fixed. `SsrPagesTests` now sends a browser's own `X-MedApp-Csp-Nonce` and checks it's never forwarded, with or without the page's nonce; `LoginThrottlingTests` (integration) turns forwarded headers on, as the chart does, and checks each client counts by its forwarded address and only the last one counts; the length and variant cases are tested (findings 2 and 4); and `E2ETest` listens for `securitypolicyviolation` on every page and fails the test on one. The E2E suite passed against a production image built from the fixed branch, with no violations.
 
 ### 9. Docs: stale rows, now better after #65, and a few slips
 
@@ -206,7 +206,7 @@ Most severe first. One is high, two are medium and six are low. All nine were op
   - **Slips:** `docs/architecture.md:644` and `:656` still name the cookie `medapp.session`, and `:657` says a role change or a reset "applies at once" without saying either now ends sessions; `asvs.md:36` says nine pages were checked in Chromium, the PR description eleven; `asvs.md:270` lists sign-in, sign-out and who-am-I as the only actions without a role, but the session endpoints from #63 are `[Authorize]` only too.
 - **Evidence:** as listed.
 - **Fix:** update those rows: cite `AuthorisationTests` and the new integration tests, lower T-13's rating, and correct the slips.
-- **What happened to it:** open.
+- **What happened to it:** fixed. The checklist cites `AuthorisationTests` and the new integration tests (8.1.1, 8.2.1, gap 6, "How it was checked"), names the session endpoints as `[Authorize]` only in 8.2.1, and says eleven pages; the threat model lowers T-13 to low and rewords risk 6; the handbook's S7 is lowered, 6.1 names the `__Host-` cookie and says what a role change and a reset do; and the oversold rows are corrected (findings 1 and 4).
 
 ## Remaining risks
 

@@ -112,11 +112,29 @@ public sealed class SsrPagesTests
     }
 
     [Test]
-    public async Task Handle_NoNonce_SendsNone()
+    public async Task Handle_NoNonce_SendsNoneEvenIfTheBrowserSentOne()
     {
-        await Handle(Page());
+        var context = Page();
+        context.Request.Headers[SsrPages.NonceHeader] = "Zm9yZ2VkLWJ5LXRoZS1icm93c2Vy";
+
+        await Handle(context);
 
         _renderer.Requests.Should().ContainSingle().Which.Headers.Contains(SsrPages.NonceHeader).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Handle_BrowserSentANonce_SendsOnlyThePagesOwn()
+    {
+        var context = Page();
+        context.Request.Headers[SsrPages.NonceHeader] = "Zm9yZ2VkLWJ5LXRoZS1icm93c2Vy";
+        var environment = new Mock<IWebHostEnvironment>();
+        environment.SetupGet(e => e.EnvironmentName).Returns("Production");
+        await new SecurityHeaders(_ => Task.CompletedTask, environment.Object, Options.Create(new SecurityHeadersOptions())).InvokeAsync(context);
+
+        await Handle(context);
+
+        _renderer.Requests.Should().ContainSingle().Which.Headers.GetValues(SsrPages.NonceHeader)
+            .Should().Equal(SecurityHeaders.GetNonce(context));
     }
 
     [Test]
