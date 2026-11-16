@@ -1,28 +1,31 @@
 import type {TokenColor} from '@astryxdesign/core/Token';
 import {appointmentStatusLabel, type Appointment} from '../../api/appointments';
-import type {Calendar, CalendarBlock} from '../../api/calendar';
+import type {Calendar, CalendarBlock, Meeting} from '../../api/calendar';
 import {formatTimeRange} from '../../utils/calendarSlots';
 import {ukDay} from '../../utils/dates';
 import {APPOINTMENT_STATUS_COLOURS, activityColour} from './CalendarTokens';
 
 /**
- * Something shown on a `CalendarGrid`: an appointment or blocked time, placed by its time. The grid stays generic, so
- * Home, the Calendar page and anything else can show their own things on it; `appointmentItem` and `blockItem` make
- * items from the API's calendar.
+ * Something shown on a `CalendarGrid`: an appointment, blocked time or a meeting, placed by its time. The grid stays
+ * generic, so Home, the Calendar page and anything else can show their own things on it; `appointmentItem`,
+ * `blockItem` and `meetingItem` make items from the API's calendar.
  */
 export interface CalendarGridItem {
   /** Unique on the grid. */
   key: string;
-  /** Appointments stand out; blocks are quieter. */
-  kind: 'appointment' | 'block';
+  /** Appointments and meetings stand out (a meeting with its icon); blocks are quieter. */
+  kind: 'appointment' | 'block' | 'meeting';
   /** The UK day it's on (`yyyy-mm-dd`). */
   date: string;
   startUtc: string;
   endUtc: string;
   colour: TokenColor;
-  /** The first line: a patient's name, an activity. */
+  /** The first line: a patient's name, an activity, a meeting's title. */
   label: string;
-  /** The second line: what it's for (nothing for an appointment that isn't for a procedure), a block's note. */
+  /**
+   * The second line: what it's for (nothing for an appointment that isn't for a procedure), a block's note, how many
+   * are going to a meeting.
+   */
   sublabel?: string | null;
   /** Everything about it, in words: its accessible name, and its tooltip. */
   description: string;
@@ -47,6 +50,38 @@ export const appointmentKey = (id: string | undefined) => `appointment-${id}`;
 
 /** A block's key on a grid: a stored block's ID, or a template block's on its day. */
 export const blockKey = (block: CalendarBlock) => `block-${block.blockId ?? `${block.templateBlockId}-${block.date}`}`;
+
+/** A meeting's key on a grid. */
+export const meetingKey = (id: string | undefined) => `meeting-${id}`;
+
+/**
+ * A meeting's colour on a calendar: the seeded "Meeting" activity type's (teal), so a meeting looks like the meeting
+ * time people block for themselves. It also has its icon (`AppIcon.Meeting`), so it never relies on colour alone.
+ */
+export const MEETING_COLOUR: TokenColor = 'teal';
+
+/** How many are going to a meeting: "1 attending", "4 attending". */
+export const attendingCount = (meeting: Pick<Meeting, 'attendees'>) => `${(meeting.attendees ?? []).length} attending`;
+
+/** A meeting on a calendar: its title, time and how many are going; movable by those who can change it (admins). */
+export function meetingItem(meeting: Meeting): CalendarGridItem {
+  const start = meeting.startUtc ?? '';
+  const end = meeting.endUtc ?? '';
+  const title = meeting.title ?? '';
+  const attending = attendingCount(meeting);
+  return {
+    key: meetingKey(meeting.id),
+    kind: 'meeting',
+    date: meeting.date ?? ukDay(start),
+    startUtc: start,
+    endUtc: end,
+    colour: MEETING_COLOUR,
+    label: title,
+    sublabel: attending,
+    description: `${title}, meeting, ${formatTimeRange(start, end)}, ${attending}`,
+    isMovable: meeting.canEdit === true,
+  };
+}
 
 /** An appointment on a calendar, coloured by its status; movable while it can be rescheduled. */
 export function appointmentItem(appointment: Appointment): CalendarGridItem {
@@ -97,11 +132,12 @@ export function blockItem(block: CalendarBlock): CalendarGridItem {
   };
 }
 
-/** Everything on a calendar as grid items: its blocks first, so its appointments draw over them. */
-export function calendarItems(calendar: Pick<Calendar, 'blocks' | 'appointments'> | undefined): CalendarGridItem[] {
+/** Everything on a calendar as grid items: its blocks first, then its meetings, so its appointments draw over them. */
+export function calendarItems(calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings'> | undefined): CalendarGridItem[] {
   if (!calendar) return [];
   return [
     ...(calendar.blocks ?? []).map(blockItem),
+    ...(calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map(meetingItem),
     ...(calendar.appointments ?? []).filter((a) => a.startUtc && a.endUtc).map(appointmentItem),
   ];
 }

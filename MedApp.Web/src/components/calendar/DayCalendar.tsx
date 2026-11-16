@@ -14,7 +14,7 @@ import {formatCalendarDay, nextWeekday, ukToday} from '../../utils/calendarSlots
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {PanelHeader} from '../views/PanelCard';
-import {CalendarGrid} from './CalendarGrid';
+import {CalendarGrid, dayColumns} from './CalendarGrid';
 import {appointmentKey, calendarItems, type CalendarGridItem} from './calendarItems';
 
 /** One day of someone's calendar (no `staffUserId`: the signed-in user's), the query Home preloads. */
@@ -32,9 +32,9 @@ export interface DayCalendarProps {
 }
 
 /**
- * One person's day (decision 32): its appointments and blocked time on a read-only `CalendarGrid`, with Previous day,
- * Today and Next day (working days). Clicking an appointment opens its procedure, or its patient when it isn't for
- * one. It fills the height it's given, in a card. Use it where someone wants to see a day at a glance, like Home;
+ * One person's day (decision 32): its appointments, blocked time and meetings on a read-only `CalendarGrid`, with
+ * Previous day, Today and Next day (working days). Clicking an appointment opens its procedure, or its patient when it
+ * isn't for one; blocks and meetings are only shown. It fills the height it's given, in a card. Use it where someone wants to see a day at a glance, like Home;
  * the Calendar page is where the time is changed.
  */
 export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProps) {
@@ -43,8 +43,9 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
   const [date, setDate] = useState(initialDate ?? today);
   const calendar = useQuery(dayCalendarQuery(date, staffUserId));
   const day = calendar.data?.days?.find((d) => d.date === date);
-  // Only appointments open (their procedure or patient); blocked time is just shown.
-  const items = calendarItems(calendar.data).map((item) => (item.kind === 'block' ? {...item, isReadOnly: true} : item));
+  // Only appointments open (their procedure or patient); blocked time and meetings are just shown (the Calendar page
+  // has their details).
+  const items = calendarItems(calendar.data).map((item) => (item.kind === 'appointment' ? item : {...item, isReadOnly: true}));
   const hasAppointments = (calendar.data?.appointments ?? []).length > 0;
 
   const open = (item: CalendarGridItem) => {
@@ -104,7 +105,12 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
               </Section>
             )}
             <StackItem size="fill">
-              <CalendarGrid label={`${calendar.data?.staffUsername ?? ''}'s calendar, ${formatCalendarDay(date)}`} days={[day]} items={items} onItemOpen={open} isHeadingHidden />
+              <CalendarGrid
+                label={`${calendar.data?.staffUsername ?? ''}'s calendar, ${formatCalendarDay(date)}`}
+                columns={dayColumns([day], items)}
+                onItemOpen={open}
+                isHeadingHidden
+              />
             </StackItem>
           </>
         )}

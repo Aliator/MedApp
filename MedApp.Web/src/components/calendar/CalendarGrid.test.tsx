@@ -1,9 +1,10 @@
-import {fireEvent, screen, within} from '@testing-library/react';
-import {calendarDay, testAppointment, testBlock, ukTime} from '../../test/calendar';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import type {CalendarDay} from '../../api/calendar';
+import {calendarDay, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
 import {renderWithApp} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
-import {appointmentItem, blockItem, type CalendarGridItem} from './calendarItems';
-import {CalendarGrid, type CalendarGridProps} from './CalendarGrid';
+import {appointmentItem, blockItem, meetingItem, type CalendarGridItem} from './calendarItems';
+import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarGridProps} from './CalendarGrid';
 
 const MONDAY = '2026-11-23';
 const week = (today = MONDAY) => Array.from({length: 7}, (_, i) => calendarDay(addDays(MONDAY, i), today));
@@ -11,12 +12,20 @@ const week = (today = MONDAY) => Array.from({length: 7}, (_, i) => calendarDay(a
 /** Monday 23 November 2026, 07:00 UK time, before the working day starts. */
 const atMondayMorning = (time = '2026-11-23T07:00:00Z') => vi.useFakeTimers({toFake: ['Date'], now: new Date(time)});
 
-function renderGrid(props: Partial<CalendarGridProps> = {}) {
+/** A grid of one person's days (a week by default), or of `columns` when given. */
+function renderGrid({days = week(), items = [], ...props}: Partial<CalendarGridProps> & {days?: CalendarDay[]; items?: CalendarGridItem[]} = {}) {
   const onSelectRange = vi.fn();
   const onItemOpen = vi.fn();
   const onItemMove = vi.fn();
   const result = renderWithApp(
-    <CalendarGrid label="test-user's calendar" days={week()} items={[]} onSelectRange={onSelectRange} onItemOpen={onItemOpen} onItemMove={onItemMove} {...props} />,
+    <CalendarGrid
+      label="test-user's calendar"
+      columns={dayColumns(days, items)}
+      onSelectRange={onSelectRange}
+      onItemOpen={onItemOpen}
+      onItemMove={onItemMove}
+      {...props}
+    />,
   );
   return {...result, onSelectRange, onItemOpen, onItemMove};
 }
@@ -61,12 +70,12 @@ describe('CalendarGrid', () => {
     const card = await screen.findByRole('button', {name: 'Test Patient, Knee review: Assessment, 09:00 to 10:00, Booked'});
     expect(card.closest('[data-kind]')).toHaveTextContent('Test Patient');
     await user.click(card);
-    expect(onItemOpen).toHaveBeenCalledWith(appointment);
+    expect(onItemOpen).toHaveBeenCalledWith(appointment, expect.objectContaining({key: MONDAY, date: MONDAY}));
 
     const lunch = screen.getByRole('button', {name: 'Lunch, Team lunch, 12:00 to 13:00'});
     lunch.focus();
     await user.keyboard('{Enter}');
-    expect(onItemOpen).toHaveBeenCalledWith(block);
+    expect(onItemOpen).toHaveBeenCalledWith(block, expect.objectContaining({key: MONDAY}));
 
     // A 15-minute appointment shows on one line; one that isn't for a procedure shows whose it is, and when.
     const shortCard = screen.getByRole('button', {name: 'Test Patient, appointment, 10:00 to 10:15, Booked'}).closest('[data-kind]');
@@ -118,7 +127,7 @@ describe('CalendarGrid', () => {
   it('shows read-only items too short for text with a tooltip, named for screen readers', async () => {
     atMondayMorning();
     const five = {...blockItem(testBlock(MONDAY, '12:00', '12:05')), isReadOnly: true};
-    renderWithApp(<CalendarGrid label="Today" days={[calendarDay(MONDAY, MONDAY)]} items={[five]} onItemOpen={vi.fn()} isHeadingHidden />);
+    renderWithApp(<CalendarGrid label="Today" columns={dayColumns([calendarDay(MONDAY, MONDAY)], [five])} onItemOpen={vi.fn()} isHeadingHidden />);
 
     await screen.findByRole('group', {name: 'Today'});
     const card = document.querySelector('[data-kind="block"]')!;
@@ -150,8 +159,16 @@ describe('CalendarGrid', () => {
     const free = await screen.findByRole('button', {name: 'Tuesday 24 November, 09:15, free'});
     fireEvent.pointerDown(free, {button: 0, pointerId: 1});
     fireEvent.pointerUp(free, {pointerId: 1});
+    // Not while the browser is still handling the release: a menu opened then would take it, and the click after it,
+    // as a press outside it, and close at once.
+    expect(onSelectRange).not.toHaveBeenCalled();
 
-    expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: ukTime('2026-11-24', '09:15').replace('Z', '.000Z'), endUtc: '2026-11-24T09:30:00.000Z'}, free);
+    await waitFor(() =>
+      expect(onSelectRange).toHaveBeenCalledWith(
+        {date: '2026-11-24', startUtc: ukTime('2026-11-24', '09:15').replace('Z', '.000Z'), endUtc: '2026-11-24T09:30:00.000Z', column: '2026-11-24'},
+        free,
+      ),
+    );
   });
 
   it('selects a range by dragging, stopping at anything in the way', async () => {
@@ -167,8 +184,14 @@ describe('CalendarGrid', () => {
     fireEvent.pointerMove(column('Monday 23 November, today'), {pointerId: 1, clientX: 50, clientY: yOf(12)});
     expect(screen.getByText('09:00 to 10:00')).toBeInTheDocument();
     fireEvent.pointerUp(column('Monday 23 November, today'), {pointerId: 1});
+    expect(onSelectRange).not.toHaveBeenCalled();
 
-    expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T09:00:00.000Z', endUtc: '2026-11-23T10:00:00.000Z'}, expect.anything());
+    await waitFor(() =>
+      expect(onSelectRange).toHaveBeenCalledWith(
+        {date: MONDAY, startUtc: '2026-11-23T09:00:00.000Z', endUtc: '2026-11-23T10:00:00.000Z', column: MONDAY},
+        expect.anything(),
+      ),
+    );
   });
 
   it('is one tab stop: the arrow keys move between free times, Shift selects more, and Enter selects', async () => {
@@ -196,7 +219,10 @@ describe('CalendarGrid', () => {
     expect(screen.getByText('08:30 to 09:15')).toBeInTheDocument();
     await user.keyboard('{Enter}');
 
-    expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T08:30:00.000Z', endUtc: '2026-11-23T09:15:00.000Z'}, slot('Monday 23 November, 09:00, free'));
+    expect(onSelectRange).toHaveBeenCalledWith(
+      {date: MONDAY, startUtc: '2026-11-23T08:30:00.000Z', endUtc: '2026-11-23T09:15:00.000Z', column: MONDAY},
+      slot('Monday 23 November, 09:00, free'),
+    );
   });
 
   it('lets go of a selection being made with Escape, and selects one slot with Space', async () => {
@@ -210,7 +236,7 @@ describe('CalendarGrid', () => {
     expect(screen.queryByText('08:00 to 08:30')).not.toBeInTheDocument();
 
     await user.keyboard(' ');
-    expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T08:15:00.000Z', endUtc: '2026-11-23T08:30:00.000Z'}, expect.anything());
+    expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T08:15:00.000Z', endUtc: '2026-11-23T08:30:00.000Z', column: MONDAY}, expect.anything());
   });
 
   it("doesn't offer past days or times that have started, dims them, and shows the time now", async () => {
@@ -256,7 +282,7 @@ describe('CalendarGrid', () => {
       expect(scroller.scrollTop).toBe(220);
 
       scroller.scrollTop = 0;
-      rerender(<CalendarGrid label="test-user's calendar" days={week('2026-11-24')} items={[]} />);
+      rerender(<CalendarGrid label="test-user's calendar" columns={dayColumns(week('2026-11-24'), [])} />);
       expect(scroller.scrollTop).toBe(0);
     } finally {
       Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
@@ -280,7 +306,7 @@ describe('CalendarGrid', () => {
     atMondayMorning();
     const appointment = appointmentItem(testAppointment({date: MONDAY}));
     const onItemOpen = vi.fn();
-    const {user} = renderWithApp(<CalendarGrid label="Today" days={[calendarDay(MONDAY, MONDAY)]} items={[appointment]} onItemOpen={onItemOpen} />);
+    const {user} = renderWithApp(<CalendarGrid label="Today" columns={dayColumns([calendarDay(MONDAY, MONDAY)], [appointment])} onItemOpen={onItemOpen} />);
 
     await user.click(await screen.findByRole('button', {name: /^Test Patient/}));
     expect(onItemOpen).toHaveBeenCalled();
@@ -321,7 +347,7 @@ describe('CalendarGrid', () => {
     fireEvent.pointerUp(card, {pointerId: 7});
     fireEvent.click(card);
 
-    expect(onItemMove).toHaveBeenCalledWith(appointment, {date: '2026-11-25', startUtc: '2026-11-25T14:00:00.000Z', endUtc: '2026-11-25T14:30:00.000Z'});
+    expect(onItemMove).toHaveBeenCalledWith(appointment, {date: '2026-11-25', startUtc: '2026-11-25T14:00:00.000Z', endUtc: '2026-11-25T14:30:00.000Z', column: '2026-11-25'});
     expect(onItemOpen).not.toHaveBeenCalled();
   });
 
@@ -361,7 +387,7 @@ describe('CalendarGrid', () => {
 
     expect(onItemMove).not.toHaveBeenCalled();
     expect(onItemOpen).toHaveBeenCalledTimes(1);
-    expect(onItemOpen).toHaveBeenCalledWith(appointment);
+    expect(onItemOpen).toHaveBeenCalledWith(appointment, expect.objectContaining({key: MONDAY}));
   });
 
   it('skips days with nothing free, looks both ways for the nearest free time, and stops at the edges', async () => {
@@ -378,7 +404,7 @@ describe('CalendarGrid', () => {
     await user.keyboard('{ArrowUp}{ArrowDown}');
     expect(slot('Wednesday 25 November, 08:00, free')).toHaveFocus();
     // Nothing free on the weekend, so it stays on Friday.
-    await user.keyboard('{ArrowRight}{ArrowRight}');
+    await user.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
     expect(slot('Friday 27 November, 08:00, free')).toHaveFocus();
     await user.keyboard('{Tab}');
   });
@@ -397,6 +423,8 @@ describe('CalendarGrid', () => {
     fireEvent.pointerMove(monday, {pointerId: 2, clientX: 50, clientY: 300});
     fireEvent.pointerCancel(monday, {pointerId: 2});
     fireEvent.pointerMove(monday, {pointerId: 2, clientX: 50, clientY: 300});
+    // A pointer selection is reported just after its press ends, so wait past that before saying none was.
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(onSelectRange).not.toHaveBeenCalled();
 
     fireEvent.pointerDown(card, {button: 2, pointerId: 3});
@@ -409,8 +437,113 @@ describe('CalendarGrid', () => {
     expect(onItemMove).not.toHaveBeenCalled();
   });
 
+  it("shows a meeting with its icon, so it doesn't rely on colour alone", async () => {
+    atMondayMorning();
+    const meeting = meetingItem(testMeeting({date: MONDAY, start: '09:00', end: '10:00', title: 'MDT'}));
+    const {user, onItemOpen} = renderGrid({items: [meeting]});
+
+    const card = await screen.findByRole('button', {name: 'MDT, meeting, 09:00 to 10:00, 2 attending'});
+    const box = card.closest('[data-kind]')!;
+    expect(box).toHaveAttribute('data-kind', 'meeting');
+    expect(box.querySelector('svg')).not.toBeNull();
+    expect(box).toHaveTextContent('MDT');
+    expect(box).toHaveTextContent('2 attending');
+    await user.click(card);
+    expect(onItemOpen).toHaveBeenCalledWith(meeting, expect.objectContaining({key: MONDAY}));
+  });
+
+  describe('with a column for each person', () => {
+    const day = calendarDay(MONDAY, MONDAY);
+    const lunch = blockItem(testBlock(MONDAY, '12:00', '13:00', {blockId: 'k-lunch'}));
+    const huddle = meetingItem(testMeeting({date: MONDAY, start: '09:00', end: '10:00'}));
+    const team = (): CalendarColumn[] => [
+      {key: 'everyone', label: 'Everyone free', date: MONDAY, day, items: [], freeTime: [{startUtc: ukTime(MONDAY, '10:00'), endUtc: ukTime(MONDAY, '11:00')}, {}]},
+      {key: 'k', label: 'k.ashford', date: MONDAY, day, items: [lunch, huddle]},
+      {key: 'b', label: 'b.staff', date: MONDAY, day, items: [huddle]},
+    ];
+
+    it('heads and names each column for who it is, and offers only the free times in a column that has them', async () => {
+      atMondayMorning();
+      renderGrid({columns: team()});
+
+      expect(await screen.findByRole('group', {name: 'k.ashford, Monday 23 November, today'})).toBeInTheDocument();
+      expect(column('Everyone free, Monday 23 November, today')).toBeInTheDocument();
+      expect(document.querySelector('.mc-head')).toHaveTextContent('Everyone freek.ashfordb.staff');
+      expect(slot('k.ashford, Monday 23 November, 10:00, free')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'k.ashford, Monday 23 November, 12:00, free'})).not.toBeInTheDocument();
+      // Everyone free: 10:00 to 11:00 only, marked in words; the rest is shaded as unavailable.
+      const everyone = column('Everyone free, Monday 23 November, today');
+      expect(within(everyone).getAllByRole('button')).toHaveLength(4);
+      expect(within(everyone).getByRole('button', {name: 'Everyone free, Monday 23 November, 10:00, free'})).toHaveAttribute('tabindex', '0');
+      expect(everyone.querySelector('.mc-free')).toHaveTextContent('Free, 10:00 to 11:00');
+      expect(everyone.querySelectorAll('[data-unavailable]')).toHaveLength(36);
+      // Each person keeps a sensible width: more people than fit scroll sideways.
+      expect(screen.getByRole('group', {name: "test-user's calendar"}).style.getPropertyValue('--mc-min-inline')).toBe(
+        'calc(var(--mc-gutter) + 0 * var(--mc-day-min) + 3 * var(--mc-labelled-min) + 0 * var(--mc-narrow))',
+      );
+    });
+
+    it('says which column a selection is in, and shows a held one only there', async () => {
+      atMondayMorning();
+      const {user, onSelectRange, rerender} = renderGrid({columns: team()});
+
+      (await screen.findByRole('button', {name: 'Everyone free, Monday 23 November, 10:00, free'})).focus();
+      await user.keyboard('{ArrowRight}');
+      expect(slot('k.ashford, Monday 23 November, 10:00, free')).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(onSelectRange).toHaveBeenCalledWith({date: MONDAY, startUtc: '2026-11-23T10:00:00.000Z', endUtc: '2026-11-23T10:15:00.000Z', column: 'k'}, expect.anything());
+
+      rerender(<CalendarGrid label="Team" columns={team()} selection={{date: MONDAY, startUtc: '2026-11-23T10:00:00.000Z', endUtc: '2026-11-23T10:15:00.000Z', column: 'b'}} />);
+      expect(within(column('b.staff, Monday 23 November, today')).getByRole('button', {name: 'Selected time, 10:00 to 10:15'})).toBeInTheDocument();
+      expect(within(column('k.ashford, Monday 23 November, today')).queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument();
+    });
+
+    it("keeps a dragged item in its own column, and says which column it's opened in", async () => {
+      atMondayMorning();
+      const {onItemMove, onItemOpen} = renderGrid({columns: team(), keepsItemsInColumn: true});
+      const card = within(await screen.findByRole('group', {name: 'b.staff, Monday 23 November, today'})).getByRole('button', {name: /^Team huddle/});
+      layOutColumns();
+
+      // Dropped over k.ashford's column: nowhere to go.
+      fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 250, clientY: yOf(4)});
+      fireEvent.pointerMove(card, {pointerId: 1, clientX: 150, clientY: yOf(12)});
+      expect(document.querySelector('.mc-ghost')).toBeNull();
+      fireEvent.pointerUp(card, {pointerId: 1});
+      // Within its own column, it moves.
+      fireEvent.pointerDown(card, {button: 0, pointerId: 2, clientX: 250, clientY: yOf(4)});
+      fireEvent.pointerMove(card, {pointerId: 2, clientX: 250, clientY: yOf(12)});
+      // Only the copy being dragged is dimmed, not the same meeting in k.ashford's column.
+      expect(document.querySelectorAll('[data-kind="meeting"][style*="opacity"]')).toHaveLength(1);
+      fireEvent.pointerUp(card, {pointerId: 2});
+      expect(onItemMove).toHaveBeenCalledTimes(1);
+      expect(onItemMove).toHaveBeenCalledWith(huddle, {date: MONDAY, startUtc: '2026-11-23T11:00:00.000Z', endUtc: '2026-11-23T12:00:00.000Z', column: 'b'});
+
+      fireEvent.click(card);
+      fireEvent.click(card);
+      expect(onItemOpen).toHaveBeenCalledWith(huddle, expect.objectContaining({key: 'b', label: 'b.staff'}));
+    });
+
+    it("never drops an item on a column of only free times, and heads people's columns on a weekend at full width", async () => {
+      atMondayMorning();
+      const saturday = calendarDay('2026-11-28', MONDAY);
+      const {onItemMove, unmount} = renderGrid({columns: team()});
+      const card = within(await screen.findByRole('group', {name: 'k.ashford, Monday 23 November, today'})).getByRole('button', {name: /^Lunch/});
+      layOutColumns();
+      fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 150, clientY: yOf(16)});
+      fireEvent.pointerMove(card, {pointerId: 1, clientX: 50, clientY: yOf(20)});
+      fireEvent.pointerUp(card, {pointerId: 1});
+      expect(onItemMove).not.toHaveBeenCalled();
+      unmount();
+
+      renderGrid({columns: [{key: 'k', label: 'k.ashford', date: '2026-11-28', day: saturday, items: []}]});
+      const weekend = await screen.findByRole('group', {name: 'k.ashford, Saturday 28 November, not a working day'});
+      expect(weekend).not.toHaveAttribute('data-narrow');
+      expect(document.querySelector('.mc-head')).toHaveTextContent('k.ashford');
+    });
+  });
+
   it('shows nothing much for no days', async () => {
-    renderWithApp(<CalendarGrid label="Nothing" days={[]} items={[]} />);
+    renderWithApp(<CalendarGrid label="Nothing" columns={[]} />);
     expect(await screen.findByRole('group', {name: 'Nothing'})).toBeInTheDocument();
   });
 });

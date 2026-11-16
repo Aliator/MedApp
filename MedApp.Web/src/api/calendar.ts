@@ -7,7 +7,9 @@ import {api, unwrap, type Schemas} from './client';
  * that day), worked out by the API when the calendar is read. Times are UTC; parse them with `parseUtc`.
  *
  * Anyone can read any calendar; a calendar's blocks, day templates and default week are changed by its owner or an
- * admin (the response's `canEdit`). Activity types, day templates and week templates are changed by admins.
+ * admin (the response's `canEdit`). Day and week templates are each person's own: anyone reads them, their owner or an
+ * admin changes them (their `canEdit`). Activity types are changed by admins. Meetings are arranged, changed and
+ * cancelled by admins, and show on every attendee's calendar; admins also have the team view and suggested times.
  */
 export type Calendar = Schemas['CalendarResponse'];
 export type CalendarDay = Schemas['CalendarDayResponse'];
@@ -21,22 +23,48 @@ export type WeekTemplate = Schemas['WeekTemplateResponse'];
 export type DayTemplateInput = Schemas['DayTemplateRequest'];
 export type WeekTemplateInput = Schemas['WeekTemplateRequest'];
 export type BlockInput = Schemas['UpdateCalendarBlockRequest'];
+export type Meeting = Schemas['MeetingResponse'];
+export type MeetingAttendee = Schemas['MeetingAttendeeResponse'];
+export type MeetingInput = Schemas['MeetingRequest'];
+export type TeamCalendar = Schemas['TeamCalendarResponse'];
+export type TimeRange = Schemas['TimeRangeResponse'];
+export type Availability = Schemas['AvailabilityResponse'];
+export type AvailabilityDay = Schemas['AvailabilityDayResponse'];
+export type BusyTime = Schemas['BusyTimeResponse'];
 
 /** The colours an activity type can have: Astryx Token colours, so their contrast comes from the theme. */
 export const ACTIVITY_COLOURS = ['red', 'orange', 'yellow', 'green', 'teal', 'cyan', 'blue', 'purple', 'pink', 'gray'] as const;
 export type ActivityColour = (typeof ACTIVITY_COLOURS)[number];
 
-/** Every calendar query is under ['calendar']; setup (activity types, templates) under ['calendarSetup']. */
+/**
+ * Every calendar query is under ['calendar'] (meetings, the team view and availability too, so a change refreshes them
+ * all); setup (activity types, templates) under ['calendarSetup'].
+ */
 export const calendarKeys = {
   all: ['calendar'] as const,
   calendar: (staffUserId: string | undefined, from: string, to: string) => ['calendar', 'days', staffUserId ?? 'me', from, to] as const,
   staff: ['calendar', 'staff'] as const,
   weekTemplateOf: (userId: string) => ['calendar', 'weekTemplate', userId] as const,
+  team: (date: string, staffUserIds: readonly string[]) => ['calendar', 'team', date, [...staffUserIds].sort()] as const,
+  availability: (input: AvailabilityInput) =>
+    ['calendar', 'availability', [...input.staffUserIds].sort(), input.from, input.to, input.durationMinutes, input.exceptMeetingId ?? null] as const,
+  meeting: (id: string) => ['calendar', 'meeting', id] as const,
   setup: ['calendarSetup'] as const,
   activityTypes: ['calendarSetup', 'activityTypes'] as const,
   dayTemplates: ['calendarSetup', 'dayTemplates'] as const,
+  dayTemplatesOf: (ownerUserId: string) => ['calendarSetup', 'dayTemplates', 'of', ownerUserId] as const,
   weekTemplates: ['calendarSetup', 'weekTemplates'] as const,
+  weekTemplatesOf: (ownerUserId: string) => ['calendarSetup', 'weekTemplates', 'of', ownerUserId] as const,
 };
+
+/** What `availabilityQuery` asks about: who, which UK days (at most 31), how long, and a meeting being moved. */
+export interface AvailabilityInput {
+  staffUserIds: readonly string[];
+  from: string;
+  to: string;
+  durationMinutes: number;
+  exceptMeetingId?: string;
+}
 
 /**
  * One person's calendar from `from` to `to` (UK days, `yyyy-mm-dd`, at most 31 days): its days, blocks (stored and
@@ -70,11 +98,14 @@ export const activityTypesQuery = queryOptions({
   queryFn: () => unwrap(api.GET('/api/calendar/activity-types', {params: {query: {includeArchived: true}}})),
 });
 
-/** Every day template, archived ones included. */
-export const dayTemplatesQuery = queryOptions({
-  queryKey: calendarKeys.dayTemplates,
-  queryFn: () => unwrap(api.GET('/api/calendar/day-templates', {params: {query: {includeArchived: true}}})),
-});
+/** One person's day templates, archived ones included. */
+export function dayTemplatesQuery(ownerUserId: string) {
+  return queryOptions({
+    queryKey: calendarKeys.dayTemplatesOf(ownerUserId),
+    queryFn: () =>
+      unwrap(api.GET('/api/calendar/staff/{userId}/day-templates', {params: {path: {userId: ownerUserId}, query: {includeArchived: true}}})),
+  });
+}
 
 /** One day template (its current blocks). A missing one is an ApiError with status 404. */
 export function dayTemplateQuery(id: string) {
@@ -84,11 +115,58 @@ export function dayTemplateQuery(id: string) {
   });
 }
 
-/** Every week template, archived ones included. */
-export const weekTemplatesQuery = queryOptions({
-  queryKey: calendarKeys.weekTemplates,
-  queryFn: () => unwrap(api.GET('/api/calendar/week-templates', {params: {query: {includeArchived: true}}})),
-});
+/** One person's week templates, archived ones included. */
+export function weekTemplatesQuery(ownerUserId: string) {
+  return queryOptions({
+    queryKey: calendarKeys.weekTemplatesOf(ownerUserId),
+    queryFn: () =>
+      unwrap(api.GET('/api/calendar/staff/{userId}/week-templates', {params: {path: {userId: ownerUserId}, query: {includeArchived: true}}})),
+  });
+}
+
+/**
+ * The team view (admins): one UK day of several people's calendars side by side (everyone with a staff role when
+ * `staffUserIds` is empty), and `everyoneFree`, when they're all free (after now, inside the working day).
+ */
+export function teamCalendarQuery({date, staffUserIds}: {date: string; staffUserIds: readonly string[]}) {
+  return queryOptions({
+    queryKey: calendarKeys.team(date, staffUserIds),
+    queryFn: () =>
+      unwrap(api.GET('/api/calendar/team', {params: {query: {Date: date, StaffUserIds: staffUserIds.length ? [...staffUserIds] : undefined}}})),
+  });
+}
+
+/**
+ * When several people are all free (admins): each working day's free time, up to 10 suggested times for a meeting of
+ * `durationMinutes` (earliest first, at most 3 a day), and each person's busy times, which never name a patient.
+ */
+export function availabilityQuery(input: AvailabilityInput) {
+  return queryOptions({
+    queryKey: calendarKeys.availability(input),
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/calendar/availability', {
+          params: {
+            query: {
+              StaffUserIds: [...input.staffUserIds],
+              From: input.from,
+              To: input.to,
+              DurationMinutes: input.durationMinutes,
+              ExceptMeetingId: input.exceptMeetingId,
+            },
+          },
+        }),
+      ),
+  });
+}
+
+/** One meeting. A missing (or cancelled) one is an ApiError with status 404. */
+export function meetingQuery(id: string) {
+  return queryOptions({
+    queryKey: calendarKeys.meeting(id),
+    queryFn: () => unwrap(api.GET('/api/calendar/meetings/{id}', {params: {path: {id}}})),
+  });
+}
 
 /** One week template (always Monday to Friday). A missing one is an ApiError with status 404. */
 export function weekTemplateQuery(id: string) {
@@ -176,28 +254,57 @@ export function useSaveActivityType() {
   });
 }
 
-/** Adds a day template (no `id`) or saves one; changes apply from today. Admins only. */
+/**
+ * Adds a day template to `ownerUserId`'s own (no `id`) or saves one (its owner stays); changes apply from today. Its
+ * owner or an admin.
+ */
 export function useSaveDayTemplate() {
   const onSuccess = useRefreshCalendars();
   return useMutation({
-    mutationFn: ({id, ...body}: DayTemplateInput & {id?: string}) =>
+    mutationFn: ({id, ownerUserId, ...body}: DayTemplateInput & {id?: string; ownerUserId: string}) =>
       id
         ? unwrap(api.PUT('/api/calendar/day-templates/{id}', {params: {path: {id}}, body}))
-        : unwrap(api.POST('/api/calendar/day-templates', {body})),
+        : unwrap(api.POST('/api/calendar/staff/{userId}/day-templates', {params: {path: {userId: ownerUserId}}, body})),
     onSuccess,
   });
 }
 
-/** Adds a week template (no `id`) or saves one; changes apply from today. Admins only. */
+/**
+ * Adds a week template to `ownerUserId`'s own (no `id`) or saves one, using only their day templates; changes apply
+ * from today. Its owner or an admin.
+ */
 export function useSaveWeekTemplate() {
   const onSuccess = useRefreshCalendars();
   return useMutation({
-    mutationFn: ({id, ...body}: WeekTemplateInput & {id?: string}) =>
+    mutationFn: ({id, ownerUserId, ...body}: WeekTemplateInput & {id?: string; ownerUserId: string}) =>
       id
         ? unwrap(api.PUT('/api/calendar/week-templates/{id}', {params: {path: {id}}, body}))
-        : unwrap(api.POST('/api/calendar/week-templates', {body})),
+        : unwrap(api.POST('/api/calendar/staff/{userId}/week-templates', {params: {path: {userId: ownerUserId}}, body})),
     onSuccess,
   });
+}
+
+/**
+ * Arranging, changing and cancelling meetings (admins). The API refuses a past day (409), a time outside the working
+ * day (400) and a clash on any attendee's calendar (409, naming who and what: "k.ashford has Lunch, 12:00 to 13:00.").
+ */
+export function useMeetingActions() {
+  const onSuccess = useRefreshCalendars();
+  return {
+    create: useMutation({
+      mutationFn: (body: MeetingInput) => unwrap(api.POST('/api/calendar/meetings', {body})),
+      onSuccess,
+    }),
+    save: useMutation({
+      mutationFn: ({id, ...body}: MeetingInput & {id: string}) =>
+        unwrap(api.PUT('/api/calendar/meetings/{id}', {params: {path: {id}}, body})),
+      onSuccess,
+    }),
+    cancel: useMutation({
+      mutationFn: (id: string) => unwrap(api.DELETE('/api/calendar/meetings/{id}', {params: {path: {id}}})),
+      onSuccess,
+    }),
+  };
 }
 
 type SetupKind = 'activity-types' | 'day-templates' | 'week-templates';

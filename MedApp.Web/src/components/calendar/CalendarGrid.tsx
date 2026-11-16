@@ -13,36 +13,81 @@ import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
 
-/** A stretch of free time on one day: what selecting on the grid gives, and where an item is moved to. */
+/** A stretch of free time in one column: what selecting on the grid gives, and where an item is moved to. */
 export interface CalendarSelection {
   date: string;
   startUtc: string;
   endUtc: string;
+  /**
+   * The column it's in (its `key`): the grid always says, so a selection in a person's column in the team view means
+   * that person. A selection without one is shown in the first column on its date.
+   */
+  column?: string;
+}
+
+/**
+ * One column of the grid: a day of one person's calendar (`dayColumns` makes a day or a week of them), or a person
+ * on one day (the team view), or any other stretch of one day's time with its own items.
+ */
+export interface CalendarColumn {
+  /** Unique on the grid: the date for a day's column, a person's ID in the team view. */
+  key: string;
+  /**
+   * Who or what the column is, shown in its heading and spoken first ("k.ashford" becomes "k.ashford, Tuesday 17
+   * November"). Leave it out for a day of one person's calendar, which is headed and named by its day.
+   */
+  label?: string;
+  /** The UK day it shows (`yyyy-mm-dd`). */
+  date: string;
+  /** That day: its working hours in UTC, and whether it's past, today and a working day. */
+  day: CalendarDay;
+  items: CalendarGridItem[];
+  /**
+   * Only these stretches can be selected (e.g. when everyone in the team view is free); the rest of the day shows as
+   * unavailable. A column with it takes no items dropped on it. Without it, any time without an item is free.
+   */
+  freeTime?: {startUtc?: string; endUtc?: string}[];
+}
+
+/** One person's days as columns, each with the items on its date: a day (one column) or a week. */
+export function dayColumns(days: CalendarDay[], items: CalendarGridItem[]): CalendarColumn[] {
+  return days.map((day) => {
+    const date = day.date ?? '';
+    return {key: date, date, day, items: items.filter((i) => i.date === date)};
+  });
 }
 
 export interface CalendarGridProps {
   /** Names the grid for screen readers, e.g. "jsmith's calendar". */
   label: string;
-  /** The days to show, in order: one (a day view) or a week, Monday to Sunday. Weekends show as narrow, greyed columns. */
-  days: CalendarDay[];
-  items: CalendarGridItem[];
-  /** Opening an item (a click, or Enter on it). Without it, items still show but do nothing. */
-  onItemOpen?: (item: CalendarGridItem) => void;
+  /**
+   * The columns, in order: one person's day or week (`dayColumns`: a week runs Monday to Sunday, and its weekends show
+   * as narrow, greyed columns), or people side by side on one day. More than fit scroll sideways inside the grid, with
+   * the hours staying put.
+   */
+  columns: CalendarColumn[];
+  /** Opening an item (a click, or Enter on it), with the column it's in. Without it, items still show but do nothing. */
+  onItemOpen?: (item: CalendarGridItem, column: CalendarColumn) => void;
   /**
    * Selecting free time: a click on an empty slot (15 minutes), a drag across slots, or the keyboard. With the slot
    * where it ended, e.g. to show a menu there. Without it, the grid is read-only: nothing can be selected.
    */
   onSelectRange?: (selection: CalendarSelection, anchor: HTMLElement | null) => void;
-  /** Moving an item marked `isMovable` by dragging it to another time or day; it keeps its length, in 15-minute steps. */
+  /**
+   * Moving an item marked `isMovable` by dragging it to another time or column; it keeps its length, in 15-minute
+   * steps. `to.column` is the column it was dropped in.
+   */
   onItemMove?: (item: CalendarGridItem, to: CalendarSelection) => void;
-  /** Free time to show as selected, e.g. while a menu for it is open. Its outline gets `selectionRef`. */
+  /** Items move only within their own column (the team view, where a column is a person), never to another. */
+  keepsItemsInColumn?: boolean;
+  /** Free time to show as selected, e.g. while a menu for it is open. It's a button then, and gets `selectionRef`. */
   selection?: CalendarSelection | null;
   selectionRef?: Ref<HTMLElement>;
-  /** Opening a day from its column's heading, e.g. a week view going to that day. */
+  /** Opening a day from its column's heading, e.g. a week view going to that day (day columns only, not labelled ones). */
   onDayOpen?: (date: string) => void;
   /**
-   * Leaves out the row of day headings, where something above already names the day (Home's day calendar). Each
-   * day's column is still named for screen readers.
+   * Leaves out the row of headings, where something above already names the day (Home's day calendar). Each column
+   * is still named for screen readers.
    */
   isHeadingHidden?: boolean;
 }
@@ -54,18 +99,25 @@ const SCROLL_LEAD = 60 * MINUTE;
 /** Rows in a working day (08:00 to 18:00), when a day doesn't say. */
 const DEFAULT_ROWS = 40;
 
-interface DayLayout {
+interface ColumnLayout {
+  column: CalendarColumn;
   day: CalendarDay;
   date: string;
+  /** How the column is spoken before a time: "Monday 23 November", or "k.ashford, Monday 23 November". */
+  name: string;
+  /** Not a working day, in a column of a person's own days: a narrow, greyed column. */
+  isNarrow: boolean;
   start: number;
   rows: number;
-  /** Free time can be selected on it: a working day that isn't past, on a grid that selects. */
+  /** Free time can be selected in it: a working day that isn't past, on a grid that selects. */
   canSelect: boolean;
-  /** Each row is taken by an item. */
+  /** Each row is taken: by an item, or outside the column's `freeTime`. */
   taken: boolean[];
+  /** Each row is outside the column's `freeTime`, when it has one. */
+  unavailable: boolean[];
 }
 
-/** Where an item sits in its day: rows from the top, and its share of the width beside items it overlaps. */
+/** Where an item sits in its column: rows from the top, and its share of the width beside items it overlaps. */
 interface PlacedItem {
   item: CalendarGridItem;
   top: number;
@@ -75,7 +127,7 @@ interface PlacedItem {
 }
 
 /** Items beside each other where they overlap: each cluster of overlapping items shares the width. */
-function placeItems(items: CalendarGridItem[], layout: DayLayout): PlacedItem[] {
+function placeItems(items: CalendarGridItem[], layout: ColumnLayout): PlacedItem[] {
   const span = layout.rows * SLOT;
   const sorted = [...items]
     .map((item) => ({item, ...intervalOf(item.startUtc, item.endUtc)}))
@@ -123,15 +175,15 @@ function useNow(): number | null {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
-/** A slot on the grid: a day (by its index) and a row. */
+/** A slot on the grid: a column (by its index) and a row. */
 interface Slot {
-  day: number;
+  col: number;
   row: number;
 }
 
 /** A selection being made: the slot it started from, and the one it reaches now. */
 interface Pending {
-  day: number;
+  col: number;
   anchor: number;
   focus: number;
 }
@@ -139,60 +191,97 @@ interface Pending {
 /** An item being dragged: where it was picked up, and where it would go. */
 interface Drag {
   item: CalendarGridItem;
+  /** The column it was picked up from. */
+  from: number;
   pointerId: number;
   x: number;
   y: number;
   /** Rows between the item's start and the point it was picked up by. */
   grabRows: number;
   isMoving: boolean;
-  to: {day: number; row: number} | null;
+  to: Slot | null;
+}
+
+/** Whether a held selection is in a column: by its column's key, or (without one) the first column on its date. */
+function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], col: number): boolean {
+  if (selection.column !== undefined) return selection.column === layouts[col].column.key;
+  return layouts.findIndex((l) => l.date === selection.date) === col;
 }
 
 /**
- * A day or a week of a member of staff's calendar as a time grid (docs/calendar-plan.md, decision 28): 08:00 to 18:00
- * in 15-minute rows, hour labels down the side, appointments and blocked time placed by their times. Past days and
- * times are dimmed, today's column is tinted, and a line shows the time now (both once it's in the browser), drawn
- * behind items so their text stays readable, with a dot at the column's edge. Weekends show as narrow greyed columns
- * that do nothing. A week's columns are headed by their days; a single day, which the page around it already dates,
- * by its weekday only.
+ * A member of staff's time as a grid (docs/calendar-plan.md, decision 28): 08:00 to 18:00 in 15-minute rows, hour
+ * labels down the side, appointments, blocked time and meetings placed by their times, in columns. A column is a day of
+ * one person's calendar (a day or a week, from `dayColumns`) or a person on one day (the team view, where each column
+ * is labelled with who it is). Past days and times are dimmed, today's columns are tinted, and a line shows the time
+ * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
+ * edge. A week's weekends show as narrow greyed columns that do nothing. A week's columns are headed by their days; a
+ * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
+ * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put.
  *
- * Use it for any calendar of days: the Calendar page (selecting free time, opening and dragging items), Home's day
- * calendar (read-only), or anything else that shows a person's time. It knows nothing of the API beyond the days: its
- * items are generic (`calendarItems.ts` makes them from a calendar).
+ * Use it for any calendar: the Calendar page (selecting free time, opening and dragging items, a person's day or
+ * week, and the team view), Home's day calendar (read-only), or anything else that shows people's time. It knows
+ * nothing of the API beyond the days: its items are generic (`calendarItems.ts` makes them from a calendar).
  *
  * Keyboard: the free slots are one tab stop. The arrow keys move between them (up and down a slot, left and right a
- * day), Shift with Up or Down selects more, Enter or Space selects, and Escape lets go. Items are buttons of their own,
- * so they're opened with Enter; they're moved from their dialogs, the alternative to dragging (WCAG 2.5.7).
+ * column), Shift with Up or Down selects more, Enter or Space selects, and Escape lets go. Items are buttons of their
+ * own, so they're opened with Enter; they're moved from their dialogs, the alternative to dragging (WCAG 2.5.7).
  *
  * Astryx has no time grid, so its cells are plain elements styled with theme tokens; items are Astryx cards.
  */
-export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onItemMove, selection, selectionRef, onDayOpen, isHeadingHidden = false}: CalendarGridProps) {
+export function CalendarGrid({
+  label,
+  columns,
+  onItemOpen,
+  onSelectRange,
+  onItemMove,
+  keepsItemsInColumn = false,
+  selection,
+  selectionRef,
+  onDayOpen,
+  isHeadingHidden = false,
+}: CalendarGridProps) {
   const now = useNow();
   const hintId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
   const canSelect = onSelectRange !== undefined;
 
-  const layouts = useMemo<DayLayout[]>(
+  const layouts = useMemo<ColumnLayout[]>(
     () =>
-      days.map((day) => {
+      columns.map((column) => {
+        const {day} = column;
         const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
         const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_ROWS * SLOT;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
-        const dayItems = items.filter((i) => i.date === day.date);
+        const busy = column.items.map((i) => intervalOf(i.startUtc, i.endUtc));
+        const free = column.freeTime?.filter((f) => f.startUtc && f.endUtc).map((f) => intervalOf(f.startUtc!, f.endUtc!));
+        const unavailable = Array.from({length: rows}, (_, row) => {
+          if (!free) return false;
+          const slot = {start: start + row * SLOT, end: start + (row + 1) * SLOT};
+          return !free.some((f) => f.start <= slot.start && slot.end <= f.end);
+        });
         const taken = Array.from({length: rows}, (_, row) => {
           const slot = {start: start + row * SLOT, end: start + (row + 1) * SLOT};
-          return dayItems.some((i) => {
-            const t = intervalOf(i.startUtc, i.endUtc);
-            return t.start < slot.end && slot.start < t.end;
-          });
+          return unavailable[row] || busy.some((t) => t.start < slot.end && slot.start < t.end);
         });
-        return {day, date: day.date ?? '', start, rows, canSelect: canSelect && !!day.isWorkingDay && !day.isPast, taken};
+        const dayName = formatCalendarDay(column.date);
+        return {
+          column,
+          day,
+          date: column.date,
+          name: column.label ? `${column.label}, ${dayName}` : dayName,
+          isNarrow: !day.isWorkingDay && !column.label,
+          start,
+          rows,
+          canSelect: canSelect && !!day.isWorkingDay && !day.isPast,
+          taken,
+          unavailable,
+        };
       }),
-    [days, items, canSelect],
+    [columns, canSelect],
   );
 
-  const placedByDay = useMemo(() => layouts.map((l) => placeItems(items.filter((i) => i.date === l.date), l)), [layouts, items]);
+  const placedByColumn = useMemo(() => layouts.map((l) => placeItems(l.column.items, l)), [layouts]);
 
   const nowMs = now ?? undefined;
 
@@ -211,16 +300,16 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     if (fraction > 0) scroller.scrollTop = Math.min(fraction, 1) * column.offsetHeight;
   }, [nowMs, layouts]);
 
-  /** A slot that can be selected: free, on a day that can be, and not started yet. */
-  const isFree = (day: number, row: number) => {
-    const l = layouts[day];
+  /** A slot that can be selected: free, in a column that can be, and not started yet. */
+  const isFree = (col: number, row: number) => {
+    const l = layouts[col];
     if (!l?.canSelect || row < 0 || row >= l.rows || l.taken[row]) return false;
     return nowMs === undefined || l.start + row * SLOT > nowMs;
   };
 
   const firstFree = (): Slot | null => {
-    for (let day = 0; day < layouts.length; day++) {
-      for (let row = 0; row < layouts[day].rows; row++) if (isFree(day, row)) return {day, row};
+    for (let col = 0; col < layouts.length; col++) {
+      for (let row = 0; row < layouts[col].rows; row++) if (isFree(col, row)) return {col, row};
     }
     return null;
   };
@@ -232,9 +321,9 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
   const justDragged = useRef(false);
 
   // The tab stop: the slot last moved to, while it's still free; otherwise the first free one.
-  const tabStop = active && isFree(active.day, active.row) ? active : firstFree();
+  const tabStop = active && isFree(active.col, active.row) ? active : firstFree();
 
-  const slotElement = (slot: Slot) => rootRef.current?.querySelector<HTMLElement>(`[data-slot="${slot.day}-${slot.row}"]`) ?? null;
+  const slotElement = (slot: Slot) => rootRef.current?.querySelector<HTMLElement>(`[data-slot="${slot.col}-${slot.row}"]`) ?? null;
 
   const focusSlot = (slot: Slot) => {
     setActive(slot);
@@ -243,39 +332,39 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
 
   /** The selection a pending one makes, when the slots between its ends are all free. */
   const rangeOf = (p: Pending): CalendarSelection => {
-    const l = layouts[p.day];
+    const l = layouts[p.col];
     const first = Math.min(p.anchor, p.focus);
     const last = Math.max(p.anchor, p.focus);
-    return {date: l.date, startUtc: iso(l.start + first * SLOT), endUtc: iso(l.start + (last + 1) * SLOT)};
+    return {date: l.date, startUtc: iso(l.start + first * SLOT), endUtc: iso(l.start + (last + 1) * SLOT), column: l.column.key};
   };
 
   const commit = (p: Pending) => {
     setPending(null);
-    onSelectRange?.(rangeOf(p), slotElement({day: p.day, row: p.focus}));
+    onSelectRange?.(rangeOf(p), slotElement({col: p.col, row: p.focus}));
   };
 
   /** How far a selection can reach from `anchor` towards `row`: up to the last free slot before something taken. */
-  const reach = (day: number, anchor: number, row: number) => {
+  const reach = (col: number, anchor: number, row: number) => {
     const step = row >= anchor ? 1 : -1;
     let reached = anchor;
     for (let r = anchor + step; step > 0 ? r <= row : r >= row; r += step) {
-      if (!isFree(day, r)) break;
+      if (!isFree(col, r)) break;
       reached = r;
     }
     return reached;
   };
 
-  /** The free slot nearest a row on another day, looking further out each way. */
-  const nearestFree = (day: number, row: number): number | null => {
-    for (let distance = 0; distance < layouts[day].rows; distance++) {
-      if (isFree(day, row + distance)) return row + distance;
-      if (isFree(day, row - distance)) return row - distance;
+  /** The free slot nearest a row in another column, looking further out each way. */
+  const nearestFree = (col: number, row: number): number | null => {
+    for (let distance = 0; distance < layouts[col].rows; distance++) {
+      if (isFree(col, row + distance)) return row + distance;
+      if (isFree(col, row - distance)) return row - distance;
     }
     return null;
   };
 
   const onSlotKeyDown = (event: KeyboardEvent, slot: Slot) => {
-    const {day, row} = slot;
+    const {col, row} = slot;
     const move = (to: Slot | null) => {
       event.preventDefault();
       if (to) focusSlot(to);
@@ -286,37 +375,37 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
         const step = event.key === 'ArrowUp' ? -1 : 1;
         if (event.shiftKey) {
           event.preventDefault();
-          const base = pending && pending.day === day ? pending : {day, anchor: row, focus: row};
-          const focus = reach(day, base.anchor, base.focus + step);
+          const base = pending && pending.col === col ? pending : {col, anchor: row, focus: row};
+          const focus = reach(col, base.anchor, base.focus + step);
           setPending({...base, focus});
-          focusSlot({day, row: focus});
+          focusSlot({col, row: focus});
           return;
         }
         setPending(null);
         let next = row + step;
-        while (next >= 0 && next < layouts[day].rows && !isFree(day, next)) next += step;
-        return move(isFree(day, next) ? {day, row: next} : null);
+        while (next >= 0 && next < layouts[col].rows && !isFree(col, next)) next += step;
+        return move(isFree(col, next) ? {col, row: next} : null);
       }
       case 'ArrowLeft':
       case 'ArrowRight': {
         setPending(null);
         const step = event.key === 'ArrowLeft' ? -1 : 1;
-        for (let d = day + step; d >= 0 && d < layouts.length; d += step) {
-          const near = nearestFree(d, row);
-          if (near !== null) return move({day: d, row: near});
+        for (let c = col + step; c >= 0 && c < layouts.length; c += step) {
+          const near = nearestFree(c, row);
+          if (near !== null) return move({col: c, row: near});
         }
         return move(null);
       }
       case 'Home':
       case 'End': {
         setPending(null);
-        const rows = Array.from({length: layouts[day].rows}, (_, r) => r).filter((r) => isFree(day, r));
-        return move(rows.length ? {day, row: event.key === 'Home' ? rows[0] : rows[rows.length - 1]} : null);
+        const rows = Array.from({length: layouts[col].rows}, (_, r) => r).filter((r) => isFree(col, r));
+        return move(rows.length ? {col, row: event.key === 'Home' ? rows[0] : rows[rows.length - 1]} : null);
       }
       case 'Enter':
       case ' ':
         event.preventDefault();
-        commit(pending && pending.day === day ? pending : {day, anchor: row, focus: row});
+        commit(pending && pending.col === col ? pending : {col, anchor: row, focus: row});
         return;
       case 'Escape':
         if (pending) {
@@ -328,20 +417,24 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     }
   };
 
-  /** The row under a pointer in a day's column, or null when it isn't over the column. */
-  const rowAt = (day: number, clientY: number): number | null => {
-    const column = columnRefs.current[day];
+  /** The row under a pointer in a column, or null when it isn't over the column. */
+  const rowAt = (col: number, clientY: number): number | null => {
+    const column = columnRefs.current[col];
     if (!column) return null;
     const box = column.getBoundingClientRect();
     if (box.height === 0) return null;
-    return Math.floor(((clientY - box.top) / box.height) * layouts[day].rows);
+    return Math.floor(((clientY - box.top) / box.height) * layouts[col].rows);
   };
 
-  const dayAt = (clientX: number, item: CalendarGridItem): number | null => {
-    for (let day = 0; day < layouts.length; day++) {
-      if (item.movesWithinDay && layouts[day].date !== item.date) continue;
-      const box = columnRefs.current[day]?.getBoundingClientRect();
-      if (box && clientX >= box.left && clientX < box.right && layouts[day].day.isWorkingDay && !layouts[day].day.isPast) return day;
+  /** The column a dragged item would be dropped in: one it may move to, a working day that isn't past. */
+  const columnAt = (clientX: number, d: Drag): number | null => {
+    for (let col = 0; col < layouts.length; col++) {
+      const l = layouts[col];
+      if (keepsItemsInColumn && col !== d.from) continue;
+      if (d.item.movesWithinDay && l.date !== d.item.date) continue;
+      if (l.column.freeTime) continue;
+      const box = columnRefs.current[col]?.getBoundingClientRect();
+      if (box && clientX >= box.left && clientX < box.right && l.day.isWorkingDay && !l.day.isPast) return col;
     }
     return null;
   };
@@ -351,22 +444,26 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     event.preventDefault();
     isSelecting.current = true;
     setActive(slot);
-    setPending({day: slot.day, anchor: slot.row, focus: slot.row});
-    columnRefs.current[slot.day]?.setPointerCapture?.(event.pointerId);
+    setPending({col: slot.col, anchor: slot.row, focus: slot.row});
+    columnRefs.current[slot.col]?.setPointerCapture?.(event.pointerId);
   };
 
-  const onColumnPointerMove = (event: PointerEvent, day: number) => {
-    if (!isSelecting.current || !pending || pending.day !== day) return;
-    const row = rowAt(day, event.clientY);
+  const onColumnPointerMove = (event: PointerEvent, col: number) => {
+    if (!isSelecting.current || !pending || pending.col !== col) return;
+    const row = rowAt(col, event.clientY);
     if (row === null) return;
-    const focus = reach(day, pending.anchor, Math.max(0, Math.min(layouts[day].rows - 1, row)));
+    const focus = reach(col, pending.anchor, Math.max(0, Math.min(layouts[col].rows - 1, row)));
     if (focus !== pending.focus) setPending({...pending, focus});
   };
 
   const onColumnPointerUp = () => {
     if (!isSelecting.current) return;
     isSelecting.current = false;
-    if (pending) commit(pending);
+    if (!pending) return;
+    // Just after the browser has finished with this press: a menu opened from the selection (the Calendar page's Book
+    // or Block) would otherwise take the release itself as a press outside it, and close at once.
+    const selected = pending;
+    window.setTimeout(() => commit(selected), 0);
   };
 
   // Dragging an item.
@@ -375,28 +472,28 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     return Math.max(1, Math.round((t.end - t.start) / SLOT));
   };
 
-  const onItemPointerDown = (event: PointerEvent<HTMLElement>, item: CalendarGridItem, day: number) => {
+  const onItemPointerDown = (event: PointerEvent<HTMLElement>, item: CalendarGridItem, col: number) => {
     justDragged.current = false;
     if (event.button !== 0 || !onItemMove || !item.isMovable) return;
-    const row = rowAt(day, event.clientY);
-    const itemRow = Math.round((parseUtc(item.startUtc).getTime() - layouts[day].start) / SLOT);
+    const row = rowAt(col, event.clientY);
+    const itemRow = Math.round((parseUtc(item.startUtc).getTime() - layouts[col].start) / SLOT);
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    setDrag({item, pointerId: event.pointerId, x: event.clientX, y: event.clientY, grabRows: row === null ? 0 : row - itemRow, isMoving: false, to: null});
+    setDrag({item, from: col, pointerId: event.pointerId, x: event.clientX, y: event.clientY, grabRows: row === null ? 0 : row - itemRow, isMoving: false, to: null});
   };
 
   const onItemPointerMove = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const isMoving = drag.isMoving || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4;
     if (!isMoving) return;
-    const day = dayAt(event.clientX, drag.item);
+    const col = columnAt(event.clientX, drag);
     let to: Drag['to'] = null;
-    if (day !== null) {
-      const row = rowAt(day, event.clientY);
+    if (col !== null) {
+      const row = rowAt(col, event.clientY);
       if (row !== null) {
         const length = lengthRows(drag.item);
-        const target = Math.max(0, Math.min(layouts[day].rows - length, row - drag.grabRows));
+        const target = Math.max(0, Math.min(layouts[col].rows - length, row - drag.grabRows));
         // Nothing moves into time that has started.
-        if (nowMs === undefined || layouts[day].start + target * SLOT > nowMs) to = {day, row: target};
+        if (nowMs === undefined || layouts[col].start + target * SLOT > nowMs) to = {col, row: target};
       }
     }
     setDrag({...drag, isMoving, to});
@@ -407,17 +504,18 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     setDrag(null);
     if (!drag.isMoving) return;
     justDragged.current = true;
-    if (!drag.to) return;
     const target = ghostOf(drag);
-    if (target && !(target.date === drag.item.date && target.startUtc === iso(parseUtc(drag.item.startUtc).getTime()))) onItemMove?.(drag.item, target);
+    if (!target) return;
+    const isWhereItWas = target.column === layouts[drag.from].column.key && target.startUtc === iso(parseUtc(drag.item.startUtc).getTime());
+    if (!isWhereItWas) onItemMove?.(drag.item, target);
   };
 
   /** Where a dragged item would go. */
   function ghostOf(d: Drag): CalendarSelection | null {
     if (!d.to) return null;
-    const l = layouts[d.to.day];
+    const l = layouts[d.to.col];
     const start = l.start + d.to.row * SLOT;
-    return {date: l.date, startUtc: iso(start), endUtc: iso(start + lengthRows(d.item) * SLOT)};
+    return {date: l.date, startUtc: iso(start), endUtc: iso(start + lengthRows(d.item) * SLOT), column: l.column.key};
   }
 
   // Escape drops a drag.
@@ -433,12 +531,12 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
     return () => window.removeEventListener('keydown', cancel);
   }, [drag]);
 
-  const openItem = (item: CalendarGridItem) => {
+  const openItem = (item: CalendarGridItem, column: CalendarColumn) => {
     if (justDragged.current) {
       justDragged.current = false;
       return;
     }
-    onItemOpen?.(item);
+    onItemOpen?.(item, column);
   };
 
   const hourLabels = useMemo(() => {
@@ -448,8 +546,13 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
   }, [layouts]);
 
   const rowsShown = layouts[0]?.rows ?? DEFAULT_ROWS;
-  const isOneDay = layouts.length === 1;
-  const ghost = drag?.isMoving ? ghostOf(drag) : null;
+  const isOneDay = layouts.length === 1 && !layouts[0].column.label;
+  const ghost = drag?.isMoving && drag.to ? {col: drag.to.col, range: ghostOf(drag)!} : null;
+  // The narrowest the columns can be together, so more than fit scroll sideways rather than squeeze.
+  const narrowCount = layouts.filter((l) => l.isNarrow).length;
+  const labelledCount = layouts.filter((l) => !l.isNarrow && l.column.label).length;
+  const dayCount = layouts.length - narrowCount - labelledCount;
+  const minInline = `calc(var(--mc-gutter) + ${dayCount} * var(--mc-day-min) + ${labelledCount} * var(--mc-labelled-min) + ${narrowCount} * var(--mc-narrow))`;
 
   return (
     <VStack
@@ -458,7 +561,7 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
       aria-label={label}
       height="100%"
       className="medapp-calendar"
-      style={{['--mc-rows' as string]: rowsShown, minHeight: 0}}>
+      style={{['--mc-rows' as string]: rowsShown, ['--mc-min-inline' as string]: minInline, minHeight: 0}}>
       <style>{GRID_CSS}</style>
       <VisuallyHidden id={hintId}>
         Arrow keys move between free times. Shift with the up or down arrow selects more. Enter selects.
@@ -470,10 +573,15 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
             {layouts.map((l) => {
               const weekend = !l.day.isWorkingDay;
               // A single day is dated by the page around it (its subtitle, or a card's title), so it's headed by its weekday.
-              const name = isOneDay ? formatWeekday(l.date) : formatShortDay(l.date);
+              const name = l.column.label ?? (isOneDay ? formatWeekday(l.date) : formatShortDay(l.date));
               return (
-                <div key={l.date} className="mc-head-cell" data-weekend={weekend || undefined} data-today={l.day.isToday || undefined}>
-                  {onDayOpen && !weekend && !isOneDay ? (
+                <div
+                  key={l.column.key}
+                  className="mc-head-cell"
+                  data-narrow={l.isNarrow || undefined}
+                  data-labelled={l.column.label ? true : undefined}
+                  data-today={(l.day.isToday && !l.column.label) || undefined}>
+                  {onDayOpen && !weekend && !isOneDay && !l.column.label ? (
                     <Button
                       label={name}
                       // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
@@ -483,11 +591,15 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                       onClick={() => onDayOpen(l.date)}
                     />
                   ) : (
-                    <Text type={weekend ? 'supporting' : 'body'} weight={weekend ? 'normal' : 'semibold'} color={l.day.isToday ? 'accent' : weekend ? 'secondary' : 'primary'} maxLines={1}>
-                      {weekend && !isOneDay ? formatShortDay(l.date).split(' ')[0] : name}
+                    <Text
+                      type={l.isNarrow ? 'supporting' : 'body'}
+                      weight={l.isNarrow ? 'normal' : 'semibold'}
+                      color={l.day.isToday && !l.column.label ? 'accent' : l.isNarrow ? 'secondary' : 'primary'}
+                      maxLines={1}>
+                      {l.isNarrow && !isOneDay ? formatShortDay(l.date).split(' ')[0] : name}
                     </Text>
                   )}
-                  {l.day.isToday && !isOneDay && <span className="mc-today-mark" aria-hidden />}
+                  {l.day.isToday && !isOneDay && !l.column.label && <span className="mc-today-mark" aria-hidden />}
                 </div>
               );
             })}
@@ -503,34 +615,35 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
               </span>
             ))}
           </div>
-          {layouts.map((l, day) => {
+          {layouts.map((l, col) => {
             const weekend = !l.day.isWorkingDay;
-            const dayName = formatCalendarDay(l.date);
-            const placed = placedByDay[day];
+            const placed = placedByColumn[col];
             const nowTop =
               l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.rows * SLOT
                 ? `${((nowMs - l.start) / (l.rows * SLOT)) * 100}%`
                 : null;
             const shownSelection =
-              pending && pending.day === day
+              pending && pending.col === col
                 ? rangeOf(pending)
-                : selection && selection.date === l.date && !pending
+                : selection && !pending && isSelectionIn(selection, layouts, col)
                   ? selection
                   : null;
             return (
               <div
-                key={l.date}
+                key={l.column.key}
                 ref={(element) => {
-                  columnRefs.current[day] = element;
+                  columnRefs.current[col] = element;
                 }}
                 className="mc-col"
                 role="group"
-                aria-label={weekend ? `${dayName}, not a working day` : `${dayName}${l.day.isToday ? ', today' : ''}`}
+                aria-label={weekend ? `${l.name}, not a working day` : `${l.name}${l.day.isToday ? ', today' : ''}`}
+                data-narrow={l.isNarrow || undefined}
                 data-weekend={weekend || undefined}
+                data-labelled={l.column.label ? true : undefined}
                 data-today={l.day.isToday || undefined}
                 data-past={l.day.isPast || undefined}
                 onPointerMove={(event) => {
-                  onColumnPointerMove(event, day);
+                  onColumnPointerMove(event, col);
                 }}
                 onPointerUp={onColumnPointerUp}
                 onPointerCancel={() => {
@@ -548,37 +661,71 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                     const start = l.start + row * SLOT;
                     const line = row % 4 === 0 ? 'hour' : row % 2 === 0 ? 'half' : 'quarter';
                     const isPast = l.day.isPast || (nowMs !== undefined && start + SLOT <= nowMs);
-                    if (!isFree(day, row)) {
-                      return <div key={row} className="mc-slot" data-line={line} data-past={isPast || undefined} aria-hidden />;
+                    if (!isFree(col, row)) {
+                      return (
+                        <div
+                          key={row}
+                          className="mc-slot"
+                          data-line={line}
+                          data-past={isPast || undefined}
+                          data-unavailable={l.unavailable[row] || undefined}
+                          aria-hidden
+                        />
+                      );
                     }
-                    const isStop = tabStop?.day === day && tabStop.row === row;
+                    const isStop = tabStop?.col === col && tabStop.row === row;
                     return (
                       <button
                         key={row}
                         type="button"
                         className="mc-slot"
                         data-line={line}
-                        data-slot={`${day}-${row}`}
+                        data-slot={`${col}-${row}`}
                         tabIndex={isStop ? 0 : -1}
-                        aria-label={`${dayName}, ${formatTime(iso(start))}, free`}
+                        aria-label={`${l.name}, ${formatTime(iso(start))}, free`}
                         aria-describedby={hintId}
-                        onFocus={() => setActive({day, row})}
-                        onKeyDown={(event) => onSlotKeyDown(event, {day, row})}
-                        onPointerDown={(event) => onSlotPointerDown(event, {day, row})}
+                        onFocus={() => setActive({col, row})}
+                        onKeyDown={(event) => onSlotKeyDown(event, {col, row})}
+                        onPointerDown={(event) => onSlotPointerDown(event, {col, row})}
                       />
                     );
                   })
                 )}
-                {shownSelection && (
-                  <span
-                    ref={!pending ? (selectionRef as Ref<HTMLSpanElement>) : undefined}
-                    className="mc-selection"
-                    style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
-                    <Text type="supporting" weight="semibold" maxLines={1}>
-                      {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
-                    </Text>
-                  </span>
-                )}
+                {/* A column of only some free times (everyone free): each one marked, in words as well as by the
+                    shading of the rest, so it never relies on colour alone. Presses go through to the slots. */}
+                {!weekend &&
+                  l.column.freeTime?.map((f) =>
+                    f.startUtc && f.endUtc ? (
+                      <span key={f.startUtc} className="mc-free" style={rangeStyle(l, f.startUtc, f.endUtc)} aria-hidden>
+                        <Text type="supporting" color="secondary" maxLines={1}>
+                          Free, {formatTimeRange(f.startUtc, f.endUtc)}
+                        </Text>
+                      </span>
+                    ) : null,
+                  )}
+                {shownSelection &&
+                  (pending ? (
+                    // Being dragged out: just the highlight.
+                    <span className="mc-selection" style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
+                      <Text type="supporting" weight="semibold" maxLines={1}>
+                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
+                      </Text>
+                    </span>
+                  ) : (
+                    // Held: a button, as a menu opened from it (the Calendar page's Book or Block) is anchored to a button,
+                    // which says it's open (`aria-expanded`). It isn't a tab stop, and presses go through it to the slots.
+                    <button
+                      ref={selectionRef as Ref<HTMLButtonElement>}
+                      type="button"
+                      tabIndex={-1}
+                      className="mc-selection"
+                      aria-label={`Selected time, ${formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}`}
+                      style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
+                      <Text type="supporting" weight="semibold" maxLines={1}>
+                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
+                      </Text>
+                    </button>
+                  ))}
                 {/* The time now: a line behind the items (before them, and under them in the CSS), so it never runs through their
                     text, and a dot at the column's edge over everything. */}
                 {nowTop !== null && (
@@ -592,17 +739,17 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
                     key={p.item.key}
                     placed={p}
                     rows={l.rows}
-                    isDragged={drag?.isMoving === true && drag.item.key === p.item.key}
-                    onOpen={onItemOpen && !p.item.isReadOnly ? () => openItem(p.item) : undefined}
-                    onPointerDown={onItemMove && p.item.isMovable ? (event) => onItemPointerDown(event, p.item, day) : undefined}
+                    isDragged={drag?.isMoving === true && drag.from === col && drag.item.key === p.item.key}
+                    onOpen={onItemOpen && !p.item.isReadOnly ? () => openItem(p.item, l.column) : undefined}
+                    onPointerDown={onItemMove && p.item.isMovable ? (event) => onItemPointerDown(event, p.item, col) : undefined}
                     onPointerMove={onItemPointerMove}
                     onPointerUp={onItemPointerUp}
                   />
                 ))}
-                {ghost && ghost.date === l.date && (
-                  <span className="mc-ghost" style={rangeStyle(l, ghost.startUtc, ghost.endUtc)} aria-hidden>
+                {ghost && ghost.col === col && (
+                  <span className="mc-ghost" style={rangeStyle(l, ghost.range.startUtc, ghost.range.endUtc)} aria-hidden>
                     <Text type="supporting" weight="semibold" maxLines={1}>
-                      {formatTimeRange(ghost.startUtc, ghost.endUtc)}
+                      {formatTimeRange(ghost.range.startUtc, ghost.range.endUtc)}
                     </Text>
                   </span>
                 )}
@@ -616,7 +763,7 @@ export function CalendarGrid({label, days, items, onItemOpen, onSelectRange, onI
 }
 
 /** A stretch of a day as a position in its column. */
-function rangeStyle(l: DayLayout, startUtc: string, endUtc: string) {
+function rangeStyle(l: ColumnLayout, startUtc: string, endUtc: string) {
   const span = l.rows * SLOT;
   const t = intervalOf(startUtc, endUtc);
   return {top: `${((t.start - l.start) / span) * 100}%`, height: `${((t.end - t.start) / span) * 100}%`};
@@ -637,8 +784,9 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
 }
 
 /**
- * One item: a card in its colour (appointments tinted, blocks striped and quieter), as many lines as fit, always in the
- * same order: its name, then what it's for, then its time. One under 10 minutes, too short for any text, has a tooltip.
+ * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter), as many lines as fit,
+ * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
+ * it never relies on colour alone. One under 10 minutes, too short for any text, has a tooltip.
  */
 function GridItem({
   placed,
@@ -660,7 +808,7 @@ function GridItem({
   const {item, top, height, column, columns} = placed;
   const fit = itemFit(height * rows);
   const lines = Math.max(1, Math.round(height * rows));
-  const isAppointment = item.kind === 'appointment';
+  const isTinted = item.kind !== 'block';
   const time = formatTimeRange(item.startUtc, item.endUtc);
   const style = {
     position: 'absolute' as const,
@@ -669,7 +817,7 @@ function GridItem({
     height: `calc(${height * 100}% - var(--spacing-0-5))`,
     insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
     inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
-    zIndex: isAppointment ? 2 : 1,
+    zIndex: isTinted ? 2 : 1,
     padding: '0 var(--spacing-1-5)',
     overflow: 'hidden',
     borderInlineStart: `var(--spacing-1) solid var(--color-border-${item.colour})`,
@@ -677,18 +825,24 @@ function GridItem({
     opacity: isDragged ? 0.5 : undefined,
     cursor: onPointerDown ? 'grab' : undefined,
     touchAction: onPointerDown ? 'none' : undefined,
-    ...(isAppointment
+    ...(isTinted
       ? {}
       : {
           // Quieter stripes in dark mode, where the full colour behind the text is busy.
           backgroundImage: `repeating-linear-gradient(135deg, ${stripe(item.colour)} 0 var(--spacing-1-5), transparent var(--spacing-1-5) var(--spacing-3))`,
         }),
   };
-  const flag = item.isFlagged && <Icon icon={AppIcon.Warning} size="xsm" color="warning" />;
+  // Before the name: a meeting's icon, and a warning on a flagged block.
+  const marks = (
+    <>
+      {item.kind === 'meeting' && <Icon icon={AppIcon.Meeting} size="xsm" color="primary" />}
+      {item.isFlagged && <Icon icon={AppIcon.Warning} size="xsm" color="warning" />}
+    </>
+  );
   // One line: the name, then what it's for, or the time when it says nothing more.
   const oneLine = (type: 'supporting' | 'inherit') => (
     <HStack gap={1} vAlign="center">
-      {flag}
+      {marks}
       <Text type={type} color="primary" maxLines={1}>
         <Text type="inherit" weight="semibold">
           {item.label}
@@ -710,7 +864,7 @@ function GridItem({
         ) : (
           <>
             <HStack gap={1} vAlign="center">
-              {flag}
+              {marks}
               <Text type="supporting" color="primary" weight="semibold" maxLines={1}>
                 {item.label}
               </Text>
@@ -727,7 +881,7 @@ function GridItem({
         )}
       </VStack>
     );
-  const variant = isAppointment ? item.colour : 'default';
+  const variant = isTinted ? item.colour : 'default';
   // Too short for any text: what it is shows on hover and focus.
   const withTooltip = (card: ReactElement) => (fit === 'tiny' ? <Tooltip content={item.description}>{card}</Tooltip> : card);
   if (!onOpen) {
@@ -756,30 +910,36 @@ function GridItem({
   );
 }
 
-/** The grid's own rules, for what inline styles can't do (hover, focus, lines between rows). Theme tokens only. */
+/**
+ * The grid's own rules, for what inline styles can't do (hover, focus, lines between rows, scrolling sideways with the
+ * hours kept in view). Theme tokens only, and rem for the columns' minimum widths, so they grow with the text size.
+ */
 const GRID_CSS = `
-.medapp-calendar { --mc-row: calc(var(--spacing-5) + var(--spacing-0-5)); }
+.medapp-calendar { --mc-row: calc(var(--spacing-5) + var(--spacing-0-5)); --mc-gutter: var(--spacing-12); --mc-narrow: var(--spacing-10); --mc-day-min: 6rem; --mc-labelled-min: 8rem; }
 .medapp-calendar .mc-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
-.medapp-calendar .mc-head { position: sticky; top: 0; z-index: 5; display: flex; background: var(--color-background-card); border-block-end: 1px solid var(--color-border-emphasized); }
-.medapp-calendar .mc-head-cell { position: relative; flex: 1 1 0; min-inline-size: 0; display: flex; align-items: center; justify-content: center; min-block-size: var(--spacing-9); padding-inline: var(--spacing-1); border-inline-start: 1px solid var(--color-border); }
-.medapp-calendar .mc-head-cell[data-weekend], .medapp-calendar .mc-col[data-weekend] { flex: 0 0 var(--spacing-10); }
+.medapp-calendar .mc-head { position: sticky; top: 0; z-index: 6; display: flex; min-inline-size: var(--mc-min-inline); background: var(--color-background-card); border-block-end: 1px solid var(--color-border-emphasized); }
+.medapp-calendar .mc-head-cell { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); display: flex; align-items: center; justify-content: center; min-block-size: var(--spacing-9); padding-inline: var(--spacing-1); border-inline-start: 1px solid var(--color-border); }
+.medapp-calendar .mc-head-cell[data-labelled], .medapp-calendar .mc-col[data-labelled] { min-inline-size: var(--mc-labelled-min); }
+.medapp-calendar .mc-head-cell[data-narrow], .medapp-calendar .mc-col[data-narrow] { flex: 0 0 var(--mc-narrow); min-inline-size: 0; }
 .medapp-calendar .mc-today-mark { position: absolute; inset-inline: var(--spacing-2); inset-block-end: 0; block-size: var(--spacing-0-5); border-radius: var(--radius-full); background: var(--color-accent); }
-.medapp-calendar .mc-body { display: flex; }
-.medapp-calendar .mc-gutter { position: relative; flex: 0 0 var(--spacing-12); }
+.medapp-calendar .mc-body { display: flex; min-inline-size: var(--mc-min-inline); }
+.medapp-calendar .mc-gutter { position: sticky; inset-inline-start: 0; z-index: 5; flex: 0 0 var(--mc-gutter); background: var(--color-background-card); }
 .medapp-calendar .mc-hour { position: absolute; inset-inline-end: var(--spacing-2); margin-block-start: var(--spacing-0-5); line-height: 1; }
-.medapp-calendar .mc-col { position: relative; flex: 1 1 0; min-inline-size: 0; block-size: calc(var(--mc-row) * var(--mc-rows)); border-inline-start: 1px solid var(--color-border); }
+.medapp-calendar .mc-col { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); block-size: calc(var(--mc-row) * var(--mc-rows)); border-inline-start: 1px solid var(--color-border); }
 .medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: center; justify-content: center; }
 .medapp-calendar .mc-col[data-today] { background: color-mix(in srgb, var(--color-accent) 5%, transparent); }
 .medapp-calendar .mc-weekend-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .medapp-calendar .mc-slot { display: block; box-sizing: border-box; inline-size: 100%; block-size: var(--mc-row); margin: 0; padding: 0; border: 0; background: transparent; border-block-start: 1px dotted var(--color-border); }
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
 .medapp-calendar .mc-slot[data-line="hour"] { border-block-start: 1px solid var(--color-border-emphasized); }
-.medapp-calendar .mc-slot[data-past], .medapp-calendar .mc-col[data-past] .mc-slot { background: var(--color-background-muted); }
+.medapp-calendar .mc-slot[data-past], .medapp-calendar .mc-slot[data-unavailable], .medapp-calendar .mc-col[data-past] .mc-slot { background: var(--color-background-muted); }
 .medapp-calendar button.mc-slot { cursor: pointer; transition: background-color var(--duration-fast); }
 .medapp-calendar button.mc-slot:hover { background: var(--color-overlay-hover); }
 .medapp-calendar button.mc-slot:focus-visible { position: relative; z-index: 4; outline: var(--focus-outline-width) var(--focus-outline-style) var(--focus-outline-color); outline-offset: calc(-1 * var(--focus-outline-width)); }
+.medapp-calendar .mc-free { position: absolute; inset-inline: var(--spacing-0-5); z-index: 0; box-sizing: border-box; padding-inline: var(--spacing-1-5); overflow: hidden; pointer-events: none; border: 1px dashed var(--color-border-emphasized); border-radius: var(--radius-inner); }
 .medapp-calendar .mc-selection, .medapp-calendar .mc-ghost { position: absolute; inset-inline: var(--spacing-0-5); z-index: 3; box-sizing: border-box; padding-inline: var(--spacing-1-5); overflow: hidden; pointer-events: none; border-radius: var(--radius-inner); }
 .medapp-calendar .mc-selection { background: var(--color-accent-muted); border: 1px solid var(--color-accent); }
+.medapp-calendar button.mc-selection { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; margin: 0; padding-block: 0; font: inherit; color: inherit; text-align: start; appearance: none; }
 .medapp-calendar .mc-ghost { background: var(--color-background-popover); border: 2px dashed var(--color-accent); box-shadow: var(--shadow-med, none); }
 .medapp-calendar .mc-item-short { font-size: var(--font-size-xs); line-height: 1; padding-block-start: var(--spacing-0-5); }
 .medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 0; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }
