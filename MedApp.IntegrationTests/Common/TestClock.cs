@@ -1,9 +1,10 @@
 namespace MedApp.IntegrationTests.Common;
 
 /// <summary>
-/// The API's clock in the integration tests: the real time plus an offset a test can move forward, so it can make a
-/// sign-in challenge expire or reach the next authenticator code without waiting. Reset to the real time before each
-/// test. Only what reads <see cref="TimeProvider"/> sees it (sessions use the real clock).
+/// The API's clock in the integration tests: the real time plus an offset a test can move, so a test can let time
+/// pass without waiting: an appointment's start or a day becoming past, a sign-in challenge expiring or the next
+/// authenticator code. It starts with no offset and is put back before every test. Only what reads
+/// <see cref="TimeProvider"/> sees it: sessions read the real clock, so moving it doesn't expire them.
 /// </summary>
 public sealed class TestClock : TimeProvider
 {
@@ -13,7 +14,13 @@ public sealed class TestClock : TimeProvider
 
     public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + Offset;
 
+    /// <summary>Moves the clock on (or back) by this much.</summary>
     public void Advance(TimeSpan by) => Interlocked.Add(ref _offsetTicks, by.Ticks);
 
+    /// <summary>Sets the clock to this UTC moment (and lets it run on from there).</summary>
+    public void SetUtcNow(DateTime utcNow) =>
+        Interlocked.Exchange(ref _offsetTicks, (DateTime.SpecifyKind(utcNow, DateTimeKind.Utc) - base.GetUtcNow().UtcDateTime).Ticks);
+
+    /// <summary>Back to the real time.</summary>
     public void Reset() => Interlocked.Exchange(ref _offsetTicks, 0);
 }

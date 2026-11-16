@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
@@ -13,6 +14,7 @@ namespace MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
 public sealed class GetPatientTimelineHandler(
     IPatientRepository patientRepository,
     IProcedureAuditRepository auditRepository,
+    IAppointmentRepository appointmentRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
 {
@@ -23,18 +25,47 @@ public sealed class GetPatientTimelineHandler(
 
         await activityLog.RecordViewsAsync(ActivityAction.PatientViewed, [request.PatientId], cancellationToken);
 
-        // One more than a page, to tell whether there's another.
-        var rows = await auditRepository.GetPatientTimelineAsync(request, cancellationToken);
-        var page = rows.Take(request.PageSize).ToList();
+        // The audit log has every kind but Appointments, and appointments' history only that one: ask each only when
+        // the kinds filter wants something from it.
+        var kinds = PatientTimelineKinds.Parse(request.Kinds);
+        var wantsAudit = kinds.Count == 0 || kinds.Any(k => k != PatientTimelineKind.Appointments);
+        var wantsAppointments = kinds.Count == 0 || kinds.Contains(PatientTimelineKind.Appointments);
+
+        // Each side gives one more than a page, to tell whether there's another.
+        IReadOnlyList<PatientTimelineRow> auditRows = wantsAudit
+            ? await auditRepository.GetPatientTimelineAsync(request, cancellationToken)
+            : [];
+        IReadOnlyList<AppointmentTimelineRow> appointmentRows = wantsAppointments
+            ? await appointmentRepository.GetPatientTimelineAsync(request, cancellationToken)
+            : [];
+
+        // Merged newest first. The sort is stable, so entries that share a time keep the order their own search gave
+        // them (by ID, as the database orders IDs, which the next page's cursor compares the same way); the two sides
+        // never share a time in practice, as each change's entries are a tick apart. Together they hold more than a
+        // page whenever either side has more.
+        var merged = auditRows
+            .Select(row => new Entry(new TimelineCursor(row.Entry.AtUtc, row.Entry.Id), row, null))
+            .Concat(appointmentRows.Select(row => new Entry(new TimelineCursor(row.Event.AtUtc, row.Event.Id), null, row)))
+            .OrderByDescending(e => e.Position.AtUtc)
+            .ToList();
+        var page = merged.Take(request.PageSize).ToList();
 
         return new PatientTimelinePageResponse
         {
-            // The search already leaves deleted procedures out for staff; this makes sure nothing slips through.
+            // The searches already leave deleted procedures out for staff; this makes sure nothing slips through.
             Items = page
-                .Where(row => request.IsAdmin || row.CurrentProcedureTitle is not null || row.IsAboutPatient)
-                .Select(row => TimelineMapper.ToResponse(row, request.IsAdmin))
+                .Where(e => request.IsAdmin
+                            || (e.Audit is { } audit
+                                ? audit.CurrentProcedureTitle is not null || audit.IsAboutPatient
+                                : e.Appointment!.IsVisibleToStaff))
+                .Select(e => e.Audit is { } audit
+                    ? TimelineMapper.ToResponse(audit, request.IsAdmin)
+                    : TimelineMapper.ToResponse(e.Appointment!, request.IsAdmin))
                 .ToList(),
-            NextCursor = rows.Count > request.PageSize ? TimelineCursor.After(page[^1].Entry).Encode() : null,
+            NextCursor = merged.Count > request.PageSize ? page[^1].Position.Encode() : null,
         };
     }
+
+    /// <summary>One entry of the merged feed, from the audit log or from appointments' history.</summary>
+    private sealed record Entry(TimelineCursor Position, PatientTimelineRow? Audit, AppointmentTimelineRow? Appointment);
 }

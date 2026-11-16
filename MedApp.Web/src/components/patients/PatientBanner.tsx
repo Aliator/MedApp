@@ -50,10 +50,11 @@ const CAPITALS = {textTransform: 'uppercase'} as const;
  *
  * Give it to `Page` as its `banner`. It wraps onto more lines in a narrow window or a half view. To a screen reader
  * it's a region named for the patient ("Patient: Ahmed, Freya"), so two in half views are told apart, with the NHS
- * number read a digit at a time.
+ * number read a digit at a time. `isCompact` lays it out as in a narrow window wherever it is, for a dialog about
+ * one patient (booking an appointment, an appointment's details).
  */
-export function PatientBanner({patient}: {patient: BannerPatient}) {
-  const isNarrow = useIsNarrow();
+export function PatientBanner({patient, isCompact = false}: {patient: BannerPatient; isCompact?: boolean}) {
+  const isNarrow = useIsNarrow() || isCompact;
   const labelId = useId();
   const nameId = useId();
   const {family} = nameParts(patient);

@@ -19,6 +19,8 @@ public sealed class PatientProcedureStageDefinition
 
     /// <summary>The concept's display term, as the admin typed it; set exactly when <see cref="SnomedCode"/> is.</summary>
     public string? SnomedTerm { get; set; }
+    /// <summary>Whether the stage involves a visit; copied onto each procedure's stage when it's created.</summary>
+    public VisitRequirement VisitRequirement { get; set; }
 
     /// <summary>Archived definitions can't be added to templates. A definition in use is archived, never deleted.</summary>
     public bool IsArchived { get; set; }

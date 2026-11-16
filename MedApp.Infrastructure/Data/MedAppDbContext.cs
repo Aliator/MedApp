@@ -1,6 +1,8 @@
 ﻿using MedApp.Domain.Activity;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
+using MedApp.Domain.Calendar;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
@@ -30,6 +32,17 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureStageTemplate> PatientProcedureStageTemplates => Set<PatientProcedureStageTemplate>();
     public DbSet<PatientProcedureStageTemplateMap> PatientProcedureStageTemplateItems => Set<PatientProcedureStageTemplateMap>();
     public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
+    public DbSet<CalendarActivityType> CalendarActivityTypes => Set<CalendarActivityType>();
+    public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
+    public DbSet<CalendarBlockException> CalendarBlockExceptions => Set<CalendarBlockException>();
+    public DbSet<CalendarDayOverride> CalendarDayOverrides => Set<CalendarDayOverride>();
+    public DbSet<DayTemplate> DayTemplates => Set<DayTemplate>();
+    public DbSet<DayTemplateBlock> DayTemplateBlocks => Set<DayTemplateBlock>();
+    public DbSet<WeekTemplate> WeekTemplates => Set<WeekTemplate>();
+    public DbSet<WeekTemplateDay> WeekTemplateDays => Set<WeekTemplateDay>();
+    public DbSet<StaffWeekTemplate> StaffWeekTemplates => Set<StaffWeekTemplate>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<AppointmentEvent> AppointmentEvents => Set<AppointmentEvent>();
     public DbSet<SignInChallenge> SignInChallenges => Set<SignInChallenge>();
     public DbSet<SecuritySettings> SecuritySettings => Set<SecuritySettings>();
 

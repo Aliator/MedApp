@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.UnitTests.Common.Constants;
@@ -200,6 +201,8 @@ public sealed class PatientAnonymiserTests
         Procedures = record.Procedures,
         ProcedureHistory = [.. record.ProcedureHistory, entry],
         Activity = record.Activity,
+        Appointments = record.Appointments,
+        AppointmentHistory = record.AppointmentHistory,
         Notifications = record.Notifications
     };
 
@@ -209,6 +212,8 @@ public sealed class PatientAnonymiserTests
         Procedures = record.Procedures,
         ProcedureHistory = record.ProcedureHistory,
         Activity = [.. record.Activity, entry],
+        Appointments = record.Appointments,
+        AppointmentHistory = record.AppointmentHistory,
         Notifications = record.Notifications
     };
 
@@ -218,6 +223,107 @@ public sealed class PatientAnonymiserTests
         Procedures = record.Procedures,
         ProcedureHistory = record.ProcedureHistory,
         Activity = record.Activity,
+        Appointments = record.Appointments,
+        AppointmentHistory = record.AppointmentHistory,
         Notifications = [.. record.Notifications, .. notifications]
+    };
+
+    [Test]
+    public void Apply_Appointments_ReplaceTheirNotesAndCancellationReasons()
+    {
+        var record = PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.InProgress));
+        var appointment = record.Appointments.Single();
+        var booked = new Appointment
+        {
+            Id = Guid.NewGuid(), PatientId = record.Patient.Id, Status = AppointmentStatus.Booked, Notes = string.Empty,
+            CreatedAtUtc = Now, CreatedByUserId = Staff.UserId, LastUpdated = Now
+        };
+        record = WithAppointments(record, booked);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt);
+
+        appointment.Notes.Should().Be(PatientAnonymiser.RemovedText);
+        appointment.CancelReason.Should().Be(PatientAnonymiser.RemovedText);
+        booked.Notes.Should().BeEmpty("empty text stays empty");
+        booked.CancelReason.Should().BeNull();
+    }
+
+    [Test]
+    public void Apply_AppointmentHistory_TakesTheNewTitle_AndLosesItsFreeText()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.TemplateName = TemplateName;
+        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt);
+
+        record.AppointmentHistory.Should().HaveCount(2);
+        record.AppointmentHistory.Should().OnlyContain(e => e.ProcedureTitle == TemplateName);
+        var notes = Parse(record.AppointmentHistory.Single(e => e.Action == AppointmentEventAction.NotesUpdated).Details);
+        notes["from"]!.GetValue<string>().Should().BeEmpty();
+        notes["to"]!.GetValue<string>().Should().Be(PatientAnonymiser.RemovedText);
+        var cancelled = Parse(record.AppointmentHistory.Single(e => e.Action == AppointmentEventAction.Cancelled).Details);
+        cancelled["reason"]!.GetValue<string>().Should().Be(PatientAnonymiser.RemovedText);
+        cancelled["automatic"]!.GetValue<bool>().Should().BeFalse();
+    }
+
+    [Test]
+    public void Apply_AppointmentHistoryNotForAProcedure_KeepsItsEmptyTitle()
+    {
+        var record = PrivacyTestConstants.CreateRecord();
+        var entry = new AppointmentEvent
+        {
+            Id = Guid.NewGuid(), AppointmentId = Guid.NewGuid(), PatientId = record.Patient.Id,
+            Action = AppointmentEventAction.Requested, UserId = Staff.UserId, Username = Staff.Username, AtUtc = Now
+        };
+        record = WithAppointmentHistory(record, entry);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt);
+
+        entry.ProcedureTitle.Should().BeEmpty();
+    }
+
+    [TestCase(NotificationKind.AppointmentBooked, "Appointment booked", false)]
+    [TestCase(NotificationKind.AppointmentRescheduled, "Appointment moved", true)]
+    [TestCase(NotificationKind.AppointmentCancelled, "Appointment cancelled", true)]
+    public void Apply_AppointmentNotification_KeepsItsFixedTitleAndMessage(NotificationKind kind, string title, bool forProcedure)
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.TemplateName = TemplateName;
+        var record = PrivacyTestConstants.CreateRecord(null, procedure);
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(), UserId = Staff.UserId, Kind = kind,
+            Title = title, Message = "test.staff moved your appointment to Monday 23 November at 10:00.",
+            ProcedureId = forProcedure ? procedure.Id : null, AppointmentId = Guid.NewGuid(), CreatedAtUtc = Now
+        };
+        record = WithNotifications(record, notification);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt);
+
+        notification.Title.Should().Be(title);
+        notification.Message.Should().Be("test.staff moved your appointment to Monday 23 November at 10:00.");
+    }
+
+    private static PatientRecord WithAppointments(PatientRecord record, params Appointment[] appointments) => new()
+    {
+        Patient = record.Patient,
+        Procedures = record.Procedures,
+        ProcedureHistory = record.ProcedureHistory,
+        Activity = record.Activity,
+        Appointments = [.. record.Appointments, .. appointments],
+        AppointmentHistory = record.AppointmentHistory,
+        Notifications = record.Notifications
+    };
+
+    private static PatientRecord WithAppointmentHistory(PatientRecord record, params AppointmentEvent[] entries) => new()
+    {
+        Patient = record.Patient,
+        Procedures = record.Procedures,
+        ProcedureHistory = record.ProcedureHistory,
+        Activity = record.Activity,
+        Appointments = record.Appointments,
+        AppointmentHistory = [.. record.AppointmentHistory, .. entries],
+        Notifications = record.Notifications
     };
 }

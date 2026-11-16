@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.8, draft |
+| **Version** | 0.9, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -62,6 +62,13 @@
 | [H-27](#h-27-an-out-of-date-or-duplicate-document-is-relied-on) | An out-of-date or duplicate document is relied on | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-28](#h-28-file-storage-is-unavailable) | File storage is unavailable | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Operational, before first live use | Open |
 | [H-29](#h-29-an-admin-relies-on-a-monitoring-rule-to-follow-up-clinical-work) | An admin relies on a monitoring rule to follow up clinical work | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Information before first live use; an outbox later | Open |
+| [H-30](#h-30-a-visit-the-patient-needs-doesnt-happen) | A visit the patient needs doesn't happen | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-31](#h-31-a-member-of-staff-is-double-booked) | A member of staff is double-booked | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-32](#h-32-a-stage-is-finished-without-the-visit-it-needed) | A stage is finished without the visit it needed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-33](#h-33-an-appointment-is-at-the-wrong-time) | An appointment is at the wrong time | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-34](#h-34-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-35](#h-35-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-36](#h-36-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -72,6 +79,8 @@
 **The patient banner,** the main control for H-01 and H-02, and for files on the wrong record (H-23), is built on branch `feature/nhs-integrations`, with the NHS number. It doesn't change any rating yet: the initial ratings are for `88dc1fa`, and the "at first live use" ratings already assumed it. Those two ratings now depend on the CSO verifying the banner, and on the other controls marked "before first live use" (the date of birth in lists, the patient's name in the page title and in the confirmations), which aren't built.
 
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
+
+**Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
 ---
 
@@ -318,6 +327,7 @@
 **Existing controls:**
 - The finish confirmation (H-06).
 - Who finished each stage, and when, is shown on the stage and kept in the audit log (`StageList.tsx`; `ProcedureChange.FinishStage`), so it's accountable.
+- **Since staff calendars, for a stage that involves a visit:** a stage whose definition requires a visit can't be finished until an appointment for it is Attended, unless an admin finishes it with a reason; a suggested visit asks for confirmation (`ProcedureWorkflow.WhyStageNeedsVisit`; `docs/calendar-plan.md`, decisions 24 and 25). How that rule can fail is H-32.
 - **Transferred:** MedApp records the workflow; the clinical record of what was done stays in the organisation's clinical systems, and the professional who does the step is accountable for it.
 
 **Initial risk:** Major, Low: **3**.
@@ -818,6 +828,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - The procedure page and lists show the assignee as "Deleted user" (`ProcedureMapper.DeletedUser`), which someone looking at the procedure would notice.
 - Any staff member can still work the procedure, and an admin can unassign the deleted account and assign someone else.
 - Overdue badges still show on the full Procedures list.
+- Since staff calendars, an account with upcoming Booked appointments can't be deleted until they're moved or cancelled (H-35). Open assignments still aren't checked.
 
 **Initial risk:** Major, Medium: **3**.
 
@@ -840,6 +851,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Causes:**
 - **Restriction freezes the record and its procedures** (`PatientRules.EnsureCanChange`, applied to every procedure change by `GetForUpdateOrThrowAsync`): no stage can be started, written up or finished, and nothing can be assigned, while the record is restricted.
+- **Its appointments are frozen too** (since staff calendars): none can be booked, rescheduled or given an outcome while the record is restricted (they can only be cancelled), so a visit a stage needs can't be arranged or recorded (H-30).
 - **Files are frozen too** (branch `feature/file-attachments`): nobody, admins included, can attach a file to a restricted record, its procedures or its stages, or delete one, so a new letter or result can't be added while the restriction lasts (H-24), nor a file on the wrong record removed (H-23).
 - **A restriction can last weeks** while the contested details are checked, and only an admin can lift it.
 - **The admin restricting may not be the clinician working the procedures,** and may not know what's due.
@@ -849,8 +861,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Possible harm.** Delayed care for that patient. Considerable.
 
 **Existing controls (step 7, PR #68):**
-- **The admin must confirm:** restricting a record with procedures under way shows how many there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`).
-- **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue.
+- **The admin must confirm:** restricting a record with procedures under way or open appointments shows how many of each there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`). Since the review of PR #93, open appointments alone ask for it too (decision 49), and if the dialog's counts are out of date the API's own message is shown.
+- **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue. Its appointments can still be cancelled, with a reason (`GetForCancelOrThrowAsync`), so a patient isn't left booked for care that's paused.
 - **Everyone sees why:** the procedure page, the patient's pages and their procedures show the restricted banner with its reason, and the procedure page says that only blocking and cancelling are possible.
 - Lifting the restriction is one admin action, recorded with a reason.
 
@@ -1117,12 +1129,285 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
+## Staff calendars and appointments: draft hazards for the CSO
+
+H-30 to H-36 come from the design of staff calendars and appointments (`docs/calendar-plan.md`), drafted while the feature was being built on `feature/staff-calendars`. "Decision n" refers to section 1 of that plan. In short: staff book appointments for patients on staff calendars; an appointment goes from Requested (needs booking) to Booked, then Attended or Did not attend, or Cancelled; a stage definition can say a stage involves a visit (none, suggested or required), and MedApp then requests an appointment when the stage becomes current and, for a required visit, won't let the stage be finished until the appointment is Attended, unless an admin finishes it with a reason.
+
+**Ratings:** left for the CSO to assign. Each entry gives a draft estimate, on the same scheme as the rest of the log, as a starting point. Check every existing control against the code before relying on it.
+
+---
+
+## H-30: A visit the patient needs doesn't happen
+
+**Description.** A patient needs to be seen, but isn't: a Requested appointment is never booked, or a patient who didn't attend is never offered another appointment.
+
+**Causes:**
+- **A Requested appointment has nobody's name on it.** It has no member of staff until it's booked, so no one is notified about it (notifications go to the member of staff an appointment is booked with; decision 20). It waits on the Needs booking list (decision 29) until someone looks.
+- **Nothing flags a request that has waited too long.** Flagging or notifying old Requested appointments is left for later (plan, section 8).
+- **Did not attend leads nowhere by itself.** It's a status staff record (decision 16). The UI offers "Book another", but nothing reminds anyone later, and nobody else is notified.
+- **Cancelling a Booked appointment doesn't request another.** A Requested appointment is made only when a stage becomes current (decision 23), so after a cancellation the stage has no open appointment until someone books one.
+- **Appointments not for a stage** have no rule behind them at all, and a stage with a suggested visit can be finished without one (H-32).
+- **A restricted record's appointments can't be booked, moved or given an outcome** until an admin lifts the restriction (H-22).
+- **Pages don't refresh by themselves** (H-16), so a list left open doesn't show new requests.
+
+**Effect.** The patient isn't seen when they need to be. For a stage whose visit is required, the procedure can't move past that stage, which shows; for anything else, nothing in MedApp shows that the visit didn't happen.
+
+**Possible harm.** Delayed care, such as a missed pre-assessment or follow-up, for one patient. Considerable in the worst credible case.
+
+**Existing controls** (in the design):
+- **MedApp requests the appointment itself** when a stage with a visit becomes current, unless one is already Requested, Booked or Attended (decision 23), recorded in the appointment's history as requested by the app.
+- **The Needs booking list** shows every Requested appointment, soonest procedure due date first, each with Book (decision 29).
+- **A required visit holds up the stage:** it can't be finished until an appointment for it is Attended, except by an admin with a reason (decision 24), so a procedure can't quietly move on.
+- **One open appointment per stage** (decision 18), so a stage's appointment is never lost among duplicates.
+- The procedure's due date and overdue badge still apply to the procedure as a whole (H-04).
+- **Every change is in the appointment's history** (decision 19), and on the patient's timeline (decision 27).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls:**
+- **Flag or notify Requested appointments that have waited too long,** and Did not attend appointments not yet rebooked, to the procedure's assignees, or to admins when it has none. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); **before first live use**.
+- **A visible count of Needs booking,** in the side navigation or on Home, so the list isn't only seen by those who open it. Protective; **proposed**; before first live use.
+- **A local process:** who books from Needs booking, how often it's reviewed, and who follows up Did not attend. Information; transferred; before first live use.
+- **Reminders to patients** by email or SMS, which cut missed appointments. Protective; **planned** (`docs/todo.md`); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-31: A member of staff is double-booked
+
+**Description.** Two patients are booked with one member of staff at the same time, or a patient is booked over time the member of staff has blocked off (for example annual leave or training).
+
+**Causes:**
+- **Two people book the same slot at the same moment,** from two browsers.
+- **Two people book the same Needs booking appointment at the same moment,** with different members of staff (found in the review of PR #93): the lock is per member of staff, so they didn't wait for each other, and the later save silently overwrote the earlier. The first member of staff was told about an appointment that wasn't on their calendar.
+- **A later template change** (an admin moves everyone's lunch, or applies a day template with leave to a day) lands on appointments already booked. MedApp allows that, and shows both (decision 6).
+- **A page left open** shows slots that have since been taken (H-16).
+- **Appointments kept elsewhere** (a paper diary, another system), so MedApp's calendar isn't the whole picture.
+
+**Effect.** One patient is seen late, or not at all, or the member of staff isn't where the calendar says.
+
+**Possible harm.** Delayed care for one patient, or a rushed appointment. Considerable in the worst credible case.
+
+**Existing controls** (in the design):
+- **The server refuses any overlap:** a new or moved appointment or block that overlaps a Booked, Attended or Did not attend appointment, or a block (stored or from a template), on that person's calendar is a 409 that names the clash (decision 6; `CalendarClashes`). The UI only offers free slots (decisions 6 and 30).
+- **Racing bookings are serialised** by a database lock per member of staff (`ICalendarLock`, SQL Server's `sp_getapplock`), so one wins and the other gets the 409 (decision 6). An integration test books the same slot twice at once (plan, section 7).
+- **Two changes to one appointment can't both win:** an appointment has a row version, so the later of two overlapping saves is a 409, and a booking says whether it's booking a Requested appointment or moving a Booked one, refused (409) if someone else got there first (decision 46). An integration test books one Requested appointment twice at once, with two different members of staff: one succeeds, one gets the 409, and only one is told.
+- **Overlaps from template changes are shown, not hidden:** both appear, the appointment on top, and the block is flagged as overlapping; nothing is moved or removed by the app (decision 6).
+- **Past days don't change** (decision 8).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls:**
+- **After a template change or a day's template is applied,** list the booked appointments it now overlaps for the person who made it, and notify each member of staff affected. Protective; **proposed**; before first live use.
+- **A local rule:** MedApp's calendar is the only diary for these appointments. Information; transferred.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-32: A stage is finished without the visit it needed
+
+**Description.** A stage whose definition says it involves a visit is finished although the patient wasn't seen: a required visit is bypassed in error, or a suggested one is skipped when it was needed.
+
+**Causes:**
+- **The admin bypass** (decision 24) is used without checking, or because an admin was asked to "just finish it".
+- **The suggested-visit confirmation** (decision 25) is clicked through. Confirmations people see often stop being read (H-06).
+- **An appointment is marked Attended in error:** the wrong appointment, the wrong patient (H-34), or a correction from Did not attend made wrongly. Attended satisfies the rule.
+- **The definition's setting is wrong:** a stage that needs a visit is set to none or suggested. It's copied onto each procedure when it's created (decision 22), so a correction doesn't reach procedures already under way (as H-14).
+- **Finishing again after an unlock** doesn't ask for a visit again (decision 26).
+- **An Attended appointment linked to the stage counts,** however long before the stage it was.
+
+**Effect.** The record says the stage is done, and the procedure moves on, although the visit it depends on didn't happen.
+
+**Possible harm.** A procedure goes ahead without a step that needed the patient seen, such as a pre-procedure assessment. One patient; Major in the worst credible case, as H-07.
+
+**Existing controls** (in the design):
+- **Required is enforced on the server,** not just the screen (`ProcedureWorkflow.WhyStageNeedsVisit`): staff get a 409 that says to book the visit and mark it Attended (decision 24).
+- **Only admins can bypass it,** after a confirmation dialog that asks for a reason (decision 24).
+- **Every finish without a visit is recorded:** the `StageFinished` audit entry records `withoutVisit`, the requirement and, for an admin bypass, the reason (decisions 24 and 25). The patient's timeline shows that a stage was finished without a visit (to admins, with the reason; decision 27).
+- **Attended can only be recorded once the appointment's start has passed** (decision 16).
+- **Existing stages and definitions are None** (decision 22), so nothing changes for procedures that were under way before.
+- **Transferred:** template governance (H-13) covers which stages need a visit.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
+
+**Further controls:**
+- **A report of stages finished without a visit,** for admins, from the audit's `withoutVisit`, reviewed on a set schedule. Protective; **proposed**; **before first live use**; the review is transferred.
+- **Name the patient, the stage and the appointment** (or "no attended appointment") in the finish and bypass confirmations. Protective; **proposed**; before first live use.
+- **Ask for a reason when a suggested visit is skipped too,** so skipping is deliberate. Protective; **proposed**; later.
+- **When a definition's visit requirement is changed,** list the open procedures with that stage, as H-14's control does for template corrections. Protective; **proposed**; later.
+- **Clinical sign-off of which stages need a visit,** as part of template governance. Information; transferred; before first live use.
+
+**At first live use:** Draft: Major, Very low: **2**.
+
+**Residual risk:** Draft: Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-33: An appointment is at the wrong time
+
+**Description.** An appointment is booked, shown or passed on at a different time or day from the one intended: an hour out, on the wrong day, or in the wrong week.
+
+**Causes:**
+- **Time zones:** times are stored in UTC and shown in UK time. A conversion done wrongly, or a time read without its `Z`, would be an hour out in summer (as H-12 was).
+- **Clock changes:** template times are UK clock times, turned into UTC for each date; done wrongly, blocks and free slots move by an hour after a clock change.
+- **"Today" on the server:** server rendering runs in UTC, so between 23:00 and midnight UTC in summer the server's day and the browser's can differ (H-12's residual note). Home's day calendar or the Calendar page could open on the wrong day for that hour.
+- **The wrong day or slot picked** in the booking dialog, or the wrong week open in the week view.
+- **A reschedule** that moves the appointment, when the patient was told the old time (H-36).
+- **A stale "book" that moves someone else's booking** (found in the review of PR #93): someone books a Needs booking appointment and tells the patient; a colleague whose list is out of date books it too, and the second request quietly moved it to their time, with nobody told.
+
+**Effect.** The patient and the member of staff turn up at different times, or the patient is told the wrong time.
+
+**Possible harm.** A missed or delayed appointment. One patient for a slip; if a conversion is wrong, every appointment on the days it affects, so multiple patients: Considerable.
+
+**Existing controls** (in the design):
+- **Times are stored and sent as UTC with a `Z`** (`UtcDateTimeConverter`, from PR #62), and the web app shows them in UK time (decision 3).
+- **One place for UK time:** `UkTime` turns UK dates and clock times into UTC, and template times are turned into UTC for each date, so a 12:00 lunch is at 12:00 UK time on both sides of a clock change (decision 3).
+- **The browser does no time zone arithmetic:** the calendar response gives each day's working start and end in UTC, and the browser steps through slots from them (decision 3). A UK working day never spans a clock change.
+- **The server checks every time:** inside the working day, on a weekday, on a 5-minute boundary, start before end, and not in the past for a booking (decisions 2 and 17).
+- **Tests:** `CalendarProjection` across a clock change, in unit and integration tests (plan, section 7).
+- **Messages say the day and time in words** ("Monday 23 November at 10:00", `UkTime`).
+- **A booking says what it expects** (`expectedStatus`): booking an appointment someone else has already booked is a 409 ("Someone else has already booked this appointment"), not a move; moving one needs the caller to have seen it Booked (decision 46).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls:**
+- **Show the full date, with the day of the week, and the member of staff** in the booking and reschedule confirmations and on the appointment. Protective; **proposed**; before first live use.
+- **End-to-end tests in a browser outside UK time,** and on the days of both clock changes. Protective; **proposed**; before first live use.
+- **Use the UK date on the server for "today",** rather than the machine's (the to-do from H-12). Design; **proposed**; later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO], with the maintainer. **Status:** Open, draft for the CSO.
+
+---
+
+## H-34: The wrong patient or procedure is booked
+
+**Description.** An appointment is booked for a different patient from the one intended, or linked to the wrong procedure or stage.
+
+**Causes:**
+- **The same identification limits as H-01:** name, date of birth, email and an optional NHS number that isn't traced; no duplicate check on name and date of birth.
+- **Booking from an empty calendar slot or the New button** asks for the patient (and procedure and stage) to be chosen (decision 30), by name.
+- **An appointment's patient can't be changed:** booking and rescheduling change only the time and member of staff (the plan's API, section 4), so a mistake must be cancelled and booked again; until then it looks real.
+
+**Effect.** The wrong patient is called in, and the right one isn't. An Attended recorded on the wrong patient's appointment could satisfy that patient's required visit (H-32).
+
+**Possible harm.** Delayed care for one patient, or a step done on the basis of a visit that was someone else's. Considerable.
+
+**Existing controls** (in the design):
+- **The patient is filled in when it's known:** booking from the patient page, the procedure page, a stage ("Book visit") or the Needs booking list (decision 30), and the app's own requests link to the right stage (decision 23).
+- **One open appointment per stage** (decision 18): a second booking for a stage is refused, and the refusal points to the one there is.
+- **Every change is in the appointment's history**, so a wrong booking can be traced (decision 19).
+- **Transferred:** positive patient identification at the point of care.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls:**
+- **Show the date of birth beside the patient's name** in the booking dialog's patient picker, in the confirmation, and on the appointment's dialog. Protective; **proposed**; before first live use.
+- **The patient's details in the booking and appointment dialogs,** as H-01's patient banner shows them: once a patient is chosen, the dialog shows their name, date of birth and NHS number. Protective; **built** (with the patient banner from PR #69); to be verified by the CSO before first live use.
+- **A duplicate check on name and date of birth, and tracing NHS numbers with PDS** (H-01). Design; **planned** (step 9); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-35: An appointment is left without its member of staff
+
+**Description.** A patient is booked with a member of staff who won't be there: their account has been deleted, they're on leave, or their calendar has changed under the appointment.
+
+**Causes:**
+- **Leave or training added by a template change** (a week template edit, or a day's template applied) over appointments already booked. It's allowed, and both show, flagged (decision 6), but nothing moves the appointments or tells the patient.
+- **Absence that isn't in MedApp:** sickness, or leave recorded only in another system.
+- **A member of staff loses their role:** the staff picker lists everyone with a role (`GET api/calendar/staff`), so their calendar would drop out of the picker and become a 404, with their appointments on it. Now refused while they have upcoming Booked appointments (below).
+
+**Effect.** The patient arrives and nobody is there to see them, or the appointment silently doesn't happen.
+
+**Possible harm.** Delayed care; for a whole day's list, several patients. Considerable.
+
+**Existing controls** (in the design):
+- **An account with upcoming Booked appointments can't be deleted** until they're moved or cancelled (decision 21), **nor lose every role** (decision 48): both are refused with the same `HasUpcomingAppointments` error, from one check (`WhyCantStopBeingStaffAsync`).
+- **A new block can't overlap an appointment** (decision 6), so leave added as a block forces the appointments to be moved or cancelled first.
+- **Overlaps from template changes are shown, not hidden,** with the appointment on top and the block flagged (decision 6).
+- **The member of staff is notified** when someone else books an appointment with them, moves one to them or away from them, or cancels one (decision 20), and sees their day's appointments on Home (decision 32).
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
+
+**Further controls:**
+- **After a template change or a day's template is applied,** list the booked appointments it overlaps and notify the member of staff (as H-31). Protective; **proposed**; before first live use.
+- **Refuse to remove the last role from someone with upcoming Booked appointments,** as account deletion does. Protective; **built** (decision 48, from the review of PR #93); to be verified by the CSO before first live use.
+- **A local process for absence:** when someone is away unexpectedly, move or cancel their appointments and tell the patients (H-36). Information; transferred; before first live use.
+- **Deactivate accounts instead of deleting them** (H-21). Design; **planned** (step 4); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
+## H-36: A cancelled or moved appointment isn't passed on to the patient
+
+**Description.** An appointment is cancelled or rescheduled in MedApp, but the patient isn't told, so they come at the old time, or don't come to the new one.
+
+**Causes:**
+- **MedApp doesn't contact patients.** There are no reminders or confirmations by email or SMS (plan, section 8); telling the patient is the organisation's own process.
+- **Nothing in MedApp asks whether the patient has been told,** when an appointment is cancelled or moved.
+- **Notifications go to staff only:** the member of staff whose appointment changed, and only when someone else changed it (decision 20).
+- **Cancelling a procedure leaves its Booked appointments alone** (decision 26), deliberately, so someone can tell the patient; if no one acts on the list on the procedure page, they stay booked for a procedure that won't go ahead.
+
+**Effect.** The patient makes a wasted journey, misses a rescheduled appointment, or is seen for a procedure that has been cancelled.
+
+**Possible harm.** Delayed care, and distress, for one patient; worse for patients who are frail or travel far. Considerable in the worst credible case.
+
+**Existing controls** (in the design):
+- **The app never cancels a Booked appointment by itself** (decision 26); only a person does, so the person who cancels knows.
+- **A cancellation needs a reason** (decision 16), and every cancellation and reschedule is in the appointment's history with who and when (decision 19).
+- **The procedure page lists a procedure's Booked appointments** (decision 26), so they're visible when it's cancelled.
+- **Transferred:** the organisation's own process for contacting patients about their appointments.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
+
+**Further controls:**
+- **Ask "has the patient been told?"** when a Booked appointment is cancelled or moved, record the answer, and list the ones not yet told. Protective; **proposed**; before first live use.
+- **A local process** for telling patients of every cancellation and change, and for the Booked appointments of a cancelled procedure. Information; transferred; before first live use.
+- **Reminders and confirmations to patients** by email or SMS. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
 - **Completing a procedure with a stage unfinished or unlocked.** Designed out: `ChangePatientProcedureStatusHandler` refuses it (`AllStagesFinished`).
 - **One user's data in another's server-rendered page.** A security and privacy risk rather than a clinical one, controlled by a new query cache per request (`createSsrRouter`; `docs/architecture.md`, section 5.8). Left to the security work in step 2.
-- **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`).
+- **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`). Booking and the visit rule compute nothing from clinical data either.
+- **Appointments booked in the past, at weekends or outside working hours.** Designed out: the server refuses them (`docs/calendar-plan.md`, decisions 2 and 17). The cost, that a walk-in can't be recorded after the event, is a gap in the record rather than a hazard, and is on `docs/todo.md`.
+- **Two open appointments for one stage.** Designed out: a second is refused, pointing to the first (decision 18).
+- **An earlier day's calendar changing after the event.** Designed out: past days can't be changed, and template history is kept by dated rows (decisions 8 and 11).
 - **The FHIR API sending wrong data** (branch `feature/nhs-integrations`). It's read-only, and returns the patient's details as stored, with no clinical content and no logic, to staff who could see the same on the patient's page; nothing in MedApp changes because of it. Its one clinical risk, another system matching the wrong person by a wrong NHS number, is under H-01. Each receiving system assesses its own use under DCB0129 and DCB0160.
 - **The NHS number check refusing a valid number.** Staff can't save it, so the record goes without it until it's fixed: no worse than before the number existed. The check is unit tested with valid and invalid numbers.
 - **An uploaded file running script in MedApp.** Designed out: files are never shown inline on MedApp's site, only downloaded, with a sandboxing Content Security Policy, and SVG and HTML are refused (`AttachmentResponseHeaders`, `FileTypeSniffer`). A security risk rather than a clinical one; malware opened on the desktop is H-25.
@@ -1140,3 +1425,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Tasks on all open work; new hazard H-29 (relying on best-effort monitoring for clinical follow-up; H-29 because the attachments branch takes H-23 to H-28). No existing rating changed | AI coding agent, for review |
 | 0.7 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. H-23 has the built patient banner (PR #69) as a control, and the restriction guard and anonymisation (PR #68) are causes in H-22, H-23, H-24 and H-26. After the review of #85: hostile images and archives as a cause of H-10, with their bounds; the upload re-checked after staging (H-23); active content in Word and PDF files refused (H-25); storage failures bounded and a 503 (H-28, its defect fixed); anonymisation's file deletions audited (H-26). No earlier rating changed | AI coding agent, for review |
 | 0.8 | 16 November 2026 | `feature/email-2fa`: a new cause of H-10 (a member of staff locked out by two-factor or the lockout) with its controls (recovery codes, an admin reset, reset by email); optional two-factor added to H-18's controls. Ratings unchanged, for the CSO to assess | AI coding agent, for review |
+| 0.9 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4). On merging 0.7 (file attachments): the calendar hazards keep H-30 to H-36, which now follow H-29 with no gap. On merging 0.8 (email and two-factor sign-in): no new hazard, so the numbering stands | AI coding agent, for review |

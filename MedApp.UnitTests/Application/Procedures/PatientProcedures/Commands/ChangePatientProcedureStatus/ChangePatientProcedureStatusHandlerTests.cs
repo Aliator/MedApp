@@ -7,6 +7,8 @@ using Moq;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
+using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Appointments;
 
 namespace MedApp.UnitTests.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 
@@ -61,5 +63,52 @@ public sealed class ChangePatientProcedureStatusHandlerTests : ProcedureHandlerT
         var act = () => Handler.Handle(new ChangePatientProcedureStatusCommand(procedure.Id, "Completed", null, Staff), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Test]
+    public async Task Handle_Cancel_CancelsTheProceduresRequestedVisitsButNotBookedOnes()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress, finishedStages: 1));
+        var requested = CreateStageAppointment(procedure, procedure.StageAt(2));
+        var booked = CreateStageAppointment(procedure, procedure.StageAt(3), AppointmentStatus.Booked);
+        Appointments
+            .Setup(r => r.GetRequestedForProcedureForUpdateAsync(procedure.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([requested, booked]);
+
+        var response = await Handler.Handle(
+            new ChangePatientProcedureStatusCommand(procedure.Id, "Cancelled", Reason, Staff), CancellationToken.None);
+
+        response.Status.Should().Be("Cancelled");
+        requested.Status.Should().Be(AppointmentStatus.Cancelled);
+        requested.CancelReason.Should().Be(ProcedureChange.ProcedureCancelledReason);
+        booked.Status.Should().Be(AppointmentStatus.Booked);
+        var change = SavedChanges.Should().ContainSingle().Subject;
+        change.AppointmentEvents.Should().ContainSingle(e => e.AppointmentId == requested.Id && e.Action == AppointmentEventAction.Cancelled);
+        change.AuditEntries.Should().ContainSingle(e => e.Action == PatientProcedureAuditAction.StatusChanged);
+    }
+
+    [Test]
+    public async Task Handle_Cancel_PassesTheTokenToTheAppointmentsAndTheSave()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+        using var cts = new CancellationTokenSource();
+
+        await Handler.Handle(new ChangePatientProcedureStatusCommand(procedure.Id, "Cancelled", null, Staff), cts.Token);
+
+        Appointments.Verify(r => r.GetRequestedForProcedureForUpdateAsync(procedure.Id, cts.Token), Times.Once);
+        VerifySavedOnce(cts.Token);
+    }
+
+    [Test]
+    public async Task Handle_NotCancelling_LeavesTheAppointmentsAlone()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+
+        await Handler.Handle(new ChangePatientProcedureStatusCommand(procedure.Id, "Blocked", Reason, Staff), CancellationToken.None);
+
+        Appointments.Verify(
+            r => r.GetRequestedForProcedureForUpdateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        SavedChanges.Single().AppointmentEvents.Should().BeEmpty();
     }
 }

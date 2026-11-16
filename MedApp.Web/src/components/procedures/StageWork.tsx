@@ -2,7 +2,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
-import {useLayoutEffect, useRef, useState} from 'react';
+import {useLayoutEffect, useRef, useState, type ReactNode} from 'react';
 import type {ProcedureStage} from '../../api/procedures';
 import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
 import {RichTextField} from '../forms/RichTextField';
@@ -30,6 +30,10 @@ export interface StageWorkProps {
    * `notesHeight`, so the box keeps that size afterwards, whatever else changes.
    */
   onFitNotes?: (height: number) => void;
+  /** The stage's Visit part (`StageVisit`), above its notes, for a stage that involves a visit. */
+  visit?: ReactNode;
+  /** Why the stage can't be finished yet (e.g. "Needs an attended visit first"): Finish is disabled, with this beside it. */
+  finishDisabledReason?: string;
 }
 
 /** The notes box's usual height (five lines), and the least a fitted one has: fitting only ever grows it. */
@@ -66,14 +70,26 @@ function fittedHeight(box: HTMLElement): number | undefined {
 }
 
 /**
- * The working part of a stage. While it can be edited (it's the current stage, or an admin unlocked it): a notes
- * box with Save Notes and Finish Stage, and Start Stage before work begins. Otherwise its notes, read-only, and
- * for an admin, Unlock Stage on a finished stage.
+ * The working part of a stage. While it can be edited (it's the current stage, or an admin unlocked it): its visit,
+ * if it involves one, then a notes box with Save Notes and Finish Stage, and Start Stage before work begins.
+ * Otherwise its notes, read-only, and for an admin, Unlock Stage on a finished stage.
  *
  * The notes box starts from the saved notes; give it a `key` that changes with them, so it resets after a save.
  * Ctrl+S (⌘S on a Mac) in it saves the notes.
  */
-export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinish, onUnlock, notesHeight, onFitNotes}: StageWorkProps) {
+export function StageWork({
+  stage,
+  isAdmin,
+  isBusy,
+  onStart,
+  onSaveNotes,
+  onFinish,
+  onUnlock,
+  notesHeight,
+  onFitNotes,
+  visit,
+  finishDisabledReason,
+}: StageWorkProps) {
   const saved = stage.notes ?? '';
   const [draft, setDraft] = useState(saved);
   const isChanged = draft !== saved;
@@ -130,6 +146,7 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
 
   return (
     <VStack ref={work} gap={3}>
+      {visit}
       {/* A failed save shows in the page's header, never on the box, so it has no error line. Its text grows the
           box past its height. */}
       <VStack gap={0} ref={box} style={NO_FIELD_STATUS_LINE}>
@@ -142,13 +159,18 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
           minHeight={notesHeight ?? DEFAULT_HEIGHT}
         />
       </VStack>
-      <HStack gap={2} vAlign="center">
+      <HStack gap={2} vAlign="center" wrap="wrap">
         {isChanged && (
           <Text type="supporting" color="secondary">
             Unsaved changes
           </Text>
         )}
         <StackItem size="fill" />
+        {finishDisabledReason && (
+          <Text type="supporting" color="secondary">
+            {finishDisabledReason}
+          </Text>
+        )}
         {stage.state === 'NotStarted' && <Button label="Start Stage" variant="ghost" onClick={onStart} isDisabled={isBusy} />}
         <Button
           label="Save Notes"
@@ -162,7 +184,9 @@ export function StageWork({stage, isAdmin, isBusy, onStart, onSaveNotes, onFinis
           variant="primary"
           icon={<Icon icon={AppIcon.Check} />}
           onClick={() => onFinish(draft)}
-          isDisabled={isBusy}
+          isDisabled={isBusy || finishDisabledReason !== undefined}
+          // Also describes the button, so the reason is heard on it too.
+          tooltip={finishDisabledReason}
         />
       </HStack>
     </VStack>

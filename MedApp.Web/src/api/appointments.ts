@@ -1,0 +1,148 @@
+import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {api, unwrap, type Schemas} from './client';
+import type {paths} from './schema';
+import {procedureKeys} from './procedures';
+
+/**
+ * Appointments: a patient seen by one member of staff, optionally for a procedure's stage. Requested ones ("Needs
+ * booking") have no time yet; Booked ones have a member of staff and a time; then Attended or Did not attend, or
+ * Cancelled (docs/calendar-plan.md, decision 16). Any staff member can book, reschedule, cancel or record the outcome
+ * of any appointment.
+ */
+export type Appointment = Schemas['AppointmentResponse'];
+export type AppointmentPage = Schemas['AppointmentResponsePagedResponse'];
+export type AppointmentSearch = NonNullable<paths['/api/appointments/search']['get']['parameters']['query']>;
+
+/** The statuses, by the names the API uses. */
+export const APPOINTMENT_STATUSES = ['Requested', 'Booked', 'Attended', 'DidNotAttend', 'Cancelled'] as const;
+export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
+
+/** The lengths an appointment can be booked for, in minutes; 30 by default (decision 30). */
+export const APPOINTMENT_LENGTHS = [15, 30, 45, 60, 90, 120] as const;
+export const DEFAULT_APPOINTMENT_LENGTH = 30;
+
+/**
+ * Every appointment query is keyed under ['appointments'], and every calendar under ['calendar'], so a change to any
+ * appointment refreshes both (an appointment shows on a calendar), along with procedures (a stage's visit) and the
+ * patient timelines (which list appointment changes).
+ */
+export const appointmentKeys = {
+  all: ['appointments'] as const,
+  search: (search: AppointmentSearch) => ['appointments', 'search', search] as const,
+  one: (id: string) => ['appointments', id] as const,
+};
+
+/** One appointment (`GET api/appointments/{id}`). A missing one is an ApiError with status 404. */
+export function appointmentQuery(id: string) {
+  return queryOptions({
+    queryKey: appointmentKeys.one(id),
+    queryFn: () => unwrap(api.GET('/api/appointments/{id}', {params: {path: {id}}})),
+  });
+}
+
+/**
+ * A page of appointments (`GET api/appointments/search`): by patient, procedure, stage, member of staff, statuses and
+ * UK days; sorted by `start` (default; Requested ones last), `requested`, `dueDate` (the procedure's) or `patient`.
+ */
+export function appointmentsQuery(search: AppointmentSearch) {
+  return queryOptions({
+    queryKey: appointmentKeys.search(search),
+    queryFn: () => unwrap(api.GET('/api/appointments/search', {params: {query: search}})),
+  });
+}
+
+/** The most appointments the procedure and patient pages list (the API's largest page). */
+export const LISTED_APPOINTMENTS = 100;
+
+/** A procedure's appointments, every status, by start (Requested ones last): the procedure page's list and stage visits. */
+export const procedureAppointmentsQuery = (procedureId: string) => appointmentsQuery({ProcedureId: procedureId, PageSize: LISTED_APPOINTMENTS});
+
+/** A patient's appointments, every status, by start (Requested ones last): the patient page's list. */
+export const patientAppointmentsQuery = (patientId: string) => appointmentsQuery({PatientId: patientId, PageSize: LISTED_APPOINTMENTS});
+
+/** The statuses still to happen (Needs booking, or booked): a stage can have one at a time, and they freeze when a record is restricted. */
+export const OPEN_APPOINTMENT_STATUSES: AppointmentStatus[] = ['Requested', 'Booked'];
+
+/** How many of a patient's appointments are open (Requested or Booked): one row of a search, for its total. */
+export function patientOpenAppointmentCountQuery(patientId: string) {
+  return queryOptions({
+    queryKey: [...appointmentKeys.all, 'open-count', patientId],
+    queryFn: async () => {
+      const page = await unwrap(
+        api.GET('/api/appointments/search', {params: {query: {PatientId: patientId, Statuses: OPEN_APPOINTMENT_STATUSES, PageSize: 1}}}),
+      );
+      return page.totalCount ?? 0;
+    },
+  });
+}
+
+/** Refreshes everything an appointment change can show up in. */
+export function useRefreshAppointments() {
+  const queryClient = useQueryClient();
+  return async (appointment?: Appointment) => {
+    if (appointment?.id) queryClient.setQueryData(appointmentKeys.one(appointment.id), appointment);
+    await Promise.all([
+      queryClient.invalidateQueries({queryKey: appointmentKeys.all}),
+      queryClient.invalidateQueries({queryKey: ['calendar']}),
+      queryClient.invalidateQueries({queryKey: procedureKeys.all}),
+      queryClient.invalidateQueries({queryKey: ['notifications']}),
+    ]);
+  };
+}
+
+/** A new appointment: with a member of staff and a time it's Booked; with none of them, Requested (Needs booking). */
+export type NewAppointment = Schemas['CreateAppointmentRequest'];
+
+export function useCreateAppointment() {
+  const refresh = useRefreshAppointments();
+  return useMutation({
+    mutationFn: (body: NewAppointment) => unwrap(api.POST('/api/appointments', {body})),
+    onSuccess: refresh,
+  });
+}
+
+const APPOINTMENT = '/api/appointments/{id}';
+
+/**
+ * Everything that can be done to an existing appointment. Each returns the updated appointment, which replaces the
+ * cached one; calendars, lists, procedures and timelines are refreshed.
+ */
+export function useAppointmentActions() {
+  const refresh = useRefreshAppointments();
+  const path = (id: string) => ({params: {path: {id}}});
+  return {
+    /** Books a Requested appointment, or reschedules a Booked one (another time, or another member of staff). */
+    book: useMutation({
+      mutationFn: ({id, ...body}: Schemas['BookAppointmentRequest'] & {id: string}) =>
+        unwrap(api.POST(`${APPOINTMENT}/book`, {...path(id), body})),
+      onSuccess: refresh,
+    }),
+    /** Attended or DidNotAttend, once its start time has passed (and to correct one). */
+    recordOutcome: useMutation({
+      mutationFn: ({id, outcome}: {id: string; outcome: 'Attended' | 'DidNotAttend'}) =>
+        unwrap(api.POST(`${APPOINTMENT}/outcome`, {...path(id), body: {outcome}})),
+      onSuccess: refresh,
+    }),
+    cancel: useMutation({
+      mutationFn: ({id, reason}: {id: string; reason: string}) =>
+        unwrap(api.POST(`${APPOINTMENT}/cancel`, {...path(id), body: {reason}})),
+      onSuccess: refresh,
+    }),
+    saveNotes: useMutation({
+      mutationFn: ({id, notes}: {id: string; notes: string}) => unwrap(api.PUT(`${APPOINTMENT}/notes`, {...path(id), body: {notes}})),
+      onSuccess: refresh,
+    }),
+  };
+}
+
+/** A status in words: "Needs booking", "Booked", "Attended", "Did not attend", "Cancelled". */
+export function appointmentStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case 'Requested':
+      return 'Needs booking';
+    case 'DidNotAttend':
+      return 'Did not attend';
+    default:
+      return status ?? '';
+  }
+}

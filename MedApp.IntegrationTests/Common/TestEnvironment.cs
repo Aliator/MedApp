@@ -1,4 +1,5 @@
 using MedApp.Infrastructure.Data;
+using MedApp.Infrastructure.Data.Configurations.Calendar;
 using MedApp.IntegrationTests.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -14,8 +15,9 @@ namespace MedApp.IntegrationTests;
 
 /// <summary>
 /// Once per run: starts SQL Server 2022 and Azurite (the Azure Storage emulator, for attached files) in Docker
-/// (Testcontainers), applies every migration to a new database, and starts the API against both. Before each test, <see cref="ResetDatabaseAsync"/> empties the database (Respawn),
-/// keeping the migrations history and the seeded default stage definition.
+/// (Testcontainers), applies every migration to a new database, and starts the API against both. Before each test,
+/// <see cref="ResetDatabaseAsync"/> empties the database (Respawn), keeping the migrations history, the seeded default
+/// stage definition and the seeded calendar activity types.
 /// </summary>
 [SetUpFixture]
 public sealed class TestEnvironment
@@ -78,8 +80,15 @@ public sealed class TestEnvironment
         {
             DbAdapter = DbAdapter.SqlServer,
             // The data protection keys stay, as they would in a real database: the API caches its key ring, and a key
-            // deleted under it would make tokens it seals unreadable after the cache refreshes.
-            TablesToIgnore = [new Table("__EFMigrationsHistory"), new Table("PatientProcedureStageDefinitions"), new Table("DataProtectionKeys")],
+            // deleted under it would make tokens it seals unreadable after the cache refreshes. The seeded stage
+            // definition and activity types stay too, as migrations made them.
+            TablesToIgnore =
+            [
+                new Table("__EFMigrationsHistory"),
+                new Table("PatientProcedureStageDefinitions"),
+                new Table("CalendarActivityTypes"),
+                new Table("DataProtectionKeys"),
+            ],
         });
     }
 
@@ -96,7 +105,7 @@ public sealed class TestEnvironment
 
     /// <summary>
     /// Empties every table except the migrations history, then removes every stage definition but the seeded one, and
-    /// puts that back as the migration made it.
+    /// every activity type but the seeded ones, and puts those back as the migrations made them.
     /// </summary>
     public static async Task ResetDatabaseAsync()
     {
@@ -111,10 +120,32 @@ public sealed class TestEnvironment
             SET Name = N'Definition missing',
                 Description = N'This stage definition was deleted.',
                 Instructions = N'No instructions available.',
-                IsArchived = 1
+                SnomedCode = NULL,
+                SnomedTerm = NULL,
+                IsArchived = 1,
+                VisitRequirement = 0
             WHERE Id = @seeded;
             """;
         command.Parameters.AddWithValue("@seeded", SeededStageDefinitionId);
         await command.ExecuteNonQueryAsync();
+
+        // The seeded activity types (blocks using others are gone already, emptied by Respawn). Names are unique, so
+        // they're cleared before the seeded ones are put back, in case a test swapped them round.
+        var seeded = CalendarActivityTypeConfiguration.Seeded;
+        await using var activityTypes = connection.CreateCommand();
+        var ids = string.Join(", ", seeded.Select((_, i) => $"@id{i}"));
+        activityTypes.CommandText =
+            $"DELETE FROM CalendarActivityTypes WHERE Id NOT IN ({ids});\n" +
+            "UPDATE CalendarActivityTypes SET Name = CONVERT(nvarchar(36), Id);\n" +
+            string.Concat(seeded.Select((_, i) =>
+                $"UPDATE CalendarActivityTypes SET Name = @name{i}, Colour = @colour{i}, IsArchived = 0 WHERE Id = @id{i};\n"));
+        for (var i = 0; i < seeded.Count; i++)
+        {
+            activityTypes.Parameters.AddWithValue($"@id{i}", seeded[i].Id);
+            activityTypes.Parameters.AddWithValue($"@name{i}", seeded[i].Name);
+            activityTypes.Parameters.AddWithValue($"@colour{i}", seeded[i].Colour);
+        }
+
+        await activityTypes.ExecuteNonQueryAsync();
     }
 }

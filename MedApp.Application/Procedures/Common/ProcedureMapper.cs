@@ -95,6 +95,7 @@ public static class ProcedureMapper
                     Instructions = s.Instructions,
                     SnomedCode = s.SnomedCode,
                     SnomedTerm = s.SnomedTerm,
+                    VisitRequirement = s.VisitRequirement.ToString(),
                     Notes = s.Notes,
                     State = ProcedureWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,

@@ -67,4 +67,30 @@ public sealed class StageTemplateMapperTests
         maps.Select(m => m.StageDefinitionId).Should().Equal(ConsultationDefinitionId, ProcedureDefinitionId, ConsultationDefinitionId);
         maps.Should().OnlyContain(m => m.TemplateId == templateId);
     }
+
+    [Test]
+    public void ToResponse_DefinitionsWithVisits_GiveEachStageItsVisitRequirement()
+    {
+        var template = CreateTemplate(
+            TemplateName,
+            false,
+            CreateDefinition(ConsultationStage).WithVisit(VisitRequirement.Required),
+            CreateDefinition(ProcedureStage));
+
+        var response = StageTemplateMapper.ToResponse(template, procedureCount: 0);
+
+        response.Stages.Select(s => s.VisitRequirement).Should().Equal("Required", "None");
+    }
+
+    [Test]
+    public void ToResponse_DefinitionMissing_HasNoVisitRequirement()
+    {
+        var template = new PatientProcedureStageTemplate { Id = Guid.NewGuid(), Name = TemplateName };
+        template.Maps = StageTemplateMapper.ToMaps(template.Id, [ConsultationDefinitionId]);
+        template.Maps[0].StageDefinition = null!;
+
+        var response = StageTemplateMapper.ToResponse(template, 0, new Dictionary<Guid, PatientProcedureStageDefinition>());
+
+        response.Stages.Single().VisitRequirement.Should().Be("None");
+    }
 }

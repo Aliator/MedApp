@@ -77,7 +77,58 @@ export const screens: Screen[] = [
       await page.getByText('Sign in to confirm your email address').waitFor();
     },
   },
-  { name: 'home', title: 'Home: a welcome (the MedApp heading leads here)', path: '/' },
+  { name: 'home', title: "Home: a welcome and today's calendar (the MedApp heading leads here)", path: '/' },
+  {
+    name: 'calendar-week',
+    title: 'Calendar: my week, appointments and blocked time on the grid, with its toolbar',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-day',
+    title: "Calendar: my day, with This day's template and Default week",
+    path: '/calendar?view=day',
+    prepare: async (page) => {
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-narrow',
+    title: 'Calendar on a narrow window: the day view, the toolbar wrapping',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-book-dialog',
+    title: 'Book Appointment from New: who, with whom and how long beside the free days and times (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-block-dialog',
+    title: 'Block Time from New: activity, day, start, end and note (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Block time' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  { name: 'needs-booking', title: 'Needs Booking: appointments asked for but not yet booked, soonest due first', path: '/calendar/needs-booking' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
@@ -211,6 +262,16 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  {
+    name: 'procedure-visit',
+    title:
+      "Procedure page with its Appointments in the details and, if its current stage involves a visit, the Visit part above the notes (the parity data's first procedure: it shows a visit only when the demo data gives that procedure's stage one)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Appointments' }).waitFor();
+      await settle(page);
+    },
+  },
   { name: 'procedure-edit', title: "Edit a procedure's details", path: (d) => `/procedures/${d.procedureId}/edit` },
   {
     name: 'procedure-block',
@@ -297,7 +358,7 @@ export const screens: Screen[] = [
   { name: 'admin-stages', title: 'Stages (admin)', path: '/admin/stages' },
   {
     name: 'admin-stage-edit',
-    title: 'Edit stage dialog (not saved)',
+    title: 'Edit stage dialog, with its Visit choice (not saved)',
     path: '/admin/stages',
     prepare: async (page) => {
       await rowAction(page, /edit stage/i).click();
@@ -325,6 +386,30 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  { name: 'activity-types', title: 'Activity types (admin): what staff block time for, each in its colour', path: '/admin/activity-types' },
+  {
+    name: 'activity-type-dialog',
+    title: 'Edit activity type dialog: its name and colour (not saved)',
+    path: '/admin/activity-types',
+    prepare: async (page) => {
+      await rowAction(page, /edit activity type/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'calendar-templates', title: 'Calendar templates (admin): the day templates tab', path: '/admin/calendar-templates' },
+  { name: 'calendar-templates-week', title: 'Calendar templates (admin): the week templates tab', path: '/admin/calendar-templates?tab=week' },
+  { name: 'calendar-templates-staff', title: "Calendar templates (admin): each member of staff's default week", path: '/admin/calendar-templates?tab=staff' },
+  {
+    name: 'day-template-editor',
+    title: 'New day template with two blocks (not saved), beside the day it makes',
+    path: '/admin/calendar-templates/day/new',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Block' }).click();
+      await page.getByRole('button', { name: 'Add Block' }).click();
+      await settle(page);
+    },
+  },
+  { name: 'week-template-editor', title: 'New week template: a day template for each weekday', path: '/admin/calendar-templates/week/new' },
   { name: 'admin-audit', title: 'Audit log (admin)', path: '/admin/audit' },
   {
     name: 'admin-insights',

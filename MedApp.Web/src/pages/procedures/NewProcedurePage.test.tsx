@@ -13,7 +13,7 @@ const templates = [
     name: 'Knee review',
     stages: [
       // A real SNOMED CT concept ID, used only as a code: 71388002 is Procedure.
-      {stageOrder: 2, stageDefinitionId: 'd2', name: 'Scan', description: 'Imaging of the joint.', snomedCode: '71388002', snomedTerm: 'Procedure'},
+      {stageOrder: 2, stageDefinitionId: 'd2', name: 'Scan', description: 'Imaging of the joint.', snomedCode: '71388002', snomedTerm: 'Procedure', visitRequirement: 'Required'},
       {stageOrder: 1, stageDefinitionId: 'd1', name: 'Consultation', description: ''},
     ],
   },
@@ -58,6 +58,9 @@ describe('NewProcedurePage', () => {
     expect(screen.getAllByText(/^\d\. /).map((t) => t.textContent)).toEqual(['1. Consultation', '2. Scan']);
     expect(screen.getByText('SNOMED CT: 71388002 | Procedure')).toBeInTheDocument();
     expect(screen.getByText('Imaging of the joint.')).toBeInTheDocument();
+    // The scan involves a visit.
+    expect(screen.getByText('2. Scan').parentElement).toHaveTextContent('2. ScanVisit required');
+    expect(screen.getAllByText(/^Visit/)).toHaveLength(1);
     const title = screen.getByRole('textbox', {name: /Title/});
     expect(title).toHaveValue('Knee review');
 

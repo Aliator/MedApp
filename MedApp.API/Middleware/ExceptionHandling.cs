@@ -30,6 +30,10 @@ public sealed class ExceptionHandling(RequestDelegate next)
         {
             await WriteProblem(context, StatusCodes.Status404NotFound, ex.Message);
         }
+        catch (ForbiddenException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status403Forbidden, ex.Message);
+        }
         catch (ConflictException ex)
         {
             await WriteProblem(context, StatusCodes.Status409Conflict, ex.Message);
@@ -49,10 +53,6 @@ public sealed class ExceptionHandling(RequestDelegate next)
         catch (AccountLockedOutException ex)
         {
             await WriteProblem(context, StatusCodes.Status423Locked, ex.Message);
-        }
-        catch (ForbiddenException ex)
-        {
-            await WriteProblem(context, StatusCodes.Status403Forbidden, ex.Message);
         }
         catch (FileTooLargeException ex)
         {

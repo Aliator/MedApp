@@ -116,7 +116,7 @@ public sealed class PatientTimelineKindsTests
     [Test]
     public void Names_ListsEveryKind()
     {
-        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Files");
+        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Appointments, Files");
     }
 
     /// <summary>
@@ -144,5 +144,16 @@ public sealed class PatientTimelineKindsTests
         cancelled.ChangeStatus(PatientProcedureStatus.Blocked, Reason);
         cancelled.ChangeStatus(PatientProcedureStatus.Cancelled, Reason);
         return change.AuditEntries.Concat(cancelled.AuditEntries).ToList();
+    }
+
+    [Test]
+    public void WhereKindIn_OnlyAppointments_MatchesNoAuditEntry()
+    {
+        var entries = RealEntries()
+            .Concat(Enum.GetValues<Action>().Select(a => CreateEntry(a, Now)))
+            .ToList();
+
+        entries.Select(PatientTimelineKinds.Of).Should().NotContain(PatientTimelineKind.Appointments);
+        entries.AsQueryable().WhereKindIn(new HashSet<PatientTimelineKind> { PatientTimelineKind.Appointments }).Should().BeEmpty();
     }
 }

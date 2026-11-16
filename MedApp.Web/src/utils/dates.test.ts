@@ -1,4 +1,17 @@
-import {formatDateTime, ageDescription, ageOn, formatDate, formatDayHeading, formatShortDate, formatTime, parseUtc, timeAgo, todayIso, ukDay} from './dates';
+import {
+  formatDateTime,
+  ageDescription,
+  ageOn,
+  formatAppointmentTime,
+  formatDate,
+  formatDayHeading,
+  formatShortDate,
+  formatTime,
+  parseUtc,
+  timeAgo,
+  todayIso,
+  ukDay,
+} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -165,5 +178,17 @@ describe('ukDay, formatDayHeading and formatTime', () => {
     expect(ukDay('soon')).toBe('soon');
     expect(formatDayHeading('soon')).toBe('soon');
     expect(formatTime('soon')).toBe('soon');
+  });
+});
+
+describe('formatAppointmentTime', () => {
+  it('gives the UK weekday, date and time, and the end time when there is one', () => {
+    // 09:00 UTC in November is 09:00 in the UK; in June, 10:00.
+    expect(formatAppointmentTime('2026-11-23T09:00:00Z')).toBe('Mon 23 Nov 2026, 09:00');
+    expect(formatAppointmentTime('2026-06-15T09:00:00Z', '2026-06-15T09:30:00Z')).toBe('Mon 15 Jun 2026, 10:00 to 10:30');
+  });
+
+  it('gives back a start it cannot read', () => {
+    expect(formatAppointmentTime('soon', null)).toBe('soon');
   });
 });

@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
+| **Version** | 0.2 (draft), 16 November 2026: adds appointments and staff calendars |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | On approval, then every 12 months, and whenever the processing changes |
@@ -23,8 +23,8 @@ This document settles who is responsible for the personal data in MedApp, and on
 
 | Personal data | Controller | Processor | Why |
 |---|---|---|---|
-| **Patients** recorded in MedApp: names, date of birth, email, NHS number, procedures, stage notes, attached files, and the audit trail about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
-| **The customer's staff** who use MedApp: usernames, password hashes, roles, sessions (IP address and browser), settings, notifications, and their actions in the audit trail | The customer | The supplier | The customer decides who gets an account and with which role, and uses the audit trail to supervise its own staff. |
+| **Patients** recorded in MedApp: names, date of birth, email, NHS number, procedures, stage notes, attached files, appointments (with their notes and cancellation reasons), and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
+| **The customer's staff** who use MedApp: usernames, password hashes, roles, sessions (IP address and browser), settings, notifications, calendars (blocked time, such as annual leave, and default week templates), and their actions in the audit trail and appointment history | The customer | The supplier | The customer decides who gets an account and with which role, sets up the calendar templates and activity types, and uses the audit trail to supervise its own staff. |
 | **Service logs and backups** of the hosted service that contain the above | The customer | The supplier | They exist only to run, secure and recover the customer's service. |
 | **The supplier's own business data:** customer contacts, contracts, billing, sales and marketing, support correspondence (the contact details, not the patient data), complaints, the supplier's own staff and contractors, and visitors to its website | The supplier | Not applicable | The supplier decides why and how these are processed, for its own business. |
 
@@ -33,7 +33,7 @@ The supplier and the customer are **not joint controllers**. The supplier doesn'
 ### Why the supplier is a processor
 
 The ICO's tests for a processor ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/controllers-and-processors/controllers-and-processors/what-does-it-mean-if-you-are-a-processor/)) fit the supplier's role:
-- **Instructions:** the customer decides what to collect and why. MedApp's features (patients, procedures, templates, audit) are the means the customer chooses to use.
+- **Instructions:** the customer decides what to collect and why. MedApp's features (patients, procedures, templates, calendars and appointments, audit) are the means the customer chooses to use.
 - **No own purpose:** the supplier gets no benefit from the data beyond payment for the service.
 - **Technical decisions only:** the supplier decides the "non-essential means": the hosting, the database, the security controls. The ICO allows a processor to make those.
 
@@ -70,7 +70,7 @@ MedApp holds **special category data**: health data about patients (UK GDPR Arti
 - **No appropriate policy document is needed** for Schedule 1, Part 1, paragraph 2. Paragraph 2 doesn't need one, although some other Schedule 1 conditions do, including paragraph 1 (employment), below ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/)).
 - **Professional secrecy.** Article 9(2)(h) applies only when the data is processed by or under the responsibility of a health professional, or another person who owes a duty of confidentiality (Article 9(3), and DPA 2018 section 11). Customers meet this through their clinicians' professional duties and their staff's contracts. The supplier meets it for its own people through confidentiality clauses ([support-access-policy.md](support-access-policy.md)).
 - **Children.** Patients may be children. The bases are the same. Privacy information should be written so a child, or the person with parental responsibility, can understand it ([privacy-notice-patients-template.md](privacy-notice-patients-template.md)).
-- **No automated decision-making.** MedApp makes no decisions about patients by automated means, and doesn't profile them. Articles 22A to 22D (which the DUAA put in place of Article 22) don't apply. That must stay true; see the device rule in roadmap step 6.
+- **No automated decision-making.** MedApp makes no decisions about patients by automated means, and doesn't profile them. Requesting an appointment when a stage that involves a visit becomes current follows the customer's own template setting; staff decide whether, when and with whom the patient is seen. Articles 22A to 22D (which the DUAA put in place of Article 22) don't apply. That must stay true; see the device rule in roadmap step 6.
 - **Other conditions that may apply** for particular records: 9(2)(f) for the establishment, exercise or defence of legal claims (for example keeping a record after a complaint); 9(2)(i) public health, with Schedule 1, Part 1, paragraph 3, if a customer uses MedApp for a public health purpose. Neither is needed for ordinary use.
 
 ### The common law duty of confidentiality
@@ -84,8 +84,8 @@ UK GDPR isn't the only law. Patient information given in confidence is protected
 
 | Customer | Article 6 basis | Notes |
 |---|---|---|
-| **NHS bodies** | **6(1)(e) public task** for running the service; **6(1)(c) legal obligation** for the security and audit records that Article 32 requires (the DSPT is a contractual requirement, covered by public task) | Staff data isn't special category data in MedApp. MedApp holds no health or other special category data about staff. |
-| **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail, the access monitoring that roadmap step 7 adds, and admins' monitoring rules (telling admins about named staff members' actions: DPIA risk 24). NHS bodies should cover the monitoring rules in their monitoring policy. |
+| **NHS bodies** | **6(1)(e) public task** for running the service; **6(1)(c) legal obligation** for the security and audit records that Article 32 requires (the DSPT is a contractual requirement, covered by public task) | Staff data isn't special category data in MedApp. MedApp is designed to hold no health or other special category data about staff: calendars record an activity (annual leave, training), not a reason, and staff are told not to write health reasons in a block's note ([dpia.md](dpia.md), risk 25). If a note does reveal health, the customer needs an Article 9 condition for it, usually 9(2)(b) employment, with DPA 2018 Schedule 1, Part 1, paragraph 1 and an appropriate policy document; so the better course is to remove the note. |
+| **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts and calendars; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail, the access monitoring that roadmap step 7 adds, and admins' monitoring rules (telling admins about named staff members' actions: DPIA risk 24). NHS bodies should cover the monitoring rules in their monitoring policy. |
 
 ## 3. Lawful bases for the supplier's own processing
 

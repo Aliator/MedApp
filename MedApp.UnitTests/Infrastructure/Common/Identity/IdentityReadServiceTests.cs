@@ -203,4 +203,54 @@ public sealed class IdentityReadServiceTests
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
+
+    private static ApplicationUser StaffUser(string username, Guid? id = null) =>
+        new() { Id = id ?? Guid.NewGuid(), UserName = username };
+
+    [Test]
+    public async Task GetStaffAsync_UsersInEitherRole_ListsEachOnceSortedByUsernameIgnoringCase()
+    {
+        var both = StaffUser("Bravo");
+        var adminOnly = StaffUser("charlie");
+        var userOnly = StaffUser("alpha");
+        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.Roles[0])).ReturnsAsync([both, adminOnly]);
+        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.Roles[1])).ReturnsAsync([userOnly, both]);
+
+        var staff = await _service.GetStaffAsync(CancellationToken.None);
+
+        staff.Should().Equal((userOnly.Id, "alpha"), (both.Id, "Bravo"), (adminOnly.Id, "charlie"));
+    }
+
+    [Test]
+    public async Task GetStaffAsync_SameUsernameIgnoringCase_OrdersByIdNext()
+    {
+        var first = StaffUser("same", Guid.Parse("00000001-0000-0000-0000-000000000000"));
+        var second = StaffUser("SAME", Guid.Parse("00000002-0000-0000-0000-000000000000"));
+        _userManager.Setup(u => u.GetUsersInRoleAsync(It.IsAny<string>())).ReturnsAsync([]);
+        _userManager.Setup(u => u.GetUsersInRoleAsync(FirstAdminSetup.Roles[1])).ReturnsAsync([second, first]);
+
+        var staff = await _service.GetStaffAsync(CancellationToken.None);
+
+        staff.Select(s => s.UserId).Should().Equal(first.Id, second.Id);
+    }
+
+    [Test]
+    public async Task GetStaffAsync_NoOneInEitherRole_IsEmpty()
+    {
+        _userManager.Setup(u => u.GetUsersInRoleAsync(It.IsAny<string>())).ReturnsAsync([]);
+
+        (await _service.GetStaffAsync(CancellationToken.None)).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetStaffAsync_Cancelled_Throws()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var act = () => _service.GetStaffAsync(cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        _userManager.Verify(u => u.GetUsersInRoleAsync(It.IsAny<string>()), Times.Never);
+    }
 }

@@ -1,5 +1,6 @@
 using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
 using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Appointments;
 
 namespace MedApp.UnitTests.Common.Constants;
 
@@ -59,5 +60,37 @@ public static class TimelineTestConstants
         Priority = PatientProcedurePriority.High,
         DueDateUtc = dueDateUtc ?? ProceduresTestConstants.Now.AddDays(3),
         CreatedAt = createdAt ?? ProceduresTestConstants.Now.AddDays(-10),
+    };
+
+    public static readonly Guid AppointmentId = Guid.Parse("00000022-0000-0000-0000-000000000005");
+    public const string AppointmentStageName = "Consultation";
+    public const string CancelReasonText = "Synthetic cancellation reason.";
+
+    /// <summary>An appointment history entry for the patient (for a procedure unless <paramref name="withProcedure"/> is false).</summary>
+    public static AppointmentEvent CreateAppointmentEvent(
+        AppointmentEventAction action,
+        DateTime atUtc,
+        string details = "{}",
+        bool withProcedure = true,
+        Guid? procedureId = null,
+        Guid? patientId = null,
+        Guid? id = null,
+        string procedureTitle = ProceduresTestConstants.ProcedureTitle) => new()
+    {
+        Id = id ?? Guid.NewGuid(),
+        AppointmentId = AppointmentId,
+        PatientId = patientId ?? PatientId,
+        ProcedureId = withProcedure ? procedureId ?? ProcedureId : null,
+        ProcedureTitle = withProcedure ? procedureTitle : string.Empty,
+        StageName = withProcedure ? AppointmentStageName : null,
+        Action = action,
+        UserId = ProceduresTestConstants.Staff.UserId,
+        Username = ProceduresTestConstants.Staff.Username,
+        AtUtc = atUtc,
+        StaffUserId = ProceduresTestConstants.OtherUserId,
+        StaffUsername = ProceduresTestConstants.OtherUsername,
+        StartUtc = atUtc.AddDays(1),
+        EndUtc = atUtc.AddDays(1).AddMinutes(30),
+        Details = details,
     };
 }

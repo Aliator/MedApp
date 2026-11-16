@@ -1,4 +1,5 @@
 using MedApp.Domain.Activity;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
@@ -23,7 +24,13 @@ public sealed class PatientRecord
     /// <summary>The activity log entries about the patient, oldest first.</summary>
     public required IReadOnlyList<ActivityEntry> Activity { get; init; }
 
-    /// <summary>Notifications about any of the patient's procedures (including deleted ones).</summary>
+    /// <summary>The patient's appointments, in any status, oldest first.</summary>
+    public required IReadOnlyList<Appointment> Appointments { get; init; }
+
+    /// <summary>Every change to the patient's appointments, oldest first.</summary>
+    public required IReadOnlyList<AppointmentEvent> AppointmentHistory { get; init; }
+
+    /// <summary>Notifications about any of the patient's procedures (including deleted ones) or appointments.</summary>
     public required IReadOnlyList<Notification> Notifications { get; init; }
 
     /// <summary>

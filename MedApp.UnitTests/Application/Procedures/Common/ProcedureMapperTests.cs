@@ -106,4 +106,16 @@ public sealed class ProcedureMapperTests
     {
         ProcedureMapper.PatientName(null).Should().BeEmpty();
     }
+
+    [Test]
+    public void ToResponse_StagesWithVisits_GiveEachItsVisitRequirementByName()
+    {
+        var procedure = CreateProcedure(Status.InProgress);
+        procedure.StageAt(1).VisitRequirement = VisitRequirement.Required;
+        procedure.StageAt(3).VisitRequirement = VisitRequirement.Suggested;
+
+        var response = ProcedureMapper.ToResponse(procedure, Usernames, Now);
+
+        response.Stages.Select(s => s.VisitRequirement).Should().Equal("Required", "None", "Suggested");
+    }
 }

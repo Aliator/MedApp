@@ -27,4 +27,26 @@ public static class IntegrationTestConstants
     public const string StageNotes = "<p>Synthetic stage notes.</p>";
 
     public const string BlockReason = "Waiting on a synthetic test result.";
+
+    // Calendars and appointments.
+
+    /// <summary>The seeded activity types (CalendarActivityTypeConfiguration), with fixed IDs.</summary>
+    public static readonly Guid LunchActivityTypeId = Guid.Parse("22222222-0000-0000-0000-000000000001");
+
+    public static readonly Guid TrainingActivityTypeId = Guid.Parse("22222222-0000-0000-0000-000000000003");
+
+    public static readonly string[] SeededActivityTypeNames = ["Lunch", "Admin time", "Training", "Meeting", "Annual leave", "Travel"];
+
+    /// <summary>A colour from the activity types' palette.</summary>
+    public const string ActivityColour = "teal";
+
+    /// <summary>How long a test appointment lasts.</summary>
+    public const int AppointmentMinutes = 30;
+
+    public const string AppointmentNotes = "Synthetic appointment notes.";
+
+    public const string CancelReason = "Synthetic cancellation reason.";
+
+    /// <summary>Why an admin finished a Required stage without its visit.</summary>
+    public const string WithoutVisitReason = "Synthetic reason for finishing without a visit.";
 }

@@ -94,6 +94,8 @@ public sealed class TimelineAfterAnonymisationTests
             Procedures = [procedure],
             ProcedureHistory = history,
             Activity = [],
+            Appointments = [],
+            AppointmentHistory = [],
             Notifications = [],
         };
 

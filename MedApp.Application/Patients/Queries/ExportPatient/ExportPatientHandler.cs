@@ -34,6 +34,8 @@ public sealed class ExportPatientHandler(
             Procedures = record.Procedures,
             ProcedureHistory = record.ProcedureHistory,
             Activity = [.. record.Activity, entry],
+            Appointments = record.Appointments,
+            AppointmentHistory = record.AppointmentHistory,
             Notifications = record.Notifications,
             Attachments = record.Attachments
         };

@@ -1,6 +1,9 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Contracts.Patients.Responses;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 
@@ -11,6 +14,9 @@ namespace MedApp.Application.Patients.Common;
 /// their account IDs, network addresses and when they read a notification are the staff's data, so they're left out.
 /// So are admins' monitoring notifications (<see cref="Notification.IsMonitoring"/>): which admin watches which member
 /// of staff is about the staff, and what they did is in the procedures' history already.
+/// History entries' details are stored with some staff account IDs (an assignment's <c>userId</c>, a rescheduled
+/// appointment's <c>previousStaffUserId</c>) beside their usernames, so the export removes them
+/// (<see cref="WithoutStaffIds"/>) and keeps the usernames.
 /// </summary>
 public static class PatientExportMapper
 {
@@ -18,11 +24,19 @@ public static class PatientExportMapper
     public static IEnumerable<Notification> ExportedNotifications(PatientRecord record) =>
         record.Notifications.Where(n => !Notification.IsMonitoring(n.Kind));
 
-    /// <summary>Every user the export names: on procedures (assignees, assigners, stage workers) and as notification recipients.</summary>
+    /// <summary>
+    /// Every user the export names: on procedures (assignees, assigners, stage workers), on appointments (who they're
+    /// with, who asked for, booked and recorded them) and as notification recipients.
+    /// </summary>
     public static IEnumerable<Guid> UserIds(PatientRecord record) =>
         record.Procedures.SelectMany(ProcedureMapper.UserIds)
+            .Concat(record.Appointments.SelectMany(AppointmentUserIds))
             .Concat(ExportedNotifications(record).Select(n => n.UserId))
             .Distinct();
+
+    private static IEnumerable<Guid> AppointmentUserIds(Appointment appointment) =>
+        new[] { appointment.StaffUserId, appointment.CreatedByUserId, appointment.BookedByUserId, appointment.OutcomeByUserId }
+            .OfType<Guid>();
 
     public static PatientExportResponse ToResponse(
         PatientRecord record,
@@ -77,7 +91,47 @@ public static class PatientExportMapper
                     ProcedureId = e.PatientProcedureId,
                     ProcedureTitle = e.ProcedureTitle,
                     StageName = e.StageName,
-                    Details = e.Details
+                    Details = WithoutStaffIds(e.Details)
+                })
+                .ToList(),
+            Appointments = record.Appointments
+                .Select(a => new ExportedAppointmentResponse
+                {
+                    Id = a.Id,
+                    ProcedureId = a.ProcedureId,
+                    StageName = a.StageId is { } stageId
+                        ? record.Procedures.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
+                        : null,
+                    Status = a.Status.ToString(),
+                    StaffUsername = a.StaffUserId is null ? null : Username(a.StaffUserId),
+                    StartUtc = a.StartUtc,
+                    EndUtc = a.EndUtc,
+                    Notes = a.Notes,
+                    CancelReason = a.CancelReason,
+                    IsAutomatic = a.IsAutomatic,
+                    CreatedAtUtc = a.CreatedAtUtc,
+                    CreatedBy = Username(a.CreatedByUserId),
+                    BookedAtUtc = a.BookedAtUtc,
+                    BookedBy = a.BookedByUserId is null ? null : Username(a.BookedByUserId),
+                    OutcomeAtUtc = a.OutcomeAtUtc,
+                    OutcomeBy = a.OutcomeByUserId is null ? null : Username(a.OutcomeByUserId)
+                })
+                .ToList(),
+            // As the procedures' history: staff by the username recorded at the time.
+            AppointmentHistory = record.AppointmentHistory
+                .Select(e => new ExportedAppointmentHistoryEntryResponse
+                {
+                    AtUtc = e.AtUtc,
+                    Action = e.Action.ToString(),
+                    Username = e.Username,
+                    AppointmentId = e.AppointmentId,
+                    ProcedureId = e.ProcedureId,
+                    ProcedureTitle = e.ProcedureTitle,
+                    StageName = e.StageName,
+                    StaffUsername = e.StaffUsername,
+                    StartUtc = e.StartUtc,
+                    EndUtc = e.EndUtc,
+                    Details = WithoutStaffIds(e.Details)
                 })
                 .ToList(),
             AccessLog = record.Activity
@@ -87,7 +141,7 @@ public static class PatientExportMapper
                     Action = e.Action.ToString(),
                     Username = e.Username,
                     ProcedureId = e.ProcedureId,
-                    Details = e.Details
+                    Details = WithoutStaffIds(e.Details)
                 })
                 .ToList(),
             Notifications = ExportedNotifications(record)
@@ -98,7 +152,8 @@ public static class PatientExportMapper
                     Username = Username(n.UserId),
                     Title = n.Title,
                     Message = n.Message,
-                    ProcedureId = n.ProcedureId
+                    ProcedureId = n.ProcedureId,
+                    AppointmentId = n.AppointmentId
                 })
                 .ToList(),
             // Who by the username recorded at the time, as the procedure history does.
@@ -125,6 +180,62 @@ public static class PatientExportMapper
                 .ToList()
         };
     }
+
+    /// <summary>
+    /// An entry's details without staff account IDs: every property, at any depth, named <c>userId</c> or ending in
+    /// <c>UserId</c> or <c>UserIds</c> (in any case) is removed, and the usernames beside them stay. Details that aren't
+    /// a JSON object become <c>{}</c>, as they can't be checked; details with no IDs are returned as stored.
+    /// </summary>
+    public static string WithoutStaffIds(string details)
+    {
+        JsonObject? root;
+        try
+        {
+            root = JsonNode.Parse(details) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            root = null;
+        }
+
+        if (root is null)
+            return "{}";
+
+        return RemoveStaffIds(root) ? root.ToJsonString() : details;
+    }
+
+    /// <summary>Removes the staff ID properties under <paramref name="node"/>; whether it removed any.</summary>
+    private static bool RemoveStaffIds(JsonNode? node)
+    {
+        var removed = false;
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var (key, value) in obj.ToList())
+                {
+                    if (IsStaffIdKey(key))
+                    {
+                        obj.Remove(key);
+                        removed = true;
+                    }
+                    else
+                    {
+                        removed |= RemoveStaffIds(value);
+                    }
+                }
+                break;
+            case JsonArray array:
+                foreach (var item in array)
+                    removed |= RemoveStaffIds(item);
+                break;
+        }
+
+        return removed;
+    }
+
+    private static bool IsStaffIdKey(string key) =>
+        key.EndsWith("UserId", StringComparison.OrdinalIgnoreCase)
+        || key.EndsWith("UserIds", StringComparison.OrdinalIgnoreCase);
 
     public static ExportedPatientResponse ToExported(Patient patient) => new()
     {

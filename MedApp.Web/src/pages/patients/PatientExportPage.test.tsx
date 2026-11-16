@@ -1,10 +1,11 @@
 import {screen} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
-import {exportFileName, PatientExportPage} from './PatientExportPage';
+import {appointmentChangeLabel, describeAppointmentChange, describeExportedAppointment, exportFileName, PatientExportPage} from './PatientExportPage';
 
 const id = 'd184a7b8-2585-4437-bcd4-e1700be38211';
 const procedureId = 'e184a7b8-2585-4437-bcd4-e1700be38212';
+const appointmentId = 'f184a7b8-2585-4437-bcd4-e1700be38213';
 const EXPORT = `/api/patients/${id}/export`;
 
 const data: PatientExport = {
@@ -64,12 +65,56 @@ const data: PatientExport = {
       details: '{}',
     },
   ],
+  appointments: [
+    {
+      id: appointmentId,
+      procedureId,
+      stageName: 'Scan',
+      status: 'Cancelled',
+      staffUsername: 'k.ashford',
+      startUtc: '2026-09-21T09:00:00Z',
+      endUtc: '2026-09-21T09:30:00Z',
+      notes: 'Synthetic appointment note',
+      cancelReason: 'Synthetic cancellation reason',
+      isAutomatic: false,
+      createdAtUtc: '2026-09-10T09:00:00Z',
+      createdBy: 'l.northcott',
+      bookedAtUtc: '2026-09-11T09:00:00Z',
+      bookedBy: 'k.ashford',
+      outcomeAtUtc: null,
+      outcomeBy: null,
+    },
+  ],
+  appointmentHistory: [
+    {
+      atUtc: '2026-09-12T09:00:00Z',
+      action: 'Cancelled',
+      username: 'k.ashford',
+      appointmentId,
+      procedureId,
+      procedureTitle: 'Synthetic knee review',
+      stageName: 'Scan',
+      staffUsername: 'k.ashford',
+      startUtc: '2026-09-21T09:00:00Z',
+      endUtc: '2026-09-21T09:30:00Z',
+      details: JSON.stringify({reason: 'Synthetic cancellation reason', automatic: false}),
+    },
+  ],
   accessLog: [
     {action: 'PatientExported', username: 'test-admin', atUtc: '2026-11-16T09:30:00Z', details: '{}'},
     {action: 'PatientRestricted', username: 'test-admin', atUtc: '2026-11-01T09:00:00Z', details: JSON.stringify({reason: 'Synthetic accuracy check'})},
   ],
   notifications: [
     {kind: 'ProcedureAssigned', username: 'k.ashford', title: 'Synthetic knee review', message: 'test-admin assigned you to this procedure.', createdAtUtc: '2026-09-01T09:00:00Z'},
+    {
+      kind: 'AppointmentCancelled',
+      username: 'k.ashford',
+      title: 'Appointment cancelled',
+      message: 'l.northcott cancelled an appointment.',
+      createdAtUtc: '2026-09-12T09:00:00Z',
+      procedureId,
+      appointmentId,
+    },
   ],
 };
 
@@ -145,8 +190,21 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/Stage finished by l\.northcott/)).toBeInTheDocument();
     expect(screen.getByText(/Record exported by test-admin/)).toBeInTheDocument();
     expect(screen.getByText(/Record restricted by test-admin/)).toBeInTheDocument();
-    expect(screen.getByText(/to k\.ashford/)).toBeInTheDocument();
+    expect(screen.getAllByText(/: to k\.ashford$/)).toHaveLength(2);
     expect(screen.getByText('Synthetic knee review: test-admin assigned you to this procedure.')).toBeInTheDocument();
+    // The appointments, with everything the export holds about each, and the history of changes to them.
+    expect(screen.getByText('Appointments (1)')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled: Mon 21 Sept 2026, 10:00 to 10:30 with k.ashford')).toBeInTheDocument();
+    expect(screen.getByText(/^Synthetic knee review: Scan, requested .* by l\.northcott, booked .* by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText('Why cancelled: Synthetic cancellation reason')).toBeInTheDocument();
+    expect(screen.getByText('Notes: Synthetic appointment note')).toBeInTheDocument();
+    expect(screen.getByText('Appointment History (1)')).toBeInTheDocument();
+    expect(screen.getByText(/Appointment cancelled by k\.ashford/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Synthetic knee review · Scan · Mon 21 Sept 2026, 10:00 to 10:30 with k.ashford · Synthetic cancellation reason'),
+    ).toBeInTheDocument();
+    // A notification about an appointment says which.
+    expect(screen.getByText('About the appointment: Cancelled: Mon 21 Sept 2026, 10:00 to 10:30 with k.ashford')).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${EXPORT}`]);
   });
 
@@ -157,8 +215,30 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No access recorded.')).toBeInTheDocument();
     expect(screen.getByText('No notifications.')).toBeInTheDocument();
+    expect(screen.getByText('No appointments.')).toBeInTheDocument();
+    expect(screen.getByText('No appointment changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No files.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
+  });
+
+  it("says what an appointment was for when it's no longer held, or not for a procedure", async () => {
+    renderExport({
+      ...data,
+      appointments: [
+        {id: 'a1', procedureId: 'gone', stageName: null, status: 'Requested', isAutomatic: true, createdAtUtc: '2026-09-10T09:00:00Z', createdBy: ''},
+        {id: 'a2', procedureId: null, status: 'Attended', startUtc: '2026-09-21T09:00:00Z', endUtc: '2026-09-21T09:30:00Z', staffUsername: 'k.ashford',
+          createdAtUtc: '2026-09-10T09:00:00Z', createdBy: 'k.ashford', bookedAtUtc: '2026-09-11T09:00:00Z', bookedBy: 'k.ashford',
+          outcomeAtUtc: '2026-09-21T10:00:00Z', outcomeBy: 'k.ashford'},
+      ],
+      appointmentHistory: [{atUtc: '2026-09-12T09:00:00Z', action: 'Booked', username: 'k.ashford', appointmentId: 'a2', procedureTitle: '', details: '{}'}],
+      notifications: [{kind: 'AppointmentBooked', username: 'k.ashford', title: 'Booked', message: 'Synthetic', createdAtUtc: '2026-09-12T09:00:00Z', appointmentId: 'deleted'}],
+    });
+
+    expect(await screen.findByText('Needs booking')).toBeInTheDocument();
+    expect(screen.getByText(/^A deleted procedure, requested .* automatically$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Not for a procedure, requested .* by k\.ashford, booked .*, outcome recorded .* by k\.ashford$/)).toBeInTheDocument();
+    expect(screen.getByText('Not for a procedure')).toBeInTheDocument();
+    expect(screen.getByText('About the appointment: no longer held')).toBeInTheDocument();
   });
 
   it('downloads the export as a JSON file named by the patient ID and the day, never their name', async () => {
@@ -215,5 +295,47 @@ describe('PatientExportPage', () => {
   it('says when the export could not be made', async () => {
     renderExport({title: 'Server error'}, 500);
     expect(await findAlert('The export could not be made. Please try again.')).toBeInTheDocument();
+  });
+});
+
+describe('appointment history in words', () => {
+  it('names each action', () => {
+    expect(['Requested', 'Booked', 'Rescheduled', 'Attended', 'DidNotAttend', 'Cancelled', 'NotesUpdated', 'Other', null].map(appointmentChangeLabel)).toEqual([
+      'Appointment requested',
+      'Appointment booked',
+      'Appointment rescheduled',
+      'Marked Attended',
+      'Marked Did not attend',
+      'Appointment cancelled',
+      'Appointment notes changed',
+      'Other',
+      '',
+    ]);
+  });
+
+  it('says what each change did', () => {
+    const say = (action: string, details: unknown) => describeAppointmentChange({action, details: JSON.stringify(details)});
+    expect(say('Requested', {automatic: true})).toBe('Requested automatically, as the stage involves a visit');
+    expect(say('Requested', {})).toBe('');
+    expect(say('Rescheduled', {previousStartUtc: '2026-09-21T09:00:00Z', previousEndUtc: '2026-09-21T09:30:00Z', previousStaffUsername: 'k.ashford'})).toBe(
+      'From Mon 21 Sept 2026, 10:00 to 10:30 with k.ashford',
+    );
+    expect(say('Rescheduled', {previousStaffUsername: 'k.ashford'})).toBe('From With k.ashford');
+    expect(say('Rescheduled', {})).toBe('');
+    expect(say('Attended', {previousStatus: 'DidNotAttend'})).toBe('Was marked Did not attend');
+    expect(say('DidNotAttend', {previousStatus: 'Attended'})).toBe('Was marked Attended');
+    expect(say('Attended', {previousStatus: 'Booked'})).toBe('');
+    expect(say('Cancelled', {reason: 'Synthetic reason', automatic: true})).toBe('Cancelled automatically: Synthetic reason');
+    expect(say('NotesUpdated', {from: '', to: 'Synthetic note'})).toBe('Nothing → "Synthetic note"');
+    expect(say('Booked', {})).toBe('');
+    expect(describeAppointmentChange({action: 'Cancelled', details: 'not json'})).toBe('');
+    expect(describeAppointmentChange({action: 'Cancelled', details: '"text"'})).toBe('');
+  });
+
+  it('describes an appointment by its status and time', () => {
+    expect(describeExportedAppointment({status: 'Requested'})).toBe('Needs booking');
+    expect(describeExportedAppointment({status: 'DidNotAttend', startUtc: '2026-09-21T09:00:00Z', endUtc: '2026-09-21T09:30:00Z'})).toBe(
+      'Did not attend: Mon 21 Sept 2026, 10:00 to 10:30',
+    );
   });
 });

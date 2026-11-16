@@ -38,6 +38,8 @@ const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
   {label: 'Stages', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
   {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
+  {label: 'Calendar Templates', icon: AppIcon.CalendarTemplates, href: '/admin/calendar-templates'},
+  {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
   {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},
@@ -51,6 +53,11 @@ export function isCurrentSection(pathname: string, path: string): boolean {
   if (path === '/') return pathname === '/';
   return pathname === path || pathname.startsWith(`${path}/`);
 }
+
+const NEEDS_BOOKING = '/calendar/needs-booking';
+
+/** The Calendar page, but not Needs booking (under its address, with a nav item of its own). */
+const isCalendarPage = (pathname: string) => isCurrentSection(pathname, '/calendar') && !isCurrentSection(pathname, NEEDS_BOOKING);
 
 const ID = '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
 const PATIENT_PAGE = new RegExp(`^/patients/${ID}(?:/|$)`, 'i');
@@ -545,6 +552,33 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
+    // The calendar, and the appointments asked for but not yet booked (under the calendar's address, but an item of
+    // their own).
+    ...[
+      {key: 'calendar', label: 'Calendar', icon: AppIcon.Calendar, href: '/calendar', isHere: (path: string) => isCalendarPage(path)},
+      {key: 'needs-booking', label: 'Needs Booking', icon: AppIcon.NeedsBooking, href: NEEDS_BOOKING, isHere: (path: string) => isCurrentSection(path, NEEDS_BOOKING)},
+    ].map(({key, label, icon, href, isHere}) => {
+      const isSelected = isHere(pathname);
+      const isHalfView = halfPath !== null && isHere(halfPath) && !isSelected;
+      return {
+        key,
+        label,
+        icon,
+        href,
+        isSelected,
+        isHalfView,
+        row: (
+          <SideNavItem
+            label={label}
+            icon={icon}
+            href={href}
+            isSelected={isSelected}
+            ref={halfViewRow(isHalfView)}
+            actions={<RowMenu label={label} href={href} />}
+          />
+        ),
+      };
+    }),
   ];
   const admin: NavRailEntry[] = user.isAdmin
     ? ADMIN_PAGES.map((page) => ({

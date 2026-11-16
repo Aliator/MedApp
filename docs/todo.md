@@ -12,13 +12,21 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 ## Features
 
-- **Appointments and booking.** Book appointments for patients with staff. Each member of staff gets a calendar (day and week) showing their appointments with their procedures' due dates. Appointments tie into the workflow: booking the next stage, or a follow-up when a procedure finishes.
+- **Calendar follow-ups.** What staff calendars and appointments left out (`docs/calendar-plan.md`, section 8):
+  - **Closed days and working hours:** bank holidays and other closed days, and working hours for each person or site (today everyone's day is 08:00 to 18:00 UK time, Monday to Friday).
+  - **More kinds of booking:** recurring appointments, rooms and resources, and booking several staff for one appointment.
+  - **Walk-ins:** recording an appointment after the event. Booking is only in the future today.
+  - **Patients:** reminders by email or SMS, and booking for themselves.
+  - **Requested appointments left waiting:** flag or notify ones requested long ago and still not booked.
+  - **Printing a day list.**
+  - **Template edits that undo a day's changes.** Editing a day template's block gives it a new row, and a day's exception (the block removed or moved for one day) points at the old row, so the block comes back on that day, possibly over an appointment booked in its place. Keep a block's identity across versions (a lineage ID the exceptions key on), or at least list the future days' changes an edit will drop before saving (review of #93, finding 2).
 - **More monitoring.** Admins' monitoring rules (Administration, Monitoring) and each person's switch for assignment notifications are built (`AGENTS.md`, Monitoring). Still to do:
   - **An overdue event,** for rules and for the assignees. It isn't a change anyone makes, so it needs a scheduled job that runs once across both API copies (a lease, or a Kubernetes CronJob), and a record of which procedures it has already reported.
+  - **Monitor visit bypasses:** an event for an admin finishing a stage without the visit it required (`docs/calendar-plan.md`, decision 24), so a rule can watch for it, with its own `NotificationKind` (18). Staff calendars added the bypass after #84's eight events, and it isn't one of them yet.
   - **Audit the rules** (who added, changed or deleted which rule), and let a staff member, or the DPO, see the rules that name them (DPIA risk 24).
   - **Tidy up with accounts:** deleting an account should delete the rules it owns and the rules that name it, and its notification choices (`docs/governance/retention-schedule.md`). Until then they stay, and send nothing.
   - **More people in the picker:** the Monitoring page offers the first 100 accounts by username (the API's largest page), and says so under the field when there are more. A searchable picker, on `api/auth/users/search`, would suit a bigger organisation.
-  - **More choices for each person** (Account Settings), once there are more kinds staff receive; and rules an admin sets for someone else (for example a team lead's), kept apart from that person's own choices so they can't undo them.
+  - **More choices for each person** (Account Settings), once there are more kinds staff receive (the three appointment kinds, booked, rescheduled and cancelled, can't be switched off yet); and rules an admin sets for someone else (for example a team lead's), kept apart from that person's own choices so they can't undo them.
 - **More from email** (`feature/email-2fa` built the email service, optional staff addresses, "Forgot your password?" and security notices). Still to do:
   - **Notification emails,** opt-in per person. They must never carry free text that may hold clinical information (a notification's title is a procedure's title), so send "You've been assigned a procedure" with a link, not its title.
   - **A retry for failed emails.** The queue is in memory and best effort: a message that fails, or is still queued when the API stops, is lost (logged). Every email today is a link or a notice that can be asked for again; a durable outbox (a table) would be needed before sending anything that can't.
@@ -40,8 +48,11 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
   - **Longer lists:** a list shows the newest 200 files of a patient, procedure or stage and says how many there are; page it if real use gets near that.
   - **E2E tests:** the `e2e` job runs without file storage, so no journey uploads a file. Add Azurite to it and a journey (attach, download, delete).
   - **Snapshots:** `medapp-dev`'s snapshots and demo data cover only the database, not Azurite's blobs.
+  - **Check the storage connection string at startup.** A malformed attachments connection string (a mistyped Azurite key, say) isn't noticed until the first upload, which then fails with a 500 (a `FormatException` from `BlobServiceClient`). Validate it when the API starts, so a bad deploy fails at once with a clear message.
 - **A customisable home screen.** Let each person arrange their home screen from "widgets" they choose, move and resize: for example today's calendar, My Tasks, overdue work, recent notifications, and the admin insights charts. The layout is saved with their account, like their other settings, and admins can set a default for everyone. Moving and resizing needs a keyboard and click alternative to dragging (WCAG 2.5.7).
 - **Find accounts still using `DefaultPassword1`.** Accounts created before #53 got that published password, and may still have it; until this check exists, an admin should reset their passwords or ask their users to change them. Add a one-off check that tests each account's hash with Identity's `PasswordHasher.VerifyHashedPassword` (no side effects, and SQL can't do it because the hashes are salted), then for each match sets a generated password (or locks it), revokes its sessions and lists the usernames. As a `medapp-dev` tool for local databases, and as an admin report or API command (like `create-first-admin`) for deployed ones (PR #53 review, finding 1).
+- **Refuse to delete an account with open work** (clinical hazard H-21, before first live use). Deleting a leaver's account leaves their open procedures assigned to "Deleted user", on nobody's task list. List the account's open assignments and refuse the delete until they're reassigned, as it already refuses an account with upcoming bookings. Deactivating accounts instead of deleting them (roadmap step 4) is the longer-term fix.
+- **Show started work on My Tasks** (clinical hazards H-04 and H-05, before first live use). My Tasks opens on "Not started", so work with a stage already started, overdue or not, stays hidden until the filter is changed. Show a count of started and overdue work beside the filter, or open it on all open work.
 
 ## Privacy (the rest of roadmap step 7)
 
@@ -55,6 +66,7 @@ The first part is built: the activity log and access report, the subject access 
 - **A scheduled job for operational data:** purge sign-in events (including refused sign-ins) and sessions at 12 months and notifications at 6 months, once across the API copies (a lease or a Kubernetes CronJob), logging counts; the activity log's patient entries go with the patient's record. There is no scheduled job in MedApp yet.
 - **Restriction hiding patients from lists** except for named roles; a second person approving an anonymisation.
 - **A clinician review step in the export,** to hold back what meets the serious harm test, and a PDF.
+- **Count appointments in the retention review:** the conclusion of treatment should be the latest of the last closed procedure, the last appointment attended, not attended or cancelled, and the last change to the record, and wait while any appointment is Requested or Booked (`docs/governance/retention-schedule.md`, section 2). Today appointments don't move it.
 - **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
 - **Saved searches that name a patient,** removed on anonymisation or destruction: their terms can be a name or an NHS number (the patient list's NHS number filter), kept in the account's settings and the browser. Anonymisation removes the number from the record but not from saved searches (DPIA risk 21).
 - **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).

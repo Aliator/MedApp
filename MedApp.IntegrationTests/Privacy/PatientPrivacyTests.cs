@@ -5,6 +5,8 @@ using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Monitoring.Requests;
 using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Activity.Responses;
+using MedApp.Contracts.Appointments.Requests;
+using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
@@ -33,8 +35,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
 
     private static string PatientUrl(Guid id) => $"/api/patients/{id}";
 
-    private Task<HttpResponseMessage> SetRestrictionAsync(Guid patientId, bool set, string? reason) =>
-        _admin.PutAsJsonAsync($"{PatientUrl(patientId)}/restriction", new SetPatientFlagRequest { Set = set, Reason = reason });
+    private Task<HttpResponseMessage> SetRestrictionAsync(Guid patientId, bool set, string? reason, bool confirm = false) =>
+        _admin.PutAsJsonAsync(
+            $"{PatientUrl(patientId)}/restriction",
+            new SetPatientFlagRequest { Set = set, Reason = reason, ConfirmOpenProcedures = confirm });
 
     [Test]
     public async Task Restriction_RefusesChangesButPausing_UntilLifted()
@@ -97,6 +101,51 @@ public sealed class PatientPrivacyTests : IntegrationTest
     }
 
     [Test]
+    public async Task Restriction_RefusesAppointmentChanges_ButCancelling()
+    {
+        var patient = await CreatePatientAsync(_admin);
+        var staff = await CreateStaffAsync(UserRole);
+        var booked = await BookNewAppointmentAsync(_admin, patient.Id, staff.UserId, NextBookableStart());
+        // No procedure is under way, but the open appointment freezes too, so the admin must confirm.
+        var unconfirmed = await (await SetRestrictionAsync(patient.Id, true, "Synthetic check"))
+            .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenProcedures)].Should().ContainSingle()
+            .Which.Should().StartWith("This patient has 1 open appointment.");
+        (await SetRestrictionAsync(patient.Id, true, "Synthetic check", confirm: true)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        (await PostBookingAsync(staff.Client, patient.Id, staff.UserId, NextBookableStart().AddHours(2)))
+            .StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await staff.Client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest { PatientId = patient.Id }))
+            .StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await PostRescheduleAsync(staff.Client, booked.Id, staff.UserId, NextBookableStart().AddHours(3)))
+            .StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await staff.Client.PutAsJsonAsync($"{AppointmentUrl(booked.Id)}/notes", new UpdateAppointmentNotesRequest { Notes = "Changed" }))
+            .StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        // Care can still be paused: the appointment can be cancelled, with a reason.
+        var cancelled = await (await PostCancelAsync(staff.Client, booked.Id, "Synthetic: paused while restricted"))
+            .ReadAsAsync<AppointmentResponse>();
+        cancelled.Status.Should().Be("Cancelled");
+    }
+
+    [Test]
+    public async Task Restriction_ProceduresUnderWay_ConfirmationCountsTheOpenAppointmentsToo()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin);
+        var staff = await CreateStaffAsync(UserRole);
+        await RequestAppointmentAsync(_admin, procedure.PatientId, procedure.Id);
+        await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, NextBookableStart());
+        var cancelled = await RequestAppointmentAsync(_admin, procedure.PatientId);
+        (await PostCancelAsync(_admin, cancelled.Id, "Synthetic: not needed")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var unconfirmed = await (await SetRestrictionAsync(procedure.PatientId, true, "Synthetic check"))
+            .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+
+        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenProcedures)].Should().ContainSingle()
+            .Which.Should().StartWith("This patient has 1 procedure under way and 2 open appointments.");
+    }
+
+    [Test]
     public async Task Restriction_NothingUnderWay_NeedsNoConfirmation()
     {
         var patient = await CreatePatientAsync(_admin);
@@ -146,6 +195,15 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .StatusCode.Should().Be(HttpStatusCode.Created);
         // Assigned, so the staff member has a notification with the procedure's title.
         (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        // An appointment for the procedure with the staff member (so they're told, under fixed titles), with notes,
+        // cancelled with a reason; and one not for a procedure, waiting to be booked, whose notes were changed.
+        var booked = await (await PostBookingAsync(_admin, patient.Id, staff.UserId, NextBookableStart(), procedureId: procedure.Id,
+                notes: $"Visit notes about {Canary}"))
+            .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
+        (await PostCancelAsync(_admin, booked.Id, $"Cancelled for {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var requested = await RequestAppointmentAsync(_admin, patient.Id);
+        (await _admin.PutAsJsonAsync($"{AppointmentUrl(requested.Id)}/notes", new UpdateAppointmentNotesRequest { Notes = $"Needs {Canary}" }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
         // Every reason an admin can type, with the canary in it.
         (await _admin.PutAsJsonAsync($"{PatientUrl(patient.Id)}/restriction",
                 new SetPatientFlagRequest { Set = true, Reason = $"Restricted for {Canary}", ConfirmOpenProcedures = true }))
@@ -164,10 +222,13 @@ public sealed class PatientPrivacyTests : IntegrationTest
             Confirmation = $"canary {Canary.ToUpperInvariant()}",
         };
 
-        // Refused while the procedure is under way.
+        // Refused while the procedure is under way, then while the appointment waiting to be booked is open.
         (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", anonymise)).StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/status", new ChangePatientProcedureStatusRequest { Status = "Cancelled", Reason = $"Cancelled for {Canary}" }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", anonymise)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
+            .Title.Should().Contain("1 open appointment");
+        (await PostCancelAsync(_admin, requested.Id, $"Not needed by {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
         // Refused without the patient's name, or with a reason not in the list.
         (await _admin.PostAsJsonAsync($"{PatientUrl(patient.Id)}/anonymise", new AnonymisePatientRequest { Reason = "ErasureRequest", Confirmation = "Someone Else" }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -190,6 +251,9 @@ public sealed class PatientPrivacyTests : IntegrationTest
                      (_admin, $"/api/procedures/audit/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"/api/activity/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"{PatientUrl(patient.Id)}/export"),
+                     (_admin, AppointmentUrl(booked.Id)),
+                     (_admin, AppointmentUrl(requested.Id)),
+                     (_admin, $"/api/appointments/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"/api/attachments?patientId={patient.Id}&includeDeleted=true"),
                      (_admin, $"/api/attachments?procedureId={procedure.Id}&includeDeleted=true"),
                      (staff.Client, "/api/notifications"),
@@ -218,6 +282,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
             .Should().NotContain("MonitoredProcedureCancelled").And.NotContain(watcher.Username);
         var watched = await (await watcher.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
         watched.Items.Should().ContainSingle().Which.Title.Should().Be("Procedure cancelled");
+        // The appointment notifications have fixed titles, so they never held the procedure's title.
+        var told = await (await staff.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
+        told.Items.Where(n => n.AppointmentId == booked.Id).Select(n => n.Title)
+            .Should().BeEquivalentTo("Appointment booked", "Appointment cancelled");
 
         var log = await (await _admin.GetAsync($"/api/activity/search?PatientId={patient.Id}&Actions=PatientAnonymised"))
             .ReadAsAsync<PagedResponse<ActivityEntryResponse>>();
@@ -234,6 +302,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
     {
         var procedure = await CreatePatientWithProcedureAsync(_admin, stages: 2);
         (await PutStageNotesAsync(_admin, procedure.Id, procedure.Stages[0].Id, StageNotes)).StatusCode.Should().Be(HttpStatusCode.OK);
+        var appointment = await RequestAppointmentAsync(_admin, procedure.PatientId, procedure.Id);
 
         var response = await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export");
 
@@ -247,10 +316,55 @@ public sealed class PatientPrivacyTests : IntegrationTest
         exported.AssignedTo.Should().BeEmpty();
         export.ProcedureHistory.Select(e => e.Action).Should().Contain(["Created", "StageNotesUpdated"]);
         export.AccessLog.Select(e => e.Action).Should().Contain(["PatientCreated", "PatientExported"]);
+        var exportedAppointment = export.Appointments.Should().ContainSingle().Subject;
+        exportedAppointment.Id.Should().Be(appointment.Id);
+        exportedAppointment.Status.Should().Be("Requested");
+        exportedAppointment.CreatedBy.Should().Be(AdminUsername);
+        export.AppointmentHistory.Should().ContainSingle().Which.Action.Should().Be("Requested");
 
         var json = await (await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export")).Content.ReadAsStringAsync();
         json.Should().NotContainEquivalentOf("ipAddress").And.NotContainEquivalentOf("userId").And.NotContainEquivalentOf("readAtUtc");
         json.Should().Contain(AdminUsername, "staff are named by username");
+    }
+
+    /// <summary>
+    /// History details are stored with staff account IDs (an assignment's <c>userId</c>, a rescheduled appointment's
+    /// <c>previousStaffUserId</c>); the export leaves every one out, in any field and any format, and keeps the usernames.
+    /// </summary>
+    [Test]
+    public async Task Export_HoldsNoStaffAccountIds_AnywhereInItsJson()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin, stages: 2);
+        var adminId = await GetUserIdAsync(_admin, AdminUsername);
+        var staff = await CreateStaffAsync(UserRole);
+        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{adminId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.DeleteAsync($"{ProcedureUrl(procedure.Id)}/assignments/{staff.UserId}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        // Booked with the staff member, then moved to the admin: the history keeps who it was with before.
+        var start = NextBookableStart();
+        var appointment = await BookNewAppointmentAsync(_admin, procedure.PatientId, staff.UserId, start, procedureId: procedure.Id);
+        await (await PostRescheduleAsync(_admin, appointment.Id, adminId, start.AddHours(1))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var response = await _admin.GetAsync($"{PatientUrl(procedure.PatientId)}/export");
+        var json = await (await response.ShouldHaveStatusAsync(HttpStatusCode.OK)).Content.ReadAsStringAsync();
+
+        foreach (var id in new[] { adminId, staff.UserId })
+        {
+            foreach (var form in new[] { id.ToString("D"), id.ToString("N"), Convert.ToBase64String(id.ToByteArray()) })
+                json.Should().NotContainEquivalentOf(form, "the export holds no staff account IDs");
+        }
+
+        json.Should().NotContainEquivalentOf("userId");
+        var export = System.Text.Json.JsonSerializer.Deserialize<PatientExportResponse>(
+            json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        export.ProcedureHistory.Where(e => e.Action is "Assigned" or "Unassigned").Select(e => (e.Action, e.Details))
+            .Should().Equal(
+                ("Assigned", $$"""{"username":"{{staff.Username}}"}"""),
+                ("Assigned", $$"""{"username":"{{AdminUsername}}"}"""),
+                ("Unassigned", $$"""{"username":"{{staff.Username}}"}"""));
+        export.AppointmentHistory.Single(e => e.Action == "Rescheduled").Details
+            .Should().Contain($"\"previousStaffUsername\":\"{staff.Username}\"", "who it was with before is still there, by username");
+        export.Appointments.Single().StaffUsername.Should().Be(AdminUsername);
     }
 
     [Test]

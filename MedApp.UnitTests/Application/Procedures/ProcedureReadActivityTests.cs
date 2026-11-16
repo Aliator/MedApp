@@ -75,6 +75,8 @@ public sealed class ProcedureReadActivityTests : ProcedureHandlerTestBase
         audit.Setup(r => r.GetPatientTimelineAsync(It.IsAny<GetPatientTimelineQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         audit.Setup(r => r.GetDeletionsAsync(TimelineConstants.PatientId, It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        Appointments.Setup(r => r.GetPatientTimelineAsync(It.IsAny<GetPatientTimelineQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         Repository.Setup(r => r.GetByPatientAsync(TimelineConstants.PatientId, It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Fixture.Inject(patients.Object);
         Fixture.Inject(audit.Object);

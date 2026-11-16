@@ -27,10 +27,11 @@ public sealed class NotificationPreferencesTests
     }
 
     [Test]
-    public void HasFixedTitle_OnlyTheMonitoringKinds()
+    public void HasFixedTitle_TheAppointmentAndMonitoringKinds()
     {
         Enum.GetValues<NotificationKind>().Where(Notification.HasFixedTitle)
-            .Should().BeEquivalentTo(Enum.GetValues<NotificationKind>().Where(k => k.ToString().StartsWith("Monitored")));
+            .Should().BeEquivalentTo(Enum.GetValues<NotificationKind>()
+                .Where(k => k.ToString().StartsWith("Monitored") || k.ToString().StartsWith("Appointment")));
         Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
     }
 

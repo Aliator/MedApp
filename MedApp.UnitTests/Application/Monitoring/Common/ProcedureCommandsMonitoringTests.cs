@@ -44,6 +44,15 @@ public sealed class ProcedureCommandsMonitoringTests : ProcedureHandlerTestBase
             .Setup(r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()))
             .Callback(() => _order.Add("saved"))
             .Returns(Task.CompletedTask);
+        // A change that also asks for or tidies up stage visits is saved with them.
+        Repository
+            .Setup(r => r.SaveAsync(It.IsAny<ProcedureChange>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _order.Add("saved"))
+            .Returns(Task.CompletedTask);
+        Repository
+            .Setup(r => r.AddAsync(It.IsAny<ProcedureChange>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _order.Add("saved"))
+            .Returns(Task.CompletedTask);
         Repository
             .Setup(r => r.DeleteAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()))
             .Callback(() => _order.Add("saved"))

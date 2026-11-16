@@ -212,7 +212,8 @@ public sealed class ReviewFixesTests : AttachmentHandlerTestBase
         var withFiles = new PatientRecord
         {
             Patient = record.Patient, Procedures = record.Procedures, ProcedureHistory = record.ProcedureHistory,
-            Activity = record.Activity, Notifications = record.Notifications, Attachments = [onStage, onPatient, alreadyDeleted],
+            Activity = record.Activity, Appointments = record.Appointments, AppointmentHistory = record.AppointmentHistory,
+            Notifications = record.Notifications, Attachments = [onStage, onPatient, alreadyDeleted],
         };
 
         var entries = PatientAnonymiser.Apply(withFiles, Now, ActivityTestConstants.Actor);

@@ -30,6 +30,12 @@ public static class ProcedureAudit
         UserId = actor.UserId,
         Username = actor.Username,
         AtUtc = nowUtc,
-        Details = details is null ? "{}" : JsonSerializer.Serialize(details, Json)
+        Details = Details(details)
     };
+
+    /// <summary>
+    /// Details as compact camelCase JSON, leaving out nulls (<c>{}</c> for none). The procedure audit log and
+    /// appointments' history both write them this way, which the timeline's markers rely on.
+    /// </summary>
+    public static string Details(object? details) => details is null ? "{}" : JsonSerializer.Serialize(details, Json);
 }
