@@ -131,26 +131,31 @@ public abstract class E2ETest : PageTest
     /// Opens a page and waits until it can be used. Pages are rendered on the server, then taken over by React in the
     /// browser (hydrated): typing or clicking before that is lost, as React replaces what the server sent.
     /// </summary>
-    protected async Task OpenAsync(string path)
+    protected Task OpenAsync(string path) => OpenAsync(Page, path);
+
+    /// <summary>The same, in another page (e.g. a second person's browser).</summary>
+    protected static async Task OpenAsync(IPage page, string path)
     {
-        await Page.GotoAsync(path);
-        await WaitUntilInteractiveAsync();
+        await page.GotoAsync(path);
+        await WaitUntilInteractiveAsync(page);
     }
 
     /// <summary>
     /// Waits until React has taken over every control on the page (each has React's props on it), then for the page's
     /// data to load.
     /// </summary>
-    protected async Task WaitUntilInteractiveAsync()
+    protected Task WaitUntilInteractiveAsync() => WaitUntilInteractiveAsync(Page);
+
+    protected static async Task WaitUntilInteractiveAsync(IPage page)
     {
-        await Page.WaitForFunctionAsync("""
+        await page.WaitForFunctionAsync("""
             () => {
               const controls = [...document.querySelectorAll('button, input, a[href]')];
               return controls.length > 0
                 && controls.every(c => Object.keys(c).some(k => k.startsWith('__reactProps$')));
             }
             """);
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     /// <summary>A date as the app's date fields take it typed: dd/MM/yyyy (en-GB).</summary>

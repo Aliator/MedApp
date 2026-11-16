@@ -11,13 +11,21 @@ public sealed class UserTests : E2ETest
     /// <summary>The dialog's Done ignores presses for a second after the password appears (a double-click guard).</summary>
     private const int DoneHoldMs = 1100;
 
+    /// <summary>The password the new user chooses: synthetic, and meets the Identity rules.</summary>
+    private const string ChosenPassword = "E2e-Chosen-Passw0rd";
+
+    /// <summary>
+    /// A new account, from start to finish: the admin adds it and sees its first password once, gives it a role, then
+    /// its user signs in with that password, must choose their own first, and gets into the app.
+    /// </summary>
     [Test]
-    public async Task AddUser_ShowsAOneTimePasswordThatSignsIn()
+    public async Task AddUser_NewUserSignsInWithTheOneTimePasswordAndMustChooseTheirOwn()
     {
         var username = NewUsername();
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
         await OpenAsync("/admin/users");
 
+        // The admin adds the account and is shown its first password, once.
         await Main.GetByRole(AriaRole.Button, new() { Name = "Add User" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Create New User" });
         await dialog.GetByLabel("Username").FillAsync(username);
@@ -25,19 +33,55 @@ public sealed class UserTests : E2ETest
 
         await Expect(dialog).ToContainTextAsync($"Account created for {username}.");
         await Expect(dialog.GetByRole(AriaRole.Button, new() { Name = "Copy password" })).ToBeFocusedAsync();
-        var password = await dialog.GetByText(new Regex("^[A-Za-z0-9!@#$%]{16,}$")).TextContentAsync();
-        Assert.That(password, Is.Not.Null.And.Length.GreaterThanOrEqualTo(16));
-
-        // The password shown is the account's: it signs in.
-        await SignInToApiAsync(username, password!.Trim());
+        var shown = await dialog.GetByText(new Regex("^[A-Za-z0-9!@#$%]{16,}$")).TextContentAsync();
+        Assert.That(shown, Is.Not.Null.And.Length.GreaterThanOrEqualTo(16));
+        var firstPassword = shown!.Trim();
 
         await Page.WaitForTimeoutAsync(DoneHoldMs);
         await dialog.GetByRole(AriaRole.Button, new() { Name = "Done" }).ClickAsync();
         await Expect(dialog).ToBeHiddenAsync();
-        // Shown once: it's gone from the page.
-        await Expect(Page.GetByText(password)).ToHaveCountAsync(0);
+        await Expect(Page.GetByText(firstPassword)).ToHaveCountAsync(0);
+
+        // And gives it a role (an account with none can't change its password).
         await SearchUsersAsync(username);
-        await Expect(Main.GetByRole(AriaRole.Row).Filter(new() { HasText = username })).ToHaveCountAsync(1);
+        var row = Main.GetByRole(AriaRole.Row).Filter(new() { HasText = username });
+        await row.GetByRole(AriaRole.Button, new() { Name = "Edit roles" }).ClickAsync();
+        var roles = Page.GetByRole(AriaRole.Dialog, new() { Name = "Edit Roles" });
+        await roles.GetByRole(AriaRole.Checkbox, new() { Name = "User", Exact = true }).CheckAsync();
+        await roles.GetByRole(AriaRole.Button, new() { Name = "Save Roles" }).ClickAsync();
+        await Expect(roles).ToBeHiddenAsync();
+        await Expect(row).ToContainTextAsync("User");
+
+        // The new user, in a browser of their own, signs in with the password they were given...
+        var options = ContextOptions();
+        options.StorageStatePath = null;
+        await using var theirs = await Browser.NewContextAsync(options);
+        theirs.SetDefaultTimeout(15_000);
+        var page = await theirs.NewPageAsync();
+        await OpenAsync(page, "/login");
+        await page.GetByRole(AriaRole.Textbox, new() { Name = "Username" }).FillAsync(username);
+        await page.GetByRole(AriaRole.Textbox, new() { Name = "Password" }).FillAsync(firstPassword);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
+
+        // ...and must choose their own before anything else...
+        await Expect(page).ToHaveURLAsync(new Regex("/change-password$"));
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Choose your password" })).ToBeVisibleAsync();
+        await WaitUntilInteractiveAsync(page);
+        await page.GetByRole(AriaRole.Textbox, new() { NameRegex = new Regex("^Password you were given") }).FillAsync(firstPassword);
+        await page.GetByRole(AriaRole.Textbox, new() { NameRegex = new Regex("^New password") }).FillAsync(ChosenPassword);
+        await page.GetByRole(AriaRole.Textbox, new() { NameRegex = new Regex("^Confirm new password") }).FillAsync(ChosenPassword);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Change password" }).ClickAsync();
+
+        // ...then they're in the app.
+        var account = page.GetByRole(AriaRole.Navigation, new() { Name = "Side navigation" })
+            .GetByRole(AriaRole.Link, new() { NameRegex = new Regex($"^{Regex.Escape(username)}\\b") });
+        await Expect(account).ToBeVisibleAsync();
+        await Expect(page).Not.ToHaveURLAsync(new Regex("/(change-password|login)"));
+
+        // Their own password is the one that works now, and nothing more is asked of them.
+        var theirApi = await SignInToApiAsync(username, ChosenPassword);
+        var me = await theirApi.WhoAmIAsync();
+        Assert.That(me.MustChangePassword, Is.False);
     }
 
     [Test]
