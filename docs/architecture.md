@@ -1598,6 +1598,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 **Goal:** Produce the documents that UK GDPR, the DSPT and buyers' information governance (IG) teams ask for, and settle the decisions (roles, lawful bases, retention, transfers) that steps 4 to 9 build in.
 
+**Status:** drafts written, not yet approved: [`docs/governance/`](governance/README.md) holds the roles and lawful bases, the data inventory, the ROPA, the DPIA, the retention schedule, the data processing agreement template, the sub-processor list, transfers, breach response, data subject rights, privacy notice templates and the DSPT readiness map. Its README lists the decisions made and what the app must build for them to be true. The organisational items (the ICO fee, a DPO, a solicitor's review, Cyber Essentials, the DSPT registration, a tabletop exercise) are still to do.
+
 **Why now:**
 - **A DPIA comes first.** It's mandatory for "processing on a large scale of special categories of data", which health data is ([Article 35](https://www.legislation.gov.uk/eur/2016/679/article/35)). If a high risk can't be reduced, "You cannot begin the processing until you have consulted us" ([ICO](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/guide-to-accountability-and-governance/data-protection-impact-assessments/)).
 - **Records and contracts:**
@@ -2471,6 +2473,7 @@ As of `main` at `eef92dd`, after #53. The code (or, for repository settings, Git
 | Why and how the UI moved from Blazor to React | `docs/react-migration-plan.md` |
 | The procedures concept and its decisions | `docs/procedures-ui-plan.md` |
 | Smaller open items | `docs/todo.md` |
+| Data protection and information governance: DPIA, ROPA, retention, contracts, privacy notices, DSPT (drafts) | `docs/governance/README.md` |
 | Plain-language guide to the technology | `docs/reviews/overview.md` |
 | Detailed reviews of SSR, the image, Kubernetes, GitOps, the backplane, Azure and app changes | `docs/reviews/README.md` and the documents it lists |
 | The adversarial review's 31 findings | `docs/reviews/flaws-review.md` |
