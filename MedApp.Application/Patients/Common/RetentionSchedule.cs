@@ -1,4 +1,5 @@
 using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Patients.Common;
 
@@ -18,6 +19,13 @@ public sealed record RetentionDue(RetentionClass Class, DateOnly ConclusionOfTre
 /// </summary>
 public static class RetentionSchedule
 {
+    /// <summary>
+    /// Procedure audit actions that record a read, not a change to the record, so they don't move the conclusion of
+    /// treatment: downloading a file. Add any other read the audit log records.
+    /// </summary>
+    public static readonly IReadOnlySet<PatientProcedureAuditAction> ReadOnlyAuditActions =
+        new HashSet<PatientProcedureAuditAction> { PatientProcedureAuditAction.AttachmentDownloaded };
+
     /// <summary>When the patient's record is due for review.</summary>
     public static RetentionDue Due(RetentionCandidate patient, RetentionOptions options)
     {

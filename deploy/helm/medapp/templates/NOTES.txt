@@ -10,3 +10,10 @@ and open http://localhost:8080/
 {{- end }}
 
 The app seeds no accounts. See deploy/helm/medapp/README.md for the first sign-in.
+{{- if not (include "medapp.attachmentsStorage" .) }}
+
+Attachments have no file storage (attachments in values.yaml), so uploads and downloads answer 503.
+{{- else if .Values.attachments.azurite.enabled }}
+
+Attachments are stored in Azurite, in the cluster: for trying MedApp out, not for patients' files in production.
+{{- end }}

@@ -79,6 +79,48 @@ function renderExport(body: unknown = data, status = 200) {
 }
 
 describe('PatientExportPage', () => {
+  it("lists the files' details, deleted ones marked, and says the files themselves aren't included", async () => {
+    const file = {
+      typeName: 'PDF',
+      contentType: 'application/pdf',
+      sizeBytes: 2048,
+      sha256: 'a1b2c3',
+      scanStatus: 'NotScanned',
+      uploadedBy: 'k.ashford',
+      uploadedAtUtc: '2026-09-02T09:00:00Z',
+    };
+    renderExport({
+      ...data,
+      attachments: [
+        {...file, id: 'f1', attachedTo: 'Patient', fileName: 'synthetic-letter.pdf'},
+        {...file, id: 'f2', attachedTo: 'Stage', procedureId, stageName: 'Consent', fileName: 'synthetic-consent.pdf', scanStatus: 'Clean'},
+        {
+          ...file,
+          id: 'f3',
+          attachedTo: 'Procedure',
+          procedureId,
+          fileName: 'synthetic-old.pdf',
+          deletedAtUtc: '2026-10-01T09:00:00Z',
+          deletedBy: 'test-admin',
+        },
+        {...file, id: 'f4', attachedTo: 'Stage', procedureId: 'gone', stageName: null, fileName: 'synthetic-orphan.pdf', scanStatus: 'Odd'},
+      ],
+    });
+
+    expect(await screen.findByText('Files (4)')).toBeInTheDocument();
+    expect(screen.getByText(/The files themselves aren't included in this export\./)).toBeInTheDocument();
+    expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to the patient.')).toBeInTheDocument();
+    expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to Consent, in Synthetic knee review.')).toBeInTheDocument();
+    expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to Synthetic knee review.')).toBeInTheDocument();
+    expect(screen.getByText('PDF (application/pdf), 2 KB. Attached to a stage, in a procedure.')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Added .* by k\.ashford$/)).toHaveLength(3);
+    expect(screen.getByText(/^Added .* by k\.ashford; deleted .* by test-admin$/)).toBeInTheDocument();
+    expect(screen.getByText('Deleted')).toBeInTheDocument();
+    expect(screen.getAllByText('Malware scan: not scanned. SHA-256: a1b2c3')).toHaveLength(2);
+    expect(screen.getByText('Malware scan: clean. SHA-256: a1b2c3')).toBeInTheDocument();
+    expect(screen.getByText('Malware scan: Odd. SHA-256: a1b2c3')).toBeInTheDocument();
+  });
+
   it('shows everything held about the patient, once fetched, with a reminder to check it before it goes out', async () => {
     const {fetch} = renderExport();
 
@@ -115,6 +157,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No access recorded.')).toBeInTheDocument();
     expect(screen.getByText('No notifications.')).toBeInTheDocument();
+    expect(screen.getByText('No files.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
   });
 

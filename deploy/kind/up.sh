@@ -3,7 +3,9 @@
 # installs what a real cluster would have (Traefik as the ingress controller, cert-manager for TLS, External
 # Secrets Operator with a local stand-in for a secret store), builds the API's image and loads it in, then installs
 # or upgrades the chart, whose migrations Job brings the database up to date and makes the first admin.
-# Run it again after a code change to redeploy.
+# Run it again after a code change to redeploy. With Argo CD, run `up.sh --argocd` again before merging a change that
+# adds a secret store entry (as attachments added medapp-attachments): it adds the missing entry and changes nothing
+# that exists.
 #
 #   deploy/kind/up.sh                        # an empty database, with a first admin (see README.md)
 #   deploy/kind/up.sh --demo-data kind-demo  # replace the database with a medapp-dev snapshot (tools/MedApp.DevMcp/.backups)
@@ -93,7 +95,11 @@ kubectl --context "$context" apply -f deploy/kind/local-cluster.yaml
 
 echo "== Secret store"
 # The local vault's secrets, made once with random passwords (none is in git). The chart reads them through
-# External Secrets; they last as long as the cluster.
+# External Secrets; they last as long as the cluster. Each is made only if it's missing, and an existing one is never
+# changed (kubectl create refuses to overwrite), so running this again is safe and adds only what a newer chart needs.
+# That's why an existing cluster needs `up.sh --argocd` run again before a change that adds an entry (such as
+# medapp-attachments) merges: Argo CD syncs env/kind on its own, and can't make the entry, so without it the sync
+# stalls on the ExternalSecret (deploy/kind/README.md).
 if ! vault get secret medapp-db >/dev/null 2>&1; then
   # Letters and digits only, so it needs no escaping in the connection string; A, a and 1 meet SQL Server's rules.
   password="Aa1$(openssl rand -hex 16)"
@@ -110,6 +116,15 @@ if ! vault get secret medapp-backplane >/dev/null 2>&1; then
   vault create secret generic medapp-backplane \
     --from-literal=password="$password" \
     --from-literal=connection-string="$release-valkey:6379,password=$password"
+fi
+if ! vault get secret medapp-attachments >/dev/null 2>&1; then
+  # Azurite's account (attachments.azurite.accountName in the chart) and its key: 64 random bytes, base64, like an
+  # Azure Storage account key. openssl wraps base64 at 64 characters, hence the tr. Never replaced once made:
+  # Azurite's files are under this account, and the API's connection string must keep matching its key.
+  key="$(openssl rand -base64 64 | tr -d '\n')"
+  vault create secret generic medapp-attachments \
+    --from-literal=account-key="$key" \
+    --from-literal=connection-string="DefaultEndpointsProtocol=http;AccountName=medapp;AccountKey=$key;BlobEndpoint=http://$release-azurite:10000/medapp;"
 fi
 
 # Who deploys MedApp: Helm from this script, or Argo CD from git. Not both at once.

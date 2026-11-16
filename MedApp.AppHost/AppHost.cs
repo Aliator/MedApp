@@ -17,6 +17,22 @@ var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "htt
     .WaitFor(db)
     .WithHttpHealthCheck("/health");
 
+// Attached files' bytes: Azure Blob Storage, emulated by Azurite in Docker, kept in a volume and running between
+// AppHost runs, like SQL Server. The API gets its connection string as ConnectionStrings__Attachments and creates the
+// container itself. Only when running: deployments set up storage with the Helm chart (Azurite on kind, a storage
+// account on Azure), not from here.
+if (builder.ExecutionContext.IsRunMode)
+{
+    var attachments = builder.AddAzureStorage("storage")
+        .RunAsEmulator(azurite => azurite
+            .WithDataVolume("medapp-azurite-data")
+            .WithLifetime(ContainerLifetime.Persistent))
+        .AddBlobs("attachments");
+
+    api.WithReference(attachments, connectionName: "Attachments")
+        .WaitFor(attachments);
+}
+
 // The React app (MedApp.Web), the only UI since cutover (plan Q12; the Blazor client is deprecated and not run).
 // In development, Vite proxies /api to the API's URL, which WithReference passes in, so the session cookie stays
 // first-party. Port 5173 is fixed so the UI parity tool's WEB_URL and the E2E default don't change between runs.

@@ -12,7 +12,7 @@ public sealed class GetPatientTimelineRequest
     public int PageSize { get; set; } = 20;
 
     /// <summary>
-    /// Any of these kinds: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details or Deleted.
+    /// Any of these kinds: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted or Files.
     /// </summary>
     public List<string>? Kinds { get; set; }
 

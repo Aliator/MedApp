@@ -48,6 +48,7 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
 | **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
 | **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
+| **Attached files** | Staff attach scans, photos, results and letters to a patient, a procedure or a stage: PDF, PNG, JPEG, HEIC/HEIF, Word `.docx` and plain text, up to 20 MB, with the type found from the file's contents. Files are stored in blob storage and only ever downloaded, never shown in the page; photos get a small thumbnail made by the server. Adding, deleting and downloading a file are audited. Staff delete their own files and admins any; deleting hides a file but keeps it. Files aren't scanned for malware yet: each shows "Not scanned" (step 9 of the [roadmap](#step-9-the-features-buyers-expect)). |
 | **Notifications** | Being assigned a procedure (by someone else) sends a notification, which each person can turn off in Account Settings. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
 | **Monitoring** | Admins set rules for being told what staff do to procedures (Administration, Monitoring), e.g. "Notify me when **sam** finishes **Bloods** on a **High or Urgent** priority procedure": a person or anyone, one of eight events, and optional priority, template and stage conditions. A matching change sends the admin one notification, never about their own changes, with no free text or patient details. Each admin sees only their own rules. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
@@ -213,7 +214,7 @@ These are outside the system today, and nothing in the code integrates with them
 - **No clinical integrations:** no HL7 v2, no electronic health record, no lab or imaging systems, and no connection to NHS England's PDS. Branch `feature/nhs-integrations` adds a read-only FHIR API for patients, used with a staff session (no system clients yet), and an NHS number lookup that only has an offline stub of synthetic numbers ([step 9](#step-9-the-features-buyers-expect)).
 - **No scheduling, billing or patient portal.**
 - **No structured clinical data.** Notes are free text (Markdown). Stage definitions can carry a SNOMED CT code as a label (branch `feature/nhs-integrations`); it's shown, and nothing acts on it.
-- **No file uploads.**
+- **No document management beyond attaching files:** attached files are stored and downloaded as they are, with no previews of PDFs, no versions, no malware scanning yet, and no exchange with other systems ([step 9](#step-9-the-features-buyers-expect)).
 
 ---
 
@@ -776,8 +777,8 @@ Measured on kind with two copies (#50): 8 of 8 notifications arrived live with t
 The app seeds no users, and never runs migrations at startup. A new database gets its schema and its first admin from the migrations Job:
 
 1. **The secrets come first.**
-   - **kind:** `up.sh` fills a stand-in secret store, the `medapp-vault` namespace, once, with random passwords (SQL Server's `sa`, the connection string, the first admin, the backplane). External Secrets Operator copies them into the `medapp` namespace.
-   - **Azure:** `deploy.sh` deploys `main.bicep`, which writes three Key Vault secrets from environment variables (`MEDAPP_SQL_ADMIN_PASSWORD`, `MEDAPP_FIRST_ADMIN_PASSWORD`, `MEDAPP_BACKPLANE_PASSWORD`). External Secrets reads them with workload identity.
+   - **kind:** `up.sh` fills a stand-in secret store, the `medapp-vault` namespace, with random passwords (SQL Server's `sa`, the connection string, the first admin, the backplane, and Azurite's account key for attachments). External Secrets Operator copies them into the `medapp` namespace. The step is idempotent: it adds only the entries that are missing, so **re-run `up.sh` after an upgrade that adds a secret**, as file attachments did (`medapp-attachments`). The API's reference to the attachments secret is optional, so without it the API still starts, and uploads and downloads answer 503.
+   - **Azure:** `deploy.sh` deploys `main.bicep`, which writes three Key Vault secrets from environment variables (`MEDAPP_SQL_ADMIN_PASSWORD`, `MEDAPP_FIRST_ADMIN_PASSWORD`, `MEDAPP_BACKPLANE_PASSWORD`), and a fourth, `medapp-attachments`, with the storage account's connection string, read from the account. External Secrets reads them with workload identity.
    - **Plain Helm without a store:** the chart generates random passwords, kept across upgrades by Helm's `lookup`.
 2. **The Job runs.** Under Argo CD it's a sync hook in wave 1; under plain Helm a `post-install` hook (after SQL Server exists), and `pre-upgrade` after that. Its command is:
 
@@ -1439,7 +1440,7 @@ This roadmap takes MedApp from a well-built app for one organisation to a produc
 - **Product:**
   - one organisation per deployment
   - a patient record of name, date of birth and email, with no NHS number
-  - no integrations, documents, reporting or email
+  - no integrations, reporting or email, and documents only in a first version (attached files, with no malware scanning yet)
 - **People:** one developer.
 
 ### How to read the steps
@@ -1839,7 +1840,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
-**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 22 hazards (H-22 added with the privacy features), a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`). The patient banner, the control for the wrong-patient hazards (H-01, H-02), is built on branch `feature/nhs-integrations`, also awaiting the CSO's verification.
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 29 hazards (H-22 added with the privacy features, H-23 to H-28 with file attachments, H-29 with admins' monitoring), a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and fourteen are rated 3 today (twelve before file attachments added H-23 and H-25); with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`). The patient banner, the control for the wrong-patient hazards (H-01, H-02, and H-23 for files), is built on branch `feature/nhs-integrations`, also awaiting the CSO's verification.
 
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 
@@ -2084,6 +2085,8 @@ Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR 
 4. **Documents:**
    - attach consent forms, referral letters and images to a procedure or stage
    - store them in Azure Blob Storage with a private endpoint and a customer-managed key, scanned for malware by Defender for Storage ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/defender-for-cloud/introduction-malware-scanning)), with type and size limits and audited downloads
+
+   **A first version is built** (file attachments): files on a patient, a procedure or a stage; six types found from their contents, up to 20 MB; Azure Blob Storage in UK South behind a private endpoint (Azurite on kind and in development); downloads only through the API, never shown inline, with thumbnails of photos made by the server; adding, deleting and downloading audited, and listing and downloading in the activity log; soft deletion; listed in the subject access export, renamed and deleted by anonymisation, and frozen on a restricted record. Still missing against this step: **malware scanning** by Defender for Storage (every file shows "Not scanned", and the DPIA and hazard log bring scanning forward to before go-live), a **customer-managed key**, passwordless access to the storage account, the **purge job** that removes deleted files' contents after a retention window (until it exists they're kept, an anonymised patient's included), the files themselves in the subject access export, backups of the files beyond 7 days' soft delete, PDF and HEIC previews, and attachments as FHIR **DocumentReference**s (item 3).
 5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default. Insights (`/admin/insights`, #66) is a first version for one organisation: open, in progress, overdue and completed against last week, overdue work by assignee and priority, time at each stage per template, and weekly throughput. No exports yet.
 6. **Communications and escalation:**
    - the notification kinds in `docs/todo.md` (overdue, blocked, stage unlocked), by email, with no patient identifiers in the message

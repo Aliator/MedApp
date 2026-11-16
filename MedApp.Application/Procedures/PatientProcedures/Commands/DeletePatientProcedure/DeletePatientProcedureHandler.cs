@@ -1,3 +1,4 @@
+using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Procedures.Common;
@@ -9,6 +10,7 @@ namespace MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatient
 
 public sealed class DeletePatientProcedureHandler(
     IPatientProcedureRepository repository,
+    IAttachmentRepository attachments,
     IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<DeletePatientProcedureCommand>
@@ -19,6 +21,12 @@ public sealed class DeletePatientProcedureHandler(
 
         if (!ProcedureWorkflow.CanBeDeleted(procedure))
             throw new ConflictException("Only cancelled or archived procedures can be deleted. Cancel it first.");
+
+        // Its files (and its stages') would be left pointing at nothing: they must be deleted first, which is audited.
+        var fileCount = await attachments.CountForProcedureAsync(procedure.Id, cancellationToken);
+        if (fileCount > 0)
+            throw new ConflictException(
+                $"This procedure has {fileCount} file{(fileCount == 1 ? "" : "s")} attached, so it can't be deleted. Delete the files first.");
 
         var change = new ProcedureChange(procedure, request.Actor, timeProvider.GetUtcNow().UtcDateTime);
         change.Audit(PatientProcedureAuditAction.Deleted, new { status = procedure.Status.ToString() });

@@ -5,7 +5,15 @@ import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
-import {AUDIT_ACTIONS, auditActionLabel, auditSearchQuery, describeAuditDetails, type AuditEntry} from '../../api/audit';
+import {
+  ATTACHMENT_AUDIT_ACTIONS,
+  AUDIT_ACTIONS,
+  auditActionLabel,
+  auditSearchQuery,
+  describeAuditDetails,
+  isPatientFileEntry,
+  type AuditEntry,
+} from '../../api/audit';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {dayFromToday, ListFilterBar, type ListFilterFavourite, type ListFilterField} from '../../components/tables/ListFilterBar';
@@ -36,6 +44,7 @@ const favourites = (): ListFilterFavourite[] => [
   {label: 'Status changes', values: {action: 'StatusChanged'}},
   {label: 'Assignments', values: {action: 'Assigned,Unassigned'}},
   {label: 'Deletions', values: {action: 'Deleted'}},
+  {label: 'Files', values: {action: ATTACHMENT_AUDIT_ACTIONS.join(',')}},
 ];
 
 /**
@@ -84,9 +93,16 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
       width: proportional(2, {minWidth: 96}),
       renderCell: (e) => (
         <VStack gap={0}>
-          <Text type="body" weight="semibold" maxLines={1}>
-            <Link href={`/procedures/${e.patientProcedureId}`}>{e.procedureTitle}</Link>
-          </Text>
+          {isPatientFileEntry(e) ? (
+            // A patient's own file has no procedure to link to.
+            <Text type="body" weight="semibold" maxLines={1}>
+              <Link href={`/patients/${e.patientId}`}>Patient file</Link>
+            </Text>
+          ) : (
+            <Text type="body" weight="semibold" maxLines={1}>
+              <Link href={`/procedures/${e.patientProcedureId}`}>{e.procedureTitle}</Link>
+            </Text>
+          )}
           {e.stageName && (
             <Text type="supporting" color="secondary" maxLines={1}>
               {e.stageName}

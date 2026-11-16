@@ -7,6 +7,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {
   ACCESS_ACTIONS,
+  FILE_ACTIONS,
   ACCOUNT_ACTIONS,
   ACTIVITY_ACTIONS,
   activityActionLabel,
@@ -43,6 +44,7 @@ const favourites = (): ListFilterFavourite[] => [
   {label: 'Today', values: {from: dayFromToday()}},
   {label: 'Last 7 days', values: {from: dayFromToday({days: -6})}},
   {label: 'Record access', values: {action: ACCESS_ACTIONS.join(',')}},
+  {label: 'Files', values: {action: FILE_ACTIONS.join(',')}},
   {label: 'Sign-ins', values: {action: SIGN_IN_ACTIONS.join(',')}},
   {label: 'Refused sign-ins', values: {action: 'SignInFailed'}},
   {label: 'Account changes', values: {action: ACCOUNT_ACTIONS.join(',')}},

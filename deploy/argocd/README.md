@@ -36,6 +36,8 @@ This sets up the cluster as `up.sh` always does: Traefik, cert-manager, External
 
 `up.sh` prints the commands for both passwords.
 
+**Before merging a change that adds a secret store entry** (as attachments added `medapp-attachments`), run `up.sh --argocd` again on the existing cluster. Argo CD syncs the merge on its own, but it can't fill the local store: only `up.sh` does. Without the entry, the new ExternalSecret can't sync, and Argo CD's sync stops at the Secrets (wave -1), so the merge never reaches the cluster even though Publish succeeds. The script adds only what's missing, and changes no existing entry or password (`deploy/kind/README.md`).
+
 `--revision <branch>` has Argo CD follow a branch instead of `env/kind`, to try a chart change before merging it. The image is the one `env/kind` deploys now. Run `up.sh --argocd` without it to go back to `env/kind`: that puts the Application back as `medapp-kind.yaml` has it, image included.
 
 The two ways of running kind don't mix:
