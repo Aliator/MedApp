@@ -3,16 +3,22 @@
 // - Development (`npm run dev`, which the AppHost runs): `--dev`. It hosts Vite as middleware, so it serves the
 //   app's source with hot reload and proxies /api and /swagger to the API (vite.config.ts), and renders each page
 //   from the source (src/entry-server.tsx) on http://localhost:5173.
-// - Production: the API starts it (MedApp.API's SsrHost) and forwards page requests to it; the API serves the
-//   app's files itself. It renders each page from the built server entry (`npm run build` puts it, and this file,
-//   in dist/ssr/, which publishing copies into the API's wwwroot/ssr/).
+// - Production: the API forwards page requests to it, and serves the app's files itself. It renders each page from
+//   the built server entry, with the client build's manifest for the page's scripts and stylesheets: `npm run build`
+//   puts them, and this file, in dist/ssr/, which the image holds in /app/ssr/, outside the API's wwwroot. Either the
+//   API starts it, inside its own container (MedApp.API's SsrServer), or, in Kubernetes, it runs in a container of
+//   its own beside the API (the Helm chart's pages container), and the API's Ssr:ServerUrl points at it.
 //
 // Settings, from the environment:
 // - PORT: where it listens (5173 by default). HOST: the interface (localhost by default).
+// - HEALTH_PORT: if set, a second listener on every interface, answering GET /alive with 200 once the renderer is
+//   loaded and pages are being served, for Kubernetes' probes. Only the kubelet reaches it (the chart's network
+//   policy); pages stay on HOST:PORT.
 // - MEDAPP_API_URL: where it reaches the API for a page's data. In development, by default, this server itself:
 //   its /api proxy (vite.config.ts) passes the calls on to the API, as it does the browser's, and accepts the API's
 //   development certificate, which Node wouldn't.
-// - MEDAPP_SSR_KEY: the key the API gave it, sent with its API calls (see SsrHost).
+// - MEDAPP_SSR_KEY: the key the API gave it, if the API started it, sent with its API calls (see SsrServer). A
+//   page server in its own container has none.
 // Per request, from the API: X-MedApp-Csp-Nonce, the nonce the page's Content Security Policy allows inline scripts
 // with, which the router puts on the scripts it writes (see `cspNonce`).
 // - In development, the API itself (for /api WebSockets, see `proxyWebSocket`): API_HTTPS or the AppHost's
@@ -30,6 +36,7 @@ if (!isDev) process.env.NODE_ENV ??= 'production';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT) || 5173;
 const host = process.env.HOST || 'localhost';
+const healthPort = Number(process.env.HEALTH_PORT) || undefined;
 const apiUrl = process.env.MEDAPP_API_URL || (isDev ? `http://localhost:${port}` : 'https://localhost:7038');
 const ssrKey = process.env.MEDAPP_SSR_KEY || undefined;
 const devApiTarget = process.env.API_HTTPS || process.env.services__api__https__0 || 'https://localhost:7038';
@@ -92,10 +99,11 @@ async function createDevRenderer() {
 
 /** In production: the built server entry, and the page's assets from the client build's manifest. */
 async function createProdRenderer() {
-  // Published, this file sits in wwwroot/ssr/ beside the entry; in the repo, the build is in ../dist.
-  const dist = existsSync(path.join(here, 'entry-server.js')) ? path.resolve(here, '..') : path.resolve(here, '../dist');
-  const {render} = await import(pathToFileURL(path.join(dist, 'ssr/entry-server.js')).href);
-  const viteManifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
+  // Built, this file sits beside the server entry and a copy of the client build's manifest (dist/ssr/, or
+  // /app/ssr/ in the image); run from the repo (server/), the build is in ../dist/ssr/.
+  const built = existsSync(path.join(here, 'entry-server.js')) ? here : path.resolve(here, '../dist/ssr');
+  const {render} = await import(pathToFileURL(path.join(built, 'entry-server.js')).href);
+  const viteManifest = JSON.parse(readFileSync(path.join(built, 'client-manifest.json'), 'utf8'));
 
   const entry = viteManifest['index.html'];
   const css = new Set();
@@ -239,6 +247,31 @@ if (isDev) {
   });
 }
 
+/**
+ * For Kubernetes' probes (HEALTH_PORT): answers GET /alive while this process serves pages. Started once the page
+ * listener is up, so it's also the readiness signal; and it shares the page server's event loop, so a server that's
+ * stuck stops answering it too.
+ */
+function startHealth() {
+  const health = createServer((req, res) => {
+    const alive = req.method === 'GET' && req.url === '/alive';
+    res.writeHead(alive ? 200 : 404, {'Content-Type': 'text/plain; charset=utf-8'}).end(alive ? 'alive' : '');
+  });
+  health.listen(healthPort);
+  return health;
+}
+
 server.listen(port, host, () => {
   console.log(`MedApp pages: http://${host}:${port}/ (${isDev ? 'development' : 'production'}, API at ${apiUrl})`);
+  const health = healthPort ? startHealth() : undefined;
+
+  // In a container of its own, Node is the container's first process, which ignores SIGTERM unless it says
+  // otherwise: stop taking requests, finish the pages being sent, then exit. (Started by the API, it's stopped with
+  // the API instead; in development, Vite handles stopping.)
+  if (!isDev) {
+    process.once('SIGTERM', () => {
+      health?.close();
+      server.close(() => process.exit(0));
+    });
+  }
 });
