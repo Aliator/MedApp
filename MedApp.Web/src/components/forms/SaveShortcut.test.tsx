@@ -1,6 +1,6 @@
 import {fireEvent, render, screen} from '@testing-library/react';
 import {useRef} from 'react';
-import {pickSaver, SaveShortcutProvider, useSaveShortcut, type Saver} from './SaveShortcut';
+import {isSaveShortcut, pickSaver, SaveShortcutProvider, useSaveShortcut, type Saver} from './SaveShortcut';
 
 /** A form that Ctrl+S can save, with a field in it. */
 function Form({name, onSave}: {name: string; onSave?: () => void}) {
@@ -151,4 +151,37 @@ describe('pickSaver', () => {
     expect(pickSaver([other], null, document)).toBe(other);
     expect(pickSaver([{element: () => null, save: () => {}}], el('loose'), document)).toBeNull();
   });
+});
+
+describe('isSaveShortcut', () => {
+  const press = (init: KeyboardEventInit) => isSaveShortcut(new KeyboardEvent('keydown', {key: 's', ...init}));
+
+  it('is S with Ctrl or ⌘, in either case', () => {
+    expect(press({ctrlKey: true})).toBe(true);
+    expect(press({metaKey: true})).toBe(true);
+    expect(isSaveShortcut(new KeyboardEvent('keydown', {key: 'S', ctrlKey: true}))).toBe(true);
+  });
+
+  it('is not S alone, with Alt or Shift too, another key, or while composing text', () => {
+    expect(press({})).toBe(false);
+    expect(press({ctrlKey: true, altKey: true})).toBe(false);
+    expect(press({ctrlKey: true, shiftKey: true})).toBe(false);
+    expect(isSaveShortcut(new KeyboardEvent('keydown', {key: 'd', ctrlKey: true}))).toBe(false);
+    expect(press({ctrlKey: true, isComposing: true})).toBe(false);
+  });
+});
+
+it('leaves a Ctrl+S that something else has already handled alone', () => {
+  const save = vi.fn();
+  render(
+    <SaveShortcutProvider>
+      <Form name="Handled" onSave={save} />
+    </SaveShortcutProvider>,
+  );
+  const field = screen.getByLabelText('Handled field');
+  field.addEventListener('keydown', (event) => event.preventDefault());
+
+  fireEvent.keyDown(field, {key: 's', ctrlKey: true});
+
+  expect(save).not.toHaveBeenCalled();
 });

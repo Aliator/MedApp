@@ -1,8 +1,15 @@
-import {useHotkeys} from '@astryxdesign/core/hooks';
-import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject} from 'react';
+import {createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject} from 'react';
 
 /** The save shortcut, as `Kbd` shows it: Ctrl+S, or ⌘S on a Mac. */
 export const SAVE_KEYS = 'mod+s';
+
+/**
+ * Whether a key press is the save shortcut: S with Ctrl or ⌘ (either, on any platform, so it never matters which
+ * the browser thinks it's on), and no Alt or Shift (Ctrl+Shift+S is other things, e.g. Firefox's screenshots).
+ */
+export function isSaveShortcut(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 's' && !event.isComposing;
+}
 
 /** Something Ctrl+S can save: a form's element (where focus counts as "in it"), and how to save it. */
 export interface Saver {
@@ -55,25 +62,24 @@ const SaveShortcutContext = createContext<SaveShortcutContextValue | null>(null)
  */
 export function SaveShortcutProvider({children}: {children: ReactNode}) {
   const savers = useRef<Saver[]>([]);
-  const [count, setCount] = useState(0);
 
   const register = useCallback((saver: Saver) => {
     savers.current = [...savers.current, saver];
-    setCount((n) => n + 1);
     return () => {
       savers.current = savers.current.filter((s) => s !== saver);
-      setCount((n) => n - 1);
     };
   }, []);
 
-  useHotkeys([
-    {
-      keys: SAVE_KEYS,
-      allowInInputs: true,
-      isDisabled: count === 0,
-      onPress: () => pickSaver(savers.current, document.activeElement, document)?.save(),
-    },
-  ]);
+  // One listener for every form, which looks at the forms open as the key is pressed.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !isSaveShortcut(event) || savers.current.length === 0) return;
+      event.preventDefault();
+      pickSaver(savers.current, document.activeElement, document)?.save();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const value = useMemo(() => ({register}), [register]);
   return <SaveShortcutContext.Provider value={value}>{children}</SaveShortcutContext.Provider>;
