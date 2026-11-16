@@ -21,3 +21,11 @@ export const NO_STATUS_LINE = {paddingBottom: 0} as const;
  * element's `style`.
  */
 export const NO_FIELD_STATUS_LINE = {'--medapp-field-status-line': '0px'} as CSSProperties;
+
+/**
+ * The height of that line, for something beside a field that should line up with its input rather than with the
+ * whole field, e.g. a button next to it in an `HStack` aligned to the end: give it this as its bottom padding. It's
+ * the theme's own value (`FIELD_STATUS_LINE` in `medappTheme.ts`), so keep the two the same.
+ */
+export const FIELD_STATUS_LINE_HEIGHT =
+  'var(--medapp-field-status-line, calc(2 * var(--spacing-2) + var(--text-supporting-size) * var(--text-supporting-leading)))';

@@ -72,6 +72,7 @@ import {
   RiUserAddLine,
   RiUserFollowLine,
   RiUserReceivedLine,
+  RiUserSearchLine,
   RiUserHeartLine,
   RiPushpinLine,
   RiStethoscopeLine,
@@ -180,4 +181,6 @@ export const AppIcon = {
   Unlock: remix(RiLockUnlockLine),
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),
+  // Looking a patient up by NHS number in the national demographics service
+  LookUp: remix(RiUserSearchLine),
 } as const satisfies Record<string, IconType>;

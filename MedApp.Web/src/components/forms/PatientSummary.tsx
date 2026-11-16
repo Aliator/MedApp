@@ -3,6 +3,7 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {HStack} from '@astryxdesign/core/Stack';
 import type {ReactNode} from 'react';
 import {formatDate} from '../../utils/dates';
+import {formatNhsNumber} from '../../utils/nhsNumber';
 
 export interface PatientSummaryProps {
   firstName?: string | null;
@@ -10,6 +11,8 @@ export interface PatientSummaryProps {
   /** YYYY-MM-DD. */
   dateOfBirth?: string | null;
   email?: string | null;
+  /** Shown (grouped 3, 3, 4) when given, as "Not given" when given blank or null, and left out when not given. */
+  nhsNumber?: string | null;
   showDateOfBirth?: boolean;
   showEmail?: boolean;
   /** More MetadataListItems after the standard ones. */
@@ -22,6 +25,7 @@ export function PatientSummary({
   lastName,
   dateOfBirth,
   email,
+  nhsNumber,
   showDateOfBirth = true,
   showEmail = true,
   additionalItems,
@@ -34,6 +38,9 @@ export function PatientSummary({
       <MetadataList>
         <MetadataListItem label="Name">{name || '—'}</MetadataListItem>
         {showDateOfBirth && dateOfBirth && <MetadataListItem label="Date of Birth">{formatDate(dateOfBirth)}</MetadataListItem>}
+        {nhsNumber !== undefined && (
+          <MetadataListItem label="NHS Number">{nhsNumber?.trim() ? formatNhsNumber(nhsNumber) : 'Not given'}</MetadataListItem>
+        )}
         {showEmail && email && <MetadataListItem label="Email">{email}</MetadataListItem>}
         {additionalItems}
       </MetadataList>

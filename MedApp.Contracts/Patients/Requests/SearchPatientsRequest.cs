@@ -28,4 +28,7 @@ public sealed record SearchPatientsRequest
 
     /// <summary>Born on or before this date.</summary>
     public DateOnly? DateOfBirthTo { get; init; }
+
+    /// <summary>Matches NHS numbers containing these digits (spaces are ignored).</summary>
+    public string? NhsNumber { get; init; }
 }

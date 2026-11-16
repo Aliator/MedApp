@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using MedApp.Application.Patients.Common;
 
 namespace MedApp.Application.Patients.Commands.CreatePatient;
 
@@ -30,5 +31,7 @@ public sealed class CreatePatientValidator
             .WithMessage("Email must not be empty.")
             .EmailAddress()
             .WithMessage("Email must be a valid email address.");
+
+        RuleFor(x => x.NhsNumber).NhsNumber();
     }
 }

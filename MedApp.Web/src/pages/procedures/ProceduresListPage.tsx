@@ -8,6 +8,7 @@ import type {ProcedureSummary} from '../../api/procedures';
 import {allTemplatesQuery} from '../../api/procedureSetup';
 import {procedureSearchQuery, userSearchQuery} from '../../api/search';
 import {useCurrentUser} from '../../auth/auth';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
   AssigneesCell,
@@ -232,6 +233,7 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       backHref={patientId ? `/patients/${patientId}` : undefined}
       backLabel="Back to patient"
       fill
+      banner={patientId && patient.data && <PatientBanner patient={patient.data} />}
       message={
         isError ? (
           <AlertMessage message="The procedures could not be loaded. Please try again." />

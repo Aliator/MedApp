@@ -24,6 +24,7 @@ public sealed class CreatePatientProcedureStageDefinitionHandler(IPatientProcedu
             Description = request.Description,
             Instructions = request.Instructions
         };
+        (definition.SnomedCode, definition.SnomedTerm) = SnomedRules.Normalise(request.SnomedCode, request.SnomedTerm);
 
         await repository.AddStageDefinitionAsync(definition, cancellationToken);
 

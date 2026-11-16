@@ -11,6 +11,7 @@ import {procedureTemplatesQuery, useCreateProcedure, type ProcedureDetailsInput,
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
@@ -20,6 +21,7 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {todayIso} from '../../utils/dates';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {EMPTY_PROCEDURE_DETAILS, PROCEDURE_DETAILS_FIELDS, ProcedureDetailsFields} from './ProcedureDetailsFields';
+import {SnomedConcept} from '../../components/procedures/SnomedConcept';
 
 const NEW_PROCEDURE_FIELDS = ['templateId', ...PROCEDURE_DETAILS_FIELDS];
 
@@ -139,6 +141,7 @@ export function NewProcedurePage({patientId}: NewProcedurePageProps) {
       isLoading={templates.isPending}
       loadingMessage="Loading templates..."
       fill
+      banner={patient.data && <PatientBanner patient={patient.data} />}
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={NEW_PROCEDURE_FIELDS} />
@@ -202,6 +205,7 @@ function TemplateStages({template}: {template: ProcedureTemplate}) {
               {stage.description}
             </Text>
           )}
+          <SnomedConcept code={stage.snomedCode} term={stage.snomedTerm} />
         </VStack>
       ))}
     </VStack>

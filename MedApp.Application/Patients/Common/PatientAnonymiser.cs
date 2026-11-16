@@ -9,7 +9,7 @@ namespace MedApp.Application.Patients.Common;
 /// and every piece of free text become placeholders, and everything else stays, so the record's structure, its
 /// statistics (procedures, templates, statuses, dates, who did what and when) and its audit trail survive.
 /// <list type="bullet">
-/// <item>Name and email become placeholders; the date of birth keeps only its year (1 January), for age statistics.</item>
+/// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
 /// <item>Procedure titles become the template's name; procedure and stage notes become <see cref="RemovedText"/>.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
 /// <item>Notifications about the procedures take the new titles.</item>
@@ -37,6 +37,7 @@ public static class PatientAnonymiser
         patient.FirstName = FirstName;
         patient.LastName = LastName;
         patient.Email = Email;
+        patient.NhsNumber = null;
         patient.DateOfBirth = new DateOnly(patient.DateOfBirth.Year, 1, 1);
         patient.RestrictedAtUtc = null;
         patient.RestrictionReason = null;

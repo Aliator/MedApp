@@ -198,6 +198,18 @@ describe('ProceduresListPage', () => {
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&PatientId=${patientId}`);
   });
 
+  it("shows the patient's banner on one patient's procedures, and none on the full list", async () => {
+    const {unmount} = renderList({}, {patientId});
+
+    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('No NHS number')).toBeInTheDocument();
+    unmount();
+
+    renderList();
+    await screen.findByText('Colonoscopy');
+    expect(screen.queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
+  });
+
   it("shows the patient's banners over their procedures", async () => {
     renderList({}, {patientId, patientFlags: {isDisputed: true, disputeReason: 'Synthetic allergy', isRestricted: true, restrictionReason: 'Synthetic check'}});
 

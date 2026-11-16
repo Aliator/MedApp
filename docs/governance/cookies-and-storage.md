@@ -46,6 +46,6 @@ The settings and pins are also stored with the account on the server (`UserSetti
 
 ## 4. Gaps
 
-- **Browser history** isn't storage MedApp sets, but list pages put their filters in the URL, so patient search terms (names, email, date of birth) land in the history and address bar suggestions. The product owner decided to keep filters in the URL, because shareable list links are a feature; the staff rules and the customer's shared-computer measures cover it ([dpia.md](dpia.md), risk 10).
+- **Browser history** isn't storage MedApp sets, but list pages put their filters in the URL, so patient search terms (names, email, NHS number, date of birth) land in the history and address bar suggestions. The product owner decided to keep filters in the URL, because shareable list links are a feature; the staff rules and the customer's shared-computer measures cover it ([dpia.md](dpia.md), risk 10).
 - **A session that expires** without a sign-out leaves the storage in the browser until someone signs out there.
 - **The cookie name** will gain the `__Host-` prefix outside development (roadmap step 2), which keeps it to MedApp's own host. That doesn't change this statement.
