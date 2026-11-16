@@ -298,6 +298,10 @@ jobs:
       - name: Lint with Azure's values
         run: helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
 
+      # The page server inside the API's container (the API starts Node), instead of in a container of its own.
+      - name: Lint with the page server in the API's container
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set api.pageServer.enabled=false
+
       # The Azure infrastructure (deploy/azure): compiled and linted, so a broken template fails here rather than on a
       # deploy. Placeholder passwords; nothing is deployed. The Azure CLI comes with the runner image.
       - name: Build the Bicep

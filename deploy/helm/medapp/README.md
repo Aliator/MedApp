@@ -1,7 +1,8 @@
 # MedApp's Helm chart
 
 Steps 2 and 3 of the Kubernetes plan (`docs/todo.md`). It deploys:
-- **The API** from its image (`MedApp.API/Dockerfile`): it serves the React app, renders its pages with Node and answers `/api`, including the notifications WebSocket.
+- **The API** from its image (`MedApp.API/Dockerfile`): it serves the React app and answers `/api`, including the notifications WebSocket.
+- **The page server** beside it, in the same pod (`api.pageServer`): Node, from the same image, rendering the pages the API forwards to it.
 - **SQL Server** in the cluster (`sql.enabled`, on by default), or an **external database** such as Azure SQL.
 - **An ingress** in front of the API (`ingress.enabled`), with TLS from cert-manager if you like.
 - **The EF migrations** as a Job, from the migrations bundle in the same image (`/app/efbundle`). The same Job then makes the **first admin**.
@@ -68,6 +69,19 @@ Set `api.replicas` above 1. Live notifications then go through the **backplane**
 - **Spread across nodes:** with more than one copy, the scheduler is asked to put them on different nodes (a topology spread over `kubernetes.io/hostname`). It's a preference, not a rule, so a one-node cluster such as kind still runs them all.
 - **The chart refuses** more than one copy without the backplane.
 
+## The page server
+
+Pages are rendered on the server by Node (`MedApp.Web/server/server.mjs`). With `api.pageServer.enabled` (the default, and what kind and Azure use), it runs as a second container, `pages`, in each API pod:
+- **The same image,** with its own command: `node /app/ssr/server.mjs`. The image keeps the page server in `/app/ssr`, outside the API's `wwwroot`.
+- **None of the API's secrets or settings.** Its environment is only where it listens (`HOST=127.0.0.1`, `PORT=8082`), its health port (`HEALTH_PORT=8083`) and the API's address (`MEDAPP_API_URL=http://127.0.0.1:8080`), besides what the image and Kubernetes always set. The pod has `enableServiceLinks: false`, so it doesn't get every Service's address either. It runs as its own user (1655, not the API's 1654), in its own container, so code running in Node can't see the API's process or read its connection strings.
+- **Talking to the API:** the API forwards page requests to `http://127.0.0.1:8082` (`Ssr:ServerUrl`), with the page's CSP nonce in `X-MedApp-Csp-Nonce`. The page server calls the API back on `http://127.0.0.1:8080` with the visitor's cookie, so each call is authorised as the visitor's own. Pages listen on loopback only, so nothing outside the pod reaches them.
+- **Probes:** `GET /alive` on 8083 for the startup, readiness and liveness probes. Kubernetes restarts the container if it stops answering. The pod is ready only while both containers are, and a page that reaches the API while the page server is down is rendered in the browser instead.
+- **Stopping:** like the API, it waits 5 seconds (`preStop`), then finishes the pages it's sending and exits.
+- **Its own limits:** `api.pageServer.resources` (128 MiB requested, a 512 MiB limit; about 75 MiB in use on kind).
+- **Network policies** apply to the whole pod, so the page server could make the API's connections too (DNS, the database, the backplane), though it has none of their passwords.
+
+With `api.pageServer.enabled=false`, the API starts Node inside its own container instead, as it does outside Kubernetes. Node then gets an allowlist of the API's environment, but runs as the same user, so it could read the API's secrets from `/proc`; and if it stops, it isn't restarted until the pod is.
+
 ## How it's locked down
 
 - **Network policies** (`networkPolicy.enabled`, on by default):
@@ -75,13 +89,14 @@ Set `api.replicas` above 1. Live notifications then go through the **backplane**
   - Only the API and the migrations Job reach SQL Server, and SQL Server reaches nothing.
   - Only the API reaches Valkey, and Valkey reaches nothing. Valkey also needs a password.
   - The API and the Job reach only DNS and the database, plus anything in `networkPolicy.extraEgress`. Use that for an external database, which the policies otherwise block.
-- **Health checks** are on their own port, 8081, which neither the Service nor the ingress exposes, so only the kubelet's probes reach them:
-  - `/alive` for the startup and liveness probes.
-  - `/health` for readiness.
+- **Health checks** are on their own ports, which neither the Service nor the ingress exposes, so only the kubelet's probes reach them:
+  - The API's, on 8081: `/alive` for the startup and liveness probes, and `/health` for readiness.
+  - The page server's, on 8083: `/alive` for all three.
 - **Pods:**
+  - The page server runs in a container of its own, as its own user, with none of the API's secrets ([The page server](#the-page-server)).
   - Every pod meets the `restricted` Pod Security Standard: non-root users, the default seccomp profile, no privilege escalation, and all capabilities dropped. SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs to start.
   - No pod gets a Kubernetes API token, because none calls the API.
-  - Root filesystems are read-only. `/tmp` is a small scratch volume, and SQL Server writes its data to its own volume.
+  - Root filesystems are read-only. The API's `/tmp` is a small scratch volume (the page server has none), and SQL Server writes its data to its own volume.
 - **HTTPS:** the API sends HSTS outside Development, so browsers stay on https once they've used it. Have the ingress controller redirect http to https.
 - **Resource limits** on every container.
 
@@ -89,6 +104,5 @@ Set `api.replicas` above 1. Live notifications then go through the **backplane**
 
 Argo CD (`deploy/argocd`) and Azure (`deploy/azure`) use this chart; what Azure still lacks is in `deploy/azure/README.md`. In the chart and the app:
 - **Readiness ignores the database and Valkey.** `/health` only says the process is up, so a pod stays ready while either is down. A database check needs care: it would hold up the first install, where the API starts before the migrations Job has made the schema.
-- **Node is never restarted.** If the page server exits, the API logs it once and serves pages rendered in the browser until the pod restarts, and nothing reports it.
 - **Images by tag, not digest.** SQL Server (`2022-latest`) and Valkey are pulled by tags that move, and so are the Dockerfile's base images, so a new node can pull something newer than the rest.
 - **Passwords changed in the store reach running pods only when they restart.** External Secrets updates the Secrets (`externalSecrets.refreshInterval`), but the API and Valkey read them as environment variables at start, and nothing restarts them.

@@ -21,6 +21,20 @@ api:
       memory: 1Gi
   # Extra environment variables for the API, as a list of {name, value} (or valueFrom).
   env: []
+  # The page server, which renders the React app's pages (MedApp.Web/server/server.mjs): a second container in the
+  # API's pod, from the same image (node /app/ssr/server.mjs), with none of the API's secrets or settings. The API
+  # forwards page requests to it on 127.0.0.1 (Ssr:ServerUrl), and it calls the API back there for a page's data.
+  # Kubernetes restarts it if it stops answering; meanwhile, pages are rendered in the browser. Turned off, the API
+  # starts Node inside its own container instead, as it does outside Kubernetes (Node could then read the API's
+  # secrets from /proc).
+  pageServer:
+    enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
   service:
     type: ClusterIP
     port: 80

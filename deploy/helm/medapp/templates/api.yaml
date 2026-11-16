@@ -1,4 +1,10 @@
 {{- $name := printf "%s-api" (include "medapp.fullname" .) }}
+{{- /*
+The page server (api.pageServer): a second container in the API's pod, which shares its network, so the two talk on
+127.0.0.1. Pages on one port, on loopback only; its health on another, for the kubelet's probes.
+*/}}
+{{- $pagesPort := 8082 }}
+{{- $pagesHealthPort := 8083 }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -43,6 +49,9 @@ spec:
       {{- end }}
       # The image's own non-root user (APP_UID in the .NET images).
       {{- include "medapp.podSecurity" (list . 1654) | nindent 6 }}
+      # No variables naming every Service in the namespace: neither container uses them, and the page server gets
+      # only the settings below.
+      enableServiceLinks: false
       {{- if gt (int .Values.api.replicas) 1 }}
       # The copies on different nodes where there are enough, so losing one node doesn't take them all. A preference,
       # not a rule (ScheduleAnyway): a one-node cluster, such as kind, still runs every copy.
@@ -82,6 +91,11 @@ spec:
             # Behind the ingress: take the client's scheme and address from its X-Forwarded-* headers.
             - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
               value: "true"
+            {{- if .Values.api.pageServer.enabled }}
+            # Pages are rendered by the pages container beside this one, not by a Node the API starts itself.
+            - name: Ssr__ServerUrl
+              value: "http://127.0.0.1:{{ $pagesPort }}"
+            {{- end }}
             {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -115,9 +129,69 @@ spec:
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           volumeMounts:
-            # The root filesystem is read-only; .NET and Node get a scratch folder.
+            # The root filesystem is read-only; .NET (and Node, when the API starts it) get a scratch folder.
             - name: tmp
               mountPath: /tmp
+        {{- if .Values.api.pageServer.enabled }}
+        # The page server (MedApp.Web/server/server.mjs), from the same image. It renders the pages the API forwards to
+        # it, calling the API back on 127.0.0.1 with the visitor's cookie for their data. A container of its own, so
+        # code running in Node (a rendering flaw, a compromised npm package) can't reach the API's process or its
+        # environment: it gets none of the API's secrets or settings, only what's below, and runs as a user of its own.
+        - name: pages
+          image: {{ include "medapp.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "/app/ssr/server.mjs"]
+          securityContext:
+            {{- include "medapp.containerSecurityContext" . | nindent 12 }}
+            # Not the API's user (1654): even if the pod ever shared its process namespace, the API's /proc entries
+            # (its environment) would stay out of reach.
+            runAsUser: 1655
+            runAsGroup: 1655
+          env:
+            # Pages on loopback only: just the API, in this pod, reaches them.
+            - name: HOST
+              value: "127.0.0.1"
+            - name: PORT
+              value: "{{ $pagesPort }}"
+            # GET /alive on every interface, for the probes below (the network policy lets no one else reach it).
+            - name: HEALTH_PORT
+              value: "{{ $pagesHealthPort }}"
+            # The API, for a page's data: the app's port, in this pod.
+            - name: MEDAPP_API_URL
+              value: "http://127.0.0.1:8080"
+            - name: NODE_ENV
+              value: production
+          ports:
+            - name: pages-health
+              containerPort: {{ $pagesHealthPort }}
+          lifecycle:
+            # As the API does: keep rendering while the ingress stops sending requests here, then finish the pages
+            # being sent and exit (server.mjs handles SIGTERM).
+            preStop:
+              sleep:
+                seconds: 5
+          # Ready once it's loaded and serving pages, and restarted if it stops answering. The pod is ready only while
+          # both containers are, so the ingress sends requests to another copy meanwhile; a page that reaches this
+          # API while the page server is down still works, rendered in the browser.
+          startupProbe:
+            httpGet:
+              path: /alive
+              port: pages-health
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /alive
+              port: pages-health
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: pages-health
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.api.pageServer.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: tmp
           emptyDir:
