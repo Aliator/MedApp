@@ -17,6 +17,7 @@ export const GO_TO = [
   {key: 's', label: 'Account Settings', href: '/account'},
   {key: 'u', label: 'Users', href: '/admin/users', isAdmin: true},
   {key: 'a', label: 'Audit Log', href: '/admin/audit', isAdmin: true},
+  {key: 'i', label: 'Insights', href: '/admin/insights', isAdmin: true},
 ] as const;
 
 /** How long after G its letter can come. */

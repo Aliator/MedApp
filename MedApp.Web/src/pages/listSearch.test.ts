@@ -11,6 +11,7 @@ import {
   parseProceduresSearch,
   parseSetupSearch,
   parseChoice,
+  parseInsightsSearch,
   parseUsersSearch,
   procedureStatuses,
 } from './listSearch';
@@ -231,5 +232,19 @@ describe('parseAuditSearch', () => {
   it('knows when the log is filtered', () => {
     expect(hasAuditFilters({page: 2, asc: true})).toBe(false);
     expect(hasAuditFilters({procedureId: 'x'})).toBe(true);
+  });
+});
+
+describe('parseInsightsSearch', () => {
+  it('reads the period and template, keeping 12 weeks (the default) out', () => {
+    const template = '0000000E-0000-0000-0000-000000000001';
+    expect(parseInsightsSearch({weeks: '26', template})).toEqual({weeks: 26, template: template.toLowerCase()});
+    expect(parseInsightsSearch({weeks: 4})).toEqual({weeks: 4});
+    expect(parseInsightsSearch({weeks: '12'})).toEqual({});
+  });
+
+  it('drops a period it does not offer, and a template that is not an ID', () => {
+    expect(parseInsightsSearch({weeks: '5', template: 'knee'})).toEqual({});
+    expect(parseInsightsSearch({})).toEqual({});
   });
 });

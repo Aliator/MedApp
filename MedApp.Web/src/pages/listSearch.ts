@@ -7,6 +7,7 @@
 import {AUDIT_ACTIONS} from '../api/audit';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function text(value: unknown): string | undefined {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
@@ -205,11 +206,22 @@ export interface ProceduresListSearch {
   mine?: boolean;
   /** Include Completed, Cancelled and Archived (hidden by default). */
   closed?: boolean;
+  /** Who it's assigned to: a user's ID, or `none` for nobody (e.g. from Insights' overdue work by assignee). */
+  assignee?: string;
   dueFrom?: string;
   dueTo?: string;
 }
 
 const flag = (value: unknown) => (bool(value) ? true : undefined);
+
+/** The `assignee` filter's value for nobody assigned. */
+export const NOBODY = 'none';
+
+/** An assignee filter: a user's ID, or `none`; anything else is dropped. */
+function assignee(value: unknown): string | undefined {
+  const t = text(value)?.toLowerCase();
+  return t === NOBODY || (t && GUID.test(t)) ? t : undefined;
+}
 
 /**
  * The statuses a procedure list's search asks the API for: those chosen; for "not any of", the others (the open
@@ -233,6 +245,7 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
     overdue: flag(raw.overdue),
     mine: bool(raw.mine),
     closed: flag(raw.closed),
+    assignee: assignee(raw.assignee),
     dueFrom: date(raw.dueFrom),
     dueTo: date(raw.dueTo),
   });
@@ -240,7 +253,7 @@ export function parseProceduresSearch(raw: Record<string, unknown>): ProceduresL
 
 export const hasProcedureFilters = (s: ProceduresListSearch) =>
   Boolean(
-    s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.dueFrom || s.dueTo,
+    s.title || s.template || s.patient || s.status || s.priority || s.overdue || s.mine || s.closed || s.assignee || s.dueFrom || s.dueTo,
   );
 
 // Procedure setup (admin): stage definitions and templates --------------------------------------------
@@ -283,8 +296,6 @@ export interface AuditListSearch {
   to?: string;
 }
 
-const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch {
   const procedureId = text(raw.procedureId);
   return compact({
@@ -299,3 +310,25 @@ export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch 
 }
 
 export const hasAuditFilters = (s: AuditListSearch) => Boolean(s.q || s.action || s.procedureId || s.from || s.to);
+
+// Insights (admin) ------------------------------------------------------------------------------------
+
+/** The periods Insights offers, in weeks (this one included). */
+export const INSIGHTS_WEEKS = [4, 12, 26] as const;
+export type InsightsWeeks = (typeof INSIGHTS_WEEKS)[number];
+export const DEFAULT_INSIGHTS_WEEKS: InsightsWeeks = 12;
+
+/** Insights' filters: the period (12 weeks unless the URL says otherwise) and a template (its ID). */
+export interface InsightsSearch {
+  weeks?: InsightsWeeks;
+  template?: string;
+}
+
+export function parseInsightsSearch(raw: Record<string, unknown>): InsightsSearch {
+  const weeks = INSIGHTS_WEEKS.find((w) => w === Number(text(raw.weeks)));
+  const template = text(raw.template);
+  return compact({
+    weeks: weeks === DEFAULT_INSIGHTS_WEEKS ? undefined : weeks,
+    template: template && GUID.test(template) ? template.toLowerCase() : undefined,
+  });
+}

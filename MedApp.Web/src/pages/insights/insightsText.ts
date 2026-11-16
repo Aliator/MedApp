@@ -1,0 +1,97 @@
+/**
+ * Insights' numbers in words: durations, weeks, the charts' summaries, and the links from a count to the procedures
+ * list it counts (its URL filters: `overdue`, `priority`, `assignee`, `status` and `template`).
+ */
+
+import type {OverdueByAssignee, OverdueByPriority, ProcedureInsights, TemplateStageTimes, WeeklyThroughput} from '../../api/insights';
+import {NOBODY} from '../listSearch';
+
+/** A duration given in hours, as people say it: "45 min", "5 h 30 min", "3 d 4 h". */
+export function formatHours(hours: number): string {
+  const minutes = Math.round(hours * 60);
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 48 * 60) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m ? `${h} h ${m} min` : `${h} h`;
+  }
+  const totalHours = Math.round(minutes / 60);
+  const d = Math.floor(totalHours / 24);
+  const h = totalHours % 24;
+  return h ? `${d} d ${h} h` : `${d} d`;
+}
+
+/** A week by its Monday (YYYY-MM-DD), short, for an axis: "8 Jun". */
+export function formatWeek(monday: string): string {
+  const [year, month, day] = monday.split('-').map(Number);
+  if (!year || !month || !day) return monday;
+  return new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'}).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** An assignee's name: the account's, "Nobody" for the unassigned, or "Deleted user" for an account that's gone. */
+export const assigneeName = (row: OverdueByAssignee) => (row.userId ? (row.username ?? 'Deleted user') : 'Nobody');
+
+
+/** The procedures list, filtered: the template's name is added when Insights is on one. */
+export function proceduresHref(filters: Record<string, string>, templateName?: string): string {
+  const query = new URLSearchParams({...filters, ...(templateName ? {template: templateName} : {})}).toString();
+  return query ? `/procedures?${query}` : '/procedures';
+}
+
+export const assigneeHref = (row: OverdueByAssignee, templateName?: string) =>
+  proceduresHref({overdue: 'true', assignee: row.userId ?? NOBODY}, templateName);
+
+export const priorityHref = (row: OverdueByPriority, templateName?: string) =>
+  proceduresHref({overdue: 'true', priority: row.priority ?? ''}, templateName);
+
+export function overdueByAssigneeSummary(insights: ProcedureInsights): string {
+  const overdue = insights.overdue?.current ?? 0;
+  if (overdue === 0) return 'Nothing is overdue.';
+  const rows = insights.overdueByAssignee ?? [];
+  const nobody = rows.find((r) => !r.userId)?.count ?? 0;
+  const top = rows.find((r) => r.userId);
+  const parts = [`${plural(overdue, 'procedure is', 'procedures are')} overdue.`];
+  if (top) parts.push(`${assigneeName(top)} has the most (${top.count}).`);
+  if (nobody) parts.push(`${plural(nobody, 'has', 'have')} nobody assigned.`);
+  return parts.join(' ');
+}
+
+export function overdueByPrioritySummary(insights: ProcedureInsights): string {
+  const overdue = insights.overdue?.current ?? 0;
+  if (overdue === 0) return 'Nothing is overdue.';
+  const count = (priority: string) => insights.overdueByPriority?.find((r) => r.priority === priority)?.count ?? 0;
+  return `Of ${overdue} overdue, ${count('Urgent')} ${count('Urgent') === 1 ? 'is' : 'are'} urgent and ${count('High')} high priority.`;
+}
+
+export function throughputSummary(weeks: readonly WeeklyThroughput[]): string {
+  const created = weeks.reduce((sum, w) => sum + (w.created ?? 0), 0);
+  const completed = weeks.reduce((sum, w) => sum + (w.completed ?? 0), 0);
+  const thisWeek = weeks[weeks.length - 1];
+  const balance =
+    created === completed
+      ? 'as many completed as created'
+      : created > completed
+        ? `${created - completed} more created than completed`
+        : `${completed - created} more completed than created`;
+  const parts = [
+    `Over ${plural(weeks.length, 'week')}, ${plural(created, 'procedure')} created and ${completed} completed: ${balance}.`,
+  ];
+  if (thisWeek) parts.push(`This week so far: ${thisWeek.created ?? 0} created, ${thisWeek.completed ?? 0} completed.`);
+  return parts.join(' ');
+}
+
+/** The stage with the longest average time (waiting and working), across the templates. */
+export function stageTimesSummary(templates: readonly TemplateStageTimes[]): string {
+  const stages = templates.flatMap((t) =>
+    (t.stages ?? []).map((s) => ({template: t.templateName ?? '', stage: s, total: (s.averageWaitingHours ?? 0) + (s.averageWorkingHours ?? 0)})),
+  );
+  if (stages.length === 0) return 'No stages were finished in this period.';
+  const longest = stages.reduce((a, b) => (b.total > a.total ? b : a));
+  const where = templates.length > 1 ? ` of ${longest.template}` : '';
+  return (
+    `The longest is ${longest.stage.stageName}${where}: ${formatHours(longest.total)} on average, ` +
+    `${formatHours(longest.stage.averageWaitingHours ?? 0)} of it waiting to be started.`
+  );
+}

@@ -1,11 +1,14 @@
-import {screen, within} from '@testing-library/react';
-import {calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {screen, waitFor, within} from '@testing-library/react';
+import {adminUser, calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import type {CurrentUser} from '../../auth/auth';
 import {HalfViewContext} from '../../components/pages/halfView';
 import type {ProceduresListSearch} from '../listSearch';
 import {ProceduresListPage} from './ProceduresListPage';
 
 const SEARCH = 'GET /api/procedures/patient-procedures/search';
 const patientId = 'patient-1';
+const USERS = 'GET /api/auth/users/search';
+const STAFF_ID = '0000000a-0000-0000-0000-000000000001';
 
 const summary = (overrides: Record<string, unknown> = {}) => ({
   id: 'proc-1',
@@ -26,15 +29,19 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-function renderList(search: ProceduresListSearch = {}, options: {patientId?: string; body?: unknown; status?: number} = {}) {
+function renderList(
+  search: ProceduresListSearch = {},
+  options: {patientId?: string; body?: unknown; status?: number; user?: CurrentUser} = {},
+) {
   const fetch = mockApi({
     [SEARCH]: () =>
       json(options.body ?? pageOf([summary(), summary({id: 'proc-2', title: 'Biopsy', assignees: [], status: 'Unassigned'})], 23), options.status),
     [`GET /api/patients/${patientId}`]: () => json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1970-01-01', email: 't@example.com'}),
+    [USERS]: () => json(pageOf([{userId: STAFF_ID, username: 'k.ashford', roles: ['User']}])),
   });
   const onSearchChange = vi.fn();
   const result = renderWithApp(<ProceduresListPage search={search} onSearchChange={onSearchChange} patientId={options.patientId} />, {
-    user: staffUser,
+    user: options.user ?? staffUser,
   });
   return {...result, fetch, onSearchChange};
 }
@@ -181,6 +188,30 @@ describe('ProceduresListPage', () => {
     expect(screen.getByRole('link', {name: 'Back'})).toHaveAttribute('href', `/patients/${patientId}`);
     expect(screen.getByRole('link', {name: 'New Procedure'})).toHaveAttribute('href', `/procedures/new?patientId=${patientId}`);
     expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&PatientId=${patientId}`);
+  });
+
+  it("shows someone's procedures, named from the accounts for an admin", async () => {
+    const {fetch} = renderList({overdue: true, assignee: STAFF_ID}, {user: adminUser});
+
+    await screen.findByText('Colonoscopy');
+    expect(calls(fetch)).toContain(`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&OverdueOnly=true&AssignedToUserId=${STAFF_ID}`);
+    await waitFor(() => expect(calls(fetch)).toContain(`${USERS}?PageSize=100&Sort=username`));
+    await waitFor(() => expect(searchBar()).toHaveTextContent(/Assigned to: is\s*k\.ashford/));
+  });
+
+  it('shows the procedures nobody is assigned', async () => {
+    const {fetch} = renderList({assignee: 'none'});
+
+    await screen.findByText('Colonoscopy');
+    expect(calls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=dueDate&Ascending=true&NobodyAssigned=true`]);
+    expect(searchBar()).toHaveTextContent(/Assigned to: is\s*Nobody/);
+  });
+
+  it("names someone it can't look up (staff can't list the accounts) as the selected person", async () => {
+    renderList({assignee: STAFF_ID});
+
+    await screen.findByText('Colonoscopy');
+    expect(searchBar()).toHaveTextContent(/Assigned to: is\s*Selected person/);
   });
 
   it('says when there are no open procedures', async () => {

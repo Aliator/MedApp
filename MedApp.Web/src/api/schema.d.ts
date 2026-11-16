@@ -796,6 +796,7 @@ export interface paths {
                     Priorities?: string[];
                     AssignedToUserId?: string;
                     AssignedToMe?: boolean;
+                    NobodyAssigned?: boolean;
                     OverdueOnly?: boolean;
                     DueFrom?: string;
                     DueTo?: string;
@@ -1614,6 +1615,68 @@ export interface paths {
                         "text/plain": components["schemas"]["ValidationProblemDetails"];
                         "application/json": components["schemas"]["ValidationProblemDetails"];
                         "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/procedures/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Weeks?: number;
+                    TemplateId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProcedureInsightsResponse"];
+                        "application/json": components["schemas"]["ProcedureInsightsResponse"];
+                        "text/json": components["schemas"]["ProcedureInsightsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -2705,6 +2768,12 @@ export interface components {
             code?: string | null;
             description?: string | null;
         };
+        InsightsComparisonResponse: {
+            /** Format: int32 */
+            current?: number;
+            /** Format: int32 */
+            lastWeek?: number;
+        };
         LoginRequest: {
             username?: string | null;
             password?: string | null;
@@ -2731,6 +2800,18 @@ export interface components {
             items?: components["schemas"]["NotificationResponse"][] | null;
             /** Format: int32 */
             unreadCount?: number;
+        };
+        OverdueByAssigneeResponse: {
+            /** Format: uuid */
+            userId?: string | null;
+            username?: string | null;
+            /** Format: int32 */
+            count?: number;
+        };
+        OverdueByPriorityResponse: {
+            priority?: string | null;
+            /** Format: int32 */
+            count?: number;
         };
         PatientProcedureAssignmentResponse: {
             /** Format: uuid */
@@ -2931,6 +3012,24 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ProcedureInsightsResponse: {
+            /** Format: int32 */
+            weeks?: number;
+            /** Format: uuid */
+            templateId?: string | null;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            open?: components["schemas"]["InsightsComparisonResponse"];
+            inProgress?: components["schemas"]["InsightsComparisonResponse"];
+            overdue?: components["schemas"]["InsightsComparisonResponse"];
+            completedThisWeek?: components["schemas"]["InsightsComparisonResponse"];
+            overdueByAssignee?: components["schemas"]["OverdueByAssigneeResponse"][] | null;
+            overdueByPriority?: components["schemas"]["OverdueByPriorityResponse"][] | null;
+            stageTimes?: components["schemas"]["TemplateStageTimesResponse"][] | null;
+            throughput?: components["schemas"]["WeeklyThroughputResponse"][] | null;
+        };
         RevokeRoleRequest: {
             username?: string | null;
             role?: string | null;
@@ -2940,6 +3039,23 @@ export interface components {
         };
         SetUserRolesRequest: {
             roles?: string[] | null;
+        };
+        StageTimeResponse: {
+            /** Format: int32 */
+            stageOrder?: number;
+            stageName?: string | null;
+            /** Format: int32 */
+            finishedCount?: number;
+            /** Format: double */
+            averageWaitingHours?: number;
+            /** Format: double */
+            averageWorkingHours?: number;
+        };
+        TemplateStageTimesResponse: {
+            /** Format: uuid */
+            templateId?: string | null;
+            templateName?: string | null;
+            stages?: components["schemas"]["StageTimeResponse"][] | null;
         };
         UpdatePatientProcedureRequest: {
             title?: string | null;
@@ -3005,6 +3121,14 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        WeeklyThroughputResponse: {
+            /** Format: date */
+            weekStart?: string;
+            /** Format: int32 */
+            created?: number;
+            /** Format: int32 */
+            completed?: number;
         };
         WhoAmIResponse: {
             isAuthenticated?: boolean;
