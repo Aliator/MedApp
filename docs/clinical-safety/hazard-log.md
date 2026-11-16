@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.4, draft |
+| **Version** | 0.7, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring rules (PR #84); H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -33,8 +33,8 @@
 
 | ID | Hazard | Initial risk | At first live use | Residual risk | Needs a product change? | Status |
 |---|---|---|---|---|---|---|
-| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
+| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** (the banner built on branch `feature/nhs-integrations`, to verify; the rest proposed) | Open |
 | [H-03](#h-03-a-patients-details-are-changed-or-deleted-without-trace) | A patient's details are changed or deleted without trace | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-04](#h-04-an-overdue-procedure-is-missed) | An overdue procedure is missed | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
 | [H-05](#h-05-a-blocked-procedure-is-forgotten) | A blocked procedure is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
@@ -54,17 +54,21 @@
 | [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-30](#h-22-a-visit-the-patient-needs-doesnt-happen) | A visit the patient needs doesn't happen | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-31](#h-23-a-member-of-staff-is-double-booked) | A member of staff is double-booked | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-32](#h-24-a-stage-is-finished-without-the-visit-it-needed) | A stage is finished without the visit it needed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-33](#h-25-an-appointment-is-at-the-wrong-time) | An appointment is at the wrong time | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-34](#h-26-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-35](#h-27-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-36](#h-28-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-22](#h-22-care-under-way-is-delayed-because-the-patients-record-is-restricted) | Care under way is delayed because the patient's record is restricted | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later (a local procedure before first live use) | Open |
+| [H-29](#h-29-an-admin-relies-on-a-monitoring-rule-to-follow-up-clinical-work) | An admin relies on a monitoring rule to follow up clinical work | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Information before first live use; an outbox later | Open |
+| [H-30](#h-30-a-visit-the-patient-needs-doesnt-happen) | A visit the patient needs doesn't happen | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-31](#h-31-a-member-of-staff-is-double-booked) | A member of staff is double-booked | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-32](#h-32-a-stage-is-finished-without-the-visit-it-needed) | A stage is finished without the visit it needed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-33](#h-33-an-appointment-is-at-the-wrong-time) | An appointment is at the wrong time | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-34](#h-34-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-35](#h-35-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-36](#h-36-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
 **At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
+
+**The patient banner,** the main control for H-01 and H-02, is built on branch `feature/nhs-integrations`, with the NHS number. It doesn't change any rating yet: the initial ratings are for `88dc1fa`, and the "at first live use" ratings already assumed it. Those two ratings now depend on the CSO verifying the banner, and on the other controls marked "before first live use" (the date of birth in lists, the patient's name in the page title and in the confirmations), which aren't built.
 
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
@@ -77,8 +81,10 @@
 **Description.** A member of staff opens, and records work on, a procedure that belongs to a different patient from the one in front of them, believing it's the right one.
 
 **Causes:**
-- Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`).
-- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`).
+- Patients are identified by first name, last name, date of birth and email only. There's no NHS number or local hospital number, and nothing stops two patients with the same name and date of birth (`MedApp.Domain/Patients/Patient.cs`, `CreatePatientHandler`). **Since branch `feature/nhs-integrations`,** a patient can have an NHS number, optional and unique, so two records with the same number are refused; but two patients with the same name and date of birth, or one patient recorded twice with the number on only one record, still aren't caught. There's still no local hospital number.
+- The procedure page shows the patient's name only, in the "Patient info" part, which can be folded away. It doesn't show the date of birth. The page's title is the procedure's title, not the patient's name (`MedApp.Web/src/pages/procedures/ProcedurePage.tsx`, `details()`). Branch `feature/nhs-integrations` adds the patient banner above it (further controls); the title is unchanged.
+- **A wrong NHS number** (branch `feature/nhs-integrations`): one mistyped, or the right digits typed on the wrong patient's record. The Modulus 11 check digit catches any single mistyped digit and most swapped pairs, but not a valid number that belongs to someone else. Nothing traces numbers with PDS, so MedApp never confirms that a number is the patient's (the FHIR API says so: "02 Number present but not traced"). The banner then shows a precise-looking identifier that's wrong, and another system reading the patient through the FHIR API could match them to the wrong person.
+- **The demographics lookup** fills a patient's name and date of birth from an NHS number, so a wrong number can fill in another person's details. Today it's off by default, and its only source is an offline stub of four synthetic people; the real PDS isn't connected. Since the review of #69: on Edit Patient it shows who it found beside the record's details and fills only on "Use These Details"; on Add Patient it fills at once; and on either, if the number is changed after a lookup while the filled details are unchanged, the save is refused until the new number is looked up or the details are changed by hand.
 - Task lists and procedure lists show the patient's name only (`MyTasksPage.tsx`, `ProceduresListPage.tsx`). Search matches on part of a name (`ProcedureSearch.Filter`).
 - Two pages can be open side by side (half views), and procedures can be pinned in the side navigation.
 
@@ -96,16 +102,17 @@
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **planned** (roadmap step 6); **before first live use**.
-- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use.
-- **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design; **planned** (step 9); later.
+- **A patient banner** on every procedure page and dialog that changes a procedure: full name, date of birth and age, and from step 9 the NHS number, always visible, not foldable. Protective; **built** on branch `feature/nhs-integrations` (`PatientBanner`): `SURNAME, Forename` in bold, the date of birth with the age, and the NHS number as `XXX XXX XXXX` (or "No NHS number"), with tokens for a restricted, disputed or anonymised record; not foldable, under the page header of the patient's page, Edit Patient, the export page, the patient's procedures, the procedure page, Edit Procedure and New Procedure; it stays in view on every one but the printable export page (the forms scroll inside their cards under it), wraps in a narrow window or half view, is a region named for the patient, upper-cases the surname by CSS so screen readers read it as a name, and gives young children's ages in months, weeks or days. Edit Patient shows it from the saved record, and its save confirmation shows the old and new name, date of birth and NHS number when they change. A test renders every patient and procedure route and checks for it. Not shown: sex or gender, which MedApp doesn't hold yet (`docs/todo.md`). Procedure responses carry the patient, so the procedure pages need no second read to show it. **Before first live use,** to be verified by the CSO. A dialog over the page can hide the banner, so dialogs that change a procedure rely on naming the patient themselves (H-02's confirmations).
+- **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
+- **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design. **Built in part** on branch `feature/nhs-integrations`: the number is optional, checked with its check digit on the server and in the form, unique across the deployment (within an organisation once step 8 adds them), and searchable; an exact duplicate number is refused with a 409. **Still planned** (step 9): a duplicate check on name and date of birth, and merging; later.
+- **Trace NHS numbers with PDS,** so a number is confirmed to be the patient's, and have the lookup show who it found and ask staff to confirm before it fills the form. Protective. The confirmation is **built** on Edit Patient, with the hold on a changed number on both forms (above); Add Patient still fills at once. Tracing is **planned** (step 9, after NHS England's onboarding); before the real PDS is connected, Add Patient should confirm as Edit Patient does.
 - **Train staff** to check the banner against the patient before recording work. Information; transferred.
 
-**At first live use:** Major, Very low: **2**.
+**At first live use:** Major, Very low: **2**. Unchanged by branch `feature/nhs-integrations`: this rating already assumed the banner, and it holds only once the CSO has verified it and the proposed controls above are built.
 
-**Residual risk:** Major, Very low: **2**.
+**Residual risk:** Major, Very low: **2**. The NHS number makes two patients harder to confuse, but adds the wrong-number cause above, which tracing with PDS controls; on balance the rating is unchanged.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the other controls needed before first live use aren't built.
 
 ---
 
@@ -132,16 +139,16 @@
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **The patient banner** from H-01. Protective; **planned** (step 6); before first live use.
-- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use.
+- **The patient banner** from H-01. Protective; **built** on branch `feature/nhs-integrations`, on the procedure page, Edit Procedure and New Procedure, and Edit Patient (so a procedure is created under the patient's banner); before first live use, to be verified by the CSO.
+- **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use. Not done on branch `feature/nhs-integrations`.
 - **An "entered in error" action** for stage notes and procedures, which strikes the entry through, keeps it in the record and asks for a reason, instead of only overwriting or deleting. Design; **proposed**; later.
 - **Train staff** to correct a wrong entry with a note saying so, never by deleting it. Information; transferred.
 
-**At first live use:** Considerable, Low: **2**.
+**At first live use:** Considerable, Low: **2**. As for H-01, this already assumed the banner, and holds once the CSO has verified it and the confirmations name the patient.
 
 **Residual risk:** Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open.
+**Owner:** [CSO]. **Status:** Open: the banner is built and awaits the CSO's verification; the confirmations aren't changed yet.
 
 ---
 
@@ -152,20 +159,23 @@
 **Causes:**
 - Any staff member can edit any patient, and the change overwrites the old values (`UpdatePatientHandler`).
 - Any staff member can permanently delete a patient who has no procedures (`DeletePatientHandler`).
-- Neither is audited: only procedures are (`docs/architecture.md`, risk S2).
+- Since roadmap step 7 (branch `feature/privacy-features`), both are recorded in the activity log, with who, when and which fields changed, but **not the old values** (the log holds no patient details by design), so what a field said before can't be recovered from it.
 
-**Effect.** All of that patient's procedures now show the new, wrong details. Nobody can tell when it changed or what it was. A deleted patient's record is gone.
+**Effect.** All of that patient's procedures now show the new, wrong details. An admin can see who changed which fields and when (the activity log, and the patient's access report), but not what they said before. A deleted patient's record is gone.
 
 **Possible harm.** Wrong-patient errors (H-01) on every procedure of that patient; a patient lost from follow-up. One patient; Considerable.
 
 **Existing controls:**
 - A patient with procedures can't be deleted (409; `DeletePatientHandler`).
 - Procedure audit entries keep the patient's ID, so procedures can still be traced to the patient row.
+- Patient creates, edits (the fields changed) and deletes are recorded in the activity log with the user, time and address, in the same save as the change (`UpdatePatientHandler`, `DeletePatientHandler`, `PatientRepository`; step 7).
+- A restricted record can't be edited or deleted, nor its procedures changed but for blocking or cancelling (`PatientRules`; step 7; its own hazard is H-22), and a disputed one carries a banner saying what the patient disputes, on the patient's, procedures' and edit pages.
+- Two saves of the same patient at once can't silently undo each other: the second, made from an older copy, is refused (a row version, step 7).
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Audit patient changes** (create, edit, delete) with old and new values. Protective; **planned** (step 7); later. Rated 2 today, but the CSO may bring it forward.
+- **Audit patient changes** (create, edit, delete). Protective; **built** (step 7) for who, when and which fields. **Still planned:** keeping the old values (a version table, step 7); later. Rated 2 today, but the CSO may bring it forward.
 - **Make deleting a patient admin-only.** Protective; **planned** (step 2); later.
 - **Show "details changed on {date}"** on the patient banner for a recent change. Protective; **proposed**; later.
 
@@ -371,13 +381,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No email:** notifications are in-app only. Someone who isn't signed in learns of it only at their next sign-in.
 - **My Tasks hides it if it's already under way.** My Tasks opens on "Not started" (H-04), so a procedure handed over part-way through, for example from a colleague who's off sick, doesn't show there by default. The colleague who opens My Tasks sees "Nothing waiting to be started".
 - **Nothing tells someone they've been unassigned,** and nothing tells anyone about a procedure assigned to someone who's away.
+- **The person has switched assignment notifications off** (Account Settings, Notifications; `NotificationPreferences`). Then nothing is stored or pushed, and with My Tasks on its default filter, work handed over part-way through shows nowhere.
 
 **Effect.** Work waits until the person next opens MedApp and finds it, or longer.
 
 **Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
-- Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`).
+- Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`), **unless the person has switched assignment notifications off**, when none is stored.
+- The switch's own help text says to work from My Tasks with its filter on all open work, so work already under way shows (`NotificationSettings.tsx`).
 - My Tasks lists every open procedure assigned to you once its filter is set to "Started" or to all (`MyTasksPage.tsx`); by default it shows only those not yet started.
 - With two copies of the API, notifications reach browsers on either, through the Valkey backplane (`SignalRBackplane`; 8 of 8 delivered in testing, `docs/architecture.md`, section 6.4).
 - When the connection comes back, the list is refreshed (`connection.onreconnected`).
@@ -515,6 +527,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **No second check:** there's no approval or clinical review step in MedApp.
 - **No history:** changes to templates and stage definitions aren't audited and have no versions. Nobody can see who changed what, or what a template said when a procedure was created from it, beyond the copy on the procedure itself.
 - Admin is also the role that manages users, so the people who can edit clinical content aren't necessarily clinicians (`docs/architecture.md`, step 4, splits these roles).
+- **SNOMED CT codes** (branch `feature/nhs-integrations`): a stage definition can carry a SNOMED CT code with a display term the admin types, copied onto procedures' stages. Only the code's format is checked (`SnomedCt`): nothing checks that the concept exists, is active, or means what the term says, so a code and its term can disagree. MedApp does nothing with the code, so today a wrong one only misleads someone reading it; once codes leave MedApp (step 9's FHIR resources for procedures), another system could act on one.
 
 **Effect.** Every procedure created afterwards misses a step, does them in the wrong order, or shows wrong instructions, and staff follow it because MedApp enforces the order.
 
@@ -535,6 +548,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **A local template governance process:** clinical sign-off before a template is used. Information; transferred; before first live use.
 - **Versions:** each template change makes a new version; procedures record the version they came from. Design; **proposed**; later.
 - **A separate role** for template administration. Protective; **planned** (step 4); later.
+- **Check SNOMED CT codes with a terminology server:** that the concept exists and is active, with its preferred term shown beside the admin's. Protective; **planned** (`docs/todo.md`); before codes leave MedApp in the FHIR API.
 
 **At first live use:** Catastrophic, Very low: **3**. Needs the CSO's written justification for first live use.
 
@@ -692,13 +706,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Existing controls:**
 - Each change is recorded with the signed-in user's ID and a snapshot of their username (`ProcedureActor`, `ProcedureAudit`).
 - Sessions are revoked on sign-out, and a session whose user no longer exists is refused, so deleting a user ends their sessions (`SessionService`, `MedApp.Infrastructure/Common/Authentication/SessionService.cs`).
-- Five wrong passwords lock an account for five minutes.
+- Five wrong passwords lock an account for five minutes. Sign-in is also throttled: 5 attempts a minute per username and 30 per address (`LoginThrottling`; `feature/security-baseline`, not yet merged).
+- Ending sessions when the password changes: changing a password ends the user's other sessions, an admin's reset ends all of them, and an admin can sign a user out everywhere, for example when a password may have been shared (`UpdateUserPasswordHandler`, `ResetUserPasswordHandler`, `SetUserRolesHandler`, `SignOutEverywhereHandler`; same branch).
+- The 10,000 most common passwords are refused when a password is set (`CommonPasswordValidator`; same branch).
 
 **Initial risk:** Significant, Medium: **2**.
 
 **Further controls:**
 - **An idle timeout,** with a warning. Protective; **planned** (step 2); later. (The warning before the fixed limit, added in #63, is not this control.)
-- **End a user's other sessions** on a password change, a reset and a role change. Protective; **in progress** (the security baseline branch); later.
+- **End a user's other sessions** on a password change and a reset. Protective; **in place** (`feature/security-baseline`, #67). A role change applies to the next request without ending sessions.
 - **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
@@ -717,7 +733,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Causes:**
 - **Procedures:** an admin can delete a cancelled or archived procedure, with its stages and assignments (`DeletePatientProcedureHandler`). Its stage notes then survive only as text inside audit entries, which only admins can read.
-- **Patients:** any staff member can delete a patient without procedures (H-03).
+- **Patients:** any staff member can delete a patient without procedures (H-03); since step 7, the deletion is recorded in the activity log.
+- **Anonymisation (step 7):** an admin can anonymise a patient's record, which replaces their name, email and every note, procedure title and reason (in the record, its audit trail and notifications) with placeholders, and keeps only the year of birth. It's meant for records past their retention period. Done on the wrong patient, or too early, the clinical content is gone from the live system (backups keep it until they expire).
 
 **Effect.** The record of what was done, or of the patient, is no longer where staff look for it.
 
@@ -727,11 +744,14 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - Only cancelled or archived procedures can be deleted, only by admins, after a confirmation that names the procedure and patient (`ProcedureWorkflow.CanBeDeleted`; `ProcedurePage.tsx`).
 - The audit log keeps the deletion and every earlier change, including the old and new text of every notes save, with no foreign keys, so it outlives the procedure (`PatientProcedureAuditEntry`).
 - A patient with procedures can't be deleted.
+- Anonymising is admin-only; it needs the patient's full name typed, and a reason, which the activity log keeps with the admin's name; it's refused while any of the patient's procedures is under way or the record is restricted; the dialog shows the patient's name and date of birth, and says it can't be undone (`AnonymisePatientHandler`, `AnonymiseDialog`; step 7). An admin can export the whole record first (step 7).
+- The retention review lists records past the **adult or children** minimum period only, and nothing is deleted automatically (step 7). It doesn't know the longer specialty classes (mental health 20 years, maternity 25, oncology 30), so a specialty record can be listed years before its period ends: the Retention Review page and the anonymise dialog warn about this, the retention schedule tells customers to set `Retention:AdultYears` to the longest class they use until classes exist, and a specialty record listed early is kept (Keep, with the class as the reason).
 
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **planned** (step 7); later.
+- **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **partly built** (step 7: a review list from configurable periods, keep or anonymise, no automatic deletion); per-template classes and a destruction log **planned**; later.
+- **A second person to approve an anonymisation** (and a destruction), as the retention schedule's "approved by a named person" asks. Protective; **proposed**; later.
 - **Admin-only patient deletion.** Protective; **planned** (step 2); later.
 
 **At first live use:** Considerable, Low: **2**.
@@ -808,6 +828,74 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ---
 
+## H-22: Care under way is delayed because the patient's record is restricted
+
+**Description.** An admin restricts a patient's record (UK GDPR Article 18), for example while the patient contests their recorded details, and the procedures under way for that patient can't be worked on until the restriction is lifted.
+
+**Causes:**
+- **Restriction freezes the record and its procedures** (`PatientRules.EnsureCanChange`, applied to every procedure change by `GetForUpdateOrThrowAsync`): no stage can be started, written up or finished, and nothing can be assigned, while the record is restricted.
+- **Its appointments are frozen too** (since staff calendars): none can be booked, rescheduled or given an outcome while the record is restricted (they can only be cancelled), so a visit a stage needs can't be arranged or recorded (H-30).
+- **A restriction can last weeks** while the contested details are checked, and only an admin can lift it.
+- **The admin restricting may not be the clinician working the procedures,** and may not know what's due.
+
+**Effect.** The next stages of a procedure under way (pre-assessment, consent, a follow-up) can't be recorded, and the procedure goes overdue with nothing staff can do but wait for an admin.
+
+**Possible harm.** Delayed care for that patient. Considerable.
+
+**Existing controls (step 7, PR #68):**
+- **The admin must confirm:** restricting a record with procedures under way shows how many there are, and needs an explicit confirmation that their work stops (the API refuses it otherwise, `SetPatientFlagHandler`, `ConfirmOpenProcedures`).
+- **Care can still be paused safely:** a restricted record's procedures can be blocked or cancelled, with a reason (`PatientRules.PausesWhileRestricted`, `GetForPauseOrThrowAsync`), so they don't sit silently overdue; a blocked procedure is never shown as overdue. Its appointments can still be cancelled, with a reason (`GetForCancelOrThrowAsync`), so a patient isn't left booked for care that's paused.
+- **Everyone sees why:** the procedure page, the patient's pages and their procedures show the restricted banner with its reason, and the procedure page says that only blocking and cancelling are possible.
+- Lifting the restriction is one admin action, recorded with a reason.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Let an admin record the patient's consent, or another lawful basis, for treatment to continue** (Article 18(2)), with the restriction then stopping only edits to the contested details. Design; **proposed**; later. A clinical safety decision.
+- **Tell the procedures' assignees** when their patient's record is restricted. Protective; **proposed**; later.
+- **A local procedure for restriction requests:** the admin checks with the clinician responsible for the patient's care before restricting, and agrees how care continues. Information; transferred; before first live use.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-29: An admin relies on a monitoring rule to follow up clinical work
+
+**Description.** An admin sets a monitoring rule (Administration, Monitoring) to be told when something happens, for example "anyone blocks an Urgent procedure", and relies on it to follow the work up, but isn't told.
+
+**Causes:**
+- **Monitoring is best effort.** Notifications are sent after the change is saved, outside its transaction: a failure is only logged, and a crash between the save and the send loses the notification for good (`ProcedureMonitor`).
+- **A rule stops silently** when its owner loses the Admin role, when it's switched off, or when the account, template or stage it names is deleted (it then matches nothing).
+- **Only eight actions can be watched;** being overdue isn't one of them, and nothing reports a rule that never fires.
+- **Live delivery** has H-09's causes: pushes are best effort, the browser stops reconnecting after a while, and there's no email.
+
+**Effect.** A blocked, cancelled or re-dated Urgent procedure isn't followed up by the person who expected to hear of it.
+
+**Possible harm.** Delayed care for one patient. Considerable.
+
+**Existing controls:**
+- **The intended purpose says it:** monitoring rules are supervision of work, not clinical alerting, and "must not be relied on to make sure anything clinical happens" (`intended-purpose-and-device-decision.md`).
+- **The work is visible anyway:** the procedures list, My Tasks, the overdue badge and the patient's timeline show every blocked, cancelled and re-dated procedure, whatever the rules.
+- The notifications that are sent are stored, so they show at the next page load.
+
+**Initial risk:** Considerable, Low: **2**.
+
+**Further controls:**
+- **Information:** in training and the instructions for use, monitoring is described as a supervision aid, never as the way clinical follow-up is assured; follow-up is through the lists, My Tasks and local procedures. Information; **proposed**; before first live use (it costs nothing); transferred.
+- **An outbox,** so a notification can't be lost between the save and the send. Protective; **proposed**; later.
+
+**At first live use:** Considerable, Low: **2**.
+
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
 ## Staff calendars and appointments: draft hazards for the CSO
 
 H-30 to H-36 come from the design of staff calendars and appointments (`docs/calendar-plan.md`), drafted while the feature was being built on `feature/staff-calendars`. "Decision n" refers to section 1 of that plan. In short: staff book appointments for patients on staff calendars; an appointment goes from Requested (needs booking) to Booked, then Attended or Did not attend, or Cancelled; a stage definition can say a stage involves a visit (none, suggested or required), and MedApp then requests an appointment when the stage becomes current and, for a required visit, won't let the stage be finished until the appointment is Attended, unless an admin finishes it with a reason.
@@ -816,7 +904,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-**Numbering:** H-22 to H-29 are kept for hazards that branches merging before staff calendars add; the calendar hazards start at H-30.
+**Numbering:** H-23 to H-28 are kept for the attachments branch's hazards (H-29 is monitoring's), so the calendar hazards start at H-30.
 
 ## H-30: A visit the patient needs doesn't happen
 
@@ -828,6 +916,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **Did not attend leads nowhere by itself.** It's a status staff record (decision 16). The UI offers "Book another", but nothing reminds anyone later, and nobody else is notified.
 - **Cancelling a Booked appointment doesn't request another.** A Requested appointment is made only when a stage becomes current (decision 23), so after a cancellation the stage has no open appointment until someone books one.
 - **Appointments not for a stage** have no rule behind them at all, and a stage with a suggested visit can be finished without one (H-32).
+- **A restricted record's appointments can't be booked, moved or given an outcome** until an admin lifts the restriction (H-22).
 - **Pages don't refresh by themselves** (H-16), so a list left open doesn't show new requests.
 
 **Effect.** The patient isn't seen when they need to be. For a stage whose visit is required, the procedure can't move past that stage, which shows; for anything else, nothing in MedApp shows that the visit didn't happen.
@@ -976,7 +1065,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Description.** An appointment is booked for a different patient from the one intended, or linked to the wrong procedure or stage.
 
 **Causes:**
-- **The same identification limits as H-01:** name, date of birth and email only; no NHS number; no duplicate check.
+- **The same identification limits as H-01:** name, date of birth, email and an optional NHS number that isn't traced; no duplicate check on name and date of birth.
 - **Booking from an empty calendar slot or the New button** asks for the patient (and procedure and stage) to be chosen (decision 30), by name.
 - **An appointment's patient can't be changed:** booking and rescheduling change only the time and member of staff (the plan's API, section 4), so a mistake must be cancelled and booked again; until then it looks real.
 
@@ -994,8 +1083,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 **Further controls:**
 - **Show the date of birth beside the patient's name** in the booking dialog's patient picker, in the confirmation, and on the appointment's dialog. Protective; **proposed**; before first live use.
-- **The patient banner** from H-01, in the booking and appointment dialogs. Protective; **planned** (step 6); before first live use.
-- **NHS number and a duplicate check.** Design; **planned** (step 9); later.
+- **The patient's details in the booking and appointment dialogs,** as H-01's patient banner shows them: once a patient is chosen, the dialog shows their name, date of birth and NHS number. Protective; **built** (with the patient banner from PR #69); to be verified by the CSO before first live use.
+- **A duplicate check on name and date of birth, and tracing NHS numbers with PDS** (H-01). Design; **planned** (step 9); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
@@ -1084,6 +1173,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **Appointments booked in the past, at weekends or outside working hours.** Designed out: the server refuses them (`docs/calendar-plan.md`, decisions 2 and 17). The cost, that a walk-in can't be recorded after the event, is a gap in the record rather than a hazard, and is on `docs/todo.md`.
 - **Two open appointments for one stage.** Designed out: a second is refused, pointing to the first (decision 18).
 - **An earlier day's calendar changing after the event.** Designed out: past days can't be changed, and template history is kept by dated rows (decisions 8 and 11).
+- **The FHIR API sending wrong data** (branch `feature/nhs-integrations`). It's read-only, and returns the patient's details as stored, with no clinical content and no logic, to staff who could see the same on the patient's page; nothing in MedApp changes because of it. Its one clinical risk, another system matching the wrong person by a wrong NHS number, is under H-01. Each receiving system assesses its own use under DCB0129 and DCB0160.
+- **The NHS number check refusing a valid number.** Staff can't save it, so the record goes without it until it's fixed: no worse than before the number existed. The check is unit tested with valid and invalid numbers.
 
 ## Change log
 
@@ -1092,4 +1183,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
-| 0.4 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out | AI coding agent, for review |
+| 0.4 | 16 November 2026 | The privacy features (PR #68): H-03 and H-19's new controls and causes (anonymisation, the retention review's adult and children periods only), and new hazard H-22 (restricting a record delays care under way), after the review of #68 | AI coding agent, for review |
+| 0.5 | 16 November 2026 | The NHS integrations (PR #69): the patient banner recorded as built for H-01 and H-02, awaiting the CSO's verification; the NHS number in H-01's causes and controls, with new causes for a wrong number and the demographics lookup; SNOMED CT codes in H-13's causes, with a terminology server check; the FHIR API and the NHS number check considered and not logged. No rating changed. After the review of #69: the banner on every page about one patient, and the lookup's confirmation on Edit Patient | AI coding agent, for review |
+| 0.6 | 16 November 2026 | Admins' monitoring rules and the assignment notification switch (PR #84): H-09 gets the switch as a cause, its stored-notification control now says "unless switched off", and the switch's help text points to My Tasks on all open work; new hazard H-29 (relying on best-effort monitoring for clinical follow-up; H-29 because the attachments branch takes H-23 to H-28). No existing rating changed. For the CSO to review | AI coding agent, for review |
+| 0.7 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4) | AI coding agent, for review |

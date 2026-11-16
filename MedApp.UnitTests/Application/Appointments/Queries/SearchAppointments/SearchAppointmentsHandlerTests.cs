@@ -1,7 +1,9 @@
 using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
 using MedApp.Application.Common.Paging;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
@@ -51,5 +53,26 @@ public sealed class SearchAppointmentsHandlerTests : AppointmentHandlerTestBase
 
         response.Items.Should().BeEmpty();
         response.TotalCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task Handle_Page_RecordsEachPatientOnItAsListed()
+    {
+        var activity = new RecordingActivityLog();
+        Fixture.Inject<IActivityLog>(activity);
+        var query = AppointmentsTestConstants.CreateSearchQuery();
+        var first = CreateAppointment(AppointmentStatus.Booked);
+        var second = CreateAppointment(AppointmentStatus.Requested);
+        using var cts = new CancellationTokenSource();
+        Repository.Setup(r => r.SearchAsync(query, cts.Token))
+            .ReturnsAsync(new PagedResult<Appointment>([first, second], 2));
+
+        await Fixture.Create<SearchAppointmentsHandler>().Handle(query, cts.Token);
+
+        var (action, ids, procedureId) = activity.Views.Should().ContainSingle().Subject;
+        action.Should().Be(ActivityAction.PatientListed);
+        ids.Should().Equal(first.PatientId, second.PatientId);
+        procedureId.Should().BeNull();
+        activity.Tokens.Should().Equal(cts.Token);
     }
 }

@@ -1,4 +1,4 @@
-import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {keepPreviousData, queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 
 export type ProcedureSummary = Schemas['PatientProcedureSummaryResponse'];
@@ -21,6 +21,37 @@ export function procedureQuery(id: string) {
   return queryOptions({
     queryKey: ['procedures', id],
     queryFn: () => unwrap(api.GET('/api/procedures/patient-procedures/{id}', {params: {path: {id}}})),
+  });
+}
+
+/**
+ * The titles and patients' names of these procedures (`GET api/procedures/patient-procedures/labels`), for the side
+ * nav's pins: labels, not a view of the records, so the API records nothing. Procedures that no longer exist are left
+ * out. One request for every pin; keyed under ['procedures'], so a change to a procedure refreshes it.
+ */
+export function procedureLabelsQuery(ids: readonly string[]) {
+  const sorted = [...new Set(ids)].sort();
+  return queryOptions({
+    queryKey: ['procedures', 'labels', sorted],
+    queryFn: () => unwrap(api.GET('/api/procedures/patient-procedures/labels', {params: {query: {ids: sorted}}})),
+    enabled: sorted.length > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * How many of a patient's procedures are under way: not completed, cancelled or archived (a search's default; blocked
+ * ones count). Keyed under the patient, so patient and procedure writes refresh it.
+ */
+export function patientOpenProcedureCountQuery(patientId: string) {
+  return queryOptions({
+    queryKey: ['patients', patientId, 'procedures', 'open-count'],
+    queryFn: async () => {
+      const page = await unwrap(
+        api.GET('/api/procedures/patient-procedures/search', {params: {query: {PatientId: patientId, PageSize: 1}}}),
+      );
+      return page.totalCount ?? 0;
+    },
   });
 }
 

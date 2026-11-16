@@ -12,6 +12,13 @@ public static class ClaimsPrincipalExtensions
                    ?? throw new InvalidOperationException("The user has no ID claim."));
 
     /// <summary>
+    /// The ID of the session the request came with (<see cref="SessionAuthenticationDefaults.SessionIdClaim"/>), or
+    /// null if it has none.
+    /// </summary>
+    public static Guid? GetSessionId(this ClaimsPrincipal user) =>
+        Guid.TryParse(user.FindFirstValue(SessionAuthenticationDefaults.SessionIdClaim), out var id) ? id : null;
+
+    /// <summary>
     /// Whether the signed-in user must change the password an admin gave them before doing anything else (their
     /// session's <see cref="SessionAuthenticationDefaults.MustChangePasswordClaim"/>).
     /// </summary>

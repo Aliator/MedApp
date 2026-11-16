@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
+| **Version** | 0.2 (draft), 16 November 2026: the NHS number, the FHIR API and the PDS lookup (branch `feature/nhs-integrations`) |
 | **Owner** | [DPO name], with [SIRO name] |
 | **Next review** | Every 12 months |
 
@@ -18,11 +18,11 @@ The eight Caldicott Principles guide the use of confidential information in heal
 |---|---|---|
 | **1. Justify the purpose** for using confidential information | MedApp has one purpose: coordinating and recording patients' procedures for their direct care. The supplier uses the data for nothing else ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)). | Any new purpose needs a DPIA update first. |
 | **2. Use confidential information only when it's necessary** | Coordinating a procedure for a person needs to know who they are. | |
-| **3. Use the minimum necessary** | A deliberately small patient record: name, date of birth, email. | Free text is unlimited; guidance for staff, and in-app guidance (step 7). Copies of notes in the audit (step 7 replaces them with note versions). |
-| **4. Access on a strict need-to-know basis** | Signed-in staff only; admin-only functions. The full audit trail is admin-only; staff see a per-patient timeline without its free text. | **Every staff user sees every patient.** Access by site or team (step 8); read audit and access reports to detect misuse (step 7). |
+| **3. Use the minimum necessary** | A deliberately small patient record: name, date of birth, email, and an optional NHS number (section 5). | Free text is unlimited; guidance for staff, and in-app guidance (step 7). Copies of notes in the audit (step 7 replaces them with note versions). |
+| **4. Access on a strict need-to-know basis** | Signed-in staff only, in the app and through the FHIR API; admin-only functions. The full audit trail is admin-only; staff see a per-patient timeline without its free text. | **Every staff user sees every patient.** Access by site or team (step 8); reads are recorded and each patient's page shows admins who has accessed it (step 7); alerts and periodic reviews still to come. |
 | **5. Everyone with access understands their responsibilities** | Staff rules in [privacy-notice-staff-template.md](privacy-notice-staff-template.md); the supplier's training and support access policy. | A sign-in notice that access is monitored (step 7). |
 | **6. Comply with the law** | This governance pack. | Not yet approved. |
-| **7. The duty to share for individual care is as important as the duty to protect confidentiality** | All of a customer's care team can see what they need. | Sharing with other organisations (EPR integration, letters to GPs) comes with step 9. |
+| **7. The duty to share for individual care is as important as the duty to protect confidentiality** | All of a customer's care team can see what they need. The NHS number and a read-only FHIR API in the UK Core shape let the customer's staff use the patient's details in other NHS systems. | Sharing with other organisations' systems directly (OAuth clients, EPR integration, letters to GPs) comes later in step 9. |
 | **8. Inform patients and service users** about how their information is used | The patient privacy notice template ([privacy-notice-patients-template.md](privacy-notice-patients-template.md)). | The customer publishes it. |
 
 ## 2. The National Data Opt-out
@@ -51,3 +51,15 @@ The eight Caldicott Principles guide the use of confidential information in heal
 ## 4. Incident reporting for NHS customers
 
 NHS customers report personal data breaches and cyber incidents through the DSPT's incident reporting tool, which also notifies the ICO where needed ([DSPT](https://www.dsptoolkit.nhs.uk/Help/incident-reporting)). The supplier's job is to tell them within 48 hours (24 once out-of-hours cover exists, step 5), with the facts they need for it ([breach-response.md](breach-response.md)).
+
+## 5. The NHS number, PDS, FHIR and SNOMED CT
+
+Built on branch `feature/nhs-integrations` (roadmap step 9's first part). What NHS customers' IG and clinical safety teams will ask:
+- **The NHS number** is the national identifier for patients in England and Wales, and NHS England makes it the standard for identifying them ([NHS England](https://standards.nhs.uk/published-standards/nhs-number)).
+  - **In MedApp it's optional,** checked with its Modulus 11 check digit, unique across patients, shown in the patient banner as `XXX XXX XXXX`, and included in the subject access export. Anonymisation removes it.
+  - **It's never written to the activity log:** an edit records the field name, a search the filter name.
+  - **It isn't encrypted at field level yet** (Always Encrypted is planned); it's encrypted at rest with the rest of the database.
+- **PDS (the Personal Demographics Service)** isn't connected. MedApp has a lookup for it, off by default, with only an offline stub of synthetic numbers. Connecting the real PDS FHIR API makes NHS England a source of patient data, and needs NHS England's onboarding: a CIS2 integration for health workers' access (or an application-restricted API key through the API platform), the DSPT, a DCB0129 hazard log, risk logs for each access mode, a penetration test and a connection agreement ([NHS England](https://digital.nhs.uk/developer/guides-and-documentation/onboarding-process)). Until then, numbers are **not traced**: MedApp doesn't confirm a number belongs to the patient, and says so in the FHIR API ("02 Number present but not traced").
+- **The FHIR API** is read-only and returns patients only, as UK Core Patient resources, to callers signed in as the customer's staff. Every read and search is in the activity log. There are no system-to-system clients yet, and the resources haven't been validated against the UK Core profiles.
+- **SNOMED CT codes** label stage definitions, as typed by the customer's admins. They aren't personal data, and only their format is checked (no terminology server).
+- **National Data Opt-out:** none of this is a secondary use, so the opt-out still doesn't apply (section 2).

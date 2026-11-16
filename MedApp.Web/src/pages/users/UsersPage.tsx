@@ -10,7 +10,15 @@ import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {ApiValidationError, allMessages} from '../../api/errors';
 import {userSearchQuery, type UserPage} from '../../api/search';
-import {rolesQuery, useCreateUser, useDeleteUser, useResetPassword, useSetRoles, type CreatedUser} from '../../api/users';
+import {
+  rolesQuery,
+  useCreateUser,
+  useDeleteUser,
+  useResetPassword,
+  useSetRoles,
+  useSignOutEverywhere,
+  type CreatedUser,
+} from '../../api/users';
 import {useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
@@ -39,7 +47,7 @@ const PASSWORD_DONE_HOLD_MS = 1000;
 
 type DialogState =
   | {kind: 'create'}
-  | {kind: 'roles' | 'reset' | 'delete'; username: string; roles: string[]}
+  | {kind: 'roles' | 'reset' | 'signOut' | 'delete'; username: string; roles: string[]}
   | null;
 
 /** The role to ask the API for: the one chosen, or none when the choice covers every role (or none at all). */
@@ -56,8 +64,8 @@ export interface UsersPageProps {
 /**
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
  * dialogs to create users (the server generates the first password, shown once), edit their roles (every role
- * listed, theirs ticked), reset passwords and delete users (confirmed with the admin's own password). Admins can't change
- * their own account here, as in Blazor.
+ * listed, theirs ticked), reset passwords, sign users out everywhere (every session they have ends) and delete users
+ * (confirmed with the admin's own password). Admins can't change their own account here, as in Blazor.
  */
 /** The list's page of users, for its search and page size, given every role (the route's loader fetches it too). */
 export function usersListQuery(search: UsersListSearch, pageSize: number, allRoles: readonly string[]) {
@@ -88,6 +96,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const setRoles = useSetRoles();
   const reset = useResetPassword();
   const remove = useDeleteUser();
+  const signOut = useSignOutEverywhere();
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -99,6 +108,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteProblem, setDeleteProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // What the last action did, when there's nothing else to show for it (signing someone out everywhere).
+  const [notice, setNotice] = useState<string | null>(null);
 
   const open = (next: DialogState) => {
     // Edit roles starts from the user's current roles, ticked.
@@ -110,6 +121,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     setDeleteProblem(null);
     create.reset();
     setError(null);
+    setNotice(null);
     setDialog(next);
   };
   const close = () => {
@@ -161,6 +173,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             actions={[
               {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
               {label: 'Reset password', icon: AppIcon.Lock, isDisabled: isMe, onClick: () => open({kind: 'reset', ...target})},
+              {label: 'Sign out everywhere', icon: AppIcon.Logout, isDisabled: isMe, onClick: () => open({kind: 'signOut', ...target})},
               {label: 'Delete user', icon: AppIcon.Delete, isDisabled: isMe, isDestructive: true, onClick: () => open({kind: 'delete', ...target})},
             ]}
           />
@@ -178,7 +191,13 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       title="User Management"
       subtitle={subtitle}
       fill
-      message={(isError || error) && <AlertMessage message={error ?? 'The users could not be loaded. Please try again.'} />}
+      message={
+        isError || error ? (
+          <AlertMessage message={error ?? 'The users could not be loaded. Please try again.'} />
+        ) : (
+          notice && <AlertMessage message={notice} status="success" />
+        )
+      }
       actions={
         <Button label="Add User" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => open({kind: 'create'})} />
       }
@@ -271,6 +290,27 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               />
             )}
           </ConfirmDialog>
+
+          <ConfirmDialog
+            isOpen={dialog?.kind === 'signOut'}
+            title="Sign Out Everywhere"
+            message={`Sign ${target?.username} out everywhere? Every session they have ends, on every browser and device, and they must sign in again. Their password doesn't change.`}
+            icon={AppIcon.Logout}
+            intent="warning"
+            confirmText="Sign Out Everywhere"
+            isProcessing={signOut.isPending}
+            onConfirm={() =>
+              target &&
+              signOut.mutate(target.username, {
+                onSuccess: () => {
+                  close();
+                  setNotice(`${target.username} has been signed out everywhere.`);
+                },
+                onError: failed(`${target.username} could not be signed out.`),
+              })
+            }
+            onCancel={close}
+          />
 
           <ConfirmDialog
             isOpen={dialog?.kind === 'delete'}

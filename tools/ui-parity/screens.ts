@@ -370,10 +370,60 @@ export const screens: Screen[] = [
   { name: 'week-template-editor', title: 'New week template: a day template for each weekday', path: '/admin/calendar-templates/week/new' },
   { name: 'admin-audit', title: 'Audit log (admin)', path: '/admin/audit' },
   {
+    name: 'admin-insights',
+    title: 'Insights (admin): headline counts, overdue work, throughput and time at each stage',
+    path: '/admin/insights',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-insights-tables',
+    title: "Insights with every chart's numbers as a table",
+    path: '/admin/insights?weeks=4',
+    prepare: async (page) => {
+      // Each button becomes Show Chart once pressed, so press the first left until none are.
+      const showTable = page.getByRole('button', { name: /^Show Table of / });
+      while ((await showTable.count()) > 0) await showTable.first().click();
+      await settle(page);
+    },
+  },
+  { name: 'admin-monitoring', title: "Monitoring (admin): the admin's rules, as sentences", path: '/admin/monitoring' },
+  {
+    name: 'admin-monitoring-add',
+    title: 'Monitoring: adding a rule, with its sentence previewed',
+    path: '/admin/monitoring',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Rule' }).first().click();
+      await page.getByText('Preview').waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-insights-narrow',
+    title: 'Insights on a narrow window: one column of charts',
+    path: '/admin/insights',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
     name: 'admin-audit-procedure',
     title: "One procedure's audit log, from its View Audit Log",
     path: (d) => `/admin/audit?procedureId=${d.procedureId}`,
   },
+  { name: 'admin-activity', title: 'Activity log (admin)', path: '/admin/activity' },
+  {
+    name: 'admin-activity-patient',
+    title: "One patient's activity, from their access report",
+    path: (d) => `/admin/activity?patientId=${d.patientId}`,
+  },
+  { name: 'admin-retention', title: 'Retention review (admin)', path: '/admin/retention' },
+  // Opening the export records it in the activity log, as any export does (synthetic demo data only).
+  { name: 'patient-export', title: "A patient's subject access export (admin)", path: (d) => `/patients/${d.patientId}/export` },
   {
     name: 'half-view',
     title: "Half view: a procedure beside its patient's page, each in its narrow layout, the nav folded away",

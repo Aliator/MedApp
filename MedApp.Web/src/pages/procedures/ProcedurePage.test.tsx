@@ -38,6 +38,60 @@ const procedure = {
 };
 
 describe('ProcedurePage', () => {
+  it("shows the patient's banner: who the procedure is for", async () => {
+    const patient = {id: 'patient-1', firstName: 'Test', lastName: 'Patient', dateOfBirth: '1960-05-04', nhsNumber: '9990000026', isRestricted: true};
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, patient})});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('NHS No. 999 000 0026')).toBeInTheDocument();
+    expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+  });
+
+  it('has no banner when the procedure comes without its patient', async () => {
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
+    expect(screen.queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
+  });
+
+  it("says why nothing can be changed while the patient's record is restricted", async () => {
+    const reason = "This patient's record is restricted, so it can't be changed until an admin lifts the restriction.";
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, readOnlyReason: reason})});
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    expect(await findAlert(reason)).toBeInTheDocument();
+  });
+
+  it("shows the patient's banners, and still offers blocking and cancelling while the record is restricted", async () => {
+    mockApi({
+      [`GET /api/procedures/patient-procedures/${id}`]: () =>
+        json({
+          ...procedure,
+          readOnlyReason: 'Restricted.',
+          allowedStatusChanges: ['Blocked', 'Cancelled'],
+          canWorkOnStages: false,
+          canEditDetails: false,
+          patientFlags: {
+            isRestricted: true,
+            restrictionReason: 'Synthetic accuracy check',
+            isDisputed: true,
+            disputeReason: 'Synthetic allergy',
+            isAnonymised: false,
+          },
+        }),
+    });
+    renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    expect(await findAlert(/Restricted record: .* can be blocked or cancelled, with a reason/)).toHaveTextContent('Reason: Synthetic accuracy check');
+    expect(screen.getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
+    // The patient's banner says it all: the bare reason isn't repeated.
+    expect(screen.queryByText('Restricted.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Block'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Cancel Procedure'})).toBeInTheDocument();
+  });
+
   it('shows the procedure, its details and its stages', async () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});

@@ -106,4 +106,32 @@ public sealed class CancelAppointmentHandlerTests : AppointmentHandlerTestBase
 
         SentNotifications.Single().Title.Should().Be(ProcedureTitle);
     }
+
+    [Test]
+    public async Task Handle_PatientRestricted_StillCancelsIt()
+    {
+        var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10));
+        appointment.Patient = PrivacyTestConstants.CreateRestrictedPatient();
+        GivenAppointment(appointment);
+
+        await _handler.Handle(new CancelAppointmentCommand(appointment.Id, CancelReason, Colleague), CancellationToken.None);
+
+        appointment.Status.Should().Be(AppointmentStatus.Cancelled);
+        SavedEvents.Should().ContainSingle().Which.Action.Should().Be(AppointmentEventAction.Cancelled);
+    }
+
+    [Test]
+    public async Task Handle_PatientAnonymised_ThrowsConflictWithoutCancelling()
+    {
+        var appointment = CalendarTestConstants.CreateAppointment(AppointmentStatus.Booked, At(NextMonday, 10));
+        appointment.Patient = PrivacyTestConstants.CreateAnonymisedPatient();
+        GivenAppointment(appointment);
+
+        var act = () => _handler.Handle(new CancelAppointmentCommand(appointment.Id, CancelReason, Colleague), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        appointment.Status.Should().Be(AppointmentStatus.Booked);
+        SaveTokens.Should().BeEmpty();
+        Sent.Should().BeEmpty();
+    }
 }

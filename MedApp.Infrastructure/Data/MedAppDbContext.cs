@@ -1,6 +1,8 @@
-﻿using MedApp.Domain.Appointments;
+﻿using MedApp.Domain.Activity;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -19,6 +21,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationPreferences> NotificationPreferences => Set<NotificationPreferences>();
+    public DbSet<MonitoringRule> MonitoringRules => Set<MonitoringRule>();
     public DbSet<PatientProcedure> PatientProcedures => Set<PatientProcedure>();
     public DbSet<PatientProcedureStage> PatientProcedureStages => Set<PatientProcedureStage>();
     public DbSet<PatientProcedureAssignment> PatientProcedureAssignments => Set<PatientProcedureAssignment>();
@@ -37,6 +41,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<StaffWeekTemplate> StaffWeekTemplates => Set<StaffWeekTemplate>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentEvent> AppointmentEvents => Set<AppointmentEvent>();
+    public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
 
     /// <summary>Times are stored as UTC, and read back marked as UTC (<see cref="UtcDateTimeConverter"/>).</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -53,5 +58,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(MedAppDbContext).Assembly);
+
+        InsightsDbFunctions.Register(modelBuilder);
     }
 }

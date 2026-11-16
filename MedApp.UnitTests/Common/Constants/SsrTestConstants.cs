@@ -20,8 +20,8 @@ public static class SsrTestConstants
 
     // Starting Node: what it's given, and the API's own settings it mustn't be.
     public const string NodePath = "node";
-    public const string NodeScript = "/srv/medapp/wwwroot/ssr/server.mjs";
-    public const string NodeScriptDirectory = "/srv/medapp/wwwroot/ssr";
+    public const string NodeScript = "/srv/medapp/ssr/server.mjs";
+    public const string NodeScriptDirectory = "/srv/medapp/ssr";
     public const int NodePort = 61234;
     public const string ApiUrl = "http://127.0.0.1:5090";
     public const string RendererKey = "synthetic-renderer-key";
@@ -34,6 +34,10 @@ public static class SsrTestConstants
     public const string BackplaneConnectionString = "redis.test:6379,password=synthetic-secret";
     public const string FirstAdminPasswordVariable = "FirstAdmin__Password";
     public const string FirstAdminPassword = "synthetic-password";
+    // A page server of its own (Ssr:ServerUrl), as the Helm chart's pages container is, and the address it becomes.
+    public const string PageServerUrl = "http://127.0.0.1:8082";
+    public const string PageServerAddress = "http://127.0.0.1:8082/";
+
     /// <summary>Node options in the API's own environment, which Node mustn't inherit.</summary>
     public const string ApiNodeOptions = "--require=/tmp/synthetic.js";
 }

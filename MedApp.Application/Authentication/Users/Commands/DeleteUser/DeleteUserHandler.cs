@@ -1,5 +1,7 @@
-﻿using MedApp.Application.Appointments.Repositories;
+using MedApp.Application.Activity.Common;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Identity;
+using MedApp.Domain.Activity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 
@@ -9,7 +11,8 @@ public sealed class DeleteUserHandler(
     IIdentityUserService userService,
     IIdentityReadService identityReadService,
     IAppointmentRepository appointmentRepository,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IActivityLog activityLog)
     : IRequestHandler<DeleteUserCommand, IdentityResult>
 {
     public async Task<IdentityResult> Handle(
@@ -30,8 +33,15 @@ public sealed class DeleteUserHandler(
                 return IdentityResult.Failed(IdentityErrors.HasUpcomingAppointments(user.Username, upcoming));
         }
 
-        return await userService.DeleteUserAsync(
+        var result = await userService.DeleteUserAsync(
             request.Username,
             ct);
+
+        if (result.Succeeded)
+            await activityLog.RecordAsync(
+                activityLog.Entry(ActivityAction.AccountDeleted, targetUsername: request.Username),
+                ct);
+
+        return result;
     }
 }

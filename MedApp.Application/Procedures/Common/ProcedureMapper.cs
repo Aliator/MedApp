@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -9,6 +10,10 @@ public static class ProcedureMapper
 {
     /// <summary>Shown in place of a username whose account no longer exists.</summary>
     public const string DeletedUser = "Deleted user";
+
+    /// <summary>A procedure's title and its patient's name only, for a pin's label.</summary>
+    public static PatientProcedureLabelResponse ToLabel(ProcedureLabel label) =>
+        new(label.Id, label.Title, $"{label.PatientFirstName} {label.PatientLastName}");
 
     public static string PatientName(Patient? patient) =>
         patient is null ? string.Empty : $"{patient.FirstName} {patient.LastName}";
@@ -35,15 +40,24 @@ public static class ProcedureMapper
         PatientProcedure procedure,
         IReadOnlyDictionary<Guid, string> usernames,
         DateTime nowUtc,
-        string? patientName = null)
+        string? patientName = null,
+        Patient? patient = null)
     {
+        // The patient comes with the procedure when it was loaded with them, or separately for one just created.
+        patient ??= procedure.Patient;
         var current = ProcedureWorkflow.CurrentStage(procedure);
+        // A restricted or anonymised patient's procedures can't change, so nothing on them is offered.
+        var readOnlyReason = PatientRules.WhyCantChange(patient);
+        var canChange = readOnlyReason is null;
+        // A restricted record's procedures can still be paused: blocked or cancelled, with a reason.
+        var canPause = !PatientRules.IsAnonymised(procedure.Patient);
 
         return new PatientProcedureResponse
         {
             Id = procedure.Id,
             PatientId = procedure.PatientId,
-            PatientName = patientName ?? PatientName(procedure.Patient),
+            PatientName = patientName ?? PatientName(patient),
+            Patient = ToPatient(patient),
             TemplateId = procedure.TemplateId,
             TemplateName = procedure.TemplateName,
             Title = procedure.Title,
@@ -59,11 +73,16 @@ public static class ProcedureMapper
             CurrentStageId = current?.Id,
             CompletedStageCount = procedure.Stages.Count(s => s.IsCompleted),
             StageCount = procedure.Stages.Count,
-            AllowedStatusChanges = ProcedureWorkflow.AllowedStatusChanges(procedure).Select(s => s.ToString()).ToList(),
-            CanWorkOnStages = ProcedureWorkflow.CanWorkOnStages(procedure),
-            CanEditDetails = ProcedureWorkflow.CanEditDetails(procedure),
-            CanChangeAssignments = ProcedureWorkflow.CanChangeAssignments(procedure),
-            CanBeDeleted = ProcedureWorkflow.CanBeDeleted(procedure),
+            AllowedStatusChanges = ProcedureWorkflow.AllowedStatusChanges(procedure)
+                .Where(s => canChange || (canPause && PatientRules.PausesWhileRestricted.Contains(s)))
+                .Select(s => s.ToString())
+                .ToList(),
+            CanWorkOnStages = canChange && ProcedureWorkflow.CanWorkOnStages(procedure),
+            CanEditDetails = canChange && ProcedureWorkflow.CanEditDetails(procedure),
+            CanChangeAssignments = canChange && ProcedureWorkflow.CanChangeAssignments(procedure),
+            CanBeDeleted = canChange && ProcedureWorkflow.CanBeDeleted(procedure),
+            ReadOnlyReason = readOnlyReason,
+            PatientFlags = procedure.Patient is null ? null : PatientMapper.ToFlags(procedure.Patient),
             Stages = procedure.Stages
                 .OrderBy(s => s.StageOrder)
                 .Select(s => new PatientProcedureStageResponse
@@ -74,13 +93,15 @@ public static class ProcedureMapper
                     Name = s.Name,
                     Description = s.Description,
                     Instructions = s.Instructions,
+                    SnomedCode = s.SnomedCode,
+                    SnomedTerm = s.SnomedTerm,
                     VisitRequirement = s.VisitRequirement.ToString(),
                     Notes = s.Notes,
                     State = ProcedureWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,
                     IsLocked = s.IsLocked,
-                    CanEdit = ProcedureWorkflow.CanEditStage(procedure, s),
-                    CanUnlock = ProcedureWorkflow.CanUnlockStage(procedure, s),
+                    CanEdit = canChange && ProcedureWorkflow.CanEditStage(procedure, s),
+                    CanUnlock = canChange && ProcedureWorkflow.CanUnlockStage(procedure, s),
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),
@@ -102,6 +123,21 @@ public static class ProcedureMapper
                 .ToList()
         };
     }
+
+    /// <summary>Who a procedure is for, as the patient banner shows them; null when the patient isn't loaded.</summary>
+    public static ProcedurePatientResponse? ToPatient(Patient? patient) => patient is null
+        ? null
+        : new ProcedurePatientResponse
+        {
+            Id = patient.Id,
+            FirstName = patient.FirstName,
+            LastName = patient.LastName,
+            DateOfBirth = patient.DateOfBirth,
+            NhsNumber = patient.NhsNumber,
+            IsRestricted = patient.RestrictedAtUtc is not null,
+            IsDisputed = patient.DisputedAtUtc is not null,
+            IsAnonymised = patient.AnonymisedAtUtc is not null
+        };
 
     /// <summary>Table rows for procedures, looking up their assignees' usernames.</summary>
     public static async Task<List<PatientProcedureSummaryResponse>> ToSummariesAsync(

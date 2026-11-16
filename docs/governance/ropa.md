@@ -44,10 +44,11 @@ All customers receive the same service, so the categories are the same for each.
 
 | # | Processing | Data subjects | Personal data (see [data-inventory.md](data-inventory.md)) | Operations |
 |---|---|---|---|---|
-| A3.1 | **Hosting the patient and procedure records** | Patients | Name, date of birth, email; procedures (title, notes, due date, priority, status); stage notes; assignments | Storage, retrieval, display, change, deletion, backup and restore, on the customer's staff's actions |
+| A3.1 | **Hosting the patient and procedure records** | Patients | Name, date of birth, email, NHS number (optional); procedures (title, notes, due date, priority, status); stage notes; assignments | Storage, retrieval, display, change, deletion, backup and restore, on the customer's staff's actions |
 | A3.2 | **Hosting the audit trail** | Patients; staff users | Who did what to which procedure and when, with old and new values, including copies of notes text; who did what to which appointment and when, with old and new times and staff, old and new notes, and cancellation reasons | Recording, storage, retrieval by the customer's admins (the full trail) and staff (a per-patient timeline without its free text) |
 | A3.3 | **Staff accounts and sign-in** | Staff users | Username, password hash, roles, lockout state, sessions (IP address, browser), settings (including saved searches), notifications | Authentication, authorisation, storage |
 | A3.4 | **Live notifications** | Staff users; patients indirectly | Procedure title (or "Appointment"), the username of whoever assigned, booked, moved or cancelled, an appointment's time; never a patient's name | Transmission between API copies through Valkey, display |
+| A3.5 | **The FHIR API** (branch `feature/nhs-integrations`) | Patients | Name, date of birth, email, NHS number, as UK Core Patient resources | Retrieval and transmission to a caller signed in as the customer's staff, read-only, each use logged. A demographics (PDS) lookup exists too, with only an offline stub: connecting the real PDS adds NHS England as a source of data, and an entry here |
 | A3.5 | **Operating the service** | Staff users; patients indirectly | Application logs and traces, which can contain record IDs and URLs | Monitoring, troubleshooting, security investigation |
 | A3.6 | **Support, on the customer's instruction** | Patients; staff users | Whatever the instruction needs, under [support-access-policy.md](support-access-policy.md) | Viewing, correcting, exporting, restoring |
 | A3.7 | **Data subject requests and exit, on instruction** | Patients; staff users | All the customer's data | Export, correction, erasure, return and deletion at the end of the contract |
@@ -71,7 +72,7 @@ See [sub-processors.md](sub-processors.md). Today: Microsoft (Azure). GitHub hol
 A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the code, and marks what's planned.
 
 **In place in the code and the deployment design:**
-- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
+- **Access:** sign-in with a username and password; Identity's salted password hashes; server-generated first passwords; lockout after 5 failures for 5 minutes, with sign-in throttling in front of it; the 10,000 most common passwords refused; server-side sessions in an HttpOnly, Secure, SameSite=Lax cookie, 8 hours long (extendable on request to 24 at most from sign-in); two roles, checked on every API endpoint except sign-in, sign-out and `whoami`; admin-only user management; the full audit trail is admin-only, and staff see a per-patient timeline without its free text.
 - **Audit:** every change to a procedure or an appointment is recorded with who, when and what, in the same database transaction, and kept after deletes. Staff never see appointment notes or cancellation reasons on the patient timeline, and appointment notifications carry no patient name.
 - **Transport:** TLS to the ingress, HSTS, and TLS to Azure SQL.
 - **Storage:** Azure SQL with public access off and a private endpoint; encryption at rest with Microsoft-managed keys (TDE, Azure's default); a delete lock on the database server.
@@ -79,7 +80,7 @@ A summary. The DPIA ([dpia.md](dpia.md), section 6) links each measure to the co
 - **Pages:** no caching of pages that carry personal data (`Cache-Control: no-store`).
 - **Development:** synthetic data only; required CI checks; a written review of every merge since #51, by a separate AI agent not given the PR's own conclusions (not yet a second human reviewer).
 
-**Planned before real patient data** (roadmap steps 2, 4, 5 and 7, and step 6's patient banner): a patient banner; MFA; an idle session timeout; security headers; sign-in throttling; a least-privilege, passwordless database identity; monitoring and alerting; tested backups with longer retention; audit of reads and of patient and account changes; retention enforcement; subject access export.
+**Planned before real patient data** (roadmap steps 2, 4, 5 and 7, and step 6's patient banner): a patient banner (built on branch `feature/nhs-integrations`, to be verified by the Clinical Safety Officer); MFA; an idle session timeout; a least-privilege, passwordless database identity; monitoring and alerting; tested backups with longer retention; audit of reads and of patient and account changes; retention enforcement; subject access export.
 
 **Organisational:** a DPO; confidentiality clauses; MFA on every company account [to confirm]; annual data security training; a support access policy; a breach procedure; Cyber Essentials; the DSPT (all planned; see [dspt-readiness.md](dspt-readiness.md)).
 

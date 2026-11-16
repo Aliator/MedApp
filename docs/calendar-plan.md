@@ -150,7 +150,7 @@ Staff user IDs have no foreign keys, as with procedure assignments. One migratio
 
 Appointment notes and cancellation reasons are free text about patients, and block notes free text about staff. They're listed in `docs/governance/data-inventory.md` and assessed in `docs/governance/dpia.md`, with retention in `retention-schedule.md`.
 
-**When PR #68 (privacy features) merges:** anonymising a patient must also clear their appointments' notes and cancellation reasons and their history's notes and reasons, and the subject access export must include their appointments and appointment history.
+**With the privacy features (PR #68):** anonymising a patient replaces their appointments' notes and cancellation reasons, and the notes, reasons and procedure titles in their appointment history, with placeholders; notifications about their appointments take the procedure's new title, or keep the fixed "Appointment". The subject access export includes their appointments and appointment history. A restricted patient's appointments can't be booked, rescheduled or given an outcome (the restriction guard's 409), but can still be cancelled with a reason, so care can be paused safely, as their procedures can; an anonymised patient's can't be changed at all. Reading appointments (the calendar, Needs Booking, the booking dialog, an appointment) is recorded in the activity log as reads of the patients they show, as other reads are.
 
 ## 7. Building it
 

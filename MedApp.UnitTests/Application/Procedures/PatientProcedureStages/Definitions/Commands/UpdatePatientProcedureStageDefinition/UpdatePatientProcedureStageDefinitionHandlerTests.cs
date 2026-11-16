@@ -113,7 +113,7 @@ public sealed class UpdatePatientProcedureStageDefinitionHandlerTests
         _repository.Setup(r => r.GetStageDefinitionByIdAsync(definition.Id, It.IsAny<CancellationToken>())).ReturnsAsync(definition);
 
         var response = await _fixture.Create<UpdatePatientProcedureStageDefinitionHandler>()
-            .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, null, null, null, "required"), CancellationToken.None);
+            .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, null, null, null, VisitRequirement: "required"), CancellationToken.None);
 
         definition.VisitRequirement.Should().Be(VisitRequirement.Required);
         response.VisitRequirement.Should().Be("Required");

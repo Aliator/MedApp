@@ -29,7 +29,7 @@
 | **Business function** | [For example: day surgery unit, outpatient procedures, clinic administration] |
 | **Purpose** | Recording patients and coordinating the stages of the procedures carried out for them, for their direct care, including booking their appointments with staff; keeping an accurate record of who did what and when. |
 | **Data subjects** | Patients, including children [if applicable] |
-| **Personal data** | First name, last name, date of birth, email address. Procedures: title, notes, due date, priority, status. Stage notes written by staff. Appointments: the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes and a cancellation reason. |
+| **Personal data** | First name, last name, date of birth, email address, NHS number (if you record it). Procedures: title, notes, due date, priority, status. Stage notes written by staff. Appointments: the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes and a cancellation reason. |
 | **Special category data** | Health data: the procedures a patient is having, their appointments and whether they attended, and clinical notes. |
 | **Article 6 basis** | [NHS bodies: 6(1)(e) public task. Private providers: 6(1)(b) contract with the patient, or 6(1)(f) legitimate interests with an assessment.] |
 | **Article 9 condition** | 9(2)(h) health or social care |
@@ -63,11 +63,11 @@
 
 | Item | Detail |
 |---|---|
-| **Purpose** | Giving your staff secure access; knowing who did what; telling staff when they are assigned work or their appointments change; planning staff time around appointments. |
+| **Purpose** | Giving your staff secure access; knowing who did what; telling staff when they are assigned work (unless they switch it off) or their appointments change; planning staff time around appointments; supervising work, by telling admins about the staff actions their monitoring rules name. |
 | **Data subjects** | Your staff with MedApp accounts |
-| **Personal data** | Username, password hash, roles, lockout state; sign-in sessions with IP address and browser; account settings, including saved searches; notifications; calendars: time blocked off (its activity, such as annual leave or training, and a short note) and default week templates. |
+| **Personal data** | Username, password hash, roles, lockout state; sign-in sessions with IP address and browser; account settings, including saved searches; notification choices; notifications; calendars: time blocked off (its activity, such as annual leave or training, and a short note) and default week templates; admins' monitoring rules (which admin watches which member of staff, for which actions) and the monitoring notifications they send. |
 | **Special category data** | None by design. A calendar block's note could reveal a staff member's health if they write it; tell staff not to. |
-| **Article 6 basis** | [NHS bodies: 6(1)(e), and 6(1)(c) for security records. Private providers: 6(1)(b) for the account and calendar; 6(1)(f) for sessions and security.] |
+| **Article 6 basis** | [NHS bodies: 6(1)(e), and 6(1)(c) for security records. Private providers: 6(1)(b) for the account and calendar; 6(1)(f) for sessions, security and monitoring rules.] |
 | **Recipients** | Your MedApp admins; your processor. Every member of your staff with an account can see everyone's calendar, including annual leave. |
-| **Retention** | Accounts: while the person needs access, then removed [within your joiners, movers and leavers process]. Sessions: 12 months. Notifications: 6 months. Calendar blocks: 12 months after the day ([retention-schedule.md](retention-schedule.md)). **Not applied automatically yet.** |
+| **Retention** | Accounts: while the person needs access, then removed [within your joiners, movers and leavers process]. Sessions: 12 months. Notifications: 6 months. Calendar blocks: 12 months after the day. Monitoring rules: until the admin deletes them [review them under your monitoring policy] ([retention-schedule.md](retention-schedule.md)). **Not applied automatically yet.** |
 | **Privacy information** | [Your staff privacy notice; see [privacy-notice-staff-template.md](privacy-notice-staff-template.md)] |

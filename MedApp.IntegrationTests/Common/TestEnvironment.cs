@@ -102,6 +102,8 @@ public sealed class TestEnvironment
             SET Name = N'Definition missing',
                 Description = N'This stage definition was deleted.',
                 Instructions = N'No instructions available.',
+                SnomedCode = NULL,
+                SnomedTerm = NULL,
                 IsArchived = 1,
                 VisitRequirement = 0
             WHERE Id = @seeded;

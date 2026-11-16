@@ -24,7 +24,7 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > Your information is stored in the UK. [Company name] and its hosting provider, Microsoft, can reach it only to run and support the system, under contracts that bind them to our instructions and to confidentiality. [Company name]'s support staff look at records only when we ask them to, under a written policy. In rare cases Microsoft's support engineers may do so from outside the UK, under the safeguards UK law requires.
 >
-> In our organisation, our staff who have a MedApp account can see your record. [We record who looks at your record, and we check these records regularly.] *Include the sentence in brackets only once MedApp records access to records (roadmap step 7).*
+> In our organisation, our staff who have a MedApp account can see your record. [We record who looks at your record, and we check these records regularly.] *MedApp records access to records (roadmap step 7). Include the sentence in brackets once your organisation checks those records regularly.*
 
 ## Section B: a full notice
 
@@ -32,9 +32,9 @@ Write it so your patients can understand it: plain words, short sentences, and a
 >
 > **Who we are.** [Customer name], [address], is responsible for your information (the "controller"). Our data protection officer is [DPO name], [DPO contact]. [Our Caldicott Guardian is [name].]
 >
-> **What we hold about you.** Your name, date of birth and email address; the procedures you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled); and notes our staff write about your care. [Add anything else you hold in other systems.]
+> **What we hold about you.** Your name, date of birth and email address, and your NHS number [if you record it]; the procedures you are having with us, and their dates and progress; your appointments with our staff (when, with whom, and whether you attended, or why one was cancelled); and notes our staff write about your care. [Add anything else you hold in other systems.]
 >
-> **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you].
+> **Where it comes from.** From you, and from [the professional who referred you, your GP, other services caring for you]. [*Only once MedApp is connected to it:* We may check your name and date of birth against the NHS's national record of patients' details (the Personal Demographics Service), using your NHS number.]
 >
 > **Why we use it.** To provide and coordinate your care, to book your appointments, to keep an accurate record of it, and to make sure the right staff do the right things at the right time.
 >

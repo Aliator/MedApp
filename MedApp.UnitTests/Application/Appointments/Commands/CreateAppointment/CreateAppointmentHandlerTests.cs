@@ -2,6 +2,7 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
@@ -316,5 +317,27 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
         Identity.Verify(i => i.GetStaffAsync(cts.Token), Times.Once);
         Repository.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), cts.Token), Times.Once);
         Identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_PatientRestricted_ThrowsConflictWithoutAddingIt()
+    {
+        _patient.RestrictedAtUtc = PrivacyTestConstants.FlaggedAtUtc;
+
+        var act = () => _handler.Handle(Booking(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.RestrictedMessage);
+        Added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_PatientAnonymised_ThrowsConflictWithoutAddingIt()
+    {
+        _patient.AnonymisedAtUtc = PrivacyTestConstants.FlaggedAtUtc;
+
+        var act = () => _handler.Handle(Request(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.AnonymisedMessage);
+        Added.Should().BeEmpty();
     }
 }

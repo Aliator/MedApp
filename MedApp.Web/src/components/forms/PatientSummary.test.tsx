@@ -29,4 +29,20 @@ describe('PatientSummary', () => {
     expect(screen.queryByText('freya.ahmed18@example.com')).not.toBeInTheDocument();
     expect(screen.getByText('Procedures')).toBeInTheDocument();
   });
+
+  it('shows the NHS number when given, grouped, or says it was not given', async () => {
+    const {unmount} = renderWithApp(<PatientSummary {...patient} nhsNumber="9990000026" />);
+    expect(await screen.findByText('999 000 0026')).toBeInTheDocument();
+    unmount();
+
+    renderWithApp(<PatientSummary {...patient} nhsNumber="" />);
+    expect(await screen.findByText('Not given')).toBeInTheDocument();
+  });
+
+  it('leaves the NHS number out when not given at all', async () => {
+    renderWithApp(<PatientSummary {...patient} />);
+
+    expect(await screen.findByText('Freya Ahmed')).toBeInTheDocument();
+    expect(screen.queryByText('NHS Number')).not.toBeInTheDocument();
+  });
 });

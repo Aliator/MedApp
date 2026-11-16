@@ -12,7 +12,8 @@ const templates = [
     id: 'tpl-knee',
     name: 'Knee review',
     stages: [
-      {stageOrder: 2, stageDefinitionId: 'd2', name: 'Scan', description: 'Imaging of the joint.', visitRequirement: 'Required'},
+      // A real SNOMED CT concept ID, used only as a code: 71388002 is Procedure.
+      {stageOrder: 2, stageDefinitionId: 'd2', name: 'Scan', description: 'Imaging of the joint.', snomedCode: '71388002', snomedTerm: 'Procedure', visitRequirement: 'Required'},
       {stageOrder: 1, stageDefinitionId: 'd1', name: 'Consultation', description: ''},
     ],
   },
@@ -31,6 +32,13 @@ function renderNew(handlers: Record<string, (request: Request) => Response | Pro
 }
 
 describe('NewProcedurePage', () => {
+  it("shows the patient's banner", async () => {
+    renderNew({'GET /api/patients/patient-1': () => json({id: 'patient-1', firstName: 'Test', lastName: 'Patient', nhsNumber: '9990000034'})});
+
+    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('NHS No. 999 000 0034')).toBeInTheDocument();
+  });
+
   it('offers the templates that have stages, for the patient named in the subtitle', async () => {
     const {user} = renderNew();
 
@@ -48,6 +56,7 @@ describe('NewProcedurePage', () => {
 
     expect(screen.getByText('Stages (2)')).toBeInTheDocument();
     expect(screen.getAllByText(/^\d\. /).map((t) => t.textContent)).toEqual(['1. Consultation', '2. Scan']);
+    expect(screen.getByText('SNOMED CT: 71388002 | Procedure')).toBeInTheDocument();
     expect(screen.getByText('Imaging of the joint.')).toBeInTheDocument();
     // The scan involves a visit.
     expect(screen.getByText('2. Scan').parentElement).toHaveTextContent('2. ScanVisit required');

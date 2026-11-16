@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using MedApp.Application.Patients.Common;
 
 namespace MedApp.Application.Patients.Commands.UpdatePatient;
 
@@ -30,12 +31,15 @@ public sealed class UpdatePatientValidator : AbstractValidator<UpdatePatientComm
             .WithMessage("Email must be a valid email address.")
             .When(x => x.Email is not null);
 
+        RuleFor(x => x.NhsNumber).NhsNumber();
+
         RuleFor(x => x)
             .Must(x =>
                 x.FirstName is not null ||
                 x.LastName is not null ||
                 x.DateOfBirth.HasValue ||
-                x.Email is not null)
+                x.Email is not null ||
+                x.NhsNumber is not null)
             .WithMessage("At least one field must be provided.");
     }
 }

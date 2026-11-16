@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedApp.Infrastructure.Migrations
 {
     [DbContext(typeof(MedAppDbContext))]
-    [Migration("20261116102835_AddedStaffCalendars")]
-    partial class AddedStaffCalendars
+    [Migration("20261116111123_AddedNhsNumberAndSnomedCodes")]
+    partial class AddedNhsNumberAndSnomedCodes
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,84 +25,7 @@ namespace MedApp.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("MedApp.Domain.Appointments.Appointment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("BookedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("BookedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CancelReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("EndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsAutomatic")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)")
-                        .HasDefaultValue("");
-
-                    b.Property<DateTime?>("OutcomeAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("OutcomeByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("StageId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("StartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("ProcedureId");
-
-                    b.HasIndex("StageId");
-
-                    b.HasIndex("StaffUserId", "StartUtc");
-
-                    b.HasIndex("Status", "CreatedAtUtc");
-
-                    b.ToTable("Appointments", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Appointments.AppointmentEvent", b =>
+            modelBuilder.Entity("MedApp.Domain.Activity.ActivityEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -111,9 +34,6 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<int>("Action")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("AppointmentId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("AtUtc")
                         .HasColumnType("datetime2");
 
@@ -121,35 +41,21 @@ namespace MedApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("EndUtc")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
 
-                    b.Property<Guid>("PatientId")
+                    b.Property<Guid?>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("ProcedureId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ProcedureTitle")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid?>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("StaffUsername")
+                    b.Property<string>("TargetUsername")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<string>("StageName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("StartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Username")
@@ -159,11 +65,13 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AppointmentId", "AtUtc");
+                    b.HasIndex("AtUtc");
 
                     b.HasIndex("PatientId", "AtUtc");
 
-                    b.ToTable("AppointmentEvents", (string)null);
+                    b.HasIndex("UserId", "Action", "PatientId", "AtUtc");
+
+                    b.ToTable("ActivityEntries", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Authentication.UserSession", b =>
@@ -219,327 +127,10 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("UserSettings", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarActivityType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Colour")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<bool>("IsArchived")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("CalendarActivityTypes", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000001"),
-                            Colour = "green",
-                            IsArchived = false,
-                            Name = "Lunch"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000002"),
-                            Colour = "blue",
-                            IsArchived = false,
-                            Name = "Admin time"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000003"),
-                            Colour = "purple",
-                            IsArchived = false,
-                            Name = "Training"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000004"),
-                            Colour = "teal",
-                            IsArchived = false,
-                            Name = "Meeting"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000005"),
-                            Colour = "orange",
-                            IsArchived = false,
-                            Name = "Annual leave"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000006"),
-                            Colour = "gray",
-                            IsArchived = false,
-                            Name = "Travel"
-                        });
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarBlock", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ActivityTypeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("EndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("");
-
-                    b.Property<Guid>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("StartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityTypeId");
-
-                    b.HasIndex("StaffUserId", "StartUtc");
-
-                    b.ToTable("CalendarBlocks", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarBlockException", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("DayTemplateBlockId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DayTemplateBlockId");
-
-                    b.HasIndex("StaffUserId", "Date", "DayTemplateBlockId")
-                        .IsUnique();
-
-                    b.ToTable("CalendarBlockExceptions", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarDayOverride", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<Guid?>("DayTemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DayTemplateId");
-
-                    b.HasIndex("StaffUserId", "Date")
-                        .IsUnique();
-
-                    b.ToTable("CalendarDayOverrides", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.DayTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsArchived")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("DayTemplates", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.DayTemplateBlock", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ActivityTypeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("DayTemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<TimeOnly>("EndTime")
-                        .HasColumnType("time");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("");
-
-                    b.Property<TimeOnly>("StartTime")
-                        .HasColumnType("time");
-
-                    b.Property<DateOnly>("ValidFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("ValidTo")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityTypeId");
-
-                    b.HasIndex("DayTemplateId", "ValidFrom");
-
-                    b.ToTable("DayTemplateBlocks", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StaffUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly>("ValidFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("ValidTo")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("WeekTemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WeekTemplateId");
-
-                    b.HasIndex("StaffUserId", "ValidFrom");
-
-                    b.ToTable("StaffWeekTemplates", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.WeekTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsArchived")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("WeekTemplates", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.WeekTemplateDay", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("DayTemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly>("ValidFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("ValidTo")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("WeekTemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DayTemplateId");
-
-                    b.HasIndex("WeekTemplateId", "DayOfWeek", "ValidFrom");
-
-                    b.ToTable("WeekTemplateDays", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_WeekTemplateDays_DayOfWeek", "[DayOfWeek] BETWEEN 1 AND 5");
-                        });
-                });
-
             modelBuilder.Entity("MedApp.Domain.Notifications.Notification", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AppointmentId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAtUtc")
@@ -580,11 +171,21 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("AnonymisedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("DateOfBirth")
                         .HasColumnType("date");
+
+                    b.Property<string>("DisputeReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("DisputedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -604,7 +205,36 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("NhsNumber")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<DateTime?>("RestrictedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RestrictionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RetentionKeptReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateOnly?>("RetentionKeptUntil")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("NhsNumber")
+                        .IsUnique()
+                        .HasFilter("[NhsNumber] IS NOT NULL");
 
                     b.ToTable("Patients", (string)null);
                 });
@@ -800,6 +430,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("PatientProcedureId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(18)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(18)");
+
+                    b.Property<string>("SnomedTerm")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<Guid>("StageDefinitionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -811,11 +450,6 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<Guid?>("StartedByUserId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("VisitRequirement")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 
@@ -853,10 +487,14 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("VisitRequirement")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(18)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(18)");
+
+                    b.Property<string>("SnomedTerm")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.HasKey("Id");
 
@@ -872,8 +510,7 @@ namespace MedApp.Infrastructure.Migrations
                             Description = "This stage definition was deleted.",
                             Instructions = "No instructions available.",
                             IsArchived = true,
-                            Name = "Definition missing",
-                            VisitRequirement = 0
+                            Name = "Definition missing"
                         });
                 });
 
@@ -1122,112 +759,6 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Appointments.Appointment", b =>
-                {
-                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "Procedure")
-                        .WithMany()
-                        .HasForeignKey("ProcedureId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", "Stage")
-                        .WithMany()
-                        .HasForeignKey("StageId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("Procedure");
-
-                    b.Navigation("Stage");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarBlock", b =>
-                {
-                    b.HasOne("MedApp.Domain.Calendar.CalendarActivityType", "ActivityType")
-                        .WithMany()
-                        .HasForeignKey("ActivityTypeId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("ActivityType");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarBlockException", b =>
-                {
-                    b.HasOne("MedApp.Domain.Calendar.DayTemplateBlock", "DayTemplateBlock")
-                        .WithMany()
-                        .HasForeignKey("DayTemplateBlockId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DayTemplateBlock");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.CalendarDayOverride", b =>
-                {
-                    b.HasOne("MedApp.Domain.Calendar.DayTemplate", "DayTemplate")
-                        .WithMany()
-                        .HasForeignKey("DayTemplateId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("DayTemplate");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.DayTemplateBlock", b =>
-                {
-                    b.HasOne("MedApp.Domain.Calendar.CalendarActivityType", "ActivityType")
-                        .WithMany()
-                        .HasForeignKey("ActivityTypeId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Calendar.DayTemplate", "DayTemplate")
-                        .WithMany("Blocks")
-                        .HasForeignKey("DayTemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ActivityType");
-
-                    b.Navigation("DayTemplate");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.StaffWeekTemplate", b =>
-                {
-                    b.HasOne("MedApp.Domain.Calendar.WeekTemplate", "WeekTemplate")
-                        .WithMany()
-                        .HasForeignKey("WeekTemplateId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("WeekTemplate");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.WeekTemplateDay", b =>
-                {
-                    b.HasOne("MedApp.Domain.Calendar.DayTemplate", "DayTemplate")
-                        .WithMany()
-                        .HasForeignKey("DayTemplateId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Calendar.WeekTemplate", "WeekTemplate")
-                        .WithMany("Days")
-                        .HasForeignKey("WeekTemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DayTemplate");
-
-                    b.Navigation("WeekTemplate");
-                });
-
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
                 {
                     b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
@@ -1342,16 +873,6 @@ namespace MedApp.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.DayTemplate", b =>
-                {
-                    b.Navigation("Blocks");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Calendar.WeekTemplate", b =>
-                {
-                    b.Navigation("Days");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>

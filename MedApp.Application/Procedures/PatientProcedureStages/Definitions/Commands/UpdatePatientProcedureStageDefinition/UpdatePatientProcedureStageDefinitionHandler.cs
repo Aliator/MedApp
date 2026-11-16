@@ -27,6 +27,8 @@ public sealed class UpdatePatientProcedureStageDefinitionHandler(IPatientProcedu
 
         if (request.Description is not null) definition.Description = request.Description;
         if (request.Instructions is not null) definition.Instructions = request.Instructions;
+        if (request.SnomedCode is not null)
+            (definition.SnomedCode, definition.SnomedTerm) = SnomedRules.Normalise(request.SnomedCode, request.SnomedTerm);
         if (request.VisitRequirement is not null)
             definition.VisitRequirement = ProcedureEnums.Parse<VisitRequirement>(request.VisitRequirement);
 

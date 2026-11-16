@@ -94,6 +94,16 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
         return new PagedResult<PatientProcedure>(page, totalCount);
     }
 
+    public async Task<IReadOnlyList<ProcedureLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var list = ids.ToList();
+        return await context.PatientProcedures
+            .AsNoTracking()
+            .Where(p => list.Contains(p.Id))
+            .Select(p => new ProcedureLabel(p.Id, p.Title, p.Patient.FirstName, p.Patient.LastName))
+            .ToListAsync(ct);
+    }
+
     /// <summary>Adds a change's audit entries, the appointments it asked for and the history entries it wrote.</summary>
     private void AddChange(ProcedureChange change)
     {

@@ -1,7 +1,9 @@
 using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Queries.GetAppointmentById;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -39,5 +41,33 @@ public sealed class GetAppointmentByIdHandlerTests : AppointmentHandlerTestBase
         response.CanRecordOutcome.Should().BeTrue("it started before the fixed clock's now");
         Identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token), Times.Once);
         Repository.Verify(r => r.GetForUpdateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_Exists_RecordsAViewOfItsPatient()
+    {
+        var activity = new RecordingActivityLog();
+        Fixture.Inject<IActivityLog>(activity);
+        var appointment = CreateAppointment();
+        Repository.Setup(r => r.GetByIdAsync(appointment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(appointment);
+        using var cts = new CancellationTokenSource();
+
+        await Fixture.Create<GetAppointmentByIdHandler>().Handle(new GetAppointmentByIdQuery(appointment.Id), cts.Token);
+
+        activity.Views.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            (ActivityAction.PatientViewed, new List<Guid> { appointment.PatientId }, (Guid?)null));
+        activity.Tokens.Should().Equal(cts.Token);
+    }
+
+    [Test]
+    public async Task Handle_AppointmentDoesNotExist_RecordsNothing()
+    {
+        var activity = new RecordingActivityLog();
+        Fixture.Inject<IActivityLog>(activity);
+
+        var act = () => Fixture.Create<GetAppointmentByIdHandler>().Handle(new GetAppointmentByIdQuery(Guid.NewGuid()), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+        activity.Views.Should().BeEmpty();
     }
 }

@@ -15,8 +15,11 @@ public sealed class AppointmentEvent
 
     public Guid? ProcedureId { get; init; }
 
-    /// <summary>The procedure's title at the time, or empty for an appointment not for a procedure.</summary>
-    public string ProcedureTitle { get; init; } = string.Empty;
+    /// <summary>
+    /// The procedure's title at the time, or empty for an appointment not for a procedure. Anonymising the patient
+    /// replaces it.
+    /// </summary>
+    public string ProcedureTitle { get; set; } = string.Empty;
 
     /// <summary>The stage's name at the time, if it was for a stage.</summary>
     public string? StageName { get; init; }
@@ -42,5 +45,5 @@ public sealed class AppointmentEvent
     public DateTime? EndUtc { get; init; }
 
     /// <summary>What changed, as camelCase JSON: the previous time and member of staff, a reason, notes, and so on.</summary>
-    public string Details { get; init; } = "{}";
+    public string Details { get; set; } = "{}";
 }

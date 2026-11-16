@@ -1,5 +1,6 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using MedApp.API.Common.Authentication;
+using MedApp.API.Common.RateLimiting;
 using MedApp.Application.Authentication.Roles.Commands.AssignRole;
 using MedApp.Application.Authentication.Roles.Commands.CreateRole;
 using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
@@ -13,6 +14,7 @@ using MedApp.Application.Authentication.Sessions.Queries.GetSession;
 using MedApp.Application.Authentication.Settings.Commands.SaveMySettings;
 using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Sessions.Commands.Logout;
+using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
@@ -29,6 +31,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace MedApp.API.Controllers;
 
@@ -39,11 +42,20 @@ public sealed class AuthController(
     ISessionCookieService cookieService)
     : ControllerBase
 {
+    /// <summary>
+    /// Signs in. Throttled per client address and per username (<see cref="LoginThrottling"/>): too many attempts is
+    /// a 429 with <c>Retry-After</c>, before the password is checked.
+    /// </summary>
     [HttpPost("login")]
     [Tags("Login")]
+    // A username and a password: anything bigger is refused (413) before it's read.
+    [RequestSizeLimit(16 * 1024)]
+    [EnableRateLimiting(LoginThrottling.Policy)]
+    [ThrottleLoginByUsername]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status423Locked)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var session = await mediator.Send(
@@ -195,7 +207,8 @@ public sealed class AuthController(
             new UpdateUserPasswordCommand(
                 username,
                 request.OldPassword,
-                request.NewPassword));
+                request.NewPassword,
+                User.GetSessionId()));
 
         if (!result.Succeeded)
             return BadRequest(result.Errors);
@@ -219,6 +232,21 @@ public sealed class AuthController(
         return Ok(response.GeneratedPassword);
     }
     
+    /// <summary>
+    /// Signs a user out everywhere: every session they have ends, on every device, and they must sign in again. An
+    /// unknown user is a 404.
+    /// </summary>
+    [HttpPost("users/{username}/sign-out-everywhere")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Tags("Authentication")]
+    public async Task<IActionResult> SignOutEverywhere(string username, CancellationToken ct)
+    {
+        var found = await mediator.Send(new SignOutEverywhereCommand(username), ct);
+        return found ? NoContent() : NotFound();
+    }
+
     /// <summary>
     /// Deletes a user. The signed-in admin confirms with their own password: a wrong one is a 400 (and counts
     /// towards lockout), an unknown user a 404. A user with upcoming booked appointments is a 400
@@ -391,8 +419,5 @@ public sealed class AuthController(
 
     /// <summary>The session in the request's cookie, or null when there's none, or it isn't a session ID.</summary>
     private Guid? CurrentSessionId() =>
-        Request.Cookies.TryGetValue(SessionAuthenticationDefaults.CookieName, out var raw)
-        && Guid.TryParse(raw, out var sessionId)
-            ? sessionId
-            : null;
+        cookieService.TryGetSessionCookie(Request, out var sessionId) ? sessionId : null;
 }

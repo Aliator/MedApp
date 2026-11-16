@@ -1,4 +1,6 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Monitoring.Common;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
@@ -12,6 +14,7 @@ public sealed class CreatePatientProcedureHandler(
     IPatientProcedureRepository repository,
     IPatientRepository patientRepository,
     IPatientProcedureStagesRepository stagesRepository,
+    IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<CreatePatientProcedureCommand, PatientProcedureResponse>
 {
@@ -19,6 +22,9 @@ public sealed class CreatePatientProcedureHandler(
     {
         var patient = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken)
                       ?? throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
+
+        // A restricted or anonymised record can't gain new procedures (409).
+        PatientRules.EnsureCanChange(patient);
 
         var template = await stagesRepository.GetStageTemplateByIdAsync(request.TemplateId, cancellationToken)
                        ?? throw new NotFoundException($"Template '{request.TemplateId}' was not found.");
@@ -56,6 +62,8 @@ public sealed class CreatePatientProcedureHandler(
                     Name = map.StageDefinition.Name,
                     Description = map.StageDefinition.Description,
                     Instructions = map.StageDefinition.Instructions,
+                    SnomedCode = map.StageDefinition.SnomedCode,
+                    SnomedTerm = map.StageDefinition.SnomedTerm,
                     VisitRequirement = map.StageDefinition.VisitRequirement,
                     CreatedAt = now,
                     LastUpdated = now
@@ -76,7 +84,8 @@ public sealed class CreatePatientProcedureHandler(
         StageVisits.RequestForCurrentStage(change, []);
 
         await repository.AddAsync(change, cancellationToken);
+        await procedureMonitor.NotifyAsync(change, cancellationToken);
 
-        return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, ProcedureMapper.PatientName(patient));
+        return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, patient: patient);
     }
 }

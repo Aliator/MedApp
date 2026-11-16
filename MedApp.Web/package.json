@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server/server.mjs --dev",
     "dev:client": "vite",
-    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/ssr && node -e \"require('fs').copyFileSync('server/server.mjs','dist/ssr/server.mjs')\"",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/ssr && node -e \"const fs=require('fs');fs.copyFileSync('server/server.mjs','dist/ssr/server.mjs');fs.copyFileSync('dist/.vite/manifest.json','dist/ssr/client-manifest.json')\"",
     "start": "node dist/ssr/server.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -44,7 +44,9 @@
     "lexical": "0.52.0",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-is": "19.3.1",
+    "recharts": "3.10.1"
   },
   "devDependencies": {
     "@astryxdesign/cli": "0.7.15",

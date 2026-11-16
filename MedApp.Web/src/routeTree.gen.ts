@@ -18,8 +18,12 @@ import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
 import { Route as AppAccountPasswordRouteImport } from './routes/_app/account/password'
+import { Route as AppAdminActivityRouteImport } from './routes/_app/admin/activity'
 import { Route as AppAdminActivityTypesRouteImport } from './routes/_app/admin/activity-types'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppAdminInsightsRouteImport } from './routes/_app/admin/insights'
+import { Route as AppAdminMonitoringRouteImport } from './routes/_app/admin/monitoring'
+import { Route as AppAdminRetentionRouteImport } from './routes/_app/admin/retention'
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
@@ -34,6 +38,7 @@ import { Route as AppAdminTemplatesIdRouteImport } from './routes/_app/admin/tem
 import { Route as AppAdminTemplatesNewRouteImport } from './routes/_app/admin/templates/new'
 import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$id/index'
 import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
+import { Route as AppPatientsIdExportRouteImport } from './routes/_app/patients/$id/export'
 import { Route as AppPatientsIdProceduresRouteImport } from './routes/_app/patients/$id/procedures'
 import { Route as AppProceduresIdIndexRouteImport } from './routes/_app/procedures/$id/index'
 import { Route as AppProceduresIdEditRouteImport } from './routes/_app/procedures/$id/edit'
@@ -86,6 +91,11 @@ const AppAccountPasswordRoute = AppAccountPasswordRouteImport.update({
   path: '/account/password',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminActivityRoute = AppAdminActivityRouteImport.update({
+  id: '/admin/activity',
+  path: '/admin/activity',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminActivityTypesRoute = AppAdminActivityTypesRouteImport.update({
   id: '/admin/activity-types',
   path: '/admin/activity-types',
@@ -94,6 +104,21 @@ const AppAdminActivityTypesRoute = AppAdminActivityTypesRouteImport.update({
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/admin/audit',
   path: '/admin/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminInsightsRoute = AppAdminInsightsRouteImport.update({
+  id: '/admin/insights',
+  path: '/admin/insights',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminMonitoringRoute = AppAdminMonitoringRouteImport.update({
+  id: '/admin/monitoring',
+  path: '/admin/monitoring',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRetentionRoute = AppAdminRetentionRouteImport.update({
+  id: '/admin/retention',
+  path: '/admin/retention',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminStagesRoute = AppAdminStagesRouteImport.update({
@@ -167,6 +192,11 @@ const AppPatientsIdEditRoute = AppPatientsIdEditRouteImport.update({
   path: '/patients/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPatientsIdExportRoute = AppPatientsIdExportRouteImport.update({
+  id: '/patients/$id/export',
+  path: '/patients/$id/export',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPatientsIdProceduresRoute = AppPatientsIdProceduresRouteImport.update({
   id: '/patients/$id/procedures',
   path: '/patients/$id/procedures',
@@ -215,8 +245,12 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/password': typeof AppAccountPasswordRoute
+  '/admin/activity': typeof AppAdminActivityRoute
   '/admin/activity-types': typeof AppAdminActivityTypesRoute
   '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/monitoring': typeof AppAdminMonitoringRoute
+  '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -229,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
   '/admin/templates/new': typeof AppAdminTemplatesNewRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/patients/$id/export': typeof AppPatientsIdExportRoute
   '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/procedures/$id/edit': typeof AppProceduresIdEditRoute
   '/admin/calendar-templates/': typeof AppAdminCalendarTemplatesIndexRoute
@@ -248,8 +283,12 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/password': typeof AppAccountPasswordRoute
+  '/admin/activity': typeof AppAdminActivityRoute
   '/admin/activity-types': typeof AppAdminActivityTypesRoute
   '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/insights': typeof AppAdminInsightsRoute
+  '/admin/monitoring': typeof AppAdminMonitoringRoute
+  '/admin/retention': typeof AppAdminRetentionRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -262,6 +301,7 @@ export interface FileRoutesByTo {
   '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
   '/admin/templates/new': typeof AppAdminTemplatesNewRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/patients/$id/export': typeof AppPatientsIdExportRoute
   '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/procedures/$id/edit': typeof AppProceduresIdEditRoute
   '/admin/calendar-templates': typeof AppAdminCalendarTemplatesIndexRoute
@@ -283,8 +323,12 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
   '/_app/account/password': typeof AppAccountPasswordRoute
+  '/_app/admin/activity': typeof AppAdminActivityRoute
   '/_app/admin/activity-types': typeof AppAdminActivityTypesRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
+  '/_app/admin/insights': typeof AppAdminInsightsRoute
+  '/_app/admin/monitoring': typeof AppAdminMonitoringRoute
+  '/_app/admin/retention': typeof AppAdminRetentionRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
@@ -297,6 +341,7 @@ export interface FileRoutesById {
   '/_app/admin/templates/$id': typeof AppAdminTemplatesIdRoute
   '/_app/admin/templates/new': typeof AppAdminTemplatesNewRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
+  '/_app/patients/$id/export': typeof AppPatientsIdExportRoute
   '/_app/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
   '/_app/procedures/$id/edit': typeof AppProceduresIdEditRoute
   '/_app/admin/calendar-templates/': typeof AppAdminCalendarTemplatesIndexRoute
@@ -318,8 +363,12 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/account/colours'
     | '/account/password'
+    | '/admin/activity'
     | '/admin/activity-types'
     | '/admin/audit'
+    | '/admin/insights'
+    | '/admin/monitoring'
+    | '/admin/retention'
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
@@ -332,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin/templates/$id'
     | '/admin/templates/new'
     | '/patients/$id/edit'
+    | '/patients/$id/export'
     | '/patients/$id/procedures'
     | '/procedures/$id/edit'
     | '/admin/calendar-templates/'
@@ -351,8 +401,12 @@ export interface FileRouteTypes {
     | '/'
     | '/account/colours'
     | '/account/password'
+    | '/admin/activity'
     | '/admin/activity-types'
     | '/admin/audit'
+    | '/admin/insights'
+    | '/admin/monitoring'
+    | '/admin/retention'
     | '/admin/stages'
     | '/admin/users'
     | '/calendar/needs-booking'
@@ -365,6 +419,7 @@ export interface FileRouteTypes {
     | '/admin/templates/$id'
     | '/admin/templates/new'
     | '/patients/$id/edit'
+    | '/patients/$id/export'
     | '/patients/$id/procedures'
     | '/procedures/$id/edit'
     | '/admin/calendar-templates'
@@ -385,8 +440,12 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/account/colours'
     | '/_app/account/password'
+    | '/_app/admin/activity'
     | '/_app/admin/activity-types'
     | '/_app/admin/audit'
+    | '/_app/admin/insights'
+    | '/_app/admin/monitoring'
+    | '/_app/admin/retention'
     | '/_app/admin/stages'
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
@@ -399,6 +458,7 @@ export interface FileRouteTypes {
     | '/_app/admin/templates/$id'
     | '/_app/admin/templates/new'
     | '/_app/patients/$id/edit'
+    | '/_app/patients/$id/export'
     | '/_app/patients/$id/procedures'
     | '/_app/procedures/$id/edit'
     | '/_app/admin/calendar-templates/'
@@ -482,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountPasswordRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/activity': {
+      id: '/_app/admin/activity'
+      path: '/admin/activity'
+      fullPath: '/admin/activity'
+      preLoaderRoute: typeof AppAdminActivityRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/activity-types': {
       id: '/_app/admin/activity-types'
       path: '/admin/activity-types'
@@ -494,6 +561,27 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AppAdminAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/insights': {
+      id: '/_app/admin/insights'
+      path: '/admin/insights'
+      fullPath: '/admin/insights'
+      preLoaderRoute: typeof AppAdminInsightsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/monitoring': {
+      id: '/_app/admin/monitoring'
+      path: '/admin/monitoring'
+      fullPath: '/admin/monitoring'
+      preLoaderRoute: typeof AppAdminMonitoringRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/retention': {
+      id: '/_app/admin/retention'
+      path: '/admin/retention'
+      fullPath: '/admin/retention'
+      preLoaderRoute: typeof AppAdminRetentionRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/stages': {
@@ -594,6 +682,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/patients/$id/export': {
+      id: '/_app/patients/$id/export'
+      path: '/patients/$id/export'
+      fullPath: '/patients/$id/export'
+      preLoaderRoute: typeof AppPatientsIdExportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/patients/$id/procedures': {
       id: '/_app/patients/$id/procedures'
       path: '/patients/$id/procedures'
@@ -652,8 +747,12 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
   AppAccountPasswordRoute: typeof AppAccountPasswordRoute
+  AppAdminActivityRoute: typeof AppAdminActivityRoute
   AppAdminActivityTypesRoute: typeof AppAdminActivityTypesRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminInsightsRoute: typeof AppAdminInsightsRoute
+  AppAdminMonitoringRoute: typeof AppAdminMonitoringRoute
+  AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
@@ -666,6 +765,7 @@ interface AppRouteChildren {
   AppAdminTemplatesIdRoute: typeof AppAdminTemplatesIdRoute
   AppAdminTemplatesNewRoute: typeof AppAdminTemplatesNewRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
+  AppPatientsIdExportRoute: typeof AppPatientsIdExportRoute
   AppPatientsIdProceduresRoute: typeof AppPatientsIdProceduresRoute
   AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
   AppAdminCalendarTemplatesIndexRoute: typeof AppAdminCalendarTemplatesIndexRoute
@@ -684,8 +784,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,
   AppAccountPasswordRoute: AppAccountPasswordRoute,
+  AppAdminActivityRoute: AppAdminActivityRoute,
   AppAdminActivityTypesRoute: AppAdminActivityTypesRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminInsightsRoute: AppAdminInsightsRoute,
+  AppAdminMonitoringRoute: AppAdminMonitoringRoute,
+  AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
@@ -698,6 +802,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminTemplatesIdRoute: AppAdminTemplatesIdRoute,
   AppAdminTemplatesNewRoute: AppAdminTemplatesNewRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
+  AppPatientsIdExportRoute: AppPatientsIdExportRoute,
   AppPatientsIdProceduresRoute: AppPatientsIdProceduresRoute,
   AppProceduresIdEditRoute: AppProceduresIdEditRoute,
   AppAdminCalendarTemplatesIndexRoute: AppAdminCalendarTemplatesIndexRoute,

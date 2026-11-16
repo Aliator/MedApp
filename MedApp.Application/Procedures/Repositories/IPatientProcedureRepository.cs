@@ -46,6 +46,9 @@ public interface IPatientProcedureRepository
     /// <summary>A patient's procedures, in any status, read-only and without their stages, assignments or patient.</summary>
     Task<IReadOnlyList<PatientProcedure>> GetByPatientAsync(Guid patientId, CancellationToken ct);
 
+    /// <summary>The titles and patients' names of these procedures (those that exist), read-only.</summary>
+    Task<IReadOnlyList<ProcedureLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
     /// <summary>One page of procedures matching the query (see <c>ProcedureSearch</c>), with patients, stages and assignments.</summary>
     Task<PagedResult<PatientProcedure>> SearchAsync(SearchPatientProceduresQuery query, DateTime nowUtc, CancellationToken ct);
 }

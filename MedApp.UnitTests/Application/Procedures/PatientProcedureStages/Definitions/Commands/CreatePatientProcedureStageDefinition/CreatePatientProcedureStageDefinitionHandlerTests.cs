@@ -67,7 +67,7 @@ public sealed class CreatePatientProcedureStageDefinitionHandlerTests
     public async Task Handle_VisitRequirement_StoresAndReturnsIt(string given, VisitRequirement expected)
     {
         var response = await _fixture.Create<CreatePatientProcedureStageDefinitionHandler>()
-            .Handle(new CreatePatientProcedureStageDefinitionCommand(ConsultationStage, "d", "i", given), CancellationToken.None);
+            .Handle(new CreatePatientProcedureStageDefinitionCommand(ConsultationStage, "d", "i", VisitRequirement: given), CancellationToken.None);
 
         response.VisitRequirement.Should().Be(expected.ToString());
         _repository.Verify(r => r.AddStageDefinitionAsync(

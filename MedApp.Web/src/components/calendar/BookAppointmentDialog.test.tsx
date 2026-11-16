@@ -1,7 +1,7 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
-import {STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCalendar, testRequested, ukTime} from '../../test/calendar';
+import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testRequested, ukTime} from '../../test/calendar';
 import {calls, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {BookAppointmentDialog, type BookAppointmentDialogProps} from './BookAppointmentDialog';
 
@@ -27,6 +27,7 @@ function renderDialog(props: Partial<BookAppointmentDialogProps> = {}, handlers:
   const fetch = mockApi({
     'GET /api/calendar/staff': () => json(STAFF),
     'GET /api/calendar': (request) => calendarFor(request, {blocks: [testBlock(MONDAY, '08:00', '09:00')]}),
+    'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     ...handlers,
   });
   const result = renderWithApp(
@@ -50,12 +51,15 @@ describe('BookAppointmentDialog', () => {
     withAnnouncements();
     const booked = testAppointment({date: MONDAY, start: '09:00', end: '09:30'});
     const {fetch, user, onSaved, onClose} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}, procedure: {id: 'procedure-1', title: 'Knee review'}, stage: {id: 'stage-1', name: 'Assessment'}},
+      {patient: TEST_PATIENT, procedure: {id: 'procedure-1', title: 'Knee review'}, stage: {id: 'stage-1', name: 'Assessment'}},
       {'POST /api/appointments': () => json(booked)},
     );
 
     expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
-    expect(dialog().getByText('Test Patient')).toBeInTheDocument();
+    // Who it's for, as the patient banner shows them, so staff can check (hazard H-34).
+    const banner = dialog().getByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('NHS No. 999 000 0018')).toBeInTheDocument();
+    expect(within(banner).getByText(/^Born 1 January 1980/)).toBeInTheDocument();
     expect(dialog().getByText('Knee review: Assessment')).toBeInTheDocument();
     // The first working day with a free time is chosen; the morning's first hour is taken by a block.
     const monday = await dialog().findByRole('button', {name: 'Mon 23, 35 free times'});
@@ -87,7 +91,7 @@ describe('BookAppointmentDialog', () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
       {
-        patient: {id: 'patient-1', name: 'Test Patient'},
+        patient: TEST_PATIENT,
         staffUserId: STAFF_OTHER.userId,
         startUtc: ukTime('2026-11-25', '14:00'),
         endUtc: ukTime('2026-11-25', '14:45'),
@@ -121,7 +125,7 @@ describe('BookAppointmentDialog', () => {
   it('offers an odd preselected length alongside the usual ones, and forgets the time when the length changes', async () => {
     atMondayMorning();
     const {user} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}, startUtc: ukTime(MONDAY, '17:00'), endUtc: ukTime(MONDAY, '17:20')},
+      {patient: TEST_PATIENT, startUtc: ukTime(MONDAY, '17:00'), endUtc: ukTime(MONDAY, '17:20')},
       {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))},
     );
 
@@ -147,6 +151,9 @@ describe('BookAppointmentDialog', () => {
 
     expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
     expect(dialog().getByText('Knee review: Assessment')).toBeInTheDocument();
+    // The appointment carries only the patient's name, so who they are is read from their record.
+    expect(await dialog().findByRole('region', {name: 'Patient: Patient, Test'})).toHaveTextContent('NHS No. 999 000 0018');
+    expect(calls(fetch)).toContain('GET /api/patients/patient-1');
     expect(dialog().queryByRole('textbox', {name: /Notes/})).not.toBeInTheDocument();
     expect(dialog().getByText('Choose a time.')).toBeInTheDocument();
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /With/})).toHaveTextContent('b.staff'));
@@ -191,7 +198,7 @@ describe('BookAppointmentDialog', () => {
           const url = new URL(request.url);
           const first = url.searchParams.get('FirstName');
           const last = url.searchParams.get('LastName');
-          const patient = {id: 'patient-9', firstName: 'Alex', lastName: 'Sample', dateOfBirth: '1980-03-14'};
+          const patient = {id: 'patient-9', firstName: 'Alex', lastName: 'Sample', dateOfBirth: '1980-03-14', nhsNumber: '9990000026'};
           return json(pageOf((first ?? '').startsWith('al') || (last ?? '').startsWith('sa') || first === 'Alex' ? [patient] : []));
         },
         'GET /api/procedures/patient-procedures/search': () =>
@@ -213,8 +220,13 @@ describe('BookAppointmentDialog', () => {
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Add to Needs booking'}))).toBe(true);
     await user.type(dialog().getByRole('combobox', {name: /Patient/}), 'al');
-    expect(await screen.findByRole('option', {name: /Alex Sample/})).toHaveTextContent('Born 14 Mar 1980');
+    // Each result with its date of birth and NHS number, to tell patients with the same name apart.
+    expect(await screen.findByRole('option', {name: /Alex Sample/})).toHaveTextContent('Born 14 Mar 1980 · NHS No. 999 000 0026');
+    expect(dialog().queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
     await user.click(screen.getByRole('option', {name: /Alex Sample/}));
+    // The chosen patient's banner heads the dialog, from their search result (no read of their record).
+    expect(await dialog().findByRole('region', {name: 'Patient: Sample, Alex'})).toHaveTextContent('Born 14 March 1980');
+    expect(calls(fetch)).not.toContain('GET /api/patients/patient-9');
 
     await user.click(await dialog().findByRole('combobox', {name: /For/}));
     await user.click(await screen.findByRole('option', {name: /Hip review/}));
@@ -250,6 +262,8 @@ describe('BookAppointmentDialog', () => {
 
     await screen.findByRole('dialog');
     await user.type(await dialog().findByRole('combobox', {name: /Patient/}), 'Alex Sam');
+    // Without a date of birth or NHS number, the result says so.
+    expect(await screen.findByRole('option', {name: /Alex Sample/})).toHaveTextContent('Date of birth not known · No NHS number');
     await user.click(await screen.findByRole('option', {name: /Alex Sample/}));
     expect(calls(fetch)).toContain('GET /api/patients/search?PageSize=10&FirstName=Alex&LastName=Sam');
 
@@ -264,7 +278,7 @@ describe('BookAppointmentDialog', () => {
   it("shows the server's message when someone took the time, and refreshes the free times", async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}, procedure: {id: 'procedure-1', title: 'Knee review'}},
+      {patient: TEST_PATIENT, procedure: {id: 'procedure-1', title: 'Knee review'}},
       {
         'POST /api/appointments': () => json({title: 'That time overlaps an appointment, 09:00 to 09:30.'}, 409),
         'GET /api/procedures/patient-procedures/procedure-1': () => json({id: 'procedure-1', stages: []}),
@@ -283,7 +297,7 @@ describe('BookAppointmentDialog', () => {
   it('shows validation messages on their fields, and the rest above', async () => {
     atMondayMorning();
     const {user} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}},
+      {patient: TEST_PATIENT},
       {
         'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
         'POST /api/appointments': () =>
@@ -302,7 +316,7 @@ describe('BookAppointmentDialog', () => {
   it('shows any other failure as a message', async () => {
     atMondayMorning();
     const {user} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}},
+      {patient: TEST_PATIENT},
       {
         'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
         'POST /api/appointments': () => json({}, 500),
@@ -319,7 +333,7 @@ describe('BookAppointmentDialog', () => {
   it('looks ahead for the first free day, and moves between weeks', async () => {
     // Friday 27 November at 17:50: nothing more this week.
     atMondayMorning('2026-11-27T17:50:00Z');
-    const {user, fetch} = renderDialog({patient: {id: 'patient-1', name: 'Test Patient'}}, {
+    const {user, fetch} = renderDialog({patient: TEST_PATIENT}, {
       'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
       'GET /api/calendar': (request) => {
         const from = new URL(request.url).searchParams.get('From')!;
@@ -346,7 +360,7 @@ describe('BookAppointmentDialog', () => {
 
   it('moves between times with the arrow keys, as one tab stop', async () => {
     atMondayMorning();
-    const {user} = renderDialog({patient: {id: 'patient-1', name: 'Test Patient'}}, {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))});
+    const {user} = renderDialog({patient: TEST_PATIENT}, {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))});
 
     await screen.findByRole('dialog');
     const morning = await dialog().findByRole('group', {name: /Morning times/});
@@ -360,7 +374,7 @@ describe('BookAppointmentDialog', () => {
   it("shows someone else's free times once they're chosen", async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}},
+      {patient: TEST_PATIENT},
       {
         'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
         'GET /api/calendar': (request) =>
@@ -381,7 +395,7 @@ describe('BookAppointmentDialog', () => {
 
   it('says when the calendar cannot be loaded', async () => {
     atMondayMorning();
-    renderDialog({patient: {id: 'patient-1', name: 'Test Patient'}}, {
+    renderDialog({patient: TEST_PATIENT}, {
       'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
       'GET /api/calendar': () => json({}, 500),
     });
@@ -404,7 +418,7 @@ describe('BookAppointmentDialog', () => {
           <button type="button" onClick={() => setIsOpen(true)}>
             Open
           </button>
-          <BookAppointmentDialog isOpen={isOpen} onClose={() => setIsOpen(false)} patient={{id: 'patient-1', name: 'Test Patient'}} />
+          <BookAppointmentDialog isOpen={isOpen} onClose={() => setIsOpen(false)} patient={TEST_PATIENT} />
         </>
       );
     }
@@ -423,7 +437,7 @@ describe('BookAppointmentDialog', () => {
   it('books with Ctrl+S once a time is chosen, and not before', async () => {
     atMondayMorning();
     const {user, fetch} = renderDialog(
-      {patient: {id: 'patient-1', name: 'Test Patient'}},
+      {patient: TEST_PATIENT},
       {
         'GET /api/procedures/patient-procedures/search': () => json(pageOf([])),
         'POST /api/appointments': () => json(testAppointment()),
@@ -440,4 +454,48 @@ describe('BookAppointmentDialog', () => {
     fireEvent.keyDown(time, {key: 's', ctrlKey: true});
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/appointments'));
   });
+
+  it("won't book a restricted patient, and says why", async () => {
+    atMondayMorning();
+    const {user, fetch} = renderDialog(
+      {patient: {...TEST_PATIENT, isRestricted: true, restrictionReason: 'Synthetic accuracy check'}},
+      {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))},
+    );
+
+    await screen.findByRole('dialog');
+    const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+    expect(dialog().getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
+    expect(dialog().getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Add to Needs booking'}))).toBe(true);
+    await user.click(await dialog().findByRole('button', {name: '09:00'}));
+    expect(isDisabled(dialog().getByRole('button', {name: 'Book'}))).toBe(true);
+    fireEvent.keyDown(dialog().getByRole('button', {name: '09:00'}), {key: 's', ctrlKey: true});
+    expect(calls(fetch).some((c) => c.startsWith('POST'))).toBe(false);
+  });
+
+  it("won't reschedule an appointment the API says can't be, and says so", async () => {
+    atMondayMorning();
+    const booked = testAppointment({id: 'appt-1', canReschedule: false});
+    renderDialog({appointment: booked});
+
+    await screen.findByRole('dialog');
+    expect(await dialog().findByText('This appointment can’t be booked now.')).toBeInTheDocument();
+    await chooseFirstTime();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Reschedule'}))).toBe(true);
+  });
+
+  it("says when the patient's details can't be read, naming them from the appointment", async () => {
+    atMondayMorning();
+    renderDialog({appointment: testRequested()}, {'GET /api/patients/patient-1': () => json({}, 500)});
+
+    await screen.findByRole('dialog');
+    expect(await dialog().findByText('Test Patient: their details could not be loaded.')).toBeInTheDocument();
+  });
 });
+
+/** Picks the first free morning time in the open dialog. */
+async function chooseFirstTime() {
+  const morning = await dialog().findByRole('group', {name: /Morning times/});
+  fireEvent.click(within(morning).getAllByRole('button')[0]);
+}

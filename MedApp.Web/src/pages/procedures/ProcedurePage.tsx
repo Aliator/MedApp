@@ -27,6 +27,7 @@ import {useCurrentUser} from '../../auth/auth';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {SelectionDialog} from '../../components/modals/SelectionDialog';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AppointmentList} from '../../components/procedures/AppointmentList';
@@ -37,6 +38,7 @@ import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/procedures/StageVisit';
 import {StageWork} from '../../components/procedures/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/procedures/StatusChangeDialog';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
@@ -281,13 +283,20 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
       isLoading={isPending}
       loadingMessage="Loading procedure..."
       fill={procedure !== undefined}
+      banner={procedure?.patient && <PatientBanner patient={procedure.patient} />}
       message={
         isMissing ? (
           <AlertMessage message="Procedure not found. It may have been deleted." />
         ) : error ? (
           <AlertMessage message="The procedure could not be loaded. Please try again." />
+        ) : actionError ? (
+          <AlertMessage message={actionError} />
+        ) : procedure?.patientFlags ? (
+          // The patient's banners: restricted (when only blocking and cancelling are offered), disputed, anonymised.
+          <PatientFlagBanners patient={procedure.patientFlags} />
         ) : (
-          actionError && <AlertMessage message={actionError} />
+          // The patient's record is restricted or anonymised, so nothing here can change (and nothing is offered).
+          procedure?.readOnlyReason && <AlertMessage status="warning" message={procedure.readOnlyReason} />
         )
       }
       actions={
@@ -398,7 +407,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             <BookAppointmentDialog
               isOpen={booking !== null}
               onClose={() => setBooking(null)}
-              patient={{id: procedure.patientId ?? '', name: procedure.patientName ?? ''}}
+              patient={{...procedure.patient, ...procedure.patientFlags, id: procedure.patientId ?? ''}}
               procedure={{id: procedure.id ?? '', title: procedure.title ?? ''}}
               stage={booking?.stage && {id: booking.stage.id ?? '', name: booking.stage.name ?? ''}}
               appointment={booking?.appointment}

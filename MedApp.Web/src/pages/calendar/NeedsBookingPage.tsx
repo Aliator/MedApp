@@ -47,7 +47,8 @@ export interface NeedsBookingPageProps {
 /**
  * Needs booking (docs/calendar-plan.md, decision 29): the appointments asked for but not yet booked (Requested), as a
  * list like the others, soonest procedure due date first, with overdue procedures flagged. Each row books its
- * appointment in `BookAppointmentDialog`, suggesting the procedure's assignee when it has exactly one.
+ * appointment in `BookAppointmentDialog`, suggesting the procedure's assignee when it has exactly one; a row whose
+ * patient's record is restricted or anonymised can't be booked, and says so.
  */
 export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps) {
   const {pageSize} = useListSettings();
@@ -123,9 +124,16 @@ export function NeedsBookingPage({search, onSearchChange}: NeedsBookingPageProps
       header: 'Actions',
       align: 'end',
       width: pixel(104),
+      // Not when the patient's record is restricted or anonymised (the API's `canBook`); the patient's page says why.
       renderCell: (a) => (
         <VStack hAlign="end">
-          <Button label="Book" size="sm" variant="primary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setBooking(a)} />
+          {a.canBook ? (
+            <Button label="Book" size="sm" variant="primary" icon={<Icon icon={AppIcon.Book} />} onClick={() => setBooking(a)} />
+          ) : (
+            <Text type="supporting" color="secondary" maxLines={2}>
+              Can’t be booked
+            </Text>
+          )}
         </VStack>
       ),
     },

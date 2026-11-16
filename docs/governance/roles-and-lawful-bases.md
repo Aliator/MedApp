@@ -23,7 +23,7 @@ This document settles who is responsible for the personal data in MedApp, and on
 
 | Personal data | Controller | Processor | Why |
 |---|---|---|---|
-| **Patients** recorded in MedApp: names, date of birth, email, procedures, stage notes, appointments (with their notes and cancellation reasons), and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
+| **Patients** recorded in MedApp: names, date of birth, email, NHS number, procedures, stage notes, appointments (with their notes and cancellation reasons), and the audit trail and appointment history about them | The customer | The supplier | The customer decides why patients' data is processed (to deliver and record their care) and the essential means (what is recorded, who sees it, how long it's kept). The supplier processes it only to provide the service, on the customer's documented instructions. |
 | **The customer's staff** who use MedApp: usernames, password hashes, roles, sessions (IP address and browser), settings, notifications, calendars (blocked time, such as annual leave, and default week templates), and their actions in the audit trail and appointment history | The customer | The supplier | The customer decides who gets an account and with which role, sets up the calendar templates and activity types, and uses the audit trail to supervise its own staff. |
 | **Service logs and backups** of the hosted service that contain the above | The customer | The supplier | They exist only to run, secure and recover the customer's service. |
 | **The supplier's own business data:** customer contacts, contracts, billing, sales and marketing, support correspondence (the contact details, not the patient data), complaints, the supplier's own staff and contractors, and visitors to its website | The supplier | Not applicable | The supplier decides why and how these are processed, for its own business. |
@@ -85,7 +85,7 @@ UK GDPR isn't the only law. Patient information given in confidence is protected
 | Customer | Article 6 basis | Notes |
 |---|---|---|
 | **NHS bodies** | **6(1)(e) public task** for running the service; **6(1)(c) legal obligation** for the security and audit records that Article 32 requires (the DSPT is a contractual requirement, covered by public task) | Staff data isn't special category data in MedApp. MedApp is designed to hold no health or other special category data about staff: calendars record an activity (annual leave, training), not a reason, and staff are told not to write health reasons in a block's note ([dpia.md](dpia.md), risk 26). If a note does reveal health, the customer needs an Article 9 condition for it, usually 9(2)(b) employment, with DPA 2018 Schedule 1, Part 1, paragraph 1 and an appropriate policy document; so the better course is to remove the note. |
-| **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts and calendars; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail and the access monitoring that roadmap step 7 adds. |
+| **Private providers** | **6(1)(b) contract** (the employment or engagement contract) for giving staff accounts and calendars; **6(1)(f) legitimate interests** for sessions, audit and security monitoring | A legitimate interests assessment should cover the audit trail, the access monitoring that roadmap step 7 adds, and admins' monitoring rules (telling admins about named staff members' actions: DPIA risk 24). NHS bodies should cover the monitoring rules in their monitoring policy. |
 
 ## 3. Lawful bases for the supplier's own processing
 
@@ -121,7 +121,7 @@ The supplier processes no special category data for its own purposes, except whe
 |---|---|---|
 | Lawfulness, fairness and transparency | The bases above; privacy notice templates | This document; [privacy-notice-patients-template.md](privacy-notice-patients-template.md); [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | Purpose limitation | The supplier's commitments in section 1; no secondary use | This document; [dpa-template.md](dpa-template.md) |
-| Data minimisation | A small patient record (name, date of birth, email); guidance against identifiers in free text | [data-inventory.md](data-inventory.md); [dpia.md](dpia.md) |
+| Data minimisation | A small patient record (name, date of birth, email, an optional NHS number); guidance against identifiers in free text | [data-inventory.md](data-inventory.md); [dpia.md](dpia.md) |
 | Accuracy | Patients and procedures can be edited; finished stages lock; unlocks are audited | [data-subject-rights.md](data-subject-rights.md) |
 | Storage limitation | The retention schedule. **Not enforced by the app yet.** | [retention-schedule.md](retention-schedule.md) |
 | Integrity and confidentiality | The security measures | [dpia.md](dpia.md); [security-policies.md](security-policies.md) |

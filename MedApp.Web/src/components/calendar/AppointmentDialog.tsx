@@ -9,6 +9,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useRef, useState} from 'react';
 import {appointmentQuery, useAppointmentActions, type Appointment} from '../../api/appointments';
 import {ApiValidationError, fieldStatus, problemMessage} from '../../api/errors';
+import {whyCantChange} from '../../api/patients';
 import {useAnnounce} from '../../app/announcements';
 import {formatCalendarDay, formatTimeRange} from '../../utils/calendarSlots';
 import {formatDateTime, ukDay} from '../../utils/dates';
@@ -17,6 +18,7 @@ import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {AppointmentPatientBanner, useAppointmentPatient} from './AppointmentPatient';
 import {BookAppointmentDialog} from './BookAppointmentDialog';
 import {appointmentPurpose} from './calendarItems';
 import {AppointmentStatusToken, VisitRequirementToken} from './CalendarTokens';
@@ -42,6 +44,9 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel';
  * for it, booked it and recorded how it went, and why it was cancelled. Its buttons follow what the API allows
  * (`can...`): Book, Reschedule, Attended and Did not attend (once it has started), Cancel (with a reason), and Book
  * another (after Did not attend or Cancelled). Booking opens `BookAppointmentDialog` in its place, and comes back here.
+ * The patient's banner heads it (name, date of birth and NHS number), with their record's flags: a restricted
+ * patient's appointment can only be cancelled, and an anonymised one's not changed at all (the API's flags say so),
+ * and neither is offered Book another.
  *
  * Use it wherever an appointment is opened: the calendar, Needs booking, a procedure or a patient.
  */
@@ -51,6 +56,7 @@ export function AppointmentDialog({appointment: initial, onClose}: AppointmentDi
   const actions = useAppointmentActions();
   const fresh = useQuery({...appointmentQuery(initial?.id ?? ''), enabled: isOpen && !!initial?.id});
   const appointment = fresh.data ?? initial;
+  const patientState = useAppointmentPatient(isOpen ? (appointment?.patientId ?? undefined) : undefined);
   const [mode, setMode] = useState<Mode>('view');
   const [notes, setNotes] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -126,7 +132,9 @@ export function AppointmentDialog({appointment: initial, onClose}: AppointmentDi
 
   const status = appointment.status ?? '';
   const isBusy = actions.recordOutcome.isPending || actions.saveNotes.isPending || actions.cancel.isPending;
-  const canBookAnother = status === 'DidNotAttend' || status === 'Cancelled';
+  // Only once the patient is known to be bookable (not restricted or anonymised), as booking needs their details.
+  const patient = patientState.patient;
+  const canBookAnother = (status === 'DidNotAttend' || status === 'Cancelled') && patient !== undefined && whyCantChange(patient) === null;
   const purpose = appointmentPurpose(appointment);
 
   const history: {label: string; value: string}[] = [
@@ -185,6 +193,7 @@ export function AppointmentDialog({appointment: initial, onClose}: AppointmentDi
           </HStack>
         }>
         <VStack ref={content} gap={5} hAlign="stretch">
+          <AppointmentPatientBanner state={patientState} name={appointment.patientName} />
           {problem && <AlertMessage message={problem} />}
           <VStack gap={1}>
             <HStack gap={2} vAlign="center" wrap="wrap">
@@ -270,7 +279,7 @@ export function AppointmentDialog({appointment: initial, onClose}: AppointmentDi
       />
       <BookAppointmentDialog
         isOpen={isOpen && mode === 'bookAnother'}
-        patient={{id: appointment.patientId ?? '', name: appointment.patientName ?? ''}}
+        patient={patient && {...patient, id: appointment.patientId ?? ''}}
         procedure={appointment.procedureId ? {id: appointment.procedureId, title: appointment.procedureTitle ?? ''} : undefined}
         stage={appointment.stageId ? {id: appointment.stageId, name: appointment.stageName ?? ''} : undefined}
         suggestedStaffUserId={appointment.staffUserId ?? undefined}

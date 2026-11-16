@@ -14,9 +14,9 @@ jobs:
       run:
         working-directory: MedApp.Web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -24,6 +24,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # A known high or critical advisory in any installed package fails the pull request. Dev dependencies too: they
+      # run here, in CI, and in the image's build stage. Moderate and low ones are left to Dependabot.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
       - name: Lint
         run: npm run lint
@@ -38,7 +43,7 @@ jobs:
         run: npm run coverage
 
       - name: Upload coverage summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-coverage
           path: MedApp.Web/coverage/coverage-summary.json
@@ -52,21 +57,84 @@ jobs:
   # React or SSR bundle that won't build, or a migrations bundle that won't, fails on the pull request rather than
   # after the merge. It shares the GitHub Actions cache with Publish: pull requests start from the layers Publish
   # left on main, and each push to a pull request reuses that pull request's own.
+  # The built image is then scanned with Trivy: what it finds goes to code scanning, and a critical vulnerability that
+  # has a fix fails the pull request.
   image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read          # check out the code
+      security-events: write  # upload Trivy's results to code scanning (a private repository would need actions: read)
+    env:
+      # Trivy's own image, pinned by digest and run with docker, rather than aquasecurity/trivy-action. In March 2026
+      # that action's tags (and setup-trivy's) were force-pushed to a credential stealer, and malicious Trivy images
+      # were published under real version tags (GHSA-69fq-xp46-6x23). A digest can't be moved. This is v0.76.2 (an
+      # immutable GitHub release, November 2026), with the same digest on Docker Hub, GHCR and ECR Public.
+      # Dependabot doesn't update it: bump it by hand, from `docker buildx imagetools inspect aquasec/trivy:<version>`.
+      TRIVY_IMAGE: aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: MedApp.API/Dockerfile
           push: false
+          # Into the runner's Docker, for Trivy to scan.
+          load: true
+          tags: medapp-api:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Trivy reads the image from a tarball, so it never gets the Docker socket (root on the runner).
+      - name: Save the image for scanning
+        run: docker save medapp-api:ci --output "$RUNNER_TEMP/medapp-api.tar"
+
+      # Every severity, vulnerabilities and secrets, for code scanning. Never fails the job. Unfixed vulnerabilities
+      # are left out, as in the gate below: the Debian base images carry many nobody can act on, which would bury the
+      # ones we can. Trivy downloads its vulnerability database here, into a cache the gate reuses.
+      - name: Scan the image with Trivy (code scanning report)
+        run: >-
+          docker run --rm
+          --volume "$RUNNER_TEMP:/scan"
+          --volume "$GITHUB_WORKSPACE:/out"
+          "$TRIVY_IMAGE"
+          image --input /scan/medapp-api.tar --cache-dir /scan/trivy-cache
+          --ignore-unfixed --format sarif --output /out/trivy-results.sarif --exit-code 0
+
+      # The gate: a critical vulnerability with a fixed version available fails the pull request.
+      - name: Fail on critical vulnerabilities that have a fix
+        run: >-
+          docker run --rm
+          --volume "$RUNNER_TEMP:/scan"
+          "$TRIVY_IMAGE"
+          image --input /scan/medapp-api.tar --cache-dir /scan/trivy-cache
+          --scanners vuln --severity CRITICAL --ignore-unfixed --format table --exit-code 1
+
+      # Even when the gate failed, so the findings show in code scanning and on the pull request.
+      - name: Upload Trivy's results to code scanning
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+  # The pull request's new and updated dependencies (npm, NuGet, actions), from GitHub's dependency graph: one with a
+  # known high or critical advisory fails it, and a comment on the pull request says which. In this workflow rather
+  # than one of its own because, like everything else here, it only runs on pull requests to main.
+  dependency-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read        # read the dependency graph's diff
+      pull-requests: write  # the comment (comment-summary-in-pr)
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
 
   # The end-to-end tests (MedApp.E2ETests, Playwright) against the production image, run under the chart's restrictions
   # (a read-only root, a writable /tmp only, every Linux capability dropped, no privilege escalation): SQL Server, the
@@ -88,7 +156,7 @@ jobs:
       # what was typed, the run's admin password included. e2e.yml, which runs against a deployment, never sets it.
       E2E_TRACE_DIR: ${{ github.workspace }}/e2e-traces
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Started first, so it's up by the time the image is built. Upper and lower case, digits and a symbol, as SQL
       # Server's rules need; the password goes to the container through the environment, never on a command line.
@@ -101,12 +169,12 @@ jobs:
           MSSQL_SA_PASSWORD="$password" docker run -d --name sql -p 127.0.0.1:1433:1433 \
             -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD mcr.microsoft.com/mssql/server:2022-latest
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       # As the image job builds it, but kept on the runner (load) rather than thrown away. It reads the cache earlier
       # runs left (the image job, running alongside, writes this run's), so on a cold cache both build from scratch.
       - name: Build the image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: MedApp.API/Dockerfile
@@ -115,7 +183,7 @@ jobs:
           tags: medapp-api:e2e
           cache-from: type=gha
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
 
@@ -187,13 +255,46 @@ jobs:
       - name: Run end-to-end tests
         run: dotnet test MedApp.E2ETests --configuration Release --no-build --logger "console;verbosity=normal"
 
+      # Then the image as the Helm chart runs it: the API with Ssr__ServerUrl, and the page server in a container of
+      # its own sharing the API's network (as a pod's containers do), as user 1655, read-only, with only the chart's
+      # variables (deploy/helm/medapp/templates/api.yaml, the pages container).
+      - name: Start the API and the page server as the chart does
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.DB_CONNECTION }}
+        run: |
+          docker rm -f medapp-api
+          docker run -d --name medapp-api --network host             --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges             -e ConnectionStrings__DefaultConnection -e Ssr__ServerUrl=http://127.0.0.1:8082             medapp-api:e2e
+          docker run -d --name medapp-pages --network container:medapp-api             --user 1655:1655 --read-only --cap-drop ALL --security-opt no-new-privileges             -e HOST=127.0.0.1 -e PORT=8082 -e HEALTH_PORT=8083 -e MEDAPP_API_URL=http://127.0.0.1:8080 -e NODE_ENV=production             --entrypoint node medapp-api:e2e /app/ssr/server.mjs
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8083/alive > /dev/null && curl -fsS "$E2E_BASE_URL/api/auth/whoami" > /dev/null               && curl -fsS "$E2E_BASE_URL/login" | grep -q 'nonce="'; then
+              echo "The API and the page server are up, and pages are rendered on the server."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The API and the page server didn't start." >&2
+          docker logs medapp-api
+          docker logs medapp-pages
+          exit 1
+
+      # Each page must be rendered by the page server with its own response's nonce: a fallback to the client-rendered
+      # app has none, so it fails.
+      - name: Run the server rendering tests against them
+        run: >-
+          dotnet test MedApp.E2ETests --configuration Release --no-build --logger "console;verbosity=normal"
+          --filter "FullyQualifiedName~ContentSecurityPolicyTests"
+
       - name: Show the API's log
         if: failure()
         run: docker logs medapp-api
 
+      - name: Show the page server's log
+        if: failure()
+        run: docker logs medapp-pages || true
+
       - name: Upload the failed tests' Playwright traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-traces
           path: e2e-traces
@@ -205,7 +306,7 @@ jobs:
   helm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Lint with the chart's own SQL Server
         run: helm lint --strict deploy/helm/medapp --set image.tag=ci
@@ -229,6 +330,10 @@ jobs:
 
       - name: Lint with Azure's values
         run: helm lint --strict deploy/helm/medapp --values deploy/azure/values.yaml --set image.tag=ci
+
+      # The page server inside the API's container (the API starts Node), instead of in a container of its own.
+      - name: Lint with the page server in the API's container
+        run: helm lint --strict deploy/helm/medapp --set image.tag=ci --set api.pageServer.enabled=false
 
       # The Azure infrastructure (deploy/azure): compiled and linted, so a broken template fails here rather than on a
       # deploy. Placeholder passwords; nothing is deployed. The Azure CLI comes with the runner image.
@@ -300,9 +405,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
 
@@ -312,9 +417,9 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
 
@@ -331,7 +436,7 @@ jobs:
             --results-directory ./coverage
       
       - name: Generate coverage report
-        uses: danielpalme/ReportGenerator-GitHub-Action@5f3701a41d14548c9b8e575a5c235230e515cbc0 # 5.6.0
+        uses: danielpalme/ReportGenerator-GitHub-Action@5f3701a41d14548c9b8e575a5c235230e515cbc0 # v5.6.0
         with:
           reports: 'coverage/**/coverage.cobertura.xml'
           targetdir: 'coverage-report'
@@ -345,7 +450,7 @@ jobs:
 
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-report
           path: coverage-report
@@ -405,7 +510,7 @@ jobs:
 
 
       - name: Upload coverage comment
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dotnet-coverage-comment
           path: coverage-details.md
@@ -415,11 +520,11 @@ jobs:
     needs: [web, unit-tests]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: dotnet-coverage-comment
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: web-coverage
           path: web-coverage
@@ -458,7 +563,7 @@ jobs:
           EOF
 
       - name: Comment PR with coverage summary
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
         with:
           recreate: true
           path: coverage-details.md

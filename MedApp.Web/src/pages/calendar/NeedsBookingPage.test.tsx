@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {STAFF_ME, STAFF_OTHER, testCalendar, testRequested} from '../../test/calendar';
+import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testCalendar, testRequested} from '../../test/calendar';
 import {calls, json, mockApi, openDialog, pageOf, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {NeedsBookingSearch} from './calendarSearch';
 import {NeedsBookingPage, needsBookingQuery} from './NeedsBookingPage';
@@ -19,6 +19,7 @@ function renderPage(search: NeedsBookingSearch = {}, handlers: Parameters<typeof
     'GET /api/calendar/staff': () => json([STAFF_ME, STAFF_OTHER]),
     'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
     'GET /api/procedures/patient-procedures/procedure-1': () => json({id: 'procedure-1', assignments: [{userId: STAFF_OTHER.userId, username: 'b.staff'}]}),
+    'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     ...handlers,
   });
   const result = renderWithApp(<NeedsBookingPage search={search} onSearchChange={onSearchChange} />, {user: staffUser});
@@ -62,8 +63,16 @@ describe('NeedsBookingPage', () => {
     expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
     const dialog = within(openDialog()!);
     await waitFor(() => expect(dialog.getByRole('combobox', {name: /With/})).toHaveTextContent('b.staff'));
+    expect(await dialog.findByRole('region', {name: 'Patient: Patient, Test'})).toHaveTextContent('NHS No. 999 000 0018');
     await user.click(dialog.getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it("doesn't offer to book a restricted patient's appointment", async () => {
+    renderPage({}, {'GET /api/appointments/search': () => json(pageOf([testRequested({canBook: false}), testRequested({id: 'req-2'})]))});
+
+    expect(await screen.findByText('Can’t be booked')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', {name: 'Book'})).toHaveLength(1);
   });
 
   it('sorts and pages through the URL', async () => {

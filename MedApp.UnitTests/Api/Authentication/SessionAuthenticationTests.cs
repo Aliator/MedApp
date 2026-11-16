@@ -22,13 +22,17 @@ public sealed class SessionAuthenticationHandlerTests
     [SetUp]
     public void SetUp() => _sessions = new Mock<ISessionService>();
 
-    private async Task<AuthenticateResult> Authenticate(string? cookie)
+    private Task<AuthenticateResult> Authenticate(string? cookie) =>
+        Authenticate(cookie, Environments.Production, SessionAuthenticationDefaults.HostCookieName);
+
+    private async Task<AuthenticateResult> Authenticate(string? cookie, string environment, string cookieName)
     {
         var context = new DefaultHttpContext();
-        if (cookie is not null) context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.CookieName}={cookie}";
+        if (cookie is not null) context.Request.Headers.Cookie = $"{cookieName}={cookie}";
         var options = new Mock<IOptionsMonitor<AuthenticationSchemeOptions>>();
         options.Setup(o => o.Get(It.IsAny<string>())).Returns(new AuthenticationSchemeOptions());
-        var handler = new SessionAuthenticationHandler(options.Object, NullLoggerFactory.Instance, UrlEncoder.Default, _sessions.Object);
+        var cookies = SessionCookieServiceTests.Service(environment);
+        var handler = new SessionAuthenticationHandler(options.Object, NullLoggerFactory.Instance, UrlEncoder.Default, _sessions.Object, cookies);
         await handler.InitializeAsync(new AuthenticationScheme(SessionAuthenticationDefaults.Scheme, null, typeof(SessionAuthenticationHandler)), context);
         return await handler.AuthenticateAsync();
     }
@@ -39,6 +43,26 @@ public sealed class SessionAuthenticationHandlerTests
         var result = await Authenticate(null);
 
         result.None.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Authenticate_OutsideDevelopment_IgnoresTheDevelopmentCookie()
+    {
+        var result = await Authenticate(SessionId.ToString(), Environments.Production, SessionAuthenticationDefaults.DevelopmentCookieName);
+
+        result.None.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Authenticate_InDevelopment_ReadsTheDevelopmentCookie()
+    {
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(UserId, Username, ["User"]));
+
+        var result = await Authenticate(SessionId.ToString(), Environments.Development, SessionAuthenticationDefaults.DevelopmentCookieName);
+
+        result.Succeeded.Should().BeTrue();
     }
 
     [Test]
@@ -73,6 +97,8 @@ public sealed class SessionAuthenticationHandlerTests
         user.FindFirstValue(ClaimTypes.NameIdentifier).Should().Be(UserId.ToString());
         user.Identity.Name.Should().Be(Username);
         user.FindAll(ClaimTypes.Role).Select(c => c.Value).Should().Equal("Admin", "User");
+        user.FindFirstValue(SessionAuthenticationDefaults.SessionIdClaim).Should().Be(SessionId.ToString());
+        user.GetSessionId().Should().Be(SessionId);
         user.HasClaim(c => c.Type == SessionAuthenticationDefaults.MustChangePasswordClaim).Should().BeFalse();
         user.MustChangePassword().Should().BeFalse();
     }
@@ -94,7 +120,7 @@ public sealed class SessionAuthenticationHandlerTests
 [TestFixture]
 public sealed class SessionCookieServiceTests
 {
-    private static SessionCookieService Service(string environment)
+    public static SessionCookieService Service(string environment)
     {
         var host = new Mock<IWebHostEnvironment>();
         host.SetupGet(h => h.EnvironmentName).Returns(environment);
@@ -109,20 +135,31 @@ public sealed class SessionCookieServiceTests
     }
 
     [Test]
-    public void AppendSessionCookie_InProduction_SetsASecureHttpOnlyLaxCookieUntilTheSessionEnds()
+    public void AppendSessionCookie_InProduction_SetsASecureHttpOnlyLaxHostCookieUntilTheSessionEnds()
     {
         var header = SetCookie(r => Service(Environments.Production).AppendSessionCookie(r, new LoginResult(SessionId, ExpiresAtUtc)));
 
-        header.Should().StartWith($"{SessionAuthenticationDefaults.CookieName}={SessionId}");
+        header.Should().StartWith($"__Host-medapp.session={SessionId}");
         header.Should().Contain("expires=").And.Contain("secure").And.Contain("samesite=lax").And.Contain("httponly");
+        // What browsers require of a __Host- cookie: Secure (above), Path=/ and no Domain.
+        header.Should().Contain("path=/;").And.NotContain("domain=");
     }
 
     [Test]
-    public void AppendSessionCookie_InDevelopment_IsNotSecure()
+    public void AppendSessionCookie_InDevelopment_IsNotSecureAndKeepsItsOldName()
     {
         var header = SetCookie(r => Service(Environments.Development).AppendSessionCookie(r, new LoginResult(SessionId, ExpiresAtUtc)));
 
+        header.Should().StartWith($"medapp.session={SessionId}");
         header.Should().NotContain("secure");
+    }
+
+    [TestCase("Production", "__Host-medapp.session")]
+    [TestCase("Staging", "__Host-medapp.session")]
+    [TestCase("Development", "medapp.session")]
+    public void CookieName_DependsOnTheEnvironment(string environment, string expected)
+    {
+        Service(environment).CookieName.Should().Be(expected);
     }
 
     [Test]
@@ -130,8 +167,22 @@ public sealed class SessionCookieServiceTests
     {
         var header = SetCookie(r => Service(Environments.Production).DeleteSessionCookie(r));
 
-        header.Should().StartWith($"{SessionAuthenticationDefaults.CookieName}=;");
-        header.Should().Contain("expires=Thu, 01 Jan 1970");
+        header.Should().StartWith($"{SessionAuthenticationDefaults.HostCookieName}=;");
+        header.Should().Contain("expires=Thu, 01 Jan 1970").And.Contain("path=/;").And.Contain("secure");
+    }
+
+    [TestCase(null, false, null)]
+    [TestCase("not-a-session-id", true, null)]
+    [TestCase("0000000e-0000-0000-0000-000000000002", true, "0000000e-0000-0000-0000-000000000002")]
+    public void TryGetSessionCookie_ReadsTheSessionId(string? cookie, bool expectedFound, string? expectedId)
+    {
+        var context = new DefaultHttpContext();
+        if (cookie is not null) context.Request.Headers.Cookie = $"{SessionAuthenticationDefaults.HostCookieName}={cookie}";
+
+        var found = Service(Environments.Production).TryGetSessionCookie(context.Request, out var sessionId);
+
+        found.Should().Be(expectedFound);
+        sessionId.Should().Be(expectedId is null ? null : Guid.Parse(expectedId));
     }
 }
 
@@ -145,6 +196,13 @@ public sealed class ClaimsPrincipalExtensionsTests
 
         user.GetUserId().Should().Be(UserId);
         user.ToProcedureActor().Should().Be(new MedApp.Application.Procedures.Common.ProcedureActor(UserId, Username));
+    }
+
+    [Test]
+    public void GetSessionId_NoSessionClaim_IsNull()
+    {
+        SignedIn("User").GetSessionId().Should().BeNull();
+        SignedInWithSession("User").GetSessionId().Should().Be(SessionId);
     }
 
     [Test]

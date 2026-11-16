@@ -121,6 +121,13 @@ describe('StageList', () => {
     expect(await screen.findByText('Unlocked for editing')).toBeInTheDocument();
   });
 
+  it("shows a stage's SNOMED CT concept, copied from its definition", async () => {
+    // A real SNOMED CT concept ID, used only as a code: 80146002 is Appendectomy.
+    renderWithApp(<StageList stages={[stage({isCurrent: true, snomedCode: '80146002', snomedTerm: 'Appendectomy'})]} />);
+
+    expect(await screen.findByText('SNOMED CT: 80146002 | Appendectomy')).toBeVisible();
+  });
+
   it('says when a stage has no notes', async () => {
     renderWithApp(<StageList stages={[stage({isCurrent: true})]} />);
 

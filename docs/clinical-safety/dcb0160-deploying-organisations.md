@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.3, draft |
+| **Version** | 0.4, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
@@ -39,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 28 hazards, of which H-30 to H-36 (staff calendars and appointments) are drafts still to be rated by the CSO: `hazard-log.md` |
+| The hazard log | Draft, 30 hazards, of which H-30 to H-36 (staff calendars and appointments) are drafts still to be rated by the CSO: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |
@@ -52,7 +52,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 ## The manufacturer's assumptions about you
 
 The manufacturer's safety case holds only if you:
-- **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth and email, and no NHS number yet;
+- **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth, email and an optional NHS number, whose check digit it checks but which it doesn't trace with PDS, so check a number against your own records (for example your PAS) when you enter it;
 - **govern templates:** clinical sign-off of every template and stage definition before use, and when one changes, including which stages involve a visit and whether it's suggested or required;
 - **set up calendars:** activity types, day and week templates and each person's default week, and record staff absence in MedApp;
 - **book and follow up visits:** someone reviews the Needs booking list and Did not attend appointments on a set schedule;
@@ -84,10 +84,11 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-17 Stage instructions aren't read | Write anything essential as its own stage, not only in instructions |
 | H-18 A change is recorded under the wrong person's name | No shared accounts; lock screens when away |
 | H-21 Work assigned to a deleted account drops off every task list | A leaver process: reassign a leaver's open procedures, then remove the account |
+| H-22 Care under way is delayed because the patient's record is restricted | Before restricting a record, the admin checks with the clinician responsible and agrees how care continues; block or cancel procedures with a reason meanwhile |
 | H-30 A visit the patient needs doesn't happen | Who books from the Needs booking list, how often it's reviewed, and who follows up Did not attend |
 | H-31 A member of staff is double-booked | MedApp's calendar is the only diary for the appointments it holds |
 | H-32 A stage is finished without the visit it needed | Clinical sign-off of which stages need a visit; a review of stages finished without one; admins bypass a required visit only with a recorded reason |
-| H-34 The wrong patient or procedure is booked | Positive patient identification; check the patient's name and date of birth when booking |
+| H-34 The wrong patient or procedure is booked | Positive patient identification; check the patient's name, date of birth and NHS number, which the booking dialog shows, when booking |
 | H-35 An appointment is left without its member of staff | Record leave and training in MedApp before booking around it; when someone is away unexpectedly, move or cancel their appointments and tell the patients |
 | H-36 A cancelled or moved appointment isn't passed on to the patient | A process for telling patients about every booking, change and cancellation, including the Booked appointments of a cancelled procedure |
 
@@ -169,4 +170,5 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: a sign-off, My Tasks' default view, the leaver process (H-21) | AI coding agent, for review |
-| 0.3 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-11 to D-13 | AI coding agent, for review |
+| 0.3 | 16 November 2026 | The privacy features and NHS integrations (PRs #68 and #69): the optional NHS number in identifying patients, and the transferred control for H-22. Made in `main` without a new version; recorded here when staff calendars merged it | AI coding agent, for review |
+| 0.4 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-11 to D-13 | AI coding agent, for review |

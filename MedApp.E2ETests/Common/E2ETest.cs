@@ -18,6 +18,19 @@ namespace MedApp.E2ETests.Common;
 /// </summary>
 public abstract class E2ETest : PageTest
 {
+    /// <summary>What the page logs when the browser refuses something under the Content Security Policy.</summary>
+    private const string CspViolationMarker = "[medapp-e2e] CSP violation:";
+
+    /// <summary>
+    /// Reports every Content Security Policy violation in the page to its console, where the test collects it: the
+    /// production image enforces the policy, so a refused script or connection fails the test even if the journey
+    /// still works.
+    /// </summary>
+    private const string CspViolationListener =
+        "document.addEventListener('securitypolicyviolation', (e) => console.error('" + CspViolationMarker +
+        " ' + e.violatedDirective + ' blocked ' + (e.blockedURI || 'inline') + ' at ' + (e.sourceFile || document.location.href) + ':' + e.lineNumber));";
+
+    private readonly List<string> _cspViolations = [];
     private IAPIRequestContext? _request;
 
     protected virtual bool IsSignedIn => true;
@@ -43,6 +56,16 @@ public abstract class E2ETest : PageTest
         // Pages wait for their data and dialogs to open; a slower CI runner gets more time.
         SetDefaultExpectTimeout(10_000);
         Context.SetDefaultTimeout(15_000);
+
+        // Every page this test opens, and every document it navigates to.
+        _cspViolations.Clear();
+        await Context.AddInitScriptAsync(CspViolationListener);
+        Context.Console += (_, message) =>
+        {
+            if (message.Text.StartsWith(CspViolationMarker, StringComparison.Ordinal)
+                || message.Text.Contains("Content Security Policy", StringComparison.Ordinal))
+                _cspViolations.Add(message.Text);
+        };
 
         if (E2ESettings.TraceDirectory is not null)
             await Context.Tracing.StartAsync(new TracingStartOptions { Screenshots = true, Snapshots = true });
@@ -75,6 +98,10 @@ public abstract class E2ETest : PageTest
             if (_request is not null)
                 await _request.DisposeAsync();
         }
+
+        // Last, once everything is cleaned up: a violation fails the test even when the journey worked.
+        if (_cspViolations.Count > 0)
+            Assert.Fail($"The page broke its Content Security Policy:{Environment.NewLine}{string.Join(Environment.NewLine, _cspViolations)}");
     }
 
     /// <summary>With tracing on (<see cref="E2ESettings.TraceDirectory"/>), keeps the trace of a failed test only.</summary>

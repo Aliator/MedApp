@@ -213,4 +213,41 @@ public sealed class AppointmentMapperTests
             It.Is<IEnumerable<Guid>>(ids => ids.Count() == 2 && ids.Contains(StaffUserId) && ids.Contains(OtherStaffUserId)),
             cts.Token), Times.Once);
     }
+
+    [Test]
+    public void ToResponse_PatientRestricted_AllowsOnlyCancelling()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Booked, Now.AddMinutes(-10));
+        appointment.Patient = PrivacyTestConstants.CreateRestrictedPatient();
+
+        var response = AppointmentMapper.ToResponse(appointment, Known, Now);
+
+        response.CanCancel.Should().BeTrue("care can still be paused");
+        response.CanReschedule.Should().BeFalse();
+        response.CanRecordOutcome.Should().BeFalse();
+        response.CanEditNotes.Should().BeFalse();
+    }
+
+    [Test]
+    public void ToResponse_RequestedForARestrictedPatient_CantBeBooked()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Requested);
+        appointment.Patient = PrivacyTestConstants.CreateRestrictedPatient();
+
+        AppointmentMapper.ToResponse(appointment, Known, Now).CanBook.Should().BeFalse();
+    }
+
+    [Test]
+    public void ToResponse_PatientAnonymised_AllowsNothing()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Booked, Now.AddMinutes(-10));
+        appointment.Patient = PrivacyTestConstants.CreateAnonymisedPatient();
+
+        var response = AppointmentMapper.ToResponse(appointment, Known, Now);
+
+        response.CanCancel.Should().BeFalse();
+        response.CanReschedule.Should().BeFalse();
+        response.CanRecordOutcome.Should().BeFalse();
+        response.CanEditNotes.Should().BeFalse();
+    }
 }

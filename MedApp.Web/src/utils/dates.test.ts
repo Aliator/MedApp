@@ -1,4 +1,17 @@
-import {formatDateTime, ageOn, formatDate, formatAppointmentTime, formatDayHeading, formatShortDate, formatTime, parseUtc, timeAgo, todayIso, ukDay} from './dates';
+import {
+  formatDateTime,
+  ageDescription,
+  ageOn,
+  formatAppointmentTime,
+  formatDate,
+  formatDayHeading,
+  formatShortDate,
+  formatTime,
+  parseUtc,
+  timeAgo,
+  todayIso,
+  ukDay,
+} from './dates';
 
 describe('todayIso', () => {
   it('formats a local date as YYYY-MM-DD', () => {
@@ -19,6 +32,33 @@ describe('ageOn', () => {
 
   it.each(['2030-01-01', 'not-a-date', '2023-02-30', ''])('returns null for %s', (dob) => {
     expect(ageOn(dob, '2026-11-14')).toBeNull();
+  });
+});
+
+describe('ageDescription', () => {
+  it.each([
+    ['2026-11-14', '2026-11-14', '0 days'],
+    ['2026-11-13', '2026-11-14', '1 day'],
+    ['2026-10-18', '2026-11-14', '27 days'],
+    ['2026-10-17', '2026-11-14', '4 weeks'],
+    ['2026-08-15', '2026-11-14', '13 weeks'],
+    ['2026-08-14', '2026-11-14', '3 months'],
+    ['2025-11-14', '2026-11-14', '12 months'],
+    ['2024-11-15', '2026-11-14', '23 months'],
+    ['2024-11-14', '2026-11-14', '2 years'],
+    ['1980-03-14', '2026-03-14', '46 years'],
+    // Across a month end: 31 January to 28 February is under a whole month, but 4 weeks.
+    ['2026-01-31', '2026-02-28', '4 weeks'],
+  ])('gives someone born %s, on %s, as %s', (dob, on, expected) => {
+    expect(ageDescription(dob, on)).toBe(expected);
+  });
+
+  it.each(['2030-01-01', 'not-a-date', ''])('returns null for %s', (dob) => {
+    expect(ageDescription(dob, '2026-11-14')).toBeNull();
+  });
+
+  it('counts from today by default', () => {
+    expect(ageDescription(todayIso())).toBe('0 days');
   });
 });
 

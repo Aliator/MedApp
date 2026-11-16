@@ -1,7 +1,7 @@
 import {useQuery} from '@tanstack/react-query';
 import {useEffect, useRef} from 'react';
 import {saveSettings, settingsQuery} from '../api/settings';
-import {appSettings} from './settingsStore';
+import {appSettings, onFlushSettings} from './settingsStore';
 
 /** How long after the last change the settings are saved, so a run of changes (a colour being picked) saves once. */
 export const SAVE_DELAY_MS = 800;
@@ -29,14 +29,27 @@ export function SettingsSync() {
 
   useEffect(() => {
     let timer: number | undefined;
+    let isPending = false;
+    const save = () => {
+      isPending = false;
+      return saveSettings(appSettings.snapshot());
+    };
     const unsubscribe = appSettings.onLocalChange(() => {
       // Until the account's settings are in, a change would be overwritten by them: nothing to save yet.
       if (!isLoaded.current) return;
+      isPending = true;
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => void saveSettings(appSettings.snapshot()).catch(() => {}), SAVE_DELAY_MS);
+      timer = window.setTimeout(() => void save().catch(() => {}), SAVE_DELAY_MS);
+    });
+    // Signing out saves a pending change at once, before the browser's copy is cleared.
+    const unregister = onFlushSettings(async () => {
+      if (!isPending) return;
+      window.clearTimeout(timer);
+      await save();
     });
     return () => {
       unsubscribe();
+      unregister();
       window.clearTimeout(timer);
     };
   }, []);

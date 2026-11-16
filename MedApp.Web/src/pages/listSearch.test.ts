@@ -1,5 +1,8 @@
 import {
   choiceValues,
+  hasActivityFilters,
+  parseActivitySearch,
+  parseRetentionSearch,
   hasAuditFilters,
   hasPatientFilters,
   hasProcedureFilters,
@@ -12,6 +15,7 @@ import {
   parseProceduresSearch,
   parseSetupSearch,
   parseChoice,
+  parseInsightsSearch,
   parseUsersSearch,
   procedureStatuses,
 } from './listSearch';
@@ -58,6 +62,7 @@ describe('parsePatientsSearch', () => {
         email: 'example.com',
         dobFrom: '1970-01-01',
         dobTo: '1979-12-31',
+        nhs: ' 999 000 ',
       }),
     ).toEqual({
       page: 3,
@@ -68,6 +73,7 @@ describe('parsePatientsSearch', () => {
       email: 'example.com',
       dobFrom: '1970-01-01',
       dobTo: '1979-12-31',
+      nhs: '999 000',
     });
   });
 
@@ -86,6 +92,7 @@ describe('parsePatientsSearch', () => {
   it('tells whether any filter is set', () => {
     expect(hasPatientFilters({page: 2, sort: 'Email'})).toBe(false);
     expect(hasPatientFilters({dobTo: '1980-01-01'})).toBe(true);
+    expect(hasPatientFilters({nhs: '999'})).toBe(true);
   });
 });
 
@@ -188,6 +195,21 @@ describe('parseProceduresSearch', () => {
     expect(parseProceduresSearch({status: 'Finished', sort: 'colour'})).toEqual({});
   });
 
+  it('reads an assignee: an ID, or nobody (none), dropping anything else', () => {
+    const userId = '0000000A-0000-0000-0000-000000000001';
+    expect(parseProceduresSearch({assignee: userId})).toEqual({assignee: userId.toLowerCase()});
+    expect(parseProceduresSearch({assignee: 'NONE'})).toEqual({assignee: 'none'});
+    expect(parseProceduresSearch({assignee: 'k.ashford'})).toEqual({});
+    expect(hasProcedureFilters({assignee: 'none'})).toBe(true);
+  });
+
+  it('reads a template ID, dropping anything that is not one', () => {
+    const templateId = '0000000E-0000-0000-0000-000000000001';
+    expect(parseProceduresSearch({templateId})).toEqual({templateId: templateId.toLowerCase()});
+    expect(parseProceduresSearch({templateId: 'Knee review'})).toEqual({});
+    expect(hasProcedureFilters({templateId: 'x'})).toBe(true);
+  });
+
   it('knows when the list is filtered', () => {
     expect(hasProcedureFilters({page: 3, sort: 'Due'})).toBe(false);
     expect(hasProcedureFilters({closed: true})).toBe(true);
@@ -245,5 +267,42 @@ describe('parseAuditSearch', () => {
   it('knows when the log is filtered', () => {
     expect(hasAuditFilters({page: 2, asc: true})).toBe(false);
     expect(hasAuditFilters({procedureId: 'x'})).toBe(true);
+  });
+});
+
+describe('parseActivitySearch', () => {
+  it('reads the page, order and filters, dropping anything invalid', () => {
+    const patientId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
+    expect(
+      parseActivitySearch({page: '2', asc: 'true', q: ' 192.0.2 ', action: 'patientviewed,SignInFailed', patientId, from: '2026-11-01', to: '2026-11-30'}),
+    ).toEqual({page: 2, asc: true, q: '192.0.2', action: 'PatientViewed,SignInFailed', patientId, from: '2026-11-01', to: '2026-11-30'});
+    expect(parseActivitySearch({action: 'Exploded', patientId: 'not-a-guid', from: 'yesterday'})).toEqual({});
+  });
+
+  it('knows when the log is filtered', () => {
+    expect(hasActivityFilters({page: 2, asc: true})).toBe(false);
+    expect(hasActivityFilters({patientId: 'x'})).toBe(true);
+    expect(hasActivityFilters({action: 'SignedIn'})).toBe(true);
+  });
+});
+
+describe('parseRetentionSearch', () => {
+  it('reads the page, and whether kept records are listed too', () => {
+    expect(parseRetentionSearch({page: '3', kept: 'true'})).toEqual({page: 3, kept: true});
+    expect(parseRetentionSearch({kept: 'false', page: 'x'})).toEqual({});
+  });
+});
+
+describe('parseInsightsSearch', () => {
+  it('reads the period and template, keeping 12 weeks (the default) out', () => {
+    const template = '0000000E-0000-0000-0000-000000000001';
+    expect(parseInsightsSearch({weeks: '26', template})).toEqual({weeks: 26, template: template.toLowerCase()});
+    expect(parseInsightsSearch({weeks: 4})).toEqual({weeks: 4});
+    expect(parseInsightsSearch({weeks: '12'})).toEqual({});
+  });
+
+  it('drops a period it does not offer, and a template that is not an ID', () => {
+    expect(parseInsightsSearch({weeks: '5', template: 'knee'})).toEqual({});
+    expect(parseInsightsSearch({})).toEqual({});
   });
 });

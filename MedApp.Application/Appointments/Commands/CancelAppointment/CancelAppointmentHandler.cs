@@ -17,7 +17,8 @@ public sealed class CancelAppointmentHandler(
 {
     public async Task<AppointmentResponse> Handle(CancelAppointmentCommand request, CancellationToken cancellationToken)
     {
-        var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, cancellationToken);
+        // Cancelling stays allowed while the patient's record is restricted, so care can be paused safely.
+        var appointment = await repository.GetForCancelOrThrowAsync(request.AppointmentId, cancellationToken);
 
         if (!AppointmentWorkflow.CanCancel(appointment))
             throw new ConflictException(

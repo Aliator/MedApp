@@ -7,12 +7,15 @@ import {richText, typeRichText} from '../../test/richText';
 const BASE = '/api/procedures/patient-procedure-stage/definitions';
 
 const definitions = [
+  // Real SNOMED CT concept IDs, used only as codes: 71388002 is Procedure.
   {
     id: 'd1',
     name: 'Consent',
     description: 'Consent recorded.',
     instructions: 'Give the patient a copy.',
     visitRequirement: 'Required',
+    snomedCode: '71388002',
+    snomedTerm: 'Procedure',
     isArchived: false,
     templateCount: 2,
     canBeDeleted: false,
@@ -78,6 +81,8 @@ describe('StageDefinitionsPage', () => {
       name: 'Scan',
       description: 'Imaging done.',
       instructions: 'Book the scanner.',
+      snomedCode: '',
+      snomedTerm: '',
       visitRequirement: 'Suggested',
     });
     await expectAnnounced('Stage added');
@@ -102,7 +107,59 @@ describe('StageDefinitionsPage', () => {
       description: 'Consent recorded.',
       instructions: 'Give the patient a copy.',
       visitRequirement: 'Required',
+      snomedCode: '71388002',
+      snomedTerm: 'Procedure',
     });
+  });
+
+  it("shows each definition's SNOMED CT concept, or a dash for none", async () => {
+    renderPage();
+
+    const consent = await rowOf('Consent');
+    expect(within(consent).getByText('71388002')).toBeInTheDocument();
+    expect(within(consent).getByText('Procedure')).toBeInTheDocument();
+    expect(within(await rowOf('Biopsy')).getByText('—')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', {name: 'SNOMED CT'})).toBeInTheDocument();
+  });
+
+  it('adds a SNOMED CT concept to a definition, and removes one by clearing its code', async () => {
+    const {user, fetch} = renderPage({}, {[`PATCH ${BASE}/d2`]: () => json({}), [`PATCH ${BASE}/d1`]: () => json({})});
+
+    await user.click(within(await rowOf('Biopsy')).getByRole('button', {name: 'Edit stage'}));
+    let dialog = within(openDialog()!);
+    await user.type(dialog.getByRole('textbox', {name: /SNOMED CT Code/}), '80146002');
+    await user.type(dialog.getByRole('textbox', {name: /Display Term/}), 'Appendectomy');
+    await user.click(dialog.getByRole('button', {name: 'Save'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await sent(fetch, 'PATCH').json()).toEqual(expect.objectContaining({snomedCode: '80146002', snomedTerm: 'Appendectomy'}));
+
+    await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage'}));
+    dialog = within(openDialog()!);
+    const code = dialog.getByRole('textbox', {name: /SNOMED CT Code/});
+    expect(code).toHaveValue('71388002');
+    expect(dialog.getByRole('textbox', {name: /Display Term/})).toHaveValue('Procedure');
+    await user.clear(code);
+    await user.clear(dialog.getByRole('textbox', {name: /Display Term/}));
+    await user.click(dialog.getByRole('button', {name: 'Save'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    const patches = fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === 'PATCH');
+    expect(await patches[1].json()).toEqual(expect.objectContaining({snomedCode: '', snomedTerm: ''}));
+  });
+
+  it("shows the API's errors on the SNOMED CT fields, not in the summary", async () => {
+    const message = "Give the concept's display term with its SNOMED CT code.";
+    const {user} = renderPage(
+      {},
+      {[`PATCH ${BASE}/d2`]: () => json({title: 'Validation failed', status: 400, errors: {SnomedTerm: [message], SnomedCode: ['Not a concept ID.']}}, 400)},
+    );
+
+    await user.click(within(await rowOf('Biopsy')).getByRole('button', {name: 'Edit stage'}));
+    const dialog = within(openDialog()!);
+    await user.type(dialog.getByRole('textbox', {name: /SNOMED CT Code/}), '123');
+    await user.click(dialog.getByRole('button', {name: 'Save'}));
+
+    await waitFor(() => expect(dialog.getByRole('textbox', {name: /Display Term/})).toHaveAccessibleDescription(expect.stringContaining(message)));
+    expect(dialog.getByRole('textbox', {name: /SNOMED CT Code/})).toHaveAccessibleDescription(/Not a concept ID\./);
   });
 
   it('archives after a confirmation, and restores an archived one', async () => {

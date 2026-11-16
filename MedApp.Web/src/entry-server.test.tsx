@@ -1,6 +1,7 @@
 // @vitest-environment node
 import {render, type RouterManifest} from './entry-server';
 import {STAFF_ME, testAppointment, testCalendar} from './test/calendar';
+import {insights, templates} from './test/insights';
 
 /**
  * Server rendering, end to end, as the Node server runs it (in Node, with no browser): the page's route guards and
@@ -14,6 +15,7 @@ const MANIFEST: RouterManifest = {
 
 const json = (body: unknown) => new Response(JSON.stringify(body), {headers: {'content-type': 'application/json'}});
 const signedIn = {isAuthenticated: true, name: 'test-user', roles: ['User']};
+const signedInAdmin = {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']};
 const patient = {
   id: '0000000d-0000-0000-0000-000000000001',
   firstName: 'Test',
@@ -33,11 +35,14 @@ function api(routes: Record<string, unknown>) {
   return requests;
 }
 
-const page = (path: string, cookie?: string) =>
+const page = (path: string, cookie?: string, cspNonce?: string) =>
   render(new Request(`http://medapp.test${path}`, {headers: cookie ? {cookie} : {}}), {
     manifest: MANIFEST,
-    context: {apiUrl: API, cookie, ssrKey: 'test-key'},
+    context: {apiUrl: API, cookie, ssrKey: 'test-key', cspNonce},
   });
+
+/** Every <script> tag in the page, opening tag only. */
+const scriptTags = (html: string) => [...html.matchAll(/<script\b[^>]*>/g)].map(([tag]) => tag);
 
 describe('server rendering', () => {
   it('renders the whole page, with the build’s stylesheets and scripts', async () => {
@@ -51,6 +56,31 @@ describe('server rendering', () => {
     expect(html).toContain('<link rel="stylesheet" href="/assets/app.css"');
     expect(html).toContain('<script type="module" src="/assets/app.js"');
     expect(html).toContain('Sign in');
+  });
+
+  it('puts the page’s nonce on every script it writes, and in the head for the browser’s router', async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/patients/search': {items: [patient], page: 1, pageSize: 10, totalCount: 1, totalPages: 1},
+    });
+
+    const html = await (await page('/patients', 'medapp_session=abc', 'dGVzdC1ub25jZS0xMjM0NQ==')).text();
+
+    const scripts = scriptTags(html);
+    // The router's hydration data is written inline, so the policy must allow it, by nonce.
+    expect(scripts.some((tag) => !tag.includes(' src='))).toBe(true);
+    expect(scripts.every((tag) => tag.includes('nonce="dGVzdC1ub25jZS0xMjM0NQ=="'))).toBe(true);
+    expect(html).toContain('<meta property="csp-nonce" content="dGVzdC1ub25jZS0xMjM0NQ=="');
+  });
+
+  it('writes no nonce when the page has none', async () => {
+    api({'/api/auth/whoami': {isAuthenticated: false}});
+
+    const html = await (await page('/login')).text();
+
+    expect(html).not.toContain('nonce');
   });
 
   it('sends someone signed out to sign in', async () => {
@@ -118,6 +148,66 @@ describe('server rendering', () => {
     expect(requests.every((r) => r.headers.get('x-medapp-ssr-key') === 'test-key')).toBe(true);
     const search = requests.find((r) => new URL(r.url).pathname === '/api/patients/search')!;
     expect(new URL(search.url).searchParams.get('PageSize')).toBe('25');
+  });
+
+  it("renders a patient's export for an admin with it in the page, asking for it (and so recording it) once", async () => {
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/patients/${patient.id}/export`]: {exportedAtUtc: '2026-11-16T09:30:00Z', exportedBy: 'test-admin', patient},
+    });
+
+    const response = await page(`/patients/${patient.id}/export`, 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Patient Record Export');
+    expect(html).toContain('test.patient@example.org');
+    expect(requests.filter((r) => new URL(r.url).pathname.endsWith('/export'))).toHaveLength(1);
+  });
+
+  it("renders a patient's page for an admin with their access report, and for staff without asking for it", async () => {
+    const routes = {
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/patients/${patient.id}`]: patient,
+      '/api/activity/search': {
+        items: [{id: 'e1', action: 'PatientViewed', username: 'access.checker', atUtc: '2026-11-15T10:00:00Z', details: '{}'}],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+    };
+    api({...routes, '/api/auth/whoami': signedInAdmin});
+    expect(await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text()).toContain('access.checker');
+
+    const requests = api({...routes, '/api/auth/whoami': signedIn});
+    const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
+    expect(html).toContain('test.patient@example.org');
+    expect(html).not.toContain('access.checker');
+    expect(requests.some((r) => new URL(r.url).pathname === '/api/activity/search')).toBe(false);
+  });
+
+  it('renders the activity log for an admin', async () => {
+    api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/activity/search': {
+        items: [{id: 'e1', action: 'SignInFailed', username: 'synthetic.tryer', ipAddress: '192.0.2.44', atUtc: '2026-11-15T10:00:00Z', details: '{}'}],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+    });
+
+    const html = await (await page('/admin/activity', 'medapp_session=abc')).text();
+
+    expect(html).toContain('Activity Log');
+    expect(html).toContain('192.0.2.44');
   });
 
   it("renders a patient's page with the first page of their timeline and what's due", async () => {
@@ -235,6 +325,24 @@ describe('server rendering', () => {
     expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
   });
 
+  it("renders the patient's banner on the server, with their NHS number", async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      // A synthetic test number (the 999 range is never issued to real patients).
+      [`/api/patients/${patient.id}`]: {...patient, nhsNumber: '9990000018'},
+    });
+
+    const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
+
+    // Named for the patient, by its hidden "Patient:" and the name, whose family name is in capitals by CSS only.
+    expect(html).toMatch(/role="region" aria-labelledby="[^"]+ [^"]+"/);
+    expect(html).toContain('>Patient:<');
+    expect(html).toMatch(/text-transform:uppercase[^>]*>Patient<\/span>, Test/);
+    expect(html).toMatch(/NHS No\. (<!-- -->)?999 000 0018/);
+  });
+
   it('still renders the page when its data fails, for it to show its error', async () => {
     api({
       '/api/auth/whoami': signedIn,
@@ -261,5 +369,24 @@ describe('server rendering', () => {
 
     expect(await at('large')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark" style="font-size:112.5%"/);
     expect(await at('standard')).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="dark">/);
+  });
+
+  it("renders Insights for an admin with its numbers and summaries; its charts draw once it's in a browser", async () => {
+    api({
+      '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/procedures/insights': insights,
+      '/api/procedures/patient-procedure-stage/templates': templates,
+    });
+
+    const response = await page('/admin/insights', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Completed this week');
+    expect(html).toContain('5 procedures are overdue. k.ashford has the most (3). 2 have nobody assigned.');
+    expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
+    expect(html).not.toContain('recharts-surface');
   });
 });

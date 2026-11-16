@@ -5,6 +5,7 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
@@ -32,6 +33,9 @@ public sealed class CreateAppointmentHandler(
     {
         var patient = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken)
                       ?? throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
+
+        // A restricted or anonymised record can't gain new appointments (409), as it can't gain procedures.
+        PatientRules.EnsureCanChange(patient);
 
         PatientProcedure? procedure = null;
         PatientProcedureStage? stage = null;

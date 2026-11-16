@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
@@ -38,44 +39,50 @@ public static class AppointmentMapper
 
     /// <summary>
     /// An appointment's response, with its patient, procedure and stage (when loaded) and the usernames given.
-    /// What can be done with it is worked out at <paramref name="nowUtc"/>.
+    /// What can be done with it is worked out at <paramref name="nowUtc"/>: nothing but cancelling while its patient's
+    /// record is restricted, and nothing at all once it's anonymised (<see cref="PatientRules"/>).
     /// </summary>
     public static AppointmentResponse ToResponse(
         Appointment appointment,
         IReadOnlyDictionary<Guid, string> usernames,
-        DateTime nowUtc) => new()
+        DateTime nowUtc)
     {
-        Id = appointment.Id,
-        PatientId = appointment.PatientId,
-        PatientName = ProcedureMapper.PatientName(appointment.Patient),
-        ProcedureId = appointment.ProcedureId,
-        ProcedureTitle = appointment.Procedure?.Title,
-        ProcedureDueDate = appointment.Procedure is { } procedure ? DueDates.ToUkDate(procedure.DueDateUtc) : null,
-        StageId = appointment.StageId,
-        StageName = appointment.Stage?.Name,
-        VisitRequirement = appointment.Stage?.VisitRequirement.ToString(),
-        Status = appointment.Status.ToString(),
-        StaffUserId = appointment.StaffUserId,
-        StaffUsername = Username(usernames, appointment.StaffUserId),
-        StartUtc = appointment.StartUtc,
-        EndUtc = appointment.EndUtc,
-        DurationMinutes = appointment is { StartUtc: { } start, EndUtc: { } end } ? (int)(end - start).TotalMinutes : null,
-        Notes = appointment.Notes,
-        CancelReason = appointment.CancelReason,
-        IsAutomatic = appointment.IsAutomatic,
-        CreatedAtUtc = appointment.CreatedAtUtc,
-        CreatedByUsername = Username(usernames, appointment.CreatedByUserId),
-        BookedAtUtc = appointment.BookedAtUtc,
-        BookedByUsername = Username(usernames, appointment.BookedByUserId),
-        OutcomeAtUtc = appointment.OutcomeAtUtc,
-        OutcomeByUsername = Username(usernames, appointment.OutcomeByUserId),
-        LastUpdated = appointment.LastUpdated,
-        CanBook = AppointmentWorkflow.CanBook(appointment),
-        CanReschedule = AppointmentWorkflow.CanReschedule(appointment),
-        CanRecordOutcome = AppointmentWorkflow.CanRecordOutcome(appointment, nowUtc),
-        CanCancel = AppointmentWorkflow.CanCancel(appointment),
-        CanEditNotes = AppointmentWorkflow.CanEditNotes(appointment)
-    };
+        var canChange = PatientRules.CanChange(appointment.Patient);
+        var canPause = !PatientRules.IsAnonymised(appointment.Patient);
+        return new AppointmentResponse
+        {
+            Id = appointment.Id,
+            PatientId = appointment.PatientId,
+            PatientName = ProcedureMapper.PatientName(appointment.Patient),
+            ProcedureId = appointment.ProcedureId,
+            ProcedureTitle = appointment.Procedure?.Title,
+            ProcedureDueDate = appointment.Procedure is { } procedure ? DueDates.ToUkDate(procedure.DueDateUtc) : null,
+            StageId = appointment.StageId,
+            StageName = appointment.Stage?.Name,
+            VisitRequirement = appointment.Stage?.VisitRequirement.ToString(),
+            Status = appointment.Status.ToString(),
+            StaffUserId = appointment.StaffUserId,
+            StaffUsername = Username(usernames, appointment.StaffUserId),
+            StartUtc = appointment.StartUtc,
+            EndUtc = appointment.EndUtc,
+            DurationMinutes = appointment is { StartUtc: { } start, EndUtc: { } end } ? (int)(end - start).TotalMinutes : null,
+            Notes = appointment.Notes,
+            CancelReason = appointment.CancelReason,
+            IsAutomatic = appointment.IsAutomatic,
+            CreatedAtUtc = appointment.CreatedAtUtc,
+            CreatedByUsername = Username(usernames, appointment.CreatedByUserId),
+            BookedAtUtc = appointment.BookedAtUtc,
+            BookedByUsername = Username(usernames, appointment.BookedByUserId),
+            OutcomeAtUtc = appointment.OutcomeAtUtc,
+            OutcomeByUsername = Username(usernames, appointment.OutcomeByUserId),
+            LastUpdated = appointment.LastUpdated,
+            CanBook = canChange && AppointmentWorkflow.CanBook(appointment),
+            CanReschedule = canChange && AppointmentWorkflow.CanReschedule(appointment),
+            CanRecordOutcome = canChange && AppointmentWorkflow.CanRecordOutcome(appointment, nowUtc),
+            CanCancel = canPause && AppointmentWorkflow.CanCancel(appointment),
+            CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment)
+        };
+    }
 
     private static string Username(IReadOnlyDictionary<Guid, string> usernames, Guid userId) =>
         usernames.TryGetValue(userId, out var name) ? name : ProcedureMapper.DeletedUser;

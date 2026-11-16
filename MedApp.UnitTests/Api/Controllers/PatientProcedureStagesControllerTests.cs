@@ -62,7 +62,8 @@ public sealed class PatientProcedureStagesControllerTests
 
         var result = await Controller(mediator).CreatePatientProcedureStageDefinition(request, _cts.Token);
 
-        mediator.Request.Should().Be(new CreatePatientProcedureStageDefinitionCommand(request.Name, request.Description, request.Instructions, request.VisitRequirement));
+        mediator.Request.Should().Be(new CreatePatientProcedureStageDefinitionCommand(
+            request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm, request.VisitRequirement));
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/procedures/patient-procedure-stage/definitions/{definition.Id}");
         created.Value.Should().Be(definition);
@@ -73,7 +74,9 @@ public sealed class PatientProcedureStagesControllerTests
     {
         var request = _fixture.Create<UpdatePatientProcedureStageDefinitionRequest>();
         await ExpectOk(_fixture.Create<PatientProcedureStageDefinitionResponse>(),
-            new UpdatePatientProcedureStageDefinitionCommand(RecordId, request.Name, request.Description, request.Instructions, request.VisitRequirement),
+            new UpdatePatientProcedureStageDefinitionCommand(
+                RecordId, request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm,
+                request.VisitRequirement),
             c => c.UpdatePatientProcedureStageDefinition(RecordId, request, _cts.Token));
     }
 

@@ -92,6 +92,19 @@ describe('Page', () => {
     expect(screen.getByRole('heading', {name: 'Patients'})).toBeInTheDocument();
   });
 
+  it('shows its banner between the header and the content', async () => {
+    renderWithApp(
+      <Page title="View Patient" banner={<p>Who it is about</p>} fill>
+        <p>Details go here</p>
+      </Page>,
+    );
+
+    const heading = await screen.findByRole('heading', {name: 'View Patient'});
+    const banner = screen.getByText('Who it is about');
+    expect(heading.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(banner.compareDocumentPosition(screen.getByText('Details go here')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('renders its dialogs even while loading', async () => {
     renderWithApp(<Page title="Patients" isLoading dialogs={<p>A dialog</p>} />);
 

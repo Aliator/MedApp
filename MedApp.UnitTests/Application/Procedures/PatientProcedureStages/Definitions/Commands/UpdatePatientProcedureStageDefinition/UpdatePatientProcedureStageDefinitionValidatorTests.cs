@@ -43,7 +43,7 @@ public sealed class UpdatePatientProcedureStageDefinitionValidatorTests
     [TestCase("none")]
     public void Validate_KnownVisitRequirement_Passes(string requirement)
     {
-        _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, null, requirement))
+        _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, null, VisitRequirement: requirement))
             .IsValid.Should().BeTrue();
     }
 
@@ -51,7 +51,7 @@ public sealed class UpdatePatientProcedureStageDefinitionValidatorTests
     [TestCase("1")]
     public void Validate_UnknownVisitRequirement_FailsListingTheNames(string requirement)
     {
-        var result = _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, null, requirement));
+        var result = _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, null, VisitRequirement: requirement));
 
         result.Errors.Should().ContainSingle(e =>
             e.PropertyName == "VisitRequirement"

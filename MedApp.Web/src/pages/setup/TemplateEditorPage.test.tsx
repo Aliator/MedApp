@@ -7,7 +7,8 @@ const BASE = '/api/procedures/patient-procedure-stage';
 
 const definitions = [
   {id: 'd1', name: 'Consultation', description: 'Seen by the clinician.', isArchived: false},
-  {id: 'd2', name: 'Scan', description: 'Imaging done.', isArchived: false, visitRequirement: 'Suggested'},
+  // A real SNOMED CT concept ID, used only as a code: 71388002 is Procedure.
+  {id: 'd2', name: 'Scan', description: 'Imaging done.', snomedCode: '71388002', snomedTerm: 'Procedure', isArchived: false, visitRequirement: 'Suggested'},
   {id: 'd3', name: 'Old triage', description: '', isArchived: true},
 ];
 
@@ -123,6 +124,18 @@ describe('TemplateEditorPage', () => {
 
     expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
     expect(openDialog()).toBeNull();
+  });
+
+  it("shows each stage's SNOMED CT concept, in the template and in the stages to add", async () => {
+    const {user} = renderEditor();
+
+    const addable = within(await screen.findByRole('list', {name: 'Stages to add'}));
+    expect(addable.getByText('SNOMED CT: 71388002 | Procedure')).toBeInTheDocument();
+    await user.click(addable.getByRole('button', {name: 'Add Scan'}));
+
+    const added = within(screen.getByRole('list', {name: 'Stages in order'}));
+    expect(added.getByText('SNOMED CT: 71388002 | Procedure')).toBeInTheDocument();
+    expect(added.getByText('Imaging done.')).toBeInTheDocument();
   });
 
   it('shows a stage whose definition is gone as an unknown stage', async () => {

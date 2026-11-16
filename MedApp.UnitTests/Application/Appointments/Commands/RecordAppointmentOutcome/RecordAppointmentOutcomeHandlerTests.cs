@@ -112,4 +112,16 @@ public sealed class RecordAppointmentOutcomeHandlerTests : AppointmentHandlerTes
         SavedEvents.Single().StaffUsername.Should().BeNull();
         response.StaffUsername.Should().Be("Deleted user");
     }
+
+    [Test]
+    public async Task Handle_PatientRestricted_ThrowsConflictWithoutRecordingIt()
+    {
+        var appointment = GivenStarted();
+        appointment.Patient = PrivacyTestConstants.CreateRestrictedPatient();
+
+        var act = () => _handler.Handle(new RecordAppointmentOutcomeCommand(appointment.Id, "Attended", Colleague), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        appointment.Status.Should().Be(AppointmentStatus.Booked);
+    }
 }

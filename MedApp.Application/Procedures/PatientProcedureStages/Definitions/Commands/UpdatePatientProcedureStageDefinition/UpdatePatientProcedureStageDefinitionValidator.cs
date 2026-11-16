@@ -32,6 +32,7 @@ public sealed class UpdatePatientProcedureStageDefinitionValidator : AbstractVal
             .MaximumLength(2000)
             .WithMessage("Instructions must not exceed 2000 characters.");
 
+        this.AddSnomedRules(x => x.SnomedCode, x => x.SnomedTerm);
         RuleFor(x => x.VisitRequirement)
             .Must(ProcedureEnums.IsVisitRequirement)
             .When(x => x.VisitRequirement is not null)

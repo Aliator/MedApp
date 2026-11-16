@@ -7,5 +7,6 @@ public sealed record CreatePatientCommand(
     string FirstName,
     string LastName,
     DateOnly DateOfBirth,
-    string Email
+    string Email,
+    string? NhsNumber = null
 ) : IRequest<PatientResponse>;

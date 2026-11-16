@@ -1,6 +1,6 @@
 # MedApp architecture handbook
 
-**Status:** describes MedApp as it is on `main` after pull request #53 (a generated first password for new accounts), which followed #51 (the SSR security fixes) and #52 (the Azure setup and the deploy fixes). Written 15 November 2026, and checked against that `main` the same day. Updated on 16 November 2026 for staff calendars and appointments (`feature/staff-calendars`), from their design (`docs/calendar-plan.md`): sections 1.1, 1.2, 3.3, 5.4 to 5.8, 6.3, 8.1, 8.2, 8.8, ADR-23, "Features worth adding" (scheduling), the glossary and the document map.
+**Status:** describes MedApp as it is on `main` after pull request #53 (a generated first password for new accounts), which followed #51 (the SSR security fixes) and #52 (the Azure setup and the deploy fixes). Written 15 November 2026, and checked against that `main` the same day. Updated on 16 November 2026 for staff calendars and appointments (`feature/staff-calendars`), from their design (`docs/calendar-plan.md`): sections 1.1, 1.2, 3.3, 5.4 to 5.8, 6.3, 8.1, 8.2, 8.8, ADR-24, "Features worth adding" (scheduling), the glossary and the document map.
 
 **For:** a new senior engineer, an architect, a security assessor, or someone assessing the product for purchase (technical due diligence). It's the one document to read for the whole picture, end to end. It links to the detailed documents rather than repeating them.
 
@@ -50,7 +50,8 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Calendars** | Each member of staff has a **calendar**: an 08:00 to 18:00 working day, UK time, Monday to Friday, in day and week views, with weekends greyed. Staff **block off time** on it for activities from an admin-managed list (Lunch, Training, Annual leave, ...). Admins write **day and week templates** that fill each week with its usual blocks, applied when the calendar is read; a person's default week can be changed for one day. Nothing may overlap, and past days don't change. Everyone can see everyone's calendar; blocks and templates on a calendar are changed by its owner or an admin. |
 | **Appointments** | Staff book an **appointment** for a patient with a member of staff, optionally for a procedure and stage, in a free slot. It goes from **Requested** (needs booking) to **Booked**, then **Attended** or **Did not attend**, or **Cancelled** with a reason; every change is kept in its history. When a stage that involves a visit becomes current, the app requests an appointment for it, and a stage whose visit is **required** can't be finished until the appointment is Attended, unless an admin finishes it with a reason. A **Needs booking** list shows the requested ones. The member of staff is notified when someone else books, moves or cancels their appointment. |
 | **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
-| **Notifications** | Being assigned a procedure, or having an appointment booked, moved or cancelled (by someone else), sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
+| **Notifications** | Being assigned a procedure (by someone else), which each person can turn off in Account Settings, or having an appointment booked, moved or cancelled by someone else, sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
+| **Monitoring** | Admins set rules for being told what staff do to procedures (Administration, Monitoring), e.g. "Notify me when **sam** finishes **Bloods** on a **High or Urgent** priority procedure": a person or anyone, one of eight events, and optional priority, template and stage conditions. A matching change sends the admin one notification, never about their own changes, with no free text or patient details. Each admin sees only their own rules. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
 | **Accessibility** | The target is WCAG 2.2 level AA (the Web Content Accessibility Guidelines). There's an accessibility statement at `/accessibility`, keyboard shortcuts, screen reader announcements, and an automated audit. |
@@ -116,7 +117,7 @@ Read this before anything else if you're assessing the product.
 | **.NET 10** | `global.json` asks for SDK 10.0.100 or a later 10.x (`rollForward: latestMinor`). Every project targets `net10.0`, the current long-term support release. .NET 8 support ended on 10 November 2026 (`docs/react-migration-plan.md`, Q1b). |
 | **SQL Server** | The data model, migrations and EF Core provider are SQL Server's: SQL Server 2022 in development and in kind, Azure SQL on Azure. |
 | **React 19 and Astryx** | The UI is built only from Astryx, Meta's open-source React design system. Astryx needs React 19. It's in beta (0.7.x), so every `@astryxdesign/*` package is pinned to an exact version (0.7.15) and upgraded deliberately. |
-| **Node.js for server rendering** | Pages are rendered by a Node process the API starts. The image carries Node 22's binary. Without Node, pages still work, rendered in the browser. |
+| **Node.js for server rendering** | Pages are rendered by a Node page server: in Kubernetes a container of its own beside the API, elsewhere a process the API starts. The image carries Node 22's binary. Without Node, pages still work, rendered in the browser. |
 | **Same origin** | The React app, the API (`/api`) and the live notifications WebSocket share one origin. The session cookie depends on it, and there is no CORS (cross-origin resource sharing) configuration. |
 | **Linux on amd64** | The image is built for `linux/amd64` only. The migrations bundle inside it is architecture-specific. |
 | **Kubernetes** | Deployed environments run on Kubernetes with the Helm chart in `deploy/helm/medapp`. The chart expects an ingress controller, a network plugin that enforces NetworkPolicies, cert-manager and External Secrets Operator. |
@@ -199,7 +200,7 @@ flowchart LR
 | Channel | Protocol | Notes |
 |---|---|---|
 | Browser to MedApp | HTTPS (TLS ends at the ingress, Traefik), then plain HTTP to the API on port 8080 | Pages, static files, `/api` JSON, and the SignalR WebSocket at `/api/notifications/hub`. |
-| API to its Node page server | HTTP on `127.0.0.1`, a random port, inside the pod | Page requests one way, `/api` calls back with the user's cookie and a per-process key. |
+| API to its Node page server | HTTP on `127.0.0.1` inside the pod: port 8082 to the `pages` container in Kubernetes, a random port when the API starts Node | Page requests one way, `/api` calls back with the user's cookie (and a per-process key, when the API started Node). |
 | API to the database | TDS (SQL Server's protocol) on 1433 | In-cluster SQL Server on kind; Azure SQL through a private endpoint on Azure, encrypted (`Encrypt=True`). |
 | API to Valkey | Redis protocol on 6379, password, not encrypted | The SignalR backplane, inside the cluster. |
 | Kubernetes to the API | HTTP on 8081 | Health probes only; neither the Service nor the ingress exposes this port. |
@@ -211,10 +212,10 @@ flowchart LR
 These are outside the system today, and nothing in the code integrates with them:
 - **No single sign-on** for app users (no OpenID Connect or SAML); accounts are local, with passwords.
 - **No email or SMS.** "Forgot password?" on the sign-in page is a stand-in that says a link was sent but sends nothing (`MedApp.Web/src/pages/login/ForgotPasswordDialog.tsx`). Notifications are in-app only.
-- **No clinical integrations:** no HL7 or FHIR, no electronic health record, no lab or imaging systems, no NHS number lookup.
+- **No clinical integrations:** no HL7 v2, no electronic health record, no lab or imaging systems, and no connection to NHS England's PDS. Branch `feature/nhs-integrations` adds a read-only FHIR API for patients, used with a staff session (no system clients yet), and an NHS number lookup that only has an offline stub of synthetic numbers ([step 9](#step-9-the-features-buyers-expect)).
 - **No billing or patient portal.**
 - **Scheduling is for staff only.** Staff book appointments on staff calendars ([1.1](#11-what-medapp-does)). There's no patient self-booking, no reminders to patients, no rooms or resources, no recurring appointments, no bank holidays, and no link to another organisation's scheduling or patient administration system (`docs/calendar-plan.md`, section 8). Appointments are administrative: MedApp doesn't decide whether, when or with whom a patient is seen.
-- **No structured clinical data.** Notes are free text (Markdown).
+- **No structured clinical data.** Notes are free text (Markdown). Stage definitions can carry a SNOMED CT code as a label (branch `feature/nhs-integrations`); it's shown, and nothing acts on it.
 - **No file uploads.**
 
 ---
@@ -240,7 +241,7 @@ These are outside the system today, and nothing in the code integrates with them
 
 ### 4.2 The shape of the system
 
-MedApp is a **modular monolith**: one deployable unit, the API, which serves the UI, the API and the live connection. Inside, it's layered by Clean Architecture and sliced by use case. The only other process is the Node page server, which runs inside the same container and only ever talks to the API. State lives in SQL Server; Valkey only relays messages and stores nothing.
+MedApp is a **modular monolith**: one deployable unit, the API, which serves the UI, the API and the live connection. Inside, it's layered by Clean Architecture and sliced by use case. The only other process is the Node page server, which only ever talks to the API: in Kubernetes from a container of its own in the API's pod, elsewhere inside the API's container. State lives in SQL Server; Valkey only relays messages and stores nothing.
 
 ### 4.3 Technology inventory
 
@@ -332,7 +333,7 @@ flowchart LR
     subgraph ns["Namespace medapp"]
       subgraph pod["API pod, two copies"]
         api["MedApp.API: ASP.NET Core, app on 8080, health on 8081"]
-        pagesrv["Node page server on 127.0.0.1"]
+        pagesrv["pages container: Node page server on 127.0.0.1:8082"]
       end
       valkey["Valkey: SignalR backplane"]
       sql[("SQL Server, on kind")]
@@ -352,7 +353,7 @@ flowchart LR
 | Building block | Where | Responsibility |
 |---|---|---|
 | **API** | `MedApp.API` and the projects it references | Everything server-side: the JSON API, sign-in and sessions, the live notifications hub, serving the React app's files, and forwarding page requests to the Node page server. |
-| **Node page server** | `MedApp.Web/server/server.mjs`, built to `wwwroot/ssr/` | Renders pages to HTML with their data. Started and supervised by the API, reachable only on loopback inside the pod. |
+| **Node page server** | `MedApp.Web/server/server.mjs`, built to `dist/ssr/`, in the image at `/app/ssr/` (outside `wwwroot`) | Renders pages to HTML with their data. In Kubernetes, the `pages` container in the API's pod, from the same image, supervised by Kubernetes; elsewhere started by the API. Reachable only on loopback inside the pod. |
 | **React app** | `MedApp.Web/src`, built to `wwwroot/` | The UI, in the browser. |
 | **Database** | SQL Server 2022, or Azure SQL | All durable state: patients, procedures, audit, notifications, users, sessions, settings. |
 | **Valkey** | `deploy/helm/medapp/templates/valkey.yaml` | Relays SignalR messages between API copies. Stores nothing. |
@@ -410,8 +411,8 @@ The pipeline, in order (`MedApp.ServiceDefaults/Extensions.cs`, `MedApp.API/Comm
 | 1 | Forwarded headers | Added by the host when `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` (the Helm chart sets it), so the API sees the client's scheme and address from Traefik. |
 | 2 | Health checks | `/health` and `/alive`, only on the port in `HealthChecks:Port` (8081 in Kubernetes), or on the app's port in Development, otherwise not at all. |
 | 3 | Swagger, or HSTS | Swagger UI in Development; HTTP Strict Transport Security everywhere else (`ApplicationBuilderExtensions.cs:19`). |
-| 4 | HTTPS redirect | Skipped only for the Node page server's own calls: from loopback, carrying its key (`SsrServer.IsFromRenderer`). |
-| 5 | Blocked paths | `/ssr`, `/.vite`, and any path containing `//` get a 404 (`PageServerFiles.IsBlocked`). |
+| 4 | HTTPS redirect | Skipped for requests the API received on a loopback address (only something in the pod or container can connect there, such as the page server calling for a page's data), and for a Node the API started, carrying its key (`SsrServer.IsFromRenderer`). Behind the ingress there's no https port, so nothing is redirected anyway. |
+| 5 | Blocked paths | Any path containing `//` gets a 404, and so, as defence in depth, do `/ssr` and `/.vite`, though the page server is no longer in `wwwroot` (`PageServerFiles.IsBlocked`). |
 | 6 | Static files | The built React app in `wwwroot`. |
 | 7 | Exception handling | `ExceptionHandling` turns known exceptions into problem responses ([8.3](#83-validation-and-errors)). |
 | 8 | Authentication, password change, authorisation | The session cookie scheme; then `PasswordChangeRequired`, which refuses a user who must change a password an admin gave them everything under `/api` but its allowlist (who am I, sign in, sign out, their own settings, their own password change) with a 403 `password_change_required`; then policies and roles. |
@@ -455,7 +456,9 @@ There are 53 handlers and 30 validators in four areas: Authentication (users, ro
 
 The appointment rules are in `MedApp.Application/Appointments/Common`: `AppointmentWorkflow` (statuses and what's allowed), `AppointmentChange` (applies a change and writes its history) and `AppointmentMapper`.
 
-**Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
+**Notifications.** A handler calls `INotificationSender.SendAsync(...)` after its own change is saved. The sender checks the person's choices for the kinds they can turn off (`NotificationPreferences`), stores the notification, then asks the host's `INotificationPublisher` to push it. The API's publisher is SignalR's.
+
+**Monitoring.** Every procedure command also calls `IProcedureMonitor.NotifyAsync(change)` after saving. `ProcedureMonitor` reads what the change did from its audit entries, loads the switched-on rules for those events (one query when the change has something to watch, none otherwise), matches them, leaves out the admin who made the change (and, for an assignment, the person assigned), skips without deleting the rules of an owner who is no longer an admin (one more query, only when a rule matched), and sends each remaining admin one notification (one insert and one push each). It's best effort and outside the change's transaction: a failure is logged and the change stands (`AGENTS.md`, Monitoring).
 
 ### 5.5 The Infrastructure layer
 
@@ -508,14 +511,16 @@ erDiagram
 
 | Entity | Key fields | Notes |
 |---|---|---|
-| `Patient` | first and last name, date of birth (`DateOnly`), email | Can't be deleted while it has procedures (409). |
+| `Patient` | first and last name, date of birth (`DateOnly`), email, NHS number (optional, 10 digits) | Can't be deleted while it has procedures (409). The NHS number is unique when present (a filtered unique index; branch `feature/nhs-integrations`). |
 | `PatientProcedure` | title, notes (Markdown), `DueDateUtc`, priority, status, `BlockedFromStatus`, `TemplateId` and `TemplateName` | Created only from a template. Keeps the template's name, in case the template changes. |
-| `PatientProcedureStage` | order, a **snapshot** of the definition's name, description and instructions; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished procedure. |
+| `PatientProcedureStage` | order, a **snapshot** of the definition's name, description, instructions and SNOMED CT code and term; notes; started at and by; finished (`IsCompleted`) at and by; `IsLocked` | The snapshot means later edits to a definition never rewrite a finished procedure. |
 | `PatientProcedureAssignment` | user, assigned by, assigned at | Drives task lists and notifications, not permissions. |
-| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), `VisitRequirement` (none, suggested or required), `IsArchived` | Archived, not deleted, once in use. The stage copies `VisitRequirement` too. |
+| `PatientProcedureStageDefinition` | name, description, instructions (Markdown), optional SNOMED CT code and display term, `VisitRequirement` (none, suggested or required), `IsArchived` | Archived, not deleted, once in use. The code's format is checked, never whether the concept exists. The stage copies `VisitRequirement` too. |
 | `PatientProcedureStageTemplate` and `…TemplateMap` | name, `IsArchived`; ordered definitions | A definition may appear more than once (for example a consultation before and after). |
 | `PatientProcedureAuditEntry` | procedure ID and title, patient ID, stage ID and name, action, user ID and username, `AtUtc`, details (JSON) | No foreign keys, so the history outlives deletes. |
 | `Notification` | user, kind, title, message, procedure ID, appointment ID, created, read at | No foreign keys, like the audit log. |
+| `NotificationPreferences` | user, whether to be told of being assigned | One row per person who has chosen; none means everything. |
+| `MonitoringRule` | owner (an admin), person watched (or anyone), event, minimum priority, template, stage definition, on or off | No foreign keys: one naming something deleted matches nothing. |
 | `Appointment` | patient; procedure and stage (optional); member of staff, start and end (UTC; none while Requested); status; notes (2,000 characters); cancellation reason (500); `IsAutomatic`; who requested, booked and recorded the outcome, and when | Foreign keys to the patient, procedure and stage that don't cascade; none to the member of staff. One open (Requested or Booked) appointment per stage. |
 | `AppointmentEvent` | appointment, patient and procedure IDs, procedure title, stage name, action, user ID and username, `AtUtc`, member of staff and time, details (JSON: old and new times and staff, old and new notes, the cancellation reason) | The appointment's history. No foreign keys, like the audit log. |
 | `CalendarBlock` | member of staff, activity type, start and end (UTC), note (200 characters), created by and at | Time blocked off on a calendar. No foreign key to the member of staff. |
@@ -528,7 +533,7 @@ erDiagram
 | `UserSettings` | user, one JSON document, updated at | The account's settings, as the React app stores them. |
 | `ApplicationUser` | Identity's user (in Infrastructure) | Roles `Admin` and `User`. |
 
-**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction`, `NotificationKind`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30).
+**Stored enums.** `PatientProcedureStatus`, `PatientProcedureAuditAction`, `NotificationKind`, `MonitoringEvent`, `AppointmentStatus`, `AppointmentEventAction` and `VisitRequirement` are stored as numbers, so they must never be renumbered. `PatientProcedureStatus` has a gap at 2, where `NotStarted` was removed (#30). `NotificationKind`'s 1 to 3 are the appointment kinds, with 4 to 9 kept for the calendar; the monitoring kinds are 10 to 17.
 
 **The status workflow** (`ProcedureWorkflow`, `docs/procedures-ui-plan.md` section 4):
 
@@ -583,12 +588,12 @@ stateDiagram-v2
 
 ### 5.7 The API surface
 
-57 HTTP endpoints in seven controllers, plus the SignalR hub, at #53; staff calendars add the calendar and appointment endpoints in the last rows (`docs/calendar-plan.md`, section 4). "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
+57 HTTP endpoints in seven controllers at #53, plus the SignalR hub (rows marked with a branch came later; staff calendars add the calendar and appointment endpoints in the last rows, `docs/calendar-plan.md`, section 4). "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
 
 | Area | Endpoints | Who |
 |---|---|---|
 | Sign-in | `POST api/auth/login`, `POST api/auth/logout`, `GET api/auth/whoami` | Anyone |
-| Users | `POST api/auth/users` (a username only; returns the generated first password, once); `GET api/auth/users`, `users/search`, `users/{username}`; `PUT users/{username}/reset-password`; `DELETE users/{username}` (with the admin's own password) | Admin |
+| Users | `POST api/auth/users` (a username only; returns the generated first password, once); `GET api/auth/users`, `users/search`, `users/{username}`; `PUT users/{username}/reset-password`; `POST users/{username}/sign-out-everywhere` (ends every session they have); `DELETE users/{username}` (with the admin's own password) | Admin |
 | Roles | `GET`/`POST api/auth/roles`; `DELETE roles/{roleName}`; `POST roles/assign`, `roles/revoke`; `GET`/`PUT users/{username}/roles` | Admin |
 | Own password | `PUT api/auth/users/{username}/update-password` | Staff, and only for your own username (`SelfUserOnly`) |
 | Own settings | `GET`/`PUT api/auth/me/settings` | Staff |
@@ -599,8 +604,12 @@ stateDiagram-v2
 | | create, update, archive, restore, delete | Admin |
 | Audit log | `GET api/procedures/audit/search` | Admin |
 | Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor; procedure changes and appointment history), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures, and the free text of the log and of appointments) |
-| Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
+| Insights | `GET api/procedures/insights` | Admin |
+| Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read`; `GET` and `PUT api/notifications/preferences` | Staff |
+| Monitoring rules | `GET`, `POST api/monitoring/rules`; `PUT`, `DELETE api/monitoring/rules/{id}`; `PUT api/monitoring/rules/{id}/enabled` (your own only) | Admin |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
+| FHIR (branch `feature/nhs-integrations`) | `GET api/fhir/Patient/{id}`; `GET api/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number\|{number}`. Read-only FHIR R4 in the UK Core shape, `application/fhir+json`, errors as OperationOutcomes | Staff |
+| Demographics (branch `feature/nhs-integrations`) | `GET api/demographics/status`; `POST api/demographics/lookup` (the NHS number in the body). Off unless `Pds:Mode` is set; only an offline stub exists | Staff |
 | Calendars | `GET api/calendar?staffUserId&from&to` (one person's days, at most 31, with their blocks, stored and from templates, and appointments); `GET api/calendar/staff` (everyone with a role, with their default week) | Staff |
 | A calendar's own setup | `POST api/calendar/blocks`, `PUT`/`DELETE blocks/{id}`; `PUT`/`DELETE staff/{userId}/days/{date}/template-blocks/{templateBlockId}` (one day's template block); `PUT`/`DELETE staff/{userId}/days/{date}/day-template` (a day template for one day, or back to the week's); `PUT staff/{userId}/week-template` (the default week; `GET` for staff) | The calendar's owner, or an admin |
 | Calendar setup | `api/calendar/activity-types`, `day-templates`, `week-templates`: list (`includeArchived`), get | Staff |
@@ -637,11 +646,11 @@ stateDiagram-v2
 | `/procedures`, `/procedures/new`, `/procedures/$id`, `/procedures/$id/edit` | Procedures | Staff |
 | `/account`, `/account/colours`, `/account/password` | Account settings | Staff |
 | `/accessibility` | Accessibility statement | Anyone signed in |
-| `/admin/users`, `/admin/stages`, `/admin/templates` (and `new`, `$id`), `/admin/audit` | Administration | Admin |
+| `/admin/users`, `/admin/stages`, `/admin/templates` (and `new`, `$id`), `/admin/audit`, `/admin/insights` | Administration | Admin |
 | `/admin/calendar-templates` | **Calendar templates:** day and week templates (add, edit, archive, restore, delete when unused), and each member of staff's default week | Admin |
 | `/admin/activity-types` | **Activity types:** add, edit, archive, restore, delete when unused | Admin |
 
-**Booking** is one dialog (`BookAppointmentDialog`), opened from the patient page, the procedure page, a stage that needs a visit ("Book visit"), Needs booking, an empty calendar slot, or an appointment (to reschedule). It asks for the patient (and procedure and stage) unless they're known, the member of staff, the length (15 to 120 minutes; 30 by default), the day (the week's working days, with how many slots are free) and a free slot, with optional notes. Without a time, it can add the appointment to Needs booking instead. The procedure page lists a procedure's Booked appointments, so someone can tell the patient if the procedure is cancelled.
+**Booking** is one dialog (`BookAppointmentDialog`), opened from the patient page, the procedure page, a stage that needs a visit ("Book visit"), Needs booking, an empty calendar slot, or an appointment (to reschedule). It asks for the patient (and procedure and stage) unless they're known, and once one is chosen shows their name, date of birth and NHS number, as the patient banner does; then the member of staff, the length (15 to 120 minutes; 30 by default), the day (the week's working days, with how many slots are free) and a free slot, with optional notes. Without a time, it can add the appointment to Needs booking instead. The procedure page lists a procedure's Booked appointments, so someone can tell the patient if the procedure is cancelled.
 
 **Data.** TanStack Query holds server state. Reads are queries keyed by resource (`['patients']`, `['patients', id]`); writes are mutations that invalidate them. Every call goes through `api` and `unwrap` (`src/api/client.ts`). A 400 becomes an `ApiValidationError`, and `fieldStatus(errors, field)` puts each message on its field. The server's FluentValidation rules are the only rules; the client doesn't repeat them.
 
@@ -665,15 +674,17 @@ stateDiagram-v2
 
 `MedApp.Web/server/server.mjs` (232 lines) is a small Node HTTP server with two modes:
 - **Development (`--dev`)**, run by `npm run dev` and the AppHost on http://localhost:5173. It hosts Vite as middleware (source with hot reload), proxies `/api` and `/swagger` to the API, forwards `/api` WebSockets itself (Vite's proxy doesn't in middleware mode, #43), and renders each page from the source.
-- **Production**, started by the API. It loads the built server entry (`dist/ssr/entry-server.js`, which bundles its packages, so no `node_modules`) and the client build's manifest for the page's scripts and styles.
+- **Production**, as the chart's `pages` container or started by the API. It loads the built server entry (`entry-server.js` beside it, which bundles its packages, so no `node_modules`) and the client build's manifest for the page's scripts and styles (`client-manifest.json`, copied beside it by the build). With `HEALTH_PORT` set (the chart sets 8083), a second listener answers `GET /alive` for Kubernetes' probes. On `SIGTERM` it stops taking requests, finishes the pages it's sending and exits.
 
 It answers only GET and HEAD (others get 405). It builds the page's URL from `X-Forwarded-Proto` and `X-Forwarded-Host`, so links and redirects use the address the browser used. It streams the HTML as it renders, and answers 500 with "The page could not be rendered." if rendering throws. If a page fails part-way through streaming, only that response is cut short; before #51, a stream error crashed the whole Node process.
 
 **The API's side** (`MedApp.API/ServerRendering`):
-- `SsrServer`, a hosted service, starts `node wwwroot/ssr/server.mjs` once the API is listening, on a free loopback port. It passes the API's own address (http preferred), a random 256-bit key (`X-MedApp-Ssr-Key`), and only an allowlist of environment variables, so the API's connection strings aren't in Node's environment (`SsrServer.StartInfo`, #51). That stops accidental leaks, not a determined attacker: Node runs as the same user in the same container, so code running in it could still read the API's environment from `/proc`. It counts Node as ready when Node prints `MedApp pages:`.
+- `SsrServer`, a hosted service, finds the page server one of two ways:
+  - **A page server of its own** (`Ssr:ServerUrl`, which the chart sets to `http://127.0.0.1:8082`): that's its address, and nothing is started. It's the chart's `pages` container: the same image with `node /app/ssr/server.mjs`, as user 1655, read-only, with no capabilities, its own resource limits, and only `HOST`, `PORT`, `HEALTH_PORT`, `MEDAPP_API_URL` and `NODE_ENV` in its environment. None of the API's secrets reach it, and it can't see the API's process. It runs as a service of its own: its first process only supervises, running the page server in a worker process that it starts again (after 1 s, doubling up to 30 s while it keeps failing soon after starting) whenever it exits, is killed for running out of memory, or misses its heartbeat for 15 s (a stuck event loop). Kubernetes has only a liveness probe on the supervisor, and no readiness probe, so a failing renderer never takes the API's pod out of service.
+  - **Otherwise** (`docker run`, CI's `e2e` job), it starts `node ssr/server.mjs` from the content root (`/app`) once the API is listening, on a free loopback port. It passes the API's own address (http preferred), a random 256-bit key (`X-MedApp-Ssr-Key`), and only an allowlist of environment variables, so the API's connection strings aren't in Node's environment (`SsrServer.StartInfo`, #51). That stops accidental leaks, not a determined attacker: Node runs as the same user in the same container, so code running in it could still read the API's environment from `/proc`. It counts Node as ready when Node prints `MedApp pages:`, and doesn't restart it.
 - `SsrPages` forwards GET and HEAD page requests to Node ([6.2](#62-a-server-rendered-page-request)).
-- `SsrOptions` (the `Ssr` section): `Enabled`, `NodePath`, `ScriptPath`, `RenderTimeout` (15 s).
-- If Node is missing, fails to start, or exits, pages are rendered in the browser instead. Node is not restarted ([11.2](#112-reliability-and-operations)).
+- `SsrOptions` (the `Ssr` section): `Enabled`, `ServerUrl`, `NodePath`, `ScriptPath`, `RenderTimeout` (15 s). A `ServerUrl` that isn't an http address of a server alone stops startup (the page server serves no https).
+- If Node is missing, not ready, fails to start, or exits, pages are rendered in the browser instead ([11.2](#112-reliability-and-operations)).
 
 ### 5.10 Development tools
 
@@ -706,7 +717,7 @@ sequenceDiagram
     H->>S: check the password and the lockout
     S->>D: read the user, count a failure or clear the count
     S->>D: insert a UserSession that expires in 8 hours (extendable to 24 from sign-in)
-    A-->>B: 200 and the medapp.session cookie
+    A-->>B: 200 and the session cookie (__Host-medapp.session)
     B->>A: GET /api/patients/search with the cookie
     A->>S: SessionAuthenticationHandler validates the session ID
     S->>D: read the session, the user and their roles
@@ -718,13 +729,13 @@ sequenceDiagram
    - a wrong password counts as a failure and gives **401** ("Invalid credentials"); the fifth locks the account;
    - a right password clears the count.
 2. **The session.** `SessionService` inserts a `UserSession` row: the user, created and expiry times (8 hours, extendable on request to 24 at most from sign-in: see the table below), the client's IP address and user agent.
-3. **The cookie.** `SessionCookieService` sets `medapp.session` to the session's ID: `HttpOnly` (script can't read it), `SameSite=Lax` (not sent on cross-site POSTs), `Secure` outside Development, expiring with the session. The response body also carries the session ID and expiry.
-4. **Every request.** `SessionAuthenticationHandler` reads the cookie, parses the ID, and asks `SessionService` to validate it: the row must exist, not be revoked or expired, and its user must still exist. It then builds the claims: the user's ID (`NameIdentifier`), username and roles, and `medapp:must_change_password` when the account's `MustChangePassword` is set (an admin generated its password). Roles and the flag are read from the database on every request, so a role change or a reset applies at once, and deleting a user ends their sessions. `PasswordChangeRequired`, between authentication and authorisation, then refuses a flagged user every `/api` request but its allowlist.
+3. **The cookie.** `SessionCookieService` sets `__Host-medapp.session` (`medapp.session` in Development, over plain http) to the session's ID, with `Path=/` and no `Domain`: `HttpOnly` (script can't read it), `SameSite=Lax` (not sent on cross-site POSTs), `Secure` outside Development, expiring with the session. The response body also carries the session ID and expiry.
+4. **Every request.** `SessionAuthenticationHandler` reads the cookie, parses the ID, and asks `SessionService` to validate it: the row must exist, not be revoked or expired, and its user must still exist. It then builds the claims: the user's ID (`NameIdentifier`), username and roles, the session's own ID (`medapp:session_id`), and `medapp:must_change_password` when the account's `MustChangePassword` is set (an admin generated its password). Roles and the flag are read from the database on every request, so a role change applies to the next request without ending the session. A reset ends every session the user had (and a password change their other ones), and deleting a user ends their sessions. `PasswordChangeRequired`, between authentication and authorisation, then refuses a flagged user every `/api` request but its allowlist.
 5. **Authorisation.** Endpoints require the `Staff` policy (role `User` or `Admin`) or the `Admin` role. The own-password change also requires `SelfUserOnly`: the route's username must be the caller's.
 6. **In the React app.** The `whoami` query (`GET api/auth/whoami`, always 200, saying whether you're signed in, with which roles, and whether you must change your password) feeds the `_app` route guard, which sends anyone who must change their password to `/change-password`. A page already open when that happens finds out from its next API call's 403 `password_change_required`, and the API client sends it there with a full page load.
 7. **Sign-out.** `POST api/auth/logout` marks the session revoked and deletes the cookie.
 
-What this doesn't do (see [11.1](#111-security-and-privacy)): there's no idle timeout or sliding expiry; changing or resetting a password doesn't end existing sessions; and old session rows are never deleted.
+What this doesn't do (see [11.1](#111-security-and-privacy)): there's no idle timeout or sliding expiry; before `feature/security-baseline`, changing or resetting a password didn't end existing sessions (now a change ends the user's other sessions, and a reset all of them; a role change applies at once without ending any); and old session rows are never deleted.
 
 ### 6.2 A server-rendered page request
 
@@ -735,9 +746,9 @@ sequenceDiagram
     participant N as Node page server
     B->>A: GET /patients with the session cookie
     A->>A: not blocked, not a file, not /api, so SsrPages.Handle
-    alt the Node server is running
+    alt the Node server is running (the pages container, or one the API started)
         A->>N: GET /patients, path and query only, with the cookie
-        N->>A: GET whoami, settings, notifications and the page's data, with the cookie and the key
+        N->>A: GET whoami, settings, notifications and the page's data, with the cookie (and the key, if the API started Node)
         A-->>N: JSON
         alt it renders
             N-->>A: 200 HTML stream, or a redirect to /login
@@ -751,9 +762,9 @@ sequenceDiagram
     B->>B: hydrate the page, or render it from scratch
 ```
 
-1. **Routing.** A path that isn't a file, isn't under `/api`, and isn't blocked (`/ssr`, `/.vite`, or anything with `//`) reaches the fallback endpoint, `SsrPages.Handle` (`MedApp.API/ServerRendering/SsrPages.cs`).
-2. **Forwarding** (only GET and HEAD, and only while Node is running). The target URL is built from the Node server's scheme, host and port plus **only the request's path and query**, then checked against Node's address before anything is sent (#51). That closed an open proxy: before #51, a path like `//evil.example/x` made the API fetch another host with the visitor's cookie. Four request headers go with it (`Cookie`, `Accept`, `Accept-Language`, `User-Agent`), plus `X-Forwarded-Proto` and `X-Forwarded-Host`. The client follows no redirects and keeps no cookies of its own.
-3. **Rendering.** Node runs the route's `beforeLoad` and `loader`: `_app` checks sign-in and loads the account's settings and notifications, and the page's loader preloads its data. Each API call goes straight to the API with the visitor's cookie and the key, and is authorised exactly as the browser's would be. There's no service identity.
+1. **Routing.** A path that isn't a file, isn't under `/api`, and isn't blocked (anything with `//`, or `/ssr` and `/.vite`) reaches the fallback endpoint, `SsrPages.Handle` (`MedApp.API/ServerRendering/SsrPages.cs`).
+2. **Forwarding** (only GET and HEAD, and only while Node is running). The target URL is built from the Node server's scheme, host and port plus **only the request's path and query**, then checked against Node's address before anything is sent (#51). That closed an open proxy: before #51, a path like `//evil.example/x` made the API fetch another host with the visitor's cookie. Four request headers go with it (`Cookie`, `Accept`, `Accept-Language`, `User-Agent`), plus `X-Forwarded-Proto`, `X-Forwarded-Host` and the page's CSP nonce (`X-MedApp-Csp-Nonce`). The client follows no redirects and keeps no cookies of its own.
+3. **Rendering.** Node runs the route's `beforeLoad` and `loader`: `_app` checks sign-in and loads the account's settings and notifications, and the page's loader preloads its data. Each API call goes straight to the API, on loopback, with the visitor's cookie (and the key, if the API started Node), and is authorised exactly as the browser's would be. There's no service identity.
 4. **The answer.** A 2xx, 3xx or 4xx from Node is passed back as it is, streamed, with `Cache-Control: no-store`, because the HTML carries the user's data (#51).
 5. **The fallback.** If Node isn't running, answers with a 5xx, or fails in any way before anything has been sent (a connection error, or no response headers within `Ssr:RenderTimeout`, 15 s), the browser gets `index.html` and renders the page itself. The fallback keeps the headers the pipeline had already set, such as HSTS, and drops only Node's. A render is never retried: the `ssr` HTTP client has no resilience handler (#51). If a page fails after it has started streaming, the connection is cut short, since it can't be replaced by another page then. Nothing times out a page that's still streaming: one that stalls part-way holds the request until the browser gives up.
 6. **In the browser.** `entry-client.tsx` hydrates the server's HTML, starting from the data the server put in the page, or renders from scratch on `index.html`. After hydration, the app navigates on the client, and loaders only start fetches.
@@ -856,7 +867,7 @@ The app seeds no users, and never runs migrations at startup. A new database get
 | **Status** | In daily use | In use; the only cluster MedApp has run on | Written and checked in CI; **never deployed** |
 | **Started by** | `dotnet run --project MedApp.AppHost` | `deploy/kind/up.sh` (Helm) or `up.sh --argocd` (GitOps) | `deploy/azure/deploy.sh`, then `bootstrap.sh`; then every merge |
 | **App** | API from source on https://localhost:7038; React on Vite's dev server at http://localhost:5173 | The production image, two API copies, at http://localhost:8080 and https://localhost:8443 | The production image from ACR, two copies, behind a public IP and your domain |
-| **Server rendering** | The Vite dev server renders pages | Node inside each API pod | Node inside each API pod |
+| **Server rendering** | The Vite dev server renders pages | A `pages` container beside the API in each pod | A `pages` container beside the API in each pod |
 | **Database** | SQL Server 2022 container on `127.0.0.1:14330` | SQL Server 2022 in the cluster (StatefulSet, 5 GiB volume) | Azure SQL serverless, private endpoint |
 | **Backplane** | None (one copy) | Valkey | Valkey |
 | **Secrets** | Aspire's generated `sa` password in the AppHost's user secrets | External Secrets from a stand-in store (`medapp-vault`) | External Secrets from Key Vault |
@@ -878,12 +889,12 @@ The Aspire dashboard shows each resource's logs, traces and health. Migrations a
 
 | Stage | Base | Does |
 |---|---|---|
-| `web` | `node:22-bookworm-slim` | `npm ci`, then `npm run build`: type check, the client build into `dist/`, the server entry into `dist/ssr/` with every package bundled in, and a copy of `server.mjs` |
+| `web` | `node:22-bookworm-slim` | `npm ci`, then `npm run build`: type check, the client build into `dist/`, the server entry into `dist/ssr/` with every package bundled in, and copies of `server.mjs` and the client manifest there. Then split: `dist/ssr` to `/out/ssr`, the rest (without `dist/.vite`) to `/out/wwwroot` |
 | `api` | `mcr.microsoft.com/dotnet/sdk:10.0` | Restores from the six project files first (cached until they change), publishes the API for Release, installs `dotnet-ef` 10.0.15 and builds the migrations bundle `/app/efbundle` |
-| `final` | `mcr.microsoft.com/dotnet/aspnet:10.0` | Node's binary from the `web` stage (`/usr/local/bin/node`), the published API and bundle in `/app`, the React build in `/app/wwwroot` |
+| `final` | `mcr.microsoft.com/dotnet/aspnet:10.0` | Node's binary from the `web` stage (`/usr/local/bin/node`), the published API and bundle in `/app`, the React build in `/app/wwwroot`, the page server in `/app/ssr` (outside the web root) |
 
 - It runs as the image's own **non-root** user (`$APP_UID`, 1654), on port 8080, with no TLS: TLS ends at the ingress.
-- **One image, three jobs:** the API, the Node page server it starts, and the migrations bundle the Job runs. They always come from the same commit.
+- **One image, three jobs:** the API, the Node page server (the chart's `pages` container, or started by the API), and the migrations bundle the Job runs. They always come from the same commit.
 - **What it quietly relies on:** Node's binary, built for Debian bookworm, finding its libraries in the `aspnet` image; and the image having a shell (`sh`) for the Job's command. Moving to a "chiseled" or Alpine runtime would break both.
 - **`.dockerignore`** keeps Windows `node_modules`, build output, `.env` files, tools, docs, deploy files, tests and Dockerfiles out of the build context.
 - **Tags:** the commit SHA from Publish; `local-<image ID>` from `up.sh`. Never `latest`: the chart refuses to render without `image.tag`.
@@ -895,7 +906,7 @@ The Aspire dashboard shows each resource's logs, traces and health. Migrations a
 
 | Template | What it makes |
 |---|---|
-| `api.yaml` | The API's Service (port 80 to 8080 only), Deployment, and, above one copy, a PodDisruptionBudget (`minAvailable: 1`) and a preferred spread across nodes. Fails to render with more than one copy and no backplane. |
+| `api.yaml` | The API's Service (port 80 to 8080 only), Deployment (the `api` container and, with `api.pageServer.enabled`, the `pages` container), and, above one copy, a PodDisruptionBudget (`minAvailable: 1`) and a preferred spread across nodes. Fails to render with more than one copy and no backplane. |
 | `sql.yaml` | SQL Server 2022 (Developer edition) as a one-pod StatefulSet on a 5 GiB volume (`sql.enabled`, on by default; off on Azure). |
 | `valkey.yaml` | Valkey with a password, saving nothing to disk, no volume. |
 | `migrations-job.yaml` | The migrations bundle and `create-first-admin`, as a Helm hook and an Argo CD sync hook. |
@@ -904,7 +915,7 @@ The Aspire dashboard shows each resource's logs, traces and health. Migrations a
 | `networkpolicy.yaml` | Default-deny policies for every MedApp pod ([8.1](#81-security)). |
 | `_helpers.tpl` | Names, labels, and the shared pod and container security settings. |
 
-**API pod settings** (`api.yaml`): the connection strings from Secrets; `ASPNETCORE_HTTP_PORTS=8080;8081` and `HealthChecks__Port=8081`; `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`. Probes on port 8081: start-up and liveness on `/alive`, readiness on `/health`. Requests of 250m CPU and 256 MiB, a 1 GiB memory limit shared by .NET and Node, no CPU limit. A 256 MiB `emptyDir` at `/tmp`.
+**API pod settings** (`api.yaml`): `enableServiceLinks: false`. The `api` container: the connection strings from Secrets; `ASPNETCORE_HTTP_PORTS=8080;8081` and `HealthChecks__Port=8081`; `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`; `Ssr__ServerUrl=http://127.0.0.1:8082`. Probes on port 8081: start-up and liveness on `/alive`, readiness on `/health`. Requests of 250m CPU and 256 MiB, a 1 GiB memory limit, no CPU limit. A 256 MiB `emptyDir` at `/tmp`. The `pages` container: `node /app/ssr/server.mjs` as user 1655, with only `HOST=127.0.0.1`, `PORT=8082`, `HEALTH_PORT=8083`, `MEDAPP_API_URL=http://127.0.0.1:8080` and `NODE_ENV`; a liveness probe only, on `/alive` on 8083 (5 s timeout, a 5 s grace period), and no readiness or startup probe; requests of 100m CPU and 128 MiB, a 512 MiB memory limit; no volumes. The pod is annotated `kubectl.kubernetes.io/default-container: api` and `azure.workload.identity/skip-containers: pages`. Both wait 5 seconds before stopping.
 
 **Values files:** the chart's defaults (`values.yaml`), kind's (`deploy/kind/values.yaml`), Azure's (`deploy/azure/values.yaml`), and the image file each environment branch adds (`deploy/argocd/kind-image.yaml`, `azure-image.yaml`).
 
@@ -1068,7 +1079,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 #### Authentication
 
 - **Accounts are local.** Usernames and passwords, hashed by ASP.NET Core Identity's password hasher. There's no single sign-on and no multi-factor authentication.
-- **Password rules** (`appsettings.json`, `Identity` section): at least 8 characters, with a digit, a lower-case and an upper-case letter.
+- **Password rules** (`appsettings.json`, `Identity` section): at least 8 characters, with a digit, a lower-case and an upper-case letter. On `feature/security-baseline`, a new password also mustn't be one of the 10,000 most common (`CommonPasswordValidator`), and sign-in is throttled per address and per username before the lockout (`LoginThrottling`).
 - **Lockout:** 5 wrong passwords lock the account for 5 minutes. A locked account gets 423 with the time left, even with the right password (#38).
 - **Sensitive actions re-check:** changing your own password needs the old one; deleting a user needs the deleting admin's own password.
 - **The server generates every first password and every reset** (#53): at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (`IdentityUserService.GeneratePassword`). There's no default password. `POST api/auth/users` takes only a username and returns the new password once, with `Cache-Control: no-store`. The Users page shows it once, with a copy button, and forgets it when the dialog closes. The response records print `***` in place of the password, so logging one can't leak it.
@@ -1079,22 +1090,23 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 - **Two roles,** `User` (staff) and `Admin`, checked on every endpoint with `[Authorize(Policy = AuthPolicies.Staff)]` or `[Authorize(Roles = "Admin")]`. [Section 5.7](#57-the-api-surface) has the full matrix.
 - **The API is the only enforcement.** The React app's guards (`_app`, `requireAdmin`) and hidden admin buttons are conveniences.
-- **Roles are re-read on every request,** so a change applies at once.
+- **Roles are re-read on every request,** so a change applies to the user's next request, without ending their session.
 - **"Not assigned to you" is not a permission.** Any staff member may work on any procedure; the confirmation is a UI safeguard, and the audit log records who acted (procedures plan, decision 18).
-- **All staff see all patients,** and all calendars and appointments. There's no restriction by team, ward or care relationship. Any staff member may book, move or cancel any appointment; a calendar's blocks and its day and week templates are changed only by its owner or an admin.
+- **All staff see all patients,** and all calendars and appointments. There's no restriction by team, ward or care relationship. Any staff member may book, move or cancel any appointment (only cancel, a restricted patient's; none of an anonymised patient's); a calendar's blocks and its day and week templates are changed only by its owner or an admin.
 - **Only two endpoints' attributes are tested.** The own-password change (#51) and creating a user (#53) have tests that evaluate their `[Authorize]` attributes with the API's real policies. The other controller tests call actions directly through a recording mediator, so a missing or wrong `[Authorize]` anywhere else wouldn't fail a test ([11.1](#111-security-and-privacy)).
 
 #### Sessions and cookies
 
 | Property | Value | Where |
 |---|---|---|
-| Cookie name | `medapp.session` | `SessionAuthenticationDefaults.cs` |
+| Cookie name | `__Host-medapp.session` outside Development (needs `Secure`, `Path=/` and no `Domain`); `medapp.session` in Development | `SessionAuthenticationDefaults.cs`, `SessionCookieService.cs` |
 | Value | The session's ID (a GUID), looked up in `UserSessions` | `SessionService` |
 | `HttpOnly` | Yes | `SessionCookieService.cs` |
 | `SameSite` | `Lax`: not sent on cross-site POSTs | `SessionCookieService.cs` |
 | `Secure` | Outside Development | `SessionCookieService.cs` |
 | Lifetime | 8 hours from sign-in, extendable on request ("Stay signed in", `POST api/auth/session/extend`) to 24 at most from sign-in; using the app doesn't extend it; no idle timeout | `UserSession.cs`, `SessionService.cs` |
-| Revocation | On sign-out; or when the user is deleted (validation fails) | `SessionService.cs` |
+| Revocation | On sign-out; when the user is deleted (validation fails); the user's other sessions when they change their password; all of them on an admin's reset or "Sign out everywhere". A role change ends none: roles are read on every request | `SessionService.cs`, the password handlers |
+| Sign-in throttling | 30 attempts a minute per client address, 5 per username; then a 429 with `Retry-After` | `MedApp.API/Common/RateLimiting` |
 
 **Cross-site request forgery (CSRF).** There are no antiforgery tokens. The defence is `SameSite=Lax`, which keeps the cookie off cross-site POSTs, PUTs, PATCHes and DELETEs, together with JSON request bodies. There's no CORS policy, so no other origin is allowed to read responses.
 
@@ -1108,11 +1120,11 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 | Protection | How |
 |---|---|
-| Node is unreachable from outside | It listens on `127.0.0.1` only, on a random port, inside the API's container. |
-| The renderer's key does very little | A random 256-bit key per process, compared in constant time. It only lets Node's calls from loopback skip the https redirect. Node's calls still need the user's session. |
+| Node is unreachable from outside | Its pages listen on `127.0.0.1` only, inside the pod (port 8082 in the `pages` container; a random port when the API starts it). Its health listener (8083) answers only `/alive`, and the network policy lets nothing but the kubelet reach it. |
+| The renderer's key does very little | A random 256-bit key per process, compared in constant time, given only to a Node the API starts. It only lets Node's calls from loopback skip the https redirect. Node's calls still need the user's session. The `pages` container has no key. |
 | No open proxy | The target URL is built from Node's address plus only the request's path and query, and checked before sending. Any path containing `//` is a 404. |
-| Node's own files aren't served | `/ssr` and `/.vite` are a 404 (`PageServerFiles.IsBlocked`). That's a string check, which holds on Linux, where the image runs; on a Windows host, `\`, trailing-dot and 8.3 short-name forms of those paths still reach the files. |
-| Node's environment holds no secrets | It's an allowlist (`SsrServer.StartInfo`): no connection strings, so they can't leak from Node by accident, into its logs for example. It isn't isolation: Node runs as the API's user, in the API's container, and could read the API's environment from `/proc`. |
+| Node's own files aren't served | The page server and the client manifest are in `/app/ssr/`, outside the web root, so no static file path reaches them on any host. `/ssr` and `/.vite` are still a 404 (`PageServerFiles.IsBlocked`), as defence in depth. |
+| Node can't reach the API's secrets | In Kubernetes it runs in a container of its own (`pages`), as another user, with none of the API's secrets or settings, and can't see the API's process. When the API starts it (`docker run`), its environment is an allowlist (`SsrServer.StartInfo`) without connection strings, so they can't leak by accident; that isn't isolation, since Node then runs as the API's user and could read the API's environment from `/proc`. |
 | A failed render loses nothing else | The fallback restores the pipeline's own headers (HSTS) and drops only Node's. |
 | No caching of personal data | Rendered pages carry `Cache-Control: no-store`. |
 | No data shared between requests | A new router and query cache per request; the request's cookie travels through `AsyncLocalStorage`. |
@@ -1132,8 +1144,8 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
   | Migrations Job | DNS; SQL Server or the private endpoint subnet | 53; 1433 |
   | Anything else | MedApp's pods | refused |
 
-  The kubelet's probes on 8081 aren't affected by policies, and Node's calls stay inside the pod on loopback.
-- **The `restricted` Pod Security Standard,** enforced on the namespace: non-root users (1654 for the API and Job, 10001 for SQL Server, 999 for Valkey), the `RuntimeDefault` seccomp profile, no privilege escalation, every Linux capability dropped (SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs).
+  The kubelet's probes on 8081 and 8083 aren't affected by policies, and the API and the page server talk inside the pod on loopback. Policies apply per pod, so the page server could open the API's connections too, though it holds none of their credentials.
+- **The `restricted` Pod Security Standard,** enforced on the namespace: non-root users (1654 for the API and Job, 1655 for the page server, 10001 for SQL Server, 999 for Valkey), the `RuntimeDefault` seccomp profile, no privilege escalation, every Linux capability dropped (SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs).
 - **No Kubernetes API tokens** mounted in any pod, since none calls the Kubernetes API.
 - **Read-only root filesystems,** with a small `emptyDir` at `/tmp`; SQL Server writes only to its volume.
 - **Health checks on a private port** (8081), which neither the Service nor the ingress exposes.
@@ -1164,7 +1176,7 @@ No cloud secret is stored anywhere: GitHub signs in with OIDC, External Secrets 
 
 - **Pinned:** `@astryxdesign/*` and Lexical exactly; ReportGenerator's action by commit SHA; `dotnet-ef` by version.
 - **Floating:** the other GitHub Actions by major tag (`@v4`, `@v3`), the base images (`node:22-bookworm-slim`, `dotnet/aspnet:10.0`, `dotnet/sdk:10.0`), `mssql/server:2022-latest` and `valkey:8.1-alpine`, and caret ranges in `package.json` (the lock file fixes what's installed).
-- **Missing:** Dependabot or Renovate, image vulnerability scanning, an SBOM (software bill of materials) and image signing.
+- **Missing,** before `feature/security-baseline`: Dependabot or Renovate, image vulnerability scanning, an SBOM (software bill of materials) and image signing. That branch pins every action by commit SHA and adds Dependabot, CodeQL, dependency review, `npm audit`, NuGet audit as errors, a Trivy scan of the image, and SBOM and build provenance attestations on the published image (`AGENTS.md`, CI). Base images are still pinned by tag.
 
 ### 8.2 Data protection and privacy, as they stand
 
@@ -1176,12 +1188,12 @@ This describes what the code does today. It isn't a compliance statement; [secti
 | **Minimisation** | The patient record is deliberately small. Free text isn't limited by structure. |
 | **At rest** | In SQL Server. Azure SQL encrypts data at rest by default (transparent data encryption), which the Bicep doesn't change. On kind, the data is on the SQL Server pod's volume. No column-level encryption. |
 | **In transit** | TLS to the ingress; encrypted to Azure SQL; plain inside the cluster to Valkey (which carries procedure titles) and, on kind, to SQL Server. |
-| **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and procedures are kept only in the browser, as IDs. No patient records are stored in the browser. Signing out clears the query cache, but not `localStorage`. |
+| **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and procedures are kept with them, as IDs. No patient records are stored in the browser. Signing out clears the query cache, and every `medapp.` key in `localStorage` and `sessionStorage` but the four visual settings (step 7). |
 | **In logs** | EF Core logs every SQL command at Information level, but without parameter values (sensitive data logging is off). Nothing logs patient fields on purpose. |
-| **Who can see what** | Every staff member sees every patient and procedure, and every calendar and appointment. Only admins read the audit log; staff see each patient's timeline without its free text (no appointment notes or cancellation reasons either). |
-| **Access logging** | **Reads aren't logged.** Changes to procedures are fully audited; changes to patients (create, edit, delete) and to accounts and roles are not. |
-| **Retention** | None. Nothing is ever purged: patients, procedures, appointments and their history, calendar blocks, audit entries, notifications and expired sessions stay forever. |
-| **Erasure** | A patient with procedures or appointments can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design, and detaches its appointments, whose history keeps the procedure. There's no export for subject access requests. |
+| **Who can see what** | Every staff member sees every patient and procedure, and every calendar and appointment. Only admins read the audit log and the activity log; staff see each patient's timeline without its free text (no appointment notes or cancellation reasons either). A restricted or anonymised patient's record, procedures and appointments can't be changed, except that a restricted record's procedures and appointments can be paused (blocked or cancelled) (step 7). |
+| **Access logging** | Changes to procedures and appointments are fully audited. Since step 7, the activity log records patient views, search results and searches (filter names, not terms), procedure views, appointments read (on the calendar, Needs booking, the booking dialog, or opened, as reads of their patients), patient creates, edits (fields, not values) and deletes, exports, sign-ins (and refused ones), sign-outs, and account and role changes, with the address; admins see a patient's access report on their page. |
+| **Retention** | Records past their retention period are listed for an admin to keep or anonymise (step 7); nothing is deleted automatically. Nothing is ever purged: procedures, appointments and their history, calendar blocks, audit entries, the activity log, notifications and expired sessions stay forever. |
+| **Erasure** | A patient with procedures or appointments can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design, and detaches its appointments, whose history keeps the procedure. Admins can anonymise a record in place (which also removes the free text the timeline shows, and appointments' notes and cancellation reasons), and export everything held about a patient, appointments included, for a subject access request (step 7). |
 | **Backups** | Azure SQL: 7 days of point-in-time restore, locally redundant. kind: none. Development: `medapp-dev` snapshots. No restore has been tested. |
 | **Residency** | UK South by default on Azure. GitHub holds only code and the public image. |
 | **Test data** | Synthetic only, by convention (`AGENTS.md`); the demo seeds invent names and use `@example.com` addresses. |
@@ -1238,12 +1250,13 @@ This describes what the code does today. It isn't a compliance statement; [secti
 | `ConnectionStrings:DefaultConnection` | AppHost (development); a Secret (Kubernetes) | Never in `appsettings*.json`. |
 | `ConnectionStrings:SignalRBackplane` | A Secret | Empty means no backplane, one copy. |
 | `Identity:*` | `appsettings.json` | Password and lockout rules. |
-| `Ssr:Enabled`, `NodePath`, `ScriptPath`, `RenderTimeout` | Defaults in `SsrOptions` | On by default; only starts if `wwwroot/ssr/server.mjs` exists. |
+| `Ssr:Enabled`, `ServerUrl`, `NodePath`, `ScriptPath`, `RenderTimeout` | Defaults in `SsrOptions`; the chart sets `ServerUrl` | On by default. With `ServerUrl`, pages go to that page server; without it, the API starts Node only if `ssr/server.mjs` exists under its content root. |
 | `HealthChecks:Port` | The chart (8081) | Without it, health checks exist only in Development. |
 | `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | The image (8080) and the chart (`8080;8081`, `true`) | |
 | `FirstAdmin:Username`, `FirstAdmin:Password` | A Secret, for the migrations Job only | |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | The AppHost | Unset in Kubernetes. |
-| Node's `PORT`, `HOST`, `MEDAPP_API_URL`, `MEDAPP_SSR_KEY`, `NODE_ENV`, `NODE_OPTIONS` | Set by `SsrServer` | Plus the allowlisted system variables. |
+| Node's `PORT`, `HOST`, `MEDAPP_API_URL`, `MEDAPP_SSR_KEY`, `NODE_ENV`, `NODE_OPTIONS` | Set by `SsrServer` when it starts Node | Plus the allowlisted system variables. |
+| Node's `HOST`, `PORT`, `HEALTH_PORT`, `MEDAPP_API_URL`, `NODE_ENV` | Set by the chart's `pages` container | Nothing of the API's. |
 | The `sa` password for development | The AppHost's user secrets (`Parameters:sql-password`) | Generated by Aspire on the first run. |
 | Per-environment deployment | `deploy/kind/values.yaml`, `deploy/azure/values.yaml`, `deploy/azure/main.bicepparam`, `deploy/versions.sh` | |
 | Azure for Publish | Repository variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_ACR_NAME` | Identifiers, not secrets. |
@@ -1290,7 +1303,7 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | ADR-6 | **Lists are filtered, sorted and paged by the API** (phase 4, revising Q10) | Blazor loaded every row and paged in the browser. | Paging in the browser. | Scales; list state lives in the URL; the same LINQ runs in SQL and in tests; ordering always ends on a unique key. |
 | ADR-7 | **Procedures copy their template's stages, keep their rules in two classes, and save audit entries with each change; the audit table has no foreign keys** (procedures-ui-plan; #30) | Finished work must never change when a definition is edited, and every change must be traceable. | Stages pointing at live definitions (the old model); auditing by database triggers or a separate service (inferred). | History is stable; definitions and templates in use are archived, not deleted; audit entries outlive deletes, but the database can't enforce their links; every new procedure command must go through `ProcedureChange`. |
 | ADR-8 | **Hand-written static mappers, no mapping library** (#44) | Handlers built responses inline in several styles, and two endpoints returned the Domain `Patient`. | AutoMapper, Mapster. | Mapping is visible, cheap and tested per mapper; more boilerplate, and a new field can be forgotten (the tests guard that). |
-| ADR-9 | **Server-side rendering, with the API starting and fronting a Node page server, falling back to browser rendering** (#42, hardened in #51) | Faster first paint with the data in it; every page sits behind sign-in, with per-user data, and the app was static files in the API. | Node in front of the API (for example TanStack Start, which the to-do item suggested); a sidecar container; no SSR. The PR doesn't say why Start wasn't used (inferred: it expects to own the server and the build). | One image and one origin; Node on loopback only. But the API is now Node's supervisor, without restarts, health checks or memory isolation; and the first version had an open proxy and a broken fallback, fixed in #51. |
+| ADR-9 | **Server-side rendering, with the API starting and fronting a Node page server, falling back to browser rendering** (#42, hardened in #51) | Faster first paint with the data in it; every page sits behind sign-in, with per-user data, and the app was static files in the API. | Node in front of the API (for example TanStack Start, which the to-do item suggested); a sidecar container; no SSR. The PR doesn't say why Start wasn't used (inferred: it expects to own the server and the build). | One image and one origin; Node on loopback only. But the API became Node's supervisor, without restarts, health checks or memory isolation; and the first version had an open proxy and a broken fallback, fixed in #51. Since then, in Kubernetes, the page server runs as a container of its own beside the API (from the same image), which brings restarts, probes, its own memory limit and separation from the API's secrets; the API supervises Node only when run on its own. |
 | ADR-10 | **One image holding the API, the React app, Node and the EF migrations bundle; migrations as a Kubernetes Job, never at startup** (#45, #47) | The schema must always match the code, and a failed migration must stop a rollout. | Migrating at startup; a separate migrations image; a separate web server image. | The Job can't apply a different schema; a failed migration leaves the old API running. Migrations and the app share one database credential. Changes must follow expand-then-contract. |
 | ADR-11 | **The first admin is created by a command, from a secret, only on an empty database** (#48, both roles since #51) | A deployed database starts empty; the app seeds no users. | A seeded account in a migration (a known login in every database); an anonymous first-run sign-up (a race). | No default credentials anywhere but local development; safe to run on every deploy. The name is always `admin`, so anyone can lock it out for 5 minutes. |
 | ADR-12 | **Kubernetes with a Helm chart, proven on a local kind cluster before any cloud** (#46 to #48) | Step by step towards Azure (`docs/todo.md`). | kustomize (#46 started with it; replaced in #47 because the chart has real options); Azure Container Apps or App Service, which the review says would cost a fraction (`flaws-review.md`, judgement). The documents don't say why AKS was preferred (inferred: portability, and room for more services). | The same chart and the same delivery everywhere; production can be tried locally for free. Many moving parts for a one-maintainer app, and about £150 a month on Azure before the database. |
@@ -1304,7 +1317,8 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | ADR-20 | **Health checks on their own port, 8081** (#48) | Kubernetes needs HTTP probes, which shouldn't be public. | On the app's port, hidden by ingress rules; TCP probes only (as before #48). | The public can't reach them. But 8081 also serves the whole app, so the Service and the network policy are what keep it private. |
 | ADR-21 | **On Azure: Cilium for network policy, private Azure SQL, OIDC and workload identity, and SQL authentication as a first step** (#52) | The chart relies on NetworkPolicies being enforced; Azure's own policy manager can't be enabled on new subscriptions (`docs/reviews/azure.md`). | Passwordless SQL from the start. | No stored cloud secrets. The app signs in to Azure SQL as the server admin until passwordless SQL and a least-privilege user are done. |
 | ADR-22 | **.NET Aspire for development, with SQL Server in a persistent container** (Q1, Q2; #26) | One command for the whole stack, and a database close to production's. | LocalDB (the old way); docker-compose. | Simple start-up and a dashboard; needs Docker Desktop and its licence; migrations are still applied by hand. |
-| ADR-23 | **Calendar templates applied when a calendar is read, with history kept by dated rows; clashes refused on the server under a lock per member of staff** (`docs/calendar-plan.md`, decisions 6 and 11) | Templates fill every week with its usual blocks, and must change from today without rewriting past days. Two people can book the same slot at once. | (Inferred) generating each day's blocks ahead of time with a background job; copying a template's rows on every edit; a unique index or a serialisable transaction instead of an application lock. | Nothing runs in the background, and an edit shows on every day it applies to at once; a past day shows what applied then. Reading a calendar does more work (`CalendarProjection`), and dated rows must be changed only through `TemplateHistory`. The lock (`sp_getapplock`) ties clash checking to SQL Server. Something already booked can come to overlap a later template change; both show, flagged, and nothing is moved. |
+| ADR-23 | **Hand-built FHIR resources, not the Firely SDK** (branch `feature/nhs-integrations`) | A read-only FHIR R4 API in the UK Core shape, with three resource shapes (Patient, Bundle, OperationOutcome). | Firely's `Hl7.Fhir.R4`, whose BSD-3-Clause licence was acceptable. | No large dependency for three shapes, and the JSON is plain System.Text.Json (`FhirJson`). Nothing checks the resources against the profiles yet; revisit with more resources (CarePlan, Task) or when profile validation is needed. |
+| ADR-24 | **Calendar templates applied when a calendar is read, with history kept by dated rows; clashes refused on the server under a lock per member of staff** (`docs/calendar-plan.md`, decisions 6 and 11) | Templates fill every week with its usual blocks, and must change from today without rewriting past days. Two people can book the same slot at once. | (Inferred) generating each day's blocks ahead of time with a background job; copying a template's rows on every edit; a unique index or a serialisable transaction instead of an application lock. | Nothing runs in the background, and an edit shows on every day it applies to at once; a past day shows what applied then. Reading a calendar does more work (`CalendarProjection`), and dated rows must be changed only through `TemplateHistory`. The lock (`sp_getapplock`) ties clash checking to SQL Server. Something already booked can come to overlap a later template change; both show, flagged, and nothing is moved. |
 
 ---
 
@@ -1318,18 +1332,18 @@ Each row is a short architecture decision record (ADR): what was decided, why, w
 | | A crafted path such as `//evil.example/x` never leaves the pod. | URL built from parts; `//` blocked (#51). | 14 path cases in `PageServerFilesTests`; `SsrPagesTests`. | No end-to-end test of the assembled pipeline. |
 | | A pod in another namespace can't reach SQL Server or the API. | Default-deny network policies. | A connection matrix on kind (#48). | Not checked on AKS. |
 | | Nothing secret is in git or the image. | Secret stores; `.dockerignore`. | Review; the image is public and was checked (`docs/reviews/container-image.md`). | No automated secret scanning. |
-| **Traceability** | Every procedure change records who, when and what, in the same transaction. | `ProcedureChange` and `SaveAsync(auditEntries)`. | Handler tests for every procedure command; demo data written through the same code. | Patients and accounts aren't audited; reads aren't logged. |
+| **Traceability** | Every procedure change records who, when and what, in the same transaction. | `ProcedureChange` and `SaveAsync(auditEntries)`. | Handler tests for every procedure command; demo data written through the same code. | Patient and account changes and reads of patient data are in the activity log (step 7), but it isn't tamper-evident yet. |
 | **Accessibility** | Every screen passes WCAG 2.2 A and AA checks in dark, light and a colour theme. | Astryx, theme tokens, the accessibility settings. | `npm run a11y` (axe), run by hand. | Not in CI; no manual screen reader pass yet. |
 | **Maintainability** | A new feature follows the slice pattern and comes with tests. | `AGENTS.md`, mappers, the review stage. | CI: build, lint, type check, tests, web coverage at 99% of lines. | .NET coverage isn't a gate. |
 | **Deployability** | A merge reaches kind with no manual step. | Publish and Argo CD. | Publish runs on every merge; Argo CD syncs (checked on #49 and #50). | Azure never run; no promotion gate. |
 | | A rollout serves every request. | Two copies, `preStop`, a PodDisruptionBudget. | 180 requests over three rollouts, all 200 (#47). | |
-| **Graceful degradation** | With Node gone, pages still load. | The fallback to `index.html`. | By hand (#42); `SsrPagesTests`; `SsrClientTests` proves one render attempt only. | Node isn't restarted, and nothing reports it. |
+| **Graceful degradation** | With Node gone, pages still load, and the API stays in service. | The fallback to `index.html`; in Kubernetes, the page server's supervisor restarts its worker inside the container, and the container has no readiness probe, so the API's pod stays ready. | By hand (#42; on kind for the sidecar: the worker killed and stopped repeatedly, with the pod ready throughout, #83); `SsrPagesTests`; `SsrClientTests` proves one render attempt only; `PageServerTests` (integration) with the page server down; CI's `e2e` job runs the pair as the chart does. | Run on its own, Node isn't restarted, and nothing reports it. If the supervisor itself stops, Kubernetes restarts the container, and the pod is unready for those seconds. |
 | | With two API copies, every live notification arrives. | The Valkey backplane, WebSocket-only connections. | 8 of 8 with the backplane, 4 of 8 without (#50). | No reconnects after about 42 seconds. |
 | **Performance** | A page arrives with its data on the first paint. | SSR. | Seen by hand. | No load tests, and no measured page or API timings. |
 
 ### 10.2 What's not measured at all
 
-- **Load and capacity.** Nothing has been load-tested: not the API, not .NET and Node together under the 1 GiB limit, not the database.
+- **Load and capacity.** Nothing has been load-tested: not the API under its 1 GiB limit, not Node under its 512 MiB one, not the database.
 - **Availability.** No uptime figures; no environment has run long enough to have any.
 - **Recovery.** No backup has been restored; no disaster recovery has been tried.
 
@@ -1344,12 +1358,12 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | ID | Risk | Severity | Source |
 |---|---|---|---|
 | S1 | **Fixed in #53: new accounts no longer share a password.** Before #53, every account was created with `DefaultPassword1`, which was in the public source and shown in the UI. Now the server generates each first password and shows it once. **Left over:** accounts created before #53 may still have `DefaultPassword1`, and nothing finds them yet (a reset now forces its user to choose their own). A generated password must now be changed at first sign-in. If the admin leaves the page while an account is being created, its password is never shown. The deprecated Blazor client doesn't show the generated password. | Was high. Now medium (the old accounts) and low (the rest) | (handbook); `docs/reviews/pr-53-generated-first-password.md`, findings 1, 3 and 7; `docs/todo.md` |
-| S2 | **Patient records and account administration aren't audited, and reads aren't logged at all.** Any staff member can delete a patient who has no procedures, and nothing records it. For health data, who viewed and changed what is usually required. | High | (handbook) |
+| S2 | **Patient records and account administration weren't audited, and reads weren't logged at all.** Since step 7's first part, the activity log records them; what's left is a tamper-evident log, alerts, and the old values of patient edits. Any staff member can still delete a patient who has no procedures (now recorded). | Medium | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
 | S4 | **No approved regulatory groundwork:** the DPIA, retention schedule, subject access and erasure procedures and the rest are drafts in `docs/governance/`, not approved, and the app doesn't yet enforce retention or export a patient's data ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
-| S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a password change, a reset or a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. | Medium | (handbook) |
-| S6 | **No security headers** on pages: no Content Security Policy, `X-Content-Type-Options`, `frame-ancestors` or `X-Frame-Options`, or `Referrer-Policy`. | Medium | F24 (the `Cache-Control` half is fixed) |
-| S7 | **Authorisation is barely tested.** Endpoint roles and policies are attributes, and only the own-password and create-user endpoints' are checked by a test. Nothing tests the assembled pipeline (HSTS, blocked paths, the health port, the order of middleware). | Medium | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
+| S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. **`feature/security-baseline`** ends a user's sessions when their password is changed or reset, lets an admin sign a user out everywhere, and throttles sign-in. | Medium | (handbook) |
+| S6 | **Fixed on `feature/security-baseline`:** security headers on every response, `no-store` on every `/api` response, and a nonce-based Content Security Policy on pages (`SecurityHeaders`). Left: styles allow `'unsafe-inline'`, and nothing collects violation reports. | Was medium. Now low | F24 |
+| S7 | **Authorisation has no fallback policy.** Endpoint roles and policies are attributes. Since #65, `AuthorisationTests` checks every admin-only and staff endpoint for each role and signed out through the real pipeline, and #67 added the headers, throttling and session ending to it; but a new endpoint without an attribute would be open until the matrix gains it, and HSTS, the health port and blocked paths aren't tested end to end. | Low (was medium) | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
 | S8 | **No multi-factor authentication or single sign-on,** and "Forgot password?" tells users a link was sent when nothing was. | Medium | (handbook) |
 | S9 | **Public endpoints on Azure:** the AKS API server, Key Vault and the registry are reachable from the internet, behind Entra ID. | Medium | `docs/reviews/azure.md` |
 | S10 | **Data protection keys are in memory, per pod,** with two pods. Harmless today; a trap for the next feature that protects data across requests (an emailed reset link, antiforgery tokens). | Low to medium | `docs/reviews/kubernetes.md` |
@@ -1359,22 +1373,22 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S14 | Valkey traffic isn't encrypted, and carries procedure titles. | Low | `docs/reviews/signalr-backplane.md` |
 | S15 | Port 8081 serves the whole app, not just health checks. | Low | F21 |
 | S16 | The first admin is always called `admin`, so anyone can lock it out for 5 minutes. | Low | `docs/reviews/app-changes.md` |
-| S17 | **Node's environment allowlist isn't isolation.** Code running in Node (a rendering flaw, a compromised npm package) could read the API's connection strings from `/proc`, because both run as one user in one container. Real separation needs the page server in a sidecar container. | Low to medium | `pr-51-ssr-security-fixes.md` 3.5 |
-| S18 | On a Windows host, `/ssr` and `/.vite` can still be fetched through `\`, trailing-dot or 8.3 short-name paths. The Linux image isn't affected; moving the page server out of `wwwroot` is on the to-do list. | Low | `pr-51-ssr-security-fixes.md` 3.2 |
+| S17 | **Node's environment allowlist isn't isolation,** where the API starts Node. **Resolved in Kubernetes:** the page server runs in a container of its own (`pages`), as another user, with none of the API's secrets. It still applies to the image run on its own (`docker run`, CI's `e2e` job), where code in Node could read the API's connection strings from `/proc`. | Low (outside Kubernetes only) | `pr-51-ssr-security-fixes.md` 3.5 |
+| S18 | ~~On a Windows host, `/ssr` and `/.vite` can still be fetched through `\`, trailing-dot or 8.3 short-name paths.~~ **Resolved:** the page server and the manifest are in `/app/ssr/`, outside the web root; the path check stays as defence in depth. | None | `pr-51-ssr-security-fixes.md` 3.2 |
 
 ### 11.2 Reliability and operations
 
 | ID | Risk | Severity | Source |
 |---|---|---|---|
 | R1 | **No monitoring or alerting** in any deployed environment: no exported telemetry, no log store, no alerts. The silent failures below would go unnoticed. | High before production | `flaws-review.md`, judgement; `deploy/azure/README.md` |
-| R2 | **Node is never restarted.** If the page server exits (a crash, or running out of memory), that pod serves browser-rendered pages until it restarts, and nothing reports it. A stream error no longer kills it (#51). | Medium | F12 |
-| R3 | **Readiness checks only the process,** not the database, Valkey or Node. | Medium | F21 |
+| R2 | **Node is never restarted when the API starts it** (`docker run`). If it exits, pages are browser-rendered until the API restarts, and nothing reports it. **Resolved in Kubernetes:** the `pages` container's supervisor restarts its worker, and a liveness probe restarts the container if the supervisor stops. A stream error no longer kills it (#51). | Low | F12 |
+| R3 | **Readiness checks only the process,** not the database or Valkey (and deliberately not the page server, whose failure only means pages render in the browser). | Medium | F21 |
 | R4 | **A changed password breaks the app until pods restart.** Bicep sets the secrets on every run; there's no reloader. The README now says how to restart. | Medium | F5 (documented, not fixed) |
 | R5 | **Backups:** 7 days of locally redundant point-in-time restore on Azure, never tested; none on kind. | Medium | `docs/reviews/azure.md` |
 | R6 | **Azure has never run.** Expect first-run problems. Still unverified: whether what-if prints the secret values, whether EF's retries outlast a paused database waking up, whether `azure/login` needs `allow-no-subscriptions`, and whether a second `deploy.sh` run objects to a node count the autoscaler has changed. | Medium | `pr-52-azure.md`, "Not verified" |
 | R7 | **MediatR's licence** is needed for production use. | Medium (legal) | `docs/todo.md` |
 | R8 | **No optimistic concurrency:** the last of two simultaneous edits wins. | Low to medium | (handbook) |
-| R9 | .NET and Node share one 1 GiB limit with no heap caps. | Low | F23 |
+| R9 | No heap caps: .NET under its 1 GiB limit and Node under its 512 MiB one (separate in Kubernetes). | Low | F23 |
 | R10 | One Traefik pod and one Valkey pod, without disruption budgets, and AKS upgrades with no maintenance window. | Low | F22 (the API spread is fixed) |
 | R11 | Live notifications stop reconnecting after about 42 seconds. | Low | F25 |
 | R12 | `create-first-admin` doesn't dispose the host, so its last log line can be lost. | Low | F28 |
@@ -1436,7 +1450,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | 9 | No EF retries against serverless Azure SQL | Medium | **Fixed** (#52) |
 | 10 | Node inherited the API's connection strings | Medium | **Fixed** (#51) |
 | 11 | Scripts committed without the executable bit | Medium | **Fixed** (#52) |
-| 12 | Node never restarted; failures silent | Medium | **Partly fixed** (#51): a stream error no longer kills Node; no restart or health check yet |
+| 12 | Node never restarted; failures silent | Medium | **Fixed in Kubernetes:** a stream error no longer kills Node (#51), and the page server's own container has probes and is restarted. Still not restarted when the API starts it (`docker run`) |
 | 13 | CI didn't build what Publish ships | Medium | **Fixed** (#52): `image` job, full web build; Node versions still differ |
 | 14 | Floating tags for actions and images | Medium | Open |
 | 15 | App signs in as SQL admin; open ClusterSecretStore | Medium | **Half fixed** (#52): store limited to `medapp`; admin login open |
@@ -1457,7 +1471,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | 30 | `up.sh --argocd --revision` left the image pinned | Low | **Fixed** (#52) |
 | 31 | Docs that disagreed with the code | Low | **Partly fixed**; see [Appendix A](#appendix-a-where-the-docs-and-the-code-disagree) |
 
-`docs/todo.md` carries the open deployment items: deploy to Azure for real; passwordless SQL, a least-privilege user, private endpoints and monitoring; the MediatR licence; readiness checks and restarting Node; restarting pods when passwords change; pinning by digest; the remaining repository setting (a deploy-only GitHub App as the only pusher to `env/*`); and moving the page server out of `wwwroot`. Its features list carries what #53 left: finding the accounts that may still have `DefaultPassword1`. (Forcing a password change at first sign-in, and making `medapp-dev`'s `create_user` all-or-nothing, are done.)
+`docs/todo.md` carries the open deployment items: deploy to Azure for real; passwordless SQL, a least-privilege user, private endpoints and monitoring; the MediatR licence; readiness checks; restarting pods when passwords change; pinning by digest; and the remaining repository setting (a deploy-only GitHub App as the only pusher to `env/*`). (Moving the page server out of `wwwroot`, and restarting it, are done: it's in `/app/ssr/`, and runs as a container of its own in Kubernetes.) Its features list carries what #53 left: finding the accounts that may still have `DefaultPassword1`. (Forcing a password change at first sign-in, and making `medapp-dev`'s `create_user` all-or-nothing, are done.)
 
 ---
 
@@ -1599,6 +1613,10 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 2: Close the remaining review findings and set an ASVS Level 2 baseline
 
+**Status:** a first, scoped part is built on `feature/security-baseline` (16 November 2026, from `ea827ef`; not merged yet), without changing who may do what, the login's answers or the session lifetime, and without a migration:
+- **Done:** the security headers and Content Security Policies, with a per-request nonce for the router's scripts (`SecurityHeaders`); `Cache-Control: no-store` on every `/api` response; the `__Host-` session cookie outside Development; sign-in throttling per address and per username (`LoginThrottling`); ending a user's sessions when their password is changed or reset, and an admin action to sign a user out everywhere; a deny list of the 10,000 most common passwords (`CommonPasswordValidator`); actions pinned by SHA, Dependabot, CodeQL, dependency review, `npm audit`, NuGet audit as errors, a Trivy image scan, and SBOM and provenance attestations on the published image; the STRIDE threat model (`docs/security/threat-model.md`) and the ASVS 5.0 Level 2 checklist (`docs/security/asvs.md`).
+- **Still to do in this step:** the idle timeout and the timeout warning, hashed session tokens, the same answer for a locked account, a per-session rate limit, a breached-password check and a longer minimum without composition rules, data protection keys, removing the two return-everything endpoints and admin-only patient deletion, the authorisation matrix and integration tests, ZAP, OpenSSF Scorecard, images by digest, verifying attestations before deploy, a deploy gate, and the open review items (live notifications, forwarded headers, secrets on command lines, readiness). The checklist lists them requirement by requirement.
+
 **Goal:** Close what the reviews left open, add the web security controls MedApp lacks, harden the build pipeline, and record the result against the OWASP (Open Worldwide Application Security Project) Application Security Verification Standard (ASVS) 5.0 at Level 2.
 
 **Why now:**
@@ -1613,8 +1631,8 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - live notifications that give up after about 42 seconds offline (`MedApp.Web/src/app/LiveNotifications.tsx:33`)
   - forwarded headers trusted from any source (`deploy/helm/medapp/templates/api.yaml`)
   - secrets in process arguments (`migrations-job.yaml`, `valkey.yaml`)
-  - readiness that ignores the database and Valkey, and a Node renderer that's never restarted (`SsrServer`)
-  - the page server still in `wwwroot`, and in the API's container, where it could read the API's environment (PR #51 review, findings 3.2 and 3.5). Move it out of `wwwroot` and into a sidecar container.
+  - readiness that ignores the database and Valkey
+  - **Done:** the page server is out of `wwwroot` (`/app/ssr/`), and in Kubernetes runs in a container of its own beside the API, with none of its secrets, its worker restarted by a supervisor without taking the API out of service (PR #51 review, findings 3.2 and 3.5; PR #83 review).
 - **Security headers** (`MedApp.API/Common/Extensions/ApplicationBuilderExtensions.cs`), cited by ASVS requirement ([V3](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x12-V3-Web-Frontend-Security.md), [V14](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x23-V14-Data-Protection.md)):
   - a Content Security Policy (CSP) with a per-request nonce for the router's hydration scripts, `object-src 'none'` and `base-uri 'none'` (V3.4.3)
   - `frame-ancestors 'none'` (V3.4.6), `nosniff` (V3.4.4) and a `Referrer-Policy` (V3.4.5)
@@ -1864,7 +1882,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - The API already emits OpenTelemetry (`MedApp.ServiceDefaults`) once `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Send it to Application Insights, with Container Insights, in a UK Log Analytics workspace with a set retention ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable)).
   - Alert on availability, the 5xx rate, latency, SSR fallbacks, sign-in failures and lockouts, database health, backup failures, certificate expiry and Argo CD sync failures.
   - Set EF (Entity Framework) Core's command logging to Warning outside development, and check that no log line carries patient data.
-- **Health:** readiness that checks the database and Valkey (reported as degraded, not failed, during a first install), and Node restarted with backoff (`docs/todo.md`).
+- **Health:** readiness that checks the database and Valkey (reported as degraded, not failed, during a first install) (`docs/todo.md`). Node is already restarted with Kubernetes' backoff, as the `pages` container.
 - **Service levels:** publish targets and measure them: for example 99.9% availability a month, a recovery point objective (RPO) of 15 minutes and a recovery time objective (RTO) of 4 hours. Start the availability record DTAC asks for.
 - **Incident response:**
   - runbooks in `docs/runbooks/`: restore the database, rebuild in UK West, rotate a secret, roll back, Node down, a certificate expiring, a suspected breach
@@ -1889,7 +1907,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
-**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`).
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 30 hazards (H-22 added with the privacy features, H-29 with admins' monitoring rules, and H-30 to H-36, drafts for the CSO to rate, with staff calendars and appointments; H-23 to H-28 are kept for the attachments branch), a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`). The patient banner, the control for the wrong-patient hazards (H-01, H-02), is built on branch `feature/nhs-integrations`, also awaiting the CSO's verification.
 
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 
@@ -1953,6 +1971,15 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 ### Step 7: Privacy in the product: audit trail, data subject rights and retention
 
 **Goal:** Give each customer, without anyone touching the database, a complete record of who saw and changed what, and the tools to answer data subject requests and apply their retention schedule.
+
+**Status:** the first part is built (branch `feature/privacy-features`, 16 November 2026), checked against `docs/governance/` (each document says what's built and what's left):
+- **An activity log** (admins), separate from the procedure audit: patient views, search results and searches (filter names and counts, never the terms), procedure views, patient creates, edits (field names, never values) and deletes, exports, anonymisations, restrictions and disputes, retention decisions, sign-ins, refused sign-ins, sign-outs, and account, password and role changes, with the user and address. A view is recorded once per person every 5 minutes. The Activity Log page searches it, and a patient's page shows admins its access report.
+- **Data subject rights:** a subject access export (JSON and a printable page, itself logged); restricted (read-only, with a banner) and disputed (a banner) flags with reasons; anonymisation in place with a typed confirmation and a reason, refused while procedures are under way.
+- **A retention review list** from configurable periods (adults 8 years, children to 25, or 26 if 17), where an admin reviews, keeps with a reason and a review date, or anonymises. Nothing is deleted automatically.
+- **Sign-out hygiene:** sign-out clears the app's `localStorage` and `sessionStorage` but the visual settings; pins moved to the account's settings.
+- **Appointments** (with staff calendars, `feature/staff-calendars`): reading them is in the activity log, the export includes them and their history, anonymisation replaces their notes and cancellation reasons (and the history's copies), and a restricted patient's appointments can only be cancelled, an anonymised patient's not changed at all.
+
+Not built yet: note versions, the ledger table and streaming the log, unusual-access alerts and periodic access reviews, an `Auditor` role, restriction hiding patients from lists, the clinician review step in the export, archiving in place of deletion, retention classes per template, destruction and a destruction log, legal hold, automatic purging of operational data, contact preferences, and field-level encryption (`docs/todo.md`, Privacy). By the product owner's decision, list filters stay in the URL, because shareable list links are a feature.
 
 **Why now:**
 - **The ICO's letter on snooping:** on 12 November 2026 it wrote to over 200 health leaders, asking them to confirm that access to patient records is "granted, reviewed and removed appropriately", backed by "effective monitoring and audit systems". It had received over 300 reports of unauthorised access from health organisations in 2026 ([ICO](https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2026/11/uk-health-sector-warned-to-tackle-medical-record-snooping/)).
@@ -2072,6 +2099,15 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 **Goal:** Turn a procedure checklist into something buyers recognise as a clinical workflow product: real patient identity, structured stages, standard interoperability, documents, reporting and communications.
 
+**Status:** the first part is built (branch `feature/nhs-integrations`, 16 November 2026), ahead of steps 6 and 8, with `docs/governance/` and `docs/clinical-safety/` updated for it:
+- **The NHS number** on a patient: optional, checked with its Modulus 11 check digit on the server and in the form, unique when present (across the deployment until step 8), shown as `XXX XXX XXXX`, searchable, in the export and removed by anonymisation. Logged as a field and filter name, never the number.
+- **The patient banner** (step 6's control for hazards H-01 and H-02): the name, date of birth with age, and NHS number, on every page about one patient (the patient's page, Edit Patient, the export, their procedures, a procedure, Edit Procedure and New Procedure), in view on all but the printable export. Built, not yet verified by a CSO.
+- **A read-only FHIR R4 API in the UK Core shape:** `Patient` by ID, and by NHS number as a searchset Bundle, for signed-in staff, logged like the pages. Hand-built resources, not the Firely SDK.
+- **SNOMED CT codes on stage definitions,** with the admin's display term, copied onto procedures' stages. Format checked only.
+- **A demographics lookup** behind `IPersonalDemographicsService`, off by default, with only an offline stub of synthetic 999 numbers; the forms offer Look up when it's on.
+
+Not built yet: the real PDS connection and its onboarding, tracing (so the FHIR API reports numbers as "not traced"), validation against the UK Core profiles, OAuth for systems, the other FHIR resources, SNOMED CT and OPCS-4 on templates, a terminology server, duplicate checks beyond an exact NHS number, a local hospital number and the other patient details, Always Encrypted for the NHS number, and the rest of the scope below (`docs/todo.md`, Patient identity and interoperability). The medical device decision is unchanged (`docs/clinical-safety/intended-purpose-and-device-decision.md`).
+
 **Why now:**
 - **What comparable products offer** as standard:
   - configurable forms and templates
@@ -2117,7 +2153,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 4. **Documents:**
    - attach consent forms, referral letters and images to a procedure or stage
    - store them in Azure Blob Storage with a private endpoint and a customer-managed key, scanned for malware by Defender for Storage ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/defender-for-cloud/introduction-malware-scanning)), with type and size limits and audited downloads
-5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default.
+5. **Reporting:** dashboards for each organisation (open work by status, overdue work, time spent in each stage, bottlenecks by template, workload by person), and audited CSV exports, aggregated by default. Insights (`/admin/insights`, #66) is a first version for one organisation: open, in progress, overdue and completed against last week, overdue work by assignee and priority, time at each stage per template, and weekly throughput. No exports yet.
 6. **Communications and escalation:**
    - the notification kinds in `docs/todo.md` (overdue, blocked, stage unlocked), by email, with no patient identifiers in the message
    - due dates for each stage, escalation to a lead, and daily digests
@@ -2243,7 +2279,7 @@ These go beyond step 9, ranked by how often comparable products offer them and h
 | **NHS England MFA policy** | Passwords only | 4 |
 | **UK Medical Devices Regulations 2002 and MHRA guidance** | Not assessed. Today's features look like workflow, not a device | 6 |
 | **CQC Regulation 17** (private providers) | Finished stages lock, and changes to procedures are audited. Concurrent edits can overwrite each other | 6, 7 |
-| **NHS number (ISB 0149), PDS, FHIR UK Core, SNOMED CT, OPCS-4** | None | 9 |
+| **NHS number (ISB 0149), PDS, FHIR UK Core, SNOMED CT, OPCS-4** | On branch `feature/nhs-integrations`: a validated NHS number, a read-only FHIR Patient in the UK Core shape (not yet validated against the profiles), and SNOMED CT codes on stage definitions (format checked only). No PDS connection, tracing or OPCS-4 | 9 |
 | **CIS2 and other SSO** | Local passwords only | 4, 8 |
 | **WCAG 2.2 AA** | axe audit passes in every theme; statement at `/accessibility`; manual screen reader pass and session timeout warning outstanding | 2, 6 |
 | **OWASP ASVS 5.0 Level 2** | Not assessed. Strong in places: output escaping, cookie flags, same-origin hosting | 2, 4, 7 |

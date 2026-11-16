@@ -1,6 +1,8 @@
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Monitoring.Common;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -13,13 +15,17 @@ public sealed class ChangePatientProcedureStatusHandler(
     IPatientProcedureRepository repository,
     IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
+    IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<ChangePatientProcedureStatusCommand, PatientProcedureResponse>
 {
     public async Task<PatientProcedureResponse> Handle(ChangePatientProcedureStatusCommand request, CancellationToken cancellationToken)
     {
-        var procedure = await repository.GetForUpdateOrThrowAsync(request.Id, cancellationToken);
         var to = ProcedureEnums.Parse<PatientProcedureStatus>(request.Status);
+        // Blocking and cancelling stay allowed while the patient's record is restricted, so care can be paused safely.
+        var procedure = PatientRules.PausesWhileRestricted.Contains(to)
+            ? await repository.GetForPauseOrThrowAsync(request.Id, cancellationToken)
+            : await repository.GetForUpdateOrThrowAsync(request.Id, cancellationToken);
 
         if (!ProcedureWorkflow.AllowedStatusChanges(procedure).Contains(to))
             throw new ConflictException(
@@ -41,6 +47,7 @@ public sealed class ChangePatientProcedureStatusHandler(
         }
 
         await repository.SaveAsync(change, cancellationToken);
+        await procedureMonitor.NotifyAsync(change, cancellationToken);
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }

@@ -41,6 +41,8 @@ public sealed class PatientProcedureStagesController(IMediator mediator) : Contr
             request.Name,
             request.Description,
             request.Instructions,
+            request.SnomedCode,
+            request.SnomedTerm,
             request.VisitRequirement), ct);
 
         return Created($"/api/procedures/patient-procedure-stage/definitions/{definition.Id}", definition);
@@ -59,6 +61,8 @@ public sealed class PatientProcedureStagesController(IMediator mediator) : Contr
             request.Name,
             request.Description,
             request.Instructions,
+            request.SnomedCode,
+            request.SnomedTerm,
             request.VisitRequirement), ct));
 
     [HttpPost("definitions/{id:guid}/archive")]

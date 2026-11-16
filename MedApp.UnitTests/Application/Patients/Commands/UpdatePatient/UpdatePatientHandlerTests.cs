@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using MedApp.Domain.Activity;
 using FluentAssertions;
 using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Repositories;
@@ -53,6 +54,7 @@ public sealed class UpdatePatientHandlerTests
         _repository.Verify(
             r => r.UpdateAsync(
                 It.IsAny<Patient>(),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -92,6 +94,7 @@ public sealed class UpdatePatientHandlerTests
                     p.DateOfBirth == patient.DateOfBirth &&
                     p.Email == PatientsTestConstants.ValidEmail
                 ),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -131,6 +134,7 @@ public sealed class UpdatePatientHandlerTests
                     p.DateOfBirth == PatientsTestConstants.ValidDateOfBirth &&
                     p.Email == PatientsTestConstants.ValidEmail
                 ),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -161,6 +165,7 @@ public sealed class UpdatePatientHandlerTests
         _repository.Verify(
             r => r.UpdateAsync(
                 It.IsAny<Patient>(),
+                It.IsAny<ActivityEntry>(),
                 cts.Token),
             Times.Once);
     }

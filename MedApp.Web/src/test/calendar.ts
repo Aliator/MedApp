@@ -7,6 +7,22 @@ import {addDays, isWeekday} from '../utils/calendarSlots';
 export const STAFF_ME = {userId: '00000000-0000-0000-0000-0000000000a1', username: 'test-user'};
 export const STAFF_OTHER = {userId: '00000000-0000-0000-0000-0000000000b2', username: 'b.staff'};
 
+/**
+ * The patient the test appointments are for (`GET /api/patients/patient-1`), as the appointment dialogs show them.
+ * Synthetic, with an NHS number from the 999 range, which is never issued to real people.
+ */
+export const TEST_PATIENT = {
+  id: 'patient-1',
+  firstName: 'Test',
+  lastName: 'Patient',
+  dateOfBirth: '1980-01-01',
+  email: 'test.patient@example.org',
+  nhsNumber: '9990000018',
+  isRestricted: false,
+  isDisputed: false,
+  isAnonymised: false,
+};
+
 /** The UK's offset from UTC on a date, in hours (0 in winter, 1 in summer time). */
 function ukOffsetHours(date: string): number {
   const [year, month, day] = date.split('-').map(Number);

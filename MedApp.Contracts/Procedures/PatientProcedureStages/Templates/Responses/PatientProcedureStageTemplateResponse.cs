@@ -21,6 +21,11 @@ public sealed class PatientProcedureTemplateStageResponse
     public Guid StageDefinitionId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>The stage definition's SNOMED CT code and term, or null.</summary>
+    public string? SnomedCode { get; set; }
+    public string? SnomedTerm { get; set; }
+
     public bool IsArchived { get; set; }
 
     /// <summary>The stage definition's: None, Suggested or Required.</summary>

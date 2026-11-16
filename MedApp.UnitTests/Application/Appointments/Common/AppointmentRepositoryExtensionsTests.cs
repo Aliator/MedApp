@@ -3,7 +3,9 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Patients.Common;
 using MedApp.Domain.Appointments;
+using MedApp.UnitTests.Common.Constants;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 
@@ -68,5 +70,65 @@ public sealed class AppointmentRepositoryExtensionsTests
             .Should().BeNull();
 
         _identity.Verify(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetForUpdateOrThrowAsync_PatientRestricted_ThrowsConflict()
+    {
+        var appointment = GivenAppointmentFor(PrivacyTestConstants.CreateRestrictedPatient());
+
+        var act = () => _repository.Object.GetForUpdateOrThrowAsync(appointment.Id, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.RestrictedMessage);
+    }
+
+    [Test]
+    public async Task GetForUpdateOrThrowAsync_PatientAnonymised_ThrowsConflict()
+    {
+        var appointment = GivenAppointmentFor(PrivacyTestConstants.CreateAnonymisedPatient());
+
+        var act = () => _repository.Object.GetForUpdateOrThrowAsync(appointment.Id, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.AnonymisedMessage);
+    }
+
+    [Test]
+    public async Task GetForCancelOrThrowAsync_PatientRestricted_ReturnsItWithTheToken()
+    {
+        var appointment = GivenAppointmentFor(PrivacyTestConstants.CreateRestrictedPatient());
+        using var cts = new CancellationTokenSource();
+        _repository.Setup(r => r.GetForUpdateAsync(appointment.Id, cts.Token)).ReturnsAsync(appointment);
+
+        (await _repository.Object.GetForCancelOrThrowAsync(appointment.Id, cts.Token)).Should().BeSameAs(appointment);
+    }
+
+    [Test]
+    public async Task GetForCancelOrThrowAsync_PatientAnonymised_ThrowsConflict()
+    {
+        var appointment = GivenAppointmentFor(PrivacyTestConstants.CreateAnonymisedPatient());
+
+        var act = () => _repository.Object.GetForCancelOrThrowAsync(appointment.Id, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.AnonymisedMessage);
+    }
+
+    [Test]
+    public async Task GetForCancelOrThrowAsync_Missing_ThrowsNotFound()
+    {
+        var id = Guid.NewGuid();
+
+        var act = () => _repository.Object.GetForCancelOrThrowAsync(id, CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Appointment '{id}' was not found.");
+    }
+
+    /// <summary>An appointment for this patient, found by the repository.</summary>
+    private Appointment GivenAppointmentFor(MedApp.Domain.Patients.Patient patient)
+    {
+        var appointment = CreateAppointment();
+        appointment.Patient = patient;
+        appointment.PatientId = patient.Id;
+        _repository.Setup(r => r.GetForUpdateAsync(appointment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(appointment);
+        return appointment;
     }
 }

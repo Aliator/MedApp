@@ -32,6 +32,8 @@ public static class StageTemplateMapper
                         StageDefinitionId = m.StageDefinitionId,
                         Name = definition?.Name ?? string.Empty,
                         Description = definition?.Description ?? string.Empty,
+                        SnomedCode = definition?.SnomedCode,
+                        SnomedTerm = definition?.SnomedTerm,
                         IsArchived = definition?.IsArchived ?? false,
                         VisitRequirement = (definition?.VisitRequirement ?? VisitRequirement.None).ToString()
                     };

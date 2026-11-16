@@ -1,10 +1,13 @@
 using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendar;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
+using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 
@@ -116,5 +119,20 @@ public sealed class GetCalendarHandlerTests : StaffCalendarHandlerTestBase
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Staff member '{stranger}' was not found.");
         Repository.Verify(r => r.GetCalendarDataAsync(It.IsAny<Guid>(), It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_WithAppointments_RecordsTheirPatientsAsListed()
+    {
+        var activity = new RecordingActivityLog();
+        Fixture.Inject<IActivityLog>(activity);
+
+        await Fixture.Create<GetCalendarHandler>().Handle(new GetCalendarQuery(null, NextMonday, NextFriday, StaffActor), Token);
+
+        var (action, ids, procedureId) = activity.Views.Should().ContainSingle().Subject;
+        action.Should().Be(ActivityAction.PatientListed);
+        ids.Should().Equal(_appointment.PatientId);
+        procedureId.Should().BeNull();
+        activity.Tokens.Should().Equal(Token);
     }
 }

@@ -13,14 +13,18 @@ export const VISIT_REQUIREMENTS = ['None', 'Suggested', 'Required'] as const;
 export type VisitRequirement = (typeof VISIT_REQUIREMENTS)[number];
 
 /**
- * A stage definition's fields: its name, the description staff see under it, how to carry it out, and whether it
- * involves a visit (copied onto each procedure's stage when the procedure is created).
+ * A stage definition's fields: its name, the description staff see under it, how to carry it out, whether it involves
+ * a visit (copied onto each procedure's stage when the procedure is created), and the SNOMED CT concept it records (a
+ * code and its display term, both or neither). Both are always sent, "" when there's none, so clearing the code
+ * removes the concept on a save (the API reads a missing code as "leave it as it is").
  */
 export interface StageDefinitionInput {
   name: string;
   description: string;
   instructions: string;
   visitRequirement: VisitRequirement;
+  snomedCode: string;
+  snomedTerm: string;
 }
 
 /** A template's fields: its name, and its stages in order (a definition may appear more than once). */

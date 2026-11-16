@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -14,6 +15,7 @@ public sealed class FinishProcedureStageHandler(
     IPatientProcedureRepository repository,
     IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
+    IProcedureMonitor procedureMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<FinishProcedureStageCommand, PatientProcedureResponse>
 {
@@ -60,7 +62,11 @@ public sealed class FinishProcedureStageHandler(
 
         StageVisits.RequestForCurrentStage(change, appointments);
 
-        await repository.SaveAsync(change, cancellationToken);
+        if (change.HasChanges)
+        {
+            await repository.SaveAsync(change, cancellationToken);
+            await procedureMonitor.NotifyAsync(change, cancellationToken);
+        }
 
         return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
     }

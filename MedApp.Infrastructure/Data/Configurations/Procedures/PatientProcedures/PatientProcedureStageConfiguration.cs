@@ -1,4 +1,5 @@
 ﻿using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Domain.Terminology;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -38,6 +39,14 @@ public sealed class PatientProcedureStageConfiguration : IEntityTypeConfiguratio
             .IsRequired()
             .HasMaxLength(2000)
             .HasDefaultValue(string.Empty);
+
+        // A SNOMED CT concept ID (6 to 18 digits) and its display term, both optional (SnomedCt).
+        builder.Property(x => x.SnomedCode)
+            .HasMaxLength(SnomedCt.MaxLength)
+            .IsUnicode(false);
+
+        builder.Property(x => x.SnomedTerm)
+            .HasMaxLength(SnomedCt.MaxTermLength);
 
         builder.Property(x => x.Notes)
             .IsRequired()

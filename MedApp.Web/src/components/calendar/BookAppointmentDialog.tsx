@@ -22,6 +22,7 @@ import {
 } from '../../api/appointments';
 import {calendarKeys, calendarQuery, staffQuery} from '../../api/calendar';
 import {ApiError, ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
+import {whyCantChange} from '../../api/patients';
 import {procedureQuery} from '../../api/procedures';
 import {patientSearchQuery, procedureSearchQuery} from '../../api/search';
 import {useAnnounce} from '../../app/announcements';
@@ -40,19 +41,21 @@ import {
   weekStart,
 } from '../../utils/calendarSlots';
 import {formatShortDate, formatTime, ukDay} from '../../utils/dates';
+import {formatNhsNumber} from '../../utils/nhsNumber';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
 import {useIsNarrow} from '../pages/Page';
 import {ValidationAlert, AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
 
 export interface BookAppointmentDialogProps {
   isOpen: boolean;
   onClose: () => void;
   /** Called with the saved appointment (booked, or added to Needs booking). */
   onSaved?: (appointment: Appointment) => void;
-  /** What's known already; the dialog asks for whatever isn't. */
-  patient?: {id: string; name: string};
+  /** What's known already; the dialog asks for whatever isn't. The patient comes with who they are, for their banner. */
+  patient?: AppointmentPatientDetails;
   procedure?: {id: string; title: string};
   stage?: {id: string; name: string};
   /** A Requested appointment to book, or a Booked one to reschedule (its patient, procedure and stage are fixed). */
@@ -75,6 +78,10 @@ export interface BookAppointmentDialogProps {
  * Without a time it can add the appointment to Needs booking instead (a Requested appointment). With `appointment`,
  * it books a Requested appointment or reschedules a Booked one. Use it wherever an appointment is booked: the
  * calendar, Needs booking, the procedure and patient pages, and an appointment's own dialog.
+ *
+ * Once the patient is known (given, the appointment's, or picked), their banner heads the dialog: name, date of birth
+ * and NHS number, so staff can check who they're booking (hazard H-34). A patient whose record is restricted or
+ * anonymised can't be booked (nor their appointment rescheduled), so the dialog says why and offers no Book.
  */
 export function BookAppointmentDialog(props: BookAppointmentDialogProps) {
   // A fresh form each time it opens: what was chosen last time doesn't carry over.
@@ -135,7 +142,7 @@ function BookingForm({
   const today = ukToday(now);
 
   const isRescheduling = appointment?.status === 'Booked';
-  const fixedPatient = appointment ? {id: appointment.patientId ?? '', name: appointment.patientName ?? ''} : patient;
+  const fixedPatientId = appointment ? (appointment.patientId ?? '') : patient?.id;
   const fixedProcedure = appointment
     ? appointment.procedureId
       ? {id: appointment.procedureId, title: appointment.procedureTitle ?? ''}
@@ -165,7 +172,16 @@ function BookingForm({
   const staffId = chosenStaff ?? suggestedStaffUserId ?? myId;
   const staffName = staff.data?.find((s) => s.userId === staffId)?.username ?? '';
 
-  const patientId = fixedPatient?.id ?? pickedPatient?.id;
+  const patientId = fixedPatientId ?? pickedPatient?.id;
+  // Who the patient is, for their banner: as given, the picked one's search result, or (an appointment's) their record.
+  const patientState = useAppointmentPatient(
+    isOpen ? patientId : undefined,
+    appointment ? undefined : (patient ?? pickedPatient?.auxiliaryData),
+  );
+  // Whether the API would refuse: the appointment's own flags, or the patient's record being restricted or anonymised.
+  const cantChange = patientState.patient ? whyCantChange(patientState.patient) : null;
+  const isRefused = appointment ? !(isRescheduling ? appointment.canReschedule : appointment.canBook) : cantChange !== null;
+  const refusal = isRefused ? (cantChange ?? 'This appointment can’t be booked now.') : null;
   const procedures = useQuery({
     ...procedureSearchQuery({PatientId: patientId, PageSize: 100, Sort: 'dueDate', Ascending: true}),
     enabled: isOpen && !isForFixed && patientId !== undefined,
@@ -197,8 +213,8 @@ function BookingForm({
   const end = start ? addMinutes(start, length) : undefined;
 
   const isSaving = create.isPending || book.isPending;
-  const canBook = patientId !== undefined && staffId !== undefined && start !== undefined && !isSaving;
-  const canRequest = !appointment && patientId !== undefined && start === undefined && !isSaving;
+  const canBook = patientId !== undefined && staffId !== undefined && start !== undefined && !isSaving && !isRefused;
+  const canRequest = !appointment && patientId !== undefined && start === undefined && !isSaving && !isRefused;
 
   const title = isRescheduling ? 'Reschedule Appointment' : fixedStage || (stageId !== NO_STAGE && stageId) ? 'Book Visit' : 'Book Appointment';
 
@@ -275,9 +291,6 @@ function BookingForm({
     : [...APPOINTMENT_LENGTHS, length].sort((a, b) => a - b);
 
   const fixedItems: ReactNode[] = [];
-  if (fixedPatient) fixedItems.push(<MetadataListItem key="patient" label="Patient">
-        {fixedPatient.name}
-      </MetadataListItem>);
   if (isForFixed) {
     fixedItems.push(
       <MetadataListItem key="for" label="For">
@@ -296,7 +309,7 @@ function BookingForm({
   const details = (
     <VStack gap={4} hAlign="stretch">
       {fixedItems.length > 0 && <MetadataList label={{position: 'top'}}>{fixedItems}</MetadataList>}
-      {!fixedPatient && (
+      {fixedPatientId === undefined && (
         <PatientPicker value={pickedPatient} onChange={choosePatient} status={fieldStatus(problem.validation, 'patientId')} />
       )}
       {!isForFixed && patientId !== undefined && (
@@ -493,6 +506,11 @@ function BookingForm({
       }>
       {isOpen && (
         <VStack ref={content} gap={4} hAlign="stretch">
+          <AppointmentPatientBanner state={patientState} name={appointment?.patientName} />
+          {/* Why it can't be booked, unless the patient's restricted or anonymised banner above already says so. */}
+          {refusal && !patientState.isLoading && !patientState.patient?.isRestricted && !patientState.patient?.isAnonymised && (
+            <AlertMessage status="warning" message={refusal} />
+          )}
           {problem.message && <AlertMessage message={problem.message} />}
           {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
           {isNarrow ? (
@@ -559,7 +577,8 @@ function TimeChoices({
   );
 }
 
-type PatientItem = SearchableItem<{dateOfBirth?: string}>;
+/** A patient found by the picker, with who they are for their banner once chosen. */
+type PatientItem = SearchableItem<AppointmentPatientDetails>;
 
 /** Finds a patient by name as it's typed: one word matches first or last names, two or more a first and a last name. */
 function PatientPicker({
@@ -583,7 +602,7 @@ function PatientPicker({
         return pages
           .flatMap((page) => page.items ?? [])
           .filter((p) => !seen.has(p.id ?? '') && seen.add(p.id ?? ''))
-          .map((p) => ({id: p.id ?? '', label: `${p.firstName} ${p.lastName}`, auxiliaryData: {dateOfBirth: p.dateOfBirth}}));
+          .map((p) => ({id: p.id ?? '', label: `${p.firstName} ${p.lastName}`, auxiliaryData: {...p, id: p.id ?? ''}}));
       },
     }),
     [queryClient],
@@ -598,15 +617,17 @@ function PatientPicker({
       onChange={onChange}
       status={status}
       emptySearchText="No patients match"
+      // The name, then the date of birth and NHS number, to tell patients with the same name apart.
       renderItem={(item) => (
-        <HStack gap={2} vAlign="center">
+        <VStack gap={0}>
           <Text type="body">{item.label}</Text>
-          {item.auxiliaryData?.dateOfBirth && (
-            <Text type="supporting" color="secondary">
-              Born {formatShortDate(item.auxiliaryData.dateOfBirth)}
-            </Text>
-          )}
-        </HStack>
+          <Text type="supporting" color="secondary">
+            {[
+              item.auxiliaryData?.dateOfBirth ? `Born ${formatShortDate(item.auxiliaryData.dateOfBirth)}` : 'Date of birth not known',
+              item.auxiliaryData?.nhsNumber ? `NHS No. ${formatNhsNumber(item.auxiliaryData.nhsNumber)}` : 'No NHS number',
+            ].join(' · ')}
+          </Text>
+        </VStack>
       )}
     />
   );

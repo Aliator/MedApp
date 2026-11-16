@@ -24,6 +24,7 @@ import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessag
 import {AppIcon} from '../../components/shared/icons';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
+import {stageDescription} from '../../components/procedures/SnomedConcept';
 
 /** A stage in the template being edited. The key is the row's own, as a definition may appear more than once. */
 interface StageRow {
@@ -157,7 +158,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
               key={stage.key}
               itemKey={stage.key}
               label={`${i + 1}. ${definition?.name ?? 'Unknown stage'}`}
-              description={definition?.description ?? undefined}
+              description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
               endContent={
                 <HStack gap={2} vAlign="center">
                   <VisitRequirementToken requirement={definition?.visitRequirement} />
@@ -185,7 +186,7 @@ function TemplateEditor({template, definitions}: {template: ProcedureTemplate | 
         <ListItem
           key={definition.id}
           label={definition.name ?? ''}
-          description={definition.description ?? undefined}
+          description={stageDescription(definition.description, {code: definition.snomedCode, term: definition.snomedTerm})}
           endContent={
             <HStack gap={2} vAlign="center">
               <VisitRequirementToken requirement={definition.visitRequirement} />

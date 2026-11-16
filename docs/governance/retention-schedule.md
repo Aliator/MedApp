@@ -4,14 +4,14 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: adds appointments and staff calendars |
+| **Version** | 0.2 (draft), 16 November 2026: what roadmap step 7 built (section 6); 0.3 (draft), the same day: appointments and staff calendars |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 12 months, and when the NHS Records Management Code of Practice changes |
 
 How long each kind of data in MedApp is kept, and what happens at the end. It sets the **defaults** MedApp will ship with. Each customer, as controller, approves its own schedule and may change the defaults for clinical records (section 2).
 
-**Today MedApp enforces none of this.** Nothing is ever deleted on a schedule ([architecture handbook, 8.2](../architecture.md#82-data-protection-and-privacy-as-they-stand)). Section 6 lists what the app must build; roadmap step 7 builds it.
+**MedApp enforces part of this.** It lists clinical records past their default period for an admin to review, keep or anonymise, and clears the browser's storage at sign-out. Nothing is ever deleted on a schedule, and operational data isn't purged yet ([architecture handbook, 8.2](../architecture.md#82-data-protection-and-privacy-as-they-stand)). Section 6 lists what's built and what's still to build.
 
 ## 1. Principles
 
@@ -23,7 +23,7 @@ How long each kind of data in MedApp is kept, and what happens at the end. It se
 
 ## 2. Clinical records
 
-**The trigger, "the conclusion of treatment",** is worked out per patient by MedApp (to be built): the latest of
+**The trigger, "the conclusion of treatment",** is worked out per patient by MedApp (built in step 7, for the review list, except for appointments: section 6, item 3): the latest of
 - the date the patient's last procedure was completed, cancelled or archived,
 - the date of the patient's last appointment that was attended, not attended or cancelled, and
 - the date the patient's record was last changed,
@@ -56,7 +56,7 @@ Everything about the patient, kept and destroyed together:
 
 ### At the end of the period
 
-1. **Due for review.** MedApp lists the patients whose period has passed (to be built).
+1. **Due for review.** MedApp lists the patients whose period has passed (Retention Review, admins; built in step 7 for the adult and children classes).
 2. **Decision.** The customer's records manager, or an admin with that duty, decides for each:
    - **destroy:** delete every part of the record listed above
    - **anonymise:** keep the procedure data for statistics, with the patient's identity and free text removed so no one can be identified
@@ -76,7 +76,9 @@ Everything about the patient, kept and destroyed together:
 | **A person's default week template** (`StaffWeekTemplate` rows) | While the account exists; closed rows **12 months** after their end date | Deleted automatically, and with the account | They say which template applied on past days; a past day older than 12 months no longer needs it. |
 | **Staff accounts** | While the customer keeps the account. Once deactivated (step 4), **12 months**, then deleted | Deleted automatically, with the account's settings | Usernames in audit entries are copies, kept with the audit (section 2), so deleting the account doesn't break the trail. |
 | **Account settings** (`UserSettings`, including saved searches) | With the account | Deleted with it | Saved searches can hold patient names; see section 6. |
-| **Browser storage** (`localStorage`, `medapp.*`) | Until sign-out | Cleared at sign-out (to be built) | Shared computers. |
+| **Notification choices** (`NotificationPreferences`) | With the account | Deleted with it (to be built: `docs/todo.md`) | A person's own choice; nothing needs it once the account is gone. |
+| **Monitoring rules** (`MonitoringRules`: which admin watches which staff member, for what) | Until the admin deletes the rule, or the admin's or the watched person's account is deleted | Deleted then (to be built: `docs/todo.md`; until then they stay, and a rule whose admin is no longer an admin, or whose person is deleted, sends nothing) | A rule is only for supervising current work; the customer's monitoring policy should say when rules about a person are reviewed. |
+| **Browser storage** (`localStorage` and `sessionStorage`, `medapp.*`) | Until sign-out | Cleared at sign-out, but for the four visual settings (built in step 7) | Shared computers. |
 | **Stage definitions and templates** | For the life of the customer's contract | Returned or deleted at exit | Configuration, not personal data. Archived ones are kept because procedures refer to them. |
 | **Activity types, and day and week templates** | For the life of the customer's contract | Returned or deleted at exit | Calendar configuration, not personal data. Archived ones are kept because blocks and dated template rows refer to them. |
 | **Application logs and traces** (Log Analytics, step 5) | **90 days** | Deleted automatically by the workspace's retention setting | Enough for troubleshooting and incident investigation; logs aren't the record. |
@@ -107,25 +109,25 @@ These are the terms of the data processing agreement ([dpa-template.md](dpa-temp
 
 ## 6. What MedApp must build to enforce this
 
-Roadmap step 7 builds these. The privacy features work on roadmap step 7 must meet these requirements, and anything it doesn't cover stays open here.
+Roadmap step 7 builds these. The privacy features work on roadmap step 7 must meet these requirements, and anything it doesn't cover stays open here. The first part of step 7 (branch `feature/privacy-features`) built what the Status column says.
 
-| # | Feature | Detail |
-|---|---|---|
-| 1 | **Retention settings per customer** | The classes and periods in sections 2 and 3, with these defaults, changeable by the customer's admin; a shorter clinical period needs a recorded approval. |
-| 2 | **A retention class on each template** | Adult general by default; children worked out from the date of birth. |
-| 3 | **The conclusion of treatment date** | Worked out per patient as in section 2, and shown on the patient's page. |
-| 4 | **A due-for-review list and decisions** | Destroy, anonymise or keep (with a reason and a review date), approved by a named person. |
-| 5 | **Destruction across every table** | Patient, procedures, stages, assignments, audit entries (by `PatientId`, including those of deleted procedures), appointments and appointment history (by `PatientId`), note versions, access audit, and notifications that refer to the patient's procedures or appointments. Saved searches whose terms match the patient's name are removed. |
-| 6 | **Anonymisation** | Removes names, date of birth, email and every free-text field, including appointment notes and cancellation reasons and the copies in the appointment history, and unlinks the audit, so the remaining data can't identify anyone. **PR #68 (privacy features) builds anonymisation; when it merges, it must cover appointments this way** ([data-inventory.md](data-inventory.md), section 6). |
-| 7 | **A destruction log** | As section 2, step 3; kept for as long as the customer uses MedApp, and included in the export at exit. |
-| 8 | **Legal hold** | Per patient and for the whole customer; suspends destruction and shows on the due-for-review list. |
-| 9 | **Automatic jobs** for operational data | Sessions and security events at 12 months, notifications at 6 months, staff calendar blocks (with day overrides and exceptions) and closed default-week rows at 12 months, deactivated accounts at 12 months. A scheduled job that runs once across several API copies (a lease, or a Kubernetes CronJob), and logs what it deleted (counts, not content). |
-| 10 | **Note versions instead of copies in the audit** | So destroying or correcting a note doesn't leave its text in `Details` ([dpia.md](dpia.md), risk 4). |
-| 11 | **Clear `localStorage` at sign-out** | Already in step 7's scope. |
-| 12 | **Archiving in place of deletion** | Staff can't hard-delete a patient; erasure goes through an approved workflow ([data-subject-rights.md](data-subject-rights.md)). |
-| 13 | **Backups set to section 4** | Step 5: point-in-time restore of 35 days and long-term retention of 12 months in `deploy/azure/main.bicep`; a runbook step to re-apply the destruction log after a restore. |
-| 14 | **Log retention** | Step 5: the Log Analytics workspace set to 90 days. |
-| 15 | **A deceased flag** | Step 9, so the periods after death can apply. |
+| # | Feature | Detail | Status |
+|---|---|---|---|
+| 1 | **Retention settings per customer** | The classes and periods in sections 2 and 3, with these defaults, changeable by the customer's admin; a shorter clinical period needs a recorded approval. | **Partly built.** The adult and children periods are settings of the deployment (`Retention` in `appsettings.json`: 8 years; 25th birthday, or 26th at 17), with the Code's defaults. Not yet changeable by the customer's admin in the app (step 8 makes settings per customer), and no other classes. |
+| 2 | **A retention class on each template** | Adult general by default; children worked out from the date of birth. | **Partly built:** adult or child from the date of birth at the conclusion of treatment. No classes on templates yet, so **a specialty record (mental health, maternity, oncology) is listed when the adult period ends, 12 to 22 years early.** Until classes exist, a customer that keeps specialty records sets `Retention:AdultYears` to its longest class, and keeps any specialty record listed early (Keep, with the class as the reason). The Retention Review page and the anonymise dialog say so. |
+| 3 | **The conclusion of treatment date** | Worked out per patient as in section 2, and shown on the patient's page. | **Partly built:** worked out as in section 2 (the latest of the last change to any procedure, all closed, to the record, and to the procedure audit, which outlives a deleted procedure), shown on the review list. A 29 February birthday falls on 1 March in other years. Not on the patient's page. **Appointments aren't counted yet:** neither the last appointment's date nor open Requested or Booked appointments hold the date back (`docs/todo.md`). |
+| 4 | **A due-for-review list and decisions** | Destroy, anonymise or keep (with a reason and a review date), approved by a named person. | **Built, without destroy:** anonymise, or keep with a reason and a review date up to 2 years ahead, each recorded in the activity log with the admin's name. Review opens the patient's page. |
+| 5 | **Destruction across every table** | Patient, procedures, stages, assignments, audit entries (by `PatientId`, including those of deleted procedures), appointments and appointment history (by `PatientId`), note versions, access audit, and notifications that refer to the patient's procedures or appointments. Saved searches whose terms match the patient's name are removed. | Not built. (The whole record is gathered from every table already, for exports and anonymisation: `PatientRecordRepository`.) |
+| 6 | **Anonymisation** | Removes names, date of birth, email, the NHS number and every free-text field, including appointment notes and cancellation reasons and the copies in the appointment history, and unlinks the audit, so the remaining data can't identify anyone. | **Built, differently in two ways:** the date of birth keeps its year (for age statistics), and the audit stays linked by the patient's ID, so the audit trail's integrity survives. **The result is therefore pseudonymised, not anonymous:** with the patient ID, the year of birth, the dates and who did what, someone who knows the patient could recognise the record, so it stays personal data under this schedule. Procedure titles become their template's name, in the appointment history too, and appointments' notes and cancellation reasons, with their history's copies, are replaced. Saved searches aren't covered. |
+| 7 | **A destruction log** | As section 2, step 3; kept for as long as the customer uses MedApp, and included in the export at exit. | Partly: anonymising and keeping are in the activity log with the reason, the admin and the time. No separate destruction log. |
+| 8 | **Legal hold** | Per patient and for the whole customer; suspends destruction and shows on the due-for-review list. | Not built. Keeping a record with a reason ("legal hold") and a review date stands in for it per patient. |
+| 9 | **Automatic jobs** for operational data | Sessions and security events at 12 months, notifications at 6 months, staff calendar blocks (with day overrides and exceptions) and closed default-week rows at 12 months, deactivated accounts at 12 months. A scheduled job that runs once across several API copies (a lease, or a Kubernetes CronJob), and logs what it deleted (counts, not content). | Not built. |
+| 10 | **Note versions instead of copies in the audit** | So destroying or correcting a note doesn't leave its text in `Details` ([dpia.md](dpia.md), risk 4). | Not built. Anonymising replaces the copies in `Details`. |
+| 11 | **Clear `localStorage` at sign-out** | Already in step 7's scope. | **Built:** every `medapp.` key in localStorage and sessionStorage but the four visual settings. |
+| 12 | **Archiving in place of deletion** | Staff can't hard-delete a patient; erasure goes through an approved workflow ([data-subject-rights.md](data-subject-rights.md)). | Not built: deleting a patient with no procedures is unchanged, by the product owner's decision, and is now recorded. |
+| 13 | **Backups set to section 4** | Step 5: point-in-time restore of 35 days and long-term retention of 12 months in `deploy/azure/main.bicep`; a runbook step to re-apply the destruction log after a restore. | Step 5. |
+| 14 | **Log retention** | Step 5: the Log Analytics workspace set to 90 days. | Step 5. |
+| 15 | **A deceased flag** | Step 9, so the periods after death can apply. | Step 9. |
 
 ## 7. The supplier's own records
 

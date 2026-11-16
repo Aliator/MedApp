@@ -2,7 +2,7 @@ import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import type {Appointment} from '../../api/appointments';
-import {STAFF_ME, testAppointment, testCalendar, testRequested} from '../../test/calendar';
+import {STAFF_ME, TEST_PATIENT, testAppointment, testCalendar, testRequested} from '../../test/calendar';
 import {expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {AppointmentDialog, appointmentWhen} from './AppointmentDialog';
 
@@ -14,6 +14,7 @@ function renderDialog(appointment: Appointment, handlers: Parameters<typeof mock
     [`GET /api/appointments/${appointment.id}`]: () => json(appointment),
     'GET /api/calendar/staff': () => json([STAFF_ME]),
     'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
+    'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     ...handlers,
   });
   const result = renderWithApp(
@@ -47,6 +48,10 @@ describe('AppointmentDialog', () => {
     const {user, router, onClose} = renderDialog(testAppointment({id: 'appt-1', notes: 'Bring the scan.'}));
 
     expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+    // Who it's for, as the patient banner shows them (hazard H-34).
+    const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(banner).toHaveTextContent('NHS No. 999 000 0018');
+    expect(banner).toHaveTextContent(/Born 1 January 1980/);
     expect(dialog().getAllByText('Booked').some((e) => e.closest('.astryx-token'))).toBe(true);
     expect(dialog().getByText('Visit required')).toBeInTheDocument();
     expect(dialog().getByText('Monday 23 November, 09:00 to 09:30 with test-user')).toBeInTheDocument();
@@ -203,6 +208,7 @@ describe('AppointmentDialog', () => {
       'GET /api/calendar/staff': () => json([STAFF_ME]),
       'GET /api/calendar': (request) => json(testCalendar({from: new URL(request.url).searchParams.get('From')!, dayCount: 5, today: MONDAY})),
       'GET /api/procedures/patient-procedures/search': () => json({items: []}),
+      'GET /api/patients/patient-1': () => json(TEST_PATIENT),
     });
     const {user} = renderWithApp(<Harness />, {user: staffUser});
 
@@ -210,8 +216,11 @@ describe('AppointmentDialog', () => {
     expect(dialog().getByText('Ground floor.')).toBeInTheDocument();
     expect(dialog().getByText('Appointment', {selector: '.astryx-metadata-list *'})).toBeInTheDocument();
     expect(dialog().getByText('By test-user, 12 Nov 2026, 10:00')).toBeInTheDocument();
-    await user.click(dialog().getByRole('button', {name: 'Book Another'}));
+    await user.click(await dialog().findByRole('button', {name: 'Book Another'}));
     expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
+    // The same patient, with their banner.
+    expect(dialog().getByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
+    expect(dialog().queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     // The footer's Close (the header has one too).
     await user.click((await dialog().findAllByRole('button', {name: 'Close'})).at(-1)!);
@@ -231,5 +240,28 @@ describe('AppointmentDialog', () => {
     notes.focus();
     fireEvent.keyDown(notes, {key: 's', ctrlKey: true});
     await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(true));
+  });
+
+  it("lets a restricted patient's appointment be cancelled, but nothing else, and says why", async () => {
+    const appointment = testAppointment({id: 'appt-1', canReschedule: false, canEditNotes: false, canRecordOutcome: false, notes: 'Ground floor.'});
+    renderDialog(appointment, {
+      'GET /api/patients/patient-1': () => json({...TEST_PATIENT, isRestricted: true, restrictionReason: 'Synthetic accuracy check'}),
+    });
+
+    const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
+    expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+    expect(dialog().getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
+    expect(dialog().getByRole('button', {name: 'Cancel Appointment'})).toBeInTheDocument();
+    expect(dialog().queryByRole('button', {name: 'Reschedule'})).not.toBeInTheDocument();
+    expect(dialog().queryByRole('textbox', {name: /Notes/})).not.toBeInTheDocument();
+    expect(dialog().getByText('Ground floor.')).toBeInTheDocument();
+  });
+
+  it("doesn't offer to book another for a restricted or anonymised patient", async () => {
+    const appointment = testAppointment({id: 'appt-1', status: 'Cancelled', canCancel: false, canReschedule: false, canEditNotes: false});
+    renderDialog(appointment, {'GET /api/patients/patient-1': () => json({...TEST_PATIENT, isAnonymised: true})});
+
+    expect(await dialog().findByText(/This record has been anonymised/)).toBeInTheDocument();
+    expect(dialog().queryByRole('button', {name: 'Book Another'})).not.toBeInTheDocument();
   });
 });
