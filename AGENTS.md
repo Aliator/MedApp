@@ -94,6 +94,7 @@ To add a feature end to end:
 
 - Lists are filtered, sorted and paged by the API: `GET api/patients/search`, `GET api/auth/users/search`, `GET api/procedures/patient-procedures/search` and `GET api/procedures/audit/search` return a `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, with a maximum of 100.
 - Sort and filter in plain LINQ that EF can translate (see `PatientSearch`), so the same code runs in SQL and in unit tests. Always end the order with a unique key (`ThenBy(x => x.Id)`), or paging can repeat or skip rows.
+- **The exception is a feed:** a patient's timeline (`GET api/patients/{id}/timeline`) pages by cursor (keyset) rather than by page number, so entries added meanwhile don't shift the pages. It orders by `AtUtc` then `Id`, both descending; a page's `NextCursor` encodes its last entry's pair, and the next page starts after it (`PatientTimelineSearch`, `TimelineCursor`).
 - `GET api/patients` and `GET api/auth/users` return everything. Only the deprecated Blazor client uses them; prefer the search endpoints.
 
 ### Mapping
@@ -102,7 +103,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Where they live:** in the area's `Common/` folder, named `<Thing>Mapper`. Each has `ToResponse(entity)`, plus overloads for what a response needs that the entity doesn't have, for example `ToResponse(definition, usage)` or `ToResponseAsync(...)` when it looks up usernames.
 - **Mappers so far:**
   - `PatientMapper`, `UserSettingsMapper`, `SessionMapper`, `NotificationMapper`, `AuditEntryMapper`
-  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `ProcedureInsightsMapper` (from totals, not entities)
+  - `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, `TimelineMapper`, `ProcedureInsightsMapper` (from totals, not entities)
   - `UserMapper`, in Infrastructure, because `ApplicationUser` is an Infrastructure type
 - **Paged responses:** `PagedMapper.ToResponse(result, page, pageSize, Mapper.ToResponse)` (`Common/Paging`) turns a repository's `PagedResult` into the `PagedResponse` every search endpoint returns.
 - **No inline mapping:** handlers and controllers don't build responses from entities themselves, and queries never return Domain entities to the API. Results that aren't entities (a login's session, a generated password, the signed-in user's claims) may be built where they're made.
@@ -115,6 +116,7 @@ Domain entities become `Contracts` responses through **hand-written static mappe
 - **Procedures are the exception:** handlers load a tracked procedure with `GetForUpdateAsync`, change it through `ProcedureChange`, and `SaveAsync(auditEntries)` saves the change and its audit entries in one `SaveChangesAsync`. That way EF works out which stages and assignments changed, and no change can miss the audit log.
 - Pass `CancellationToken` all the way through. The tests check that it is passed on.
 - IDs are `Guid`s generated in handlers (`Guid.NewGuid()`). Timestamps are UTC (`CreatedAt`, `LastUpdated`), set in handlers.
+- **Times are stored and sent as UTC, with a `Z`.** SQL Server's `datetime2` keeps no time zone, so `UtcDateTimeConverter` (every `DateTime` and `DateTime?`, in `MedAppDbContext.ConfigureConventions`) marks what EF reads as UTC; without it the JSON has no `Z` and browsers read the time as their local time, an hour out in British Summer Time. The web app formats times in UK time (`formatDateTime` in `MedApp.Web/src/utils/dates.ts`), and reads one without a `Z` as UTC too. Due dates and dates of birth are dates, not times, and are never shifted. `dueDateUtc` is a moment, the end of the due day (UK time) in UTC, for comparing with now; show `dueDate`.
 - Handlers and validators that need "now" take a `TimeProvider` (registered in `AddApplication`); tests pass a `FixedTimeProvider`.
 
 ### Procedures
@@ -125,6 +127,19 @@ The concept and decisions are in `docs/procedures-ui-plan.md`. In short: admins 
 - **Due dates are whole days,** due by the end of the day UK time and stored as that moment in UTC (`DueDates`). The API takes and returns `DueDate` as a date.
 - **Definitions and templates in use are archived, not deleted;** deleting one that's in use is a 409. Patients with procedures can't be deleted (409).
 - Status numbers are stored, so never renumber `PatientProcedureStatus` or `PatientProcedureAuditAction`.
+
+### Patient timeline
+
+The patient page shows a **timeline**: everything that happened to the patient's procedures, in one feed, built from the procedure audit log (`MedApp.Application/Procedures/Timeline`).
+- **Endpoints, for staff:** `GET api/patients/{id}/timeline` (a page of entries, newest first, with `Kinds` and `ProcedureIds` filters and a `Before` cursor) and `GET api/patients/{id}/timeline/overview` (the open and blocked procedures, soonest due first and overdue flagged, and the procedures to filter by). Both are 404 for an unknown patient.
+- **Kinds** (`PatientTimelineKind`) group the audit actions for filtering: Created, Stages (started, finished, unlocked), Notes, Assignments, Blocks (to Blocked, or back from it: cancelling a blocked procedure is under Status), Status, DueDates (a details edit that includes the due date), Details and Deleted. `PatientTimelineKinds` works them out the same way in memory and in SQL, reading markers in the entry's JSON details. They aren't stored, so they can be regrouped freely; a change to how `ProcedureAudit` writes details must keep its tests passing.
+- **What each person sees is decided on the server** (`GetPatientTimelineQuery.IsAdmin`, from the caller's role), because the audit log itself is admin-only and keeps old values:
+  - **Staff** see entries only for procedures that still exist. Each shows the kind, who, when and the procedure (a link), and structured values, old and new: due dates, priorities and statuses, the template, who was assigned and unassigned (past assignees too), and the username recorded at the time (a deleted account's too, where the procedure page says "Deleted user"). **Never** free text from the log: no notes text (stage or procedure), no old or new titles, no block or cancel reasons; for those they get only which field changed.
+  - **Admins** see everything, including entries for deleted procedures (labelled as deleted, each with the title recorded in that entry) and the free-text values.
+  - Keep this when adding a field to `PatientTimelineEntryResponse`: free text from the audit details goes to admins only (`TimelineMapper`'s `PublicValueFields` is the allowlist for edited fields). `TimelineStaffCanaryTests` records every action with one string as all its free text and checks the whole staff response never holds it; add any new action or free-text field to it.
+  - The governance pack (`docs/governance/`) states this rule; change both together.
+- An entry carries the procedure's title now, or, once it's deleted, the title recorded in that entry (so a procedure renamed before it was deleted shows under both titles).
+- **Order:** newest first by `AtUtc`, then `Id`. The entries one change writes (a stage started, its notes saved, the status change that followed) are each a tick (100 ns) after the one before (`ProcedureChange.Audit`), so they sort in the order they happened; entries written before that share a time and fall back to ID order.
 
 ### Notifications
 
@@ -163,7 +178,7 @@ Admins' overview of the work (`/admin/insights`, `GET api/procedures/insights`):
   - **The forced password change page has no timeout warning.** `/change-password` is outside the signed-in layout, and `PasswordChangeRequired` doesn't allow the session endpoints, deliberately: that page ends at the session's normal expiry, without a warning, and its change then fails, so its user signs in again.
   - A session isn't yet ended by a lockout, a password change, a reset or a role change (risk S5); the security baseline work is adding that.
 - The UI is always on the API's own origin (served from `wwwroot` in production, proxied by Vite in development). So there is no CORS, and the cookie is `SameSite=Lax`, and `Secure` outside Development.
-- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients, and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, and Insights (`GET api/procedures/insights`). There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
+- The roles are `Admin` and `User`. Staff (either role) use `[Authorize(Policy = AuthPolicies.Staff)]`: patients (with their timeline, which shows staff less than admins: see [Patient timeline](#patient-timeline)), and creating and working on procedures. Admin-only endpoints use `[Authorize(Roles = "Admin")]`: users and roles, stage definitions and templates (staff can read them), assigning staff, unlocking stages, deleting procedures, the procedure audit log, and Insights (`GET api/procedures/insights`). There may be several admins; never assume one. The `SelfUserOnly` policy limits a user to their own `{username}` route.
 - Procedure handlers get the signed-in user as a `ProcedureActor`, from `User.ToProcedureActor()` (`MedApp.API/Common/Authentication/ClaimsPrincipalExtensions.cs`).
 - The app seeds no users; its only `HasData` seed is a default stage definition. **Locally, sign in as `admin` / `admin`.** `medapp-dev` creates that test login (`ensure_test_admin`, and on every `reset_demo_data`), bypassing the password rules. It exists only in local dev databases.
 - **A deployed database gets its first admin deliberately:** `dotnet MedApp.API.dll create-first-admin` (`FirstAdminSetup`) makes the Admin and User roles and an admin with both (User lets them change their own password) from the `FirstAdmin:Username` and `FirstAdmin:Password` settings, but only while there are no accounts at all, then exits. The Helm chart's migrations Job runs it after migrating, with the credentials from a Secret.

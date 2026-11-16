@@ -47,7 +47,7 @@ MedApp is a patient and procedure management app for clinical staff. It records 
 | **Assignment** | Admins assign staff to procedures. Assignment decides whose task list a procedure appears on; it doesn't limit who may work on it. Changing a procedure that isn't yours asks for confirmation first, once per visit. |
 | **Task list** | My Tasks (`/tasks`) shows the open procedures assigned to you, in two lists: Not started and Started. |
 | **Templates and stage definitions** | Admins maintain reusable **stage definitions** (name, description, instructions) and **templates** (ordered lists of definitions, where a stage may repeat). Ones in use are archived, not deleted. |
-| **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. |
+| **Audit log** | Every change to a procedure writes an audit entry: who, when, what, and the old and new values. Admins read the whole log on its own page, searchable and filtered by procedure. The patient page's timeline shows one patient's history across their procedures: all of it for admins, deleted procedures included; for staff, only procedures that still exist and never the log's free text (notes, titles, reasons). |
 | **Notifications** | Being assigned a procedure (by someone else) sends a notification. It's stored, then pushed live to every page that person has open. A bell shows the unread count. |
 | **Users and roles** | Admins create users (the server generates each new account's first password and shows it once), reset passwords, delete users (confirming with their own password) and set roles. Everyone can change their own password. Five wrong passwords lock an account for five minutes. |
 | **Account settings** | Light or dark mode, colour themes or custom colours, text size, navigation and list preferences, saved searches ("favourites"), and eleven accessibility switches. They're stored with the account, so they follow a person between browsers. |
@@ -424,7 +424,7 @@ The pipeline, in order (`MedApp.ServiceDefaults/Extensions.cs`, `MedApp.API/Comm
 - `FinishProcedureStageHandler.cs`: a sealed class with its dependencies in its primary constructor;
 - `FinishProcedureStageValidator.cs`, when the input needs checking.
 
-There are 51 handlers and 29 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit) and Notifications.
+There are 53 handlers and 30 validators in four areas: Authentication (users, roles, sessions, settings), Patients, Procedures (procedures, stage definitions, templates, audit, the patient timeline) and Notifications.
 
 **The pipeline.** `AddApplication()` (`MedApp.Application/Common/Extensions/ServiceExtensions.cs`) registers MediatR by assembly scanning, with one open behaviour, `ValidationBehaviour<,>`, which runs the command's validators before its handler and throws FluentValidation's `ValidationException` on failure. It also registers every validator, `TimeProvider.System` (so handlers and validators that need "now" can be tested at a fixed time), and the `NotificationSender`.
 
@@ -432,7 +432,7 @@ There are 51 handlers and 29 validators in four areas: Authentication (users, ro
 
 **Mappers.** Entities become responses only through hand-written static mappers, one per area, in that area's `Common/` folder: `PatientMapper`, `UserSettingsMapper`, `NotificationMapper`, `AuditEntryMapper`, `ProcedureMapper`, `StageDefinitionMapper`, `StageTemplateMapper`, and `UserMapper` (in Infrastructure, because `ApplicationUser` is an Infrastructure type). `PagedMapper` builds every search endpoint's `PagedResponse<T>`. No handler or controller builds a response from an entity itself, and no query returns a Domain entity to the API (#44). See [ADR-8](#9-architecture-decisions).
 
-**Paging.** The four search endpoints filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`).
+**Paging.** The four search endpoints filter, sort and page in the database and return `PagedResponse<T>` (`items`, `page`, `pageSize`, `totalCount`, `totalPages`). `pageSize` defaults to 10, at most 100. Sorting always ends on a unique key (`ThenBy(x => x.Id)`), so pages never repeat or skip rows. Filters and sorts are plain LINQ that EF can translate, so the same code runs in SQL and in the unit tests (`PatientSearch`). A patient's timeline is the exception: a feed paged by cursor (keyset), newest first by time then ID, so entries added meanwhile don't shift its pages (`PatientTimelineSearch`).
 
 **Procedures.** All workflow rules are in `MedApp.Application/Procedures/Common`:
 - `ProcedureWorkflow`: statuses, which stage is current, what can be edited, what status changes are allowed, overdue.
@@ -527,7 +527,7 @@ stateDiagram-v2
 
 ### 5.7 The API surface
 
-55 HTTP endpoints in six controllers, plus the SignalR hub. "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
+57 HTTP endpoints in seven controllers, plus the SignalR hub. "Staff" means role `User` or `Admin` (`AuthPolicies.Staff`).
 
 | Area | Endpoints | Who |
 |---|---|---|
@@ -542,6 +542,7 @@ stateDiagram-v2
 | Stage definitions and templates | reads under `api/procedures/patient-procedure-stage/definitions` and `/templates` | Staff |
 | | create, update, archive, restore, delete | Admin |
 | Audit log | `GET api/procedures/audit/search` | Admin |
+| Patient timeline | `GET api/patients/{id}/timeline` (paged by cursor), `GET api/patients/{id}/timeline/overview` | Staff (admins see more: deleted procedures and the log's free text) |
 | Insights | `GET api/procedures/insights` | Admin |
 | Notifications | `GET api/notifications`; `POST api/notifications/read`; `POST api/notifications/{id}/read` | Staff |
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
@@ -557,7 +558,7 @@ stateDiagram-v2
 | `api/` | The typed `openapi-fetch` client, the generated `schema.d.ts`, the 400-to-field-error mapper, query functions per area, `preload` for route loaders |
 | `app/` | `App`, providers, the query client, the settings store and its providers (colour mode, colours, text size, navigation, lists, accessibility, favourites), `SettingsSync`, `LiveNotifications`, announcements |
 | `auth/` | The `whoami` query, sign-in and sign-out, `requireAdmin` |
-| `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `procedures/` (`ProcedureCells`, `StageList`, `StageWork`, `StatusChangeDialog`), `shared/` (`AppIcon`, `RichText`) |
+| `components/` | Composites built only from Astryx: `pages/` (`Page`, `PageHeader`, `TwoColumns`, half views), `forms/`, `tables/` (`DataTable`, `ListFilterBar`, `ListFavourites`, `RowCards`, `PageControls`), `views/`, `modals/`, `navigation/` (`AppLayout`, `AppSideNav`, `NotificationBell`, `KeyboardShortcuts`), `procedures/` (`ProcedureCells`, `StageList`, `StageWork`, `StatusChangeDialog`, `PatientTimeline`), `shared/` (`AppIcon`, `RichText`) |
 | `pages/` | One folder per page: accessibility, account, audit, home, login, patients, procedures, setup (stage definitions and templates), tasks, users |
 | `routes/` | Thin TanStack Router file routes that point at pages; `routeTree.gen.ts` is generated from them |
 | `ssr/` | `document.tsx` (the whole HTML document when rendering on the server), `requestContext.ts` (the per-request API address, cookie and key) |
@@ -1110,7 +1111,7 @@ This describes what the code does today. It isn't a compliance statement; [secti
 | **In transit** | TLS to the ingress; encrypted to Azure SQL; plain inside the cluster to Valkey (which carries procedure titles) and, on kind, to SQL Server. |
 | **In pages and the browser** | Server-rendered HTML carries the page's data, and is sent with `Cache-Control: no-store`. The browser keeps the account's settings in `localStorage` (`medapp.*` keys), and they're also saved with the account; they include saved searches, whose terms can be patient names. The side navigation's pinned patients and procedures are kept only in the browser, as IDs. No patient records are stored in the browser. Signing out clears the query cache, but not `localStorage`. |
 | **In logs** | EF Core logs every SQL command at Information level, but without parameter values (sensitive data logging is off). Nothing logs patient fields on purpose. |
-| **Who can see what** | Every staff member sees every patient and procedure. Only admins read the audit log. |
+| **Who can see what** | Every staff member sees every patient and procedure. Only admins read the audit log; staff see each patient's timeline without its free text. |
 | **Access logging** | **Reads aren't logged.** Changes to procedures are fully audited; changes to patients (create, edit, delete) and to accounts and roles are not. |
 | **Retention** | None. Nothing is ever purged: patients, procedures, audit entries, notifications and expired sessions stay forever. |
 | **Erasure** | A patient with procedures can't be deleted. Deleting a procedure keeps its audit entries, including notes text and the patient's ID, by design. There's no export for subject access requests. |
@@ -1477,7 +1478,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 - **Exposure:** the repository is public, and the image can be pulled anonymously (`docs/reviews/README.md`). Anyone can read the source a buyer would pay for, and the reviews that list its weaknesses.
 
 **Scope:**
-- **Replace MediatR.** `MedApp.Application` has 51 handlers and one pipeline behaviour (`Common/Behaviors/ValidationBehavior.cs`), and the controllers only call `IMediator.Send`. That's small enough to replace with about a hundred lines of in-house dispatch (a sender, the handler interface, and validation as a decorator) or an MIT-licensed, source-generated mediator. Pinning MediatR 12.5.0 (the last Apache 2.0 release) works but leaves an unmaintained dependency.
+- **Replace MediatR.** `MedApp.Application` has 53 handlers and one pipeline behaviour (`Common/Behaviors/ValidationBehavior.cs`), and the controllers only call `IMediator.Send`. That's small enough to replace with about a hundred lines of in-house dispatch (a sender, the handler interface, and validation as a decorator) or an MIT-licensed, source-generated mediator. Pinning MediatR 12.5.0 (the last Apache 2.0 release) works but leaves an unmaintained dependency.
 - **Replace FluentAssertions 8** in `MedApp.UnitTests` (122 files) with AwesomeAssertions, the Apache 2.0 community fork ([NuGet](https://www.nuget.org/packages/AwesomeAssertions)), or pin FluentAssertions 7.x. Both are close to drop-in.
 - **Remove `FluentValidation.AspNetCore`** (`MedApp.API/Common/Extensions/ServiceExtensions.cs`). It's deprecated as "legacy and is no longer maintained" ([NuGet](https://www.nuget.org/packages/FluentValidation.AspNetCore)), and validation already runs in the MediatR pipeline.
 - **Settle the front-end licences** (`MedApp.Web/package-lock.json`):
@@ -1818,7 +1819,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 
 ### Step 6: Clinical safety and the medical device decision
 
-**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed in PR #62, still open (`docs/clinical-safety/README.md`).
+**Status:** the documents are drafted in `docs/clinical-safety/` (16 November 2026, against `88dc1fa`): a clinical risk management plan, a hazard log of 21 hazards, a safety case report template, the intended purpose and medical device decision (not a device), and a guide for deploying organisations under DCB0160. They are drafts for a CSO to review and sign; nothing is approved, and no CSO is appointed yet. On DCB0129's consequence table, one hazard is rated 4 (wrong template content) and twelve are rated 3 today; with the product and process controls marked "before first live use", three stay at 3 and need the CSO's justification. The time display defect the hazard log found (H-12) is fixed by PR #62; the CSO still has to verify it (`docs/clinical-safety/README.md`).
 
 **Goal:** Put a clinical risk management system in place under DCB0129 (the NHS standard for manufacturers of health IT), with a named Clinical Safety Officer (CSO), a hazard log and a safety case for the current release, and write an intended purpose that places MedApp outside medical device regulation on purpose.
 

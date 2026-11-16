@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-03, clinical safety case report (DCB0129) |
-| **Version** | 0.2, draft |
+| **Version** | 0.3, draft |
 | **Date** | 16 November 2026 |
 | **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56). |
 | **Manufacturer** | [Manufacturer name] |
@@ -24,7 +24,7 @@
 - **The safety position at `88dc1fa`:**
   - 21 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
   - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
-  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12, fix in PR #62), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21).
+  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12; its defect is fixed by PR #62, which brings it to 2 once verified), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21).
   - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
   - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
 - **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, and the CSO has to justify accepting H-07, H-10 and H-13 at 3 (the go-live rule, `clinical-risk-management-plan.md` section 4.4). MedApp has never been used with real patients, so there is no live use to stop.
@@ -79,7 +79,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Audit entries outlive deletion of the procedure (no foreign keys), and keep the username and title as they were | `PatientProcedureAuditEntry`; ADR-7 in `docs/architecture.md` |
 | Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
 
-**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times are shown an hour out in summer at `88dc1fa` (H-12; fix in PR #62).
+**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times were shown an hour out in summer at `88dc1fa` (H-12); fixed by PR #62.
 
 ### Claim 3: Due dates mean the same thing everywhere
 
@@ -131,7 +131,7 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 | H-09 | A member of staff doesn't learn of work assigned to them | 3 | 2 | 2 | Started work counted on My Tasks; information for users |
 | H-10 | MedApp is unavailable | 3 | **3** | 2 | Printable task list and summary; downtime procedure; monitoring; CSO justification |
 | H-11 | Due dates don't mean what staff think | 2 | 2 | 2 | Information on the form |
-| H-12 | Times are shown an hour out | 3 | 2 | 2 | The fix in PR #62 |
+| H-12 | Times are shown an hour out | 3 | 2 | 2 | The fix, built in PR #62; to verify |
 | H-13 | A template or stage definition has wrong content | **4** | **3** | **3** | Approval step for template changes (brought forward); audit of template and definition changes; local template governance; CSO justification |
 | H-14 | A correction to a template doesn't reach procedures under way | 3 | 2 | 2 | Open procedures listed when a template in use is edited; local review process |
 | H-15 | Two people edit the same procedure at once | 3 | 2 | 2 | Optimistic concurrency; keep the draft on a conflict |
@@ -159,7 +159,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 | H-07 | 3 | 3 | [Accepted at 3 / not accepted] | | |
 | H-09 | 3 | 2 | | | |
 | H-10 | 3 | 3 | [Accepted at 3 / not accepted] | | |
-| H-12 | 3 | 2 | | | |
+| H-12 | 3 (2 with the fix in PR #62) | 2 | [Fix verified / not verified] | | |
 | H-13 | 4 | 3 | [Accepted at 3 / not accepted] | | |
 | H-14 | 3 | 2 | | | |
 | H-15 | 3 | 2 | | | |
@@ -170,7 +170,7 @@ The go-live rule uses the rating **at first live use.** For each hazard at 3 or 
 
 | Defect | Hazard | State |
 |---|---|---|
-| Timestamps read from the database are sent without a time zone, and the web app reads them as local time, so they show an hour early in summer | H-12 | Confirmed. Fixed in PR #62 (open), which marks every time read from the database as UTC and reads times without an offset as UTC in the web app. |
+| Timestamps read from the database are sent without a time zone, and the web app reads them as local time, so they show an hour early in summer | H-12 | Fixed by PR #62, which marks every time read from the database as UTC, so the API sends them with a `Z`, and reads times without an offset as UTC in the web app. To verify against SQL Server and in a browser during British Summer Time. |
 | My Tasks opens on work not yet started, so work already under way, including overdue and blocked work, isn't on its default view | H-04, H-05, H-09 | Known. A count of started work, or opening on all open work, proposed before first live use. |
 | Deleting an account leaves its open procedures assigned to it, on nobody's task list | H-21 | Known. Refusing the delete, or requiring reassignment first, proposed before first live use. |
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
@@ -214,3 +214,4 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 |---|---|---|---|
 | 0.1 | 16 November 2026 | Template, filled in for `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: ratings on DCB0129's consequence table, a rating at first live use and the go-live rule on it, H-21, My Tasks' default view, H-12's fix in PR #62 | AI coding agent, for review |
+| 0.3 | 16 November 2026 | H-12's defect fixed by PR #62 | AI coding agent, for review |

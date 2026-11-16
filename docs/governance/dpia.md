@@ -33,7 +33,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 - **Collection:** the customer's staff type patients' details and clinical notes into MedApp in a browser. There's no import, integration or patient-facing access.
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
-- **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Admins assign work, unlock finished stages, read the audit log, and manage accounts.
+- **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts.
 - **Sharing:** none outside the customer. Within the customer, every staff user can see every patient (section 5, risk 1).
 - **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Nothing is deleted on a schedule.
 - **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
@@ -114,7 +114,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 3 | **Oversharing in free text:** notes, titles and block or cancel reasons hold more than needed (other people's details, unrelated conditions), and spread to the audit, notifications and logs. | Free text is unlimited; procedure titles appear in notifications and travel through Valkey. | Probable | Significant | **High** |
 | 4 | **Copies of clinical text that can't be managed:** correcting, erasing or expiring a note leaves its old text in the audit trail. | `StageNotesUpdated` and `DetailsUpdated` audit entries copy the old and new text into `Details` (`MedApp.Application/Procedures/Common/ProcedureChange.cs`, `UpdatePatientProcedureHandler.cs`). | Probable | Significant | **High** |
 | 5 | **Kept for ever:** records, sessions with IP addresses, notifications and audit entries are never deleted, so a later breach exposes far more than needed. | No retention is implemented; nothing is purged. | Probable | Significant | **High** |
-| 6 | **Rights can't be met fully or on time:** a subject access request is answered late or incompletely. | No export; the data is spread over several tables; the audit log's screen filters by procedure, not by patient (the API can filter by patient, `PatientId` in `SearchProcedureAuditRequest`, but no screen offers it). | Probable | Significant | **High** |
+| 6 | **Rights can't be met fully or on time:** a subject access request is answered late or incompletely. | No export; the data is spread over several tables; the audit log's screen filters by procedure, not by patient. Admins can now see a patient's whole history on screen, on the patient page's timeline (every change to their procedures, with its free text, deleted procedures included), which helps answer a request, but it is not an export. | Probable | Significant | **High** |
 | 7 | **A patient's record is lost or changed without trace:** a staff member deletes or edits a patient, by mistake or deliberately, and nothing records it. | Any staff user can permanently delete a patient with no procedures; patient creates, edits and deletes aren't audited; account and role changes aren't audited. | Possible | Severe | **High** |
 | 8 | **Wrong patient:** notes are written on the wrong patient's record, leading to a disclosure or a clinical error. | Patients are identified by name, date of birth and email only; no NHS number; no duplicate check; no patient banner. | Possible | Severe | **High** |
 | 9 | **A lost update:** two staff save the same notes, and one silently overwrites the other. | No optimistic concurrency. The audit keeps both texts, but nobody is warned. | Possible | Significant | **Medium** |
@@ -144,7 +144,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | Every API endpoint that reaches patient or account data requires a signed-in session and a role (`Staff` or `Admin`); only sign-in, sign-out and `whoami` don't; the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
-| Only admins can read the audit log | In place | `MedApp.API/Controllers/ProcedureAuditController.cs` |
+| The full audit trail is admin-only; staff see a per-patient timeline without its free text (no notes, titles or reasons; old and new due dates, priorities and statuses, past assignees and recorded usernames are shown) | In place | `MedApp.API/Controllers/ProcedureAuditController.cs`, `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs` |
 | Every change to a procedure is recorded with who and when | In place | `MedApp.Application/Procedures/Common/ProcedureChange.cs` |
 | **Record every read of patient data** (patient viewed, searched with the terms, procedure viewed, exported) | Planned, step 7. **Before go-live** | |
 | Access reports ("who has seen this patient", "what has this person seen"), an `Auditor` role, unusual-access alerts, periodic access reviews | Planned, steps 4 and 7. **Before go-live** (reports and review) | |
@@ -181,7 +181,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 | Measure | Status | Where |
 |---|---|---|
-| The audit trail is admin-only and kept with the record | In place | As risk 1 |
+| The full audit trail is admin-only and kept with the record; staff see a per-patient timeline without its free text | In place | As risk 1 |
 | Keep note versions in their own table, and have the audit refer to versions, so correction, retention and erasure apply in one place | Planned, step 7. **Before go-live** | |
 
 **Residual risk:** now **high**; after **low**.

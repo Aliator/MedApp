@@ -29,6 +29,12 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
+    public async Task<IReadOnlyList<PatientProcedure>> GetByPatientAsync(Guid patientId, CancellationToken ct) =>
+        await context.PatientProcedures
+            .AsNoTracking()
+            .Where(x => x.PatientId == patientId)
+            .ToListAsync(ct);
+
     public async Task SaveAsync(IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken ct)
     {
         context.PatientProcedureAuditEntries.AddRange(audit);

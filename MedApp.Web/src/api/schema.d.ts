@@ -1663,6 +1663,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/patients/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Before?: string;
+                    PageSize?: number;
+                    Kinds?: string[];
+                    ProcedureIds?: string[];
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientTimelinePageResponse"];
+                        "application/json": components["schemas"]["PatientTimelinePageResponse"];
+                        "text/json": components["schemas"]["PatientTimelinePageResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/patients/{id}/timeline/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientTimelineOverviewResponse"];
+                        "application/json": components["schemas"]["PatientTimelineOverviewResponse"];
+                        "text/json": components["schemas"]["PatientTimelineOverviewResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/procedures/audit/search": {
         parameters: {
             query?: never;
@@ -3097,6 +3213,67 @@ export interface components {
             totalCount?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        PatientTimelineChangeResponse: {
+            field?: string | null;
+            from?: string | null;
+            to?: string | null;
+        };
+        PatientTimelineEntryResponse: {
+            /** Format: uuid */
+            id?: string;
+            kind?: string | null;
+            action?: string | null;
+            /** Format: date-time */
+            atUtc?: string;
+            username?: string | null;
+            /** Format: uuid */
+            procedureId?: string;
+            procedureTitle?: string | null;
+            isProcedureDeleted?: boolean;
+            stageName?: string | null;
+            templateName?: string | null;
+            /** Format: int32 */
+            stageCount?: number | null;
+            priority?: string | null;
+            /** Format: date */
+            dueDate?: string | null;
+            fromStatus?: string | null;
+            toStatus?: string | null;
+            isAutomatic?: boolean;
+            reason?: string | null;
+            assigneeUsername?: string | null;
+            changes?: components["schemas"]["PatientTimelineChangeResponse"][] | null;
+        };
+        PatientTimelineOverviewResponse: {
+            upcoming?: components["schemas"]["PatientTimelineUpcomingResponse"][] | null;
+            /** Format: int32 */
+            openCount?: number;
+            procedures?: components["schemas"]["PatientTimelineProcedureResponse"][] | null;
+        };
+        PatientTimelinePageResponse: {
+            items?: components["schemas"]["PatientTimelineEntryResponse"][] | null;
+            nextCursor?: string | null;
+        };
+        PatientTimelineProcedureResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            isDeleted?: boolean;
+            /** Format: date */
+            createdOn?: string | null;
+            /** Format: date */
+            deletedOn?: string | null;
+        };
+        PatientTimelineUpcomingResponse: {
+            /** Format: uuid */
+            procedureId?: string;
+            title?: string | null;
+            status?: string | null;
+            priority?: string | null;
+            /** Format: date */
+            dueDate?: string;
+            isOverdue?: boolean;
         };
         ProblemDetails: {
             type?: string | null;
