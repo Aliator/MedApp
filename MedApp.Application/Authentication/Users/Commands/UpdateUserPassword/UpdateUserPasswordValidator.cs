@@ -21,6 +21,10 @@ public sealed class UpdateUserValidator
 
         RuleFor(x => x.NewPassword)
             .NotEmpty()
-            .WithMessage("Password must not be empty.");
+            .WithMessage("Password must not be empty.")
+            // Exactly the same, case and all (passwords are case-sensitive). Otherwise a generated password could be
+            // "changed" to itself, which would clear the requirement to choose one's own.
+            .NotEqual(x => x.OldPassword, StringComparer.Ordinal)
+            .WithMessage("The new password must be different from the current one.");
     }
 }

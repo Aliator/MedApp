@@ -433,7 +433,17 @@ public sealed class AuthControllerTests
     {
         var result = Controller(new RecordingMediator(), roles: ["Admin", "User"]).WhoAmI();
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["Admin", "User"]));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["Admin", "User"], false));
+    }
+
+    [Test]
+    public void WhoAmI_MustChangePassword_SaysSo()
+    {
+        var controller = new AuthController(new RecordingMediator(), _cookies.Object).WithRequest(MustChangePassword("User"));
+
+        var result = controller.WhoAmI();
+
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["User"], true));
     }
 
     [Test]
@@ -443,7 +453,7 @@ public sealed class AuthControllerTests
 
         var result = controller.WhoAmI();
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, []));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false));
     }
 
     [Test]
@@ -516,6 +526,6 @@ public sealed class AuthControllerTests
         var controller = new AuthController(new RecordingMediator(), _cookies.Object);
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new System.Security.Claims.ClaimsPrincipal() } };
 
-        controller.WhoAmI().Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, []));
+        controller.WhoAmI().Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false));
     }
 }
