@@ -24,6 +24,13 @@ public static class ClaimsPrincipalExtensions
     public static bool MustChangePassword(this ClaimsPrincipal user) =>
         user.HasClaim(SessionAuthenticationDefaults.MustChangePasswordClaim, "true");
 
+    /// <summary>
+    /// Whether the signed-in user must set up two-factor authentication before doing anything else (their session's
+    /// <see cref="SessionAuthenticationDefaults.MustSetUpTwoFactorClaim"/>).
+    /// </summary>
+    public static bool MustSetUpTwoFactor(this ClaimsPrincipal user) =>
+        user.HasClaim(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim, "true");
+
     /// <summary>The signed-in user, as procedure changes record them.</summary>
     public static ProcedureActor ToProcedureActor(this ClaimsPrincipal user) =>
         new(user.GetUserId(), user.Identity?.Name ?? string.Empty);

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
 namespace MedApp.Infrastructure.Common.Identity;
@@ -15,6 +15,9 @@ public sealed class IdentityOptionsConfiguration(IOptions<IdentitySettings> sett
         options.Password.RequireLowercase = _settings.RequireLowercase;
         options.Password.RequireUppercase = _settings.RequireUppercase;
         options.Password.RequireNonAlphanumeric = _settings.RequireNonAlphanumeric;
+
+        // Reset links last 30 minutes (PasswordResetTokenProvider); other tokens use the default provider (a day).
+        options.Tokens.PasswordResetTokenProvider = PasswordResetTokenProvider.ProviderName;
 
         options.Lockout.MaxFailedAccessAttempts = _settings.MaxFailedAccessAttempts;
         options.Lockout.DefaultLockoutTimeSpan =

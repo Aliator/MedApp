@@ -29,6 +29,7 @@ public static class LoginThrottling
     {
         services.AddOptions<LoginThrottlingOptions>().BindConfiguration(LoginThrottlingOptions.Section);
         services.AddSingleton<LoginUsernameLimiter>();
+        services.AddSingleton<ResetRequestLimiter>();
 
         services.AddRateLimiter(options =>
         {

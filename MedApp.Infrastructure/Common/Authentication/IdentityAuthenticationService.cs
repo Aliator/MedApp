@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Authentication;
+using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Infrastructure.Common.Identity;
@@ -10,7 +10,8 @@ namespace MedApp.Infrastructure.Common.Authentication;
 /// <summary>
 /// Checks a sign-in, counting wrong passwords towards the lockout set under <c>Identity</c> in
 /// <c>appsettings.json</c>: a locked account is refused (even with the right password) until its lockout ends, a
-/// wrong password counts one more failure (the one that reaches the limit locks it), and a right one clears the count.
+/// wrong password counts one more failure (the one that reaches the limit locks it), and a right one clears the count
+/// (for an account with two-factor authentication, only once its code is right too).
 /// A name that couldn't be an account's (<see cref="UsernameRules.CouldExist"/>) is unknown, without being looked up.
 /// </summary>
 public sealed class IdentityAuthenticationService(
@@ -42,7 +43,11 @@ public sealed class IdentityAuthenticationService(
             throw new InvalidCredentialsException();
         }
 
-        await userManager.ResetAccessFailedCountAsync(user);
+        // With two-factor on, the password is only the first step: the count of failures clears once the code is right
+        // too (TwoFactorService.RecordSignInAsync). Clearing it here would let someone with the password guess codes
+        // without ever reaching the lockout, by entering the password again after every few.
+        if (!user.TwoFactorEnabled)
+            await userManager.ResetAccessFailedCountAsync(user);
         var roles = await userManager.GetRolesAsync(user);
 
         return (user.Id, user.UserName!, roles);

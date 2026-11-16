@@ -1,4 +1,4 @@
-﻿namespace MedApp.API.Common.Authentication;
+namespace MedApp.API.Common.Authentication;
 
 public static class SessionAuthenticationDefaults
 {
@@ -22,6 +22,13 @@ public static class SessionAuthenticationDefaults
     /// them. <see cref="PasswordChangeRequired"/> refuses their other API requests until they do.
     /// </summary>
     public const string MustChangePasswordClaim = "medapp:must_change_password";
+
+    /// <summary>
+    /// The claim a session gets (with the value <c>true</c>) while its user is an admin who must use two-factor
+    /// authentication and hasn't set it up. <see cref="TwoFactorSetupRequired"/> refuses their other API requests until
+    /// they do.
+    /// </summary>
+    public const string MustSetUpTwoFactorClaim = "medapp:must_set_up_two_factor";
 
     /// <summary>
     /// The claim that carries the ID of the session the request came with, so a change to the user's own account

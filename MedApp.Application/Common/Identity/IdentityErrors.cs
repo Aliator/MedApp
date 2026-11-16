@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Application.Common.Identity;
 
@@ -46,7 +46,35 @@ public static class IdentityErrors
             Description = "Too many incorrect passwords. Please try again later."
         };
 
+    /// <summary>
+    /// An emailed link's token is wrong, used, or expired (or its account is gone): one answer for all, so a link can't
+    /// be used to learn whether an account exists. Identity's own code for a bad token.
+    /// </summary>
+    public static IdentityError InvalidToken =>
+        new()
+        {
+            Code = InvalidTokenCode,
+            Description = "This link has expired or has already been used. Ask for a new one."
+        };
+
+    public static IdentityError SamePassword =>
+        new()
+        {
+            Code = SamePasswordCode,
+            Description = "The new password must be different from the current one."
+        };
+
+    public static IdentityError OwnTwoFactor =>
+        new()
+        {
+            Code = OwnTwoFactorCode,
+            Description = "You can't reset your own two-factor authentication. Turn it off in Account Settings, Security, or ask another admin."
+        };
+
     public const string UserNotFoundCode = "UserNotFound";
+    public const string InvalidTokenCode = "InvalidToken";
+    public const string SamePasswordCode = "SamePassword";
+    public const string OwnTwoFactorCode = "OwnTwoFactor";
     public const string OldPasswordIncorrectCode = "OldPasswordIncorrect";
     public const string RoleNotFoundCode = "RoleNotFound";
     public const string OwnRolesCode = "OwnRoles";

@@ -1,4 +1,4 @@
-﻿using MedApp.API.Common.Authentication;
+using MedApp.API.Common.Authentication;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
@@ -50,8 +50,10 @@ public static class ApplicationBuilderExtensions
         app.UseRateLimiter();
 
         app.UseAuthentication();
-        // A user with a password an admin gave them can only change it (and sign out) until they do.
+        // Holds (AccountHold): a user with a password an admin gave them can only change it (and sign out) until they
+        // do; then an admin who must use two-factor authentication can only set it up.
         app.UseMiddleware<PasswordChangeRequired>();
+        app.UseMiddleware<TwoFactorSetupRequired>();
         app.UseAuthorization();
 
         app.MapControllers();
