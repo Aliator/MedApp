@@ -69,9 +69,9 @@ Every organisation with access to NHS patient data and systems must complete the
 | Role-based access | Have | Two roles enforced on every endpoint except sign-in, sign-out and `whoami` (`MedApp.API/Common/Authentication/AuthPolicies.cs`) |
 | Admin accounts limited and reviewed | Partly | Admin-only functions in MedApp; Azure admin group. Gap: just-in-time admin access (step 5); periodic access review (step 7) |
 | All access attributable | Partly | Changes to procedures are audited; reads, patient changes, sign-ins and account changes are in the activity log with the user and address (step 7). Behind the ingress the browser's address is recorded (forwarded headers). Gap: a tamper-evident log, and the browser's address for pages rendered on the server, which record the page server's |
-| Access removed when no longer needed | Partly | Admins can delete accounts, which ends sessions. Gap: deactivation, last sign-in, review report (steps 4 and 7) |
+| Access removed when no longer needed | Partly | Admins can delete accounts, which ends sessions, and can sign a user out everywhere. Gap: deactivation, last sign-in, review report (steps 4 and 7) |
 | MFA for remote and privileged access | **Gap** | Supplier accounts: planned before the first customer ([target date]), current state to confirm. MedApp users: step 4 (the 2026-27 toolkit asks suppliers about MFA or identity federation, with plans due by 30 June 2027) |
-| Password policy | Have (partly) | Identity rules and lockout (`MedApp.API/appsettings.json`); generated first passwords. Gap: NCSC-style rules and a breached-password check (step 2) |
+| Password policy | Have (partly) | Identity rules and lockout (`MedApp.API/appsettings.json`); generated first passwords; the 10,000 most common passwords refused (the NCSC's list, `CommonPasswordValidator`); sign-in throttling. Gap: NCSC-style rules without composition, and a breached-password check (step 2) |
 | Logs that are tamper-proof | Gap (steps 5 and 7) | Ledger tables and a separate log workspace |
 
 ### Standard 5: process reviews
@@ -116,8 +116,8 @@ Every organisation with access to NHS patient data and systems must complete the
 | Evidence | Status | Evidence, or the gap |
 |---|---|---|
 | Supported runtimes | Have | .NET 10 (long-term support), Node 22, SQL Server 2022 / Azure SQL, Kubernetes with automatic patch upgrades on AKS |
-| A software inventory (SBOM) | Gap (step 1) | |
-| Patching within 14 days for critical issues | Draft | [security-policies.md](security-policies.md), section 6; Dependabot and scanning (step 2) |
+| A software inventory (SBOM) | Partly | An SPDX SBOM is attested with every published image (`.github/workflows/publish.yml`). Gap: SBOMs of the .NET and npm source dependencies, and a licence allow-list (step 1) |
+| Patching within 14 days for critical issues | Draft | [security-policies.md](security-policies.md), section 6. Dependabot proposes updates weekly; CI fails on high or critical npm and NuGet advisories and on fixable critical vulnerabilities in the image |
 | Supported devices | Gap (step 3) | Cyber Essentials |
 
 ### Standard 9: IT protection
@@ -130,7 +130,7 @@ Every organisation with access to NHS patient data and systems must complete the
 | Encryption in transit and at rest | Have (in design) | TLS to the ingress and to Azure SQL; TDE (`deploy/azure/main.bicep`). Gap: Valkey traffic (step 2 or 5) |
 | Network segmentation | Partly | Default-deny network policies for MedApp's own pods (`deploy/helm/medapp/templates/networkpolicy.yaml`); private Azure SQL. Gap: on Azure, other pods in the cluster can reach the database's private endpoint until a cluster-wide Cilium policy limits it (step 5) |
 | Hardened platform | Have | The `restricted` Pod Security Standard, non-root, read-only filesystems (`deploy/helm/medapp/templates/_helpers.tpl`) |
-| Secure configuration of web security headers | Gap (step 2) | CSP and other headers |
+| Secure configuration of web security headers | Have | A nonce-based Content Security Policy, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS and `no-store` on the API (`MedApp.API/Middleware/SecurityHeaders.cs`) |
 | Vulnerability scanning and a penetration test | Gap (steps 2, 7 and 10) | |
 | Secrets management | Have | Key Vault and External Secrets; no secrets in git |
 | Least-privilege service identities | Partly | OIDC and workload identity; the app still uses the SQL admin login (step 5) |
@@ -144,7 +144,7 @@ Every organisation with access to NHS patient data and systems must complete the
 | A list of the supplier's own suppliers that handle data | Draft | [sub-processors.md](sub-processors.md) |
 | Contracts with data protection terms | Draft; Microsoft's terms to be recorded | [dpa-template.md](dpa-template.md) for customers; Microsoft's Data Protection Addendum |
 | Due diligence on suppliers | Draft | [security-policies.md](security-policies.md), section 5 |
-| Supply chain security of the software itself | Partly | Required CI, reviews, OIDC deploys. Gap: pinning by digest, SBOM, signing (steps 1 and 2) |
+| Supply chain security of the software itself | Partly | Required CI, reviews, OIDC deploys; actions pinned by commit SHA; Dependabot, CodeQL, dependency review and image scanning; SBOM and provenance attestations on each image. Gap: images pinned by digest, attestations verified before deploy (step 2) |
 
 ## Summary
 

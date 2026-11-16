@@ -55,5 +55,8 @@ public enum ActivityAction
     RolesChanged = 21,
 
     RoleCreated = 22,
-    RoleDeleted = 23
+    RoleDeleted = 23,
+
+    /// <summary>An admin ended every session an account had ("Sign out everywhere").</summary>
+    SignedOutEverywhere = 24
 }

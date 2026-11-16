@@ -25,6 +25,8 @@ public sealed class UpdateUserPasswordHandlerActivityTests
         _activity = new RecordingActivityLog();
         _fixture.Inject(_users.Object);
         _fixture.Inject<IActivityLog>(_activity);
+        // The change, the end of the sessions and the log entry run in one transaction; here it simply runs.
+        _fixture.Inject<IIdentityTransactions>(new PassThroughIdentityTransactions());
     }
 
     private static UpdateUserPasswordCommand Command() => new("staff-user", "Old-Password-1", "New-Password-1");

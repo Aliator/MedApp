@@ -29,9 +29,10 @@ export function parseLoginSearch(search: Record<string, unknown>): LoginSearch {
 
 /**
  * Sign in (replaces Blazor's Login page). Field errors from a 400 go on their fields. An account locked after too
- * many wrong passwords (a 423) says so, and for how long, in the API's words. Any other failure (a 401 for a wrong
- * username or password, or a server error) shows "Invalid credentials", as Blazor does. After a session timed out
- * (`isExpired`), it says so until a sign-in is tried.
+ * many wrong passwords (a 423) says so, and for how long, in the API's words. So do too many attempts in a short time
+ * (a 429, from the API's sign-in throttling), with how long to wait. Any other failure (a 401 for a wrong username or
+ * password, or a server error) shows "Invalid credentials", as Blazor does. After a session timed out (`isExpired`),
+ * it says so until a sign-in is tried.
  */
 export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
   const [username, setUsername] = useState('');
@@ -42,8 +43,13 @@ export function LoginPage({isExpired = false}: {isExpired?: boolean}) {
   const validation = login.error instanceof ApiValidationError ? login.error.errors : null;
   const hasFieldErrors = validation !== null && Object.keys(validation.fields).length > 0;
   const showBanner = login.isError && !hasFieldErrors;
-  const lockedOut = login.error instanceof ApiError && login.error.status === 423 ? login.error : null;
-  const bannerTitle = lockedOut ? (lockedOut.title ?? 'This account is locked. Try again later.') : 'Invalid credentials';
+  const failure = login.error instanceof ApiError ? login.error : null;
+  const bannerTitle =
+    failure?.status === 423
+      ? (failure.title ?? 'This account is locked. Try again later.')
+      : failure?.status === 429
+        ? (failure.title ?? 'Too many sign-in attempts. Wait a minute, then try again.')
+        : 'Invalid credentials';
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

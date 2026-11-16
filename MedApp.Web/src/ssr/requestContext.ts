@@ -10,6 +10,11 @@ export interface SsrRequestContext {
   cookie?: string;
   /** The key the API gave the Node server it started, which lets its calls skip the https redirect locally. */
   ssrKey?: string;
+  /**
+   * The nonce the page's Content Security Policy allows inline scripts with (the API makes one for each page, and
+   * sends it in `X-MedApp-Csp-Nonce`). The router puts it on every script it writes into the page.
+   */
+  cspNonce?: string;
 }
 
 let provider: (() => SsrRequestContext | undefined) | undefined;

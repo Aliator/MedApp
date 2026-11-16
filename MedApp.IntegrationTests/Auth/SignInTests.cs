@@ -28,9 +28,11 @@ public sealed class SignInTests : IntegrationTest
 
         var login = await response.ReadAsAsync<LoginResponse>();
         login.ExpiresAtUtc.Should().BeCloseTo(DateTime.UtcNow.AddHours(8), TimeSpan.FromMinutes(1));
-        var cookie = response.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith(SessionAuthenticationDefaults.CookieName + "="));
-        cookie.Should().Contain($"{SessionAuthenticationDefaults.CookieName}={login.SessionId}");
+        var cookie = response.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith(SessionAuthenticationDefaults.HostCookieName + "="));
+        cookie.Should().Contain($"{SessionAuthenticationDefaults.HostCookieName}={login.SessionId}");
         cookie.ToLowerInvariant().Should().Contain("httponly").And.Contain("secure").And.Contain("samesite=lax");
+        // What browsers require of a __Host- cookie: Secure, Path=/ and no Domain.
+        cookie.ToLowerInvariant().Should().Contain("path=/").And.NotContain("domain=");
     }
 
     [Test]
@@ -66,7 +68,7 @@ public sealed class SignInTests : IntegrationTest
 
         await logout.ShouldHaveStatusAsync(HttpStatusCode.NoContent);
         logout.Headers.GetValues("Set-Cookie").Should().Contain(c =>
-            c.StartsWith(SessionAuthenticationDefaults.CookieName + "=;") && c.Contains("expires=Thu, 01 Jan 1970"));
+            c.StartsWith(SessionAuthenticationDefaults.HostCookieName + "=;") && c.Contains("expires=Thu, 01 Jan 1970"));
         // A copy of the cookie taken before logging out no longer works.
         var replay = WithSessionCookie(login.SessionId);
         await (await replay.GetAsync(PatientsSearch)).ShouldHaveStatusAsync(HttpStatusCode.Unauthorized);
@@ -100,7 +102,7 @@ public sealed class SignInTests : IntegrationTest
     public async Task Request_SessionCookieNotAGuid_Returns401()
     {
         var client = NewClient();
-        client.DefaultRequestHeaders.Add("Cookie", $"{SessionAuthenticationDefaults.CookieName}=not-a-session");
+        client.DefaultRequestHeaders.Add("Cookie", $"{SessionAuthenticationDefaults.HostCookieName}=not-a-session");
 
         await (await client.GetAsync(PatientsSearch)).ShouldHaveStatusAsync(HttpStatusCode.Unauthorized);
     }
@@ -174,7 +176,7 @@ public sealed class SignInTests : IntegrationTest
     private static HttpClient WithSessionCookie(Guid sessionId)
     {
         var client = NewClient();
-        client.DefaultRequestHeaders.Add("Cookie", $"{SessionAuthenticationDefaults.CookieName}={sessionId}");
+        client.DefaultRequestHeaders.Add("Cookie", $"{SessionAuthenticationDefaults.HostCookieName}={sessionId}");
         return client;
     }
 }

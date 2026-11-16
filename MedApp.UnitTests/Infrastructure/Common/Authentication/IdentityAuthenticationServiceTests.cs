@@ -24,7 +24,7 @@ public sealed class IdentityAuthenticationServiceTests
         _userManager = new Mock<UserManager<ApplicationUser>>(
             userStore.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-        _service = new IdentityAuthenticationService(_userManager.Object, new FixedTimeProvider(Now));
+        _service = new IdentityAuthenticationService(_userManager.Object, new FixedTimeProvider(Now), Microsoft.Extensions.Options.Options.Create(new IdentityOptions()));
     }
 
     /// <summary>A user the user manager finds, not locked out, whose password is (or isn't) the one given.</summary>
@@ -170,5 +170,25 @@ public sealed class IdentityAuthenticationServiceTests
         result.Item1.Should().Be(user.Id);
         result.Item2.Should().Be(user.UserName);
         result.Item3.Should().BeEquivalentTo(AuthTestConstants.Roles);
+    }
+
+    [TestCaseSource(typeof(AuthTestConstants), nameof(AuthTestConstants.UsernameVariants))]
+    public async Task ValidateCredentialsAsync_CharactersNoAccountHas_IsUnknownWithoutALookup(string username)
+    {
+        var act = async () => await _service.ValidateCredentialsAsync(username, AuthTestConstants.Passwords[0]);
+
+        await act.Should().ThrowAsync<InvalidCredentialsException>();
+        _userManager.Verify(u => u.FindByNameAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ValidateCredentialsAsync_TrailingSpace_IsLookedUpAsBefore()
+    {
+        var user = FoundUser(isPasswordRight: true);
+        _userManager.Setup(u => u.FindByNameAsync(AuthTestConstants.Usernames[0] + " ")).ReturnsAsync(user);
+
+        var result = await _service.ValidateCredentialsAsync(AuthTestConstants.Usernames[0] + " ", AuthTestConstants.Passwords[0]);
+
+        result.Item1.Should().Be(user.Id);
     }
 }

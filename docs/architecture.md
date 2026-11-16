@@ -533,7 +533,7 @@ stateDiagram-v2
 | Area | Endpoints | Who |
 |---|---|---|
 | Sign-in | `POST api/auth/login`, `POST api/auth/logout`, `GET api/auth/whoami` | Anyone |
-| Users | `POST api/auth/users` (a username only; returns the generated first password, once); `GET api/auth/users`, `users/search`, `users/{username}`; `PUT users/{username}/reset-password`; `DELETE users/{username}` (with the admin's own password) | Admin |
+| Users | `POST api/auth/users` (a username only; returns the generated first password, once); `GET api/auth/users`, `users/search`, `users/{username}`; `PUT users/{username}/reset-password`; `POST users/{username}/sign-out-everywhere` (ends every session they have); `DELETE users/{username}` (with the admin's own password) | Admin |
 | Roles | `GET`/`POST api/auth/roles`; `DELETE roles/{roleName}`; `POST roles/assign`, `roles/revoke`; `GET`/`PUT users/{username}/roles` | Admin |
 | Own password | `PUT api/auth/users/{username}/update-password` | Staff, and only for your own username (`SelfUserOnly`) |
 | Own settings | `GET`/`PUT api/auth/me/settings` | Staff |
@@ -641,7 +641,7 @@ sequenceDiagram
     H->>S: check the password and the lockout
     S->>D: read the user, count a failure or clear the count
     S->>D: insert a UserSession that expires in 8 hours (extendable to 24 from sign-in)
-    A-->>B: 200 and the medapp.session cookie
+    A-->>B: 200 and the session cookie (__Host-medapp.session)
     B->>A: GET /api/patients/search with the cookie
     A->>S: SessionAuthenticationHandler validates the session ID
     S->>D: read the session, the user and their roles
@@ -653,13 +653,13 @@ sequenceDiagram
    - a wrong password counts as a failure and gives **401** ("Invalid credentials"); the fifth locks the account;
    - a right password clears the count.
 2. **The session.** `SessionService` inserts a `UserSession` row: the user, created and expiry times (8 hours, extendable on request to 24 at most from sign-in: see the table below), the client's IP address and user agent.
-3. **The cookie.** `SessionCookieService` sets `medapp.session` to the session's ID: `HttpOnly` (script can't read it), `SameSite=Lax` (not sent on cross-site POSTs), `Secure` outside Development, expiring with the session. The response body also carries the session ID and expiry.
-4. **Every request.** `SessionAuthenticationHandler` reads the cookie, parses the ID, and asks `SessionService` to validate it: the row must exist, not be revoked or expired, and its user must still exist. It then builds the claims: the user's ID (`NameIdentifier`), username and roles, and `medapp:must_change_password` when the account's `MustChangePassword` is set (an admin generated its password). Roles and the flag are read from the database on every request, so a role change or a reset applies at once, and deleting a user ends their sessions. `PasswordChangeRequired`, between authentication and authorisation, then refuses a flagged user every `/api` request but its allowlist.
+3. **The cookie.** `SessionCookieService` sets `__Host-medapp.session` (`medapp.session` in Development, over plain http) to the session's ID, with `Path=/` and no `Domain`: `HttpOnly` (script can't read it), `SameSite=Lax` (not sent on cross-site POSTs), `Secure` outside Development, expiring with the session. The response body also carries the session ID and expiry.
+4. **Every request.** `SessionAuthenticationHandler` reads the cookie, parses the ID, and asks `SessionService` to validate it: the row must exist, not be revoked or expired, and its user must still exist. It then builds the claims: the user's ID (`NameIdentifier`), username and roles, the session's own ID (`medapp:session_id`), and `medapp:must_change_password` when the account's `MustChangePassword` is set (an admin generated its password). Roles and the flag are read from the database on every request, so a role change applies to the next request without ending the session. A reset ends every session the user had (and a password change their other ones), and deleting a user ends their sessions. `PasswordChangeRequired`, between authentication and authorisation, then refuses a flagged user every `/api` request but its allowlist.
 5. **Authorisation.** Endpoints require the `Staff` policy (role `User` or `Admin`) or the `Admin` role. The own-password change also requires `SelfUserOnly`: the route's username must be the caller's.
 6. **In the React app.** The `whoami` query (`GET api/auth/whoami`, always 200, saying whether you're signed in, with which roles, and whether you must change your password) feeds the `_app` route guard, which sends anyone who must change their password to `/change-password`. A page already open when that happens finds out from its next API call's 403 `password_change_required`, and the API client sends it there with a full page load.
 7. **Sign-out.** `POST api/auth/logout` marks the session revoked and deletes the cookie.
 
-What this doesn't do (see [11.1](#111-security-and-privacy)): there's no idle timeout or sliding expiry; changing or resetting a password doesn't end existing sessions; and old session rows are never deleted.
+What this doesn't do (see [11.1](#111-security-and-privacy)): there's no idle timeout or sliding expiry; before `feature/security-baseline`, changing or resetting a password didn't end existing sessions (now a change ends the user's other sessions, and a reset all of them; a role change applies at once without ending any); and old session rows are never deleted.
 
 ### 6.2 A server-rendered page request
 
@@ -1003,7 +1003,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 #### Authentication
 
 - **Accounts are local.** Usernames and passwords, hashed by ASP.NET Core Identity's password hasher. There's no single sign-on and no multi-factor authentication.
-- **Password rules** (`appsettings.json`, `Identity` section): at least 8 characters, with a digit, a lower-case and an upper-case letter.
+- **Password rules** (`appsettings.json`, `Identity` section): at least 8 characters, with a digit, a lower-case and an upper-case letter. On `feature/security-baseline`, a new password also mustn't be one of the 10,000 most common (`CommonPasswordValidator`), and sign-in is throttled per address and per username before the lockout (`LoginThrottling`).
 - **Lockout:** 5 wrong passwords lock the account for 5 minutes. A locked account gets 423 with the time left, even with the right password (#38).
 - **Sensitive actions re-check:** changing your own password needs the old one; deleting a user needs the deleting admin's own password.
 - **The server generates every first password and every reset** (#53): at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (`IdentityUserService.GeneratePassword`). There's no default password. `POST api/auth/users` takes only a username and returns the new password once, with `Cache-Control: no-store`. The Users page shows it once, with a copy button, and forgets it when the dialog closes. The response records print `***` in place of the password, so logging one can't leak it.
@@ -1014,7 +1014,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 - **Two roles,** `User` (staff) and `Admin`, checked on every endpoint with `[Authorize(Policy = AuthPolicies.Staff)]` or `[Authorize(Roles = "Admin")]`. [Section 5.7](#57-the-api-surface) has the full matrix.
 - **The API is the only enforcement.** The React app's guards (`_app`, `requireAdmin`) and hidden admin buttons are conveniences.
-- **Roles are re-read on every request,** so a change applies at once.
+- **Roles are re-read on every request,** so a change applies to the user's next request, without ending their session.
 - **"Not assigned to you" is not a permission.** Any staff member may work on any procedure; the confirmation is a UI safeguard, and the audit log records who acted (procedures plan, decision 18).
 - **All staff see all patients.** There's no restriction by team, ward or care relationship.
 - **Only two endpoints' attributes are tested.** The own-password change (#51) and creating a user (#53) have tests that evaluate their `[Authorize]` attributes with the API's real policies. The other controller tests call actions directly through a recording mediator, so a missing or wrong `[Authorize]` anywhere else wouldn't fail a test ([11.1](#111-security-and-privacy)).
@@ -1023,13 +1023,14 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 
 | Property | Value | Where |
 |---|---|---|
-| Cookie name | `medapp.session` | `SessionAuthenticationDefaults.cs` |
+| Cookie name | `__Host-medapp.session` outside Development (needs `Secure`, `Path=/` and no `Domain`); `medapp.session` in Development | `SessionAuthenticationDefaults.cs`, `SessionCookieService.cs` |
 | Value | The session's ID (a GUID), looked up in `UserSessions` | `SessionService` |
 | `HttpOnly` | Yes | `SessionCookieService.cs` |
 | `SameSite` | `Lax`: not sent on cross-site POSTs | `SessionCookieService.cs` |
 | `Secure` | Outside Development | `SessionCookieService.cs` |
 | Lifetime | 8 hours from sign-in, extendable on request ("Stay signed in", `POST api/auth/session/extend`) to 24 at most from sign-in; using the app doesn't extend it; no idle timeout | `UserSession.cs`, `SessionService.cs` |
-| Revocation | On sign-out; or when the user is deleted (validation fails) | `SessionService.cs` |
+| Revocation | On sign-out; when the user is deleted (validation fails); the user's other sessions when they change their password; all of them on an admin's reset or "Sign out everywhere". A role change ends none: roles are read on every request | `SessionService.cs`, the password handlers |
+| Sign-in throttling | 30 attempts a minute per client address, 5 per username; then a 429 with `Retry-After` | `MedApp.API/Common/RateLimiting` |
 
 **Cross-site request forgery (CSRF).** There are no antiforgery tokens. The defence is `SameSite=Lax`, which keeps the cookie off cross-site POSTs, PUTs, PATCHes and DELETEs, together with JSON request bodies. There's no CORS policy, so no other origin is allowed to read responses.
 
@@ -1099,7 +1100,7 @@ No cloud secret is stored anywhere: GitHub signs in with OIDC, External Secrets 
 
 - **Pinned:** `@astryxdesign/*` and Lexical exactly; ReportGenerator's action by commit SHA; `dotnet-ef` by version.
 - **Floating:** the other GitHub Actions by major tag (`@v4`, `@v3`), the base images (`node:22-bookworm-slim`, `dotnet/aspnet:10.0`, `dotnet/sdk:10.0`), `mssql/server:2022-latest` and `valkey:8.1-alpine`, and caret ranges in `package.json` (the lock file fixes what's installed).
-- **Missing:** Dependabot or Renovate, image vulnerability scanning, an SBOM (software bill of materials) and image signing.
+- **Missing,** before `feature/security-baseline`: Dependabot or Renovate, image vulnerability scanning, an SBOM (software bill of materials) and image signing. That branch pins every action by commit SHA and adds Dependabot, CodeQL, dependency review, `npm audit`, NuGet audit as errors, a Trivy scan of the image, and SBOM and build provenance attestations on the published image (`AGENTS.md`, CI). Base images are still pinned by tag.
 
 ### 8.2 Data protection and privacy, as they stand
 
@@ -1280,9 +1281,9 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | S2 | **Patient records and account administration weren't audited, and reads weren't logged at all.** Since step 7's first part, the activity log records them; what's left is a tamper-evident log, alerts, and the old values of patient edits. Any staff member can still delete a patient who has no procedures (now recorded). | Medium | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
 | S4 | **No approved regulatory groundwork:** the DPIA, retention schedule, subject access and erasure procedures and the rest are drafts in `docs/governance/`, not approved, and the app doesn't yet enforce retention or export a patient's data ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
-| S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a password change, a reset or a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. | Medium | (handbook) |
-| S6 | **No security headers** on pages: no Content Security Policy, `X-Content-Type-Options`, `frame-ancestors` or `X-Frame-Options`, or `Referrer-Policy`. | Medium | F24 (the `Cache-Control` half is fixed) |
-| S7 | **Authorisation is barely tested.** Endpoint roles and policies are attributes, and only the own-password and create-user endpoints' are checked by a test. Nothing tests the assembled pipeline (HSTS, blocked paths, the health port, the order of middleware). | Medium | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
+| S5 | **Sessions:** 8 hours, extendable on request to 24 at most from sign-in (since #63; anyone at an unattended screen in its last five minutes can extend it), with no idle timeout; not ended by a lockout; IDs stored as they are (not hashed), so a database reader could use live sessions; expired rows never deleted; and the login response repeats the session ID in its body, outside the HttpOnly cookie. **`feature/security-baseline`** ends a user's sessions when their password is changed or reset, lets an admin sign a user out everywhere, and throttles sign-in. | Medium | (handbook) |
+| S6 | **Fixed on `feature/security-baseline`:** security headers on every response, `no-store` on every `/api` response, and a nonce-based Content Security Policy on pages (`SecurityHeaders`). Left: styles allow `'unsafe-inline'`, and nothing collects violation reports. | Was medium. Now low | F24 |
+| S7 | **Authorisation has no fallback policy.** Endpoint roles and policies are attributes. Since #65, `AuthorisationTests` checks every admin-only and staff endpoint for each role and signed out through the real pipeline, and #67 added the headers, throttling and session ending to it; but a new endpoint without an attribute would be open until the matrix gains it, and HSTS, the health port and blocked paths aren't tested end to end. | Low (was medium) | F18 in part; `pr-51-ssr-security-fixes.md` 3.6; (handbook) |
 | S8 | **No multi-factor authentication or single sign-on,** and "Forgot password?" tells users a link was sent when nothing was. | Medium | (handbook) |
 | S9 | **Public endpoints on Azure:** the AKS API server, Key Vault and the registry are reachable from the internet, behind Entra ID. | Medium | `docs/reviews/azure.md` |
 | S10 | **Data protection keys are in memory, per pod,** with two pods. Harmless today; a trap for the next feature that protects data across requests (an emailed reset link, antiforgery tokens). | Low to medium | `docs/reviews/kubernetes.md` |
@@ -1531,6 +1532,10 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
 - A public repository weakens any claim that the code is a confidential asset.
 
 ### Step 2: Close the remaining review findings and set an ASVS Level 2 baseline
+
+**Status:** a first, scoped part is built on `feature/security-baseline` (16 November 2026, from `ea827ef`; not merged yet), without changing who may do what, the login's answers or the session lifetime, and without a migration:
+- **Done:** the security headers and Content Security Policies, with a per-request nonce for the router's scripts (`SecurityHeaders`); `Cache-Control: no-store` on every `/api` response; the `__Host-` session cookie outside Development; sign-in throttling per address and per username (`LoginThrottling`); ending a user's sessions when their password is changed or reset, and an admin action to sign a user out everywhere; a deny list of the 10,000 most common passwords (`CommonPasswordValidator`); actions pinned by SHA, Dependabot, CodeQL, dependency review, `npm audit`, NuGet audit as errors, a Trivy image scan, and SBOM and provenance attestations on the published image; the STRIDE threat model (`docs/security/threat-model.md`) and the ASVS 5.0 Level 2 checklist (`docs/security/asvs.md`).
+- **Still to do in this step:** the idle timeout and the timeout warning, hashed session tokens, the same answer for a locked account, a per-session rate limit, a breached-password check and a longer minimum without composition rules, data protection keys, removing the two return-everything endpoints and admin-only patient deletion, the authorisation matrix and integration tests, ZAP, OpenSSF Scorecard, images by digest, verifying attestations before deploy, a deploy gate, and the open review items (live notifications, forwarded headers, secrets on command lines, readiness, Node in a sidecar). The checklist lists them requirement by requirement.
 
 **Goal:** Close what the reviews left open, add the web security controls MedApp lacks, harden the build pipeline, and record the result against the OWASP (Open Worldwide Application Security Project) Application Security Verification Standard (ASVS) 5.0 at Level 2.
 

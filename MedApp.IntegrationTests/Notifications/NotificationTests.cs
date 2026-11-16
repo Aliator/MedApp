@@ -141,7 +141,7 @@ public sealed class NotificationTests : IntegrationTest
             {
                 options.Transports = HttpTransportType.LongPolling;
                 options.HttpMessageHandlerFactory = _ => Api.Server.CreateHandler();
-                options.Headers["Cookie"] = $"{SessionAuthenticationDefaults.CookieName}={login.SessionId}";
+                options.Headers["Cookie"] = $"{SessionAuthenticationDefaults.HostCookieName}={login.SessionId}";
             })
             .Build();
         await hub.StartAsync();

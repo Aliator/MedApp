@@ -13,6 +13,8 @@
 //   its /api proxy (vite.config.ts) passes the calls on to the API, as it does the browser's, and accepts the API's
 //   development certificate, which Node wouldn't.
 // - MEDAPP_SSR_KEY: the key the API gave it, sent with its API calls (see SsrHost).
+// Per request, from the API: X-MedApp-Csp-Nonce, the nonce the page's Content Security Policy allows inline scripts
+// with, which the router puts on the scripts it writes (see `cspNonce`).
 // - In development, the API itself (for /api WebSockets, see `proxyWebSocket`): API_HTTPS or the AppHost's
 //   services__api__https__0, as vite.config.ts uses.
 import {existsSync, readFileSync} from 'node:fs';
@@ -126,7 +128,17 @@ async function createProdRenderer() {
 
 /** What the app's API calls need while rendering this request (see src/ssr/requestContext.ts). */
 function requestContext(request) {
-  return {apiUrl, cookie: request.headers.get('cookie') ?? undefined, ssrKey};
+  return {apiUrl, cookie: request.headers.get('cookie') ?? undefined, ssrKey, cspNonce: cspNonce(request)};
+}
+
+/**
+ * The page's Content Security Policy nonce, which the API sends in X-MedApp-Csp-Nonce (base64, as it makes them).
+ * Anything else is ignored rather than written into the page: the page then has no nonce, and the browser refuses its
+ * inline scripts, which is safe. In development nothing sends one, and no policy needs it.
+ */
+function cspNonce(request) {
+  const nonce = request.headers.get('x-medapp-csp-nonce');
+  return nonce && /^[A-Za-z0-9+/]{16,}={0,2}$/.test(nonce) ? nonce : undefined;
 }
 
 /**
