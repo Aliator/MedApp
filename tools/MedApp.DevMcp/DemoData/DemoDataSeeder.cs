@@ -157,6 +157,7 @@ public static class DemoDataSeeder
                 activityEntries = activity,
             },
             ["privacy"] = privacy,
+            ["tour"] = DemoTour.Build(world, plans, patients.All),
             ["files"] = files,
             ["settings"] = settings,
             ["today"] = today,

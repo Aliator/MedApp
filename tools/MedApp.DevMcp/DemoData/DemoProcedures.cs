@@ -2,7 +2,6 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
-using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
@@ -228,7 +227,7 @@ public static class DemoProcedures
                     Id = id,
                     PatientId = patient.Id,
                     TemplateId = null,
-                    TemplateName = $"{spec.TemplateName} (imported)",
+                    TemplateName = i == 0 ? "Imported record: day surgery" : "Imported record: diagnostics",
                     Title = kind.Title,
                     Notes = "Imported from the previous system.",
                     DueDateUtc = DueDates.EndOfDayUtc(DueDates.ToUkDate(created).AddDays(42)),
@@ -316,7 +315,4 @@ public static class DemoProcedures
             },
         };
     }
-
-    /// <summary>For tests: notifications by kind.</summary>
-    public static int CountOf(DemoWorld world, NotificationKind kind) => world.Notifications.Count(n => n.Kind == kind);
 }

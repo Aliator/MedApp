@@ -59,6 +59,9 @@ public sealed class ProcedurePlan
     public bool RaisePriority { get; set; }
     public bool EditNotes { get; set; }
 
+    /// <summary>The procedure replayed from this plan (set once its replay is kept).</summary>
+    public Guid ProcedureId { get; set; }
+
     public NoteContext NoteContext(int occurrence = 1, int occurrences = 1) => new(Kind, Side, Urgent, occurrence, occurrences);
 }
 

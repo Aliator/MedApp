@@ -113,10 +113,11 @@ public static class DemoPrivacy
 
         return new
         {
-            restricted = flagged.Count(p => p.Restricted),
-            disputed = disputed.Count,
-            anonymised = anonymised is null ? 0 : 1,
-            retentionKept = kept.Count,
+            restricted = flagged.Where(p => p.Restricted).Select(p => p.FullName).ToArray(),
+            disputed = disputed.Select(p => p.FullName).ToArray(),
+            anonymisedPatientId = anonymised?.Id,
+            retentionKept = kept.Select(p => p.FullName).ToArray(),
+            retentionDue = due.Where(p => p != anonymised).Select(p => p.FullName).ToArray(),
             exports,
             deletedProcedures = world.Deletions.Count,
             deletedAccounts = new[] { leaver.Username },

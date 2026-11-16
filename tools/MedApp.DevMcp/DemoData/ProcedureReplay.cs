@@ -120,6 +120,7 @@ public sealed class ProcedureReplay
     /// <summary>Adds what the replay produced to the world: it's been accepted.</summary>
     public void Commit()
     {
+        _plan.ProcedureId = _procedure.Id;
         _world.Procedures.Add(_procedure);
         _world.Audit.AddRange(_audit);
         _world.Appointments.AddRange(_appointments);

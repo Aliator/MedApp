@@ -116,7 +116,7 @@ public static class ProcedureKinds
         ["nothing to eat for six hours before", "sips of water allowed up to two hours before", "stop omeprazole two weeks before if able"]);
 
     public static readonly ProcedureKind Sigmoidoscopy = new(
-        "Flexible sigmoidoscopy", "flexi sig", "no sedation (gas and air offered)",
+        "Flexible sigmoidoscopy", "flexi sig", "gas and air",
         ["fresh rectal bleeding", "left-sided abdominal pain with looser stools", "follow-up of left-sided colitis"],
         ["bleeding", "perforation (rare)", "discomfort", "an incomplete test"],
         ["Examined to the splenic flexure. Small internal haemorrhoids; nothing else.", "Mild proctitis; biopsies taken. Rest of the examined colon normal.", "Single 6 mm rectal polyp removed and retrieved."],
