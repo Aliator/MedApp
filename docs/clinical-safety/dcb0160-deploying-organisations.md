@@ -1,15 +1,16 @@
 # MedApp: clinical safety for deploying organisations (DCB0160)
 
-**Draft prepared for review. It must be reviewed, completed and signed off by a qualified Clinical Safety Officer before use; it is not a completed DCB0129 assessment.**
+**Draft prepared for review. It must be reviewed, completed and signed off by a qualified Clinical Safety Officer before use; it is not a completed DCB0129 assessment, nor DCB0160 guidance yet. The manufacturer's CSO must sign it off before it is given to any deploying organisation.**
 
 | | |
 |---|---|
 | **Document** | CS-05, guidance for organisations that deploy MedApp |
-| **Version** | 0.1, draft |
+| **Version** | 0.2, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` |
 | **Manufacturer** | [Manufacturer name] |
 | **Drafted by** | An AI coding agent, for the manufacturer. Not yet reviewed by a person. |
+| **Approved by** | [Manufacturer's Clinical Safety Officer] (see [sign-off](#sign-off)) |
 
 For the clinical safety lead of a health or care organisation that is deploying MedApp. It says what DCB0160 asks of you, what the manufacturer gives you, and which controls in the manufacturer's hazard log rely on you.
 
@@ -38,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 20 hazards: `hazard-log.md` |
+| The hazard log | Draft, 21 hazards: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |
@@ -53,8 +54,9 @@ For the clinical safety lead of a health or care organisation that is deploying 
 The manufacturer's safety case holds only if you:
 - **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth and email, and no NHS number yet;
 - **govern templates:** clinical sign-off of every template and stage definition before use, and when one changes;
-- **train staff,** including what finishing a stage means, what a due date means, and that notifications aren't to be relied on;
+- **train staff,** including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks opens on work not yet started;
 - **have at least two admins** who are available while staff work;
+- **reassign a leaver's open procedures** before removing their account;
 - **review overdue, unassigned and blocked procedures** on a set schedule;
 - **have a downtime procedure;**
 - **keep the clinical record** of what was done in your clinical systems; MedApp coordinates the steps;
@@ -72,12 +74,13 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-05 A blocked procedure is forgotten | A review of blocked procedures, with who and how often |
 | H-06 A stage is finished in error | Admins available to unlock stages while staff work |
 | H-07 A stage is recorded as finished when the work wasn't done | A policy that finishing a stage states its work was done; the clinical record of the work in your clinical systems |
-| H-09 An assignment notification isn't received | Tell staff to work from My Tasks, not from notifications |
+| H-09 A member of staff doesn't learn of work assigned to them | Tell staff to work from My Tasks with its filter set to all open work (it opens on "Not started"), not from notifications |
 | H-10 MedApp is unavailable | A downtime procedure |
 | H-13 A template or stage definition has wrong content | Clinical sign-off of templates and definitions |
 | H-14 A correction to a template doesn't reach procedures already under way | When a template is corrected for safety, find its open procedures and review each |
 | H-17 Stage instructions aren't read | Write anything essential as its own stage, not only in instructions |
 | H-18 A change is recorded under the wrong person's name | No shared accounts; lock screens when away |
+| H-21 Work assigned to a deleted account drops off every task list | A leaver process: reassign a leaver's open procedures, then remove the account |
 
 ## Configuring MedApp safely
 
@@ -87,7 +90,7 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
   - Put each step that must not be missed in its own stage, in the right order. MedApp enforces the order you give it.
   - Archive a template rather than editing it heavily; create a new one for a new way of working.
 - **Roles:** admins can manage users, templates, assignments and the audit log. Give the role to few people, but at least two. Remove it when someone changes job.
-- **Accounts:** one account per person; no shared accounts. Remove leavers on their last day.
+- **Accounts:** one account per person; no shared accounts. Reassign a leaver's open procedures, then remove the account. Deleting an account doesn't reassign its work, which then shows as assigned to "Deleted user" and is on nobody's task list (H-21).
 - **Due dates:** decide locally what a due date means for each kind of procedure, and tell staff. In MedApp, a procedure is due by the end of its day, UK time.
 
 ## Training
@@ -96,9 +99,9 @@ Before anyone uses MedApp with patients, they need to know:
 - how to find the right patient and check the patient's details on every procedure;
 - that stages are worked in order, and that **finishing a stage locks it and says the work is done;**
 - how to ask an admin to unlock a stage, and how to correct a wrong entry;
-- what "overdue" means, and that nothing alerts them when work becomes overdue;
+- what "overdue" means, and that, today, nothing alerts them when work becomes overdue;
 - that blocked procedures don't show as overdue, and need reviewing;
-- that notifications are a convenience, and My Tasks is the list to work from;
+- that notifications are a convenience, and My Tasks is the list to work from, with its filter set to all open work: it opens on "Not started", which hides work already under way, including overdue and blocked work;
 - what to do when MedApp is unavailable;
 - how to report a problem or a safety incident.
 
@@ -126,7 +129,7 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 | D-06 | Downtime procedure not followed | Untested; staff unaware | Test before go-live, and once a year |
 | D-07 | Existing work moved in from spreadsheets or paper incorrectly | Manual re-entry at go-live | Checked by a second person; a cut-over date |
 | D-08 | MedApp used outside its intended purpose | Used for time-critical or emergency work | Communicate the intended purpose; audit use |
-| D-09 | Accounts shared, or leavers not removed | Busy wards; no leaver process | One account per person; leaver checklist |
+| D-09 | Accounts shared, or leavers not removed | Busy wards; no leaver process | One account per person; a leaver checklist that reassigns the leaver's open procedures, then removes the account |
 | D-10 | Unsuitable devices or browsers | Phones, shared or old devices | Supported devices and browsers listed; desktop use |
 
 ## Reporting incidents
@@ -135,8 +138,15 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 - **In your organisation:** through your own incident system, and, in the NHS, Learn from Patient Safety Events.
 - **Include:** what happened, when, which procedure and stage (by ID, not patient details, in the first message), what the screen showed, and what you've done.
 
+## Sign-off
+
+| Role | Name | Registration | Signature | Date |
+|---|---|---|---|---|
+| Manufacturer's Clinical Safety Officer | [Name] | [Professional body and number] | | |
+
 ## Change log
 
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
+| 0.2 | 16 November 2026 | After the review of #60: a sign-off, My Tasks' default view, the leaver process (H-21) | AI coding agent, for review |

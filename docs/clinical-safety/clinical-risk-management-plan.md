@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-01, clinical risk management plan (DCB0129) |
-| **Version** | 0.1, draft |
+| **Version** | 0.2, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, from `main` at `88dc1fa` (the merge of #56) onwards |
 | **Manufacturer** | [Manufacturer name] |
@@ -82,17 +82,29 @@ Each hazard's risk is the combination of:
 - **Consequence:** the worst credible harm to a patient that the hazard could lead to.
 - **Likelihood:** how likely that harm is, given the controls in place.
 
-Both are rated on the five-point scales below, from the DCB0129 implementation guidance. Ratings are estimates, made with the CSO, and the reasoning is written in the hazard log.
+Both are rated on DCB0129's five-point scales below. Ratings are estimates, made with the CSO, and the reasoning is written in the hazard log.
 
-**Consequence**
+**Consequence.** DCB0129's table, which rates a harm by how bad it is **and how many patients it affects.** A harm that can reach many patients at once (a wrong template, an outage, a systematic defect) is rated with "multiple".
 
-| Consequence | Meaning |
-|---|---|
-| **Catastrophic** | Death or permanent life-changing incapacity, affecting many patients. |
-| **Major** | Death or permanent life-changing incapacity of one patient; or severe injury or incapacity, from which recovery isn't expected in the short term, affecting several patients. |
-| **Considerable** | Severe injury or incapacity from which recovery is expected in the short term; or severe psychological trauma. |
-| **Significant** | Minor injury or injuries from which recovery isn't expected in the short term; or significant psychological trauma; or a delay to care that needs extra treatment. |
-| **Minor** | Minor injury from which recovery is expected in the short term; minor psychological upset; inconvenience. |
+| Consequence | Harm | Patients affected |
+|---|---|---|
+| **Catastrophic** | Death | Multiple |
+| **Catastrophic** | Permanent life-changing incapacity, and any condition for which the prognosis is death or permanent life-changing incapacity; severe injury or severe incapacity from which recovery isn't expected in the short term | Multiple |
+| **Major** | Death | Single |
+| **Major** | Permanent life-changing incapacity, and any condition for which the prognosis is death or permanent life-changing incapacity; severe injury or severe incapacity from which recovery isn't expected in the short term | Single |
+| **Major** | Severe injury or severe incapacity from which recovery is expected in the short term | Multiple |
+| **Major** | Severe psychological trauma | Multiple |
+| **Considerable** | Severe injury or severe incapacity from which recovery is expected in the short term | Single |
+| **Considerable** | Severe psychological trauma | Single |
+| **Considerable** | Minor injury or injuries from which recovery isn't expected in the short term | Multiple |
+| **Considerable** | Significant psychological trauma | Multiple |
+| **Significant** | Minor injury or injuries from which recovery isn't expected in the short term | Single |
+| **Significant** | Significant psychological trauma | Single |
+| **Significant** | Minor injury from which recovery is expected in the short term | Multiple |
+| **Significant** | Minor psychological upset; inconvenience | Multiple |
+| **Minor** | Minor injury from which recovery is expected in the short term; minor psychological upset; inconvenience; any negligible consequence | Single |
+
+The CSO checks this table against the current published DCB0129 before signing, and against any revised version after NHS England's 2026 review.
 
 **Likelihood**
 
@@ -122,9 +134,11 @@ The rating is read from this 5×5 matrix, as DCB0129's guidance uses.
 |---|---|---|
 | **5** | Unacceptable | Can't be released. The hazard must be designed out. |
 | **4** | Mandatory elimination or control | Can't be released until controls bring it to 3 or below. |
-| **3** | Undesirable | Acceptable only if further reduction isn't reasonably practicable, with the CSO's written justification and a dated plan. **No hazard at 3 may be accepted for first live use without that justification.** |
+| **3** | Undesirable | Acceptable only if further reduction isn't reasonably practicable, with the CSO's written justification and a dated plan. |
 | **2** | Acceptable where further reduction isn't worth its cost | Acceptable. Further controls are still made where cheap. |
 | **1** | Acceptable | No action needed. |
+
+**The go-live rule.** It uses each hazard's **"at first live use"** rating in the hazard log: the risk once only the controls marked "before first live use" are built and verified, not the ones planned for later. A release can go to first live use only if no hazard is above 3 on that rating, and each hazard at 3 has the CSO's written justification. Later releases use the rating for the controls actually in that release.
 
 **Rules:**
 - **As low as reasonably practicable:** every hazard is reduced as far as reasonably practicable, whatever its rating.
@@ -141,7 +155,7 @@ The rating is read from this 5×5 matrix, as DCB0129's guidance uses.
 ## 5. The hazard log
 
 - **Where:** `hazard-log.md`, in this folder, under version control with the code. A signed copy of each version used for a safety case is kept with that safety case report.
-- **What each hazard records:** an ID, a title, a description, causes, effects, the possible harm, existing controls (with file paths), the initial risk (with today's controls), further controls (each with its type, status and when it's needed), the residual risk (once those controls are in place), whether controls are transferred, an owner and a status.
+- **What each hazard records:** an ID, a title, a description, causes, effects, the possible harm, existing controls (with file paths), the initial risk (with today's controls), further controls (each with its type, status and when it's needed), the risk at first live use (once the controls needed before first live use are in place), the residual risk (once every further control is in place), whether controls are transferred, an owner and a status.
 - **IDs** (`H-01`, `H-02`, ...) are never reused. A hazard that no longer applies is closed with a reason, not deleted.
 - **Statuses:** Open (further controls needed), Controlled (residual risk accepted by the CSO), Closed (no longer applies), Transferred (controlled by the deploying organisation).
 - **Who changes it:** anyone can propose a change in a pull request; the CSO approves it.
@@ -149,7 +163,7 @@ The rating is read from this 5×5 matrix, as DCB0129's guidance uses.
 ## 6. The clinical safety case report
 
 - **One for each release** that customers can use with real patients, and for each change with a clinical safety impact. `clinical-safety-case-report.md` is the template, filled as far as the current system allows.
-- **What it says:** the release, its intended purpose, the risk scheme used, the safety claims with their evidence, the hazards and their residual risks, outstanding defects with a clinical impact, the assumptions about deploying organisations, and the CSO's conclusion.
+- **What it says:** the release, its intended purpose, the risk scheme used, the safety claims with their evidence, the hazards with their risk today, at first live use and residual, outstanding defects with a clinical impact, the assumptions about deploying organisations, and the CSO's conclusion.
 - **Who signs it:** the CSO, then the accountable owner. A release without a signed safety case report isn't made available for live use.
 
 ## 7. Clinical safety incidents
@@ -170,17 +184,16 @@ If MedApp ever becomes a medical device, incidents also have to be reported to t
 
 Every merge to `main` deploys (`docs/architecture.md`, risk D1), so the gate has to be at the pull request, not later.
 
-### Which changes need a clinical safety review
+### When it starts
 
-A change needs one if it touches any of:
-- the procedure workflow: `MedApp.Application/Procedures/**`, `MedApp.Domain/Procedures/**`
-- patients: `MedApp.Application/Patients/**`, `MedApp.Domain/Patients/**`
-- notifications: `MedApp.Application/Notifications/**`, `MedApp.API/Notifications/**`, `MedApp.Web/src/app/LiveNotifications.tsx`
-- the screens where clinical work is done or shown: `MedApp.Web/src/pages/{patients,procedures,tasks,audit,setup}/**`, `MedApp.Web/src/components/procedures/**`, `MedApp.Web/src/utils/dates.ts`
-- migrations that change procedure, stage, patient or audit data
-- authentication and sessions, where they affect who a change is attributed to
-- anything in the device triggers (`intended-purpose-and-device-decision.md`, "What would change the decision")
-- the intended purpose, the instructions for use, or marketing text
+- **The device question applies now.** It needs no CSO, so it's in the merge flow of `AGENTS.md` already: a change that adds calculations, scores, dose checks, decision support, triage or prioritising, alerts from clinical values, or medical claims must update `intended-purpose-and-device-decision.md` before it merges.
+- **The rest of the gate starts when a CSO is appointed.** Until then, the repository's workflow doesn't change: nobody could sign the section. No change goes to live clinical use in the meantime, because there is none, and the CSO reviews every change merged since `88dc1fa` before the first live release.
+
+### Which changes need a clinical safety section
+
+Once the gate starts, **every pull request that changes anything under `MedApp.*` or `deploy/`** has the section. A change with no clinical impact says so in one line, with the reason ("no clinical impact, because it only changes the build cache"). A list of paths was considered and rejected: the controls the hazard log relies on are spread across every project (the API's role attributes, Infrastructure's data access, the web app's shared parts, the deployment), and a list would miss some.
+
+Changes elsewhere need the section too if they change the intended purpose, the instructions for use or marketing text.
 
 ### What the review is
 
@@ -190,7 +203,7 @@ A change needs one if it touches any of:
 
 ### The pull request section (planned)
 
-**Planned:** add this to a pull request template (`.github/pull_request_template.md`) and to the merge flow in `AGENTS.md`. Until then, the author adds it by hand.
+**Planned, for when the CSO is appointed:** add this to a pull request template (`.github/pull_request_template.md`) and to the merge flow in `AGENTS.md`.
 
 ```markdown
 ## Clinical safety
@@ -203,10 +216,6 @@ A change needs one if it touches any of:
   (yes: reassess docs/clinical-safety/intended-purpose-and-device-decision.md before merging)
 - CSO sign-off: [name, date] / not needed (no clinical impact, confirmed by [name])
 ```
-
-### Until a CSO is appointed
-
-No change goes to live clinical use: there is none today. Changes may still be merged for development and test, with the clinical safety section filled in, and the CSO reviews them all before the first live release.
 
 ## 9. When this plan and the file are reviewed
 
@@ -253,3 +262,4 @@ Once a year, the CSO checks that the process was followed: that every clinical-i
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
+| 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table; the go-live rule on the "at first live use" rating; the release gate for every change under `MedApp.*` or `deploy/`, starting when a CSO is appointed, with the device question in `AGENTS.md` now | AI coding agent, for review |

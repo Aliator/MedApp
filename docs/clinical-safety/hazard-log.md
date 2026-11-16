@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.1, draft |
+| **Version** | 0.2, draft |
 | **Date** | 16 November 2026 |
 | **System** | MedApp, `main` at `88dc1fa` (the merge of #56) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
@@ -14,8 +14,13 @@
 ## How to read this log
 
 - **Where the hazards came from:** reading the code and walking each workflow (`clinical-risk-management-plan.md`, section 4.1). No clinician has reviewed them yet, and the hazard workshop is still to come. Every rating is a provisional estimate for the CSO to confirm or change.
-- **Ratings** use the consequence and likelihood scales and the 5×5 matrix in the plan (section 4). Written as consequence, likelihood and rating, for example "Major, Low: **3**".
-- **Initial risk** is the risk with the controls that exist in `main` today. **Residual risk** is the risk once the further controls listed are in place and verified. A planned control doesn't lower the risk until it's built.
+- **Ratings** use DCB0129's consequence table (which counts how many patients a harm affects), its likelihood scale and its 5×5 matrix, as set out in the plan (section 4). Written as consequence, likelihood and rating, for example "Major, Low: **3**".
+- **Three ratings per hazard:**
+  - **Initial risk:** with the controls that exist in `main` today.
+  - **At first live use:** once only the further controls marked "before first live use" are built and verified. **The go-live rule uses this rating** (plan, section 4.4).
+  - **Residual risk:** once every further control listed, including those marked "later", is built and verified.
+
+  A planned control doesn't lower the risk until it's built.
 - **Existing controls** name the code that provides them. They are only those in the code today.
 - **Further controls** are marked with:
   - their **type:** design (designs the hazard out), protective (a check, lock, confirmation or warning in the software), or information (instructions, training);
@@ -26,30 +31,35 @@
 
 ## Summary
 
-| ID | Hazard | Initial risk | Residual risk | Needs a product change? | Status |
-|---|---|---|---|---|---|
-| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | **Yes, before first live use** | Open |
-| [H-03](#h-03-a-patients-details-are-changed-or-deleted-without-trace) | A patient's details are changed or deleted without trace | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-04](#h-04-an-overdue-procedure-is-missed) | An overdue procedure is missed | Considerable, Medium: **3** | Considerable, Low: **2** | **Yes, before first live use** | Open |
-| [H-05](#h-05-a-blocked-procedure-is-forgotten) | A blocked procedure is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | **Yes, before first live use** | Open |
-| [H-06](#h-06-a-stage-is-finished-in-error) | A stage is finished in error | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-07](#h-07-a-stage-is-recorded-as-finished-when-the-work-wasnt-done) | A stage is recorded as finished when the work wasn't done | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-08](#h-08-a-procedure-is-cancelled-completed-or-archived-in-error) | A procedure is cancelled, completed or archived in error | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-09](#h-09-an-assignment-notification-isnt-received) | An assignment notification isn't received | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-10](#h-10-medapp-is-unavailable) | MedApp is unavailable | Considerable, Medium: **3** | Considerable, Low: **2** | **Yes, before first live use** | Open |
-| [H-11](#h-11-due-dates-dont-mean-what-staff-think) | Due dates don't mean what staff think | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-12](#h-12-times-are-shown-an-hour-out) | Times are shown an hour out (suspected defect) | Significant, High: **3** | Significant, Very low: **1** | **Yes, before first live use** | Open, to verify |
-| [H-13](#h-13-a-template-or-stage-definition-has-wrong-content) | A template or stage definition has wrong content | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-14](#h-14-a-correction-to-a-template-doesnt-reach-procedures-already-under-way) | A correction to a template doesn't reach procedures already under way | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-15](#h-15-two-people-edit-the-same-procedure-at-once) | Two people edit the same procedure at once | Considerable, Medium: **3** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
-| [H-16](#h-16-the-screen-shows-out-of-date-information) | The screen shows out-of-date information | Significant, Medium: **2** | Significant, Low: **2** | Yes, later | Open |
-| [H-17](#h-17-stage-instructions-arent-read) | Stage instructions aren't read | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-18](#h-18-a-change-is-recorded-under-the-wrong-persons-name) | A change is recorded under the wrong person's name | Significant, Medium: **2** | Significant, Low: **2** | Yes, later | Open |
-| [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
-| [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| ID | Hazard | Initial risk | At first live use | Residual risk | Needs a product change? | Status |
+|---|---|---|---|---|---|---|
+| [H-01](#h-01-the-wrong-patients-procedure-is-worked) | The wrong patient's procedure is worked | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-02](#h-02-work-is-recorded-on-the-wrong-record) | Work is recorded on the wrong record | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-03](#h-03-a-patients-details-are-changed-or-deleted-without-trace) | A patient's details are changed or deleted without trace | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-04](#h-04-an-overdue-procedure-is-missed) | An overdue procedure is missed | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-05](#h-05-a-blocked-procedure-is-forgotten) | A blocked procedure is forgotten | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Low: **2** | **Yes, before first live use** | Open |
+| [H-06](#h-06-a-stage-is-finished-in-error) | A stage is finished in error | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-07](#h-07-a-stage-is-recorded-as-finished-when-the-work-wasnt-done) | A stage is recorded as finished when the work wasn't done | Major, Low: **3** | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-08](#h-08-a-procedure-is-cancelled-completed-or-archived-in-error) | A procedure is cancelled, completed or archived in error | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-09](#h-09-a-member-of-staff-doesnt-learn-of-work-assigned-to-them) | A member of staff doesn't learn of work assigned to them | Considerable, Medium: **3** | Considerable, Low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
+| [H-10](#h-10-medapp-is-unavailable) | MedApp is unavailable | Major, Medium: **3** | Major, Low: **3** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-11](#h-11-due-dates-dont-mean-what-staff-think) | Due dates don't mean what staff think | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-12](#h-12-times-are-shown-an-hour-out) | Times are shown an hour out | Considerable, High: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** (fix in PR #62, open) | Open |
+| [H-13](#h-13-a-template-or-stage-definition-has-wrong-content) | A template or stage definition has wrong content | Catastrophic, Low: **4** | Catastrophic, Very low: **3** | Catastrophic, Very low: **3** | **Yes, before first live use** | Open |
+| [H-14](#h-14-a-correction-to-a-template-doesnt-reach-procedures-already-under-way) | A correction to a template doesn't reach procedures already under way | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
+| [H-15](#h-15-two-people-edit-the-same-procedure-at-once) | Two people edit the same procedure at once | Considerable, Medium: **3** | Considerable, Very low: **2** | Considerable, Very low: **2** | **Yes, before first live use** | Open |
+| [H-16](#h-16-the-screen-shows-out-of-date-information) | The screen shows out-of-date information | Significant, Medium: **2** | Significant, Medium: **2** | Significant, Low: **2** | Yes, later | Open |
+| [H-17](#h-17-stage-instructions-arent-read) | Stage instructions aren't read | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-18](#h-18-a-change-is-recorded-under-the-wrong-persons-name) | A change is recorded under the wrong person's name | Significant, Medium: **2** | Significant, Medium: **2** | Significant, Low: **2** | Yes, later | Open |
+| [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
+| [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
+| [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
 
-**Nine hazards are rated 3 today** (H-01, H-02, H-04, H-05, H-07, H-10, H-12, H-13 and H-15). Under the plan's acceptability rules, none of them can be accepted for first live use without either the further controls marked "before first live use" or the CSO's written justification. None is rated 4 or 5.
+**Today:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5.
+
+**At first live use,** with every "before first live use" control built: none is above 3, and three stay at 3 (H-07, H-10 and H-13). Under the plan's go-live rule, each of those three needs the CSO's written justification before first live use. H-13 gets to 3 only because its approval step is brought forward to before first live use.
+
+**Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
 ---
 
@@ -65,7 +75,7 @@
 
 **Effect.** Notes are written on the wrong patient's procedure, or a stage is finished on it, and the other patient's procedure is left undone (see also H-02). If staff act on what they read, a step could be done, or skipped, for the wrong patient.
 
-**Possible harm.** A step of care given to or withheld from the wrong patient, for example a pre-procedure check recorded as done for a patient who didn't have it. Major in the worst credible case.
+**Possible harm.** A step of care given to or withheld from the wrong patient, for example a pre-procedure check recorded as done for a patient who didn't have it. One patient at a time; Major in the worst credible case (death or permanent incapacity, single patient).
 
 **Existing controls:**
 - New procedures are created from a patient's own page, and the New procedure page says which patient it's for ("For {name}", `NewProcedurePage.tsx`).
@@ -81,6 +91,8 @@
 - **Show the date of birth** beside the patient's name in task lists and procedure lists, and put the patient's name in the procedure page's title. Protective; **proposed**; before first live use.
 - **NHS number** (validated, unique within an organisation) and **a duplicate check** when a patient is added. Design; **planned** (step 9); later.
 - **Train staff** to check the banner against the patient before recording work. Information; transferred.
+
+**At first live use:** Major, Very low: **2**.
 
 **Residual risk:** Major, Very low: **2**.
 
@@ -100,7 +112,7 @@
 
 **Effect.** The right record lacks the information and the wrong record carries it. Someone reading either can act on the wrong information.
 
-**Possible harm.** A delayed or wrong step of care. Considerable.
+**Possible harm.** A delayed or wrong step of care for one patient. Considerable.
 
 **Existing controls:**
 - New procedure lists the chosen template's stages before it's created, and fills the title from the template's name (`NewProcedurePage.tsx`; `docs/procedures-ui-plan.md`, phase 4).
@@ -115,6 +127,8 @@
 - **The procedure and stage named** in the Save Notes and Finish Stage confirmations ("Save notes on {stage} of {procedure} for {patient}?"). The finish confirmation already names the stage (`ProcedurePage.tsx`); add the patient. Protective; **proposed**; before first live use.
 - **An "entered in error" action** for stage notes and procedures, which strikes the entry through, keeps it in the record and asks for a reason, instead of only overwriting or deleting. Design; **proposed**; later.
 - **Train staff** to correct a wrong entry with a note saying so, never by deleting it. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Low: **2**.
 
@@ -133,7 +147,7 @@
 
 **Effect.** All of that patient's procedures now show the new, wrong details. Nobody can tell when it changed or what it was. A deleted patient's record is gone.
 
-**Possible harm.** Wrong-patient errors (H-01) on every procedure of that patient; a patient lost from follow-up. Considerable.
+**Possible harm.** Wrong-patient errors (H-01) on every procedure of that patient; a patient lost from follow-up. One patient; Considerable.
 
 **Existing controls:**
 - A patient with procedures can't be deleted (409; `DeletePatientHandler`).
@@ -145,6 +159,8 @@
 - **Audit patient changes** (create, edit, delete) with old and new values. Protective; **planned** (step 7); later. Rated 2 today, but the CSO may bring it forward.
 - **Make deleting a patient admin-only.** Protective; **planned** (step 2); later.
 - **Show "details changed on {date}"** on the patient banner for a recent change. Protective; **proposed**; later.
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Very low: **2**.
 
@@ -158,29 +174,33 @@
 
 **Causes:**
 - **Nothing tells anyone.** "Overdue" is a badge on lists and on the procedure page (`DueDateCell`, `ProcedureCells.tsx`), computed when the page loads (`ProcedureWorkflow.IsOverdue`). There's no notification, email or escalation for overdue work; the only notification is for being assigned (`docs/todo.md`, "More notifications").
+- **My Tasks opens on work not yet started.** Its default filter is "Not started" (`MyTasksPage.tsx`, `progressOf`), which sends `Started: false`, so every procedure with a started or finished stage is left out, overdue or not (`ProcedureSearch.Filter`). Started work shows only after changing the filter, or through the "Overdue" quick filter.
 - **Unassigned procedures are on nobody's task list.** My Tasks shows only procedures assigned to you (`ProcedureSearch.Filter`, `AssignedToMe`). An unassigned procedure is visible only on the full Procedures list.
 - **Assignment depends on admins:** only admins can assign (`[Authorize(Roles = "Admin")]` on the assignment endpoints), so if no admin is about, new procedures stay unassigned.
-- **The assignee is away:** assignment doesn't stop anyone else working on it, but nothing reassigns it or tells anyone it's waiting.
+- **The assignee is away:** assignment doesn't stop anyone else working on it, but nothing reassigns it or tells anyone it's waiting. (An assignee whose account is deleted is H-21.)
 - **Pages don't refresh by themselves:** a list left open overnight keeps its old overdue badges (H-16).
 
 **Effect.** A step of care isn't done by the date staff set for it.
 
-**Possible harm.** Delayed care: a delayed test, review or procedure. Considerable in the worst credible case for the procedures MedApp is meant for; it could be worse for a time-critical one, which is outside the intended purpose.
+**Possible harm.** Delayed care for one patient: a delayed test, review or procedure. Considerable in the worst credible case for the procedures MedApp is meant for; it could be worse for a time-critical one, which is outside the intended purpose.
 
 **Existing controls:**
 - The overdue rule is the same everywhere, in one place (`ProcedureWorkflow.IsOverdue`, and the same rule in SQL for the "overdue only" filter, `ProcedureSearch.Filter`), with tests (`ProcedureWorkflowTests`, `IsOverdue_StatusAndDueDate_OnlyOpenProceduresPastTheirDueDate`).
 - Lists sort by due date, soonest first, by default, and hide closed procedures (`ProcedureSearch.Sort`, `Filter`).
 - The Procedures list has an "overdue only" filter, and its searches can be saved as favourites.
-- My Tasks highlights overdue procedures (`MyTasksPage.tsx`).
+- My Tasks has an "Overdue" quick filter, which shows started and not-started work, and highlights overdue procedures (`MyTasksPage.tsx`).
 - Due dates can't be set in the past when a procedure is created (`CreatePatientProcedureValidator`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
-- **Overdue notifications** to the assignees, and to admins for unassigned procedures, the day a procedure becomes overdue, through `INotificationSender`. Protective; **planned** (`docs/todo.md`; step 9 adds email); **before first live use** for the in-app notification.
+- **Overdue notifications** to the assignees, and to admins for unassigned procedures, the day a procedure becomes overdue, through `INotificationSender`. Protective; **planned** (`docs/todo.md`; step 9 adds email); **before first live use** for the in-app notification. The intended purpose already allows workflow reminders about dates staff set (`intended-purpose-and-device-decision.md`); when this is built, update the statements that "nothing alerts anyone" in CS-03 and CS-05 in the same pull request.
+- **A visible count of started and overdue work on My Tasks** beside its filter, or opening My Tasks on all open work, so the list staff are told to work from shows everything assigned to them. Protective; **proposed**; before first live use.
 - **An "unassigned and due soon" view** on the Welcome page or My Tasks for admins, so nothing waits unseen for assignment. Protective; **proposed**; before first live use.
 - **A daily digest or escalation to a lead.** Protective; **planned** (step 9); later.
 - **A local process:** who reviews the overdue list, and how often; at least two admins so assignment never waits on one person. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Low: **2**.
 
@@ -196,23 +216,27 @@
 - **A blocked procedure is never overdue,** by design: "Blocked procedures are waiting on something else, so never overdue" (`ProcedureWorkflow.IsOverdue`; `docs/procedures-ui-plan.md`, decision 15). Its due date can pass with no badge.
 - A block has a reason but no review date, and nothing reminds anyone about it.
 - The "overdue only" filter leaves blocked procedures out (`ProcedureSearch.Filter`).
+- **My Tasks opens on "Not started"** (H-04), so a blocked procedure that had a stage started before it was blocked doesn't show there by default.
 
 **Effect.** The procedure drops out of everyone's attention, and the patient's care stalls.
 
-**Possible harm.** Delayed care. Considerable.
+**Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
 - Blocking needs a reason, kept in the audit log (`ProcedureWorkflow.RequiresReason`, `ChangePatientProcedureStatusValidator`).
-- Blocked procedures stay on the assignee's My Tasks list (`OPEN_PROCEDURE_STATUSES`, `MedApp.Web/src/pages/listSearch.ts`), and their status shows on every list.
+- Blocked procedures are among My Tasks' statuses (`OPEN_PROCEDURE_STATUSES`, `MedApp.Web/src/pages/listSearch.ts`): they show by default only if no stage was started, and otherwise under the "Started" filter or the "Blocked" quick filter. Their status shows on every list.
 - The procedure page says what status it was blocked from (`ProcedurePage.tsx`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
 - **Show "past due date" on blocked procedures** (a separate, quieter badge than overdue), and include them in an "overdue or past due" filter. Protective; **proposed**; before first live use.
+- **The count of started work on My Tasks** from H-04. Protective; **proposed**; before first live use.
 - **A review date on each block,** asked for when blocking, with a notification when it arrives. Protective; **proposed**; later.
 - **Notify the assignees when a procedure is blocked.** Protective; **planned** (`docs/todo.md`); later.
 - **A local process** for reviewing blocked procedures. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Low: **2**.
 
@@ -228,13 +252,16 @@
 - A slip: Finish Stage is the main button beside Save Notes (`StageWork.tsx`).
 - The wrong procedure (H-01, H-02).
 
-**Effect.** The stage locks, and the next stage becomes the current one, so the procedure appears to have moved on. Staff picking up the next stage may assume the earlier one was done. Only an admin can unlock it; staff can't. After an unlock, the stage still counts as finished (`IsCompleted` stays true): unlocking reopens its notes, but the record still says it was finished, by whom and when (`ProcedureChange.UnlockStage`). There's no way to mark a stage "not done".
+**Effect:**
+- The stage locks, and the next stage becomes the current one, so the procedure appears to have moved on. Staff picking up the next stage may assume the earlier one was done.
+- Only an admin can unlock it; staff can't. After an unlock, the stage still counts as finished (`IsCompleted` stays true): unlocking reopens its notes, but the record still says it was finished, by whom and when (`ProcedureChange.UnlockStage`). There's no way to mark a stage "not done".
+- **Work carries on past an unlocked stage.** Because the unlocked stage still counts as finished, the current stage doesn't move back to it (`ProcedureWorkflow.CurrentStage` skips finished stages), so later stages can be worked and finished while the earlier one is reopened. For example, the procedure stage can be finished while a consent stage is unlocked for correction, and the record shows consent as finished throughout.
 
-**Possible harm.** A step relied on that wasn't done. Considerable.
+**Possible harm.** A step relied on that wasn't done, for one patient. Considerable.
 
 **Existing controls:**
 - Finishing asks for confirmation, naming the stage: "The stage will be locked and the procedure moves on to the next one. An admin can unlock it if it needs correcting." (`ProcedurePage.tsx`, the `finish` dialog).
-- Only the current stage can be finished, and stages are worked strictly in order, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`; `FinishProcedureStageHandler` returns 409 otherwise). Tested in `ProcedureWorkflowTests` and `FinishProcedureStageHandlerTests`.
+- Only the current stage can be finished, and stages are worked strictly in order while none is unlocked, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`; `FinishProcedureStageHandler` returns 409 otherwise). Tested in `ProcedureWorkflowTests` and `FinishProcedureStageHandlerTests`.
 - The finish, any unlock, and a later finish are audited (`ProcedureChange.FinishStage`, `UnlockStage`).
 - An admin can unlock a finished stage while the procedure is open or completed; a completed or in-review procedure goes back to in progress (`ProcedureWorkflow.CanUnlockStage`, `ProcedureChange.UnlockStage`).
 - A procedure can't be completed while any stage is unlocked (`ProcedureWorkflow.AllStagesFinished`; `ChangePatientProcedureStatusHandler`).
@@ -242,10 +269,12 @@
 **Initial risk:** Considerable, Low: **2**.
 
 **Further controls:**
-- **"Reopen" instead of "unlock":** let an admin mark a finished stage as not finished, with a reason, so the record shows it wasn't done and it becomes the current stage again. Design; **proposed**; later.
+- **"Reopen" instead of "unlock":** let an admin mark a finished stage as not finished, with a reason, so the record shows it wasn't done and it becomes the current stage again, holding up later stages until it's finished. Design; **proposed**; later.
 - **Show an unlocked stage clearly** in lists and task lists ("correction in progress"). Protective; **proposed**; later.
 - **Notify the assignees when a stage is unlocked.** Protective; **planned** (`docs/todo.md`); later.
 - **At least two admins** available while staff work, so a correction isn't delayed. Information; transferred.
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Very low: **2**.
 
@@ -264,7 +293,7 @@
 
 **Effect.** Everyone after relies on a record that says the stage was done. For a stage such as consent or a pre-procedure check, the next steps go ahead on that basis.
 
-**Possible harm.** A procedure carried out without a required step, such as a check or consent. Major in the worst credible case.
+**Possible harm.** A procedure carried out without a required step, such as a check or consent. One patient; Major in the worst credible case.
 
 **Existing controls:**
 - The finish confirmation (H-06).
@@ -274,9 +303,11 @@
 **Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **Ask for notes, or an explicit "nothing to record", before a stage can be finished,** with a per-definition setting for stages where notes are mandatory. Protective; **proposed**; before first live use.
+- **Ask for notes, or an explicit "nothing to record", before a stage can be finished,** with a per-definition setting for stages where notes are mandatory. Protective; **proposed**; before first live use. It makes finishing deliberate, but "nothing to record" can still be chosen without the work, so it doesn't lower the likelihood much on its own.
 - **Structured stage fields** (for example, "consent form signed: yes or no") on the stages that need them. Design; **planned** (step 9); later. Must stay recording only (`intended-purpose-and-device-decision.md`).
 - **Training and local policy:** finishing a stage is a statement that its work was done. Information; transferred.
+
+**At first live use:** Major, Low: **3**. Needs the CSO's written justification for first live use (plan, section 4.4), or structured fields brought forward for the stages that matter most.
 
 **Residual risk:** Major, Very low: **2**.
 
@@ -299,7 +330,7 @@
 
 Each removes the procedure from the open lists, where it would otherwise be seen.
 
-**Possible harm.** Remaining care not given. Considerable.
+**Possible harm.** Remaining care not given, for one patient. Considerable.
 
 **Existing controls:**
 - Each change asks for confirmation; cancelling is shown as destructive and needs a reason, saying "A cancelled procedure can only be archived after this" (`StatusChangeDialog.tsx`).
@@ -312,13 +343,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Let an admin reopen a cancelled or archived procedure,** with a reason, audited. Design; **proposed**; later.
 - **Ask the "not assigned to you" question before status changes too.** Protective; **proposed**; later.
 
+**At first live use:** Considerable, Low: **2**.
+
 **Residual risk:** Considerable, Very low: **2**.
 
 **Owner:** [CSO]. **Status:** Open.
 
 ---
 
-## H-09: An assignment notification isn't received
+## H-09: A member of staff doesn't learn of work assigned to them
 
 **Description.** A member of staff is assigned a procedure, but doesn't learn of it in time.
 
@@ -326,24 +359,28 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Live delivery is best effort.** A failed push is only logged (`SignalRNotificationPublisher`).
 - **The browser stops reconnecting** after about 42 seconds offline (attempts at 0, 2, 10 and 30 seconds), until the page is reloaded (`MedApp.Web/src/app/LiveNotifications.tsx`, `withAutomaticReconnect()`; `docs/architecture.md`, risk R11).
 - **No email:** notifications are in-app only. Someone who isn't signed in learns of it only at their next sign-in.
+- **My Tasks hides it if it's already under way.** My Tasks opens on "Not started" (H-04), so a procedure handed over part-way through, for example from a colleague who's off sick, doesn't show there by default. The colleague who opens My Tasks sees "Nothing waiting to be started".
 - **Nothing tells someone they've been unassigned,** and nothing tells anyone about a procedure assigned to someone who's away.
 
-**Effect.** Work waits until the person next opens MedApp, or longer.
+**Effect.** Work waits until the person next opens MedApp and finds it, or longer.
 
-**Possible harm.** Delayed care. Considerable.
+**Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
 - Every notification is stored before it's pushed, so it shows on the bell at the next page load (`NotificationSender`).
-- My Tasks always lists every procedure assigned to you, whether or not the notification arrived (`MyTasksPage.tsx`).
+- My Tasks lists every open procedure assigned to you once its filter is set to "Started" or to all (`MyTasksPage.tsx`); by default it shows only those not yet started.
 - With two copies of the API, notifications reach browsers on either, through the Valkey backplane (`SignalRBackplane`; 8 of 8 delivered in testing, `docs/architecture.md`, section 6.4).
 - When the connection comes back, the list is refreshed (`connection.onreconnected`).
 
-**Initial risk:** Considerable, Low: **2**.
+**Initial risk:** Considerable, Medium: **3**.
 
 **Further controls:**
+- **The count of started work on My Tasks,** or opening it on all open work, from H-04. Protective; **proposed**; before first live use.
+- **Information:** tell users that notifications are a convenience, and that My Tasks, with its filter on all open work, is the list to work from. Information; **proposed**; before first live use (it costs nothing); transferred.
 - **Keep reconnecting** with backoff for as long as the page is open. Protective; **planned** (step 2); later.
 - **Email** for assignments, with no patient details in the message. Protective; **planned** (step 9); later.
-- **Information:** tell users that notifications are a convenience, and My Tasks is the list to work from. Information; **proposed**; before first live use (it costs nothing).
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Very low: **2**.
 
@@ -364,7 +401,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** Staff can't see who's assigned to what, which stage a procedure is at, its notes or its due date. Work is done without recording it, or not done.
 
-**Possible harm.** Delayed or missed care while it's down; records that don't match what was done afterwards. Considerable.
+**Possible harm.** Delayed or missed care for every patient with a procedure under way while it's down; records that don't match what was done afterwards. Severe injury from which recovery is expected, affecting multiple patients: Major.
 
 **Existing controls:**
 - Two copies of the API in Kubernetes, with a disruption budget and rolling updates that served every request in testing (`docs/architecture.md`, sections 7.4 and 10.1).
@@ -372,15 +409,18 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - Server rendering falls back to rendering in the browser if Node fails (`SsrPages`).
 - Rollback is a revert on `main` (`AGENTS.md`).
 
-**Initial risk:** Considerable, Medium: **3**.
+**Initial risk:** Major, Medium: **3**.
 
 **Further controls:**
 - **A printable task list and procedure summary,** so staff can carry on from paper. Design; **planned** (step 6); before first live use.
 - **A downtime procedure** for deploying organisations: what to print and when, how to work on paper, and how to enter the record afterwards. Information; **planned** (step 6, the DCB0160 pack); before first live use; transferred.
 - **Monitoring and alerting,** a published service level, and readiness that checks the database. Protective; **planned** (step 5); before first live use.
 - **A status page,** and telling customers about planned maintenance. Information; **planned** (step 5); later.
+- **A tested rebuild in a second region,** and a year of availability history. Protective; **planned** (step 5); later.
 
-**Residual risk:** Considerable, Low: **2**.
+**At first live use:** Major, Low: **3**. An outage affects every patient at once, and with no operating history the likelihood can't yet be shown to be very low. Needs the CSO's written justification for first live use.
+
+**Residual risk:** Major, Very low: **2**.
 
 **Owner:** [CSO]. **Status:** Open.
 
@@ -399,7 +439,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** Work is treated as on time when it isn't, or the other way round.
 
-**Possible harm.** Delayed care. Considerable.
+**Possible harm.** Delayed care for one patient. Considerable.
 
 **Existing controls:**
 - One rule, in one class, stored as the end of the UK day in UTC, so the day survives the clocks changing (`DueDates`). Tested for summer, winter and both clock-change days (`DueDatesTests`).
@@ -414,6 +454,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **A start-up check** that `Europe/London` resolves in the image, and a test in the `image` CI job. Protective; **proposed**; later.
 - **Due dates for each stage, and times of day** if customers need them. Design; **planned** in part (step 9); later.
 
+**At first live use:** Considerable, Low: **2**.
+
 **Residual risk:** Considerable, Very low: **2**.
 
 **Owner:** [CSO]. **Status:** Open.
@@ -422,32 +464,35 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## H-12: Times are shown an hour out
 
-**Status of the cause: a suspected defect, found by reading the code, not yet reproduced.** Verify it first.
+**The cause is confirmed, and a fix is in PR #62 (open, `fix/utc-times`).** The ratings below are for `88dc1fa`, before that fix. When it merges, re-rate H-12 and update the README's main findings, CS-03's defects table and the handbook's step 6 status line together.
 
 **Description.** The time a stage was started or finished, a procedure was created or changed, a person was assigned, or an audit entry was made is shown wrongly: an hour early during British Summer Time on a UK browser, and by the browser's offset from UTC elsewhere.
 
-**Causes (suspected):**
-- Times are stored in UTC. When EF Core reads them from SQL Server, they come back without a time zone (`DateTimeKind.Unspecified`), and nothing in the code marks them as UTC, so the API's JSON carries them without a `Z`.
+**Causes:**
+- Times are stored in UTC. When EF Core reads them from SQL Server, they come back without a time zone (`DateTimeKind.Unspecified`), and nothing in the code at `88dc1fa` marks them as UTC, so the API's JSON carries them without a `Z`.
 - The web app's `formatDateTime` (`MedApp.Web/src/utils/dates.ts`) passes the string to `new Date()`, which reads a date-time without a zone as the browser's local time, then shows it in UK time. The same file has a `utc()` helper for exactly this case, with the comment "one read from the database may not say so", but only `timeAgo` uses it.
 - It's used for stage started and finished times (`StageList.tsx`), assignment times (`AssigneeList.tsx`), a procedure's created and last updated times (`ProcedurePage.tsx`) and the audit log (`AuditLogPage.tsx`).
-- The tests only pass times that end in `Z` (`dates.test.ts`), so they wouldn't catch it.
+- The tests only pass times that end in `Z` (`dates.test.ts`), so they didn't catch it.
+- **A trap when checking it:** the server renders the page in Node in UTC, so the server's HTML shows the right time; the browser then re-renders it an hour early. Check the page after it has loaded in a browser during British Summer Time, or the API's JSON for a missing `Z`.
 
-**Effect.** The timeline of a procedure is wrong by an hour for half the year: a stage looks as if it was finished an hour before it was, and the audit log disagrees with other systems' times during an investigation.
+**Effect.** The timeline of every procedure is wrong by an hour for half the year: a stage looks as if it was finished an hour before it was, and the audit log disagrees with other systems' times during an investigation.
 
-**Possible harm.** A clinical decision made on a wrong time, for example about how long ago a step was done; an incident investigation that reaches the wrong conclusion. Significant.
+**Possible harm.** A clinical decision made on a wrong time, for example about how long ago a step was done; an incident investigation that reaches the wrong conclusion. It affects every patient's record at once, so multiple patients: Considerable.
 
 **Existing controls:**
 - Due dates aren't affected: they're sent as dates and shown without conversion.
 - Times are stored correctly, so a fix corrects every past entry too.
 
-**Initial risk:** Significant, High: **3** (if confirmed).
+**Initial risk:** Considerable, High: **3**.
 
 **Further controls:**
-- **Fix it:** make every `DateTime` read from the database UTC (an EF Core value converter or convention), or use `utc()` in `formatDateTime`, or both; and add tests with times that have no `Z`. Design; **proposed**; **before first live use**.
+- **Fix it:** mark every `DateTime` read from the database as UTC, read any time without an offset as UTC in the web app, and test with times that have no `Z`. Design; **proposed**, and built in PR #62 (a model-wide `UtcDateTimeConverter`, `parseUtc` in the web app, and web tests run in `America/New_York`); **before first live use**.
 
-**Residual risk:** Significant, Very low: **1**.
+**At first live use:** Considerable, Very low: **2**.
 
-**Owner:** [CSO], with the maintainer. **Status:** Open, to verify.
+**Residual risk:** Considerable, Very low: **2**.
+
+**Owner:** [CSO], with the maintainer. **Status:** Open (fix in PR #62).
 
 ---
 
@@ -463,7 +508,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** Every procedure created afterwards misses a step, does them in the wrong order, or shows wrong instructions, and staff follow it because MedApp enforces the order.
 
-**Possible harm.** A required step of care missed for many patients. Major.
+**Possible harm.** A required step of care missed for every patient whose procedure comes from that template. Severe injury or permanent incapacity, multiple patients: Catastrophic in the worst credible case.
 
 **Existing controls:**
 - Only admins can change templates and definitions; staff can only read them (`docs/architecture.md`, section 5.7).
@@ -472,16 +517,18 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - The Templates page shows how many procedures use each template (`docs/procedures-ui-plan.md`, phase 6).
 - **Transferred:** the organisation is responsible for the clinical content of its templates, approved under its own governance.
 
-**Initial risk:** Major, Low: **3**.
+**Initial risk:** Catastrophic, Low: **4** (mandatory elimination or control).
 
 **Further controls:**
-- **Audit every change** to templates and stage definitions (who, when, old and new). Protective; **proposed**; **before first live use**.
+- **An approval step:** a template or stage definition change takes effect only when a second person with a clinical approver role approves it. Protective; **proposed**; **brought forward to before first live use**, because it's the control that lowers the likelihood of a wrong template being used, and a 4 can't be released.
+- **Audit every change** to templates and stage definitions (who, when, old and new). Protective; **proposed**; before first live use.
+- **A local template governance process:** clinical sign-off before a template is used. Information; transferred; before first live use.
 - **Versions:** each template change makes a new version; procedures record the version they came from. Design; **proposed**; later.
-- **An approval step:** a template change takes effect only when a second person with a clinical approver role approves it. Protective; **proposed**; later, unless the CSO asks for it before first live use.
 - **A separate role** for template administration. Protective; **planned** (step 4); later.
-- **A local template governance process:** clinical sign-off before a template is used. Information; transferred.
 
-**Residual risk:** Major, Very low: **2**.
+**At first live use:** Catastrophic, Very low: **3**. Needs the CSO's written justification for first live use.
+
+**Residual risk:** Catastrophic, Very low: **3**. The consequence can't be lowered by the software, only the likelihood; the CSO decides whether 3 is as low as reasonably practicable.
 
 **Owner:** [CSO]. **Status:** Open.
 
@@ -497,20 +544,23 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** Staff working those procedures follow the old, wrong instructions, or miss a stage that was added.
 
-**Possible harm.** A wrong or missed step for the patients whose procedures were already under way. Considerable.
+**Possible harm.** A wrong or missed step for every patient whose procedure was already under way. Severe injury from which recovery is expected, multiple patients: Major.
 
 **Existing controls:**
 - The procedure shows the template's name as it was (`TemplateName`), and the Templates page shows how many procedures use a template, so admins can find the affected procedures by searching on the template (`ProcedureSearch.Filter`, `TemplateId`).
 - A procedure can be cancelled with a reason and recreated from the corrected template.
 
-**Initial risk:** Considerable, Low: **2**.
+**Initial risk:** Major, Low: **3**.
 
 **Further controls:**
+- **List the open procedures when a template or definition in use is edited,** with a link to them, saying that they keep the old stages and need reviewing. Protective; **proposed**; before first live use.
+- **A local process:** when a template is corrected for safety, search for its open procedures and review each. Information; transferred; before first live use.
 - **Flag procedures whose template has changed** since they were created, on the procedure page and in lists, with what changed. Protective; **proposed**; later (depends on versions, H-13).
 - **Let an admin apply a correction to the unfinished stages** of chosen procedures, audited, never to finished ones. Design; **proposed**; later.
-- **A local process:** when a template is corrected for safety, search for its open procedures and review each. Information; transferred.
 
-**Residual risk:** Considerable, Very low: **2**.
+**At first live use:** Major, Very low: **2**.
+
+**Residual risk:** Major, Very low: **2**.
 
 **Owner:** [CSO]. **Status:** Open.
 
@@ -523,19 +573,19 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Causes:**
 - **No optimistic concurrency:** no entity has a concurrency token, so the last save wins (`docs/architecture.md`, section 8.9 and risk R8).
 - **Stage notes:** two people saving notes on the current stage each replace the whole text. Nobody is warned.
-- **Notes saved after a stage was finished:** if one person finishes a stage while another, who loaded the procedure before that, saves notes on it, both pass their checks on what they loaded, and the notes change after the stage was locked.
+- **Notes saved at the same moment a stage is finished:** if both requests are handled at once, both pass their checks, and the notes change after the stage is locked. A narrow race, since each request reloads the procedure and checks it (`UpdateProcedureStageNotesHandler`).
 - **Procedure details** (title, notes, due date, priority) behave the same way (`UpdatePatientProcedureHandler`).
 - **Unsaved typing can disappear:** the notes box is reset whenever the saved notes change (`ProcedurePage.tsx`, `key={...stage.notes}`), so if the page reloads the procedure after someone else saved, text typed but not saved is replaced by theirs.
 
 **Effect.** Information recorded by one person is no longer on the record, though it is in the audit log; or text typed but not saved is lost.
 
-**Possible harm.** Someone acts on incomplete notes. Considerable.
+**Possible harm.** Someone acts on incomplete notes, for one patient. Considerable.
 
 **Existing controls:**
 - Every notes save is audited with the old and new text, so nothing saved is lost for good (`ProcedureChange.UpdateStageNotes`).
-- Stage order, locks and status rules are checked on the server against the saved procedure, so a page that's out of date can't start or finish the wrong stage (409 from `WhyStageCantBeEdited`).
+- Stage order, locks and status rules are checked on the server against the saved procedure, so a page that's out of date can't start or finish the wrong stage, or save notes on a locked one (409 from `WhyStageCantBeEdited`).
 - "Unsaved changes" shows beside the notes box (`StageWork.tsx`).
-- The "not assigned to you" question makes it less likely that someone works a procedure that someone else is working (`ProcedurePage.tsx`).
+- The "not assigned to you" question makes it a little less likely that a second person works a procedure that someone else is working. It's asked once per visit, and not of admins (`ProcedurePage.tsx`, `checked`).
 
 **Initial risk:** Considerable, Medium: **3**.
 
@@ -543,6 +593,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Optimistic concurrency:** a `rowversion` on procedures and stages, and a 409 when someone else has changed it since you loaded it. Protective; **planned** (step 6); **before first live use**.
 - **Keep the draft on a conflict:** show the other person's text beside yours, never replace unsaved text without asking. Protective; **proposed**; before first live use (with the above).
 - **Show who else has the procedure open.** Protective; **proposed**; later.
+
+**At first live use:** Considerable, Very low: **2**.
 
 **Residual risk:** Considerable, Very low: **2**.
 
@@ -561,7 +613,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** Someone reads a status, assignee, current stage or notes that have changed, for example a procedure that someone else has cancelled or blocked.
 
-**Possible harm.** A decision made on old information. Significant: any change they then try is checked against the saved procedure (H-15).
+**Possible harm.** A decision made on old information, for one patient. Significant: any change they then try is checked against the saved procedure (H-15).
 
 **Existing controls:**
 - The server checks every change against the saved procedure's rules (H-15).
@@ -573,6 +625,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Further controls:**
 - **Refresh procedure data when the window regains focus,** at least on procedure pages and task lists. Protective; **proposed**; later.
 - **Live updates** to procedure pages and lists when someone else changes them. Protective; **planned** (`docs/procedures-ui-plan.md`, phase 7, "later"); later.
+
+**At first live use:** Significant, Medium: **2**.
 
 **Residual risk:** Significant, Low: **2**.
 
@@ -590,7 +644,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** A step described only in the instructions is missed.
 
-**Possible harm.** A missed or wrong step. Considerable.
+**Possible harm.** A missed or wrong step, for one patient. Considerable.
 
 **Existing controls:**
 - The instructions are on the page, beside the notes box, a click away.
@@ -602,6 +656,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Open the current stage's instructions** the first time a person works that stage. Protective; **proposed**; later.
 - **"Must read" instructions:** a per-definition setting that asks the person to confirm they've read them before they can finish the stage. Protective; **proposed**; later.
 - **Write anything essential as its own stage,** not only in instructions. Information; transferred (template governance).
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Very low: **2**.
 
@@ -616,15 +672,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Causes:**
 - **No idle timeout:** a session lasts a fixed 8 hours, so someone else can use an unattended, signed-in screen (`SessionService`; `docs/architecture.md`, risk S5).
 - **Passwords only,** with no multi-factor authentication (risk S8), and shared or passed-on passwords.
-- **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username.
+- **Deleting a user** removes the account. Their name then shows as "Deleted user" on stages and assignments (`ProcedureMapper.DeletedUser`), though the audit log keeps a snapshot of the username. (What happens to their open work is H-21.)
 
 **Effect.** It's unclear who did a step, which matters when someone needs to ask about it or when something went wrong.
 
-**Possible harm.** A question about a patient's care can't be answered quickly; accountability is lost. Significant.
+**Possible harm.** A question about a patient's care can't be answered quickly; accountability is lost. One patient; Significant.
 
 **Existing controls:**
 - Each change is recorded with the signed-in user's ID and a snapshot of their username (`ProcedureActor`, `ProcedureAudit`).
-- Sessions are revoked on sign-out, and deleting a user ends their sessions (`SessionAuthenticationHandler`).
+- Sessions are revoked on sign-out, and a session whose user no longer exists is refused, so deleting a user ends their sessions (`SessionService`, `MedApp.Infrastructure/Common/Authentication/SessionService.cs`).
 - Five wrong passwords lock an account for five minutes.
 
 **Initial risk:** Significant, Medium: **2**.
@@ -634,6 +690,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Multi-factor authentication** and single sign-on. Protective; **planned** (step 4); later.
 - **Deactivate accounts instead of deleting them.** Design; **planned** (step 4); later.
 - **Local policy:** no shared accounts; lock screens when away. Information; transferred.
+
+**At first live use:** Significant, Medium: **2**.
 
 **Residual risk:** Significant, Low: **2**.
 
@@ -651,7 +709,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 **Effect.** The record of what was done, or of the patient, is no longer where staff look for it.
 
-**Possible harm.** A later decision made without that history. Considerable.
+**Possible harm.** A later decision made without that history, for one patient. Considerable.
 
 **Existing controls:**
 - Only cancelled or archived procedures can be deleted, only by admins, after a confirmation that names the procedure and patient (`ProcedureWorkflow.CanBeDeleted`; `ProcedurePage.tsx`).
@@ -663,6 +721,8 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 **Further controls:**
 - **Retention rules instead of deletion,** set by each organisation's retention schedule. Design; **planned** (step 7); later.
 - **Admin-only patient deletion.** Protective; **planned** (step 2); later.
+
+**At first live use:** Considerable, Low: **2**.
 
 **Residual risk:** Considerable, Very low: **2**.
 
@@ -678,21 +738,58 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - **Backups:** 7 days of point-in-time restore on Azure, never tested; none on the local cluster (`docs/architecture.md`, section 8.2 and risk R5).
 - **Migrations** are reviewed by hand; a rename scaffolded as drop and create would lose data if missed (`AGENTS.md`, Migrations).
 
-**Effect.** Stages finished, notes written and procedures created since the restore point are gone, and staff don't know which.
+**Effect.** Stages finished, notes written and procedures created since the restore point are gone, for every patient, and staff don't know which.
 
-**Possible harm.** Steps done twice, or believed done when the record of them is gone. Considerable.
+**Possible harm.** Steps done twice, or believed done when the record of them is gone. Severe injury from which recovery is expected, multiple patients: Major.
 
 **Existing controls:**
 - Each change and its audit entries are saved in one transaction (`PatientProcedureRepository.SaveAsync`).
 - Migrations are reviewed and tested up and down on a throwaway database, never applied at start-up, and a failed migration stops the rollout (`AGENTS.md`; ADR-10).
 
-**Initial risk:** Considerable, Low: **2**.
+**Initial risk:** Major, Low: **3**.
 
 **Further controls:**
-- **35 days of point-in-time restore, long-term backups, and tested restores.** Protective; **planned** (step 5); before first live use for the tested restore.
+- **A tested restore** before first live use, then 35 days of point-in-time restore, long-term backups and restore drills. Protective; **planned** (step 5); the tested restore before first live use, the rest later.
 - **A runbook** that, after a restore, tells customers the restore point, so they can re-enter work from their downtime records. Information; **planned** (step 5); before first live use.
 
-**Residual risk:** Considerable, Very low: **2**.
+**At first live use:** Major, Very low: **2**.
+
+**Residual risk:** Major, Very low: **2**.
+
+**Owner:** [CSO]. **Status:** Open.
+
+---
+
+## H-21: Work assigned to a deleted account drops off every task list
+
+**Description.** An admin deletes the account of someone who has left, and the procedures assigned to them stay assigned to the deleted account, on nobody's task list.
+
+**Causes:**
+- **Deleting an account touches nothing else.** `DeleteUserHandler` calls `IdentityUserService.DeleteUserAsync`, which deletes the Identity user only.
+- **Assignments have no link to the user table:** they're keyed on the procedure and the user's ID, with a foreign key to the procedure only (`PatientProcedureAssignmentConfiguration`), so the rows stay.
+- **The status still says Assigned,** because it counts assignments, not live accounts (`ProcedureWorkflow.StatusFromAssignments`). So an "unassigned" view (H-04) wouldn't show it either.
+- **My Tasks matches the signed-in user's ID** (`ProcedureSearch.Filter`, `AssignedToMe`), so no one else's list shows it.
+- **Deleting is the only way to remove an account,** and the guidance to customers is to remove leavers promptly.
+
+**Effect.** The leaver's open procedures look looked after, showing "Deleted user" as the assignee, but nobody is working them, and nothing tells anyone.
+
+**Possible harm.** Delayed care for every patient on the leaver's list. Severe injury from which recovery is expected, multiple patients: Major.
+
+**Existing controls:**
+- The procedure page and lists show the assignee as "Deleted user" (`ProcedureMapper.DeletedUser`), which someone looking at the procedure would notice.
+- Any staff member can still work the procedure, and an admin can unassign the deleted account and assign someone else.
+- Overdue badges still show on the full Procedures list.
+
+**Initial risk:** Major, Medium: **3**.
+
+**Further controls:**
+- **Refuse to delete an account with open assignments, or require reassignment first:** list the open procedures assigned to the account, and delete it only once they're reassigned. Protective; **proposed**; **before first live use**.
+- **Deactivate accounts instead of deleting them,** keeping their assignments visible until reassigned. Design; **planned** (step 4); later.
+- **A leaver process:** reassign a leaver's open procedures, then remove the account. Information; transferred; before first live use.
+
+**At first live use:** Major, Very low: **2**.
+
+**Residual risk:** Major, Very low: **2**.
 
 **Owner:** [CSO]. **Status:** Open.
 
@@ -700,7 +797,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## Hazards considered and not logged
 
-- **Stages worked out of order.** Designed out: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Part of H-06 and H-15.
+- **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
 - **Completing a procedure with a stage unfinished or unlocked.** Designed out: `ChangePatientProcedureStatusHandler` refuses it (`AllStagesFinished`).
 - **One user's data in another's server-rendered page.** A security and privacy risk rather than a clinical one, controlled by a new query cache per request (`createSsrRouter`; `docs/architecture.md`, section 5.8). Left to the security work in step 2.
 - **Clinical calculations or recommendations going wrong.** MedApp has none (`intended-purpose-and-device-decision.md`).
@@ -710,3 +807,4 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
+| 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |

@@ -72,7 +72,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - the headline counts: `hazard-log.md:52`, `clinical-safety-case-report.md:25-27`, `README.md:26`, `docs/architecture.md:1817`
   - other hazards that affect many patients at once and may move up: H-10 (`hazard-log.md:367`), H-12 (`:437`), H-20 (`:683`)
 - **Fix:** replace the consequence table with DCB0129's, including its "number of patients affected" column (see Detail). Re-rate H-13, H-10, H-12, H-14 and H-20 against it, and update the counts in the four places above. Or, if the reworded scale is wanted, stop calling it DCB0129's, and have the CSO record why it differs.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. CS-01 section 4.2 now has DCB0129's consequence table, with its "patients affected" column, and asks the CSO to check it against the current published version. Every hazard was re-rated against it: H-13 is now Catastrophic, Low: **4** (Catastrophic, Very low: 3 at first live use and residual, with its approval step brought forward to before first live use); H-10 and H-20 are Major (3 today); H-12 is Considerable (3 today); H-14 is Major (3 today); H-09 also moved to 3, because of finding 2. The counts are updated in `hazard-log.md`, CS-03, the README and `docs/architecture.md`'s step 6 status: one hazard at 4 and twelve at 3 today.
 
 ### 2. My Tasks shows only work not yet started, so the hazard log leans on a list that hides started work
 
@@ -84,7 +84,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - `MedApp.Application/Procedures/PatientProcedures/Queries/SearchPatientProcedures/ProcedureSearch.cs:97-103` (`Started == false` drops every procedure with a started or finished stage)
   - the claims: `docs/clinical-safety/hazard-log.md:206`, `:337`, `:346`; `docs/clinical-safety/dcb0160-deploying-organisations.md:75`, `:101`
 - **Fix:** correct the three control statements to say what the default shows. Add it as a cause in H-04, H-05 and H-09. And add a further control, before first live use: open My Tasks on all open work (or show a count of started and overdue work beside the filter), so the list staff are told to rely on shows everything assigned to them.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed in the documents; the product is unchanged. H-04, H-05 and H-09 now give My Tasks' "Not started" default as a cause, and their existing controls say what the default shows (H-09 is renamed "A member of staff doesn't learn of work assigned to them"). Each proposes, before first live use, a visible count of started and overdue work on My Tasks, or opening it on all open work. CS-03's limits, defects and assumptions, and CS-05's training points and transferred controls, now say to set My Tasks to all open work.
 
 ### 3. Deleting a leaver's account leaves their open work assigned to nobody, and CS-05 tells customers to do it
 
@@ -96,7 +96,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - `MedApp.Application/Procedures/Common/ProcedureWorkflow.cs:55-56` (status counts assignments, not live accounts); `ProcedureSearch.cs:84-88` (My Tasks matches the user's ID)
   - `docs/clinical-safety/dcb0160-deploying-organisations.md:90` and `:129` (D-09); `docs/clinical-safety/hazard-log.md:163` (H-04 covers an assignee who's away, not one who's deleted) and `:619` (H-18)
 - **Fix:** log it as a new hazard, H-21, "Work assigned to a deleted account drops off every task list". Further controls: refuse to delete an account with open assignments, or list them and require reassignment first (protective; before first live use, since CS-05 sends customers down this path); deactivate instead of delete (already planned, step 4). In CS-05, change line 90 to "Reassign a leaver's open procedures, then remove the account."
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. New hazard H-21, "Work assigned to a deleted account drops off every task list" (Major, Medium: 3 today; Major, Very low: 2 at first live use), with the proposed control before first live use "refuse to delete an account with open assignments, or require reassignment first", deactivation (planned, step 4) for later, and a transferred leaver process. CS-05's accounts line now reads "Reassign a leaver's open procedures, then remove the account.", its D-09 and transferred-controls table match, and CS-03's assumptions and defects list it.
 
 ### 4. Residual risk counts controls planned for later, so the risk at first live use isn't stated
 
@@ -107,7 +107,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - `docs/clinical-safety/clinical-safety-case-report.md:27` ("every hazard comes down to 2 or below") and `:119-140`
   - `docs/clinical-safety/clinical-risk-management-plan.md:139` ("Residual risk is re-rated once a control is in place and verified")
 - **Fix:** add a third rating, "at first live use", to each hazard and to the summary tables: the risk once only the "before first live use" controls are built. Point the go-live rule (CS-03 section 7) at that rating. Where it stays at 3 (H-13 at least), either bring a control forward (the approval step) or note that the CSO must justify accepting it.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. Every hazard, and the summary tables in the hazard log and CS-03, now have a third rating, "at first live use", counting only the controls marked "before first live use". The go-live rule (CS-01 section 4.4, and CS-03 section 7) uses it: nothing above 3, and each 3 justified by the CSO. Three hazards stay at 3 on it: H-07 (a required note can still be "nothing to record"), H-10 (no operating history yet) and H-13, which reaches 3 only with its approval step brought forward to before first live use.
 
 ### 5. The device change-control rule isn't in force anywhere, and the plan contradicts the README about it
 
@@ -119,7 +119,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - `AGENTS.md` has no clinical safety or device rule; PR #60's description has no clinical safety section
   - `docs/architecture.md:1875` (the risk of skipping)
 - **Fix:** add one rule to `AGENTS.md` now, which needs no CSO: "A change that adds a calculation, score, priority, triage, recommendation or alert from patient data, or changes the intended purpose, reassesses `docs/clinical-safety/intended-purpose-and-device-decision.md` in the same pull request." And make CS-01 section 8 say what the README says: the pull request section starts when a CSO is appointed, except for the device question.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. The root `AGENTS.md` merge flow now has the device-decision trigger: a change that adds calculations, scores, dose checks, decision support, triage or prioritising, alerts from clinical values, or medical claims must update `docs/clinical-safety/intended-purpose-and-device-decision.md` before it merges. CS-01 section 8 now agrees with the README: the device question applies now, through `AGENTS.md`, and the rest of the pull request section starts when a CSO is appointed. CS-04's change-control rule points to the same place.
 
 ### 6. The release gate's list of paths misses files that hold the controls the log relies on
 
@@ -129,7 +129,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - `docs/clinical-safety/clinical-risk-management-plan.md:175-183` (the list)
   - outside it, but cited as controls or fixes: `MedApp.Web/src/pages/listSearch.ts` (`hazard-log.md:206`), `MedApp.Web/src/app/queryClient.ts:9` (`:558`), `MedApp.API/Controllers/*` (`:162`, `:469`; `clinical-safety-case-report.md:66`), `MedApp.Infrastructure/Data/Repositories/PatientProcedureRepository.cs` (`hazard-log.md:686`), `MedApp.Contracts/Procedures/PatientProcedures/Responses/PatientProcedureResponse.cs:15` (`:406`), `MedApp.API/ServerRendering/SsrPages.cs` (`:372`), `MedApp.Infrastructure/Common/Identity/IdentityUserService.cs` (finding 3), and the H-12 and H-15 fixes (`:446`, `:543`)
 - **Fix:** widen the list (Detail has one), or invert it: every change under `MedApp.*` and `deploy/` needs the section, which may say "no clinical impact, because …" in one line.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed, by inverting the list. CS-01 section 8 now requires the clinical safety section for every pull request that changes anything under `MedApp.*` or `deploy/` (with a one-line "no clinical impact, because ..." where that's so), plus changes to the intended purpose, instructions for use or marketing text, and says why a path list was rejected.
 
 ### 7. "Stages worked out of order" isn't designed out once an admin unlocks a stage
 
@@ -137,7 +137,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
 - **What could go wrong:** the log says working stages out of order is "designed out: only the current stage can be started, edited or finished". That's true until an admin unlocks a finished stage. The unlocked stage still counts as finished, so the current stage stays where it was, and **both** can then be edited and finished. Scenario: an admin unlocks a consent stage to correct it; meanwhile the next stage, the procedure itself, is finished as normal, and the record shows consent as finished throughout. H-06 describes the unlock half of this, but not that work carries on past it.
 - **Evidence:** `docs/clinical-safety/hazard-log.md:703`; `MedApp.Application/Procedures/Common/ProcedureWorkflow.cs:68-69` (`CurrentStage` skips finished stages) and `:92-98` (an unlocked finished stage is editable); `ProcedureChange.cs:98-106`
 - **Fix:** reword line 703 to "designed out while no stage is unlocked", and add to H-06's effect that later stages can be worked and finished while an earlier one is reopened. H-06's proposed "Reopen" control (making it the current stage again) is the right fix.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. The "not logged" entry now says stages worked out of order are designed out "while no stage is unlocked", and H-06's effect adds that later stages can be worked and finished while an earlier one is unlocked, with the consent example. H-06's proposed "Reopen" control now says it holds up later stages until the reopened one is finished.
 
 ### 8. H-15 describes the notes-after-finish race as a stale page, which the same hazard says gets a 409
 
@@ -145,7 +145,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
 - **What could go wrong:** H-15 says notes can change after a stage is locked if someone "who loaded the procedure before that" saves notes. But each request reloads the procedure and checks it against the database (`GetForUpdateOrThrowAsync`, then `WhyStageCantBeEdited`), so a stale page gets a 409, as H-15's own existing controls say four lines later. The real case is two requests handled at the same moment: a narrow race, not a common one. Overstating it makes H-15's Medium likelihood look better supported than it is; the lost-update case for two people saving notes on the current stage is real, and is enough on its own.
 - **Evidence:** `docs/clinical-safety/hazard-log.md:526` against `:536`; `MedApp.Application/Procedures/PatientProcedures/Commands/UpdateProcedureStageNotes/UpdateProcedureStageNotesHandler.cs:18-25`
 - **Fix:** reword line 526: "Notes saved at the same moment a stage is finished: if both requests are handled at once, both pass their checks, and the notes change after the stage is locked."
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. H-15's cause now reads as the suggested wording: notes saved at the same moment a stage is finished, both requests handled at once, a narrow race, since each request reloads the procedure. Its existing control adds that a stale page can't save notes on a locked stage.
 
 ### 9. CS-05 has no sign-off, its banner names the wrong standard, and the README records how the drafting was instructed
 
@@ -155,7 +155,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - README line 31 records an instruction given while drafting, and calls what follows decisions "made". In a public file, it's a detail about how the work was commissioned rather than about the product, and it frames proposals (the risk scheme, incident times, retention) as settled.
 - **Evidence:** `docs/clinical-safety/dcb0160-deploying-organisations.md:3` and `:5-12` (no approval row; compare `clinical-risk-management-plan.md:13`); `docs/clinical-safety/README.md:29-31` and `:49`
 - **Fix:** in CS-05, change the banner to say it must be signed off by the manufacturer's CSO before it's given to any deploying organisation, and add an "Approved by" row and a sign-off table; add CS-05 to README step 5. Replace README lines 29-31 with "## Choices proposed in drafting" and "These are proposals for the CSO and the accountable owner to confirm:".
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. CS-05's banner now says it isn't yet DCB0160 guidance and must be signed off by the manufacturer's CSO before it's given to any deploying organisation; it has an "Approved by" row and a sign-off table, and the README lists it for the CSO to sign (step 5) and in its documents table. The README's heading is now "Choices proposed in drafting", introduced as "These are proposals for the CSO and the accountable owner to confirm:", with no line about how the drafting was instructed.
 
 ### 10. Building H-04's control will make the intended purpose untrue
 
@@ -163,7 +163,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
 - **What could go wrong:** the intended purpose says MedApp "is not a scheduling, alerting or patient monitoring system", that "nothing alerts anyone" when a procedure is overdue, and that notifications are "for assignments only". H-04's control for first live use is overdue notifications. Once built, those lines, CS-03's "nothing alerts anyone" and CS-05's training point are wrong, and the intended purpose is what the MHRA judges a product by. The roadmap table in CS-04 already says workflow notifications stay outside the device definition, so the decision itself doesn't change; the wording does.
 - **Evidence:** `docs/clinical-safety/hazard-log.md:180`; `docs/clinical-safety/intended-purpose-and-device-decision.md:35`, `:54`, `:55`; `docs/clinical-safety/clinical-safety-case-report.md:90`; `docs/clinical-safety/dcb0160-deploying-organisations.md:99`
 - **Fix:** in H-04's control, note that it updates CS-04 (lines 35, 54, 55), CS-03 and CS-05 in the same pull request. Or word the intended purpose now as "not a clinical alerting or patient monitoring system; it may remind staff about workflow dates they set".
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed, by rewording the intended purpose now. CS-04 says MedApp is "not a scheduling, clinical alerting or patient monitoring system, though it may remind staff about workflow dates they have set"; its outputs row and "What it's not for" say notifications are about the workflow, never clinical values, and that today they're for assignments only. CS-03's and CS-05's lines now say "today, nothing alerts anyone", and H-04's control says to update them in the same pull request when overdue notifications are built.
 
 ### 11. Small inaccuracies
 
@@ -176,7 +176,7 @@ Most severe first. None is high or critical. All are open at `d2033f6`.
   - **Five statuses, not eight:** CS-04's function table lists in progress, in review, completed, blocked and cancelled (`intended-purpose-and-device-decision.md:99`); the workflow also has unassigned, assigned and archived (`MedApp.Domain/Procedures/PatientProcedures/PatientProcedureStatus.cs`).
   - **The PR description says the H-12 defect "is fixed in its own PR";** no such pull request exists at review time (open pull requests are #57 to #60). The documents themselves correctly call it suspected and unverified.
 - **Fix:** mark H-09's information control "transferred"; add "To verify" to the plan's statuses or use "Open"; cite `SessionService`; say "asked once per visit, and not of admins"; list all eight statuses; and when the H-12 fix lands, update H-12's status, the README's main findings, CS-03's defects table and the handbook's Status line together.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed. H-09's information control is marked transferred; H-12's status is "Open (fix in PR #62)", one of the plan's statuses, and the cause is recorded as confirmed, with the fix in PR #62 (open, `fix/utc-times`) cited in H-12, the README, CS-03's defects table and the handbook's step 6 status line, and the verification trap from this review added to H-12; H-18 cites `SessionService` for ending a deleted user's sessions; H-15 says the "not assigned to you" question is asked once per visit and not of admins; CS-04 lists all eight statuses.
 
 ## Remaining risks
 

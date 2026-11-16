@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Document** | CS-03, clinical safety case report (DCB0129) |
-| **Version** | 0.1, draft |
+| **Version** | 0.2, draft |
 | **Date** | 16 November 2026 |
 | **Release** | [Release name or number]. Drafted against `main` at `88dc1fa` (the merge of #56). |
 | **Manufacturer** | [Manufacturer name] |
@@ -22,10 +22,12 @@
 
 - **What MedApp is:** software that records and coordinates the stages of patients' procedures, with task lists, due dates and an audit trail. It isn't a medical device (`intended-purpose-and-device-decision.md`).
 - **The safety position at `88dc1fa`:**
-  - 20 hazards are logged (`hazard-log.md`). None is rated 4 or 5.
-  - **Nine are rated 3 (undesirable)** with today's controls: wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), unavailability (H-10), times shown an hour out (H-12, suspected), wrong template content (H-13) and concurrent edits (H-15).
-  - With the further controls in the hazard log, every hazard comes down to 2 or below.
-- **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, or the CSO has to justify accepting the remaining hazards at 3. MedApp has never been used with real patients, so there is no live use to stop.
+  - 21 hazards are logged (`hazard-log.md`), rated on DCB0129's consequence table, which counts how many patients a harm affects.
+  - **One is rated 4** (mandatory elimination or control) with today's controls: wrong template content (H-13), because one wrong template reaches every patient whose procedure comes from it.
+  - **Twelve are rated 3 (undesirable):** wrong patient (H-01), wrong record (H-02), a missed overdue procedure (H-04), a forgotten blocked procedure (H-05), a stage finished without the work done (H-07), not learning of assigned work (H-09), unavailability (H-10), times shown an hour out (H-12, fix in PR #62), a correction not reaching procedures under way (H-14), concurrent edits (H-15), data lost or restored (H-20) and work left on a deleted account (H-21).
+  - **At first live use,** with the controls marked "before first live use" built, none is above 3 and three stay at 3: H-07, H-10 and H-13.
+  - **Residual,** with every further control built, H-13 stays at 3 and the rest come down to 2.
+- **The conclusion of this draft:** **this release is not yet acceptable for live clinical use.** The controls marked "before first live use" in the hazard log have to be built and verified first, and the CSO has to justify accepting H-07, H-10 and H-13 at 3 (the go-live rule, `clinical-risk-management-plan.md` section 4.4). MedApp has never been used with real patients, so there is no live use to stop.
 - **[CSO's conclusion: to be written by the CSO.]**
 
 ## 2. The release
@@ -47,7 +49,7 @@ The intended purpose, its users, population and environment, and what it's not f
 ## 4. Clinical risk management
 
 - **The process:** `clinical-risk-management-plan.md`.
-- **The risk scheme:** five consequence levels (minor to catastrophic), five likelihood levels (very low to very high), and the 5×5 matrix from the DCB0129 implementation guidance, giving ratings 1 (acceptable) to 5 (unacceptable). Acceptability rules are in the plan, section 4.4.
+- **The risk scheme:** DCB0129's consequence table (five levels, minor to catastrophic, each counting whether one or several patients are affected), its five likelihood levels (very low to very high), and its 5×5 matrix, giving ratings 1 (acceptable) to 5 (unacceptable). Each hazard has three ratings: today, at first live use, and residual. The go-live rule uses the rating at first live use (the plan, section 4.4).
 - **The CSO:** [name, profession, professional body and registration number].
 - **How the hazards were found:** by reading the code at `88dc1fa`, and walking each workflow in `docs/architecture.md` section 6.3 and `docs/procedures-ui-plan.md`. **Not yet done:** the hazard workshop with clinicians from a likely customer, and any review by the CSO. [CSO: record the workshop, its attendees and what it added.]
 
@@ -77,7 +79,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Audit entries outlive deletion of the procedure (no foreign keys), and keep the username and title as they were | `PatientProcedureAuditEntry`; ADR-7 in `docs/architecture.md` |
 | Tests | The procedure command handler tests check the audit entries the commands write, and `ProcedureChangeTests` checks the entries `ProcedureChange` writes |
 
-**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times may be shown an hour out (H-12).
+**Limits:** changes to patients, templates and stage definitions aren't audited (H-03, H-13). Reads aren't logged. Times are shown an hour out in summer at `88dc1fa` (H-12; fix in PR #62).
 
 ### Claim 3: Due dates mean the same thing everywhere
 
@@ -87,7 +89,7 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 | Overdue has one rule, used in memory and in SQL | `ProcedureWorkflow.IsOverdue`, `ProcedureSearch.Filter` |
 | Tests cover summer, winter and both clock-change days | `DueDatesTests` |
 
-**Limits:** "overdue" is only a badge; nothing alerts anyone (H-04). Blocked procedures are never overdue (H-05). Due dates have no time of day (H-11).
+**Limits:** "overdue" is only a badge; today, nothing alerts anyone (H-04), and My Tasks opens on work not yet started, so started overdue work isn't on its default view (H-04, H-09). Blocked procedures are never overdue (H-05). Due dates have no time of day (H-11).
 
 ### Claim 4: Finished work isn't rewritten by later changes to templates
 
@@ -110,34 +112,35 @@ Each claim is backed by evidence that exists today, and says where it falls shor
 
 ### Claim 6: The residual risk of the release is acceptable
 
-**Not yet supported.** Nine hazards are at 3. See [section 7](#7-outstanding-hazards-and-defects).
+**Not yet supported.** Today one hazard is at 4 and twelve at 3; at first live use, three would stay at 3. See [section 7](#7-outstanding-hazards-and-defects).
 
 ## 6. Hazards and their risk
 
-From `hazard-log.md`, version 0.1.
+From `hazard-log.md`, version 0.2. **At first live use** counts only the controls marked "before first live use"; **residual** counts every further control.
 
-| ID | Hazard | Initial | Residual (once further controls are in place) | Controls needed before first live use |
-|---|---|---|---|---|
-| H-01 | The wrong patient's procedure is worked | 3 | 2 | Patient banner; date of birth in lists |
-| H-02 | Work is recorded on the wrong record | 3 | 2 | Patient banner; patient named in confirmations |
-| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | None (patient audit planned, step 7) |
-| H-04 | An overdue procedure is missed | 3 | 2 | Overdue notifications; an unassigned-and-due view; local review process |
-| H-05 | A blocked procedure is forgotten | 3 | 2 | A "past due date" flag on blocked procedures |
-| H-06 | A stage is finished in error | 2 | 2 | None |
-| H-07 | A stage is recorded as finished when the work wasn't done | 3 | 2 | Notes, or "nothing to record", before finishing |
-| H-08 | A procedure is cancelled, completed or archived in error | 2 | 2 | None |
-| H-09 | An assignment notification isn't received | 2 | 2 | Information for users |
-| H-10 | MedApp is unavailable | 3 | 2 | Printable task list and summary; downtime procedure; monitoring |
-| H-11 | Due dates don't mean what staff think | 2 | 2 | Information on the form |
-| H-12 | Times are shown an hour out (suspected) | 3 | 1 | Verify and fix |
-| H-13 | A template or stage definition has wrong content | 3 | 2 | Audit template and definition changes; local template governance |
-| H-14 | A correction to a template doesn't reach procedures under way | 2 | 2 | None |
-| H-15 | Two people edit the same procedure at once | 3 | 2 | Optimistic concurrency; keep the draft on a conflict |
-| H-16 | The screen shows out-of-date information | 2 | 2 | None |
-| H-17 | Stage instructions aren't read | 2 | 2 | None |
-| H-18 | A change is recorded under the wrong person's name | 2 | 2 | None |
-| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | None |
-| H-20 | Data is lost, or restored to an earlier point | 2 | 2 | Tested restore; restore runbook |
+| ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
+|---|---|---|---|---|---|
+| H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner; date of birth in lists |
+| H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner; patient named in confirmations |
+| H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | None (patient audit planned, step 7) |
+| H-04 | An overdue procedure is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Tasks; an unassigned-and-due view; local review process |
+| H-05 | A blocked procedure is forgotten | 3 | 2 | 2 | A "past due date" flag on blocked procedures; started work counted on My Tasks |
+| H-06 | A stage is finished in error | 2 | 2 | 2 | None |
+| H-07 | A stage is recorded as finished when the work wasn't done | 3 | **3** | 2 | Notes, or "nothing to record", before finishing; CSO justification |
+| H-08 | A procedure is cancelled, completed or archived in error | 2 | 2 | 2 | None |
+| H-09 | A member of staff doesn't learn of work assigned to them | 3 | 2 | 2 | Started work counted on My Tasks; information for users |
+| H-10 | MedApp is unavailable | 3 | **3** | 2 | Printable task list and summary; downtime procedure; monitoring; CSO justification |
+| H-11 | Due dates don't mean what staff think | 2 | 2 | 2 | Information on the form |
+| H-12 | Times are shown an hour out | 3 | 2 | 2 | The fix in PR #62 |
+| H-13 | A template or stage definition has wrong content | **4** | **3** | **3** | Approval step for template changes (brought forward); audit of template and definition changes; local template governance; CSO justification |
+| H-14 | A correction to a template doesn't reach procedures under way | 3 | 2 | 2 | Open procedures listed when a template in use is edited; local review process |
+| H-15 | Two people edit the same procedure at once | 3 | 2 | 2 | Optimistic concurrency; keep the draft on a conflict |
+| H-16 | The screen shows out-of-date information | 2 | 2 | 2 | None |
+| H-17 | Stage instructions aren't read | 2 | 2 | 2 | None |
+| H-18 | A change is recorded under the wrong person's name | 2 | 2 | 2 | None |
+| H-19 | Part of the clinical record is lost by deletion | 2 | 2 | 2 | None |
+| H-20 | Data is lost, or restored to an earlier point | 3 | 2 | 2 | Tested restore; restore runbook |
+| H-21 | Work assigned to a deleted account drops off every task list | 3 | 2 | 2 | Refuse to delete an account with open assignments, or require reassignment first; leaver process |
 
 [CSO: confirm or change each rating, and record the reasons for any change.]
 
@@ -145,25 +148,31 @@ From `hazard-log.md`, version 0.1.
 
 ### Hazards not yet controlled to an acceptable level
 
-H-01, H-02, H-04, H-05, H-07, H-10, H-12, H-13 and H-15, at 3. For each, the CSO either confirms that its "before first live use" controls are built and verified, or writes a justification for accepting it at 3:
+The go-live rule uses the rating **at first live use.** For each hazard at 3 or above today, the CSO confirms that its "before first live use" controls are built and verified. For H-07, H-10 and H-13, which stay at 3 even then, the CSO also writes a justification for accepting them at 3, or asks for more controls first.
 
-| Hazard | Decision | Justification or evidence | CSO |
-|---|---|---|---|
-| H-01 | [Controlled / accepted at 3 / not accepted] | | |
-| H-02 | | | |
-| H-04 | | | |
-| H-05 | | | |
-| H-07 | | | |
-| H-10 | | | |
-| H-12 | | | |
-| H-13 | | | |
-| H-15 | | | |
+| Hazard | Today | At first live use | Decision | Justification or evidence | CSO |
+|---|---|---|---|---|---|
+| H-01 | 3 | 2 | [Controls verified / not verified] | | |
+| H-02 | 3 | 2 | | | |
+| H-04 | 3 | 2 | | | |
+| H-05 | 3 | 2 | | | |
+| H-07 | 3 | 3 | [Accepted at 3 / not accepted] | | |
+| H-09 | 3 | 2 | | | |
+| H-10 | 3 | 3 | [Accepted at 3 / not accepted] | | |
+| H-12 | 3 | 2 | | | |
+| H-13 | 4 | 3 | [Accepted at 3 / not accepted] | | |
+| H-14 | 3 | 2 | | | |
+| H-15 | 3 | 2 | | | |
+| H-20 | 3 | 2 | | | |
+| H-21 | 3 | 2 | | | |
 
 ### Known defects with a clinical impact
 
 | Defect | Hazard | State |
 |---|---|---|
-| Timestamps read from the database are sent without a time zone, and the web app reads them as local time, so they show an hour early in summer | H-12 | Suspected, from reading the code. To reproduce and fix. |
+| Timestamps read from the database are sent without a time zone, and the web app reads them as local time, so they show an hour early in summer | H-12 | Confirmed. Fixed in PR #62 (open), which marks every time read from the database as UTC and reads times without an offset as UTC in the web app. |
+| My Tasks opens on work not yet started, so work already under way, including overdue and blocked work, isn't on its default view | H-04, H-05, H-09 | Known. A count of started work, or opening on all open work, proposed before first live use. |
+| Deleting an account leaves its open procedures assigned to it, on nobody's task list | H-21 | Known. Refusing the delete, or requiring reassignment first, proposed before first live use. |
 | Live notifications stop reconnecting after about 42 seconds | H-09 | Known (`docs/architecture.md`, risk R11). Planned, step 2. |
 | No optimistic concurrency: the last save wins | H-15 | Known (risk R8). Planned, step 6. |
 | Sessions have no idle timeout | H-18 | Known (risk S5). Planned, step 2. |
@@ -176,8 +185,9 @@ H-01, H-02, H-04, H-05, H-07, H-10, H-12, H-13 and H-15, at 3. For each, the CSO
 This report holds only if each deploying organisation:
 - **identifies patients** at the point of care by its own positive identification process;
 - **governs its templates:** clinical sign-off of each template and stage definition before use, and review when a template changes;
-- **trains its staff** in MedApp, including what finishing a stage means, what a due date means, and that notifications aren't to be relied on;
+- **trains its staff** in MedApp, including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks must be set to all open work to show everything assigned to them;
 - **has at least two admins,** so assignment and unlocking never wait on one person;
+- **reassigns a leaver's open procedures** before their account is removed;
 - **reviews overdue, unassigned and blocked procedures** on a set schedule;
 - **has a downtime procedure,** with printed task lists, and a way to enter work done during downtime afterwards;
 - **keeps the clinical record** of what was done in its own clinical systems, using MedApp to coordinate the steps;
@@ -203,3 +213,4 @@ These are listed for the customer in `dcb0160-deploying-organisations.md`.
 | Version | Date | Change | By |
 |---|---|---|---|
 | 0.1 | 16 November 2026 | Template, filled in for `88dc1fa` | AI coding agent, for review |
+| 0.2 | 16 November 2026 | After the review of #60: ratings on DCB0129's consequence table, a rating at first live use and the go-live rule on it, H-21, My Tasks' default view, H-12's fix in PR #62 | AI coding agent, for review |
