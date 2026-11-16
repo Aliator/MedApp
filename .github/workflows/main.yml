@@ -68,6 +68,102 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # The end-to-end tests (MedApp.E2ETests, Playwright) against the production image, as a deploy runs it: SQL Server
+  # as a service container, the image's migrations bundle, its create-first-admin command, then the API (with the
+  # React app and its page server) on http://localhost:8080. The session cookie stays Secure, as everywhere outside
+  # development: browsers keep Secure cookies from http://localhost (a secure context), so nothing is relaxed for CI.
+  # The first admin's password is generated for the run and masked. The SQL Server's is per run too; that server is
+  # the run's own, on a runner nothing outside reaches, and goes with it.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SQL_PASSWORD: Ci-${{ github.run_id }}-${{ github.run_attempt }}-Sql
+      E2E_BASE_URL: http://localhost:8080
+      E2E_USERNAME: e2e-admin
+    services:
+      sql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Ci-${{ github.run_id }}-${{ github.run_attempt }}-Sql
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # As the image job builds it, from the same cache, but kept on the runner (load) rather than thrown away.
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: MedApp.API/Dockerfile
+          push: false
+          load: true
+          tags: medapp-api:e2e
+          cache-from: type=gha
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build the tests
+        run: dotnet build MedApp.E2ETests --configuration Release
+
+      - name: Install Chromium
+        run: pwsh MedApp.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      # Upper and lower case and digits, as the Identity rules need. Masked in the log.
+      - name: Generate the first admin's password
+        run: |
+          password="E2e-$(openssl rand -hex 16)"
+          echo "::add-mask::$password"
+          echo "E2E_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Migrate the database with the image's bundle
+        run: >-
+          docker run --rm --network host -e DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp --entrypoint /app/efbundle medapp-api:e2e
+          --connection "Server=127.0.0.1,1433;Database=MedApp;User ID=sa;Password=$SQL_PASSWORD;TrustServerCertificate=True"
+
+      # The password goes to the container through the environment (-e with a name only), never on a command line.
+      - name: Make the first admin
+        env:
+          FirstAdmin__Username: ${{ env.E2E_USERNAME }}
+          FirstAdmin__Password: ${{ env.E2E_PASSWORD }}
+        run: >-
+          docker run --rm --network host
+          -e "ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=MedApp;User ID=sa;Password=$SQL_PASSWORD;TrustServerCertificate=True"
+          -e FirstAdmin__Username -e FirstAdmin__Password
+          medapp-api:e2e create-first-admin
+
+      - name: Start the API
+        run: |
+          docker run -d --name medapp-api --network host \
+            -e "ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=MedApp;User ID=sa;Password=$SQL_PASSWORD;TrustServerCertificate=True" \
+            medapp-api:e2e
+          for attempt in $(seq 1 60); do
+            if curl -fsS "$E2E_BASE_URL/api/auth/whoami" > /dev/null && curl -fsS "$E2E_BASE_URL/login" > /dev/null; then
+              echo "The API is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The API didn't start." >&2
+          docker logs medapp-api
+          exit 1
+
+      - name: Run end-to-end tests
+        run: dotnet test MedApp.E2ETests --configuration Release --no-build --logger "console;verbosity=normal"
+
+      - name: Show the API's log
+        if: failure()
+        run: docker logs medapp-api
+
   # The Helm chart (deploy/helm/medapp): lint it and render it in the configurations it's used in, so a broken
   # template fails here rather than on a deploy. Helm comes with the runner image.
   helm:
@@ -157,6 +253,22 @@ jobs:
             helm template argocd argo/argo-cd --version "$argocd_version" --namespace argocd \
               --values "$values" > /dev/null
           done
+
+  # The integration tests (MedApp.IntegrationTests): the real API in memory (WebApplicationFactory) against SQL Server
+  # 2022 in Docker (Testcontainers), which the runner has. The migrations are applied at the start and the data reset
+  # between tests. Each run pulls the SQL Server image (about 1.6 GB) first.
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run integration tests
+        run: dotnet test MedApp.IntegrationTests --configuration Release --logger "console;verbosity=normal"
 
   unit-tests:
     runs-on: ubuntu-latest

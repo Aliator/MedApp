@@ -1,5 +1,7 @@
 name: E2E tests
-# Runs only by hand, against an app that is already running somewhere (plan Q13). There are no tests yet.
+# Runs by hand, against an app that is already running somewhere (plan Q13), signed in as an admin from the
+# E2E_USERNAME and E2E_PASSWORD secrets. The tests make their own synthetic data there and delete it. Every pull request
+# runs the same tests against the production image itself (the e2e job in main.yml).
 on:
   workflow_dispatch:
     inputs:
