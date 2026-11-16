@@ -307,13 +307,13 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 
 Write each review so someone who didn't make the change can follow it quickly: short sections, bullets with bold lead-ins, short sentences, and any term that isn't obvious explained the first time it appears. Keep the depth in the findings and the detail at the end.
 
-Use these sections, in this order:
+Start with the PR's link and branch, the commit reviewed and the `main` it was compared with, the date, and whether any finding is high or critical. Then use these sections, with these names, in this order (a review may add sections, but not rename or drop these):
 1. **Summary:** what the PR does, in one or two sentences.
 2. **What changed, and why:** each change, what it does here, and why it was needed.
 3. **Design choices:** for each real choice, the main alternative and the trade-off, including what the chosen option is worse at.
 4. **How it was checked:** tests, builds, screenshots and anything run by hand, with the results.
 5. **Findings,** most severe first. Each has:
-   - a severity (critical, high, medium or low) and a confidence
+   - a severity (critical, high, medium or low, as graded in `docs/reviews/README.md`) and a confidence
    - what could go wrong, as a concrete scenario
    - the evidence (`file:line`)
    - the fix, and what happened to it (fixed in the PR, documented, or left as a to-do)

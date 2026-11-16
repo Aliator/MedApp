@@ -48,7 +48,7 @@ Only `AGENTS.md` changes: 10 lines added and 9 removed, all in its last section 
 
 ## Findings
 
-Most severe first. None is high or critical.
+Most severe first. None is high or critical. All five were fixed in the PR before merging.
 
 ### 1. The #55 review still carries the framing this PR removes
 
@@ -64,7 +64,7 @@ Most severe first. None is high or critical.
   - lines 17 and 35: drop "and explained to someone else" and "and to explain"
 
   The old text stays in `main`'s history, and rewriting `main` would be out of proportion. Taking it out of the current files keeps it off the pages people browse.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed in this PR: the severity line and the scenario now say only that a personal detail was included, and the two old purpose lines are trimmed.
 
 ### 2. Nothing committed makes the local file git-ignored
 
@@ -74,7 +74,7 @@ Most severe first. None is high or critical.
   - `AGENTS.md:325` calls the file git-ignored
   - `.gitignore` has no line for that file name; the other committed ignore files (`MedApp.Web/.gitignore`, `tools/ui-parity/.gitignore`) apply only inside their own folders
 - **Fix:** add the file name from line 325 to `.gitignore`, one line under a comment such as `# Personal agent instructions (local only)`. Then "git-ignored" is true in every clone.
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed in this PR: `.gitignore` lists the file, under "Personal agent instructions (local only)".
 
 ### 3. The format doesn't say whether a review may rename or add sections
 
@@ -84,7 +84,7 @@ Most severe first. None is high or critical.
   - `AGENTS.md:310` ("Use these sections, in this order:") and `:325`
   - `docs/reviews/pr-55-my-tasks-favourite-tag.md:93` and `:100`, and this review's own headings
 - **Fix:** say which in the format, in one sentence. For example, "A review may add sections and rename one, but keeps these seven, in this order." Or, to keep every review searchable by section, "Keep these names; a review may add sections."
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed in this PR: the format now says to keep these names in this order, and that a review may add sections but not rename or drop these. This review's risks section is renamed to match.
 
 ### 4. The format doesn't ask for the commit reviewed or the highest severity
 
@@ -95,7 +95,7 @@ Most severe first. None is high or critical.
   - line 3 of each review from #51 to #55 names the commit reviewed and its base
   - `docs/reviews/pr-55-my-tasks-favourite-tag.md:129`
 - **Fix:** add a line before the list: "Start with the PR's link and branch, the commit reviewed and the `main` it was compared with, the date, and whether any finding is high or critical."
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed in this PR: the format now starts with a header line asking for the PR, branch, commit reviewed, its base, the date, and whether any finding is high or critical.
 
 ### 5. The severities aren't defined where the format asks for them
 
@@ -105,19 +105,17 @@ Most severe first. None is high or critical.
   - `AGENTS.md:296`, `:298` and `:316`
   - `docs/reviews/README.md:30-34`, "How the risks are graded": high, medium and low only
 - **Fix:** in the format, point to the grading ("as graded in `docs/reviews/README.md`"), and add critical there, for example: "**Critical:** loses or exposes data, or breaks `main` or a deploy, now. Stop and fix it first."
-- **What happened to it:** open; recorded here.
+- **What happened to it:** fixed in this PR: the format points to the grading in `docs/reviews/README.md`, which now defines critical.
 
-## The honest catch
+## Remaining risks
 
 - **Preferences outside the repository are invisible:** a committed review can follow rules nobody else can see (finding 3). And the file the new line names is read by one agent tool, though `AGENTS.md` is written for any agent.
-- **The old wording stays in history:** the previous opening is in `main`'s history, and the #55 review still carries its framing (finding 1). Only the current files can change.
-- **Ignored only where set up:** until `.gitignore` lists the local file, the promise at line 325 depends on each clone (finding 2).
-- **Still loose at the edges:** no header with the commit reviewed, and no definition of the severities (findings 4 and 5).
+- **The old wording stays in history:** the previous opening, and the #55 review's fuller wording, are in `main`'s history (finding 1). Only the current files could change.
 - **Proof comes later:** it's a format, so whether it works shows only in the next reviews.
 
 ## Say it like this
 
-"The review format in our agent instructions is now a plain, seven-part standard: summary, what changed, design choices, how it was checked, findings, remaining risks and optional detail, with findings as rigorous as before. The main choice was to keep personal preferences about how reviews read out of the shared file, in each contributor's own local file that git ignores. The trade-off is that those preferences are invisible to everyone else, so reviews can differ in shape with nothing in the repository saying why, and the repository's own ignore list doesn't cover that file yet."
+"The review format in our agent instructions is now a plain, seven-part standard: summary, what changed, design choices, how it was checked, findings, remaining risks and optional detail, with findings as rigorous as before. The main choice was to keep personal preferences about how reviews read out of the shared file, in each contributor's own local file that git ignores. The trade-off is that those preferences are invisible to everyone else, so the format allows extra sections but keeps the standard ones fixed, which keeps every review searchable."
 
 ## Detail
 

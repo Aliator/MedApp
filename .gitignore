@@ -6,6 +6,9 @@ riderModule.iml
 /_ReSharper.Caches/
 *.DotSettings.user
 
+# Personal agent instructions (local only)
+CLAUDE.local.md
+
 # medapp-dev MCP database snapshots (local only)
 tools/MedApp.DevMcp/.backups/
 

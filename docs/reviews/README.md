@@ -30,6 +30,7 @@ Each document says what changed and why, how it works, the decisions and their t
 
 ## How the risks are graded
 
+- **Critical:** loses or exposes data, or breaks `main` or a deploy, now. Stop and fix it first.
 - **High:** breaks something on a normal path (a deploy, or the fallback the design relies on), or exposes data. Fix before relying on it.
 - **Medium:** breaks or misleads in a plausible situation (an incident, a rollback, a first Azure run). Fix it, or accept it knowingly.
 - **Low:** hardening, polish, or documentation that has drifted from the code.
