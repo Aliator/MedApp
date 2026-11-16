@@ -120,8 +120,8 @@ From `hazard-log.md`, version 0.2. **At first live use** counts only the control
 
 | ID | Hazard | Initial | At first live use | Residual | Controls needed before first live use |
 |---|---|---|---|---|---|
-| H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner; date of birth in lists |
-| H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner; patient named in confirmations |
+| H-01 | The wrong patient's procedure is worked | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); date of birth in lists |
+| H-02 | Work is recorded on the wrong record | 3 | 2 | 2 | Patient banner (built on branch `feature/nhs-integrations`, to verify); patient named in confirmations |
 | H-03 | A patient's details are changed or deleted without trace | 2 | 2 | 2 | Patient changes recorded (fields, not old values; step 7) |
 | H-04 | An overdue procedure is missed | 3 | 2 | 2 | Overdue notifications; started work counted on My Tasks; an unassigned-and-due view; local review process |
 | H-05 | A blocked procedure is forgotten | 3 | 2 | 2 | A "past due date" flag on blocked procedures; started work counted on My Tasks |

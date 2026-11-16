@@ -7,7 +7,9 @@ using MedApp.Domain.Patients;
 namespace MedApp.Application.Patients.Repositories;
 
 /// <summary>
-/// Patients. Every change saves its activity log entry in the same save, so the log can't miss a change.
+/// Patients. Every change saves its activity log entry in the same save, so the log can't miss a change. Adding or
+/// updating a patient whose NHS number another patient has throws a <see cref="Common.Exceptions.ConflictException"/>
+/// (the database's unique index is the last word, should two saves race).
 /// </summary>
 public interface IPatientRepository
 {
@@ -16,6 +18,12 @@ public interface IPatientRepository
     Task DeleteAsync(Guid id, ActivityEntry activity, CancellationToken cancellationToken);
     Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken);
+
+    /// <summary>Whether a patient other than <paramref name="exceptPatientId"/> has this NHS number (ten digits).</summary>
+    Task<bool> NhsNumberInUseAsync(string nhsNumber, Guid? exceptPatientId, CancellationToken cancellationToken);
+
+    /// <summary>The patient with this NHS number (ten digits), or null.</summary>
+    Task<Patient?> GetByNhsNumberAsync(string nhsNumber, CancellationToken cancellationToken);
 
     /// <summary>How many procedures the patient has, in any status.</summary>
     Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken);

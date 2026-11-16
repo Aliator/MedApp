@@ -404,6 +404,244 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/demographics/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DemographicsStatusResponse"];
+                        "application/json": components["schemas"]["DemographicsStatusResponse"];
+                        "text/json": components["schemas"]["DemographicsStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/demographics/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["LookUpDemographicsRequest"];
+                    "text/json": components["schemas"]["LookUpDemographicsRequest"];
+                    "application/*+json": components["schemas"]["LookUpDemographicsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DemographicsLookupResponse"];
+                        "application/json": components["schemas"]["DemographicsLookupResponse"];
+                        "text/json": components["schemas"]["DemographicsLookupResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fhir/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirCapabilityStatement"];
+                    };
+                };
+                /** @description Not Acceptable */
+                406: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirOperationOutcome"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fhir/Patient/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirPatient"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirOperationOutcome"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fhir/Patient": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    identifier?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirBundle"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/fhir+json": components["schemas"]["FhirOperationOutcome"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -646,200 +884,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/monitoring/rules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["MonitoringRuleResponse"][];
-                        "application/json": components["schemas"]["MonitoringRuleResponse"][];
-                        "text/json": components["schemas"]["MonitoringRuleResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["SaveMonitoringRuleRequest"];
-                    "text/json": components["schemas"]["SaveMonitoringRuleRequest"];
-                    "application/*+json": components["schemas"]["SaveMonitoringRuleRequest"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["MonitoringRuleResponse"];
-                        "application/json": components["schemas"]["MonitoringRuleResponse"];
-                        "text/json": components["schemas"]["MonitoringRuleResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ValidationProblemDetails"];
-                        "application/json": components["schemas"]["ValidationProblemDetails"];
-                        "text/json": components["schemas"]["ValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/monitoring/rules/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["SaveMonitoringRuleRequest"];
-                    "text/json": components["schemas"]["SaveMonitoringRuleRequest"];
-                    "application/*+json": components["schemas"]["SaveMonitoringRuleRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["MonitoringRuleResponse"];
-                        "application/json": components["schemas"]["MonitoringRuleResponse"];
-                        "text/json": components["schemas"]["MonitoringRuleResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ValidationProblemDetails"];
-                        "application/json": components["schemas"]["ValidationProblemDetails"];
-                        "text/json": components["schemas"]["ValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -941,70 +985,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/notifications/preferences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["NotificationPreferencesResponse"];
-                        "application/json": components["schemas"]["NotificationPreferencesResponse"];
-                        "text/json": components["schemas"]["NotificationPreferencesResponse"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
-                    "text/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
-                    "application/*+json": components["schemas"]["UpdateNotificationPreferencesRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["NotificationPreferencesResponse"];
-                        "application/json": components["schemas"]["NotificationPreferencesResponse"];
-                        "text/json": components["schemas"]["NotificationPreferencesResponse"];
-                    };
-                };
-            };
-        };
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2005,6 +1985,28 @@ export interface paths {
                         "text/json": components["schemas"]["PatientResponse"];
                     };
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -2190,6 +2192,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         trace?: never;
@@ -2213,6 +2226,7 @@ export interface paths {
                     Email?: string;
                     DateOfBirthFrom?: string;
                     DateOfBirthTo?: string;
+                    NhsNumber?: string;
                 };
                 header?: never;
                 path?: never;
@@ -3868,6 +3882,8 @@ export interface components {
             name?: string | null;
             description?: string | null;
             instructions?: string | null;
+            snomedCode?: string | null;
+            snomedTerm?: string | null;
         };
         CreatePatientProcedureStageTemplateRequest: {
             name?: string | null;
@@ -3879,6 +3895,7 @@ export interface components {
             /** Format: date */
             dateOfBirth?: string;
             email?: string | null;
+            nhsNumber?: string | null;
         };
         CreateRoleRequest: {
             name?: string | null;
@@ -3892,6 +3909,18 @@ export interface components {
         };
         DeleteUserRequest: {
             password?: string | null;
+        };
+        DemographicsLookupResponse: {
+            nhsNumber?: string | null;
+            firstName?: string | null;
+            lastName?: string | null;
+            /** Format: date */
+            dateOfBirth?: string;
+            source?: string | null;
+        };
+        DemographicsStatusResponse: {
+            isAvailable?: boolean;
+            source?: string | null;
         };
         ExportedAccessEntryResponse: {
             /** Format: date-time */
@@ -3931,6 +3960,7 @@ export interface components {
             /** Format: date */
             dateOfBirth?: string;
             email?: string | null;
+            nhsNumber?: string | null;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -3976,6 +4006,116 @@ export interface components {
             finishedAtUtc?: string | null;
             finishedBy?: string | null;
         };
+        FhirBundle: {
+            readonly resourceType?: string | null;
+            id?: string | null;
+            meta?: components["schemas"]["FhirMeta"];
+            type?: string | null;
+            timestamp?: string | null;
+            /** Format: int32 */
+            total?: number;
+            link?: components["schemas"]["FhirBundleLink"][] | null;
+            entry?: components["schemas"]["FhirBundleEntry"][] | null;
+        };
+        FhirBundleEntry: {
+            fullUrl?: string | null;
+            resource?: components["schemas"]["FhirPatient"];
+            search?: components["schemas"]["FhirBundleEntrySearch"];
+        };
+        FhirBundleEntrySearch: {
+            mode?: string | null;
+        };
+        FhirBundleLink: {
+            relation?: string | null;
+            url?: string | null;
+        };
+        FhirCapabilityInteraction: {
+            code?: string | null;
+        };
+        FhirCapabilityResource: {
+            type?: string | null;
+            profile?: string | null;
+            interaction?: components["schemas"]["FhirCapabilityInteraction"][] | null;
+            searchParam?: components["schemas"]["FhirCapabilitySearchParam"][] | null;
+        };
+        FhirCapabilityRest: {
+            mode?: string | null;
+            resource?: components["schemas"]["FhirCapabilityResource"][] | null;
+        };
+        FhirCapabilitySearchParam: {
+            name?: string | null;
+            type?: string | null;
+            documentation?: string | null;
+        };
+        FhirCapabilitySoftware: {
+            name?: string | null;
+        };
+        FhirCapabilityStatement: {
+            readonly resourceType?: string | null;
+            id?: string | null;
+            meta?: components["schemas"]["FhirMeta"];
+            status?: string | null;
+            date?: string | null;
+            kind?: string | null;
+            software?: components["schemas"]["FhirCapabilitySoftware"];
+            fhirVersion?: string | null;
+            format?: string[] | null;
+            rest?: components["schemas"]["FhirCapabilityRest"][] | null;
+        };
+        FhirCodeableConcept: {
+            coding?: components["schemas"]["FhirCoding"][] | null;
+        };
+        FhirCoding: {
+            system?: string | null;
+            code?: string | null;
+            display?: string | null;
+        };
+        FhirContactPoint: {
+            system?: string | null;
+            value?: string | null;
+        };
+        FhirExtension: {
+            url?: string | null;
+            valueCodeableConcept?: components["schemas"]["FhirCodeableConcept"];
+        };
+        FhirHumanName: {
+            use?: string | null;
+            text?: string | null;
+            family?: string | null;
+            given?: string[] | null;
+        };
+        FhirIdentifier: {
+            extension?: components["schemas"]["FhirExtension"][] | null;
+            system?: string | null;
+            value?: string | null;
+        };
+        FhirMeta: {
+            lastUpdated?: string | null;
+            profile?: string[] | null;
+            tag?: components["schemas"]["FhirCoding"][] | null;
+        };
+        FhirOperationOutcome: {
+            readonly resourceType?: string | null;
+            id?: string | null;
+            meta?: components["schemas"]["FhirMeta"];
+            issue?: components["schemas"]["FhirOperationOutcomeIssue"][] | null;
+        };
+        FhirOperationOutcomeIssue: {
+            severity?: string | null;
+            code?: string | null;
+            diagnostics?: string | null;
+            expression?: string[] | null;
+        };
+        FhirPatient: {
+            readonly resourceType?: string | null;
+            id?: string | null;
+            meta?: components["schemas"]["FhirMeta"];
+            identifier?: components["schemas"]["FhirIdentifier"][] | null;
+            active?: boolean | null;
+            name?: components["schemas"]["FhirHumanName"][] | null;
+            telecom?: components["schemas"]["FhirContactPoint"][] | null;
+            birthDate?: string | null;
+        };
         IdentityError: {
             code?: string | null;
             description?: string | null;
@@ -4001,28 +4141,8 @@ export interface components {
             /** Format: date-time */
             expiresAtUtc?: string;
         };
-        MonitoringRuleResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            subjectUserId?: string | null;
-            subjectUsername?: string | null;
-            event?: string | null;
-            minimumPriority?: string | null;
-            /** Format: uuid */
-            templateId?: string | null;
-            templateName?: string | null;
-            /** Format: uuid */
-            stageDefinitionId?: string | null;
-            stageName?: string | null;
-            isEnabled?: boolean;
-            /** Format: date-time */
-            createdAtUtc?: string;
-            /** Format: date-time */
-            updatedAtUtc?: string;
-        };
-        NotificationPreferencesResponse: {
-            procedureAssigned?: boolean;
+        LookUpDemographicsRequest: {
+            nhsNumber?: string | null;
         };
         NotificationResponse: {
             /** Format: uuid */
@@ -4133,6 +4253,7 @@ export interface components {
             /** Format: uuid */
             patientId?: string;
             patientName?: string | null;
+            patient?: components["schemas"]["ProcedurePatientResponse"];
             /** Format: uuid */
             templateId?: string | null;
             templateName?: string | null;
@@ -4172,6 +4293,8 @@ export interface components {
             name?: string | null;
             description?: string | null;
             instructions?: string | null;
+            snomedCode?: string | null;
+            snomedTerm?: string | null;
             isArchived?: boolean;
             /** Format: int32 */
             templateCount?: number;
@@ -4187,6 +4310,8 @@ export interface components {
             name?: string | null;
             description?: string | null;
             instructions?: string | null;
+            snomedCode?: string | null;
+            snomedTerm?: string | null;
             notes?: string | null;
             state?: string | null;
             isCurrent?: boolean;
@@ -4256,6 +4381,8 @@ export interface components {
             stageDefinitionId?: string;
             name?: string | null;
             description?: string | null;
+            snomedCode?: string | null;
+            snomedTerm?: string | null;
             isArchived?: boolean;
         };
         PatientResponse: {
@@ -4266,6 +4393,7 @@ export interface components {
             /** Format: date */
             dateOfBirth?: string;
             email?: string | null;
+            nhsNumber?: string | null;
             isRestricted?: boolean;
             restrictionReason?: string | null;
             /** Format: date-time */
@@ -4378,6 +4506,18 @@ export interface components {
             stageTimes?: components["schemas"]["TemplateStageTimesResponse"][] | null;
             throughput?: components["schemas"]["WeeklyThroughputResponse"][] | null;
         };
+        ProcedurePatientResponse: {
+            /** Format: uuid */
+            id?: string;
+            firstName?: string | null;
+            lastName?: string | null;
+            /** Format: date */
+            dateOfBirth?: string;
+            nhsNumber?: string | null;
+            isRestricted?: boolean;
+            isDisputed?: boolean;
+            isAnonymised?: boolean;
+        };
         RetentionReviewItemResponse: {
             /** Format: uuid */
             patientId?: string;
@@ -4408,17 +4548,6 @@ export interface components {
         RevokeRoleRequest: {
             username?: string | null;
             role?: string | null;
-        };
-        SaveMonitoringRuleRequest: {
-            /** Format: uuid */
-            subjectUserId?: string | null;
-            event?: string | null;
-            minimumPriority?: string | null;
-            /** Format: uuid */
-            templateId?: string | null;
-            /** Format: uuid */
-            stageDefinitionId?: string | null;
-            isEnabled?: boolean;
         };
         SaveSettingsRequest: {
             settings?: string | null;
@@ -4455,9 +4584,6 @@ export interface components {
             templateName?: string | null;
             stages?: components["schemas"]["StageTimeResponse"][] | null;
         };
-        UpdateNotificationPreferencesRequest: {
-            procedureAssigned?: boolean;
-        };
         UpdatePatientProcedureRequest: {
             title?: string | null;
             notes?: string | null;
@@ -4469,6 +4595,8 @@ export interface components {
             name?: string | null;
             description?: string | null;
             instructions?: string | null;
+            snomedCode?: string | null;
+            snomedTerm?: string | null;
         };
         UpdatePatientProcedureStageTemplateRequest: {
             name?: string | null;
@@ -4480,6 +4608,7 @@ export interface components {
             /** Format: date */
             dateOfBirth?: string;
             email?: string | null;
+            nhsNumber?: string | null;
         };
         UpdateProcedureStageNotesRequest: {
             notes?: string | null;

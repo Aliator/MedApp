@@ -14,7 +14,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 - **Appointments and booking.** Book appointments for patients with staff. Each member of staff gets a calendar (day and week) showing their appointments with their procedures' due dates. Appointments tie into the workflow: booking the next stage, or a follow-up when a procedure finishes.
 - **More monitoring.** Admins' monitoring rules (Administration, Monitoring) and each person's switch for assignment notifications are built (`AGENTS.md`, Monitoring). Still to do:
   - **An overdue event,** for rules and for the assignees. It isn't a change anyone makes, so it needs a scheduled job that runs once across both API copies (a lease, or a Kubernetes CronJob), and a record of which procedures it has already reported.
-  - **Audit the rules** (who added, changed or deleted which rule), and let a staff member, or the DPO, see the rules that name them (DPIA risk 21).
+  - **Audit the rules** (who added, changed or deleted which rule), and let a staff member, or the DPO, see the rules that name them (DPIA risk 22).
   - **Tidy up with accounts:** deleting an account should delete the rules it owns and the rules that name it, and its notification choices (`docs/governance/retention-schedule.md`). Until then they stay, and send nothing.
   - **More people in the picker:** the Monitoring page offers the first 100 accounts by username (the API's largest page). A searchable picker would suit a bigger organisation.
   - **More choices for each person** (Account Settings), once there are more kinds staff receive; and rules an admin sets for someone else (for example a team lead's), kept apart from that person's own choices so they can't undo them.
@@ -36,9 +36,28 @@ The first part is built: the activity log and access report, the subject access 
 - **Restriction hiding patients from lists** except for named roles; a second person approving an anonymisation.
 - **A clinician review step in the export,** to hold back what meets the serious harm test, and a PDF.
 - **Retention classes per template** and per customer, the conclusion of treatment on the patient's page, destruction with a destruction log, and legal hold.
-- **Saved searches that name a patient,** removed on anonymisation or destruction.
+- **Saved searches that name a patient,** removed on anonymisation or destruction: their terms can be a name or an NHS number (the patient list's NHS number filter), kept in the account's settings and the browser. Anonymisation removes the number from the record but not from saved searches (DPIA risk 21).
 - **Archiving in place of deleting patients,** if the product owner decides to (kept as it is for now).
 - **Contact preferences** and a National Data Opt-out flag.
+- **Always Encrypted for the NHS number** (deterministic, so lookups by exact value still work), which step 7 planned once the number existed. It exists now (branch `feature/nhs-integrations`), protected only by TDE like the rest. Its partial-match search (the list's NHS number filter, which matches numbers containing the digits typed) would have to become an exact match.
+
+## Patient identity and interoperability (the rest of roadmap step 9's first part)
+
+Built on branch `feature/nhs-integrations` (`AGENTS.md`, NHS number, FHIR and SNOMED CT): an optional, validated, unique NHS number; the patient banner; a read-only FHIR R4 Patient API in the UK Core shape; SNOMED CT codes on stage definitions; and a demographics lookup with only an offline stub. Still to do:
+
+- **The real PDS lookup.** Wire `IPersonalDemographicsService` to the PDS FHIR API ([NHS England](https://digital.nhs.uk/developer/api-catalogue/personal-demographics-service-fhir)). It needs NHS England's onboarding first ([onboarding process](https://digital.nhs.uk/developer/guides-and-documentation/onboarding-process)): a CIS2 integration for health workers' access, or an application-restricted API key through the API platform; a DSPT submission; a DCB0129 hazard log; risk logs for each access mode; a penetration test; and a connection agreement. Then trace numbers, so the FHIR API can report them as verified, not "02 Number present but not traced". Update the data inventory, DPIA and ROPA first: NHS England becomes a source of patient data.
+- **Validate the FHIR API against the UK Core profiles** with a FHIR validator (the HL7 validator, or Firely's), in CI, before any system relies on it. The resources are hand-built and haven't been checked yet.
+- **FHIR access for other systems:** OAuth 2.0 client credentials (SMART Backend Services), with a client per system and its own scopes, instead of a signed-in member of staff's session cookie. The activity log then records the client, not a person.
+- **More FHIR resources:** the procedure as a CarePlan or ServiceRequest, stages as Tasks, templates as PlanDefinitions, the audit as AuditEvents (the minimal CapabilityStatement at `api/fhir/metadata` lists only Patient today); webhooks for status changes; a published canonical URL for MedApp's record-flag code system (`urn:medapp:fhir:CodeSystem:record-flag`, today). Revisit the Firely SDK in place of hand-built DTOs then.
+- **SNOMED CT on templates and OPCS-4 codes,** as step 9 plans (a procedure concept on each template), and the codes in the FHIR resources once procedures are exposed.
+- **A terminology server** (the NHS England Terminology Server) to check that a SNOMED CT concept exists and is active, and to offer its preferred term, instead of the format check and the admin's own term. Inactive concepts need a periodic check too.
+- **A duplicate-patient check** when a patient is added or edited: today only an exact duplicate NHS number is refused. Warn about the same name and date of birth, or a near match, and let an admin merge duplicates.
+- **The rest of hazards H-01 and H-02's controls** (`docs/clinical-safety/hazard-log.md`): the date of birth beside the patient's name in task and procedure lists; the patient's name in the procedure page's title; the patient named in the Save Notes and Finish Stage confirmations. Then the CSO verifies the banner and these together.
+- **Sex and gender on the patient and in the banner:** the NHS patient banner guidance shows them, and the banner can't until MedApp holds them (the NHS Data Dictionary's "person stated gender" and sex at birth, with the care that data needs). Then add them to the banner and the FHIR Patient (`gender`), and update the data inventory and DPIA first.
+- **Checking NHS numbers against the issued ranges,** after the placeholder check: possible, but would refuse some valid numbers from the rest of the UK, so only as an option.
+- **The rest of step 9's patient details:** a local hospital number (with its assigning organisation), address, phone, registered GP practice (ODS code), and a deceased flag. Each one updates the data inventory and the DPIA first.
+- **NHS number unique within an organisation,** not the deployment, with multi-tenancy (step 8).
+- **Keep the NHS number out of URLs,** where request logs, traces and the ingress's access logs can record it: the FHIR search takes it in its query string. Support FHIR's `POST Patient/_search`, which keeps the parameters in the body (the demographics lookup is already a POST). The patient list's NHS number filter stays in the URL by the product owner's decision on list filters (DPIA risk 10).
 
 ## Deployment
 

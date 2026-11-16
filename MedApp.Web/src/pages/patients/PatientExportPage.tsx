@@ -14,11 +14,13 @@ import {ApiError} from '../../api/errors';
 import {patientExportQuery, type PatientExport} from '../../api/patients';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/procedures/ProcedureCells';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
 import {PanelHeader} from '../../components/views/PanelCard';
 import {formatDate, formatDateTime} from '../../utils/dates';
+import {formatNhsNumber} from '../../utils/nhsNumber';
 
 /** While printing, only the export shows: the side nav and the page's buttons are left off the paper. */
 const PRINT_CSS = '@media print { .astryx-side-nav, button { display: none !important; } }';
@@ -80,6 +82,19 @@ export function PatientExportPage({id}: {id: string}) {
       subtitle={data ? `Exported ${when(data.exportedAtUtc)} by ${data.exportedBy}` : undefined}
       backHref={`/patients/${id}`}
       backLabel="Back to patient"
+      banner={
+        data?.patient && (
+          // The export says when a flag was set rather than whether it is, as its details below do.
+          <PatientBanner
+            patient={{
+              ...data.patient,
+              isRestricted: Boolean(data.patient.restrictedAtUtc),
+              isDisputed: Boolean(data.patient.disputedAtUtc),
+              isAnonymised: Boolean(data.patient.anonymisedAtUtc),
+            }}
+          />
+        )
+      }
       isLoading={isPending}
       loadingMessage="Gathering everything held about this patient..."
       message={
@@ -121,6 +136,7 @@ function ExportContent({data}: {data: PatientExport}) {
         <MetadataList columns={2} label={{position: 'top'}}>
           <MetadataListItem label="Name">{`${patient?.firstName ?? ''} ${patient?.lastName ?? ''}`.trim() || '—'}</MetadataListItem>
           <MetadataListItem label="Date of Birth">{patient?.dateOfBirth ? formatDate(patient.dateOfBirth) : '—'}</MetadataListItem>
+          <MetadataListItem label="NHS Number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
           <MetadataListItem label="Email">{patient?.email || '—'}</MetadataListItem>
           <MetadataListItem label="Patient ID">{patient?.id}</MetadataListItem>
           <MetadataListItem label="Record Created">{when(patient?.createdAt)}</MetadataListItem>

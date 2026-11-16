@@ -52,7 +52,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 ## The manufacturer's assumptions about you
 
 The manufacturer's safety case holds only if you:
-- **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth and email, and no NHS number yet;
+- **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth, email and an optional NHS number, whose check digit it checks but which it doesn't trace with PDS, so check a number against your own records (for example your PAS) when you enter it;
 - **govern templates:** clinical sign-off of every template and stage definition before use, and when one changes;
 - **train staff,** including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks opens on work not yet started;
 - **have at least two admins** who are available while staff work;

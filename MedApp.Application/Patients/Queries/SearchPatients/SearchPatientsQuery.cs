@@ -14,5 +14,6 @@ public sealed record SearchPatientsQuery(
     string? LastName,
     string? Email,
     DateOnly? DateOfBirthFrom,
-    DateOnly? DateOfBirthTo)
+    DateOnly? DateOfBirthTo,
+    string? NhsNumber = null)
     : IRequest<PagedResponse<PatientResponse>>;

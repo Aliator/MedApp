@@ -41,6 +41,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/patients/{id:guid}/timeline/overview"] = Records("PatientViewed"),
         ["api/procedures/patient-procedures/{id:guid}"] = Records("ProcedureViewed"),
         ["api/procedures/patient-procedures/search"] = Records("PatientListed"),
+        ["api/fhir/Patient/{id}"] = Records("PatientViewed"),
+        ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
         ["api/patients/labels"] = Nothing("labels for pins the user chose; recording them would log views nobody made"),
@@ -63,6 +65,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/auth/users/{username}"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/{username}/roles"] = Nothing("staff accounts, not patients"),
         ["api/auth/roles"] = Nothing("role names"),
+        ["api/demographics/status"] = Nothing("whether the demographics lookup is set up (the lookup itself is a POST, recorded as DemographicsLookedUp)"),
 
         // Configuration.
         ["api/procedures/patient-procedure-stage/definitions"] = Nothing("stage definitions: configuration"),
@@ -75,6 +78,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["/api/notifications/hub/negotiate"] = Nothing("the live notifications connection"),
         ["{*path:nonfile}"] = Nothing("the app's pages; their data comes from the endpoints above"),
         ["/api/{**path}"] = Nothing("an /api path that matches no endpoint: a 404"),
+        ["api/fhir/metadata"] = Nothing("the FHIR API's CapabilityStatement: what it can do, no patient data"),
+        ["/api/fhir/{**path}"] = Nothing("a FHIR path that matches no endpoint: a 404 OperationOutcome"),
         ["/health"] = Nothing("health check"),
         ["/alive"] = Nothing("health check"),
     };
@@ -104,6 +109,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
         // Last changed ten years ago, so it's on the retention review.
         var old = await CreatePatientAsync(admin);
         await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {old.Id}");
+        // A synthetic NHS number (the 999 range), so the FHIR search finds them.
+        await ExecuteSqlAsync($"UPDATE Patients SET NhsNumber = '9990000018' WHERE Id = {patientId}");
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
@@ -116,6 +123,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/patients/{patientId}/timeline/overview", "PatientViewed", patientId),
             ($"/api/procedures/patient-procedures/{procedure.Id}", "ProcedureViewed", patientId),
             ("/api/procedures/patient-procedures/search", "PatientListed", patientId),
+            ($"/api/fhir/Patient/{patientId}", "PatientViewed", patientId),
+            ("/api/fhir/Patient?identifier=https%3A%2F%2Ffhir.nhs.uk%2FId%2Fnhs-number%7C9990000018", "PatientListed", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

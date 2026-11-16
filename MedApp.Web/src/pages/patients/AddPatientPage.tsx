@@ -8,7 +8,7 @@ import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
-import {EMPTY_PATIENT, PATIENT_FIELDS, PatientFormFields} from './PatientFormFields';
+import {EMPTY_PATIENT, PATIENT_FIELDS, PatientFormFields, usePatientLookUp} from './PatientFormFields';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 
 /**
@@ -22,6 +22,7 @@ export function AddPatientPage() {
   const [form, setForm] = useState<PatientInput>(EMPTY_PATIENT);
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
+  const lookUp = usePatientLookUp(form, setForm, 'add');
 
   const add = () => {
     create.mutate(form, {
@@ -64,12 +65,17 @@ export function AddPatientPage() {
       <FormCard
         saveText="Add Patient"
         onSave={() => {
+          // Details a look-up filled for another number than the one now entered aren't saved (usePatientLookUp).
+          if (lookUp.hold) {
+            setProblem({validation: null, message: lookUp.hold});
+            return;
+          }
           setProblem(NO_PROBLEM);
           setIsConfirming(true);
         }}
         onCancel={() => void navigate({to: '/patients'})}
         isProcessing={create.isPending}>
-        <PatientFormFields value={form} onChange={setForm} errors={problem.validation} isDisabled={create.isPending} />
+        <PatientFormFields value={form} onChange={setForm} lookUp={lookUp} errors={problem.validation} isDisabled={create.isPending} />
       </FormCard>
     </Page>
   );
