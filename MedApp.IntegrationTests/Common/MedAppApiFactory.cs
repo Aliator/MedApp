@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MedApp.IntegrationTests.Common;
 
@@ -10,6 +13,9 @@ namespace MedApp.IntegrationTests.Common;
 /// It has a web root of its own holding a stub <c>index.html</c>, as the image's holds the built React app, so a page
 /// path gets "the app" and a test can tell that apart from an <c>/api</c> path's 404.
 /// </para>
+/// <para>
+/// Its clock is <see cref="Clock"/>, the real time unless a test moves it, in place of the app's <see cref="TimeProvider"/>.
+/// </para>
 /// </summary>
 public sealed class MedAppApiFactory(string connectionString) : WebApplicationFactory<Program>
 {
@@ -18,6 +24,9 @@ public sealed class MedAppApiFactory(string connectionString) : WebApplicationFa
 
     /// <summary>A marker in the stub app's page, to recognise it in a response.</summary>
     public const string StubAppMarker = "medapp-integration-tests-stub-app";
+
+    /// <summary>The API's clock: the real time, until a test moves it. <see cref="IntegrationTest"/> resets it before each test.</summary>
+    public TestClock Clock { get; } = new();
 
     private readonly string _webRoot = Directory.CreateTempSubdirectory("medapp-it-wwwroot-").FullName;
 
@@ -33,6 +42,11 @@ public sealed class MedAppApiFactory(string connectionString) : WebApplicationFa
         builder.UseSetting("Ssr:Enabled", "false");
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft.EntityFrameworkCore", "Warning");
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Clock);
+        });
     }
 
     /// <summary>A client with its own cookie jar (so its own session), that doesn't follow redirects.</summary>

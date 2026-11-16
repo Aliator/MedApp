@@ -1,8 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using MedApp.Application.Calendar.Common;
+using MedApp.Contracts.Appointments.Requests;
+using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Contracts.Calendar.Requests;
+using MedApp.Contracts.Calendar.Responses;
+using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
@@ -32,12 +38,19 @@ public abstract class IntegrationTest
 {
     protected static MedAppApiFactory Api => TestEnvironment.Api;
 
+    /// <summary>The API's clock: the real time, until a test moves it (it's put back before each test).</summary>
+    protected static TestClock Clock => Api.Clock;
+
+    /// <summary>"Now" by the API's clock.</summary>
+    protected static DateTime Now => Clock.GetUtcNow().UtcDateTime;
+
     /// <summary>Whether to make the first admin (and the Admin and User roles) before each test.</summary>
     protected virtual bool MakesFirstAdmin => true;
 
     [SetUp]
     public async Task ResetAsync()
     {
+        Clock.Reset();
         await TestEnvironment.ResetDatabaseAsync();
 
         if (MakesFirstAdmin)
@@ -131,7 +144,10 @@ public abstract class IntegrationTest
         return await response.ReadAsAsync<PatientResponse>(HttpStatusCode.Created);
     }
 
-    protected static async Task<PatientProcedureStageDefinitionResponse> CreateStageDefinitionAsync(HttpClient admin, string? name = null)
+    protected static async Task<PatientProcedureStageDefinitionResponse> CreateStageDefinitionAsync(
+        HttpClient admin,
+        string? name = null,
+        string visitRequirement = "None")
     {
         name ??= UniqueName("Stage");
         var response = await admin.PostAsJsonAsync("/api/procedures/patient-procedure-stage/definitions",
@@ -140,6 +156,7 @@ public abstract class IntegrationTest
                 Name = name,
                 Description = $"{name} description",
                 Instructions = $"{name} instructions",
+                VisitRequirement = visitRequirement,
             });
         return await response.ReadAsAsync<PatientProcedureStageDefinitionResponse>(HttpStatusCode.Created);
     }
@@ -164,8 +181,8 @@ public abstract class IntegrationTest
         return await CreateTemplateAsync(admin, [.. ids]);
     }
 
-    /// <summary>Today in the UK, the day due dates are counted in.</summary>
-    protected static DateOnly UkToday => DueDates.ToUkDate(DateTime.UtcNow);
+    /// <summary>Today in the UK by the API's clock, the day due dates (and calendars) are counted in.</summary>
+    protected static DateOnly UkToday => DueDates.ToUkDate(Now);
 
     protected static async Task<PatientProcedureResponse> CreateProcedureAsync(
         HttpClient client,
@@ -201,6 +218,216 @@ public abstract class IntegrationTest
     protected static Task<HttpResponseMessage> PutStageNotesAsync(HttpClient client, Guid procedureId, Guid stageId, string notes) =>
         client.PutAsJsonAsync($"{StageUrl(procedureId, stageId)}/notes", new UpdateProcedureStageNotesRequest { Notes = notes });
 
+    /// <summary>Finishes a stage with a POST that has no body, as before stages could involve a visit.</summary>
     protected static Task<HttpResponseMessage> FinishStageAsync(HttpClient client, Guid procedureId, Guid stageId) =>
         client.PostAsync($"{StageUrl(procedureId, stageId)}/finish", null);
+
+    /// <summary>Finishes a stage with a body: an admin finishing a Required stage without its visit, and why.</summary>
+    protected static Task<HttpResponseMessage> FinishStageAsync(
+        HttpClient client,
+        Guid procedureId,
+        Guid stageId,
+        FinishProcedureStageRequest request) =>
+        client.PostAsJsonAsync($"{StageUrl(procedureId, stageId)}/finish", request);
+
+    protected static Task<HttpResponseMessage> PostProcedureStatusAsync(HttpClient client, Guid procedureId, string status, string? reason = null) =>
+        client.PostAsJsonAsync($"{ProcedureUrl(procedureId)}/status", new ChangePatientProcedureStatusRequest { Status = status, Reason = reason });
+
+    // Calendars and appointments.
+
+    /// <summary>A UTC moment from a UK clock time on a UK date (GMT in winter, BST in summer).</summary>
+    protected static DateTime UkAt(DateOnly date, int hour, int minute = 0) => UkTime.ToUtc(date, new TimeOnly(hour, minute));
+
+    /// <summary>
+    /// The first weekday (Monday to Friday) at least <paramref name="daysAhead"/> days after today by the API's clock,
+    /// so a working-day time on it is in the future.
+    /// </summary>
+    protected static DateOnly NextWorkingDay(int daysAhead = 1)
+    {
+        var date = UkToday.AddDays(daysAhead);
+        while (!WorkingHours.IsWorkingDay(date))
+            date = date.AddDays(1);
+        return date;
+    }
+
+    /// <summary>The next weekday at least a day ahead, at 09:00 UK time: a slot that's in the future and bookable.</summary>
+    protected static DateTime NextBookableStart() => UkAt(NextWorkingDay(), 9);
+
+    /// <summary>The first Monday at least a week after today (by the API's clock), so its whole week is ahead.</summary>
+    protected static DateOnly MondayAWeekAhead()
+    {
+        var date = UkToday.AddDays(7);
+        while (date.DayOfWeek != DayOfWeek.Monday)
+            date = date.AddDays(1);
+        return date;
+    }
+
+    /// <summary>Moves the API's clock to a minute after this moment (e.g. an appointment's start), so it has passed.</summary>
+    protected static void MoveClockPast(DateTime utc) => Clock.SetUtcNow(utc.AddMinutes(1));
+
+    protected static async Task<ActivityTypeResponse> CreateActivityTypeAsync(HttpClient admin, string? name = null, string colour = ActivityColour)
+    {
+        var response = await admin.PostAsJsonAsync("/api/calendar/activity-types",
+            new CreateActivityTypeRequest { Name = name ?? UniqueName("Activity"), Colour = colour });
+        return await response.ReadAsAsync<ActivityTypeResponse>(HttpStatusCode.Created);
+    }
+
+    protected static async Task<IReadOnlyList<ActivityTypeResponse>> GetActivityTypesAsync(HttpClient client, bool includeArchived = true) =>
+        await (await client.GetAsync($"/api/calendar/activity-types?includeArchived={includeArchived}"))
+            .ReadAsAsync<List<ActivityTypeResponse>>();
+
+    /// <summary>A day template block at UK clock times, for the seeded Lunch by default.</summary>
+    protected static DayTemplateBlockRequest TemplateBlock(int startHour, int endHour, Guid? activityTypeId = null, int startMinute = 0, int endMinute = 0) =>
+        new()
+        {
+            ActivityTypeId = activityTypeId ?? LunchActivityTypeId,
+            StartTime = new TimeOnly(startHour, startMinute),
+            EndTime = new TimeOnly(endHour, endMinute),
+        };
+
+    protected static async Task<DayTemplateResponse> CreateDayTemplateAsync(HttpClient admin, params DayTemplateBlockRequest[] blocks)
+    {
+        var response = await admin.PostAsJsonAsync("/api/calendar/day-templates",
+            new DayTemplateRequest { Name = UniqueName("Day"), Blocks = [.. blocks] });
+        return await response.ReadAsAsync<DayTemplateResponse>(HttpStatusCode.Created);
+    }
+
+    protected static Task<HttpResponseMessage> UpdateDayTemplateAsync(HttpClient admin, DayTemplateResponse template, params DayTemplateBlockRequest[] blocks) =>
+        admin.PutAsJsonAsync($"/api/calendar/day-templates/{template.Id}", new DayTemplateRequest { Name = template.Name, Blocks = [.. blocks] });
+
+    /// <summary>A week template using <paramref name="dayTemplateId"/> (or none) on every weekday.</summary>
+    protected static async Task<WeekTemplateResponse> CreateWeekTemplateAsync(HttpClient admin, Guid? dayTemplateId)
+    {
+        var response = await admin.PostAsJsonAsync("/api/calendar/week-templates", new WeekTemplateRequest
+        {
+            Name = UniqueName("Week"),
+            Monday = dayTemplateId,
+            Tuesday = dayTemplateId,
+            Wednesday = dayTemplateId,
+            Thursday = dayTemplateId,
+            Friday = dayTemplateId,
+        });
+        return await response.ReadAsAsync<WeekTemplateResponse>(HttpStatusCode.Created);
+    }
+
+    protected static Task<HttpResponseMessage> SetDefaultWeekAsync(HttpClient client, Guid staffUserId, Guid? weekTemplateId) =>
+        client.PutAsJsonAsync($"/api/calendar/staff/{staffUserId}/week-template", new SetStaffWeekTemplateRequest { WeekTemplateId = weekTemplateId });
+
+    /// <summary>Gives a member of staff a default week whose every weekday is a new day template of these blocks.</summary>
+    protected static async Task<DayTemplateResponse> GiveDefaultWeekAsync(HttpClient admin, Guid staffUserId, params DayTemplateBlockRequest[] blocks)
+    {
+        var day = await CreateDayTemplateAsync(admin, blocks);
+        var week = await CreateWeekTemplateAsync(admin, day.Id);
+        await (await SetDefaultWeekAsync(admin, staffUserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        return day;
+    }
+
+    protected static Task<HttpResponseMessage> PostBlockAsync(
+        HttpClient client,
+        Guid staffUserId,
+        DateTime startUtc,
+        DateTime endUtc,
+        Guid? activityTypeId = null,
+        string? note = null) =>
+        client.PostAsJsonAsync("/api/calendar/blocks", new CreateCalendarBlockRequest
+        {
+            StaffUserId = staffUserId,
+            ActivityTypeId = activityTypeId ?? TrainingActivityTypeId,
+            StartUtc = startUtc,
+            EndUtc = endUtc,
+            Note = note,
+        });
+
+    protected static async Task<CalendarBlockResponse> CreateBlockAsync(
+        HttpClient client,
+        Guid staffUserId,
+        DateTime startUtc,
+        DateTime endUtc,
+        Guid? activityTypeId = null) =>
+        await (await PostBlockAsync(client, staffUserId, startUtc, endUtc, activityTypeId)).ReadAsAsync<CalendarBlockResponse>(HttpStatusCode.Created);
+
+    protected static Task<HttpResponseMessage> PutBlockAsync(HttpClient client, Guid blockId, DateTime startUtc, DateTime endUtc, Guid? activityTypeId = null) =>
+        client.PutAsJsonAsync($"/api/calendar/blocks/{blockId}", new UpdateCalendarBlockRequest
+        {
+            ActivityTypeId = activityTypeId ?? TrainingActivityTypeId,
+            StartUtc = startUtc,
+            EndUtc = endUtc,
+        });
+
+    protected static async Task<CalendarResponse> GetCalendarAsync(HttpClient client, Guid staffUserId, DateOnly from, DateOnly? to = null) =>
+        await (await client.GetAsync($"/api/calendar?staffUserId={staffUserId}&from={from:yyyy-MM-dd}&to={to ?? from:yyyy-MM-dd}"))
+            .ReadAsAsync<CalendarResponse>();
+
+    protected static string AppointmentUrl(Guid appointmentId) => $"/api/appointments/{appointmentId}";
+
+    /// <summary>Books a new appointment straight away (a member of staff, a start and an end): the response, whatever it is.</summary>
+    protected static Task<HttpResponseMessage> PostBookingAsync(
+        HttpClient client,
+        Guid patientId,
+        Guid staffUserId,
+        DateTime startUtc,
+        int minutes = AppointmentMinutes,
+        Guid? procedureId = null,
+        Guid? stageId = null,
+        string? notes = null) =>
+        client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
+        {
+            PatientId = patientId,
+            ProcedureId = procedureId,
+            StageId = stageId,
+            StaffUserId = staffUserId,
+            StartUtc = startUtc,
+            EndUtc = startUtc.AddMinutes(minutes),
+            Notes = notes,
+        });
+
+    protected static async Task<AppointmentResponse> BookNewAppointmentAsync(
+        HttpClient client,
+        Guid patientId,
+        Guid staffUserId,
+        DateTime startUtc,
+        int minutes = AppointmentMinutes,
+        Guid? procedureId = null,
+        Guid? stageId = null) =>
+        await (await PostBookingAsync(client, patientId, staffUserId, startUtc, minutes, procedureId, stageId))
+            .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
+
+    /// <summary>Adds an appointment to Needs booking (no member of staff or time yet).</summary>
+    protected static async Task<AppointmentResponse> RequestAppointmentAsync(
+        HttpClient client,
+        Guid patientId,
+        Guid? procedureId = null,
+        Guid? stageId = null)
+    {
+        var response = await client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
+        {
+            PatientId = patientId,
+            ProcedureId = procedureId,
+            StageId = stageId,
+        });
+        return await response.ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
+    }
+
+    /// <summary>Books a Requested appointment, or moves a Booked one: the response, whatever it is.</summary>
+    protected static Task<HttpResponseMessage> PostBookAsync(HttpClient client, Guid appointmentId, Guid staffUserId, DateTime startUtc, int minutes = AppointmentMinutes) =>
+        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/book", new BookAppointmentRequest
+        {
+            StaffUserId = staffUserId,
+            StartUtc = startUtc,
+            EndUtc = startUtc.AddMinutes(minutes),
+        });
+
+    protected static Task<HttpResponseMessage> PostOutcomeAsync(HttpClient client, Guid appointmentId, string outcome) =>
+        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/outcome", new RecordAppointmentOutcomeRequest { Outcome = outcome });
+
+    protected static Task<HttpResponseMessage> PostCancelAsync(HttpClient client, Guid appointmentId, string reason) =>
+        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/cancel", new CancelAppointmentRequest { Reason = reason });
+
+    protected static async Task<AppointmentResponse> GetAppointmentAsync(HttpClient client, Guid appointmentId) =>
+        await (await client.GetAsync(AppointmentUrl(appointmentId))).ReadAsAsync<AppointmentResponse>();
+
+    /// <summary>Every appointment matching a query string (e.g. <c>procedureId=...</c>), up to a page of 100.</summary>
+    protected static async Task<IReadOnlyList<AppointmentResponse>> SearchAppointmentsAsync(HttpClient client, string query) =>
+        (await (await client.GetAsync($"/api/appointments/search?pageSize=100&{query}"))
+            .ReadAsAsync<PagedResponse<AppointmentResponse>>()).Items;
 }
