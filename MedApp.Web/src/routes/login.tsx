@@ -1,6 +1,12 @@
 import {createFileRoute} from '@tanstack/react-router';
-import {LoginPage} from '../pages/login/LoginPage';
+import {LoginPage, parseLoginSearch} from '../pages/login/LoginPage';
 
 export const Route = createFileRoute('/login')({
-  component: LoginPage,
+  validateSearch: parseLoginSearch,
+  component: LoginRoute,
 });
+
+function LoginRoute() {
+  const {expired} = Route.useSearch();
+  return <LoginPage isExpired={expired} />;
+}

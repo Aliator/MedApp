@@ -1,4 +1,5 @@
 import {useState, type FormEvent} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
@@ -9,8 +10,16 @@ import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessag
 /** Change your own password (replaces Blazor's Account page form), reached from Account Settings. */
 export function ChangePasswordPage() {
   const me = useCurrentUser();
+  const announce = useAnnounce();
   const [isUpdated, setIsUpdated] = useState(false);
-  const form = usePasswordChangeForm({username: me.username, onChanged: () => setIsUpdated(true)});
+  const form = usePasswordChangeForm({
+    username: me.username,
+    onChanged: () => {
+      // Its success banner isn't a live region (only errors are), so it's said here.
+      announce('Password updated');
+      setIsUpdated(true);
+    },
+  });
 
   const submit = (event?: FormEvent) => {
     setIsUpdated(false);

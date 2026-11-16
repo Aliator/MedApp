@@ -16,7 +16,7 @@ The Privacy and Electronic Communications Regulations (PECR), regulation 6, requ
 
 | Name | Type | What it holds | Lasts | Set by |
 |---|---|---|---|---|
-| `medapp.session` | Cookie: first-party, HttpOnly (script can't read it), `SameSite=Lax`, `Secure` outside development | The ID of the user's sign-in session | Until the session ends: sign-out, or 8 hours after sign-in | The API, at sign-in (`SessionCookieService.cs`) |
+| `medapp.session` | Cookie: first-party, HttpOnly (script can't read it), `SameSite=Lax`, `Secure` outside development | The ID of the user's sign-in session | Until the session ends: sign-out, or 8 hours after sign-in, or later if the user chooses "Stay signed in" (24 hours after sign-in at most) | The API, at sign-in (`SessionCookieService.cs`) |
 | `medapp.colorMode`, `medapp.colours`, `medapp.textSize`, `medapp.accessibility` | `localStorage` | Light or dark mode, colours, text size, and the accessibility switches | Until cleared | The React app, when the user changes them (`MedApp.Web/src/app`) |
 | `medapp.pageSize`, `medapp.proceduresStartOnMine`, `medapp.startPage`, `medapp.navClosesHalfView`, `medapp.navFlyoutDelay` | `localStorage` | List and navigation preferences | Until cleared | As above |
 | `medapp.favourites` | `localStorage` | Saved searches and quick filters. **The terms can be patient names.** | Until cleared | As above (`favourites.ts`) |
@@ -36,7 +36,7 @@ The settings are also stored with the account on the server (`UserSettings`), so
 
 > **Cookies and storage in MedApp**
 >
-> MedApp uses one cookie, `medapp.session`, to keep you signed in. It's deleted when you sign out, or after 8 hours. MedApp also keeps your display and accessibility settings, your saved searches and your pinned patients and procedures in your browser, so the app looks and works the way you set it. Your settings are saved with your account too.
+> MedApp uses one cookie, `medapp.session`, to keep you signed in. It's deleted when you sign out, or after 8 hours (up to 24 hours if you choose to stay signed in). MedApp also keeps your display and accessibility settings, your saved searches and your pinned patients and procedures in your browser, so the app looks and works the way you set it. Your settings are saved with your account too.
 >
 > MedApp uses no tracking, analytics or advertising cookies.
 >
