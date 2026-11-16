@@ -10,19 +10,20 @@ public sealed class SessionAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    ISessionService sessionService)
+    ISessionService sessionService,
+    ISessionCookieService cookies)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Cookies.TryGetValue(SessionAuthenticationDefaults.CookieName, out var rawSessionId))
+        if (!cookies.TryGetSessionCookie(Request, out var sessionId))
             return AuthenticateResult.NoResult();
 
-        if (!Guid.TryParse(rawSessionId, out var sessionId))
+        if (sessionId is null)
             return AuthenticateResult.Fail("Invalid session id.");
 
         var validation = await sessionService.ValidateSessionAsync(
-            sessionId,
+            sessionId.Value,
             Context.RequestAborted);
 
         if (validation is null)
@@ -31,7 +32,8 @@ public sealed class SessionAuthenticationHandler(
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, validation.UserId.ToString()),
-            new Claim(ClaimTypes.Name, validation.Username)
+            new Claim(ClaimTypes.Name, validation.Username),
+            new Claim(SessionAuthenticationDefaults.SessionIdClaim, sessionId.Value.ToString())
         };
 
         foreach (var role in validation.Roles)

@@ -1,8 +1,24 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
-import {adminUser, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
-import {pinsKey} from './pins';
+import {SettingsSync} from '../../app/SettingsSync';
+import {PINS_KEY} from './pins';
+
+/** The IDs a labels lookup asked for. */
+const askedIds = (request: Request) => new URL(request.url).searchParams.getAll('ids');
+
+/** Answers the patients' labels lookup from `names` (by ID); IDs it doesn't have are left out, as the API does. */
+const patientLabels = (names: Record<string, string>) => (request: Request) =>
+  json(askedIds(request).filter((id) => names[id]).map((id) => ({id, name: names[id]})));
+
+/** Answers the procedures' labels lookup from `labels` (by ID), leaving out IDs it doesn't have. */
+const procedureLabels = (labels: Record<string, {title: string; patientName: string}>) => (request: Request) =>
+  json(askedIds(request).filter((id) => labels[id]).map((id) => ({id, ...labels[id]})));
+
+/** The pinned IDs of one kind, as the account's settings keep them. */
+const pinnedIds = (kind: 'patients' | 'procedures') =>
+  ((JSON.parse(localStorage.getItem(PINS_KEY) ?? '{}') as Record<string, string[]>)[kind] ?? []);
 
 describe('isCurrentSection', () => {
   it.each([
@@ -27,6 +43,8 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
+    expect(screen.getByRole('link', {name: /activity log/i})).toHaveAttribute('href', '/admin/activity');
+    expect(screen.getByRole('link', {name: /retention review/i})).toHaveAttribute('href', '/admin/retention');
     expect(screen.getByText('test-admin')).toBeInTheDocument();
     expect(screen.getByText('Administrator')).toBeInTheDocument();
   });
@@ -37,6 +55,8 @@ describe('AppSideNav', () => {
     expect(await screen.findByRole('link', {name: /patients/i})).toHaveAttribute('href', '/patients');
     expect(screen.queryByRole('link', {name: /^users$/i})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /audit log/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /activity log/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /retention review/i})).not.toBeInTheDocument();
     expect(screen.getByText('User')).toBeInTheDocument();
   });
 
@@ -75,6 +95,61 @@ describe('AppSideNav', () => {
     await waitFor(() => expect(queryClient.getQueryData(['patients'])).toBeUndefined());
   });
 
+  it('saves a pin made just before signing out, before signing out', async () => {
+    const fetch = mockApi({
+      'GET /api/auth/me/settings': () => json({settings: '{}', updatedAtUtc: null}),
+      'PUT /api/auth/me/settings': () => new Response(null, {status: 204}),
+      'POST /api/auth/logout': () => new Response(null, {status: 204}),
+      'GET /api/patients/labels': patientLabels({[patientId]: 'Freya Ahmed'}),
+    });
+    const {user, router} = renderWithApp(
+      <>
+        <SettingsSync />
+        <AppSideNav />
+      </>,
+      {user: staffUser, path: `/patients/${patientId}`},
+    );
+    await waitFor(() => expect(calls(fetch)).toContain('GET /api/auth/me/settings'));
+    await screen.findByRole('link', {name: 'Freya Ahmed'});
+
+    await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Pin'));
+    await user.click(await screen.findByRole('button', {name: /logout/i}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    const order = calls(fetch).filter((c) => c === 'PUT /api/auth/me/settings' || c === 'POST /api/auth/logout');
+    expect(order).toEqual(['PUT /api/auth/me/settings', 'POST /api/auth/logout']);
+    const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
+    const saved = JSON.parse(((await put.json()) as {settings: string}).settings) as Record<string, string>;
+    expect(JSON.parse(saved[PINS_KEY])).toEqual({patients: [patientId], procedures: []});
+  });
+
+  it("clears the user's storage at sign-out, keeping only how the app looks", async () => {
+    const patient = 'a0000000-0000-4000-8000-000000000001';
+    localStorage.setItem('medapp.favourites', JSON.stringify({patients: {saved: [{id: 'f1', name: 'Synthetic', values: {last: 'Synthetic'}}]}}));
+    localStorage.setItem(PINS_KEY, JSON.stringify({patients: [patient]}));
+    localStorage.setItem('medapp.pinnedPatients.test-admin', JSON.stringify([patient]));
+    localStorage.setItem('medapp.colorMode', 'dark');
+    localStorage.setItem('medapp.textSize', 'large');
+    localStorage.setItem('other.app', 'untouched');
+    sessionStorage.setItem('medapp.halfView', `/patients/${patient}`);
+    mockFetch(() => new Response(null, {status: 204}));
+    const {user, router} = renderWithApp(<AppSideNav />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: /logout/i}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    await waitFor(() => expect(localStorage.getItem('medapp.favourites')).toBeNull());
+    expect(localStorage.getItem(PINS_KEY)).toBeNull();
+    expect(localStorage.getItem('medapp.pinnedPatients.test-admin')).toBeNull();
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+    expect(localStorage.getItem('medapp.colorMode')).toBe('dark');
+    expect(localStorage.getItem('medapp.textSize')).toBe('large');
+    expect(localStorage.getItem('other.app')).toBe('untouched');
+    sessionStorage.clear();
+  });
+
   it('has no light/dark mode button (it moved to Account Settings)', async () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
@@ -100,10 +175,7 @@ describe('openPatientId', () => {
 
 describe('AppSideNav with a patient open', () => {
   function renderAt(path: string) {
-    mockApi({
-      [`GET /api/patients/${patientId}`]: () =>
-        json({id: patientId, firstName: 'Freya', lastName: 'Ahmed', dateOfBirth: '1976-12-01', email: 'f@example.com'}),
-    });
+    mockApi({'GET /api/patients/labels': patientLabels({[patientId]: 'Freya Ahmed'})});
     return renderWithApp(<AppSideNav />, {user: staffUser, path});
   }
 
@@ -134,17 +206,11 @@ describe('AppSideNav pinned patients', () => {
   };
 
   function renderAt(path: string, pinned: string[] = []) {
-    if (pinned.length) localStorage.setItem(pinsKey('patients', staffUser.username), JSON.stringify(pinned));
-    mockApi({
-      'GET /api/patients/*': (request) => {
-        const id = new URL(request.url).pathname.split('/').pop()!;
-        const name = patients[id];
-        return name
-          ? json({id, firstName: name[0], lastName: name[1], dateOfBirth: '1976-12-01', email: 'p@example.com'})
-          : json({title: 'Not found'}, 404);
-      },
+    if (pinned.length) localStorage.setItem(PINS_KEY, JSON.stringify({patients: pinned}));
+    const fetch = mockApi({
+      'GET /api/patients/labels': patientLabels(Object.fromEntries(Object.entries(patients).map(([id, [first, last]]) => [id, `${first} ${last}`]))),
     });
-    return renderWithApp(<AppSideNav />, {user: staffUser, path});
+    return {fetch, ...renderWithApp(<AppSideNav />, {user: staffUser, path})};
   }
 
   it("pins the open patient, from the row's menu (its button shown while the row is hovered)", async () => {
@@ -154,7 +220,7 @@ describe('AppSideNav pinned patients', () => {
     expect(screen.queryByRole('button', {name: 'Freya Ahmed options'})).not.toBeInTheDocument();
     await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Pin'));
 
-    expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]);
+    expect(pinnedIds('patients')).toEqual([patientId]);
     await user.unhover(screen.getByRole('link', {name: 'Freya Ahmed'}));
     expect(await rowMenuItem(user, 'Freya Ahmed', 'Unpin')).toBeInTheDocument();
   });
@@ -193,7 +259,7 @@ describe('AppSideNav pinned patients', () => {
     await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Unpin'));
 
     expect(screen.queryByRole('link', {name: 'Freya Ahmed'})).not.toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([]);
+    expect(pinnedIds('patients')).toEqual([]);
   });
 
   it('stops pinning at five, saying why', async () => {
@@ -217,7 +283,18 @@ describe('AppSideNav pinned patients', () => {
     renderAt('/procedures', [patientId, gone]);
 
     await screen.findByRole('link', {name: 'Freya Ahmed'});
-    await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('patients', staffUser.username))!)).toEqual([patientId]));
+    await waitFor(() => expect(pinnedIds('patients')).toEqual([patientId]));
+  });
+
+  it('labels every pinned patient from one labels lookup, never opening their records (which would record a view)', async () => {
+    const {fetch} = renderAt('/procedures', [patientId, 'a0000000-0000-4000-8000-000000000002']);
+
+    await screen.findByRole('link', {name: 'Priya Ali'});
+    const requests = calls(fetch);
+    const lookups = requests.filter((r) => r.startsWith('GET /api/patients/labels'));
+    expect(lookups).toHaveLength(1);
+    expect(lookups[0]).toContain(`ids=${patientId}`);
+    expect(requests.some((r) => /^GET \/api\/patients\/[0-9a-f-]{36}/.test(r))).toBe(false);
   });
 });
 
@@ -240,14 +317,9 @@ describe('AppSideNav pinned procedures', () => {
   };
 
   function renderAt(path: string, pinned: string[] = []) {
-    if (pinned.length) localStorage.setItem(pinsKey('procedures', staffUser.username), JSON.stringify(pinned));
-    mockApi({
-      'GET /api/procedures/patient-procedures/*': (request) => {
-        const id = new URL(request.url).pathname.split('/').pop()!;
-        return procedures[id] ? json({id, ...procedures[id]}) : json({title: 'Not found'}, 404);
-      },
-    });
-    return renderWithApp(<AppSideNav />, {user: staffUser, path});
+    if (pinned.length) localStorage.setItem(PINS_KEY, JSON.stringify({procedures: pinned}));
+    const fetch = mockApi({'GET /api/procedures/patient-procedures/labels': procedureLabels(procedures)});
+    return {fetch, ...renderWithApp(<AppSideNav />, {user: staffUser, path})};
   }
 
   it("labels the open procedure with the patient's initials and the procedure's acronym, and pins it", async () => {
@@ -262,7 +334,7 @@ describe('AppSideNav pinned procedures', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     await user.click(await rowMenuItem(user, 'FA TKR', 'Pin', 'Total knee replacement for Freya Ahmed'));
 
-    expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]);
+    expect(pinnedIds('procedures')).toEqual([knee]);
   });
 
   it('keeps pinned procedures under Procedures on other pages, apart from pinned patients', async () => {
@@ -270,7 +342,7 @@ describe('AppSideNav pinned procedures', () => {
 
     expect(await screen.findByRole('link', {name: 'FA TKR'})).not.toHaveAttribute('aria-current');
     expect(await screen.findByRole('link', {name: 'PA B'})).toBeInTheDocument();
-    expect(localStorage.getItem(pinsKey('patients', staffUser.username))).toBeNull();
+    expect(pinnedIds('patients')).toEqual([]);
   });
 
   it('drops a pinned procedure that no longer exists', async () => {
@@ -278,7 +350,16 @@ describe('AppSideNav pinned procedures', () => {
     renderAt('/', [knee, gone]);
 
     await screen.findByRole('link', {name: 'FA TKR'});
-    await waitFor(() => expect(JSON.parse(localStorage.getItem(pinsKey('procedures', staffUser.username))!)).toEqual([knee]));
+    await waitFor(() => expect(pinnedIds('procedures')).toEqual([knee]));
+  });
+
+  it('labels every pinned procedure from one labels lookup, never opening the procedures (which would record a view)', async () => {
+    const {fetch} = renderAt('/patients', [knee, scope]);
+
+    await screen.findByRole('link', {name: 'PA B'});
+    const requests = calls(fetch);
+    expect(requests.filter((r) => r.startsWith('GET /api/procedures/patient-procedures/labels'))).toHaveLength(1);
+    expect(requests.some((r) => /^GET \/api\/procedures\/patient-procedures\/[0-9a-f-]{36}/.test(r))).toBe(false);
   });
 });
 
@@ -358,10 +439,8 @@ describe('AppSideNav with a half view open', () => {
 
   function renderWithHalf(path: string, openPath: string) {
     mockApi({
-      [`GET /api/patients/${patientId}`]: () =>
-        json({id: patientId, firstName: 'Test', lastName: 'Patient', dateOfBirth: '1980-01-01', email: 't@example.org'}),
-      [`GET /api/procedures/patient-procedures/${procedureId}`]: () =>
-        json({id: procedureId, title: 'Test procedure', patientName: 'Test Patient'}),
+      'GET /api/patients/labels': patientLabels({[patientId]: 'Test Patient'}),
+      'GET /api/procedures/patient-procedures/labels': procedureLabels({[procedureId]: {title: 'Test procedure', patientName: 'Test Patient'}}),
     });
     const halfViews = {open: vi.fn(), openPath, openFull: vi.fn()};
     const result = renderWithApp(

@@ -29,6 +29,7 @@ public sealed class AuthorisationTests : IntegrationTest
         yield return Case("POST", "/api/auth/users");
         yield return Case("PUT", "/api/auth/users/someone/roles");
         yield return Case("PUT", "/api/auth/users/someone/reset-password");
+        yield return Case("POST", "/api/auth/users/someone/sign-out-everywhere");
         yield return Case("DELETE", "/api/auth/users/someone");
         yield return Case("GET", "/api/auth/roles");
         yield return Case("POST", $"{stages}/definitions");

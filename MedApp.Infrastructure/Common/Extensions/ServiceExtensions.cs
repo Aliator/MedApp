@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Authentication.Settings.Repositories;
+﻿using MedApp.Application.Activity.Repositories;
+using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Repositories;
@@ -61,6 +62,8 @@ public static class ServiceExtensions
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
         services.AddScoped<IMonitoringRuleRepository, MonitoringRuleRepository>();
+        services.AddScoped<IActivityRepository, ActivityRepository>();
+        services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         
         return services;
     }
@@ -77,6 +80,8 @@ public static class ServiceExtensions
         services
             .AddIdentityCore<ApplicationUser>()
             .AddRoles<IdentityRole<Guid>>()
+            // Refuses the most common passwords, beside the length and character rules (Identity settings).
+            .AddPasswordValidator<CommonPasswordValidator>()
             .AddEntityFrameworkStores<MedAppDbContext>()
             .AddDefaultTokenProviders();
 

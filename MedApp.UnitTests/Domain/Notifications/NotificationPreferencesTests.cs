@@ -27,6 +27,14 @@ public sealed class NotificationPreferencesTests
     }
 
     [Test]
+    public void HasFixedTitle_OnlyTheMonitoringKinds()
+    {
+        Enum.GetValues<NotificationKind>().Where(Notification.HasFixedTitle)
+            .Should().BeEquivalentTo(Enum.GetValues<NotificationKind>().Where(k => k.ToString().StartsWith("Monitored")));
+        Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
+    }
+
+    [Test]
     public void IsOptional_OnlyTheAssignedKind()
     {
         Enum.GetValues<NotificationKind>().Where(NotificationPreferences.IsOptional)

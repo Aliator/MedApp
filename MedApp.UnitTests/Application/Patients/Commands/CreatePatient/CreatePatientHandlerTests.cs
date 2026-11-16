@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using MedApp.Domain.Activity;
 using FluentAssertions;
 using MedApp.Application.Patients.Commands.CreatePatient;
 using MedApp.Application.Patients.Repositories;
@@ -70,6 +71,7 @@ public sealed class CreatePatientHandlerTests
                     p.CreatedAt <= DateTime.UtcNow &&
                     p.LastUpdated <= DateTime.UtcNow
                 ),
+                It.IsAny<ActivityEntry>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -91,6 +93,7 @@ public sealed class CreatePatientHandlerTests
         _repository.Verify(
             r => r.AddAsync(
                 It.IsAny<Patient>(),
+                It.IsAny<ActivityEntry>(),
                 cts.Token),
             Times.Once);
     }

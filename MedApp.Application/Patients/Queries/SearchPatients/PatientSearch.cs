@@ -52,6 +52,26 @@ public static class PatientSearch
         };
     }
 
+    /// <summary>
+    /// The names of the filters a search used (<c>firstName</c>, <c>lastName</c>, <c>email</c>,
+    /// <c>dateOfBirthFrom</c>, <c>dateOfBirthTo</c>), for the activity log, which never keeps the terms themselves.
+    /// </summary>
+    public static IReadOnlyList<string> FiltersUsed(SearchPatientsQuery query)
+    {
+        var used = new List<string>();
+        if (Term(query.FirstName) is not null)
+            used.Add("firstName");
+        if (Term(query.LastName) is not null)
+            used.Add("lastName");
+        if (Term(query.Email) is not null)
+            used.Add("email");
+        if (query.DateOfBirthFrom is not null)
+            used.Add("dateOfBirthFrom");
+        if (query.DateOfBirthTo is not null)
+            used.Add("dateOfBirthTo");
+        return used;
+    }
+
     private static string? Term(string? text) =>
         string.IsNullOrWhiteSpace(text) ? null : text.Trim().ToLower();
 }

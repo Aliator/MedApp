@@ -1,0 +1,66 @@
+name: CodeQL
+# Static analysis for security bugs, with GitHub's CodeQL: the .NET code, MedApp.Web's TypeScript (and the page server)
+# and these workflows themselves. Results go to the repository's code scanning alerts, and on a pull request, new ones
+# are annotated on the diff.
+#   - on pull requests to main, so a change is checked before it merges
+#   - on pushes to main, which keeps the alerts for main up to date (and is the baseline pull requests compare with)
+#   - weekly, because CodeQL's queries improve, and can find something in code that hasn't changed
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '23 4 * * 1'   # Mondays, 04:23 UTC
+# Each job asks for only what it needs.
+permissions: {}
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read           # read this workflow run's details (only needed in a private repository)
+      contents: read          # check out the code
+      security-events: write  # upload the results to code scanning
+    strategy:
+      # One language failing doesn't hide the others' results.
+      fail-fast: false
+      matrix:
+        include:
+          # C# is built for real (manual) rather than read without a build (none): with the compiler's view, CodeQL
+          # resolves every type and package and sees generated code (Razor, source generators, OpenAPI), which makes
+          # its data-flow analysis, and so its findings, more complete. It costs a solution build, a few minutes.
+          - language: csharp
+            build-mode: manual
+          # TypeScript and JavaScript are read from source; nothing needs building.
+          - language: javascript-typescript
+            build-mode: none
+          # The workflows in .github/workflows: script injection, untrusted checkouts, excessive permissions.
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # The solution, and the dev MCP tool, which isn't in it (as in main.yml's unit-tests job). CodeQL watches the
+      # compiler while these run.
+      - name: Build the .NET code
+        if: matrix.build-mode == 'manual'
+        run: |
+          dotnet build MedApp.sln --configuration Release
+          dotnet build tools/MedApp.DevMcp --configuration Release
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}

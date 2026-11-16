@@ -15,7 +15,7 @@ public sealed class Notification
     public NotificationKind Kind { get; init; }
 
     /// <summary>One line, e.g. the procedure's title.</summary>
-    public string Title { get; init; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
 
     /// <summary>What happened, e.g. "admin assigned you to it."</summary>
     public string Message { get; init; } = string.Empty;
@@ -27,4 +27,11 @@ public sealed class Notification
 
     /// <summary>When the user marked it read; null while unread.</summary>
     public DateTime? ReadAtUtc { get; set; }
+
+    /// <summary>
+    /// Whether notifications of this kind have a fixed title (the monitoring kinds' "Stage finished"), rather than the
+    /// procedure's title, so anonymising a patient leaves it as it is.
+    /// </summary>
+    public static bool HasFixedTitle(NotificationKind kind) =>
+        kind is >= NotificationKind.MonitoredProcedureCreated and <= NotificationKind.MonitoredDueDateChanged;
 }

@@ -1,5 +1,8 @@
 import {
   choiceValues,
+  hasActivityFilters,
+  parseActivitySearch,
+  parseRetentionSearch,
   hasAuditFilters,
   hasPatientFilters,
   hasProcedureFilters,
@@ -247,6 +250,29 @@ describe('parseAuditSearch', () => {
   it('knows when the log is filtered', () => {
     expect(hasAuditFilters({page: 2, asc: true})).toBe(false);
     expect(hasAuditFilters({procedureId: 'x'})).toBe(true);
+  });
+});
+
+describe('parseActivitySearch', () => {
+  it('reads the page, order and filters, dropping anything invalid', () => {
+    const patientId = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
+    expect(
+      parseActivitySearch({page: '2', asc: 'true', q: ' 192.0.2 ', action: 'patientviewed,SignInFailed', patientId, from: '2026-11-01', to: '2026-11-30'}),
+    ).toEqual({page: 2, asc: true, q: '192.0.2', action: 'PatientViewed,SignInFailed', patientId, from: '2026-11-01', to: '2026-11-30'});
+    expect(parseActivitySearch({action: 'Exploded', patientId: 'not-a-guid', from: 'yesterday'})).toEqual({});
+  });
+
+  it('knows when the log is filtered', () => {
+    expect(hasActivityFilters({page: 2, asc: true})).toBe(false);
+    expect(hasActivityFilters({patientId: 'x'})).toBe(true);
+    expect(hasActivityFilters({action: 'SignedIn'})).toBe(true);
+  });
+});
+
+describe('parseRetentionSearch', () => {
+  it('reads the page, and whether kept records are listed too', () => {
+    expect(parseRetentionSearch({page: '3', kept: 'true'})).toEqual({page: 3, kept: true});
+    expect(parseRetentionSearch({kept: 'false', page: 'x'})).toEqual({});
   });
 });
 

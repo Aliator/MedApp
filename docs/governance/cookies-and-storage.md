@@ -16,14 +16,16 @@ The Privacy and Electronic Communications Regulations (PECR), regulation 6, requ
 
 | Name | Type | What it holds | Lasts | Set by |
 |---|---|---|---|---|
-| `medapp.session` | Cookie: first-party, HttpOnly (script can't read it), `SameSite=Lax`, `Secure` outside development | The ID of the user's sign-in session | Until the session ends: sign-out, or 8 hours after sign-in, or later if the user chooses "Stay signed in" (24 hours after sign-in at most) | The API, at sign-in (`SessionCookieService.cs`) |
+| `__Host-medapp.session` (`medapp.session` in development) | Cookie: first-party, HttpOnly (script can't read it), `SameSite=Lax`; outside development `Secure`, for the whole site and this host only (the `__Host-` prefix makes browsers insist on that) | The ID of the user's sign-in session | Until the session ends: sign-out, or 8 hours after sign-in, or later if the user chooses "Stay signed in" (24 hours after sign-in at most) | The API, at sign-in (`SessionCookieService.cs`) |
 | `medapp.colorMode`, `medapp.colours`, `medapp.textSize`, `medapp.accessibility` | `localStorage` | Light or dark mode, colours, text size, and the accessibility switches | Until cleared | The React app, when the user changes them (`MedApp.Web/src/app`) |
 | `medapp.pageSize`, `medapp.proceduresStartOnMine`, `medapp.startPage`, `medapp.navClosesHalfView`, `medapp.navFlyoutDelay` | `localStorage` | List and navigation preferences | Until cleared | As above |
 | `medapp.favourites` | `localStorage` | Saved searches and quick filters. **The terms can be patient names.** | Until cleared | As above (`favourites.ts`) |
-| `medapp.pinnedPatients.<username>`, `medapp.pinnedProcedures.<username>` | `localStorage` | The IDs of the patients and procedures a user has pinned in the side navigation. **The key contains the username.** | Until cleared | `MedApp.Web/src/components/navigation/pins.ts` |
-| `medapp.halfView` | `sessionStorage` | The page open in the half view, which can include a patient or procedure ID | Until the tab closes | `MedApp.Web/src/components/navigation/AppLayout.tsx` |
+| `medapp.pins` | `localStorage` | The IDs of the patients and procedures a user has pinned in the side navigation. (Older versions kept them under `medapp.pinnedPatients.<username>` and `medapp.pinnedProcedures.<username>`; they move to `medapp.pins` and the old keys are removed at sign-out.) | Until sign-out | `MedApp.Web/src/components/navigation/pins.ts` |
+| `medapp.halfView` | `sessionStorage` | The page open in the half view, which can include a patient or procedure ID | Until the tab closes or the user signs out | `MedApp.Web/src/components/navigation/AppLayout.tsx` |
 
-The settings are also stored with the account on the server (`UserSettings`), so they follow the user between computers. Pins and the half view are kept only in the browser.
+The settings and pins are also stored with the account on the server (`UserSettings`), so they follow the user between computers; the half view is kept only in the browser.
+
+**Signing out clears every `medapp.` key** in `localStorage` and `sessionStorage` except the four visual settings (`medapp.colorMode`, `medapp.colours`, `medapp.textSize`, `medapp.accessibility`), so the sign-in page keeps looking the way the user set it. Signing in again brings the rest back from the account (`clearStorageAtSignOut`, `MedApp.Web/src/app/settingsStore.ts`). A session that only expires, without signing out, leaves them in the browser until the next sign-out.
 
 ## 2. The exceptions relied on
 
@@ -36,14 +38,14 @@ The settings are also stored with the account on the server (`UserSettings`), so
 
 > **Cookies and storage in MedApp**
 >
-> MedApp uses one cookie, `medapp.session`, to keep you signed in. It's deleted when you sign out, or after 8 hours (up to 24 hours if you choose to stay signed in). MedApp also keeps your display and accessibility settings, your saved searches and your pinned patients and procedures in your browser, so the app looks and works the way you set it. Your settings are saved with your account too.
+> MedApp uses one cookie, `__Host-medapp.session`, to keep you signed in. It's deleted when you sign out, or after 8 hours (up to 24 hours if you choose to stay signed in). MedApp also keeps your display and accessibility settings, your saved searches and your pinned patients and procedures in your browser, so the app looks and works the way you set it. Your settings are saved with your account too.
 >
 > MedApp uses no tracking, analytics or advertising cookies.
 >
-> **On a shared computer,** your saved searches and pins stay in the browser after you sign out [until MedApp clears them at sign-out]. Don't save searches by patient name on a shared computer. [Patient searches are also part of the page address, so they stay in the browser's history; use your own browser profile on a shared computer, or clear the history when you finish.] *Delete the words in brackets once roadmap step 7 makes MedApp clear its storage at sign-out and keep identifying search terms out of the address.*
+> **On a shared computer,** sign out when you finish: signing out removes your saved searches and pins from the browser (your display settings stay). Patient searches are part of the page address, so they stay in the browser's history; use your own browser profile on a shared computer, or clear the history when you finish.
 
 ## 4. Gaps
 
-- **Browser history** isn't storage MedApp sets, but list pages put their filters in the URL, so patient search terms (names, email, date of birth) land in the history and address bar suggestions. Planned in roadmap step 7: keep identifying filters out of the URL ([dpia.md](dpia.md), risk 10).
-- **Sign-out doesn't clear `localStorage`** (saved searches, pins, settings). It's planned in roadmap step 7 (ASVS V14.3.1), and is part of DPIA risk 10.
+- **Browser history** isn't storage MedApp sets, but list pages put their filters in the URL, so patient search terms (names, email, date of birth) land in the history and address bar suggestions. The product owner decided to keep filters in the URL, because shareable list links are a feature; the staff rules and the customer's shared-computer measures cover it ([dpia.md](dpia.md), risk 10).
+- **A session that expires** without a sign-out leaves the storage in the browser until someone signs out there.
 - **The cookie name** will gain the `__Host-` prefix outside development (roadmap step 2), which keeps it to MedApp's own host. That doesn't change this statement.

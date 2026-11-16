@@ -1,7 +1,7 @@
 import {act, waitFor} from '@testing-library/react';
 import {json, mockApi, renderWithApp, staffUser} from '../test/render';
 import {SAVE_DELAY_MS, SettingsSync} from './SettingsSync';
-import {appSettings, defineSetting} from './settingsStore';
+import {appSettings, defineSetting, flushSettings} from './settingsStore';
 
 const SETTINGS = 'GET /api/auth/me/settings';
 const SAVE = 'PUT /api/auth/me/settings';
@@ -52,6 +52,33 @@ describe('SettingsSync', () => {
 
     // The two changes save once, together.
     await waitFor(async () => expect(await saves(fetch)).toEqual([{[MODE]: 'light', [SIZE]: 'larger'}]), {timeout: 3000});
+  });
+
+  it('saves a pending change at once when asked to (as signing out does), and only then', async () => {
+    const fetch = mockApi({
+      [SETTINGS]: () => json({settings: JSON.stringify({[MODE]: 'dark'}), updatedAtUtc: null}),
+      [SAVE]: () => new Response(null, {status: 204}),
+    });
+    const {unmount} = renderWithApp(<SettingsSync />, {user: staffUser});
+    await waitFor(() => expect(appSettings.get(MODE)).toBe('dark'));
+
+    // Nothing waiting: nothing to save.
+    await act(() => flushSettings());
+    expect(await saves(fetch)).toEqual([]);
+
+    act(() => appSettings.set(MODE, 'light'));
+    await act(() => flushSettings());
+    expect(await saves(fetch)).toEqual([{[MODE]: 'light'}]);
+
+    // Saved already, so the moment later adds nothing.
+    await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS + 100));
+    expect(await saves(fetch)).toHaveLength(1);
+
+    // Gone from the page, it saves nothing more.
+    unmount();
+    act(() => appSettings.set(MODE, 'dark'));
+    await act(() => flushSettings());
+    expect(await saves(fetch)).toHaveLength(1);
   });
 
   it("keeps this browser's settings when the account can't be reached", async () => {

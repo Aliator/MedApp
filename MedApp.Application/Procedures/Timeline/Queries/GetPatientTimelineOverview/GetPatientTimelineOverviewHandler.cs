@@ -1,17 +1,21 @@
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Application.Procedures.Timeline.Common;
 using MedApp.Contracts.Procedures.Timeline.Responses;
+using MedApp.Domain.Activity;
 using MediatR;
 
 namespace MedApp.Application.Procedures.Timeline.Queries.GetPatientTimelineOverview;
 
+/// <summary>What's due for a patient, and their procedures. Opening it is recorded as viewing the patient (once per person every few minutes).</summary>
 public sealed class GetPatientTimelineOverviewHandler(
     IPatientRepository patientRepository,
     IPatientProcedureRepository procedureRepository,
     IProcedureAuditRepository auditRepository,
+    IActivityLog activityLog,
     TimeProvider timeProvider)
     : IRequestHandler<GetPatientTimelineOverviewQuery, PatientTimelineOverviewResponse>
 {
@@ -22,6 +26,8 @@ public sealed class GetPatientTimelineOverviewHandler(
     {
         _ = await patientRepository.GetByIdAsync(request.PatientId, cancellationToken)
             ?? throw new NotFoundException($"Patient '{request.PatientId}' was not found.");
+
+        await activityLog.RecordViewsAsync(ActivityAction.PatientViewed, [request.PatientId], cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var procedures = await procedureRepository.GetByPatientAsync(request.PatientId, cancellationToken);

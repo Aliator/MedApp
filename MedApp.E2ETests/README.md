@@ -17,7 +17,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 
 | File | Purpose |
 |---|---|
-| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and procedures. |
+| `Common/E2ETest.cs` | Base class. Each test gets a fresh page at the base URL: desktop 1440×900, `en-GB`, `Europe/London`, signed in. Override `IsSignedIn` to start signed out. It fails any test whose pages break the Content Security Policy (a `securitypolicyviolation` listener on every page, reported through the console), so a refused script or connection fails the suite against the production image even when the journey still works. It also gives the test the API (`Api`), its clean-up list (`Data`), and helpers to make patients, templates and procedures. |
 | `Common/E2ESession.cs` | Signs in once per run through `POST /api/auth/login`, saves the session for every signed-in test, and signs it out at the end. |
 | `Common/E2EApi.cs` | The app's API, for a test's setup, its checks and its clean-up. |
 | `Common/E2EData.cs` | Unique synthetic names, and the clean-ups a test registers, run newest first when it ends, pass or fail. |

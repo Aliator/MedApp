@@ -27,6 +27,20 @@ public static class AuthTestConstants
 
     public const string ValidPassword = "ValidPassword1";
 
+    /// <summary>
+    /// Spellings of Usernames[0] that SQL Server's default collation matches to it, but no account can have: a byte order
+    /// mark in front, a NUL after, and a full-width first letter.
+    /// </summary>
+    public static readonly IReadOnlyList<string> UsernameVariants =
+    [
+        "\uFEFF" + Usernames[0],
+        Usernames[0] + "\0",
+        "\uFF55" + Usernames[0][1..],
+    ];
+
+    /// <summary>One character longer than any account's name can be.</summary>
+    public static readonly string TooLongUsername = new('a', 257);
+
     /// <summary>The first admin a deploy makes (FirstAdminSetup): synthetic.</summary>
     public const string FirstAdminUsername = "first-admin";
 
@@ -44,6 +58,14 @@ public static class AuthTestConstants
 
     public static readonly Guid SessionId =
         Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    /// <summary>The user whose sessions a change ends (Usernames[1]).</summary>
+    public static readonly Guid SessionUserId =
+        Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+    /// <summary>Usernames[1] as the read service returns them, with these roles.</summary>
+    public static global::MedApp.Contracts.Authentication.Responses.UserResponse SessionUser(params string[] roles) =>
+        new(SessionUserId, Usernames[1], roles);
 
     public static readonly DateTime SessionExpiresAtUtc =
         new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);

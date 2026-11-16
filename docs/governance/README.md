@@ -83,6 +83,8 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 
 Collected from the DPIA, the retention schedule and the rights procedure. Roadmap step 7 covers most of it. The privacy features work on roadmap step 7 should be checked against this list.
 
+**Built by the first part of step 7** (branch `feature/privacy-features`, 16 November 2026): the activity log of reads (patients viewed, in search results and searched, with the filters but not the terms; procedures viewed; exports), patient creates, edits (the fields, not the values) and deletes, sign-ins, refused sign-ins and sign-outs, and account and role changes; the access report on a patient's page; the subject access export (JSON and a printable page, without the clinician review step); restriction and dispute flags; anonymisation; the retention review list with keep and anonymise; clearing browser storage at sign-out. **Not built:** the rest of each row below. **Decided against, by the product owner:** keeping identifying filters out of the URL, because shareable list links are a feature (DPIA risk 10 says how that risk is carried), and replacing patient deletion with archiving for now.
+
 | Need | Step | Documents that depend on it |
 |---|---|---|
 | Audit every read and change of patient data (with search terms), sign-ins, and account and role changes; access reports; an `Auditor` role | 4, 7 | DPIA risks 1 and 7; DSPT standard 4; staff notice |
@@ -95,7 +97,7 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 | Keep identifying filters (name, email, date of birth) out of the URL, so they don't land in browser history; page, sort and status stay in it | 7 | DPIA risk 10; data inventory |
 | No patient identifiers in notifications | 7 | DPIA risk 3 |
 | MFA, SSO, account deactivation, a chosen first admin name | 4 | DPIA risk 2; DSPT standard 4 |
-| An idle timeout; sessions ended on password change; hashed session tokens; security headers; throttling; patient deletion admin-only | 2 | DPIA risks 2, 10, 11 and 7 |
+| An idle timeout; hashed session tokens; patient deletion admin-only (done in step 2's first part: security headers, throttling, sessions ended on a password change or reset) | 2 | DPIA risks 2, 10, 11 and 7 |
 | A least-privilege, passwordless database identity; monitoring and alerts; 35-day and long-term backups, geo-redundant in the UK; restore drills; an Azure Policy allowing only UK regions; a cluster-wide Cilium policy so only the API and the migrations Job reach the database's private endpoint; Customer Lockbox; just-in-time admin access; out-of-hours cover | 5 | DPIA risks 12 to 17; transfers; support access |
 | A patient banner (in the go-live gate); optimistic concurrency | 6 | DPIA risks 8 and 9 |
 | A deceased flag | 9 | Retention periods after death |
