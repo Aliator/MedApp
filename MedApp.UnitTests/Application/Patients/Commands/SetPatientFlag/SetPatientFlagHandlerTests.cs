@@ -205,14 +205,43 @@ public sealed class SetPatientFlagHandlerTests
     }
 
     [Test]
-    public async Task Handle_RestrictWithNothingUnderWay_DoesNotCountAppointments()
+    public async Task Handle_RestrictWithOpenAppointmentsButNothingUnderWay_AsksForTheConfirmation()
     {
-        // Only procedures under way need the confirmation: the dialog asks for it from their count.
+        // Appointments booked from the patient page, for no procedure, freeze too.
         var patient = Given(PatientsTestConstants.CreateValidPatient());
         _repository.Setup(r => r.CountProceduresUnderWayAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
         _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(3);
 
-        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+        var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+
+        var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
+        failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenProcedures));
+        failure.ErrorMessage.Should().Be(
+            "This patient has 3 open appointments. Confirm that they can't be booked, moved or given an outcome while the " +
+            "record is restricted (cancelling stays possible).");
+        patient.RestrictedAtUtc.Should().BeNull();
+        _repository.Verify(r => r.UpdateAsync(It.IsAny<Patient>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithOneOpenAppointmentAndNothingUnderWay_SaysIt()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var act = () => Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Single().ErrorMessage.Should().StartWith("This patient has 1 open appointment. Confirm that it can't be booked");
+    }
+
+    [Test]
+    public async Task Handle_RestrictWithOpenAppointments_Confirmed_Restricts()
+    {
+        var patient = Given(PatientsTestConstants.CreateValidPatient());
+        _repository.Setup(r => r.CountOpenAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+
+        await Handler.Handle(new SetPatientFlagCommand(patient.Id, PatientFlag.Restricted, true, "Checking", ConfirmOpenProcedures: true), CancellationToken.None);
 
         patient.RestrictedAtUtc.Should().NotBeNull();
         _repository.Verify(r => r.CountOpenAppointmentsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -240,6 +269,7 @@ public sealed class SetPatientFlagHandlerTests
 
         patient.RestrictedAtUtc.Should().NotBeNull();
         _repository.Verify(r => r.CountProceduresUnderWayAsync(patient.Id, cts.Token), Times.Once);
+        _repository.Verify(r => r.CountOpenAppointmentsAsync(patient.Id, cts.Token), Times.Once);
     }
 
     [TestCase(PatientFlag.Disputed, true)]

@@ -15,8 +15,8 @@ public enum PatientFlag
 
 /// <summary>
 /// Sets (<paramref name="Set"/>) or clears a patient's flag (admins only). Setting one needs a reason. Restricting a
-/// record whose procedures are under way also needs <paramref name="ConfirmOpenProcedures"/>: their work stops, but
-/// for blocking and cancelling.
+/// record with procedures under way or open appointments also needs <paramref name="ConfirmOpenProcedures"/>: their
+/// work stops, but for blocking and cancelling procedures and cancelling appointments.
 /// </summary>
 public sealed record SetPatientFlagCommand(
     Guid PatientId,

@@ -60,6 +60,22 @@ export const procedureAppointmentsQuery = (procedureId: string) => appointmentsQ
 /** A patient's appointments, every status, by start (Requested ones last): the patient page's list. */
 export const patientAppointmentsQuery = (patientId: string) => appointmentsQuery({PatientId: patientId, PageSize: LISTED_APPOINTMENTS});
 
+/** The statuses still to happen (Needs booking, or booked): a stage can have one at a time, and they freeze when a record is restricted. */
+export const OPEN_APPOINTMENT_STATUSES: AppointmentStatus[] = ['Requested', 'Booked'];
+
+/** How many of a patient's appointments are open (Requested or Booked): one row of a search, for its total. */
+export function patientOpenAppointmentCountQuery(patientId: string) {
+  return queryOptions({
+    queryKey: [...appointmentKeys.all, 'open-count', patientId],
+    queryFn: async () => {
+      const page = await unwrap(
+        api.GET('/api/appointments/search', {params: {query: {PatientId: patientId, Statuses: OPEN_APPOINTMENT_STATUSES, PageSize: 1}}}),
+      );
+      return page.totalCount ?? 0;
+    },
+  });
+}
+
 /** Refreshes everything an appointment change can show up in. */
 export function useRefreshAppointments() {
   const queryClient = useQueryClient();

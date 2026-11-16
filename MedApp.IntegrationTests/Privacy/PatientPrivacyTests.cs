@@ -35,8 +35,10 @@ public sealed class PatientPrivacyTests : IntegrationTest
 
     private static string PatientUrl(Guid id) => $"/api/patients/{id}";
 
-    private Task<HttpResponseMessage> SetRestrictionAsync(Guid patientId, bool set, string? reason) =>
-        _admin.PutAsJsonAsync($"{PatientUrl(patientId)}/restriction", new SetPatientFlagRequest { Set = set, Reason = reason });
+    private Task<HttpResponseMessage> SetRestrictionAsync(Guid patientId, bool set, string? reason, bool confirm = false) =>
+        _admin.PutAsJsonAsync(
+            $"{PatientUrl(patientId)}/restriction",
+            new SetPatientFlagRequest { Set = set, Reason = reason, ConfirmOpenProcedures = confirm });
 
     [Test]
     public async Task Restriction_RefusesChangesButPausing_UntilLifted()
@@ -104,7 +106,12 @@ public sealed class PatientPrivacyTests : IntegrationTest
         var patient = await CreatePatientAsync(_admin);
         var staff = await CreateStaffAsync(UserRole);
         var booked = await BookNewAppointmentAsync(_admin, patient.Id, staff.UserId, NextBookableStart());
-        (await SetRestrictionAsync(patient.Id, true, "Synthetic check")).StatusCode.Should().Be(HttpStatusCode.OK);
+        // No procedure is under way, but the open appointment freezes too, so the admin must confirm.
+        var unconfirmed = await (await SetRestrictionAsync(patient.Id, true, "Synthetic check"))
+            .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+        unconfirmed.Errors[nameof(SetPatientFlagRequest.ConfirmOpenProcedures)].Should().ContainSingle()
+            .Which.Should().StartWith("This patient has 1 open appointment.");
+        (await SetRestrictionAsync(patient.Id, true, "Synthetic check", confirm: true)).StatusCode.Should().Be(HttpStatusCode.OK);
 
         (await PostBookingAsync(staff.Client, patient.Id, staff.UserId, NextBookableStart().AddHours(2)))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
