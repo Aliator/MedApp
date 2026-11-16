@@ -63,30 +63,29 @@ public sealed class IdentityRoleService(
         IReadOnlyCollection<string> roleNames,
         CancellationToken ct)
     {
-        var user = await userManager.FindByNameAsync(username);
-        if (user is null)
-            return IdentityResult.Failed(IdentityErrors.UserNotFound);
-
-        // Every role must exist; their stored names are the ones Identity matches on.
-        var wanted = new List<string>();
-        foreach (var roleName in roleNames.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var role = await roleManager.FindByNameAsync(roleName);
-            if (role?.Name is null)
-                return IdentityResult.Failed(IdentityErrors.RoleNotFound);
-
-            wanted.Add(role.Name);
-        }
-
-        var current = await userManager.GetRolesAsync(user);
-        var toRemove = current.Except(wanted, StringComparer.OrdinalIgnoreCase).ToList();
-        var toAdd = wanted.Except(current, StringComparer.OrdinalIgnoreCase).ToList();
-
-        if (toRemove.Count == 0 && toAdd.Count == 0)
-            return IdentityResult.Success;
-
+        // Everything is loaded inside the work, which a retry runs again from the start (IdentityTransactions): a user
+        // loaded once, outside it, would carry the failed attempt's concurrency stamp into the retry and fail it.
         return await transactions.RunAsync(async () =>
         {
+            var user = await userManager.FindByNameAsync(username);
+            if (user is null)
+                return IdentityResult.Failed(IdentityErrors.UserNotFound);
+
+            // Every role must exist; their stored names are the ones Identity matches on.
+            var wanted = new List<string>();
+            foreach (var roleName in roleNames.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var role = await roleManager.FindByNameAsync(roleName);
+                if (role?.Name is null)
+                    return IdentityResult.Failed(IdentityErrors.RoleNotFound);
+
+                wanted.Add(role.Name);
+            }
+
+            var current = await userManager.GetRolesAsync(user);
+            var toRemove = current.Except(wanted, StringComparer.OrdinalIgnoreCase).ToList();
+            var toAdd = wanted.Except(current, StringComparer.OrdinalIgnoreCase).ToList();
+
             if (toRemove.Count > 0)
             {
                 var removed = await userManager.RemoveFromRolesAsync(user, toRemove);

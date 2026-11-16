@@ -1,4 +1,4 @@
-import {ApiError, ApiValidationError, allMessages, fieldStatus, parseValidationErrors, problemMessage, problemTitle} from './errors';
+import {ApiError, ApiValidationError, allMessages, fieldStatus, parseValidationErrors, problemCode, problemMessage, problemTitle} from './errors';
 
 describe('parseValidationErrors', () => {
   it('maps ValidationProblemDetails errors onto camelCase fields', () => {
@@ -99,6 +99,20 @@ describe('problemTitle', () => {
     expect(problemTitle('text')).toBeUndefined();
     expect(problemTitle({title: ''})).toBeUndefined();
     expect(problemTitle([{title: 'x'}])).toBeUndefined();
+  });
+});
+
+describe('problemCode', () => {
+  it('reads the code of a ProblemDetails body', () => {
+    expect(problemCode({title: 'Password change required', status: 403, code: 'password_change_required'})).toBe('password_change_required');
+  });
+
+  it('is undefined for anything else', () => {
+    expect(problemCode(undefined)).toBeUndefined();
+    expect(problemCode({title: 'Forbidden'})).toBeUndefined();
+    expect(problemCode({code: ''})).toBeUndefined();
+    expect(problemCode({code: 7})).toBeUndefined();
+    expect(problemCode([{code: 'x'}])).toBeUndefined();
   });
 });
 

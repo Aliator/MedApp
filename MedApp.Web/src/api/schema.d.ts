@@ -3134,6 +3134,7 @@ export interface components {
             isAuthenticated?: boolean;
             name?: string | null;
             roles?: string[] | null;
+            mustChangePassword?: boolean;
         };
     };
     responses: never;

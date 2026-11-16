@@ -66,6 +66,102 @@ public sealed class IdentityUserServiceTests
     }
 
     [Test]
+    public async Task UpdateUserPasswordAsync_Succeeds_ClearsMustChangePasswordInTheSameSave()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        user.MustChangePassword = true;
+        bool? flagWhenSaved = null;
+
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Passwords[0])).ReturnsAsync(true);
+        _userManager
+            .Setup(u => u.ChangePasswordAsync(user, AuthTestConstants.Passwords[0], AuthTestConstants.Passwords[1]))
+            .Callback(() => flagWhenSaved = user.MustChangePassword)
+            .ReturnsAsync(IdentityResult.Success);
+
+        var result = await _service.UpdateUserPasswordAsync(
+            user.UserName!, AuthTestConstants.Passwords[0], AuthTestConstants.Passwords[1], CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        // ChangePasswordAsync saves the user with its new hash, so the flag must already be cleared when it's called.
+        flagWhenSaved.Should().BeFalse();
+        user.MustChangePassword.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task UpdateUserPasswordAsync_ChangeFails_KeepsMustChangePassword()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        user.MustChangePassword = true;
+
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Passwords[0])).ReturnsAsync(true);
+        _userManager
+            .Setup(u => u.ChangePasswordAsync(user, AuthTestConstants.Passwords[0], AuthTestConstants.Passwords[1]))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "PasswordTooShort" }));
+
+        var result = await _service.UpdateUserPasswordAsync(
+            user.UserName!, AuthTestConstants.Passwords[0], AuthTestConstants.Passwords[1], CancellationToken.None);
+
+        result.Succeeded.Should().BeFalse();
+        user.MustChangePassword.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task UpdateUserPasswordAsync_OldPasswordIncorrect_KeepsMustChangePassword()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        user.MustChangePassword = true;
+
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.CheckPasswordAsync(user, AuthTestConstants.Passwords[0])).ReturnsAsync(false);
+
+        await _service.UpdateUserPasswordAsync(
+            user.UserName!, AuthTestConstants.Passwords[0], AuthTestConstants.Passwords[1], CancellationToken.None);
+
+        user.MustChangePassword.Should().BeTrue();
+        _userManager.Verify(
+            u => u.ChangePasswordAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task ResetUserPasswordAsync_Succeeds_SetsMustChangePasswordInTheSameSave()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+        bool? flagWhenSaved = null;
+
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GeneratePasswordResetTokenAsync(user)).ReturnsAsync("token");
+        _userManager
+            .Setup(u => u.ResetPasswordAsync(user, "token", It.IsAny<string>()))
+            .Callback(() => flagWhenSaved = user.MustChangePassword)
+            .ReturnsAsync(IdentityResult.Success);
+
+        await _service.ResetUserPasswordAsync(user.UserName!, CancellationToken.None);
+
+        // ResetPasswordAsync saves the user with its new hash, so the flag must already be set when it's called.
+        flagWhenSaved.Should().BeTrue();
+        user.MustChangePassword.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ResetUserPasswordAsync_ResetFails_LeavesMustChangePasswordAsItWas()
+    {
+        var user = AuthTestConstants.CreateValidUser();
+
+        _userManager.Setup(u => u.FindByNameAsync(user.UserName!)).ReturnsAsync(user);
+        _userManager.Setup(u => u.GeneratePasswordResetTokenAsync(user)).ReturnsAsync("token");
+        _userManager
+            .Setup(u => u.ResetPasswordAsync(user, "token", It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "InvalidToken" }));
+
+        await _service.ResetUserPasswordAsync(user.UserName!, CancellationToken.None);
+
+        user.MustChangePassword.Should().BeFalse();
+    }
+
+    [Test]
     public async Task ResetUserPasswordAsync_UserNotFound_ReturnsError()
     {
         _userManager
@@ -199,7 +295,9 @@ public sealed class IdentityUserServiceTests
             u => u.CreateAsync(
                 It.Is<ApplicationUser>(u =>
                     u.UserName == AuthTestConstants.Usernames[0] &&
-                    u.CreatedAt <= DateTime.UtcNow),
+                    u.CreatedAt <= DateTime.UtcNow &&
+                    // Saved with the account, so it must change its generated password at first sign-in.
+                    u.MustChangePassword),
                 result.GeneratedPassword!),
             Times.Once);
     }

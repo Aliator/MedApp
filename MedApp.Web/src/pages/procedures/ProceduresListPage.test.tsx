@@ -97,6 +97,9 @@ describe('ProceduresListPage', () => {
     await screen.findByText('Colonoscopy');
     expect(calls(fetch)[0]).toContain('AssignedToMe=true');
     expect(searchBar()).toHaveTextContent(/Assigned to me: only/);
+    // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
+    expect(screen.getByRole('button', {name: 'Favourites (showing Assigned to me)'})).toBeInTheDocument();
+    expect(screen.queryAllByText('Assigned to me').filter((el) => !searchBar().contains(el) && !el.closest('[role="menu"]'))).toEqual([]);
 
     await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({mine: false}));

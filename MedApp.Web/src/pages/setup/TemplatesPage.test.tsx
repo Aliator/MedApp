@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pickFavourite, renderWithApp, searchBar} from '../../test/render';
 import type {SetupListSearch} from '../listSearch';
 import {stagesSummary, TemplatesPage} from './TemplatesPage';
 
@@ -35,6 +35,12 @@ describe('TemplatesPage', () => {
     expect(within(await rowOf('Draft pathway')).getByText('Not used yet')).toBeInTheDocument();
     expect(screen.queryByText('Old pathway')).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'New Template'})).toHaveAttribute('href', '/admin/templates/new');
+    // The search starts on Active; the bar's token says it, so the favourite's name isn't repeated beside the star.
+    expect(searchBar()).toHaveTextContent(/Status: is\s*Active/);
+    expect(screen.getByRole('button', {name: 'Favourites (showing Active)'})).toBeInTheDocument();
+    // (Each active row says Active in its status column too.)
+    const outsideBarMenuAndTable = (el: HTMLElement) => !searchBar().contains(el) && !el.closest('[role="menu"]') && !el.closest('table');
+    expect(screen.queryAllByText('Active').filter(outsideBarMenuAndTable)).toEqual([]);
   });
 
   it('archives after a confirmation, and restores an archived one', async () => {
