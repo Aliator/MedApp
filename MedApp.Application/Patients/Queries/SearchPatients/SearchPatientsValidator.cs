@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Common.Paging;
+using MedApp.Domain.Patients;
 
 namespace MedApp.Application.Patients.Queries.SearchPatients;
 
@@ -22,6 +23,11 @@ public sealed class SearchPatientsValidator : AbstractValidator<SearchPatientsQu
         RuleFor(x => x.FirstName).MaximumLength(100).WithMessage("First name must not exceed 100 characters.");
         RuleFor(x => x.LastName).MaximumLength(100).WithMessage("Last name must not exceed 100 characters.");
         RuleFor(x => x.Email).MaximumLength(256).WithMessage("Email must not exceed 256 characters.");
+
+        RuleFor(x => x.NhsNumber)
+            .Must(text => PatientSearch.NhsNumberDigits(text) is not { } digits
+                          || (digits.Length <= NhsNumbers.Length && digits.All(char.IsAsciiDigit)))
+            .WithMessage("NHS number must be up to 10 digits.");
 
         RuleFor(x => x.DateOfBirthTo)
             .GreaterThanOrEqualTo(x => x.DateOfBirthFrom!.Value)

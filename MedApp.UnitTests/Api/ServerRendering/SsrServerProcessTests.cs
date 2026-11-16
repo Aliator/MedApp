@@ -22,7 +22,7 @@ namespace MedApp.UnitTests.Api.ServerRendering;
 public sealed class SsrServerProcessTests
 {
     private const string ApiAddress = "http://127.0.0.1:5090";
-    private string _webRoot = null!;
+    private string _contentRoot = null!;
 
     [OneTimeSetUp]
     public void NeedsNode()
@@ -42,8 +42,8 @@ public sealed class SsrServerProcessTests
     [SetUp]
     public void SetUp()
     {
-        _webRoot = Directory.CreateTempSubdirectory("medapp-ssr-process").FullName;
-        Directory.CreateDirectory(Path.Combine(_webRoot, "ssr"));
+        _contentRoot = Directory.CreateTempSubdirectory("medapp-ssr-process").FullName;
+        Directory.CreateDirectory(Path.Combine(_contentRoot, "ssr"));
     }
 
     [TearDown]
@@ -54,7 +54,7 @@ public sealed class SsrServerProcessTests
         {
             try
             {
-                Directory.Delete(_webRoot, recursive: true);
+                Directory.Delete(_contentRoot, recursive: true);
                 return;
             }
             catch (IOException)
@@ -64,12 +64,12 @@ public sealed class SsrServerProcessTests
         }
     }
 
-    private void Script(string body) => File.WriteAllText(Path.Combine(_webRoot, "ssr", "server.mjs"), body);
+    private void Script(string body) => File.WriteAllText(Path.Combine(_contentRoot, "ssr", "server.mjs"), body);
 
     private SsrServer Server(string[] addresses, SsrOptions? options = null, bool listening = true)
     {
         var environment = new Mock<IWebHostEnvironment>();
-        environment.SetupGet(e => e.WebRootPath).Returns(_webRoot);
+        environment.SetupGet(e => e.ContentRootPath).Returns(_contentRoot);
         var features = new FeatureCollection();
         var addressFeature = new ServerAddressesFeature();
         foreach (var address in addresses) addressFeature.Addresses.Add(address);
@@ -108,7 +108,7 @@ public sealed class SsrServerProcessTests
         await ssr.StartAsync(CancellationToken.None);
         await WaitFor(() => ssr.Address is not null);
 
-        var started = JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(Path.Combine(_webRoot, "ssr", "started.json")))!;
+        var started = JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(Path.Combine(_contentRoot, "ssr", "started.json")))!;
         started["HOST"].Should().Be("127.0.0.1");
         started["MEDAPP_API_URL"].Should().Be(ApiAddress);
         started["MEDAPP_SSR_KEY"].Should().Be(ssr.Key);
@@ -144,7 +144,7 @@ public sealed class SsrServerProcessTests
             Environment.SetEnvironmentVariable(ConnectionStringVariable, previous);
         }
 
-        var names = JsonSerializer.Deserialize<string[]>(await File.ReadAllTextAsync(Path.Combine(_webRoot, "ssr", "environment.json")))!;
+        var names = JsonSerializer.Deserialize<string[]>(await File.ReadAllTextAsync(Path.Combine(_contentRoot, "ssr", "environment.json")))!;
         names.Should().NotContain(name => name.StartsWith("ConnectionStrings", StringComparison.OrdinalIgnoreCase));
         names.Should().Contain(name => name.Equals("PATH", StringComparison.OrdinalIgnoreCase));
         names.Should().Contain(["PORT", "HOST", "MEDAPP_API_URL", "MEDAPP_SSR_KEY", "NODE_ENV", "NODE_OPTIONS"]);
@@ -166,7 +166,7 @@ public sealed class SsrServerProcessTests
     public async Task ExecuteAsync_NodeMissing_StaysOff()
     {
         Script("// never run");
-        var ssr = Server([ApiAddress], new SsrOptions { NodePath = Path.Combine(_webRoot, "no-such-node") });
+        var ssr = Server([ApiAddress], new SsrOptions { NodePath = Path.Combine(_contentRoot, "no-such-node") });
 
         await ssr.StartAsync(CancellationToken.None);
         await ssr.ExecuteTask!;

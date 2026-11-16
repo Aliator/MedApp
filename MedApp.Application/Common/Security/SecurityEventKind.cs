@@ -1,8 +1,8 @@
 namespace MedApp.Application.Common.Security;
 
 /// <summary>
-/// What a security event records. Today they're written to the application log (<see cref="LoggingSecurityEventLog"/>);
-/// each maps to an activity log action when that log is wired in (<see cref="ISecurityEventLog"/>).
+/// What a security event records: each is an activity log action (<see cref="ActivitySecurityEventLog.ActionFor"/>).
+/// Sign-ins themselves, the second step's included, are recorded by the sign-in handlers.
 /// </summary>
 public enum SecurityEventKind
 {
@@ -31,9 +31,6 @@ public enum SecurityEventKind
 
     /// <summary>Someone signed in with a recovery code.</summary>
     RecoveryCodeUsed,
-
-    /// <summary>A wrong code at the second step of signing in.</summary>
-    TwoFactorCodeRejected,
 
     /// <summary>An admin changed whether admin accounts must use two-factor authentication.</summary>
     TwoFactorRequirementChanged,

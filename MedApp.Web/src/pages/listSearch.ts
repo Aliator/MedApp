@@ -4,6 +4,7 @@
  * dropping anything invalid, so a bad link shows the default list rather than an error.
  */
 
+import {ACTIVITY_ACTIONS} from '../api/activity';
 import {AUDIT_ACTIONS} from '../api/audit';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -56,6 +57,8 @@ export interface PatientsListSearch {
   email?: string;
   dobFrom?: string;
   dobTo?: string;
+  /** Digits of an NHS number (spaces ignored by the API), which the patient's number contains. */
+  nhs?: string;
 }
 
 export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListSearch {
@@ -68,10 +71,12 @@ export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListS
     email: text(raw.email),
     dobFrom: date(raw.dobFrom),
     dobTo: date(raw.dobTo),
+    nhs: text(raw.nhs),
   });
 }
 
-export const hasPatientFilters = (s: PatientsListSearch) => Boolean(s.first || s.last || s.email || s.dobFrom || s.dobTo);
+export const hasPatientFilters = (s: PatientsListSearch) =>
+  Boolean(s.first || s.last || s.email || s.dobFrom || s.dobTo || s.nhs);
 
 // Users ---------------------------------------------------------------------------------------------------
 
@@ -319,6 +324,50 @@ export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch 
 }
 
 export const hasAuditFilters = (s: AuditListSearch) => Boolean(s.q || s.action || s.procedureId || s.from || s.to);
+
+// The activity log (admin) ----------------------------------------------------------------------------
+
+/** The activity log: page, order (newest first unless `asc`) and filters. */
+export interface ActivityListSearch {
+  page?: number;
+  /** Oldest first. */
+  asc?: boolean;
+  /** Matches the username, the account changed, or the address. */
+  q?: string;
+  /** A choice (see `parseChoice`). */
+  action?: string;
+  /** One patient's entries, e.g. from their page's access report. */
+  patientId?: string;
+  from?: string;
+  to?: string;
+}
+
+export function parseActivitySearch(raw: Record<string, unknown>): ActivityListSearch {
+  const patientId = text(raw.patientId);
+  return compact({
+    page: page(raw.page),
+    asc: bool(raw.asc),
+    q: text(raw.q),
+    action: parseChoice(raw.action, ACTIVITY_ACTIONS),
+    patientId: patientId && GUID.test(patientId) ? patientId : undefined,
+    from: date(raw.from),
+    to: date(raw.to),
+  });
+}
+
+export const hasActivityFilters = (s: ActivityListSearch) => Boolean(s.q || s.action || s.patientId || s.from || s.to);
+
+// The retention review list (admin) -------------------------------------------------------------------
+
+/** The retention review list: page, and whether records an admin decided to keep are listed too. */
+export interface RetentionListSearch {
+  page?: number;
+  kept?: boolean;
+}
+
+export function parseRetentionSearch(raw: Record<string, unknown>): RetentionListSearch {
+  return compact({page: page(raw.page), kept: bool(raw.kept) || undefined});
+}
 
 // Insights (admin) ------------------------------------------------------------------------------------
 

@@ -4,7 +4,9 @@ using FluentAssertions;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Contracts.Authentication.Requests;
+using MedApp.Contracts.Activity.Responses;
 using MedApp.Contracts.Authentication.Responses;
+using MedApp.Contracts.Common;
 using MedApp.IntegrationTests.Common;
 using static MedApp.IntegrationTests.Common.AccountSecurity;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
@@ -316,5 +318,34 @@ public sealed class TwoFactorTests : IntegrationTest
 
         (await staff.Client.GetAsync("/api/auth/security-settings")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await staff.Client.PutAsJsonAsync("/api/auth/security-settings", new SaveSecuritySettingsRequest(false))).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task ActivityLog_RecordsTheChallengeTheRefusedCodeTheSignInAndTheChanges_NeverACode()
+    {
+        var staff = await CreateStaffAsync(UserRole);
+        var (key, codes) = await TurnOnTwoFactorAsync(staff.Client);
+        var client = NewClient();
+        var challenge = await PasswordStepAsync(client, staff.Username, staff.Password);
+        await SecondStepAsync(client, challenge.Challenge, "000000");
+        var code = NextCode(key);
+        await (await SecondStepAsync(client, challenge.Challenge, code)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var admin = await SignInAsAdminAsync();
+        await (await admin.PostAsync($"/api/auth/users/{staff.Username}/reset-two-factor", null)).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+
+        var page = await (await admin.GetAsync($"/api/activity/search?PageSize=100&UserId={staff.UserId}"))
+            .ReadAsAsync<PagedResponse<ActivityEntryResponse>>();
+        var actions = page.Items.Select(e => e.Action).ToList();
+
+        actions.Should().Contain(["TwoFactorEnabled", "TwoFactorChallenged", "SignInFailed", "SignedIn"]);
+        page.Items.Should().Contain(e => e.Action == "SignInFailed" && e.Details.Contains("InvalidCode"));
+        page.Items.Should().Contain(e => e.Action == "SignedIn" && e.Details.Contains("authenticator"));
+        page.Items.Should().OnlyContain(e => !e.Details.Contains(code) && !e.Details.Contains(codes[0]));
+
+        var resets = await (await admin.GetAsync("/api/activity/search?PageSize=100&Actions=TwoFactorReset"))
+            .ReadAsAsync<PagedResponse<ActivityEntryResponse>>();
+        var reset = resets.Items.Should().ContainSingle().Subject;
+        reset.Username.Should().Be(AdminUsername);
+        reset.TargetUsername.Should().Be(staff.Username);
     }
 }

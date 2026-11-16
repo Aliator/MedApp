@@ -1,6 +1,7 @@
 import {act, render, renderHook, screen} from '@testing-library/react';
 import {useEffect} from 'react';
-import {NavSettingsProvider, useNavSettings} from './navSettings';
+import {appSettings} from './settingsStore';
+import {currentStartPagePath, NavSettingsProvider, useNavSettings} from './navSettings';
 
 let api: ReturnType<typeof useNavSettings>;
 function Probe() {
@@ -56,5 +57,15 @@ describe('navSettings', () => {
 
     expect(result.current).toMatchObject({closesHalfView: true, flyoutDelayMs: 500, startPagePath: '/'});
     expect(localStorage.length).toBe(0);
+  });
+});
+
+describe('currentStartPagePath', () => {
+  it('reads the start page as the settings are now, Home unless one is chosen', () => {
+    expect(currentStartPagePath()).toBe('/');
+    appSettings.set('medapp.startPage', 'tasks');
+    expect(currentStartPagePath()).toBe('/tasks');
+    appSettings.set('medapp.startPage', 'nowhere');
+    expect(currentStartPagePath()).toBe('/');
   });
 });

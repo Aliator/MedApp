@@ -24,6 +24,27 @@ describe('route guards', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });
 
+  it.each(['/admin/activity', '/admin/retention', '/patients/0000000d-0000-4000-8000-000000000001/export'])(
+    'sends a non-admin away from %s, without asking for its data',
+    async (path) => {
+      const fetch = mockFetch(() => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}));
+      const {router} = renderApp({path, user: staffUser});
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+      expect(fetch.mock.calls.some(([r]) => /activity|retention|export/.test(new URL((r as Request).url).pathname))).toBe(false);
+    },
+  );
+
+  it.each([
+    ['/admin/activity', 'Activity Log'],
+    ['/admin/retention', 'Retention Review'],
+  ])('lets an admin into %s', async (path, heading) => {
+    mockFetch(() => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}));
+    renderApp({path, user: adminUser});
+
+    expect(await screen.findByRole('heading', {name: heading, level: 1})).toBeInTheDocument();
+  });
+
   it('lets an admin into the admin pages', async () => {
     mockFetch((request) =>
       new URL(request.url).pathname === '/api/auth/roles'

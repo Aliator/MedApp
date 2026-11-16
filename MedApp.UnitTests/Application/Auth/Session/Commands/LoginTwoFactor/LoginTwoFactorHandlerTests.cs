@@ -6,6 +6,7 @@ using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Security;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Authentication;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -22,6 +23,8 @@ public sealed class LoginTwoFactorHandlerTests
     private Mock<ISecurityNotices> _notices = null!;
     private Mock<ISecurityEventLog> _events = null!;
     private FixedTimeProvider _clock = null!;
+    private RecordingActivityLog _activity = null!;
+    private Mock<IIdentityReadService> _read = null!;
     private LoginTwoFactorHandler _handler = null!;
     private SignInChallenge _challenge = null!;
     private readonly LoginResult _session = new(SessionId, NowUtc.AddHours(8));
@@ -35,8 +38,12 @@ public sealed class LoginTwoFactorHandlerTests
         _notices = new Mock<ISecurityNotices>();
         _events = new Mock<ISecurityEventLog>();
         _clock = new FixedTimeProvider(NowUtc);
+        _activity = new RecordingActivityLog();
+        _read = new Mock<IIdentityReadService>();
+        _read.Setup(r => r.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, string> { [UserId] = Username });
         _handler = new LoginTwoFactorHandler(
-            _challenges.Object, _twoFactor.Object, _sessions.Object, _notices.Object, _events.Object, _clock);
+            _challenges.Object, _twoFactor.Object, _sessions.Object, _read.Object, _activity, _notices.Object, _events.Object, _clock);
 
         _challenge = new SignInChallenge(UserId, SignInChallengeTokens.Hash(ChallengeToken), NowUtc.AddMinutes(-1));
         _challenges
@@ -65,6 +72,11 @@ public sealed class LoginTwoFactorHandlerTests
         _challenges.Verify(c => c.ConsumeAsync(_challenge.Id, It.IsAny<CancellationToken>()), Times.Once);
         _twoFactor.Verify(t => t.RecordSignInAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
         _notices.VerifyNoOtherCalls();
+        var signedIn = _activity.Recorded.Should().ContainSingle().Subject;
+        signedIn.Action.Should().Be(ActivityAction.SignedIn);
+        signedIn.UserId.Should().Be(UserId);
+        signedIn.IpAddress.Should().Be("192.0.2.1");
+        signedIn.Details.Should().Contain("authenticator").And.NotContain(AuthenticatorCode);
     }
 
     [Test]
@@ -88,6 +100,7 @@ public sealed class LoginTwoFactorHandlerTests
 
         await act.Should().ThrowAsync<SignInExpiredException>();
         _twoFactor.Verify(t => t.VerifyAuthenticatorCodeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _activity.Recorded.Should().ContainSingle(e => e.Action == ActivityAction.SignInFailed && e.Details.Contains("ChallengeExpired"));
     }
 
     [Test]
@@ -123,9 +136,11 @@ public sealed class LoginTwoFactorHandlerTests
         _challenges.Verify(c => c.RecordFailureAsync(_challenge.Id, It.IsAny<CancellationToken>()), Times.Once);
         _twoFactor.Verify(t => t.RecordFailedCodeAsync(UserId, It.IsAny<CancellationToken>()), Times.Once);
         _challenges.Verify(c => c.ConsumeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-        _events.Verify(e => e.RecordAsync(
-            It.Is<SecurityEvent>(ev => ev.Kind == SecurityEventKind.TwoFactorCodeRejected && ev.UserId == UserId),
-            It.IsAny<CancellationToken>()), Times.Once);
+        var refused = _activity.Recorded.Should().ContainSingle().Subject;
+        refused.Action.Should().Be(ActivityAction.SignInFailed);
+        refused.UserId.Should().Be(UserId);
+        refused.Username.Should().Be(Username);
+        refused.Details.Should().Contain("InvalidCode").And.NotContain(AuthenticatorCode);
         _sessions.Verify(s => s.CreateSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -138,6 +153,7 @@ public sealed class LoginTwoFactorHandlerTests
 
         (await act.Should().ThrowAsync<AccountLockedOutException>()).Which.MinutesLeft.Should().Be(5);
         _challenges.Verify(c => c.ConsumeAsync(_challenge.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _activity.Recorded.Should().ContainSingle(e => e.Action == ActivityAction.SignInFailed && e.Details.Contains("InvalidCodeLockedOut"));
     }
 
     [Test]

@@ -343,6 +343,15 @@ export const screens: Screen[] = [
     title: "One procedure's audit log, from its View Audit Log",
     path: (d) => `/admin/audit?procedureId=${d.procedureId}`,
   },
+  { name: 'admin-activity', title: 'Activity log (admin)', path: '/admin/activity' },
+  {
+    name: 'admin-activity-patient',
+    title: "One patient's activity, from their access report",
+    path: (d) => `/admin/activity?patientId=${d.patientId}`,
+  },
+  { name: 'admin-retention', title: 'Retention review (admin)', path: '/admin/retention' },
+  // Opening the export records it in the activity log, as any export does (synthetic demo data only).
+  { name: 'patient-export', title: "A patient's subject access export (admin)", path: (d) => `/patients/${d.patientId}/export` },
   {
     name: 'half-view',
     title: "Half view: a procedure beside its patient's page, each in its narrow layout, the nav folded away",

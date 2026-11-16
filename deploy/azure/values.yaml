@@ -9,6 +9,10 @@ api:
   # Two copies, spread across the nodes where the scheduler can (the chart prefers different nodes for them), sharing
   # live notifications through the backplane (Valkey, in the cluster).
   replicas: 2
+  # The page server in a container of its own beside the API, in each pod, with none of the API's secrets (the
+  # chart's default, set here so it stays that way).
+  pageServer:
+    enabled: true
   # Workload ID: the API signs in to Key Vault as main.bicep's API identity. deploy.sh: its apiClientId output.
   workloadIdentity:
     clientId: ""

@@ -34,7 +34,9 @@ import {
   RiErrorWarningLine,
   RiEyeLine,
   RiFileList3Line,
+  RiFileSearchLine,
   RiHistoryLine,
+  RiHourglassLine,
   RiHomeLine,
   RiInboxUnarchiveLine,
   RiForbidLine,
@@ -74,6 +76,7 @@ import {
   RiUserAddLine,
   RiUserFollowLine,
   RiUserReceivedLine,
+  RiUserSearchLine,
   RiUserHeartLine,
   RiPushpinLine,
   RiStethoscopeLine,
@@ -161,6 +164,9 @@ export const AppIcon = {
   AuditLog: remix(RiHistoryLine),
   Archive: remix(RiArchiveLine),
   Restore: remix(RiInboxUnarchiveLine),
+  // Privacy (admin): the activity log, and records past their retention period
+  ActivityLog: remix(RiFileSearchLine),
+  Retention: remix(RiHourglassLine),
   // Account Settings: changing the app's colours
   Colours: remix(RiPaletteLine),
   // Half views: two pages side by side
@@ -184,4 +190,6 @@ export const AppIcon = {
   TwoFactorOn: remix(RiShieldCheckLine),
   Download: remix(RiDownloadLine),
   Settings: remix(RiSettings3Line),
+  // Looking a patient up by NHS number in the national demographics service
+  LookUp: remix(RiUserSearchLine),
 } as const satisfies Record<string, IconType>;

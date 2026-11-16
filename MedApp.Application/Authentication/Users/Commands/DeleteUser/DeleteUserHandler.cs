@@ -1,11 +1,14 @@
-﻿using MedApp.Application.Common.Identity;
+using MedApp.Application.Activity.Common;
+using MedApp.Application.Common.Identity;
+using MedApp.Domain.Activity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 
 namespace MedApp.Application.Authentication.Users.Commands.DeleteUser;
 
 public sealed class DeleteUserHandler(
-    IIdentityUserService userService)
+    IIdentityUserService userService,
+    IActivityLog activityLog)
     : IRequestHandler<DeleteUserCommand, IdentityResult>
 {
     public async Task<IdentityResult> Handle(
@@ -17,8 +20,15 @@ public sealed class DeleteUserHandler(
         if (!confirmed.Succeeded)
             return confirmed;
 
-        return await userService.DeleteUserAsync(
+        var result = await userService.DeleteUserAsync(
             request.Username,
             ct);
+
+        if (result.Succeeded)
+            await activityLog.RecordAsync(
+                activityLog.Entry(ActivityAction.AccountDeleted, targetUsername: request.Username),
+                ct);
+
+        return result;
     }
 }

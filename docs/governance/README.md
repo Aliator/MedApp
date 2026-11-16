@@ -27,7 +27,7 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 | [data-inventory.md](data-inventory.md) | Every field of personal data MedApp stores, from the code, and every place it goes: database, browser, logs, backups, GitHub; the data flows | Supplier, customers, assessors |
 | [ropa.md](ropa.md) | The supplier's record of processing: as processor (Article 30(2)) and as controller of its own business data (Article 30(1)) | Supplier, ICO |
 | [ropa-customer-template.md](ropa-customer-template.md) | Entries for customers to copy into their own record of processing | Customers |
-| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 20 risks with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
+| [dpia.md](dpia.md) | The product DPIA on the ICO's structure: the processing, necessity and proportionality, 21 risks with likelihood and severity, the measures linked to the code and infrastructure, and the residual risk now and after the roadmap | Supplier, customers, DTAC |
 | [retention-schedule.md](retention-schedule.md) | How long each kind of data is kept, following the NHS Records Management Code of Practice; review before destruction; backups; exit; **what MedApp must build** to enforce it | Supplier, customers |
 
 ### Contracts and suppliers
@@ -77,11 +77,14 @@ The documents UK GDPR, the NHS Data Security and Protection Toolkit (DSPT) and b
 - **Sub-processor changes:** 30 days' notice with a right to object.
 - **Access from abroad:** customer data is reached only from the UK, except a logged emergency exception for the supplier's own employees, reported to the customer within 24 hours.
 - **Exit:** the customer chooses return or deletion within 30 days; return within 30 days of the request; with no answer, reminders, then an export to the last named contact, and deletion only after confirmation or a longer agreed period; backups expire within 12 months.
-- **Go-live gate:** no real patient data until the "before go-live" measures from roadmap steps 2, 4, 5 and 7 **and step 6's patient banner** are in place. The banner is in the gate because the wrong-patient risk (DPIA risk 8) stays high without it.
+- **Go-live gate:** no real patient data until the "before go-live" measures from roadmap steps 2, 4, 5 and 7 **and step 6's patient banner** are in place. The banner is in the gate because the wrong-patient risk (DPIA risk 8) stays high without it. It's built (branch `feature/nhs-integrations`), and counts once the Clinical Safety Officer has verified it.
+- **The NHS number** is optional, never written to the activity log, and removed by anonymisation; a read-only FHIR API returns it only to signed-in staff, logged. No connection to NHS England's PDS until its onboarding is done and these documents are updated for NHS England as a source of data.
 
 ## What MedApp must build for these documents to be true
 
 Collected from the DPIA, the retention schedule and the rights procedure. Roadmap step 7 covers most of it. The privacy features work on roadmap step 7 should be checked against this list.
+
+**Built by the first part of step 7** (branch `feature/privacy-features`, 16 November 2026): the activity log of reads (patients viewed, in search results and searched, with the filters but not the terms; procedures viewed; exports), patient creates, edits (the fields, not the values) and deletes, sign-ins, refused sign-ins and sign-outs, and account and role changes; the access report on a patient's page; the subject access export (JSON and a printable page, without the clinician review step); restriction and dispute flags; anonymisation; the retention review list with keep and anonymise; clearing browser storage at sign-out. **Built by the first part of step 9** (branch `feature/nhs-integrations`, 16 November 2026): the NHS number (optional, validated, unique), the patient banner, a read-only FHIR API for patients, SNOMED CT codes on stage definitions, and a demographics lookup with only an offline stub; the data inventory, the DPIA (new risk 21) and the documents that list patient data are updated for them. **Not built:** the rest of each row below. **Decided against, by the product owner:** keeping identifying filters out of the URL, because shareable list links are a feature (DPIA risk 10 says how that risk is carried), and replacing patient deletion with archiving for now.
 
 | Need | Step | Documents that depend on it |
 |---|---|---|
@@ -97,7 +100,8 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 | MFA, SSO, account deactivation, a chosen first admin name | 4 | DPIA risk 2; DSPT standard 4 |
 | An idle timeout; hashed session tokens; patient deletion admin-only (done in step 2's first part: security headers, throttling, sessions ended on a password change or reset) | 2 | DPIA risks 2, 10, 11 and 7 |
 | A least-privilege, passwordless database identity; monitoring and alerts; 35-day and long-term backups, geo-redundant in the UK; restore drills; an Azure Policy allowing only UK regions; a cluster-wide Cilium policy so only the API and the migrations Job reach the database's private endpoint; Customer Lockbox; just-in-time admin access; out-of-hours cover | 5 | DPIA risks 12 to 17; transfers; support access |
-| A patient banner (in the go-live gate); optimistic concurrency | 6 | DPIA risks 8 and 9 |
+| A patient banner (in the go-live gate; built, to be verified by the CSO); optimistic concurrency | 6 | DPIA risks 8 and 9 |
+| Always Encrypted for the NHS number; tracing it with PDS; OAuth clients for the FHIR API | 7, 9 | DPIA risk 21; data inventory |
 | A deceased flag | 9 | Retention periods after death |
 | Export and deletion of a whole customer at exit | 7, 8 | DPA clause 11 |
 

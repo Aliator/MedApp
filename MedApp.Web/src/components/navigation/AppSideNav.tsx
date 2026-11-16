@@ -20,9 +20,8 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
-import {ApiError} from '../../api/errors';
-import {patientQuery} from '../../api/patients';
-import {procedureQuery} from '../../api/procedures';
+import {patientLabelsQuery} from '../../api/patients';
+import {procedureLabelsQuery} from '../../api/procedures';
 import {useColorMode} from '../../app/colorMode';
 import {useNavSettings} from '../../app/navSettings';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -41,6 +40,8 @@ const ADMIN_PAGES = [
   {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
+  {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity'},
+  {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention'},
   {label: 'Admin Settings', icon: AppIcon.Settings, href: '/admin/settings'},
 ];
 
@@ -262,6 +263,8 @@ const halfViewRow = (isHalfView: boolean) => (link: HTMLElement | null) => {
 
 interface PinnableItemProps {
   id: string;
+  /** Every item the section shows, so their labels come in one request. */
+  ids: string[];
   /** This item's pages are the ones open. */
   isOpen: boolean;
   /** Its pages are the ones in the half view. */
@@ -314,10 +317,15 @@ function PinnableNavItem({id, isOpen, isHalfOpen, pins, kind, label, fullName, h
   );
 }
 
-/** A patient under Patients, by name. Usually already cached by the patient's page or an earlier visit. */
+/**
+ * A patient under Patients, by name. The names come from the labels lookup, one request for the section's items,
+ * which the API doesn't record as a view: showing a pin isn't opening the record. One missing from the answer no
+ * longer exists, so it drops out of the pins.
+ */
 function PatientNavItem(props: PinnableItemProps) {
-  const patient = useQuery(patientQuery(props.id));
-  const name = patient.data ? `${patient.data.firstName} ${patient.data.lastName}` : 'Patient';
+  const labels = useQuery(patientLabelsQuery(props.ids));
+  const label = labels.data?.find((l) => l.id === props.id);
+  const name = label?.name ?? 'Patient';
   return (
     <PinnableNavItem
       {...props}
@@ -325,23 +333,23 @@ function PatientNavItem(props: PinnableItemProps) {
       label={name}
       fullName={name}
       href={`/patients/${props.id}`}
-      isGone={patient.error instanceof ApiError && patient.error.status === 404}
+      isGone={labels.isSuccess && !labels.isPlaceholderData && label === undefined}
     />
   );
 }
 
-/** A procedure under Procedures: the patient's initials and the procedure's acronym ("FA TKR"). */
+/** A procedure under Procedures: the patient's initials and the procedure's acronym ("FA TKR"), from the labels lookup. */
 function ProcedureNavItem(props: PinnableItemProps) {
-  const procedure = useQuery(procedureQuery(props.id));
-  const data = procedure.data;
+  const labels = useQuery(procedureLabelsQuery(props.ids));
+  const label = labels.data?.find((l) => l.id === props.id);
   return (
     <PinnableNavItem
       {...props}
       kind="procedures"
-      label={data ? procedureNavLabel(data.patientName ?? '', data.title ?? '') : 'Procedure'}
-      fullName={data ? `${data.title} for ${data.patientName}` : 'Procedure'}
+      label={label ? procedureNavLabel(label.patientName ?? '', label.title ?? '') : 'Procedure'}
+      fullName={label ? `${label.title} for ${label.patientName}` : 'Procedure'}
       href={`/procedures/${props.id}`}
-      isGone={procedure.error instanceof ApiError && procedure.error.status === 404}
+      isGone={labels.isSuccess && !labels.isPlaceholderData && label === undefined}
     />
   );
 }
@@ -420,7 +428,7 @@ function PinnableSection({
         />
       }>
       {isOpen &&
-        ids.map((id) => <Item key={id} id={id} isOpen={id === openId} isHalfOpen={id === halfOpenId} pins={pins} />)}
+        ids.map((id) => <Item key={id} id={id} ids={ids} isOpen={id === openId} isHalfOpen={id === halfOpenId} pins={pins} />)}
     </SideNavItem>
   );
 }

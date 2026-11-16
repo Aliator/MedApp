@@ -1,3 +1,5 @@
+using MedApp.Contracts.Patients.Responses;
+
 namespace MedApp.Contracts.Procedures.PatientProcedures.Responses;
 
 /// <summary>A procedure in full, as its page shows it.</summary>
@@ -6,6 +8,10 @@ public sealed class PatientProcedureResponse
     public Guid Id { get; set; }
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
+
+    /// <summary>Who the procedure is for, as the patient banner shows them, or null if that isn't loaded.</summary>
+    public ProcedurePatientResponse? Patient { get; set; }
+
     public Guid? TemplateId { get; set; }
     public string TemplateName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
@@ -44,6 +50,16 @@ public sealed class PatientProcedureResponse
 
     /// <summary>Only Cancelled and Archived procedures can be deleted (by an admin).</summary>
     public bool CanBeDeleted { get; set; }
+
+    /// <summary>
+    /// Why the procedure can't be changed now, because its patient's record is restricted or anonymised; null when it
+    /// can. While it's set, every Can... flag is false, and only blocking and cancelling may be allowed (a restricted
+    /// record's procedures can still be paused).
+    /// </summary>
+    public string? ReadOnlyReason { get; set; }
+
+    /// <summary>The patient's restricted, disputed and anonymised flags, for the banners on the procedure's page.</summary>
+    public PatientFlagsResponse? PatientFlags { get; set; }
 
     public List<PatientProcedureStageResponse> Stages { get; set; } = [];
     public List<PatientProcedureAssignmentResponse> Assignments { get; set; } = [];

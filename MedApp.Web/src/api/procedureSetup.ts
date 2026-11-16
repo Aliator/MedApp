@@ -8,11 +8,17 @@ import {api, unwrap, type Schemas} from './client';
 export type StageDefinition = Schemas['PatientProcedureStageDefinitionResponse'];
 export type TemplateStage = Schemas['PatientProcedureTemplateStageResponse'];
 
-/** A stage definition's fields: its name, the description staff see under it, and how to carry it out. */
+/**
+ * A stage definition's fields: its name, the description staff see under it, how to carry it out, and the SNOMED CT
+ * concept it records (a code and its display term, both or neither). Both are always sent, "" when there's none, so
+ * clearing the code removes the concept on a save (the API reads a missing code as "leave it as it is").
+ */
 export interface StageDefinitionInput {
   name: string;
   description: string;
   instructions: string;
+  snomedCode: string;
+  snomedTerm: string;
 }
 
 /** A template's fields: its name, and its stages in order (a definition may appear more than once). */

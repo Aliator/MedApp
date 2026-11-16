@@ -2,7 +2,7 @@
 
 Step 1 of the Kubernetes plan (`docs/todo.md`): MedApp in a local cluster made by [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker), as close to production as one machine allows.
 - **The chart:** it's deployed with the app's Helm chart (`deploy/helm/medapp`), locked down as it would be anywhere.
-- **The image:** the API runs from its production image (`MedApp.API/Dockerfile`: the API, the built React app, Node to render its pages and the migrations bundle), with SQL Server beside it.
+- **The image:** the API runs from its production image (`MedApp.API/Dockerfile`: the API, the built React app, Node to render its pages and the migrations bundle), with SQL Server beside it. Each API pod runs the image twice: the API, and beside it the page server (`node /app/ssr/server.mjs`), with none of the API's secrets.
 - **What a real cluster would provide:**
   - **Traefik** as the ingress controller.
   - **cert-manager** for TLS.

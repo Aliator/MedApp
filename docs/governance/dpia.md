@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| **Version** | 0.1 (draft), 16 November 2026 |
-| **Assessed** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed |
+| **Version** | 0.3 (draft), 16 November 2026: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup (roadmap step 9's first part), with a new risk 21 |
+| **Assessed** | MedApp on `main` as of 16 November 2026, with branch `feature/privacy-features` (roadmap step 7) and branch `feature/nhs-integrations` (step 9's first part), and its Azure design (`deploy/azure`), which has not been deployed |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Before the first real patient data; then before each roadmap step that changes the processing (4, 5, 7, 8 and 9); and at least every 12 months |
@@ -15,8 +15,8 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 ## Summary
 
 - **A DPIA is mandatory.** MedApp is designed for processing health data, a special category, and across customers it's large scale (Article 35(3)(b)).
-- **Today's high risks:** any staff member can see any patient, and reads aren't recorded; sign-in is by password only; patient records can be deleted without trace; nothing is ever deleted on a schedule; there's no monitoring to notice a breach; backups have never been restored; and on Azure the app would use the database administrator's login.
-- **Conclusion: MedApp must not hold real patient data until the measures marked "before go-live" in section 6 are in place.** That's roadmap steps 2, 4, 5 and 7, **plus the patient banner from step 6**, which together make it ready for a first pilot. The banner is in the gate because risk 8 (notes written on the wrong patient's record) stays high until it's built; the rest of step 6 isn't needed for the gate. With these measures, every risk in this assessment is reduced to low or medium, so **prior consultation with the ICO (Article 36) isn't expected to be needed.** If any high residual risk remains at go-live, including risk 8 if the banner isn't built, the processing must not start without consulting the ICO.
+- **Today's high risks:** any staff member can see any patient (reads are now recorded, and admins can see who opened a record, but nothing restricts or alerts on it); sign-in is by password only; any staff member can still delete a patient with no procedures (now recorded in the activity log); nothing is ever deleted on a schedule; there's no monitoring to notice a breach; backups have never been restored; and on Azure the app would use the database administrator's login.
+- **Conclusion: MedApp must not hold real patient data until the measures marked "before go-live" in section 6 are in place.** That's roadmap steps 2, 4, 5 and 7, **plus the patient banner from step 6**, which together make it ready for a first pilot. The banner is in the gate because risk 8 (notes written on the wrong patient's record) stays high until it's built; the rest of step 6 isn't needed for the gate. **The banner is now built** (branch `feature/nhs-integrations`), and counts for the gate once the Clinical Safety Officer has verified it. With these measures, every risk in this assessment is reduced to low or medium, so **prior consultation with the ICO (Article 36) isn't expected to be needed.** If any high residual risk remains at go-live, including risk 8 if the banner isn't built, the processing must not start without consulting the ICO.
 
 ## Step 1: The need for a DPIA
 
@@ -31,17 +31,17 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 ### Nature
 
-- **Collection:** the customer's staff type patients' details and clinical notes into MedApp in a browser. There's no import, integration or patient-facing access.
+- **Collection:** the customer's staff type patients' details and clinical notes into MedApp in a browser. There's no import or patient-facing access. A demographics lookup can fill a patient's name and date of birth from their NHS number, but only an offline stub of synthetic people exists; the real Personal Demographics Service (PDS) isn't connected, and connecting it would make NHS England a source of patient data and need this DPIA updated first.
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
 - **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts.
-- **Sharing:** none outside the customer, except emails to staff (password reset links and notices of changes to their own sign-in), sent through Azure Communication Services Email; they carry a staff member's username and email address and never patient data. Within the customer, every staff user can see every patient (section 5, risk 1).
-- **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Nothing is deleted on a schedule.
-- **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
+- **Sharing:** none outside the customer, except emails to staff (password reset links and notices of changes to their own sign-in), sent through Azure Communication Services Email; they carry a staff member's username and email address and never patient data. Within the customer, every staff user can see every patient (section 5, risk 1). A read-only FHIR API returns a patient's details, by ID or NHS number, in the NHS's standard format, but only to a caller signed in as one of the customer's staff, and each use is logged (risks 1 and 21); there are no system-to-system clients yet.
+- **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Admins can anonymise a patient's record in place (identifying details and free text replaced, the structure kept). Nothing is deleted on a schedule: records past their retention period are listed for an admin to review.
+- **New technology:** server-side rendering (a Node page server: in Kubernetes a container of its own in the API's pod, without the API's secrets; run on its own, inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
 
 ### Scope
 
-- **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, optional work email addresses, two-factor keys and recovery codes, sessions with IP addresses and browsers, settings with saved searches; notifications. Field by field: [data-inventory.md](data-inventory.md).
+- **Data:** name, date of birth, email and (optionally) NHS number of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; staff usernames, password hashes, roles, optional work email addresses, two-factor keys and recovery codes, sessions with IP addresses and browsers, settings with saved searches; notifications. SNOMED CT codes on stage definitions label kinds of step and aren't personal data. Field by field: [data-inventory.md](data-inventory.md).
 - **Special category:** health data. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it.
 - **Volume:** per customer, [patients a year], [staff users]. Across customers, large scale.
 - **Retention:** proposed in [retention-schedule.md](retention-schedule.md); **not enforced today**.
@@ -81,11 +81,11 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 | **Lawful basis** | The customer's: typically 6(1)(e) (NHS) or 6(1)(b)/(f) (private), with 9(2)(h) and DPA 2018 Schedule 1, Part 1, paragraph 2 ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)). The supplier acts on instructions under Article 28. |
 | **Does the processing achieve the purpose?** | Yes. Coordinating a procedure's stages needs the patient's identity, the procedure, and notes on each stage. |
 | **Is there a less intrusive way?** | Paper or spreadsheets hold the same data with weaker access control and no audit. A system without patient identity can't coordinate care for a person. |
-| **Minimisation** | **The patient record is deliberately small:** name, date of birth and email; no address, phone, NHS number or sex. The patient banner and identity checks that step 9 adds will need more, each justified then. **Free text isn't limited**, and the audit copies it (risks 3 and 4). |
-| **Accuracy** | Staff can edit patients and procedures. Finished stages lock, and only an admin can unlock them, which is audited. Patient edits aren't audited (risk 7). |
-| **Retention** | Proposed periods in [retention-schedule.md](retention-schedule.md), based on the Records Management Code. Not enforced (risk 5). |
+| **Minimisation** | **The patient record is deliberately small:** name, date of birth, email and the NHS number; no address, phone or sex. **The NHS number is optional,** and justified by safe identification: NHS England mandates it as the patient's identifier in health and care, it's what the patient banner shows to tell patients apart (risk 8), and it's how other NHS systems find the same patient. It's never written to the activity log. Further identity details step 9 adds will each be justified then. **Free text isn't limited**, and the audit copies it (risks 3 and 4). |
+| **Accuracy** | Staff can edit patients and procedures. An NHS number must pass its check digit, and can't be on two patients; it isn't traced against PDS, so it isn't confirmed to be the patient's. Finished stages lock, and only an admin can unlock them, which is audited. Patient edits are recorded in the activity log (which fields changed, not their values), and an admin can mark a record as disputed by the patient. |
+| **Retention** | Periods in [retention-schedule.md](retention-schedule.md), based on the Records Management Code. Clinical records past their period are listed for review (keep with a reason, or anonymise); operational data isn't purged yet (risk 5). |
 | **Transparency** | Template privacy notices for customers to give patients and staff ([privacy-notice-patients-template.md](privacy-notice-patients-template.md), [privacy-notice-staff-template.md](privacy-notice-staff-template.md)). |
-| **Rights** | Supported partly by the product and partly by hand today; planned in step 7 ([data-subject-rights.md](data-subject-rights.md)). |
+| **Rights** | Supported by the product: a subject access export, restriction and dispute flags, anonymisation; the clinician review of an export is by hand ([data-subject-rights.md](data-subject-rights.md)). |
 | **Processors** | The supplier, under an Article 28 agreement ([dpa-template.md](dpa-template.md)); Microsoft as a sub-processor ([sub-processors.md](sub-processors.md)). |
 | **International transfers** | None by the supplier; UK hosting ([international-transfers.md](international-transfers.md)). |
 | **Function creep** | The supplier commits to no use of its own. Any new purpose needs a DPIA update first. |
@@ -105,7 +105,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 The one exception is risk 18, scored low today because it can't happen while each customer has its own deployment; it's rescored at step 8.
 
-Likelihood is judged for MedApp **as it is today**, if it held real patient data.
+Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, before roadmap step 7's privacy features**, if it held real patient data. Step 6 gives the residual risk with the measures in place since, including step 7's (marked "In place (step 7)").
 
 | # | Risk to individuals | Source of the risk | Likelihood | Severity | Overall |
 |---|---|---|---|---|---|
@@ -120,7 +120,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 9 | **A lost update:** two staff save the same notes, and one silently overwrites the other. | No optimistic concurrency. The audit keeps both texts, but nobody is warned. | Possible | Significant | **Medium** |
 | 10 | **Exposure on a shared or unattended computer:** someone else sees a patient's record on a ward or clinic workstation, or in browser storage or history. | 8-hour sessions (extendable on request to 24 at most from sign-in) with no idle timeout; saved searches (which can be patient names) stay in `localStorage` after sign-out; list pages keep their filters in the URL, so a patient search (first name, last name, email, date of birth range: `MedApp.Web/src/pages/listSearch.ts`) lands in the browser's history and address bar suggestions, which signing out doesn't clear. Rendered pages aren't cached. | Probable | Significant | **High** |
 | 11 | **Web attacks:** a flaw lets an attacker run script in a staff member's browser, or frame the app. | Since the security baseline: a Content Security Policy with a nonce for each page (no inline or third-party scripts), `frame-ancestors 'none'` and `X-Frame-Options: DENY`, `nosniff` and a `Referrer-Policy` (`SecurityHeaders`). No antiforgery tokens (`SameSite=Lax` is the defence). Output is escaped, and rich text never runs raw HTML. | Possible | Severe | **High** |
-| 12 | **Infrastructure compromise:** an attacker or a flaw reaches the database or its credentials. | On Azure the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login; the AKS API server, Key Vault and the registry have public endpoints (behind Entra ID); session IDs are stored unhashed; Node runs in the API's container and could read its environment. | Possible | Severe | **High** |
+| 12 | **Infrastructure compromise:** an attacker or a flaw reaches the database or its credentials. | On Azure the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login; the AKS API server, Key Vault and the registry have public endpoints (behind Entra ID); session IDs are stored unhashed; Node sees every visitor's session while rendering their pages, and, only when the image runs on its own outside Kubernetes, could read the API's environment (in Kubernetes it's a container of its own, without the API's secrets). | Possible | Severe | **High** |
 | 13 | **Undetected breach:** a breach goes unnoticed, so it isn't contained or reported in time. | No monitoring, alerting or exported logs in any deployed environment; no read audit. | Probable | Severe | **High** |
 | 14 | **Loss of data or of the service:** records are lost, or unavailable during care. | Backups (7 days, locally redundant) never restored; no recovery objectives; no downtime procedure; one maintainer. | Possible | Severe | **High** |
 | 15 | **Supply chain:** malicious code reaches production through a dependency or the build pipeline, and exfiltrates data. | Since the security baseline: actions pinned by commit SHA, Dependabot, CodeQL, dependency review, npm and NuGet audits that fail the build, a Trivy image scan, and SBOM and build provenance attestations on the published image. Images are still pinned by tag, not digest; nothing verifies the attestations before deploy; every merge deploys with no approval step; the repository and image are public. | Possible | Severe | **High** |
@@ -129,6 +129,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 18 | **Mixing customers' data:** one customer sees another's patients. | Not possible today (one deployment per customer). Becomes a risk with multi-tenancy (step 8). | Not possible today | Severe | **Low today** (the matrix's one exception, because it can't happen yet); **to rescore at step 8** |
 | 19 | **Lack of transparency:** patients don't know MedApp is used or who runs it. | Depends on the customer's privacy notice. | Possible | Minimal | **Low** |
 | 20 | **Real data in development or testing:** patient data copied into a developer's database, a screenshot, a test, or an AI tool. | Convention only (`AGENTS.md`: synthetic data only); `medapp-dev` refuses anything but a local database. | Remote | Severe | **Medium** |
+| 21 | **The NHS number, a national identifier:** a disclosed NHS number lets anyone match the patient across every NHS system; a wrong number ties the patient to someone else's record in the systems that read it from MedApp. | New with branch `feature/nhs-integrations`, and scored for it: an optional NHS number on every patient, returned by a FHIR API that any signed-in staff member (or a script using their session) can call; not traced against PDS; not encrypted at field level. | Possible | Significant | **Medium** |
 
 ## Step 6: Measures to reduce the risks
 
@@ -146,12 +147,14 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Every API endpoint that reaches patient or account data requires a signed-in session and a role (`Staff` or `Admin`); only sign-in, sign-out and `whoami` don't; the API is the only enforcement | In place | `MedApp.API/Common/Authentication/AuthPolicies.cs`, the controllers in `MedApp.API/Controllers/` |
 | The full audit trail is admin-only; staff see a per-patient timeline without its free text (no notes, titles or reasons; old and new due dates, priorities and statuses, past assignees and recorded usernames are shown) | In place | `MedApp.API/Controllers/ProcedureAuditController.cs`, `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs` |
 | Every change to a procedure is recorded with who and when | In place | `MedApp.Application/Procedures/Common/ProcedureChange.cs` |
-| **Record every read of patient data** (patient viewed, searched with the terms, procedure viewed, exported) | Planned, step 7. **Before go-live** | |
-| Access reports ("who has seen this patient", "what has this person seen"), an `Auditor` role, unusual-access alerts, periodic access reviews | Planned, steps 4 and 7. **Before go-live** (reports and review) | |
+| **Record the reads of patient data** in the activity log, once per person every 5 minutes: a patient's record, timeline and its overview opened (viewed); each patient on a page of patient search, procedure search or retention review results (listed); searches (the filters used and how many matched, not the terms); a procedure opened; exports. **Not recorded per patient:** the deprecated list of every patient (`GET api/patients`, used only by the retired Blazor client), which records one "searched: all" entry; the side nav's pin labels, for records the user already opened; and the admin-only audit and activity logs themselves. A test lists every endpoint with what it records | In place (step 7) | `MedApp.Application/Activity/Common/ActivityLog.cs`; the patient, procedure, timeline, retention and export handlers; `MedApp.IntegrationTests/Privacy/EndpointCoverageTests.cs` |
+| "Who has accessed this patient": the access report on the patient's page, and the activity log searchable by patient, user, address, action and date (admins) | In place (step 7) | `MedApp.Web/src/components/patients/PatientAccessReport.tsx`; `MedApp.Web/src/pages/activity/ActivityLogPage.tsx` |
+| The FHIR API is held to the same rules as the pages: staff only, `no-store`, and every read and search recorded (`PatientViewed`, `PatientsSearched` and `PatientListed`, marked `via: "fhir"`) | In place (branch `feature/nhs-integrations`) | `MedApp.API/Controllers/FhirController.cs`; `GetFhirPatientHandler`, `SearchFhirPatientsHandler` |
+| "What has this person seen" as a report (today a search of the activity log by username), an `Auditor` role, unusual-access alerts, periodic access reviews, a tamper-evident (ledger) log | Planned, steps 4 and 7. **Before go-live** (periodic review) | |
 | Restrict access by site, team or care relationship | Planned, step 8 (sites); customers decide who gets accounts until then | |
 | Customer measures: accounts only for staff who need them; staff told that access is monitored; disciplinary policy | The customer's | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 
-**Residual risk:** now **high**; after step 7 **medium** (detectable and deterred, but still possible); after step 8 **low to medium**.
+**Residual risk:** now **medium** (every read through the current app's pages is recorded and can be reported, so snooping is detectable and deterred, though still possible, and the log isn't yet tamper-evident); after step 8 **low to medium**.
 
 ### Risk 2: account takeover
 
@@ -187,6 +190,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | The full audit trail is admin-only and kept with the record; staff see a per-patient timeline without its free text | In place | As risk 1 |
+| Anonymising a patient replaces the copies of notes, titles and reasons in their audit entries (and so on the timeline) with placeholders | In place (step 7) | `MedApp.Application/Patients/Common/PatientAnonymiser.cs` |
 | Keep note versions in their own table, and have the audit refer to versions, so correction, retention and erasure apply in one place | Planned, step 7. **Before go-live** | |
 
 **Residual risk:** now **high**; after **low**.
@@ -196,7 +200,8 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Measure | Status | Where |
 |---|---|---|
 | A retention schedule | Draft | [retention-schedule.md](retention-schedule.md) |
-| A retention engine: a due-for-review list, admin approval, destruction or anonymisation, a destruction log; short fixed periods for sessions and notifications | Planned, step 7. **Before go-live** (sessions and notifications at least; clinical records won't reach their minimum period for years) | |
+| A due-for-review list from configurable periods (adults 8 years, children to 25 or 26), where an admin keeps a record with a reason and a review date, or anonymises it; nothing is deleted automatically | In place (step 7) | `MedApp.Application/Patients/Common/RetentionSchedule.cs`; `MedApp.Web/src/pages/retention/RetentionReviewPage.tsx` |
+| The rest of the retention engine: retention classes per template, destruction, a destruction log, legal hold; short fixed periods for sessions, sign-in events and notifications | Planned, step 7. **Before go-live** (sessions and notifications at least; clinical records won't reach their minimum period for years) | |
 | Backups expire on a fixed cycle | Planned, step 5 | |
 
 **Residual risk:** now **high**; after **low**.
@@ -207,9 +212,11 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 |---|---|---|
 | Staff can view and correct patients and procedures | In place | |
 | An interim, documented manual procedure for exports, run by the supplier on the customer's written instruction | Procedure written | [data-subject-rights.md](data-subject-rights.md) |
-| A subject access export (JSON and PDF), restriction and dispute flags, archiving in place of deletion, an erasure workflow | Planned, step 7. **Before go-live** (export) | |
+| A subject access export of everything held (details, procedures, stages, notes, assignments, the procedure history, the access log, notifications) as JSON and a printable page with the same content, itself recorded; staff appear by username only, without their account IDs, network addresses or read times | In place (step 7) | `GET api/patients/{id}/export`; `MedApp.Web/src/pages/patients/PatientExportPage.tsx` |
+| Restricted (no changes, with a banner) and disputed (a banner) flags, set by admins with a reason; anonymisation with a typed confirmation and a reason, refused while procedures are under way | In place (step 7) | `SetPatientFlagHandler`, `PatientRules`, `AnonymisePatientHandler` |
+| A clinician review step in the export for the serious harm test; archiving in place of deletion; restriction hiding the patient from lists | Planned, step 7 | |
 
-**Residual risk:** now **medium** with the manual procedure; after **low**.
+**Residual risk:** now **low** (the clinician review is done by hand before an export is given out); after **low**.
 
 ### Risk 7: lost or untraced changes to patients and accounts
 
@@ -218,21 +225,24 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | A patient with procedures can't be deleted | In place | `MedApp.Application/Patients/Commands/DeletePatient/DeletePatientHandler.cs` |
 | Deleting a user needs the admin's own password | In place | `AuthController.cs` |
 | Make patient deletion admin-only | Planned, step 2. **Before go-live** | |
-| Audit patient creates, edits (before and after) and deletes, and account and role changes; replace deletion with archiving | Planned, step 7. **Before go-live** | |
+| Record patient creates, edits (the fields changed; not their values, so the log holds no patient details) and deletes, and account, password and role changes, in the activity log, with who and from which address; a row version on each patient, so a save from an older copy is refused rather than silently undoing a later change (such as a restriction or an anonymisation) | In place (step 7) | `CreatePatientHandler`, `UpdatePatientHandler`, `DeletePatientHandler`; the account and role handlers in `MedApp.Application/Authentication` |
+| Keep the old values of an edit in a version table; replace deletion with archiving | Planned, step 7 | |
 | Backups to recover from a mistaken delete | In place in design (7 days); 35 days planned, step 5 | `deploy/azure/main.bicep` |
 
-**Residual risk:** now **high**; after **low**.
+**Residual risk:** now **medium** (every change is recorded with who and when, though an old value can't be recovered from the log); after **low**.
 
 ### Risk 8: wrong patient
 
 | Measure | Status | Where |
 |---|---|---|
 | Patient name and date of birth shown on procedure pages | In place | |
-| A patient banner (name and date of birth) on every patient and procedure page, so staff can check the patient before writing notes | Planned, step 6. **Before go-live** | |
-| NHS number and duplicate checks | Planned, step 9 | |
-| Clinical safety hazard log | Planned, step 6 | |
+| A patient banner (`SURNAME, Forename`, date of birth and age, NHS number) under the header of every page about one patient (the patient, Edit Patient, export, procedures, procedure, Edit Procedure and New Procedure pages), in view on all but the printable export, so staff can check the patient before writing notes | Built (branch `feature/nhs-integrations`); to be verified by the Clinical Safety Officer. **Before go-live** | `MedApp.Web/src/components/patients/PatientBanner.tsx` |
+| An optional NHS number, checked with its check digit; two patients can't have the same one | In place (branch `feature/nhs-integrations`) | `NhsNumbers`, `NhsNumberRules`; `IX_Patients_NhsNumber` |
+| The date of birth in task and procedure lists; the patient named in the procedure page's title and in the Save Notes and Finish Stage confirmations | Proposed by the hazard log (H-01, H-02). **Before go-live** | `docs/clinical-safety/hazard-log.md` |
+| Duplicate checks beyond an exact NHS number (same name and date of birth, near matches), and tracing NHS numbers with PDS | Planned, step 9 | |
+| Clinical safety hazard log | Drafted (step 6) | `docs/clinical-safety/hazard-log.md` |
 
-**Residual risk:** now **high**; after step 6's banner (in the go-live gate) **medium**; after step 9 **low**.
+**Residual risk:** now **high**, until the banner is merged and verified; then **medium**; after step 9's duplicate checks and tracing **low**.
 
 ### Risk 9: lost updates
 
@@ -250,12 +260,12 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Rendered pages sent with `Cache-Control: no-store`; the password responses too | In place | `MedApp.API/ServerRendering/SsrPages.cs`; `AuthController.cs` |
 | Signing out clears the query cache; the session cookie is HttpOnly and expires with the session (8 hours, extendable to 24 at most from sign-in) | In place | `MedApp.Web/src/auth/auth.ts` |
 | An idle timeout (30 minutes to start) with a warning | Planned, step 2. **Before go-live** | |
-| Clear `localStorage` at sign-out | Planned, step 7. **Before go-live** | |
-| Keep identifying filters (name, email, date of birth) out of the URL, in session storage or the router's state, while page, sort and status stay in it | Planned, step 7. **Before go-live** | `MedApp.Web/src/pages/listSearch.ts` |
+| Clear the app's `localStorage` and `sessionStorage` at sign-out, but for the purely visual settings; the account keeps the rest for the next sign-in | In place (step 7) | `MedApp.Web/src/app/settingsStore.ts` (`clearStorageAtSignOut`) |
+| Keep identifying filters (name, email, date of birth, and now the NHS number) out of the URL | **Not planned:** the product owner decided on 16 November 2026 to keep list filters in the URL, because shareable list links are a feature. The customer measures below carry this part of the risk | `MedApp.Web/src/pages/listSearch.ts` |
 | Staff rules: sign out and lock the screen; don't search by patient name on a shared computer where others use the same browser profile | Template | [privacy-notice-staff-template.md](privacy-notice-staff-template.md) |
 | Customer measures: screen locks, no shared logins, separate browser profiles or history cleared on shared computers | The customer's | |
 
-**Residual risk:** now **high**; after **low**. History already recorded before step 7 stays in browsers until it's cleared or expires.
+**Residual risk:** now **high** (no idle timeout yet); after **medium**, because patient searches stay in the browser's history unless the customer's measures (separate profiles, cleared history) are followed.
 
 ### Risk 11: web attacks
 
@@ -281,7 +291,8 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | Secrets from Key Vault through External Secrets, never in git; Entra ID-only cluster access; OIDC and workload identity, no stored cloud secrets | In place in design | `deploy/helm/medapp/templates/externalsecrets.yaml`; `deploy/azure/` |
 | A passwordless, least-privilege database identity for the app, a separate one for migrations, then Entra-only authentication | Planned, step 5. **Before go-live** | `deploy/azure/README.md`, "Not yet" |
 | Private endpoints for Key Vault and the registry; a restricted AKS API server; Defender for Cloud; a customer-managed TDE key | Planned, step 5 | |
-| Hash session tokens; move the page server into a sidecar | Planned, step 2 | |
+| Move the page server into a container of its own, without the API's secrets | Done in Kubernetes (PR #83) | `deploy/helm/medapp/templates/api.yaml` (`pages`) |
+| Hash session tokens | Planned, step 2 | |
 
 **Residual risk:** now **high**; after **low**.
 
@@ -361,6 +372,25 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | No production data copied to any other environment; a restored backup for a drill stays inside Azure UK, is deleted after the drill, and never reaches a developer or AI tool | Policy | [support-access-policy.md](support-access-policy.md) |
 
 **Residual risk:** **low**.
+
+### Risk 21: the NHS number
+
+| Measure | Status | Where |
+|---|---|---|
+| Optional: a customer that doesn't need it leaves it empty | In place (branch `feature/nhs-integrations`) | `MedApp.Domain/Patients/Patient.cs` |
+| Checked with its Modulus 11 check digit on the server and in the form, and unique across patients, so a mistyped or duplicated number is refused | In place | `NhsNumberRules`; the filtered unique index `IX_Patients_NhsNumber` |
+| Never in the activity log (field and filter names only) or in notifications; included in the subject access export; removed by anonymisation | In place | `UpdatePatientHandler`, `SearchPatientsHandler`; `PatientExportMapper`; `PatientAnonymiser` |
+| Placeholders that pass the check digit (ten of one digit, `0123456789`, `9876543210`) refused on the server and in the form | In place | `NhsNumbers.IsPlaceholder`, `NhsNumberRules` |
+| Kept out of the error log: EF Core's failed-save and failed-command events, whose SQL Server message can hold a duplicate number, are logged at Debug, which isn't written | In place | `LogFailedSavesAtDebug` (`MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs`) |
+| **Saved searches can hold the number** (the patient list's NHS number filter), in the account's settings and the browser, until the user deletes them; anonymisation doesn't remove them, as it doesn't remove saved names | Gap: planned (`docs/todo.md`, saved searches removed on anonymisation) | `UserSettings.Json`, `medapp.favourites` |
+| The FHIR API: read-only, staff only, `no-store`, every use logged; it reports the number as "not traced", so a receiving system doesn't treat it as verified; an anonymised record goes out as `active: false` with no name, email or full date of birth, and a restricted or disputed one with a `meta.tag` | In place | `FhirController`, `FhirPatientMapper` |
+| Synthetic 999 numbers only in tests, demo data and screenshots | In place (convention and tool) | `AGENTS.md`; `medapp-dev` |
+| Always Encrypted (deterministic) for the number, so database administrators and backups don't see it in clear | Planned, step 7 (`docs/todo.md`) | |
+| Tracing numbers with PDS, which needs NHS England's onboarding; OAuth clients with their own scopes for systems that call the FHIR API | Planned, step 9 | |
+| Keep the number out of URLs, which request logs and traces can record: today it's in the patient list's filter and the FHIR search's query string (the demographics lookup is already a POST, with the number in its body). FHIR's `POST Patient/_search`; and checking what the ingress and telemetry record before logs are exported | Planned (`docs/todo.md`); step 5 for the logs | |
+| Customer measures: check the number against the patient's own documents or the organisation's PAS when it's entered | The customer's | |
+
+**Residual risk:** now **medium**; after **low**.
 
 ## Step 7: Sign-off and outcomes
 

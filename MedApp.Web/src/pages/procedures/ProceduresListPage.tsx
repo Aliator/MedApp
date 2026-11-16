@@ -8,6 +8,7 @@ import type {ProcedureSummary} from '../../api/procedures';
 import {allTemplatesQuery} from '../../api/procedureSetup';
 import {procedureSearchQuery, userSearchQuery} from '../../api/search';
 import {useCurrentUser} from '../../auth/auth';
+import {PatientBanner} from '../../components/patients/PatientBanner';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {
   AssigneesCell,
@@ -20,6 +21,7 @@ import {
   StatusToken,
   statusLabel,
 } from '../../components/procedures/ProcedureCells';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {TextCell} from '../../components/tables/TextCell';
@@ -231,7 +233,15 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
       backHref={patientId ? `/patients/${patientId}` : undefined}
       backLabel="Back to patient"
       fill
-      message={isError && <AlertMessage message="The procedures could not be loaded. Please try again." />}
+      banner={patientId && patient.data && <PatientBanner patient={patient.data} />}
+      message={
+        isError ? (
+          <AlertMessage message="The procedures could not be loaded. Please try again." />
+        ) : (
+          // A patient's procedures carry the patient's banners (restricted, disputed, anonymised).
+          patient.data && <PatientFlagBanners patient={patient.data} />
+        )
+      }
       actions={
         patientId && (
           <Button label="New Procedure" variant="primary" icon={<Icon icon={AppIcon.Add} />} href={`/procedures/new?patientId=${patientId}`} />

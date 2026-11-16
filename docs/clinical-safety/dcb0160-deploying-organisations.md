@@ -39,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 21 hazards: `hazard-log.md` |
+| The hazard log | Draft, 22 hazards: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |
@@ -52,7 +52,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 ## The manufacturer's assumptions about you
 
 The manufacturer's safety case holds only if you:
-- **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth and email, and no NHS number yet;
+- **identify patients** at the point of care by your own positive identification process. MedApp has names, dates of birth, email and an optional NHS number, whose check digit it checks but which it doesn't trace with PDS, so check a number against your own records (for example your PAS) when you enter it;
 - **govern templates:** clinical sign-off of every template and stage definition before use, and when one changes;
 - **train staff,** including what finishing a stage means, what a due date means, that notifications aren't to be relied on, and that My Tasks opens on work not yet started;
 - **have at least two admins** who are available while staff work;
@@ -81,6 +81,7 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-17 Stage instructions aren't read | Write anything essential as its own stage, not only in instructions |
 | H-18 A change is recorded under the wrong person's name | No shared accounts; lock screens when away |
 | H-21 Work assigned to a deleted account drops off every task list | A leaver process: reassign a leaver's open procedures, then remove the account |
+| H-22 Care under way is delayed because the patient's record is restricted | Before restricting a record, the admin checks with the clinician responsible and agrees how care continues; block or cancel procedures with a reason meanwhile |
 
 ## Configuring MedApp safely
 

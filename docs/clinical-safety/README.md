@@ -8,6 +8,7 @@ This folder is MedApp's clinical risk management file under DCB0129, the NHS sta
 
 - **Drafted on 16 November 2026,** against `main` at `88dc1fa`, by an AI coding agent for the manufacturer, from the code and the handbook. Revised the same day after the review of #60 (`docs/reviews/pr-60-clinical-safety.md`).
 - **Nothing here is approved.** No Clinical Safety Officer (CSO) has been appointed, and no clinician has reviewed it. The ratings are estimates for the CSO to confirm.
+- **Updated for branch `feature/nhs-integrations`** (the NHS number, the patient banner, a read-only FHIR API, SNOMED CT codes and a demographics lookup): the banner, the main control for H-01 and H-02, is built and awaits the CSO's verification; H-01 and H-13 have new causes; no rating changed; and the device decision is unchanged (CS-04, version 0.3).
 - **MedApp has never been used with real patients.** The drafts conclude that it isn't ready to be, until the controls marked "before first live use" in the hazard log are in place and the CSO has justified the hazards that stay at 3.
 
 ## The documents
@@ -15,7 +16,7 @@ This folder is MedApp's clinical risk management file under DCB0129, the NHS sta
 | ID | Document | What it's for | For |
 |---|---|---|---|
 | CS-01 | [clinical-risk-management-plan.md](clinical-risk-management-plan.md) | How clinical risk is managed: scope, roles (with the CSO), the process, DCB0129's consequence table and 5×5 risk matrix, acceptability and the go-live rule, incidents, the release gate, and when the file is reviewed | The manufacturer and its CSO |
-| CS-02 | [hazard-log.md](hazard-log.md) | 21 hazards in the system as it is, each with causes, effects, existing controls linked to the code, further controls, and three ratings: today, at first live use, and residual | The CSO; deploying organisations |
+| CS-02 | [hazard-log.md](hazard-log.md) | 22 hazards in the system as it is, each with causes, effects, existing controls linked to the code, further controls, and three ratings: today, at first live use, and residual | The CSO; deploying organisations |
 | CS-03 | [clinical-safety-case-report.md](clinical-safety-case-report.md) | The safety case report template, filled as far as the current system allows: claims, evidence, outstanding hazards and defects, assumptions | Each release; deploying organisations; DTAC |
 | CS-04 | [intended-purpose-and-device-decision.md](intended-purpose-and-device-decision.md) | The intended purpose, and the reasoning that MedApp isn't a medical device under UK MDR 2002, with what would change that | The accountable owner; the CSO; buyers |
 | CS-05 | [dcb0160-deploying-organisations.md](dcb0160-deploying-organisations.md) | What a customer must do under DCB0160, what the manufacturer gives them, the controls transferred to them, and a starter hazard log. Not to be given to a customer until the manufacturer's CSO has signed it | Deploying organisations' CSOs |
@@ -49,7 +50,7 @@ These are proposals for the CSO and the accountable owner to confirm:
 
 1. **Appoint a CSO** (a registered clinician, contracted for a few days a month) and, ideally, a deputy.
 2. **Hold a hazard workshop** with the CSO and clinicians from a likely customer, following handovers, leavers, bank and agency staff and night shifts on purpose, and update the hazard log.
-3. **Verify the H-12 fix** (PR #62, merged): see times right against SQL Server and in a browser during British Summer Time, then have the CSO confirm H-12's ratings.
+3. **Verify the H-12 fix** (PR #62, merged): see times right against SQL Server and in a browser during British Summer Time, then have the CSO confirm H-12's ratings. **Verify the patient banner** (branch `feature/nhs-integrations`) the same way, on every page that shows it, in a narrow window and a half view, and with and without an NHS number.
 4. **Build the "before first live use" controls,** with tests, and re-rate the hazards.
 5. **Have the CSO sign** the plan, the hazard log, the device decision, the first safety case report and CS-05, and the accountable owner sign the plan and the device decision.
 6. **Switch on the release gate:** add the clinical safety section to a pull request template and to the merge flow in `AGENTS.md`.

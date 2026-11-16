@@ -35,7 +35,7 @@ public sealed class CreateUserWithEmailTests
         _sent = [];
         _sender.Setup(s => s.SendAsync(It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
             .Callback<EmailMessage, CancellationToken>((m, _) => _sent.Add(m)).Returns(Task.CompletedTask);
-        _handler = new CreateUserHandler(_users.Object, _read.Object, _emails.Object, _sender.Object, Links(), Mock.Of<ISecurityEventLog>());
+        _handler = new CreateUserHandler(_users.Object, new MedApp.UnitTests.Common.Fixtures.RecordingActivityLog(), _read.Object, _emails.Object, _sender.Object, Links(), Mock.Of<ISecurityEventLog>());
     }
 
     [Test]

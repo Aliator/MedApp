@@ -1,4 +1,5 @@
-using MedApp.API.Common.Authentication;
+﻿using MedApp.API.Common.Authentication;
+using MedApp.API.Fhir;
 using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
@@ -24,12 +25,17 @@ public static class ApplicationBuilderExtensions
             app.UseHsts();
         }
 
-        // The page-rendering server's own calls to the API (SsrServer) may come over http on this machine.
+        // No https redirect for requests the API received on a loopback address: only something on this machine (in
+        // Kubernetes, in this pod) can connect there, such as the page server calling for a page's data over http, and
+        // forwarded headers don't change the local address. So an https port can't silently break server rendering.
+        // A page server the API started also carries its key (SsrServer.IsFromRenderer).
         var ssr = app.Services.GetRequiredService<ISsrServer>();
-        app.UseWhen(context => !ssr.IsFromRenderer(context), branch => branch.UseHttpsRedirection());
+        app.UseWhen(
+            context => !ssr.IsFromRenderer(context) && !IsLoopback(context.Connection.LocalIpAddress),
+            branch => branch.UseHttpsRedirection());
 
-        // The page-rendering server and the build's manifest sit in wwwroot beside the app, but aren't for browsers;
-        // nor is any path with an empty segment (//), which could get past those checks.
+        // Paths no page or file of the app has (PageServerFiles): any path with an empty segment (//), and, as defence
+        // in depth, /ssr and /.vite, where the page server and the build's manifest used to sit in wwwroot.
         app.Use(async (context, next) =>
         {
             if (PageServerFiles.IsBlocked(context.Request.Path))
@@ -59,7 +65,9 @@ public static class ApplicationBuilderExtensions
         app.MapControllers();
         app.MapHub<NotificationsHub>(NotificationsHub.Path);
 
-        // An /api path that matches no endpoint is a 404, not the React app's index.html.
+        // An /api path that matches no endpoint is a 404, not the React app's index.html; under the FHIR API, a 404
+        // OperationOutcome, as FHIR clients expect.
+        app.Map("/api/fhir/{**path}", FhirJson.NotFoundAsync);
         app.Map("/api/{**path}", () => Results.NotFound());
 
         // Any other path (that isn't a file) is one of the app's pages (e.g. /patients/{id}): rendered on the server
@@ -68,4 +76,7 @@ public static class ApplicationBuilderExtensions
 
         return app;
     }
+
+    private static bool IsLoopback(System.Net.IPAddress? address) =>
+        address is not null && System.Net.IPAddress.IsLoopback(address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address);
 }

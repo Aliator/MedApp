@@ -15,6 +15,7 @@ import {DataTable, type DataTableColumn} from '../../components/tables/DataTable
 import {dayFromToday, ListFilterBar, type ListFilterField} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
 import {ageOn, formatShortDate} from '../../utils/dates';
+import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
 import {hasPatientFilters, PATIENT_SORTS, type PatientSortColumn, type PatientsListSearch} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
 
@@ -24,6 +25,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'text', key: 'last', label: 'Last name'},
   {kind: 'text', key: 'email', label: 'Email'},
   {kind: 'date', key: 'dob', label: 'Date of birth', fromKey: 'dobFrom', toKey: 'dobTo'},
+  {kind: 'text', key: 'nhs', label: 'NHS number'},
 ];
 
 type PatientRow = Patient & Record<string, unknown>;
@@ -51,6 +53,8 @@ export function patientsListQuery(search: PatientsListSearch, pageSize: number) 
     Email: search.email,
     DateOfBirthFrom: search.dobFrom,
     DateOfBirthTo: search.dobTo,
+    // Spaces mean nothing in an NHS number (the API ignores them too), so they aren't sent.
+    NhsNumber: search.nhs ? normaliseNhsNumber(search.nhs) : undefined,
   });
 }
 
@@ -86,6 +90,15 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
             {ageOn(p.dateOfBirth ?? '')} yrs
           </Text>
         </HStack>
+      ),
+    },
+    {
+      key: 'nhsNumber',
+      header: 'NHS Number',
+      renderCell: (p) => (
+        <Text type="body" hasTabularNumbers>
+          {p.nhsNumber ? formatNhsNumber(p.nhsNumber) : '—'}
+        </Text>
       ),
     },
     {
@@ -152,7 +165,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
               onChange={(filters) => onSearchChange({...search, ...filters, page: undefined})}
               list="patients"
               label="Search patients"
-              placeholder="Search patients by first name, last name, email or date of birth..."
+              placeholder="Search patients by first name, last name, email, date of birth or NHS number..."
               favourites={[
                 {label: 'Under 18', values: {dobFrom: dayFromToday({years: -18, days: 1})}},
                 {label: '65 and over', values: {dobTo: dayFromToday({years: -65})}},

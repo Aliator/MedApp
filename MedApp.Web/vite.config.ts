@@ -7,18 +7,19 @@ import {defineConfig} from 'vite';
 // launch-profile port, for running `npm run dev` on its own.
 const apiUrl = process.env.API_HTTPS || process.env.services__api__https__0 || 'https://localhost:7038';
 
-export default defineConfig(({command}) => ({
+export default defineConfig(({command, isSsrBuild}) => ({
   plugins: [
     // Must come before react(): it generates src/routeTree.gen.ts from src/routes.
     tanstackRouter({target: 'react', autoCodeSplitting: true}),
     react(),
   ],
   build: {
-    // The server rendering reads the client build's manifest for the page's scripts and stylesheets.
-    manifest: true,
+    // The server rendering reads the client build's manifest for the page's scripts and stylesheets (the build
+    // copies it into dist/ssr/, as client-manifest.json). The server entry's own build needs none.
+    manifest: !isSsrBuild,
   },
-  // The built server entry (dist/ssr/entry-server.js) carries its packages in it: published in the API's wwwroot,
-  // it has no node_modules beside it.
+  // The built server entry (dist/ssr/entry-server.js) carries its packages in it: in the image's /app/ssr/, it has no
+  // node_modules beside it.
   ssr: command === 'build' ? {noExternal: true} : undefined,
   server: {
     port: Number(process.env.PORT) || 5173,

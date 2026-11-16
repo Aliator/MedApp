@@ -1,10 +1,9 @@
 namespace MedApp.Application.Common.Security;
 
 /// <summary>
-/// Records security events (two-factor changes, password resets and their requests, recovery codes used). A seam:
-/// today it writes to the application log (<see cref="LoggingSecurityEventLog"/>); once the activity log exists, an
-/// implementation that writes there replaces it, and the handlers don't change. Recording never throws for a failure
-/// to record.
+/// Records security events (two-factor changes, password resets and their requests, email address changes, recovery
+/// codes used): in the activity log and the application log (<see cref="ActivitySecurityEventLog"/>). Handlers record
+/// after their own change is saved, as for the activity log's other account entries.
 /// </summary>
 public interface ISecurityEventLog
 {

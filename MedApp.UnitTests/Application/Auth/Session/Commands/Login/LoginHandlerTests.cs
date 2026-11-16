@@ -21,6 +21,7 @@ public sealed class LoginHandlerTests
     private Mock<ITwoFactorService> _twoFactor = null!;
     private Mock<ISignInChallengeRepository> _challenges = null!;
     private LoginHandler _handler = null!;
+    private RecordingActivityLog _activity = null!;
 
     [SetUp]
     public void SetUp()
@@ -38,6 +39,8 @@ public sealed class LoginHandlerTests
         _fixture.Inject(_twoFactor.Object);
         _fixture.Inject(_challenges.Object);
         _fixture.Inject<TimeProvider>(new FixedTimeProvider(EmailTestConstants.NowUtc));
+        _activity = new RecordingActivityLog();
+        _fixture.Inject<MedApp.Application.Activity.Common.IActivityLog>(_activity);
 
         _handler = _fixture.Create<LoginHandler>();
     }
@@ -193,6 +196,10 @@ public sealed class LoginHandlerTests
         // Only the hash is stored, never the token the browser gets.
         saved.TokenHash.Should().Be(SignInChallengeTokens.Hash(result.Challenge!));
         saved.TokenHash.Should().NotBe(result.Challenge);
+        // The challenge is recorded, not a sign-in: the second step records that.
+        var entry = _activity.Recorded.Should().ContainSingle().Subject;
+        entry.Action.Should().Be(MedApp.Domain.Activity.ActivityAction.TwoFactorChallenged);
+        entry.UserId.Should().Be(userId);
         _sessionService.Verify(
             s => s.CreateSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never);

@@ -191,7 +191,6 @@ Key Vault then stays recoverable for 90 days (purge protection), so its name can
 - **Backups beyond Azure SQL's own** (point-in-time restore for 7 days by default).
 - **A MediatR licence.** MediatR 14 logs a licence warning at startup ("If you are running in production you are required to have a licensed version"). Running on Azure is production use: get a licence key (a free community one may apply), or replace MediatR.
 - **Readiness that checks the database and Valkey.** `/health` only says the process is up, so a pod stays ready while either is down.
-- **Restarting Node.** If the page server exits, the API serves pages rendered in the browser until the pod restarts, and nothing reports it.
 - **Pinning by digest.** The workflows' actions are pinned by tag, and the images (the Dockerfile's bases, Valkey) by tags that move. Both should be pinned by digest, with Dependabot keeping them current.
 - **Restarting pods when a Secret changes** (above, Passwords), for example with a reloader.
 - **A private AKS API server.** It's public, guarded only by Entra ID. Authorised IP ranges (`apiServerAccessProfile`), or a private cluster, would restrict who can reach it.

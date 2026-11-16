@@ -1,8 +1,10 @@
 using System.Reflection;
 using FluentValidation;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Behaviors;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Security;
+using MedApp.Application.Patients.Common;
 using MedApp.Application.Notifications.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -33,9 +35,15 @@ public static class ServiceExtensions
         services.AddSingleton<EmailAvailability>();
         services.AddScoped<ISecurityNotices, SecurityNotices>();
 
-        // Security events (two-factor changes, password resets): to the application log until the activity log
-        // replaces this registration (ISecurityEventLog).
-        services.TryAddScoped<ISecurityEventLog, LoggingSecurityEventLog>();
+        // Security events (two-factor changes, password resets, email addresses): to the activity log and the
+        // application log.
+        services.AddScoped<LoggingSecurityEventLog>();
+        services.AddScoped<ISecurityEventLog, ActivitySecurityEventLog>();
+        // The activity log (the host provides IActivityContext, the request's actor), and its and the retention
+        // schedule's settings, which the host binds to its configuration.
+        services.AddScoped<IActivityLog, ActivityLog>();
+        services.AddOptions<ActivityOptions>();
+        services.AddOptions<RetentionOptions>();
 
         return services;
     }
