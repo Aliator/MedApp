@@ -16,10 +16,13 @@ public sealed class IdentityUserService(
         string username,
         CancellationToken ct)
     {
+        // The admin was given this password, so the user must replace it with their own at first sign-in. The flag is
+        // saved with the account, in the same insert.
         var user = new ApplicationUser
         {
             UserName = username,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            MustChangePassword = true
         };
 
         var password = GeneratePassword();
@@ -44,10 +47,20 @@ public sealed class IdentityUserService(
         if (!passwordValid)
             return IdentityResult.Failed(IdentityErrors.OldPasswordIncorrect);
 
-        return await userManager.ChangePasswordAsync(
+        // The user chose this password themselves, so any requirement to change it is met. ChangePasswordAsync saves
+        // the user only when the change succeeds, so the flag is cleared in that same update or not at all.
+        var mustChangePassword = user.MustChangePassword;
+        user.MustChangePassword = false;
+
+        var result = await userManager.ChangePasswordAsync(
             user,
             oldPassword,
             newPassword);
+
+        if (!result.Succeeded)
+            user.MustChangePassword = mustChangePassword;
+
+        return result;
     }
 
     public async Task<ResetUserPasswordResponse> ResetUserPasswordAsync(
@@ -62,11 +75,19 @@ public sealed class IdentityUserService(
 
         var newPassword = GeneratePassword();
 
+        // The admin was given this password, so the user must replace it with their own. ResetPasswordAsync saves the
+        // user only when the reset succeeds, so the flag is set in that same update or not at all.
+        var mustChangePassword = user.MustChangePassword;
+        user.MustChangePassword = true;
+
         var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
         var result = await userManager.ResetPasswordAsync(
             user,
             resetToken,
             newPassword);
+
+        if (!result.Succeeded)
+            user.MustChangePassword = mustChangePassword;
 
         return result.Succeeded
             ? new ResetUserPasswordResponse(newPassword, Array.Empty<IdentityError>())

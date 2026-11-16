@@ -17,6 +17,11 @@ public sealed class IdentityTransactions(MedAppDbContext context) : IIdentityTra
         // inside its execution strategy, which then retries the transaction as a whole: begin, the work, and the
         // commit or rollback. A failed attempt's transaction is rolled back, so each attempt starts from the database
         // as it was.
+        //
+        // So the work must load everything it changes itself, inside the delegate, and callers mustn't capture
+        // entities loaded before it: a retry detaches them (below), and the failed attempt may already have changed
+        // them in memory (Identity gives a user a new concurrency stamp before saving), so the retry would fail with
+        // a false concurrency error. IdentityRoleService.SetRolesAsync and FirstAdminSetup follow this.
         var strategy = context.Database.CreateExecutionStrategy();
         var attempt = 0;
 

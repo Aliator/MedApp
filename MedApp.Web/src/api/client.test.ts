@@ -1,6 +1,6 @@
 import {mockFetch, json} from '../test/render';
 import {SSR_KEY_HEADER, setSsrRequestContextProvider} from '../ssr/requestContext';
-import {api, unwrap} from './client';
+import {api, pageNavigation, PASSWORD_CHANGE_REQUIRED, unwrap} from './client';
 import {ApiError, ApiValidationError} from './errors';
 
 describe('api', () => {
@@ -41,6 +41,57 @@ describe('api', () => {
     expect(request.url).toBe('https://api.example.org/api/patients/search?Page=2');
     expect(request.headers.get('Cookie')).toBeNull();
     expect(request.headers.get(SSR_KEY_HEADER)).toBeNull();
+  });
+});
+
+describe('a forced password change', () => {
+  const forced = () => json({title: 'Password change required', status: 403, code: PASSWORD_CHANGE_REQUIRED}, 403);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('sends the page to change the password, with a full load, when the API says one is required', async () => {
+    const assign = vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
+    window.history.replaceState(null, '', '/patients');
+    mockFetch(forced);
+
+    const error = await unwrap(api.GET('/api/patients/search')).catch((e: unknown) => e);
+
+    expect(assign).toHaveBeenCalledExactlyOnceWith('/change-password');
+    // The caller still gets its error, for the moment before the page leaves.
+    expect(error).toMatchObject({status: 403, title: 'Password change required'});
+  });
+
+  it('stays on the change-password page itself', async () => {
+    const assign = vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
+    window.history.replaceState(null, '', '/change-password');
+    mockFetch(forced);
+
+    await api.GET('/api/patients/search');
+
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['another 403', () => json({title: 'Forbidden', status: 403}, 403)],
+    ['a 403 without a body', () => new Response(null, {status: 403})],
+    ['a 403 whose body is a list', () => json([PASSWORD_CHANGE_REQUIRED], 403)],
+    ['another status with the code', () => json({code: PASSWORD_CHANGE_REQUIRED}, 401)],
+  ])('leaves %s alone', async (_, respond) => {
+    const assign = vi.spyOn(pageNavigation, 'assign').mockImplementation(() => {});
+    window.history.replaceState(null, '', '/patients');
+    mockFetch(respond);
+
+    await api.GET('/api/patients/search');
+
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('leaves the page by assigning the address in the browser', () => {
+    // jsdom can't navigate, but the call reaches its location.
+    expect(() => pageNavigation.assign('/change-password')).not.toThrow();
   });
 });
 
