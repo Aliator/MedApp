@@ -105,4 +105,31 @@ public sealed class UpdatePatientProcedureStageDefinitionHandlerTests
         response.CanBeDeleted.Should().BeFalse();
         _repository.Verify(r => r.UpdateStageDefinitionAsync(definition, It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Test]
+    public async Task Handle_VisitRequirementGiven_ChangesIt()
+    {
+        var definition = CreateDefinition(ConsultationStage);
+        _repository.Setup(r => r.GetStageDefinitionByIdAsync(definition.Id, It.IsAny<CancellationToken>())).ReturnsAsync(definition);
+
+        var response = await _fixture.Create<UpdatePatientProcedureStageDefinitionHandler>()
+            .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, null, null, null, "required"), CancellationToken.None);
+
+        definition.VisitRequirement.Should().Be(VisitRequirement.Required);
+        response.VisitRequirement.Should().Be("Required");
+        _repository.Verify(r => r.UpdateStageDefinitionAsync(definition, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_VisitRequirementNull_LeavesItUnchanged()
+    {
+        var definition = CreateDefinition(ConsultationStage).WithVisit(VisitRequirement.Suggested);
+        _repository.Setup(r => r.GetStageDefinitionByIdAsync(definition.Id, It.IsAny<CancellationToken>())).ReturnsAsync(definition);
+
+        var response = await _fixture.Create<UpdatePatientProcedureStageDefinitionHandler>()
+            .Handle(new UpdatePatientProcedureStageDefinitionCommand(definition.Id, null, "New description", null), CancellationToken.None);
+
+        definition.VisitRequirement.Should().Be(VisitRequirement.Suggested);
+        response.VisitRequirement.Should().Be("Suggested");
+    }
 }

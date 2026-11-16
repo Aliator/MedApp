@@ -357,6 +357,18 @@ public sealed class AuthControllerTests
     }
 
     [Test]
+    public async Task DeleteUser_HasUpcomingAppointments_ReturnsBadRequestWithTheError()
+    {
+        var error = IdentityErrors.HasUpcomingAppointments(OtherUsername, 2);
+        var mediator = new RecordingMediator(_ => IdentityResult.Failed(error));
+
+        var result = await Controller(mediator).DeleteUser(OtherUsername, new DeleteUserRequest(Password));
+
+        result.Should().BeOfType<BadRequestObjectResult>().Which.Value.Should().BeEquivalentTo(new[] { error });
+        error.Code.Should().Be(IdentityErrors.HasUpcomingAppointmentsCode);
+    }
+
+    [Test]
     public async Task GetAllRoles_ReturnsThem()
     {
         IReadOnlyList<string> roles = ["Admin", "User"];

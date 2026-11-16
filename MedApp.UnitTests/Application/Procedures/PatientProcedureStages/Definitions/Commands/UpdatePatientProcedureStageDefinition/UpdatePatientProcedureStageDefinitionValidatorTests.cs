@@ -38,4 +38,23 @@ public sealed class UpdatePatientProcedureStageDefinitionValidatorTests
         _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, new string('a', 2001)))
             .IsValid.Should().BeFalse();
     }
+
+    [TestCase("Suggested")]
+    [TestCase("none")]
+    public void Validate_KnownVisitRequirement_Passes(string requirement)
+    {
+        _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, null, requirement))
+            .IsValid.Should().BeTrue();
+    }
+
+    [TestCase("Always")]
+    [TestCase("1")]
+    public void Validate_UnknownVisitRequirement_FailsListingTheNames(string requirement)
+    {
+        var result = _validator.Validate(new UpdatePatientProcedureStageDefinitionCommand(Guid.NewGuid(), null, null, null, requirement));
+
+        result.Errors.Should().ContainSingle(e =>
+            e.PropertyName == "VisitRequirement"
+            && e.ErrorMessage == "Visit requirement must be one of: None, Suggested, Required.");
+    }
 }

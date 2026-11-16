@@ -271,4 +271,42 @@ public sealed class AppointmentChangeTests
         change.Events.Single().ProcedureTitle.Should().BeEmpty();
         change.Events.Single().StageName.Should().BeNull();
     }
+
+    [Test]
+    public void Events_ForAProcedureStageNotLoadedOrGiven_HaveAnEmptyTitleAndNoStageName()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Requested, stageId: Guid.NewGuid());
+        appointment.ProcedureId = Guid.NewGuid();
+        var change = new AppointmentChange(appointment, ProcedureData.Staff, Now);
+
+        change.Request();
+
+        change.Events.Single().ProcedureTitle.Should().BeEmpty();
+        change.Events.Single().StageName.Should().BeNull();
+    }
+
+    [Test]
+    public void Book_Requested_RecordsWhoItIsWithAfterTheChange()
+    {
+        var appointment = CreateAppointment(AppointmentStatus.Requested);
+        var change = ChangeOf(appointment, null);
+
+        change.Book(OtherStaffUserId, OtherStaffUsername, At(NextMonday, 11), At(NextMonday, 11, 30));
+
+        var entry = change.Events.Single();
+        entry.StaffUserId.Should().Be(OtherStaffUserId);
+        entry.StaffUsername.Should().Be(OtherStaffUsername);
+        entry.StartUtc.Should().Be(At(NextMonday, 11));
+        entry.EndUtc.Should().Be(At(NextMonday, 11, 30));
+        entry.Details.Should().Be("{}");
+    }
+
+    [Test]
+    public void Appointment_IsTheOneChanged()
+    {
+        var appointment = CreateAppointment();
+
+        ChangeOf(appointment).Appointment.Should().BeSameAs(appointment);
+        ChangeOf(appointment).HasChanges.Should().BeFalse();
+    }
 }

@@ -7,6 +7,7 @@ public static class NotificationsTestConstants
     public static readonly Guid UserId = Guid.Parse("0000000b-0000-0000-0000-000000000001");
     public static readonly Guid NotificationId = Guid.Parse("0000000b-0000-0000-0000-000000000002");
     public static readonly Guid ProcedureId = Guid.Parse("0000000b-0000-0000-0000-000000000003");
+    public static readonly Guid AppointmentId = Guid.Parse("0000000b-0000-0000-0000-000000000004");
     public static readonly DateTime CreatedAtUtc = new(2026, 6, 15, 9, 30, 0, DateTimeKind.Utc);
     public static readonly DateTime Now = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 

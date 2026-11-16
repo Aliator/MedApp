@@ -48,6 +48,30 @@ public static class CalendarTestConstants
     public const string PatientFirstName = "Synthetic";
     public const string PatientLastName = "Patient";
 
+    public static readonly Guid AdminUserId = Guid.Parse("0000000c-0000-0000-0000-000000000003");
+    public const string AdminUsername = "calendar.admin";
+
+    /// <summary>The member of staff whose calendar the tests change, acting on it themselves.</summary>
+    public static readonly CalendarActor StaffActor = new(StaffUserId, StaffUsername, IsAdmin: false);
+
+    /// <summary>Another member of staff (not an admin), who may read but not change <see cref="StaffUserId"/>'s calendar.</summary>
+    public static readonly CalendarActor OtherStaffActor = new(OtherStaffUserId, OtherStaffUsername, IsAdmin: false);
+
+    /// <summary>An admin, who may change anyone's calendar.</summary>
+    public static readonly CalendarActor AdminActor = new(AdminUserId, AdminUsername, IsAdmin: true);
+
+    /// <summary>Every member of staff, as the identity service lists them.</summary>
+    public static readonly IReadOnlyList<(Guid UserId, string Username)> Staff =
+    [
+        (StaffUserId, StaffUsername),
+        (OtherStaffUserId, OtherStaffUsername),
+        (AdminUserId, AdminUsername)
+    ];
+
+    public const string BlockNote = "Synthetic block note";
+
+    public const string WeekTemplateName = "Standard week";
+
     public static readonly CalendarActivityType Lunch = new()
     {
         Id = Guid.Parse("22222222-0000-0000-0000-000000000001"),
@@ -60,6 +84,31 @@ public static class CalendarTestConstants
         Id = Guid.Parse("22222222-0000-0000-0000-000000000003"),
         Name = "Training",
         Colour = "purple"
+    };
+
+    /// <summary>An archived activity type, which new blocks can't be given.</summary>
+    public static CalendarActivityType CreateArchivedActivityType() => new()
+    {
+        Id = Guid.NewGuid(),
+        Name = "Retired activity",
+        Colour = "gray",
+        IsArchived = true
+    };
+
+    /// <summary>A day template (archived or not), with no blocks.</summary>
+    public static DayTemplate CreateDayTemplate(Guid? id = null, bool isArchived = false) => new()
+    {
+        Id = id ?? DayTemplateId,
+        Name = DayTemplateName,
+        IsArchived = isArchived
+    };
+
+    /// <summary>A week template (archived or not), with no days.</summary>
+    public static WeekTemplate CreateWeekTemplate(Guid? id = null, bool isArchived = false) => new()
+    {
+        Id = id ?? WeekTemplateId,
+        Name = WeekTemplateName,
+        IsArchived = isArchived
     };
 
     /// <summary>A UTC moment from UK clock time on a UK date.</summary>

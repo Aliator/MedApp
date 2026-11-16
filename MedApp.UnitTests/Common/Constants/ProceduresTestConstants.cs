@@ -1,6 +1,7 @@
 using MedApp.Application.Procedures.Audit.Queries.SearchProcedureAudit;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
 
@@ -24,6 +25,9 @@ public static class ProceduresTestConstants
     public const string TemplateName = "Test template";
     public const string ProcedureTitle = "Test procedure";
     public const string Reason = "Waiting for results.";
+
+    /// <summary>Why an admin finished a stage without its visit: synthetic.</summary>
+    public const string WithoutVisitReason = "Seen at another site; synthetic reason.";
     public const int MaxNotesLength = 4000;
 
     public static readonly Guid ConsultationDefinitionId = Guid.Parse("0000000d-0000-0000-0000-000000000001");
@@ -174,4 +178,39 @@ public static class ProceduresTestConstants
         AtUtc = atUtc,
         Details = "{}",
     };
+
+    /// <summary>
+    /// An appointment for one of a procedure's stages: Requested (no staff or time), or with <see cref="Staff"/> at a
+    /// time around <see cref="Now"/> (a day before for Attended and Did not attend, a day after otherwise).
+    /// </summary>
+    public static Appointment CreateStageAppointment(
+        PatientProcedure procedure,
+        PatientProcedureStage stage,
+        AppointmentStatus status = AppointmentStatus.Requested)
+    {
+        var booked = status != AppointmentStatus.Requested;
+        var start = status is AppointmentStatus.Attended or AppointmentStatus.DidNotAttend ? Now.AddDays(-1) : Now.AddDays(1);
+        return new Appointment
+        {
+            Id = Guid.NewGuid(),
+            PatientId = procedure.PatientId,
+            ProcedureId = procedure.Id,
+            StageId = stage.Id,
+            Status = status,
+            StaffUserId = booked ? Staff.UserId : null,
+            StartUtc = booked ? start : null,
+            EndUtc = booked ? start.AddMinutes(30) : null,
+            IsAutomatic = !booked,
+            CreatedAtUtc = Now.AddDays(-2),
+            CreatedByUserId = Staff.UserId,
+            LastUpdated = Now.AddDays(-2),
+        };
+    }
+
+    /// <summary>A definition whose stages involve a visit.</summary>
+    public static PatientProcedureStageDefinition WithVisit(this PatientProcedureStageDefinition definition, VisitRequirement requirement)
+    {
+        definition.VisitRequirement = requirement;
+        return definition;
+    }
 }

@@ -143,6 +143,46 @@ public sealed class PatientProceduresControllerTests
         ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor), await Controller.FinishProcedureStage(RecordId, OtherId, null, _cts.Token));
 
     [Test]
+    public async Task FinishProcedureStage_EmptyBody_FinishesWithAVisitAsStaff()
+    {
+        var result = await Controller.FinishProcedureStage(RecordId, OtherId, new FinishProcedureStageRequest(), _cts.Token);
+
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, IsAdmin: false), result);
+    }
+
+    [TestCase("User", false)]
+    [TestCase("Admin", true)]
+    public async Task FinishProcedureStage_WithoutVisit_SendsTheReasonAndWhetherTheyAreAnAdmin(string role, bool isAdmin)
+    {
+        var controller = new PatientProceduresController(_mediator).WithRequest(SignedIn(role));
+        var request = new FinishProcedureStageRequest { WithoutVisit = true, Reason = "Synthetic reason." };
+
+        var result = await controller.FinishProcedureStage(RecordId, OtherId, request, _cts.Token);
+
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: true, Reason: "Synthetic reason.", IsAdmin: isAdmin), result);
+    }
+
+    [Test]
+    public async Task FinishProcedureStage_NoBodyAsAnAdmin_FinishesWithAVisit()
+    {
+        var controller = new PatientProceduresController(_mediator).WithRequest(SignedIn("Admin"));
+
+        var result = await controller.FinishProcedureStage(RecordId, OtherId, null, _cts.Token);
+
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor, WithoutVisit: false, Reason: null, IsAdmin: true), result);
+    }
+
+    [Test]
+    public void FinishProcedureStage_Body_IsOptional()
+    {
+        var parameter = typeof(PatientProceduresController).GetMethod(nameof(PatientProceduresController.FinishProcedureStage))!
+            .GetParameters().Single(p => p.ParameterType == typeof(FinishProcedureStageRequest));
+
+        var fromBody = parameter.GetCustomAttributes(typeof(FromBodyAttribute), false).Cast<FromBodyAttribute>().Single();
+        fromBody.EmptyBodyBehavior.Should().Be(Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow);
+    }
+
+    [Test]
     public async Task UnlockProcedureStage_UnlocksAsTheUser() =>
         ExpectSentAndOk(new UnlockProcedureStageCommand(RecordId, OtherId, Actor), await Controller.UnlockProcedureStage(RecordId, OtherId, _cts.Token));
 }

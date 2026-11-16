@@ -60,4 +60,26 @@ public sealed class CreatePatientProcedureStageDefinitionHandlerTests
         response.CanBeDeleted.Should().BeTrue();
         _repository.Verify(r => r.AddStageDefinitionAsync(It.Is<PatientProcedureStageDefinition>(d => d.Name == ConsultationStage), cts.Token), Times.Once);
     }
+
+    [TestCase("Required", VisitRequirement.Required)]
+    [TestCase("suggested", VisitRequirement.Suggested)]
+    [TestCase("None", VisitRequirement.None)]
+    public async Task Handle_VisitRequirement_StoresAndReturnsIt(string given, VisitRequirement expected)
+    {
+        var response = await _fixture.Create<CreatePatientProcedureStageDefinitionHandler>()
+            .Handle(new CreatePatientProcedureStageDefinitionCommand(ConsultationStage, "d", "i", given), CancellationToken.None);
+
+        response.VisitRequirement.Should().Be(expected.ToString());
+        _repository.Verify(r => r.AddStageDefinitionAsync(
+            It.Is<PatientProcedureStageDefinition>(d => d.VisitRequirement == expected), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_NoVisitRequirementGiven_DefaultsToNone()
+    {
+        var response = await _fixture.Create<CreatePatientProcedureStageDefinitionHandler>()
+            .Handle(new CreatePatientProcedureStageDefinitionCommand(ConsultationStage, "d", "i"), CancellationToken.None);
+
+        response.VisitRequirement.Should().Be("None");
+    }
 }

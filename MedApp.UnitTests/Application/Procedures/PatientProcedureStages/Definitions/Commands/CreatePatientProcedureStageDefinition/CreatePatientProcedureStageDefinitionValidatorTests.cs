@@ -40,4 +40,24 @@ public sealed class CreatePatientProcedureStageDefinitionValidatorTests
     {
         _validator.Validate(Valid() with { Instructions = new string('a', 2001) }).IsValid.Should().BeFalse();
     }
+
+    [TestCase("None")]
+    [TestCase("Suggested")]
+    [TestCase("required")]
+    public void Validate_KnownVisitRequirement_Passes(string requirement)
+    {
+        _validator.Validate(Valid() with { VisitRequirement = requirement }).IsValid.Should().BeTrue();
+    }
+
+    [TestCase("Sometimes")]
+    [TestCase("2")]
+    [TestCase("")]
+    public void Validate_UnknownVisitRequirement_FailsListingTheNames(string requirement)
+    {
+        var result = _validator.Validate(Valid() with { VisitRequirement = requirement });
+
+        result.Errors.Should().ContainSingle(e =>
+            e.PropertyName == "VisitRequirement"
+            && e.ErrorMessage == "Visit requirement must be one of: None, Suggested, Required.");
+    }
 }

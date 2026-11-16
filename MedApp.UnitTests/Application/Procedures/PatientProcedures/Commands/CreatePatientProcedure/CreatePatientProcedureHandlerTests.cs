@@ -12,6 +12,7 @@ using MedApp.Application.Procedures.Repositories;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Domain.Patients;
 using MedApp.UnitTests.Common.Constants;
+using MedApp.Domain.Appointments;
 
 namespace MedApp.UnitTests.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 
@@ -121,5 +122,58 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
         await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), cts.Token);
 
         Repository.Verify(r => r.AddAsync(It.IsAny<ProcedureChange>(), cts.Token), Times.Once);
+    }
+
+    /// <summary>A template of Consultation (with the given visit) then Procedure (Suggested).</summary>
+    private void GivenTemplateWithVisits(VisitRequirement first)
+    {
+        _template = CreateTemplate(
+            TemplateName,
+            false,
+            CreateDefinition(ConsultationStage).WithVisit(first),
+            CreateDefinition(ProcedureStage).WithVisit(VisitRequirement.Suggested));
+        _stages.Setup(r => r.GetStageTemplateByIdAsync(_template.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_template);
+    }
+
+    [Test]
+    public async Task Handle_TemplateWithVisits_CopiesEachStagesVisitRequirement()
+    {
+        GivenTemplateWithVisits(VisitRequirement.Required);
+
+        var response = await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
+
+        SavedChanges.Single().Procedure.Stages.Select(s => s.VisitRequirement)
+            .Should().Equal(VisitRequirement.Required, VisitRequirement.Suggested);
+        response.Stages.Select(s => s.VisitRequirement).Should().Equal("Required", "Suggested");
+    }
+
+    [TestCase(VisitRequirement.Required)]
+    [TestCase(VisitRequirement.Suggested)]
+    public async Task Handle_FirstStageInvolvesAVisit_AsksForItWithTheProcedure(VisitRequirement requirement)
+    {
+        GivenTemplateWithVisits(requirement);
+
+        await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
+
+        var change = SavedChanges.Single();
+        var visit = change.NewAppointments.Should().ContainSingle().Subject;
+        visit.StageId.Should().Be(change.Procedure.StageAt(1).Id);
+        visit.ProcedureId.Should().Be(change.Procedure.Id);
+        visit.PatientId.Should().Be(_patient.Id);
+        visit.Status.Should().Be(AppointmentStatus.Requested);
+        visit.IsAutomatic.Should().BeTrue();
+        visit.CreatedByUserId.Should().Be(Staff.UserId);
+        change.AppointmentEvents.Should().ContainSingle(e => e.Action == AppointmentEventAction.Requested && e.AppointmentId == visit.Id);
+    }
+
+    [Test]
+    public async Task Handle_FirstStageWithoutAVisit_AsksForNoneEvenIfALaterStageHasOne()
+    {
+        GivenTemplateWithVisits(VisitRequirement.None);
+
+        await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
+
+        SavedChanges.Single().NewAppointments.Should().BeEmpty();
+        SavedChanges.Single().AppointmentEvents.Should().BeEmpty();
     }
 }
