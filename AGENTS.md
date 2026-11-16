@@ -289,6 +289,8 @@ Small, mechanical edits (a typo, a one-line config change) can be done directly 
 
 **Only run this when the user explicitly asks you to merge**, for example "merge it" or "ship it" (they mean the same). Without that, stop at committing or at an open PR, as usual. Opening a PR or seeing CI pass is not permission to merge.
 
+**The medical device decision:** a change that adds calculations, scores, dose checks, decision support, triage or prioritising, alerts from clinical values, or medical claims must update `docs/clinical-safety/intended-purpose-and-device-decision.md` before it merges.
+
 When the user says to merge, do every step, in order, without stopping to ask again:
 1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. If the branch changed the UI, run the full set of UI parity screenshots first (see [UI parity screenshots](#ui-parity-screenshots)). New scripts need their executable bit set in git (`git update-index --chmod=+x`), since this checkout doesn't track file modes.
 2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
