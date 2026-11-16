@@ -45,6 +45,79 @@ public sealed class UserSessionTests
         session.IsActive(Created.AddHours(1)).Should().BeFalse();
         session.RevokedAtUtc.Should().Be(Created.AddHours(1));
     }
+
+    [Test]
+    public void Lifetimes_AreEightHoursExtendableToTwentyFour()
+    {
+        UserSession.Lifetime.Should().Be(TimeSpan.FromHours(8));
+        UserSession.MaxLifetime.Should().Be(TimeSpan.FromHours(24));
+        Session().LatestExpiryUtc.Should().Be(Created.AddHours(24));
+    }
+
+    [Test]
+    public void Extend_GivesAFullLifetimeFromNow()
+    {
+        var session = Session();
+        var now = Expires.AddMinutes(-5);
+
+        session.Extend(now);
+
+        session.ExpiresAtUtc.Should().Be(now.AddHours(8));
+    }
+
+    [Test]
+    public void Extend_NearTheLongestASessionLasts_StopsThere()
+    {
+        var session = Session();
+        session.Extend(Expires.AddMinutes(-5));
+        session.Extend(Created.AddHours(15));
+        var later = Created.AddHours(20);
+
+        session.Extend(later);
+
+        session.ExpiresAtUtc.Should().Be(Created.AddHours(24));
+        session.CanExtend(later).Should().BeFalse();
+    }
+
+    [Test]
+    public void Extend_NeverShortensIt()
+    {
+        var session = Session();
+        session.Extend(Created.AddHours(7));
+
+        // A full lifetime from an earlier moment would end before it now does.
+        session.Extend(Created.AddHours(1));
+
+        session.ExpiresAtUtc.Should().Be(Created.AddHours(15));
+    }
+
+    [Test]
+    public void Extend_AnEndedSession_LeavesItEnded()
+    {
+        var expired = Session();
+        var revoked = Session();
+        revoked.Revoke(Created.AddHours(1));
+
+        expired.Extend(Expires.AddMinutes(1));
+        revoked.Extend(Created.AddHours(2));
+
+        expired.ExpiresAtUtc.Should().Be(Expires);
+        expired.IsActive(Expires.AddMinutes(1)).Should().BeFalse();
+        revoked.ExpiresAtUtc.Should().Be(Expires);
+        revoked.IsActive(Created.AddHours(2)).Should().BeFalse();
+    }
+
+    [Test]
+    public void CanExtend_OnlyWhileActiveAndShortOfTheLongest()
+    {
+        var session = Session();
+        var revoked = Session();
+        revoked.Revoke(Created.AddHours(1));
+
+        session.CanExtend(Created.AddHours(1)).Should().BeTrue();
+        session.CanExtend(Expires).Should().BeFalse();
+        revoked.CanExtend(Created.AddHours(2)).Should().BeFalse();
+    }
 }
 
 [TestFixture]

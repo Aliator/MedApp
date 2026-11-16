@@ -1,5 +1,6 @@
 import {useNavigate} from '@tanstack/react-router';
 import {useState} from 'react';
+import {useAnnounce} from '../../app/announcements';
 import {useCreatePatient, type PatientInput} from '../../api/patients';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
@@ -17,13 +18,17 @@ import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 export function AddPatientPage() {
   const navigate = useNavigate();
   const create = useCreatePatient();
+  const announce = useAnnounce();
   const [form, setForm] = useState<PatientInput>(EMPTY_PATIENT);
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
 
   const add = () => {
     create.mutate(form, {
-      onSuccess: () => void navigate({to: '/patients'}),
+      onSuccess: () => {
+        announce('Patient added');
+        void navigate({to: '/patients'});
+      },
       onError: (error) => {
         setProblem(saveProblem(error, 'add'));
         setIsConfirming(false);
