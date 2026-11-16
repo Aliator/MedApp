@@ -220,6 +220,8 @@ export function ProceduresListPage({search, onSearchChange, patientId}: Procedur
             placeholder="Search procedures by title, or filter by template, patient, status, priority, due date..."
             textKey="title"
             favourites={FAVOURITES}
+            // Each quick filter's name is its token's (Assigned to me: only), so it isn't repeated beside the star.
+            namesQuickFilters={false}
           />
         }
         sort={{column: sortColumn, ascending}}
