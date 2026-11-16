@@ -925,6 +925,56 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/procedures/patient-procedures/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    ids?: string[];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientProcedureLabelResponse"][];
+                        "application/json": components["schemas"]["PatientProcedureLabelResponse"][];
+                        "text/json": components["schemas"]["PatientProcedureLabelResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/procedures/patient-procedures/search": {
         parameters: {
             query?: never;
@@ -1642,6 +1692,56 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/patients/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    ids?: string[];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientLabelResponse"][];
+                        "application/json": components["schemas"]["PatientLabelResponse"][];
+                        "text/json": components["schemas"]["PatientLabelResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3427,6 +3527,7 @@ export interface components {
         };
         AnonymisePatientRequest: {
             reason?: string | null;
+            note?: string | null;
             confirmation?: string | null;
         };
         AssignRoleRequest: {
@@ -3477,19 +3578,35 @@ export interface components {
         DeleteUserRequest: {
             password?: string | null;
         };
-        ExportedNotificationResponse: {
+        ExportedAccessEntryResponse: {
+            /** Format: date-time */
+            atUtc?: string;
+            action?: string | null;
+            username?: string | null;
             /** Format: uuid */
-            id?: string;
+            procedureId?: string | null;
+            details?: string | null;
+        };
+        ExportedHistoryEntryResponse: {
+            /** Format: date-time */
+            atUtc?: string;
+            action?: string | null;
+            username?: string | null;
+            /** Format: uuid */
+            procedureId?: string;
+            procedureTitle?: string | null;
+            stageName?: string | null;
+            details?: string | null;
+        };
+        ExportedNotificationResponse: {
+            /** Format: date-time */
+            createdAtUtc?: string;
             kind?: string | null;
             username?: string | null;
             title?: string | null;
             message?: string | null;
             /** Format: uuid */
             procedureId?: string | null;
-            /** Format: date-time */
-            createdAtUtc?: string;
-            /** Format: date-time */
-            readAtUtc?: string | null;
         };
         ExportedPatientResponse: {
             /** Format: uuid */
@@ -3514,6 +3631,35 @@ export interface components {
             /** Format: date */
             retentionKeptUntil?: string | null;
             retentionKeptReason?: string | null;
+        };
+        ExportedProcedureResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            templateName?: string | null;
+            status?: string | null;
+            priority?: string | null;
+            /** Format: date */
+            dueDate?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUpdated?: string;
+            notes?: string | null;
+            assignedTo?: string[] | null;
+            stages?: components["schemas"]["ExportedStageResponse"][] | null;
+        };
+        ExportedStageResponse: {
+            /** Format: int32 */
+            order?: number;
+            name?: string | null;
+            notes?: string | null;
+            /** Format: date-time */
+            startedAtUtc?: string | null;
+            startedBy?: string | null;
+            /** Format: date-time */
+            finishedAtUtc?: string | null;
+            finishedBy?: string | null;
         };
         IdentityError: {
             code?: string | null;
@@ -3574,10 +3720,28 @@ export interface components {
             exportedAtUtc?: string;
             exportedBy?: string | null;
             patient?: components["schemas"]["ExportedPatientResponse"];
-            procedures?: components["schemas"]["PatientProcedureResponse"][] | null;
-            procedureHistory?: components["schemas"]["PatientProcedureAuditEntryResponse"][] | null;
-            accessLog?: components["schemas"]["ActivityEntryResponse"][] | null;
+            procedures?: components["schemas"]["ExportedProcedureResponse"][] | null;
+            procedureHistory?: components["schemas"]["ExportedHistoryEntryResponse"][] | null;
+            accessLog?: components["schemas"]["ExportedAccessEntryResponse"][] | null;
             notifications?: components["schemas"]["ExportedNotificationResponse"][] | null;
+        };
+        PatientFlagsResponse: {
+            isRestricted?: boolean;
+            restrictionReason?: string | null;
+            /** Format: date-time */
+            restrictedAtUtc?: string | null;
+            isDisputed?: boolean;
+            disputeReason?: string | null;
+            /** Format: date-time */
+            disputedAtUtc?: string | null;
+            isAnonymised?: boolean;
+            /** Format: date-time */
+            anonymisedAtUtc?: string | null;
+        };
+        PatientLabelResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
         };
         PatientProcedureAssignmentResponse: {
             /** Format: uuid */
@@ -3619,6 +3783,12 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        PatientProcedureLabelResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            patientName?: string | null;
+        };
         PatientProcedureResponse: {
             /** Format: uuid */
             id?: string;
@@ -3654,6 +3824,7 @@ export interface components {
             canChangeAssignments?: boolean;
             canBeDeleted?: boolean;
             readOnlyReason?: string | null;
+            patientFlags?: components["schemas"]["PatientFlagsResponse"];
             stages?: components["schemas"]["PatientProcedureStageResponse"][] | null;
             assignments?: components["schemas"]["PatientProcedureAssignmentResponse"][] | null;
         };
@@ -3913,6 +4084,7 @@ export interface components {
         SetPatientFlagRequest: {
             set?: boolean;
             reason?: string | null;
+            confirmOpenProcedures?: boolean;
         };
         SetUserRolesRequest: {
             roles?: string[] | null;

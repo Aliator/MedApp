@@ -32,6 +32,7 @@ import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/procedures/StageList';
 import {StageWork} from '../../components/procedures/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/procedures/StatusChangeDialog';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
@@ -217,6 +218,9 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
           <AlertMessage message="The procedure could not be loaded. Please try again." />
         ) : actionError ? (
           <AlertMessage message={actionError} />
+        ) : procedure?.patientFlags ? (
+          // The patient's banners: restricted (when only blocking and cancelling are offered), disputed, anonymised.
+          <PatientFlagBanners patient={procedure.patientFlags} />
         ) : (
           // The patient's record is restricted or anonymised, so nothing here can change (and nothing is offered).
           procedure?.readOnlyReason && <AlertMessage status="warning" message={procedure.readOnlyReason} />

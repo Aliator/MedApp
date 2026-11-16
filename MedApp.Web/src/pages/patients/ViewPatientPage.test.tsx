@@ -6,6 +6,7 @@ import {ViewPatientPage} from './ViewPatientPage';
 const id = 'c184a7b8-2585-4437-bcd4-e1700be38299';
 const oriel = {id, firstName: 'Oriel', lastName: 'Penhallow', dateOfBirth: '1951-03-14', email: 'oriel.penhallow@example.com'};
 const ACCESS = '/api/activity/search';
+const CHANGED = "Someone else changed this patient's record while you were working on it. Reload it to see their change, then try again.";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -27,6 +28,7 @@ function renderPage(patient: object = oriel, user = adminUser, extra: Record<str
   current = patient;
   const fetch = mockApi({
     [`GET /api/patients/${id}`]: () => json(current),
+    'GET /api/procedures/patient-procedures/search': () => json(pageOf([], 0)),
     [`GET ${ACCESS}`]: () =>
       json(pageOf([{id: 'e1', action: 'PatientViewed', username: 'k.ashford', atUtc: '2026-11-15T10:00:00Z', patientId: id, details: '{}'}])),
     ...extra,
@@ -69,7 +71,20 @@ describe('ViewPatientPage, privacy', () => {
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
     expect(new URL(put.url).pathname).toBe(`/api/patients/${id}/restriction`);
-    expect(await put.json()).toEqual({set: true, reason: 'Synthetic accuracy check'});
+    expect(await put.json()).toEqual({set: true, reason: 'Synthetic accuracy check', confirmOpenProcedures: false});
+  });
+
+  it('keeps the flag dialog open, with the reason typed, when someone else changed the record meanwhile', async () => {
+    const {user} = renderPage(oriel, adminUser, {[`PUT /api/patients/${id}/restriction`]: () => json({title: CHANGED}, 409)});
+
+    await user.click(await privacyItem(user, 'Restrict Record'));
+    const dialog = await waitFor(() => openDialog()!);
+    await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Synthetic accuracy check');
+    await user.click(within(dialog).getByRole('button', {name: 'Restrict Record'}));
+
+    expect(await within(dialog).findByText(CHANGED)).toBeInTheDocument();
+    expect(openDialog()).not.toBeNull();
+    expect(within(dialog).getByRole('textbox', {name: /reason/i})).toHaveValue('Synthetic accuracy check');
   });
 
   it('lifts a restriction without a reason (sent as none), and says why the API refused', async () => {
@@ -85,7 +100,7 @@ describe('ViewPatientPage, privacy', () => {
 
     expect(await screen.findByText("This patient's record has been anonymised, so it can't be changed.")).toBeInTheDocument();
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
-    expect(await put.json()).toEqual({set: false, reason: null});
+    expect(await put.json()).toEqual({set: false, reason: null, confirmOpenProcedures: false});
   });
 
   it('marks the record as disputed, and clears a dispute', async () => {
@@ -104,7 +119,7 @@ describe('ViewPatientPage, privacy', () => {
 
     await waitFor(() => expect(calls(fetch).filter((c) => c === `PUT /api/patients/${id}/dispute`)).toHaveLength(2));
     const last = fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === 'PUT').pop()!;
-    expect(await last.json()).toEqual({set: false, reason: null});
+    expect(await last.json()).toEqual({set: false, reason: null, confirmOpenProcedures: false});
   });
 
   it('cancels a flag change and anonymising without asking the API', async () => {
@@ -127,7 +142,7 @@ describe('ViewPatientPage, privacy', () => {
 
     await user.click(await privacyItem(user, 'Anonymise Record'));
     const dialog = await waitFor(() => openDialog()!);
-    await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Past retention, reviewed');
+    await user.click(within(dialog).getByRole('radio', {name: /past its retention period/i}));
     await user.type(within(dialog).getByRole('textbox', {name: /to confirm/i}), 'Oriel Penhallow');
     await user.click(within(dialog).getByRole('button', {name: 'Anonymise Record'}));
 

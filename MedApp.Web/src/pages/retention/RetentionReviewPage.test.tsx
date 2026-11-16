@@ -48,12 +48,25 @@ describe('RetentionReviewPage', () => {
     expect(within(row).getByText('Adult')).toBeInTheDocument();
     expect(within(row).getByText('1 May 2016')).toBeInTheDocument();
     expect(within(row).getByText('1 May 2024')).toBeInTheDocument();
-    expect(within(row).getByRole('link', {name: 'Review'})).toHaveAttribute('href', `/patients/${adult}`);
+    // Each action names whose record it's for, though it shows only its verb.
+    const review = within(row).getByRole('link', {name: 'Review the record of Tamsin Rowcroft'});
+    expect(review).toHaveAttribute('href', `/patients/${adult}`);
+    expect(review).toHaveTextContent(/^Review$/);
+    expect(within(row).getByRole('button', {name: 'Keep the record of Tamsin Rowcroft'})).toHaveTextContent(/^Keep$/);
+    expect(within(row).getByRole('button', {name: 'Anonymise the record of Tamsin Rowcroft'})).toHaveTextContent(/^Anonymise$/);
     const kept = screen.getByRole('link', {name: 'Bryn Ottery'}).closest('tr')!;
     expect(within(kept).getByText('Child')).toBeInTheDocument();
     expect(within(kept).getByText('Kept until 1 January 2027: Synthetic legal hold')).toBeInTheDocument();
     expect(screen.getByText('12 records past their retention period')).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=1`]);
+  });
+
+  it('warns that only the adult and children periods are applied, so specialty records must be kept', async () => {
+    renderList();
+
+    expect(await screen.findByText(/MedApp applies only the adult \(8 years\) and children periods/)).toHaveTextContent(
+      /set Retention:AdultYears to the longest class/,
+    );
   });
 
   it('lists records being kept too, from its switch, and asks for them', async () => {
@@ -79,7 +92,7 @@ describe('RetentionReviewPage', () => {
     const {user} = renderList();
 
     const row = (await screen.findByRole('link', {name: 'Tamsin Rowcroft'})).closest('tr')!;
-    await user.click(within(row).getByRole('button', {name: 'Keep'}));
+    await user.click(within(row).getByRole('button', {name: 'Keep the record of Tamsin Rowcroft'}));
     const dialog = await waitFor(() => openDialog()!);
     expect(within(dialog).getByRole('combobox', {name: /review again on/i})).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', {name: 'Cancel'}));
@@ -91,8 +104,10 @@ describe('RetentionReviewPage', () => {
     const {user} = renderList();
 
     const row = (await screen.findByRole('link', {name: 'Bryn Ottery'})).closest('tr')!;
-    await user.click(within(row).getByRole('button', {name: 'Anonymise'}));
+    await user.click(within(row).getByRole('button', {name: 'Anonymise the record of Bryn Ottery'}));
     expect(await screen.findByRole('textbox', {name: /type bryn ottery to confirm/i})).toBeInTheDocument();
+    // From the review, the reason starts as past its retention period.
+    expect(screen.getByRole('radio', {name: /past its retention period/i})).toBeChecked();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -107,16 +122,15 @@ describe('RetentionReviewPage', () => {
     const {user} = renderWithApp(<RetentionReviewPage search={{}} onSearchChange={() => {}} />, {user: adminUser});
 
     const adultRow = (await screen.findByRole('link', {name: 'Tamsin Rowcroft'})).closest('tr')!;
-    await user.click(within(adultRow).getByRole('button', {name: 'Keep'}));
+    await user.click(within(adultRow).getByRole('button', {name: 'Keep the record of Tamsin Rowcroft'}));
     let dialog = await waitFor(() => openDialog()!);
     await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Synthetic legal hold');
     await user.click(within(dialog).getByRole('button', {name: 'Keep Record'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
     const childRow = screen.getByRole('link', {name: 'Bryn Ottery'}).closest('tr')!;
-    await user.click(within(childRow).getByRole('button', {name: 'Anonymise'}));
+    await user.click(within(childRow).getByRole('button', {name: 'Anonymise the record of Bryn Ottery'}));
     dialog = await waitFor(() => openDialog()!);
-    await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Past retention, reviewed');
     await user.type(within(dialog).getByRole('textbox', {name: /to confirm/i}), 'Bryn Ottery');
     await user.click(within(dialog).getByRole('button', {name: 'Anonymise Record'}));
     await waitFor(() => expect(openDialog()).toBeNull());

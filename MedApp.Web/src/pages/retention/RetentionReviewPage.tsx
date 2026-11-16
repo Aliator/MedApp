@@ -13,6 +13,7 @@ import {useListSettings} from '../../app/listSettings';
 import {Page} from '../../components/pages/Page';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {KeepRecordDialog} from '../../components/patients/KeepRecordDialog';
+import {SPECIALTY_RETENTION_WARNING} from '../../components/patients/retentionWarning';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
@@ -98,13 +99,29 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
       key: 'actions',
       header: 'Actions',
       width: pixel(330),
-      renderCell: (item) => (
-        <HStack gap={2}>
-          <Button label="Review" variant="secondary" size="sm" icon={<Icon icon={AppIcon.View} />} href={`/patients/${item.patientId}`} />
-          <Button label="Keep" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Archive} />} onClick={() => setKeeping(item)} />
-          <Button label="Anonymise" variant="destructive" size="sm" icon={<Icon icon={AppIcon.Delete} />} onClick={() => setAnonymising(item)} />
-        </HStack>
-      ),
+      // Each button's name says whose record it's for (the visible text stays short), so a screen reader doesn't hear
+      // the same "Anonymise" on every row.
+      renderCell: (item) => {
+        const whose = `the record of ${item.firstName} ${item.lastName}`;
+        return (
+          <HStack gap={2}>
+            <Button label={`Review ${whose}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.View} />} href={`/patients/${item.patientId}`}>
+              Review
+            </Button>
+            <Button label={`Keep ${whose}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.Archive} />} onClick={() => setKeeping(item)}>
+              Keep
+            </Button>
+            <Button
+              label={`Anonymise ${whose}`}
+              variant="destructive"
+              size="sm"
+              icon={<Icon icon={AppIcon.Delete} />}
+              onClick={() => setAnonymising(item)}>
+              Anonymise
+            </Button>
+          </HStack>
+        );
+      },
     },
   ];
 
@@ -116,7 +133,14 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
       title="Retention Review"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage message="The records due for review could not be loaded. Please try again." />}
+      message={
+        isError ? (
+          <AlertMessage message="The records due for review could not be loaded. Please try again." />
+        ) : (
+          // Until retention classes exist, every record is adult or child: specialty records could show years early.
+          <AlertMessage status="warning" message={SPECIALTY_RETENTION_WARNING} />
+        )
+      }
       actions={
         <Switch
           label="Include records being kept"
@@ -142,6 +166,7 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
                 dateOfBirth: anonymising.dateOfBirth,
               }
             }
+            defaultReason="RetentionPeriodEnded"
             onDone={() => setAnonymising(null)}
             onCancel={() => setAnonymising(null)}
           />

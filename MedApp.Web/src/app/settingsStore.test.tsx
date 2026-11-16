@@ -1,5 +1,5 @@
 import {renderToString} from 'react-dom/server';
-import {appSettings, clearStorageAtSignOut, defineSetting, ServerSettingsContext, useAppSetting} from './settingsStore';
+import {appSettings, clearStorageAtSignOut, defineSetting, flushSettings, onFlushSettings, ServerSettingsContext, useAppSetting} from './settingsStore';
 
 function Shows({setting}: {setting: string}) {
   const [value] = useAppSetting(setting);
@@ -176,5 +176,25 @@ describe('appSettings, with other tabs', () => {
     expect(listener).toHaveBeenCalledOnce();
     expect(appSettings.get(key)).toBeNull();
     unsubscribe();
+  });
+});
+
+describe('flushSettings', () => {
+  it('runs every pending save, ignoring one that fails, until it is removed', async () => {
+    const save = vi.fn(async () => {});
+    const failing = vi.fn(async () => {
+      throw new Error('The account could not be reached.');
+    });
+    const removeSave = onFlushSettings(save);
+    const removeFailing = onFlushSettings(failing);
+
+    await expect(flushSettings()).resolves.toBeUndefined();
+    expect(save).toHaveBeenCalledOnce();
+    expect(failing).toHaveBeenCalledOnce();
+
+    removeSave();
+    removeFailing();
+    await flushSettings();
+    expect(save).toHaveBeenCalledOnce();
   });
 });

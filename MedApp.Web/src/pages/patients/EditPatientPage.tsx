@@ -3,10 +3,11 @@ import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {ApiError} from '../../api/errors';
-import {patientQuery, useDeletePatient, useUpdatePatient, whyCantChange, type Patient, type PatientInput} from '../../api/patients';
+import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
 import {patientProcedureCountQuery} from '../../api/procedures';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
@@ -100,8 +101,9 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
         ) : problem.message ? (
           <AlertMessage message={problem.message} />
         ) : (
-          // A restricted or anonymised record can't be changed: the API refuses, so say so before anyone tries.
-          whyCantChange(patient) && <AlertMessage status="warning" message={whyCantChange(patient)!} />
+          // A restricted or anonymised record can't be changed: the API refuses, so its banners say so before anyone
+          // tries (and a disputed one says what the patient disputes).
+          <PatientFlagBanners patient={patient} />
         )
       }
       dialogs={

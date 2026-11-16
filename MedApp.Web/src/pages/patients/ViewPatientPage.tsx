@@ -183,25 +183,26 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
   const id = patient.id ?? '';
   const setFlag = useSetPatientFlag(id);
   const [change, setChange] = useState<PatientFlagChange | null>(null);
+  // Why the flag change failed: shown in its dialog, which stays open with the reason as typed.
+  const [flagProblem, setFlagProblem] = useState<SaveProblem>(NO_PROBLEM);
   const [isAnonymising, setIsAnonymising] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
 
   const open = (next: PatientFlagChange) => {
     onProblem(NO_PROBLEM);
+    setFlagProblem(NO_PROBLEM);
     setDialogKey((k) => k + 1);
     setChange(next);
   };
 
-  const confirmFlag = (reason: string) => {
+  const confirmFlag = (reason: string, confirmOpenProcedures: boolean) => {
     if (!change) return;
+    setFlagProblem(NO_PROBLEM);
     setFlag.mutate(
-      {...change, reason},
+      {...change, reason, confirmOpenProcedures},
       {
         onSuccess: () => setChange(null),
-        onError: (e) => {
-          onProblem(saveProblem(e, 'save'));
-          setChange(null);
-        },
+        onError: (e) => setFlagProblem(saveProblem(e, 'save')),
       },
     );
   };
@@ -248,7 +249,10 @@ function PrivacyActions({patient, onProblem}: {patient: Patient; onProblem: (pro
       <DropdownMenu items={items} alignment="end" button={{label: 'Privacy', variant: 'secondary', icon: <Icon icon={AppIcon.Shield} />}} />
       <PatientFlagDialog
         key={`flag-${dialogKey}`}
+        patientId={id}
         change={change}
+        errors={flagProblem.validation}
+        message={flagProblem.message ?? (flagProblem.validation?.general.length ? flagProblem.validation.general.join(' ') : null)}
         isProcessing={setFlag.isPending}
         onConfirm={confirmFlag}
         onCancel={() => setChange(null)}
