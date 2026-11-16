@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.3 (draft), 16 November 2026: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup (roadmap step 9's first part), with a new risk 21; 0.4 (draft), the same day: admins' monitoring rules, with a new risk 22 (monitoring of staff) |
+| **Version** | 0.3 (draft), 16 November 2026: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup (roadmap step 9's first part), with a new risk 21; 0.4 (draft), the same day: admins' monitoring rules, with a new risk 24 (monitoring of staff; 22 and 23 are the attachments branch's) |
 | **Assessed** | MedApp on `main` as of 16 November 2026, with branch `feature/privacy-features` (roadmap step 7) and branch `feature/nhs-integrations` (step 9's first part), and its Azure design (`deploy/azure`), which has not been deployed |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
@@ -36,7 +36,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 - **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts. Admins can also set **monitoring rules** (Administration, Monitoring): to be told in the bell when a particular staff member, or anyone, does something to a procedure (creates one, finishes a stage, completes, blocks or cancels one, is assigned, unlocks a stage, changes a due date), optionally only for a priority, template or stage. Each person chooses whether they're told when they're assigned a procedure.
 - **Sharing:** none outside the customer. Within the customer, every staff user can see every patient (section 5, risk 1). A read-only FHIR API returns a patient's details, by ID or NHS number, in the NHS's standard format, but only to a caller signed in as one of the customer's staff, and each use is logged (risks 1 and 21); there are no system-to-system clients yet.
 - **Deletion:** staff can delete a patient who has no procedures. Admins can delete cancelled or archived procedures; their audit entries remain. Admins can anonymise a patient's record in place (identifying details and free text replaced, the structure kept). Nothing is deleted on a schedule: records past their retention period are listed for an admin to review.
-- **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions. Monitoring rules tell an admin about single actions as they happen; they don't score, rank or judge staff, and decide nothing (risk 22).
+- **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions. Monitoring rules tell an admin about single actions as they happen; they don't score, rank or judge staff, and decide nothing (risk 24).
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
 
 ### Scope
@@ -50,7 +50,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 
 ### Context
 
-- **Relationship:** patients are receiving care from the customer, and expect their information to be recorded and kept confidential. They don't use MedApp themselves. **Staff** are the customer's employees (or contractors): there's an imbalance of power, so monitoring them must be necessary, proportionate and open (risk 22).
+- **Relationship:** patients are receiving care from the customer, and expect their information to be recorded and kept confidential. They don't use MedApp themselves. **Staff** are the customer's employees (or contractors): there's an imbalance of power, so monitoring them must be necessary, proportionate and open (risk 24).
 - **Control:** patients have no direct control over what is recorded; they rely on the customer and its staff.
 - **Vulnerable people:** patients include people who are ill, children, and possibly people lacking capacity.
 - **Expectations:** patients would expect a care record system; they wouldn't expect staff outside their care to browse their record, or their data to be used for anything else.
@@ -61,7 +61,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 ### Purposes
 
 - **For patients:** their procedures are coordinated safely, in order, by the right staff, with an accurate record.
-- **For the customer:** coordinating work, accountability through the audit trail, meeting record-keeping duties, and supervising work as it happens (admins' monitoring rules), for example a team lead keeping an eye on a new member of staff's work. Monitoring is supervision, not clinical follow-up, which doesn't rely on it (hazard H-23).
+- **For the customer:** coordinating work, accountability through the audit trail, meeting record-keeping duties, and supervising work as it happens (admins' monitoring rules), for example a team lead keeping an eye on a new member of staff's work. Monitoring is supervision, not clinical follow-up, which doesn't rely on it (hazard H-29).
 - **For the supplier:** providing the service under contract. No purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)).
 
 ## Step 3: Consultation
@@ -89,7 +89,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 | **Rights** | Supported by the product: a subject access export, restriction and dispute flags, anonymisation; the clinician review of an export is by hand ([data-subject-rights.md](data-subject-rights.md)). |
 | **Processors** | The supplier, under an Article 28 agreement ([dpa-template.md](dpa-template.md)); Microsoft as a sub-processor ([sub-processors.md](sub-processors.md)). |
 | **International transfers** | None by the supplier; UK hosting ([international-transfers.md](international-transfers.md)). |
-| **Monitoring staff** | Admins' monitoring rules process **staff** personal data: what a named member of staff does, as it happens. **Necessary:** supervising clinical and administrative work (supporting a new member of staff, knowing when work is blocked or cancelled) is part of running a service, and the same facts are already in the audit trail admins can read; the rules only bring them sooner. **Proportionate:** only admins can have rules, and only while they're admins; each admin sees only their own; the events are workflow actions already audited (no reads, searches, sign-ins, locations or timings beyond the action's own); a notification carries no free text and no patient identifiers; nobody is told about their own actions; at most 50 rules each. **Open:** staff are told in the staff privacy notice ([privacy-notice-staff-template.md](privacy-notice-staff-template.md)), and the customer should have a monitoring policy that says why and how admins use it, following the ICO's guidance on monitoring workers. Risk 22. |
+| **Monitoring staff** | Admins' monitoring rules process **staff** personal data: what a named member of staff does, as it happens. **Necessary:** supervising clinical and administrative work (supporting a new member of staff, knowing when work is blocked or cancelled) is part of running a service, and the same facts are already in the audit trail admins can read; the rules only bring them sooner. **Proportionate:** only admins can have rules, and only while they're admins; each admin sees only their own; the events are workflow actions already audited (no reads, searches, sign-ins, locations or timings beyond the action's own); a notification carries no free text and no patient identifiers; nobody is told about their own actions; at most 50 rules each. **Open:** staff are told in the staff privacy notice ([privacy-notice-staff-template.md](privacy-notice-staff-template.md)), and the customer should have a monitoring policy that says why and how admins use it, following the ICO's guidance on monitoring workers. Risk 24. |
 | **Function creep** | The supplier commits to no use of its own. Any new purpose needs a DPIA update first. |
 
 ## Step 5: Risks
@@ -132,7 +132,7 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 | 19 | **Lack of transparency:** patients don't know MedApp is used or who runs it. | Depends on the customer's privacy notice. | Possible | Minimal | **Low** |
 | 20 | **Real data in development or testing:** patient data copied into a developer's database, a screenshot, a test, or an AI tool. | Convention only (`AGENTS.md`: synthetic data only); `medapp-dev` refuses anything but a local database. | Remote | Severe | **Medium** |
 | 21 | **The NHS number, a national identifier:** a disclosed NHS number lets anyone match the patient across every NHS system; a wrong number ties the patient to someone else's record in the systems that read it from MedApp. | New with branch `feature/nhs-integrations`, and scored for it: an optional NHS number on every patient, returned by a FHIR API that any signed-in staff member (or a script using their session) can call; not traced against PDS; not encrypted at field level. | Possible | Significant | **Medium** |
-| 22 | **Excessive or covert monitoring of staff:** an admin uses monitoring rules to follow one member of staff's every action, without a legitimate reason or their knowledge (to build a case, or to harass), and staff feel watched. | Rules can name any account and any of eight events, with no reason recorded; staff can't see the rules about them; rule changes aren't audited. | Possible | Significant | **Medium** |
+| 24 | **Excessive or covert monitoring of staff:** an admin uses monitoring rules to follow one member of staff's every action, without a legitimate reason or their knowledge (to build a case, or to harass), and staff feel watched. | Rules can name any account and any of eight events, with no reason recorded; staff can't see the rules about them; rule changes aren't audited. | Possible | Significant | **Medium** |
 
 ## Step 6: Measures to reduce the risks
 
@@ -391,7 +391,7 @@ Likelihood is judged for MedApp **as it was on `main` on 16 November 2026, befor
 
 **Residual risk:** now **medium**; after **low**.
 
-### Risk 22: monitoring of staff
+### Risk 24: monitoring of staff
 
 | Measure | Status | Where |
 |---|---|---|
