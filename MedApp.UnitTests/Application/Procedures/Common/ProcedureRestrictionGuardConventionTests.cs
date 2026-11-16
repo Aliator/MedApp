@@ -3,6 +3,9 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Commands.CreateAppointment;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
+using MedApp.Application.Attachments.Commands.DeleteAttachment;
+using MedApp.Application.Attachments.Commands.DownloadAttachment;
+using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
@@ -36,8 +39,22 @@ public sealed class ProcedureRestrictionGuardConventionTests
 
     private static readonly MethodInfo EnsureCanChange = typeof(PatientRules).GetMethod(nameof(PatientRules.EnsureCanChange))!;
 
-    /// <summary>Handlers that create something for a patient, so check the patient themselves rather than load a procedure for update.</summary>
-    private static readonly Type[] Creators = [typeof(CreatePatientProcedureHandler), typeof(CreateAppointmentHandler)];
+    /// <summary>
+    /// Commands that take the procedure repository only to read a procedure, and change nothing about the patient's
+    /// record, so a restriction doesn't stop them: a download (audited, but nothing changes).
+    /// </summary>
+    private static readonly Type[] ReadOnlyCommands = [typeof(DownloadAttachmentHandler)];
+
+    /// <summary>
+    /// Commands that read the procedure (or patient) rather than loading it for update, and check the patient's record
+    /// themselves with <see cref="PatientRules.EnsureCanChange"/>: creating a procedure or an appointment, and attaching
+    /// or deleting a file.
+    /// </summary>
+    private static readonly Type[] CheckTheirOwnPatient =
+    [
+        typeof(CreatePatientProcedureHandler), typeof(CreateAppointmentHandler), typeof(UploadAttachmentHandler),
+        typeof(DeleteAttachmentHandler),
+    ];
 
     private static readonly MethodInfo GetAppointmentForUpdate =
         typeof(IAppointmentRepository).GetMethod(nameof(IAppointmentRepository.GetForUpdateAsync))!;
@@ -69,7 +86,8 @@ public sealed class ProcedureRestrictionGuardConventionTests
         {
             var calls = CallsMadeBy(handler, includeNested: true).ToList();
             var isGuarded = calls.Any(m => Guards.Any(g => Same(m, g)))
-                            || (Creators.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)));
+                            || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)))
+                            || ReadOnlyCommands.Contains(handler);
             isGuarded.Should().BeTrue($"{handler.Name} changes a procedure, so it must load it through a guard that checks the patient");
         }
     }
@@ -105,7 +123,7 @@ public sealed class ProcedureRestrictionGuardConventionTests
         {
             var calls = CallsMadeBy(handler, includeNested: true).ToList();
             var isGuarded = calls.Any(m => guards.Any(g => Same(m, g)))
-                            || (Creators.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)));
+                            || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)));
             isGuarded.Should().BeTrue($"{handler.Name} changes an appointment, so it must check the patient's record first");
         }
     }

@@ -16,6 +16,30 @@ const MANIFEST: RouterManifest = {
 const json = (body: unknown) => new Response(JSON.stringify(body), {headers: {'content-type': 'application/json'}});
 const signedIn = {isAuthenticated: true, name: 'test-user', roles: ['User']};
 const signedInAdmin = {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']};
+/** A synthetic attached file, as the API lists it. */
+const fileList = (fields: Record<string, unknown>) => ({
+  items: [
+    {
+      id: '0000000d-0000-0000-0000-000000000009',
+      patientId: '0000000d-0000-0000-0000-000000000001',
+      attachedTo: 'Patient',
+      fileName: 'referral-letter.pdf',
+      contentType: 'application/pdf',
+      typeName: 'PDF',
+      sizeBytes: 2048,
+      scanStatus: 'NotScanned',
+      hasThumbnail: false,
+      uploadedByUsername: 'test.staff',
+      uploadedAtUtc: '2026-06-15T09:00:00Z',
+      canDelete: true,
+      isDeleted: false,
+      ...fields,
+    },
+  ],
+  totalCount: 1,
+  maxFileBytes: 20 * 1024 * 1024,
+  allowedExtensions: ['.pdf'],
+});
 const patient = {
   id: '0000000d-0000-0000-0000-000000000001',
   firstName: 'Test',
@@ -210,8 +234,9 @@ describe('server rendering', () => {
     expect(html).toContain('192.0.2.44');
   });
 
-  it("renders a patient's page with the first page of their timeline and what's due", async () => {
+  it("renders a patient's page with their files, the first page of their timeline and what's due", async () => {
     const requests = api({
+      '/api/attachments': fileList({}),
       '/api/auth/whoami': signedIn,
       '/api/auth/me/settings': {settings: null},
       '/api/notifications': {items: [], unreadCount: 0},
@@ -260,6 +285,10 @@ describe('server rendering', () => {
     expect(html).toContain('Monday 15 June 2026');
     expect(html).toContain('Due 30 Jun 2026');
     expect(html).toContain('Load More');
+    expect(html).toContain('referral-letter.pdf');
+    expect(html).toContain('Added by test.staff, 15 Jun 2026, 10:00');
+    const files = requests.find((r) => new URL(r.url).pathname === '/api/attachments')!;
+    expect(new URL(files.url).search).toBe(`?PatientId=${patient.id}`);
     const feed = requests.find((r) => new URL(r.url).pathname === `/api/patients/${patient.id}/timeline`)!;
     expect(new URL(feed.url).search).toBe('?PageSize=20');
   });
@@ -323,6 +352,36 @@ describe('server rendering', () => {
     expect(html).toContain('Welcome, test-user');
     expect(html).toContain('Today, Monday 23 November');
     expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
+  });
+
+  it("renders a procedure's page with its own files", async () => {
+    const procedureId = '0000000d-0000-0000-0000-000000000002';
+    const requests = api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/procedures/patient-procedures/${procedureId}`]: {
+        id: procedureId,
+        patientId: patient.id,
+        patientName: 'Test Patient',
+        title: 'Knee assessment',
+        status: 'InProgress',
+        priority: 'Low',
+        dueDate: '2026-06-30',
+        canEditDetails: true,
+        canWorkOnStages: true,
+        stages: [],
+        assignments: [],
+      },
+      '/api/attachments': fileList({attachedTo: 'Procedure', procedureId, procedureTitle: 'Knee assessment', fileName: 'consent-form.pdf'}),
+    });
+
+    const html = await (await page(`/procedures/${procedureId}`, 'medapp_session=abc')).text();
+
+    expect(html).toContain('Knee assessment');
+    expect(html).toContain('consent-form.pdf');
+    const files = requests.find((r) => new URL(r.url).pathname === '/api/attachments')!;
+    expect(new URL(files.url).search).toBe(`?ProcedureId=${procedureId}`);
   });
 
   it("renders the patient's banner on the server, with their NHS number", async () => {

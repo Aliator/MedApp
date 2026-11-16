@@ -1,3 +1,4 @@
+using MedApp.Application.Attachments.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Appointments;
@@ -148,6 +149,28 @@ public static class PatientExportMapper
                     Message = n.Message,
                     ProcedureId = n.ProcedureId,
                     AppointmentId = n.AppointmentId
+                })
+                .ToList(),
+            // Who by the username recorded at the time, as the procedure history does.
+            Attachments = record.Attachments
+                .Select(a => new ExportedAttachmentResponse
+                {
+                    Id = a.Id,
+                    AttachedTo = AttachmentTarget.KindOf(a).ToString(),
+                    ProcedureId = a.ProcedureId,
+                    StageName = a.StageId is { } stageId
+                        ? record.Procedures.SelectMany(p => p.Stages).FirstOrDefault(s => s.Id == stageId)?.Name
+                        : null,
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    TypeName = AttachmentFileTypes.FromContentType(a.ContentType)?.Name ?? a.ContentType,
+                    SizeBytes = a.SizeBytes,
+                    Sha256 = a.Sha256,
+                    ScanStatus = a.ScanStatus.ToString(),
+                    UploadedBy = a.UploadedByUsername,
+                    UploadedAtUtc = a.UploadedAtUtc,
+                    DeletedAtUtc = a.DeletedAtUtc,
+                    DeletedBy = a.DeletedByUsername
                 })
                 .ToList()
         };

@@ -6,6 +6,7 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import {Token} from '@astryxdesign/core/Token';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useEffect, type ReactNode} from 'react';
 import {activityActionLabel, describeActivity} from '../../api/activity';
@@ -21,6 +22,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {RichText} from '../../components/shared/RichText';
 import {PanelHeader} from '../../components/views/PanelCard';
 import {formatAppointmentTime, formatDate, formatDateTime} from '../../utils/dates';
+import {formatFileSize} from '../../utils/fileSize';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 
 /** While printing, only the export shows: the side nav and the page's buttons are left off the paper. */
@@ -132,8 +134,8 @@ const nothing = (text: string) => (
 
 /**
  * A subject access export (admin): everything MedApp holds about a patient (their details, procedures with stages,
- * notes and assignments, their appointments, the history of changes to both, who has accessed the record, and
- * notifications about them),
+ * notes and assignments, their appointments, the files attached to them (their details, deleted ones too, but never
+ * their contents), the history of changes to them, who has accessed the record, and notifications about them),
  * readable on screen, printable, and downloadable as JSON. The page shows every field the JSON holds, so what's checked
  * on screen is what's given; staff appear by username only (no account IDs or network addresses). Opening it is recorded in the activity log, once: it's
  * fetched once per visit, and the download and print use that copy. Before it's given to the patient, a clinician
@@ -193,6 +195,17 @@ export function PatientExportPage({id}: {id: string}) {
   );
 }
 
+type ExportedFile = NonNullable<PatientExport['attachments']>[number];
+
+const SCAN_STATES: Record<string, string> = {NotScanned: 'not scanned', Clean: 'clean', Infected: 'malware found'};
+
+/** What an exported file was attached to, in words: "Attached to the patient", "Attached to Consent, in Knee review". */
+function attachedToText(file: ExportedFile, procedureTitles: Map<string | undefined, string>): string {
+  if (file.attachedTo === 'Patient' || !file.procedureId) return 'Attached to the patient.';
+  const title = procedureTitles.get(file.procedureId) || 'a procedure';
+  return file.attachedTo === 'Stage' ? `Attached to ${file.stageName ?? 'a stage'}, in ${title}.` : `Attached to ${title}.`;
+}
+
 function ExportContent({data}: {data: PatientExport}) {
   const patient = data.patient;
   const procedures = data.procedures ?? [];
@@ -201,8 +214,9 @@ function ExportContent({data}: {data: PatientExport}) {
   const appointmentHistory = data.appointmentHistory ?? [];
   const access = data.accessLog ?? [];
   const notifications = data.notifications ?? [];
+  const files = data.attachments ?? [];
   // What an appointment is for: its procedure's title (from the export's procedures) and its stage.
-  const procedureTitles = new Map(procedures.map((p) => [p.id, p.title ?? '']));
+  const procedureTitles = new Map(procedures.map((procedure) => [procedure.id, procedure.title ?? '']));
   const appointmentFor = (a: ExportedAppointment) =>
     a.procedureId ? [procedureTitles.get(a.procedureId) || 'A deleted procedure', a.stageName].filter(Boolean).join(': ') : 'Not for a procedure';
   // Which appointment a notification is about, by its status and time.
@@ -288,6 +302,48 @@ function ExportContent({data}: {data: PatientExport}) {
               ))}
             </VStack>
           )}
+      </ExportSection>
+
+      <ExportSection title={`Files (${files.length})`}>
+        <VStack gap={4} hAlign="stretch">
+          <Text type="body" color="secondary">
+            The details of every file attached to the patient, their procedures and stages, including deleted ones. The files
+            themselves aren't included in this export.
+          </Text>
+          {files.length === 0
+            ? nothing('No files.')
+            : (
+              <List hasDividers edge="bleed">
+                {files.map((file) => (
+                  <ListItem
+                    key={file.id}
+                    align="first-line"
+                    label={
+                      <HStack gap={2} vAlign="center" wrap="wrap">
+                        <Text type="body" weight="semibold">
+                          {file.fileName}
+                        </Text>
+                        {file.deletedAtUtc && <Token size="sm" label="Deleted" color="gray" />}
+                      </HStack>
+                    }
+                    description={
+                      <VStack gap={1}>
+                        <Text type="supporting" color="secondary">
+                          {`${file.typeName} (${file.contentType}), ${formatFileSize(file.sizeBytes ?? 0)}. ${attachedToText(file, procedureTitles)}`}
+                        </Text>
+                        <Text type="supporting" color="secondary">
+                          {`Added ${when(file.uploadedAtUtc)} by ${file.uploadedBy}${file.deletedAtUtc ? `; deleted ${when(file.deletedAtUtc)} by ${file.deletedBy}` : ''}`}
+                        </Text>
+                        <Text type="supporting" color="secondary">
+                          {`Malware scan: ${SCAN_STATES[file.scanStatus ?? ''] ?? file.scanStatus}. SHA-256: ${file.sha256}`}
+                        </Text>
+                      </VStack>
+                    }
+                  />
+                ))}
+              </List>
+            )}
+        </VStack>
       </ExportSection>
 
       <ExportSection title={`Procedure History (${history.length})`}>

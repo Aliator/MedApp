@@ -149,10 +149,10 @@ export const screens: Screen[] = [
     },
   },
   { name: 'patients-sorted', title: 'Patients sorted by date of birth, newest first', path: '/patients?sort=DateOfBirth&asc=false' },
-  { name: 'patient-view', title: 'View patient: details beside the timeline (what is due, filters, the feed by day)', path: (d) => `/patients/${d.patientId}` },
+  { name: 'patient-view', title: 'View patient: details and files beside the timeline (what is due, filters, the feed by day)', path: (d) => `/patients/${d.patientId}` },
   {
     name: 'patient-view-narrow',
-    title: 'View patient on a narrow window: one card, Details and Timeline folding',
+    title: 'View patient on a narrow window: one card, Details, Files and Timeline folding',
     path: (d) => `/patients/${d.patientId}`,
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
@@ -179,7 +179,7 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'procedure-view', title: 'Procedure page: details and current stage beside the stages', path: (d) => `/procedures/${d.procedureId}` },
+  { name: 'procedure-view', title: 'Procedure page: details, current stage and files beside the stages', path: (d) => `/procedures/${d.procedureId}` },
   {
     name: 'procedure-narrow',
     title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
@@ -196,6 +196,15 @@ export const screens: Screen[] = [
     prepare: async (page) => {
       await page.setViewportSize({ width: 900, height: 900 });
       await page.getByRole('button', { name: 'Show stages' }).click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-stage-files',
+    title: "Procedure page, the current stage's files opened under its notes (the procedure's own files are open by default)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Files', exact: true }).first().click();
       await settle(page);
     },
   },

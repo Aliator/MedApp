@@ -1,6 +1,7 @@
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Procedures.PatientProcedures;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -65,6 +66,12 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id)
             .ToListAsync(ct);
 
+        // Every file, deleted ones too: their records are kept, with their names, until the bytes are purged.
+        var attachments = await Tracking(context.Attachments, forUpdate)
+            .Where(a => a.PatientId == patientId)
+            .OrderBy(a => a.UploadedAtUtc).ThenBy(a => a.Id)
+            .ToListAsync(ct);
+
         return new PatientRecord
         {
             Patient = patient,
@@ -73,8 +80,15 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Activity = activity,
             Appointments = appointments,
             AppointmentHistory = appointmentHistory,
-            Notifications = notifications
+            Notifications = notifications,
+            Attachments = attachments
         };
+    }
+
+    public async Task SaveAsync(ActivityEntry activity, IReadOnlyCollection<PatientProcedureAuditEntry> audit, CancellationToken ct)
+    {
+        context.PatientProcedureAuditEntries.AddRange(audit);
+        await SaveAsync(activity, ct);
     }
 
     public async Task SaveAsync(ActivityEntry activity, CancellationToken ct)

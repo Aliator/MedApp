@@ -164,6 +164,16 @@ public sealed class PatientPrivacyTests : IntegrationTest
         var procedure = await CreateProcedureAsync(_admin, patient.Id, template.Id);
         var staff = await CreateStaffAsync(UserRole);
         (await PutStageNotesAsync(_admin, procedure.Id, procedure.Stages[0].Id, $"Notes about {Canary}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        // Files whose names hold the canary: on the patient, the procedure and the stage, and one deleted already.
+        var files = new[]
+        {
+            await UploadAttachmentOkAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, $"Letter for {Canary}.pdf"),
+            await UploadAttachmentOkAsync(_admin, $"procedureId={procedure.Id}", SyntheticPdf, $"{Canary} referral.pdf"),
+            await UploadAttachmentOkAsync(_admin, $"stageId={procedure.Stages[0].Id}", SyntheticPdf, $"{Canary} consent.pdf"),
+            await UploadAttachmentOkAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, $"Old {Canary}.pdf"),
+        };
+        (await _admin.GetAsync($"/api/attachments/{files[1].Id}/content")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await _admin.DeleteAsync($"/api/attachments/{files[3].Id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await _admin.PatchAsJsonAsync(ProcedureUrl(procedure.Id), new UpdatePatientProcedureRequest
             {
                 Title = $"Procedure for {Canary}",
@@ -237,6 +247,8 @@ public sealed class PatientPrivacyTests : IntegrationTest
                      (_admin, AppointmentUrl(booked.Id)),
                      (_admin, AppointmentUrl(requested.Id)),
                      (_admin, $"/api/appointments/search?PatientId={patient.Id}&PageSize=100"),
+                     (_admin, $"/api/attachments?patientId={patient.Id}&includeDeleted=true"),
+                     (_admin, $"/api/attachments?procedureId={procedure.Id}&includeDeleted=true"),
                      (staff.Client, "/api/notifications"),
                      (watcher.Client, "/api/notifications"),
                      (staff.Client, $"/api/procedures/patient-procedures/search?PatientId={patient.Id}&Statuses=Cancelled"),
@@ -246,6 +258,18 @@ public sealed class PatientPrivacyTests : IntegrationTest
             (await body.Content.ReadAsStringAsync()).Should().NotContainEquivalentOf(Canary, url);
         }
 
+        // Every file is deleted (its bytes wait for the purge), renamed, and can't be downloaded.
+        var listed = await (await _admin.GetAsync($"/api/attachments?patientId={patient.Id}&includeDeleted=true"))
+            .ReadAsAsync<MedApp.Contracts.Attachments.Responses.AttachmentListResponse>();
+        listed.Items.Should().HaveCount(4).And.AllSatisfy(a =>
+        {
+            a.IsDeleted.Should().BeTrue();
+            a.FileName.Should().Be("Anonymised file.pdf");
+        });
+        (await (await staff.Client.GetAsync($"/api/attachments?patientId={patient.Id}"))
+            .ReadAsAsync<MedApp.Contracts.Attachments.Responses.AttachmentListResponse>()).Items.Should().BeEmpty();
+        (await _admin.GetAsync($"/api/attachments/{files[0].Id}/content")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await UploadAttachmentAsync(_admin, $"patientId={patient.Id}", SyntheticPdf, "after.pdf")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         // The monitoring notification never held free text, keeps its fixed title, and isn't in the patient's export.
         (await (await _admin.GetAsync($"{PatientUrl(patient.Id)}/export")).Content.ReadAsStringAsync())
             .Should().NotContain("MonitoredProcedureCancelled").And.NotContain(watcher.Username);

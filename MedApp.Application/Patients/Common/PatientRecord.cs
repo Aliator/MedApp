@@ -1,5 +1,6 @@
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Attachments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -31,4 +32,10 @@ public sealed class PatientRecord
 
     /// <summary>Notifications about any of the patient's procedures (including deleted ones) or appointments.</summary>
     public required IReadOnlyList<Notification> Notifications { get; init; }
+
+    /// <summary>
+    /// The files attached to the patient, their procedures and stages, oldest first, deleted ones included (their
+    /// records, and bytes, are kept until the purge). Their bytes are in the file store, not here.
+    /// </summary>
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 }

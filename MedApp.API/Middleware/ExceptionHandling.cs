@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -44,6 +45,31 @@ public sealed class ExceptionHandling(RequestDelegate next)
         catch (AccountLockedOutException ex)
         {
             await WriteProblem(context, StatusCodes.Status423Locked, ex.Message);
+        }
+        catch (FileTooLargeException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status413PayloadTooLarge, ex.Message);
+        }
+        catch (BadHttpRequestException ex) when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge && !context.Response.HasStarted)
+        {
+            // Kestrel's request size limit (an upload's [RequestSizeLimit]), hit while the body was being read.
+            await WriteProblem(context, StatusCodes.Status413PayloadTooLarge, new FileTooLargeException().Message);
+        }
+        catch (UnsupportedFileTypeException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status415UnsupportedMediaType, ex.Message);
+        }
+        catch (MalwareDetectedException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status422UnprocessableEntity, ex.Message);
+        }
+        catch (FileStorageUnavailableException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status503ServiceUnavailable, ex.Message);
+        }
+        catch (StorageUnavailableException ex) when (!context.Response.HasStarted)
+        {
+            await WriteProblem(context, StatusCodes.Status503ServiceUnavailable, ex.Message);
         }
     }
 

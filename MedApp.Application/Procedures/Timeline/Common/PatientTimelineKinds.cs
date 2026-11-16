@@ -46,6 +46,8 @@ public static class PatientTimelineKinds
         StatusChanged => IsBlockChange(entry.Details) ? PatientTimelineKind.Blocks : PatientTimelineKind.Status,
         DetailsUpdated => entry.Details.Contains(DueDateChange) ? PatientTimelineKind.DueDates : PatientTimelineKind.Details,
         Deleted => PatientTimelineKind.Deleted,
+        // Downloads are files too, though the timeline never shows them (PatientTimelineSearch leaves them out).
+        AttachmentAdded or AttachmentDeleted or AttachmentDownloaded => PatientTimelineKind.Files,
         _ => PatientTimelineKind.Details
     };
 
@@ -66,6 +68,7 @@ public static class PatientTimelineKinds
         var dueDates = kinds.Contains(PatientTimelineKind.DueDates);
         var details = kinds.Contains(PatientTimelineKind.Details);
         var deleted = kinds.Contains(PatientTimelineKind.Deleted);
+        var files = kinds.Contains(PatientTimelineKind.Files);
 
         return entries.Where(e =>
             (created && e.Action == Created)
@@ -78,7 +81,8 @@ public static class PatientTimelineKinds
                 && !e.Details.Contains(ToBlocked) && !(e.Details.Contains(FromBlocked) && !e.Details.Contains(ToCancelled)))
             || (dueDates && e.Action == DetailsUpdated && e.Details.Contains(DueDateChange))
             || (details && e.Action == DetailsUpdated && !e.Details.Contains(DueDateChange))
-            || (deleted && e.Action == Deleted));
+            || (deleted && e.Action == Deleted)
+            || (files && (e.Action == AttachmentAdded || e.Action == AttachmentDeleted || e.Action == AttachmentDownloaded)));
     }
 
     /// <summary>To Blocked, or back from it (a cancellation from Blocked isn't an unblock).</summary>

@@ -1,5 +1,7 @@
 import {keepPreviousData, queryOptions} from '@tanstack/react-query';
 import {formatShortDate} from '../utils/dates';
+import {formatFileSize} from '../utils/fileSize';
+import {NO_PROCEDURE} from './attachments';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
@@ -19,6 +21,9 @@ export const AUDIT_ACTIONS = [
   'StageFinished',
   'StageUnlocked',
   'Deleted',
+  'AttachmentAdded',
+  'AttachmentDeleted',
+  'AttachmentDownloaded',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -33,7 +38,13 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   StageFinished: 'Stage finished',
   StageUnlocked: 'Stage unlocked',
   Deleted: 'Deleted',
+  AttachmentAdded: 'File attached',
+  AttachmentDeleted: 'File deleted',
+  AttachmentDownloaded: 'File downloaded',
 };
+
+/** The actions about attached files, for the log's Files look-up. */
+export const ATTACHMENT_AUDIT_ACTIONS: readonly AuditAction[] = ['AttachmentAdded', 'AttachmentDeleted', 'AttachmentDownloaded'];
 
 /** An action in words: "StageNotesUpdated" → "Stage notes saved". */
 export const auditActionLabel = (action: string | null | undefined) =>
@@ -131,7 +142,24 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
       const reason = typeof d.reason === 'string' && d.reason.trim() ? `: ${d.reason.trim()}` : '';
       return `Finished without a visit${requirement}${reason}`;
     }
+    case 'AttachmentAdded':
+    case 'AttachmentDeleted':
+    case 'AttachmentDownloaded':
+      return describeAttachment(d);
     default:
       return '';
   }
 }
+
+const ATTACHED_TO: Record<string, string> = {Patient: 'on the patient', Procedure: 'on the procedure', Stage: 'on the stage'};
+
+/** A file's entry: "scan.pdf (1.2 MB), on the patient". */
+function describeAttachment(d: Details): string {
+  const name = typeof d.fileName === 'string' && d.fileName.trim() ? d.fileName.trim() : 'A file';
+  const size = typeof d.size === 'number' ? ` (${formatFileSize(d.size)})` : '';
+  const where = typeof d.attachedTo === 'string' && ATTACHED_TO[d.attachedTo] ? `, ${ATTACHED_TO[d.attachedTo]}` : '';
+  return `${name}${size}${where}`;
+}
+
+/** Whether an entry is about a patient's own file, which has no procedure (its ID is all zeros, its title empty). */
+export const isPatientFileEntry = (entry: Pick<AuditEntry, 'patientProcedureId'>) => entry.patientProcedureId === NO_PROCEDURE;

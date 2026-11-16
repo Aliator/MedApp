@@ -38,5 +38,8 @@ public enum PatientTimelineKind
     /// An appointment was requested, booked, moved, attended or not, cancelled, or its notes saved (from appointments'
     /// history, not the audit log, so no audit entry is of this kind).
     /// </summary>
-    Appointments
+    Appointments,
+
+    /// <summary>A file was attached to the patient, a procedure or a stage, or deleted.</summary>
+    Files
 }

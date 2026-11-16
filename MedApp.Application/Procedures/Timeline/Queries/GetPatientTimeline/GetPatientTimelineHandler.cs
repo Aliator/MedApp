@@ -55,7 +55,9 @@ public sealed class GetPatientTimelineHandler(
             // The searches already leave deleted procedures out for staff; this makes sure nothing slips through.
             Items = page
                 .Where(e => request.IsAdmin
-                            || (e.Audit is { } audit ? audit.CurrentProcedureTitle is not null : e.Appointment!.IsVisibleToStaff))
+                            || (e.Audit is { } audit
+                                ? audit.CurrentProcedureTitle is not null || audit.IsAboutPatient
+                                : e.Appointment!.IsVisibleToStaff))
                 .Select(e => e.Audit is { } audit
                     ? TimelineMapper.ToResponse(audit, request.IsAdmin)
                     : TimelineMapper.ToResponse(e.Appointment!, request.IsAdmin))

@@ -55,7 +55,7 @@ public sealed partial class AnonymisePatientHandler(
             throw new ValidationException(
                 [new ValidationFailure(nameof(request.Confirmation), "Type the patient's full name exactly as shown to confirm.")]);
 
-        PatientAnonymiser.Apply(record, timeProvider.GetUtcNow().UtcDateTime);
+        var fileDeletions = PatientAnonymiser.Apply(record, timeProvider.GetUtcNow().UtcDateTime, activityLog.Actor);
 
         await repository.SaveAsync(
             activityLog.Entry(ActivityAction.PatientAnonymised, patient.Id, new
@@ -64,6 +64,7 @@ public sealed partial class AnonymisePatientHandler(
                 note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
                 procedureCount = record.Procedures.Count
             }),
+            fileDeletions,
             cancellationToken);
 
         return PatientMapper.ToResponse(patient);

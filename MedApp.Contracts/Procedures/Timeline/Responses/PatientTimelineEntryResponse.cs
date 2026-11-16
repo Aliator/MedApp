@@ -10,8 +10,8 @@ public sealed class PatientTimelineEntryResponse
     public Guid Id { get; set; }
 
     /// <summary>
-    /// The filter it falls under: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted or
-    /// Appointments.
+    /// The filter it falls under: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted,
+    /// Appointments or Files.
     /// </summary>
     public string Kind { get; set; } = string.Empty;
 
@@ -23,7 +23,10 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>Who did it.</summary>
     public string Username { get; set; } = string.Empty;
 
-    /// <summary>The procedure; null for an appointment not for a procedure.</summary>
+    /// <summary>
+    /// The procedure; null for an appointment not for a procedure, and empty (all zeros) for a file attached to the
+    /// patient themselves (AttachedTo Patient).
+    /// </summary>
     public Guid? ProcedureId { get; set; }
 
     /// <summary>The procedure's title now, or, once it's deleted, its title when the change was made. Null without a procedure.</summary>
@@ -93,4 +96,13 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>AppointmentRescheduled: its member of staff before.</summary>
     public string? PreviousStaffUsername { get; set; }
+
+    /// <summary>A file attached or deleted (AttachmentAdded, AttachmentDeleted): which one.</summary>
+    public Guid? AttachmentId { get; set; }
+
+    /// <summary>A file attached or deleted: what it's attached to, Patient, Procedure or Stage.</summary>
+    public string? AttachedTo { get; set; }
+
+    /// <summary>A file attached or deleted: its name. Admins only (it's free text).</summary>
+    public string? FileName { get; set; }
 }

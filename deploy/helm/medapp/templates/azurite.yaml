@@ -1,0 +1,99 @@
+{{- if .Values.attachments.azurite.enabled }}
+{{- if not (include "medapp.attachmentsStorage" .) }}
+{{- fail "attachments.azurite needs its account key: set externalSecrets.attachments (account-key and connection-string), or turn Azurite off." }}
+{{- end }}
+{{- $name := include "medapp.azuriteName" . }}
+# Azurite, Azure Storage's emulator: blob storage for attachments, for kind and trying the chart out. Not production
+# storage: one pod, one volume, no backups. Production uses an Azure Storage account (attachments.azurite.enabled
+# false, and the connection string from a Secret).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: azurite
+spec:
+  selector:
+    {{- include "medapp.selectorLabels" (list . "azurite") | nindent 4 }}
+  ports:
+    - name: blob
+      port: 10000
+      targetPort: blob
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: azurite
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "azurite") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "medapp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: azurite
+    spec:
+      # The image's own non-root user (node, 1000); fsGroup lets it write to the volume.
+      {{- include "medapp.podSecurity" (list . 1000) | nindent 6 }}
+        fsGroup: 1000
+      containers:
+        - name: azurite
+          image: {{ .Values.attachments.azurite.image }}
+          securityContext:
+            {{- include "medapp.containerSecurityContext" . | nindent 12 }}
+          # Blob storage only, with everything it keeps on the volume. Account names come from the path, never the
+          # host name (which is the Service's). Any API version the Azure SDK asks for, since the SDK moves ahead of
+          # Azurite. No telemetry: it couldn't get out anyway (the network policy).
+          args:
+            - azurite-blob
+            - --blobHost=0.0.0.0
+            - --blobPort=10000
+            - --location=/data
+            - --disableProductStyleUrl
+            - --skipApiVersionCheck
+            - --disableTelemetry
+          env:
+            - name: AZURITE_ACCOUNT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "medapp.attachmentsSecretName" . }}
+                  key: account-key
+            # Only this account, with that key: setting it turns off Azurite's well-known devstoreaccount1.
+            - name: AZURITE_ACCOUNTS
+              value: "{{ .Values.attachments.azurite.accountName }}:$(AZURITE_ACCOUNT_KEY)"
+          ports:
+            - name: blob
+              containerPort: 10000
+          readinessProbe:
+            tcpSocket:
+              port: blob
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: blob
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.attachments.azurite.resources | nindent 12 }}
+          volumeMounts:
+            # The root filesystem is read-only; Azurite writes only to its location.
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.attachments.azurite.storage.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.attachments.azurite.storage.size }}
+{{- end }}

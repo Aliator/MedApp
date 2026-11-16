@@ -36,13 +36,15 @@ How a page renders on the server: its route's `beforeLoad` and `loader` run, the
 
 ```
 src/
-  api/          openapi-fetch client, generated schema.d.ts, 400 → field-error mapper, paged search queries
+  api/          openapi-fetch client, generated schema.d.ts, 400 → field-error mapper, paged search queries,
+                  attachments.ts (file lists, and uploads with progress through XMLHttpRequest)
   app/          App, providers (theme, locale, links, query cache), light/dark mode
   auth/         whoami query, login and logout
   components/   ports of MedApp.Client's Components/, built only from Astryx:
                   pages/ (Page, PageHeader), forms/ (FormCard, FormSection, date-of-birth inputs, PatientSummary),
                   tables/ (DataTable, TableActions, AvatarCell), modals/ (ConfirmDialog, SelectionDialog, SearchDialog),
-                  views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage)
+                  views/ (ViewCard, ViewSection), navigation/, shared/ (AppIcon, AlertMessage),
+                  attachments/ (Attachments, AttachmentsFold: attached files, with uploads and downloads)
   pages/        one folder per page: patients/ (list, view, add, edit), users/, account/, login/, home/ (the welcome page), tasks/ (My Tasks);
                   listSearch.ts parses the list pages' URL state
   routes/       TanStack Router file routes (src/routeTree.gen.ts is generated from them)

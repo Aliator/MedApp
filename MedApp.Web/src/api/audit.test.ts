@@ -1,4 +1,4 @@
-import {auditActionLabel, describeAuditDetails} from './audit';
+import {ATTACHMENT_AUDIT_ACTIONS, auditActionLabel, describeAuditDetails, isPatientFileEntry} from './audit';
 
 const describe_ = (action: string, details: unknown) => describeAuditDetails({action, details: JSON.stringify(details)});
 
@@ -8,6 +8,10 @@ describe('auditActionLabel', () => {
     expect(auditActionLabel('DetailsUpdated')).toBe('Details edited');
     expect(auditActionLabel('SomethingNew')).toBe('SomethingNew');
     expect(auditActionLabel(null)).toBe('');
+  });
+
+  it('names the actions on files', () => {
+    expect(ATTACHMENT_AUDIT_ACTIONS.map(auditActionLabel)).toEqual(['File attached', 'File deleted', 'File downloaded']);
   });
 });
 
@@ -55,6 +59,7 @@ describe('describeAuditDetails', () => {
 
   it('has nothing to add for stage steps, or unreadable details', () => {
     expect(describe_('StageFinished', {})).toBe('');
+    expect(describe_('StageStarted', {})).toBe('');
     expect(describeAuditDetails({action: 'Created', details: 'not json'})).toBe('');
   });
 
@@ -78,5 +83,24 @@ describe('describeAuditDetails', () => {
 
   it('puts values that are not words into words as they are', () => {
     expect(describe_('DetailsUpdated', {changes: {priority: {from: null, to: 3}}})).toBe('Priority  → 3');
+  });
+
+  it("says which file, how large, and what it's attached to", () => {
+    const details = {attachmentId: 'a1', fileName: 'scan.pdf', contentType: 'application/pdf', size: 1258291, attachedTo: 'Stage'};
+    expect(describe_('AttachmentAdded', details)).toBe('scan.pdf (1.2 MB), on the stage');
+    expect(describe_('AttachmentDeleted', {...details, attachedTo: 'Patient'})).toBe('scan.pdf (1.2 MB), on the patient');
+    expect(describe_('AttachmentDownloaded', {...details, attachedTo: 'Procedure'})).toBe('scan.pdf (1.2 MB), on the procedure');
+  });
+
+  it('copes with a file entry missing its details', () => {
+    expect(describe_('AttachmentAdded', {})).toBe('A file');
+    expect(describe_('AttachmentAdded', {fileName: ' ', size: '12', attachedTo: 'Elsewhere'})).toBe('A file');
+  });
+});
+
+describe('isPatientFileEntry', () => {
+  it("knows an entry about a patient's own file, which has no procedure", () => {
+    expect(isPatientFileEntry({patientProcedureId: '00000000-0000-0000-0000-000000000000'})).toBe(true);
+    expect(isPatientFileEntry({patientProcedureId: '00000034-0000-0000-0000-000000000001'})).toBe(false);
   });
 });

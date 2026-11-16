@@ -4,6 +4,7 @@ import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
+  isPatientEntry,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
   patientTimelineQuery,
@@ -80,6 +81,7 @@ describe('timeline filters', () => {
       'Status',
       'Due dates',
       'Other edits',
+      'Files',
       'Deleted',
     ]);
   });
@@ -247,5 +249,36 @@ describe('describeTimelineEntry', () => {
       title: 'Status changed to in review',
       detail: 'Was in progress, changed automatically',
     });
+  });
+
+  it('words a file attached or deleted: its name only for admins, and what it was attached to', () => {
+    const file = (fields: Partial<TimelineEntry>) =>
+      describeTimelineEntry(entry({kind: 'Files', attachmentId: '00000031-0000-0000-0000-000000000009', ...fields}));
+
+    // Staff get no names (free text).
+    expect(file({action: 'AttachmentAdded', attachedTo: 'Procedure', fileName: null})).toEqual({title: 'Attached a file', detail: 'To the procedure'});
+    expect(file({action: 'AttachmentAdded', attachedTo: 'Stage', stageName: 'Consultation', fileName: 'scan.pdf'})).toEqual({
+      title: 'Attached scan.pdf',
+      detail: 'To the Consultation stage',
+    });
+    expect(file({action: 'AttachmentDeleted', attachedTo: 'Stage', stageName: null, fileName: '  '})).toEqual({
+      title: 'Deleted a file',
+      detail: 'From a stage',
+    });
+    expect(file({action: 'AttachmentDeleted', attachedTo: 'Patient', procedureId: NO_PROCEDURE_ID, procedureTitle: '', fileName: 'letter.docx'})).toEqual({
+      title: 'Deleted letter.docx',
+      detail: 'From the patient',
+    });
+  });
+});
+
+const NO_PROCEDURE_ID = '00000000-0000-0000-0000-000000000000';
+
+describe('isPatientEntry', () => {
+  it("knows an entry about the patient's own file, which has no procedure", () => {
+    expect(isPatientEntry(entry({attachedTo: 'Patient', procedureId: NO_PROCEDURE_ID}))).toBe(true);
+    expect(isPatientEntry(entry({attachedTo: null, procedureId: NO_PROCEDURE_ID}))).toBe(true);
+    expect(isPatientEntry(entry({attachedTo: 'Procedure'}))).toBe(false);
+    expect(isPatientEntry(entry({}))).toBe(false);
   });
 });

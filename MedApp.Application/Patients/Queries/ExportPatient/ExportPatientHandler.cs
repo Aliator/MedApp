@@ -36,7 +36,8 @@ public sealed class ExportPatientHandler(
             Activity = [.. record.Activity, entry],
             Appointments = record.Appointments,
             AppointmentHistory = record.AppointmentHistory,
-            Notifications = record.Notifications
+            Notifications = record.Notifications,
+            Attachments = record.Attachments
         };
 
         var usernames = await identity.GetUsernamesByIdAsync(PatientExportMapper.UserIds(withExport), cancellationToken);

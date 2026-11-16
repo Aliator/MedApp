@@ -3,6 +3,7 @@ using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.API.Middleware;
+using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Http;
 
@@ -59,6 +60,27 @@ public sealed class ExceptionHandlingTests
         yield return new TestCaseData(new ForbiddenException("Synthetic problem."), StatusCodes.Status403Forbidden);
         yield return new TestCaseData(new InvalidCredentialsException(), StatusCodes.Status401Unauthorized);
         yield return new TestCaseData(new AccountLockedOutException(5), StatusCodes.Status423Locked);
+        yield return new TestCaseData(new FileTooLargeException(), StatusCodes.Status413PayloadTooLarge);
+        yield return new TestCaseData(new UnsupportedFileTypeException("Synthetic problem."), StatusCodes.Status415UnsupportedMediaType);
+        yield return new TestCaseData(new MalwareDetectedException(), StatusCodes.Status422UnprocessableEntity);
+        yield return new TestCaseData(new FileStorageUnavailableException(), StatusCodes.Status503ServiceUnavailable);
+    }
+
+    [Test]
+    public async Task InvokeAsync_KestrelsRequestSizeLimit_Returns413SayingTheFileIsTooLarge()
+    {
+        var (context, body) = await Run(new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge));
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+        body.GetProperty("title").GetString().Should().Be(new FileTooLargeException().Message);
+    }
+
+    [Test]
+    public async Task InvokeAsync_OtherBadRequests_LetThemThrough()
+    {
+        var act = () => Run(new BadHttpRequestException("Bad chunk.", StatusCodes.Status400BadRequest));
+
+        await act.Should().ThrowAsync<BadHttpRequestException>();
     }
 
     [TestCaseSource(nameof(KnownProblems))]

@@ -18,6 +18,7 @@ import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
+  isPatientEntry,
   MAX_TIMELINE_PROCEDURES,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
@@ -45,6 +46,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   Status: AppIcon.StatusChange,
   DueDates: AppIcon.Calendar,
   Details: AppIcon.Edit,
+  Files: AppIcon.Attachment,
   Deleted: AppIcon.Delete,
 };
 
@@ -69,6 +71,8 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.Unlock;
     case 'Unassigned':
       return AppIcon.Revoke;
+    case 'AttachmentDeleted':
+      return AppIcon.Delete;
     case 'StatusChanged':
       if (entry.toStatus === 'Blocked') return AppIcon.StatusBlocked;
       // Unblocked: back to work (cancelling a blocked procedure is a status change like any other).
@@ -90,7 +94,8 @@ export interface PatientTimelineProps {
  * and the appointment history, in one feed.
  * At the top, what's due (open procedures by due date, overdue flagged); then filter chips by kind and by
  * procedure; then the feed, newest first, grouped by UK day, with "Load more" for older entries (keyset paging on
- * the server). Each entry says when, who, what and which procedure (a link to it).
+ * the server). Each entry says when, who, what and which procedure (a link to it). Files attached to or deleted from
+ * the patient, a procedure or a stage are entries too (the Files kind); only admins get their names.
  *
  * Use it wherever a patient's history belongs, at its own height: in a card's scrolling body (a `PanelCard`, or a
  * section of a `FoldingCard`). It lays out its own padding. The API decides what each person sees: staff get only
@@ -358,7 +363,8 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
             </Text>
           )}
           <HStack gap={2} vAlign="center" wrap="wrap">
-            {!entry.procedureId ? null : entry.isProcedureDeleted ? (
+            {/* No procedure to link to: an appointment not for one, or a patient's own file (its detail says "To the patient"). */}
+            {!entry.procedureId || isPatientEntry(entry) ? null : entry.isProcedureDeleted ? (
               <>
                 <Text type="supporting" color="secondary" maxLines={1}>
                   {entry.procedureTitle}

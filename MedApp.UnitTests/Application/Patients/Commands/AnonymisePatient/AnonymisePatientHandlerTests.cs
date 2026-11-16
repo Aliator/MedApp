@@ -8,6 +8,7 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -82,7 +83,7 @@ public sealed class AnonymisePatientHandlerTests
         var act = () => Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"*{expected}*");
-        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<IReadOnlyCollection<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -108,7 +109,7 @@ public sealed class AnonymisePatientHandlerTests
             .WithMessage("This patient has 1 open appointment (needing booking or booked), so their record can't be anonymised. " +
                          "Cancel it, or record its outcome, first.");
         record.Patient.FirstName.Should().Be(PatientsTestConstants.ValidFirstName);
-        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<IReadOnlyCollection<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -147,7 +148,7 @@ public sealed class AnonymisePatientHandlerTests
         var response = await Handler.Handle(Command(record.Patient.Id), CancellationToken.None);
 
         response.IsAnonymised.Should().BeTrue();
-        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<IReadOnlyCollection<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -167,8 +168,8 @@ public sealed class AnonymisePatientHandlerTests
     {
         var record = Given(PrivacyTestConstants.CreateRecord(null, CreateProcedure(Status.Completed), CreateProcedure(Status.Archived)));
         ActivityEntry? entry = null;
-        _repository.Setup(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()))
-            .Callback((ActivityEntry e, CancellationToken _) => entry = e)
+        _repository.Setup(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<IReadOnlyCollection<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()))
+            .Callback((ActivityEntry e, IReadOnlyCollection<PatientProcedureAuditEntry> _, CancellationToken _) => entry = e)
             .Returns(Task.CompletedTask);
         using var cts = new CancellationTokenSource();
 
@@ -182,7 +183,7 @@ public sealed class AnonymisePatientHandlerTests
         entry.PatientId.Should().Be(record.Patient.Id);
         entry.Details.Should().Be("""{"reason":"RetentionPeriodEnded","note":"Reviewed by the records manager","procedureCount":2}""");
         _repository.Verify(r => r.GetAsync(record.Patient.Id, true, cts.Token), Times.Once);
-        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), cts.Token), Times.Once);
+        _repository.Verify(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<IReadOnlyCollection<PatientProcedureAuditEntry>>(), cts.Token), Times.Once);
     }
 
     [TestCase(null)]
@@ -191,8 +192,8 @@ public sealed class AnonymisePatientHandlerTests
     {
         var record = Given(PrivacyTestConstants.CreateRecord(null));
         ActivityEntry? entry = null;
-        _repository.Setup(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()))
-            .Callback((ActivityEntry e, CancellationToken _) => entry = e)
+        _repository.Setup(r => r.SaveAsync(It.IsAny<ActivityEntry>(), It.IsAny<IReadOnlyCollection<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()))
+            .Callback((ActivityEntry e, IReadOnlyCollection<PatientProcedureAuditEntry> _, CancellationToken _) => entry = e)
             .Returns(Task.CompletedTask);
 
         await Handler.Handle(new AnonymisePatientCommand(record.Patient.Id, "CreatedInError", note, FullName), CancellationToken.None);

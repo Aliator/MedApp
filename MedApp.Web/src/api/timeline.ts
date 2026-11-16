@@ -1,5 +1,6 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
+import {NO_PROCEDURE} from './attachments';
 import {api, unwrap, type Schemas} from './client';
 
 export type TimelineEntry = Schemas['PatientTimelineEntryResponse'];
@@ -15,7 +16,7 @@ export const MAX_TIMELINE_PROCEDURES = 50;
 export const TIMELINE_PAGE_SIZE = 20;
 
 /** What a timeline can be filtered to, as the API names it. Only admins see Deleted. */
-export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Deleted'] as const;
+export const TIMELINE_KINDS = ['Created', 'Stages', 'Appointments', 'Notes', 'Assignments', 'Blocks', 'Status', 'DueDates', 'Details', 'Files', 'Deleted'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 const KIND_LABELS: Record<TimelineKind, string> = {
@@ -28,6 +29,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Status: 'Status',
   DueDates: 'Due dates',
   Details: 'Other edits',
+  Files: 'Files',
   Deleted: 'Deleted',
 };
 
@@ -184,6 +186,10 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       };
     case 'Deleted':
       return {title: 'Procedure deleted', detail: entry.fromStatus ? `Was ${words(entry.fromStatus)}` : ''};
+    case 'AttachmentAdded':
+      return {title: `Attached ${entry.fileName?.trim() || 'a file'}`, detail: `To ${attachedToWords(entry)}`};
+    case 'AttachmentDeleted':
+      return {title: `Deleted ${entry.fileName?.trim() || 'a file'}`, detail: `From ${attachedToWords(entry)}`};
     default:
       return isAppointmentEntry(entry) ? describeAppointmentEntry(entry) : {title: entry.action ?? 'Changed', detail: ''};
   }
@@ -250,6 +256,19 @@ function describeAppointmentEntry(entry: TimelineEntry): TimelineWording {
     default:
       return {title: `Appointment changed${about}`, detail: slot};
   }
+}
+
+/**
+ * Whether an entry is about the patient's own file, not one of their procedures: it has no procedure to link to
+ * (its `procedureId` is all zeros and its title empty).
+ */
+export const isPatientEntry = (entry: TimelineEntry) => entry.attachedTo === 'Patient' || entry.procedureId === NO_PROCEDURE;
+
+/** What a file was attached to, in words: "the patient", "the procedure", "the Consultation stage". */
+function attachedToWords(entry: TimelineEntry): string {
+  if (isPatientEntry(entry)) return 'the patient';
+  if (entry.attachedTo === 'Stage') return entry.stageName ? `the ${entry.stageName} stage` : 'a stage';
+  return 'the procedure';
 }
 
 const OPEN_STATUSES = new Set(['Unassigned', 'Assigned', 'InProgress', 'InReview']);

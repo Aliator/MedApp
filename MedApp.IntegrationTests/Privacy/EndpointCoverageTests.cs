@@ -46,6 +46,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/appointments/{id:guid}"] = Records("PatientViewed"),
         ["api/appointments/search"] = Records("PatientListed"),
         ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar
+        ["api/attachments"] = Records("AttachmentsViewed"),
+        ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the procedure audit log
+        ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
         ["api/patients/labels"] = Nothing("labels for pins the user chose; recording them would log views nobody made"),
@@ -125,6 +128,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         // An appointment with the admin, so their calendar names the patient.
         var day = NextWorkingDay();
         var appointment = await BookNewAppointmentAsync(admin, patientId, adminId, UkAt(day, 9));
+        var file = await UploadAttachmentOkAsync(admin, $"procedureId={procedure.Id}", SyntheticPdf, "synthetic.pdf");
 
         var calls = new (string Url, string Action, Guid? PatientId)[]
         {
@@ -142,6 +146,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             (AppointmentUrl(appointment.Id), "PatientViewed", patientId),
             ("/api/appointments/search", "PatientListed", patientId),
             ($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}", "PatientListed", patientId),
+            ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),
+            ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

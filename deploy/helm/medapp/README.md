@@ -7,6 +7,7 @@ Steps 2 and 3 of the Kubernetes plan (`docs/todo.md`). It deploys:
 - **An ingress** in front of the API (`ingress.enabled`), with TLS from cert-manager if you like.
 - **The EF migrations** as a Job, from the migrations bundle in the same image (`/app/efbundle`). The same Job then makes the **first admin**.
 - **Valkey**, the backplane that lets several copies of the API share live notifications (`backplane`).
+- **File storage for attachments** (`attachments`): Azurite, Azure Storage's emulator, in the cluster (on by default, for kind and trying it out), or an Azure Storage account.
 - **Network policies** around all of it.
 
 The quickest way to see it running is the local kind cluster: `deploy/kind/up.sh` installs this chart with `deploy/kind/values.yaml`. See `deploy/kind/README.md`.
@@ -34,17 +35,18 @@ Label the namespace `pod-security.kubernetes.io/enforce=restricted`: everything 
 
 ## Secrets
 
-The chart needs three Secrets:
+The chart needs four Secrets:
 - **The database:** the API's connection string under `connection-string`, plus SQL Server's `sa-password` when it runs in the cluster.
 - **The first admin:** `username` and `password`.
 - **The backplane:** the API's connection string to it under `connection-string`, plus Valkey's `password` when it runs in the cluster.
+- **The attachments' file storage:** the API's Azure Storage connection string under `connection-string`, plus Azurite's `account-key` when it runs in the cluster.
 
 Each comes from one of three places, in this order:
-1. **An existing Secret** (`database.existingSecret`, `firstAdmin.existingSecret`, `backplane.existingSecret`), made some other way.
-2. **A secret store** (`externalSecrets.enabled`): External Secrets Operator fills the Secrets from a SecretStore or ClusterSecretStore, such as Azure Key Vault. `externalSecrets.database`, `externalSecrets.firstAdmin` and `externalSecrets.backplane` say where each key comes from in the store. This is the way for real environments, and for Argo CD.
+1. **An existing Secret** (`database.existingSecret`, `firstAdmin.existingSecret`, `backplane.existingSecret`, `attachments.existingSecret`), made some other way.
+2. **A secret store** (`externalSecrets.enabled`): External Secrets Operator fills the Secrets from a SecretStore or ClusterSecretStore, such as Azure Key Vault. `externalSecrets.database`, `externalSecrets.firstAdmin`, `externalSecrets.backplane` and `externalSecrets.attachments` say where each key comes from in the store. This is the way for real environments, and for Argo CD.
 3. **The chart itself**, as a fallback: random values (username `admin` for the first admin), kept across upgrades and on uninstall, like SQL Server's volume. It uses Helm's `lookup`, which doesn't work under `helm template` or Argo CD.
 
-An external database (`sql.enabled=false`) needs its connection string from 1 or 2.
+An external database (`sql.enabled=false`) needs its connection string from 1 or 2. So does an Azure Storage account for attachments; without one (below), the API runs without file storage.
 
 ## Migrations and the first admin
 
@@ -69,6 +71,18 @@ Set `api.replicas` above 1. Live notifications then go through the **backplane**
 - **Spread across nodes:** with more than one copy, the scheduler is asked to put them on different nodes (a topology spread over `kubernetes.io/hostname`). It's a preference, not a rule, so a one-node cluster such as kind still runs them all.
 - **The chart refuses** more than one copy without the backplane.
 
+## Attachments
+
+Staff attach files (scans, photos, results, letters, up to 20 MiB each) to patients, procedures and stages. Their details are in the database; the files themselves are in Azure Blob Storage, in the container `attachments.container` (`attachments` by default), which the API makes if it's missing. The API reads the storage account's connection string from the attachments Secret (`ConnectionStrings__Attachments`).
+- **Azurite** (`attachments.azurite`, on by default) is Azure Storage's emulator, run in the cluster for kind and for trying the chart out:
+  - **Blob storage only,** on port 10000, as one pod (a StatefulSet) with its files on a volume (`attachments.azurite.storage`).
+  - **Its own account,** `medapp` (`attachments.azurite.accountName`), with a random 64-byte key. Azurite's well-known `devstoreaccount1`, whose key is published, is then off. The chart makes the key and keeps it across upgrades, as it does the other passwords, unless it comes from an existing Secret or the secret store (`account-key`). Azurite doesn't store the key with the files, so a new key still opens them.
+  - **Plain http inside the cluster,** as for SQL Server and Valkey: only the API may connect (the network policy), and it needs the account key.
+  - **Not production storage.** It's one pod and one volume, with no redundancy, no backups and no encryption of its own, and the chart backs nothing up. Deleting its volume (`data-medapp-azurite-0`) deletes every attached file. Patients' files in production belong in an Azure Storage account.
+- **An Azure Storage account** (`deploy/azure`): turn Azurite off (`attachments.azurite.enabled=false`) and give the connection string through `attachments.existingSecret` or `externalSecrets` (with `externalSecrets.attachments.account-key: null`). Allow the API to reach it through `networkPolicy.extraEgress`, on 443.
+- **No file storage at all:** with Azurite off and no connection string (no `attachments.existingSecret`, and `externalSecrets` off or `externalSecrets.attachments.connection-string: null`), the API still starts and everything else works; only uploads and downloads answer 503 ("File storage isn't set up"). The install notes say so. The API's reference to the attachments Secret is `optional`, so the same goes for a Secret that's missing (say, a secret store entry not made yet): no file storage, rather than an API that can't start. Azurite's reference isn't optional: it can't run without its key.
+- **Scratch space:** the API streams each upload (up to 20 MiB) into a temporary file in `/tmp` while it checks it, deleted straight after, so the API's `/tmp` volume allows 1 GiB.
+
 ## The page server
 
 Pages are rendered on the server by Node (`MedApp.Web/server/server.mjs`). With `api.pageServer.enabled` (the default, and what kind and Azure use), it runs as a second container, `pages`, in each API pod:
@@ -80,7 +94,7 @@ Pages are rendered on the server by Node (`MedApp.Web/server/server.mjs`). With 
 - **Logs:** the API pod's default container is `api` (`kubectl.kubernetes.io/default-container`), so the page server's own log, with its render errors, is `kubectl logs deploy/medapp-api -c pages`. The API's log says only which page fell back.
 - **Stopping:** like the API, it waits 5 seconds (`preStop`), then finishes the pages it's sending and exits.
 - **Its own limits:** `api.pageServer.resources` (128 MiB requested, a 512 MiB limit for both its processes; about 76 MiB in use on kind, supervisor and worker together).
-- **Network policies** apply to the whole pod, so the page server could make the API's connections too (DNS, the database, the backplane), though it has none of their passwords.
+- **Network policies** apply to the whole pod, so the page server could make the API's connections too (DNS, the database, the backplane, Azurite), though it has none of their passwords or keys.
 - **No workload identity:** the pod is annotated `azure.workload.identity/skip-containers: pages`, so if the API is ever given a federated identity (passwordless Azure SQL), Azure's webhook won't put its token into the page server.
 
 With `api.pageServer.enabled=false`, the API starts Node inside its own container instead, as it does outside Kubernetes. Node then gets an allowlist of the API's environment, but runs as the same user, so it could read the API's secrets from `/proc`; and if it stops, it isn't restarted until the pod is.
@@ -91,7 +105,8 @@ With `api.pageServer.enabled=false`, the API starts Node inside its own containe
   - Only the ingress controller reaches the API, on its app port.
   - Only the API and the migrations Job reach SQL Server, and SQL Server reaches nothing.
   - Only the API reaches Valkey, and Valkey reaches nothing. Valkey also needs a password.
-  - The API and the Job reach only DNS and the database, plus anything in `networkPolicy.extraEgress`. Use that for an external database, which the policies otherwise block.
+  - Only the API reaches Azurite, on 10000, and Azurite reaches nothing. Azurite also needs its account key.
+  - The API reaches only DNS, the database, Valkey and Azurite; the Job only DNS and the database. Both also reach anything in `networkPolicy.extraEgress`. Use that for an external database or an Azure Storage account, which the policies otherwise block.
 - **Health checks** are on their own ports, which neither the Service nor the ingress exposes, so only the kubelet's probes reach them:
   - The API's, on 8081: `/alive` for the startup and liveness probes, and `/health` for readiness.
   - The page server's, on 8083: `/alive` for liveness only.
@@ -99,7 +114,7 @@ With `api.pageServer.enabled=false`, the API starts Node inside its own containe
   - The page server runs in a container of its own, as its own user, with none of the API's secrets ([The page server](#the-page-server)).
   - Every pod meets the `restricted` Pod Security Standard: non-root users, the default seccomp profile, no privilege escalation, and all capabilities dropped. SQL Server keeps `NET_BIND_SERVICE`, which `sqlservr` needs to start.
   - No pod gets a Kubernetes API token, because none calls the API.
-  - Root filesystems are read-only. The API's `/tmp` is a small scratch volume (the page server has none), and SQL Server writes its data to its own volume.
+  - Root filesystems are read-only. The API's `/tmp` is a scratch volume (1 GiB, for uploads; the page server has none), and SQL Server and Azurite write their data to their own volumes.
 - **HTTPS:** the API sends HSTS outside Development, so browsers stay on https once they've used it. Have the ingress controller redirect http to https.
 - **Resource limits** on every container.
 
@@ -107,5 +122,6 @@ With `api.pageServer.enabled=false`, the API starts Node inside its own containe
 
 Argo CD (`deploy/argocd`) and Azure (`deploy/azure`) use this chart; what Azure still lacks is in `deploy/azure/README.md`. In the chart and the app:
 - **Readiness ignores the database and Valkey.** `/health` only says the process is up, so a pod stays ready while either is down. A database check needs care: it would hold up the first install, where the API starts before the migrations Job has made the schema.
-- **Images by tag, not digest.** SQL Server (`2022-latest`) and Valkey are pulled by tags that move, and so are the Dockerfile's base images, so a new node can pull something newer than the rest.
-- **Passwords changed in the store reach running pods only when they restart.** External Secrets updates the Secrets (`externalSecrets.refreshInterval`), but the API and Valkey read them as environment variables at start, and nothing restarts them.
+- **Images by tag, not digest.** SQL Server (`2022-latest`) and Valkey are pulled by tags that move, and so are the Dockerfile's base images, so a new node can pull something newer than the rest. Azurite is pinned to a version (`3.37.0`), but by tag too.
+- **Backups of Azurite's files.** None: it's for kind and trying the chart out. Production uses an Azure Storage account, with its own soft delete (`deploy/azure`).
+- **Passwords changed in the store reach running pods only when they restart.** External Secrets updates the Secrets (`externalSecrets.refreshInterval`), but the API, Valkey and Azurite read them as environment variables at start, and nothing restarts them.

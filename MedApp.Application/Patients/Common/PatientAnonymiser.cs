@@ -1,5 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MedApp.Application.Activity.Common;
+using MedApp.Application.Attachments.Common;
+using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -18,6 +21,9 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Notifications about the procedures take the new titles, except those whose title is fixed (the appointment
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
+/// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
+/// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
+/// purge of deleted files.</item>
 /// </list>
 /// The patient's ID, and every link to it, stays: on its own it identifies nobody.
 /// </summary>
@@ -33,10 +39,19 @@ public static class PatientAnonymiser
     /// <summary>The title of a procedure with no template name, or one that has been deleted.</summary>
     public const string ProcedureTitle = "Anonymised procedure";
 
-    /// <summary>Keys whose text is free text wherever they appear in an entry's details.</summary>
-    private static readonly HashSet<string> FreeTextKeys = ["title", "notes", "reason"];
+    /// <summary>An attached file's name, before its type's usual extension.</summary>
+    public const string FileName = "Anonymised file";
 
-    public static void Apply(PatientRecord record, DateTime nowUtc)
+    /// <summary>Keys whose text is free text wherever they appear in an entry's details (a file's name included).</summary>
+    private static readonly HashSet<string> FreeTextKeys = ["title", "notes", "reason", "fileName"];
+
+    /// <summary>
+    /// Anonymises the record. <paramref name="by"/> is who's doing it, recorded as having deleted the files still
+    /// live; without one, they're deleted by nobody in particular. Returns the audit entries for those deletions
+    /// (<see cref="PatientProcedureAuditAction.AttachmentDeleted"/>, with the file's new name), for the caller to save
+    /// with the record.
+    /// </summary>
+    public static IReadOnlyList<PatientProcedureAuditEntry> Apply(PatientRecord record, DateTime nowUtc, ActivityActor? by = null)
     {
         var patient = record.Patient;
         patient.FirstName = FirstName;
@@ -89,6 +104,28 @@ public static class PatientAnonymiser
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.ProcedureId is { } id ? titles.GetValueOrDefault(id, ProcedureTitle) : ProcedureTitle;
+
+        var deletions = new List<PatientProcedureAuditEntry>();
+        var actor = new ProcedureActor(by?.UserId ?? Guid.Empty, by?.Username ?? string.Empty);
+        foreach (var attachment in record.Attachments)
+        {
+            attachment.FileName = FileName + (AttachmentFileTypes.FromContentType(attachment.ContentType)?.Extensions[0] ?? string.Empty);
+            if (attachment.IsDeleted)
+                continue;
+
+            attachment.DeletedAtUtc = nowUtc;
+            attachment.DeletedByUserId = by?.UserId;
+            attachment.DeletedByUsername = by?.Username;
+
+            // Audited like any other deletion, each a tick after the last so they keep their order.
+            var procedure = record.Procedures.FirstOrDefault(p => p.Id == attachment.ProcedureId);
+            var stage = procedure?.Stages.FirstOrDefault(s => s.Id == attachment.StageId);
+            var target = new AttachmentTarget(attachment.PatientId, procedure, stage);
+            deletions.Add(AttachmentAudit.Entry(
+                attachment, target, actor, PatientProcedureAuditAction.AttachmentDeleted, nowUtc.AddTicks(deletions.Count)));
+        }
+
+        return deletions;
     }
 
     /// <summary>

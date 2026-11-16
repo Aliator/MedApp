@@ -1,5 +1,6 @@
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Activity;
+using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Patients.Repositories;
 
@@ -14,4 +15,7 @@ public interface IPatientRecordRepository
 
     /// <summary>Saves changes to a record loaded for update, with the activity log entry recording them, in one save.</summary>
     Task SaveAsync(ActivityEntry activity, CancellationToken ct);
+
+    /// <summary>As <see cref="SaveAsync(ActivityEntry, CancellationToken)"/>, with new procedure audit entries too, in the same save.</summary>
+    Task SaveAsync(ActivityEntry activity, IReadOnlyCollection<PatientProcedureAuditEntry> audit, CancellationToken ct);
 }

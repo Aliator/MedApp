@@ -42,7 +42,7 @@ public static class TimelineMapper
             Username = entry.Username,
             ProcedureId = entry.PatientProcedureId,
             ProcedureTitle = row.CurrentProcedureTitle ?? entry.ProcedureTitle,
-            IsProcedureDeleted = row.CurrentProcedureTitle is null,
+            IsProcedureDeleted = row.CurrentProcedureTitle is null && !row.IsAboutPatient,
             StageName = entry.StageName,
         };
 
@@ -91,6 +91,13 @@ public static class TimelineMapper
 
             case Deleted:
                 response.FromStatus = Text(details, "status");
+                break;
+
+            case AttachmentAdded or AttachmentDeleted or AttachmentDownloaded:
+                response.AttachmentId = Guid.TryParse(Text(details, "attachmentId"), out var attachmentId) ? attachmentId : null;
+                response.AttachedTo = Text(details, "attachedTo");
+                // A file's name is free text: only admins see it, as with notes and reasons.
+                response.FileName = isAdmin ? Text(details, "fileName") : null;
                 break;
         }
 
