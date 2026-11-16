@@ -11,12 +11,14 @@ import {Heading, Text} from '@astryxdesign/core/Text';
 import {ToggleButton} from '@astryxdesign/core/ToggleButton';
 import {Token} from '@astryxdesign/core/Token';
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
+import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {
   describeTimelineEntry,
   groupByDay,
   hasTimelineFilters,
+  MAX_TIMELINE_PROCEDURES,
   NO_TIMELINE_FILTERS,
   patientTimelineOverviewQuery,
   patientTimelineQuery,
@@ -26,6 +28,7 @@ import {
   type TimelineFilters,
   type TimelineKind,
   type TimelineOverview,
+  type TimelineProcedure,
 } from '../../api/timeline';
 import {formatDayHeading, formatShortDate, formatTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
@@ -156,6 +159,19 @@ function UpcomingProcedures({
   );
 }
 
+/** How many procedure chips show before "Show all": the newest, and any chosen. */
+export const PROCEDURE_CHIPS_SHOWN = 10;
+
+/**
+ * A procedure's chip: its title and the day it was created, so procedures with the same title can be told apart
+ * (a deleted one says when it was deleted).
+ */
+export function procedureChipLabel(procedure: TimelineProcedure): string {
+  const title = procedure.title ?? '';
+  if (procedure.isDeleted) return procedure.deletedOn ? `${title}, deleted ${formatShortDate(procedure.deletedOn)}` : `${title} (deleted)`;
+  return procedure.createdOn ? `${title}, ${formatShortDate(procedure.createdOn)}` : title;
+}
+
 /** Chips that narrow the feed, by kind and by procedure; none chosen shows everything. */
 function TimelineFilterChips({
   procedures,
@@ -170,6 +186,13 @@ function TimelineFilterChips({
   // Staff never see deleted procedures' entries, so they have nothing to filter to.
   const kinds = TIMELINE_KINDS.filter((kind) => isAdmin || kind !== 'Deleted');
   const toggle = <T,>(list: T[], value: T, isOn: boolean) => (isOn ? [...list, value] : list.filter((other) => other !== value));
+  const [isShowingAll, setIsShowingAll] = useState(false);
+  // The newest few, and any chosen, so a choice never hides.
+  const shown = isShowingAll
+    ? procedures
+    : procedures.filter((procedure, index) => index < PROCEDURE_CHIPS_SHOWN || filters.procedureIds.includes(procedure.id ?? ''));
+  // The API takes at most this many procedures at once.
+  const isAtLimit = filters.procedureIds.length >= MAX_TIMELINE_PROCEDURES;
 
   return (
     <VStack gap={3}>
@@ -194,21 +217,32 @@ function TimelineFilterChips({
       </HStack>
       {procedures.length > 1 && (
         <HStack gap={2} wrap="wrap" role="group" aria-label="Procedures">
-          {procedures.map((procedure) => {
+          {shown.map((procedure) => {
             const id = procedure.id ?? '';
-            const label = procedure.isDeleted ? `${procedure.title} (deleted)` : (procedure.title ?? '');
+            const label = procedureChipLabel(procedure);
+            const isPressed = filters.procedureIds.includes(id);
             return (
               <ToggleButton
                 key={id}
                 label={label}
                 size="sm"
                 icon={<Icon icon={procedure.isDeleted ? AppIcon.Delete : AppIcon.Procedures} />}
-                isPressed={filters.procedureIds.includes(id)}
+                isPressed={isPressed}
+                isDisabled={isAtLimit && !isPressed}
+                tooltip={isAtLimit && !isPressed ? `Choose at most ${MAX_TIMELINE_PROCEDURES} procedures` : undefined}
                 onPressedChange={(isOn) => onFiltersChange({...filters, procedureIds: toggle(filters.procedureIds, id, isOn)})}>
                 {label}
               </ToggleButton>
             );
           })}
+          {procedures.length > PROCEDURE_CHIPS_SHOWN && (
+            <Button
+              label={isShowingAll ? 'Show fewer' : `Show all ${procedures.length}`}
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsShowingAll((current) => !current)}
+            />
+          )}
         </HStack>
       )}
     </VStack>
@@ -221,6 +255,13 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
   const feed = useInfiniteQuery(patientTimelineQuery(patientId, filters));
   const entries = feed.data?.pages.flatMap((page) => page.items ?? []) ?? [];
   const isFiltered = hasTimelineFilters(filters);
+  // The first entry "Load more" brought in, which takes the focus, so it is never left on the button (which goes
+  // once the last page is in).
+  const [focusEntryId, setFocusEntryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (focusEntryId) document.getElementById(entryAnchor(focusEntryId))?.focus();
+  }, [focusEntryId]);
 
   if (feed.isPending)
     return (
@@ -244,8 +285,12 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
   const loadMore = async () => {
     const before = entries.length;
     const result = await feed.fetchNextPage();
-    const after = result.data?.pages.flatMap((page) => page.items ?? []).length ?? before;
-    announce(`${after - before} older ${after - before === 1 ? 'entry' : 'entries'} loaded.`);
+    // A failure says so in its alert.
+    if (result.isError) return;
+    const loaded = (result.data?.pages.flatMap((page) => page.items ?? []) ?? []).slice(before);
+    if (loaded.length === 0) return;
+    announce(`${loaded.length} older ${loaded.length === 1 ? 'entry' : 'entries'} loaded.`);
+    setFocusEntryId(loaded[0].id ?? null);
   };
 
   return (
@@ -273,6 +318,9 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
   );
 }
 
+/** The element on each entry that can take the focus (after "Load more"). */
+const entryAnchor = (id: string) => `timeline-entry-${id}`;
+
 /** One entry: its icon, what happened, then which procedure, when and who. */
 function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
   const {title, detail} = describeTimelineEntry(entry);
@@ -281,9 +329,12 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
       align="first-line"
       startContent={<Icon icon={entryIcon(entry)} color="secondary" />}
       label={
-        <Text type="body" weight="semibold" maxLines={2}>
-          {title}
-        </Text>
+        // Focusable from code only, so "Load more" can put the focus on the first entry it brought in.
+        <VStack id={entryAnchor(entry.id ?? '')} tabIndex={-1}>
+          <Text type="body" weight="semibold" maxLines={2}>
+            {title}
+          </Text>
+        </VStack>
       }
       description={
         <VStack gap={1}>

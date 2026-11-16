@@ -232,8 +232,11 @@ public sealed class TimelineMapperTests
     [Test]
     public void ToProcedureResponse_Procedure_IsNotDeleted()
     {
-        TimelineMapper.ToProcedureResponse(CreateTimelineProcedure()).Should().BeEquivalentTo(
-            new PatientTimelineProcedureResponse { Id = ProcedureId, Title = CurrentTitle, IsDeleted = false });
+        // Created at 23:30 UTC in June: the next day in the UK.
+        var procedure = CreateTimelineProcedure(createdAt: new DateTime(2026, 6, 14, 23, 30, 0, DateTimeKind.Utc));
+
+        TimelineMapper.ToProcedureResponse(procedure).Should().BeEquivalentTo(
+            new PatientTimelineProcedureResponse { Id = ProcedureId, Title = CurrentTitle, IsDeleted = false, CreatedOn = Today });
     }
 
     [Test]
@@ -242,7 +245,7 @@ public sealed class TimelineMapperTests
         var deletion = CreateEntry(Action.Deleted, Now, procedureId: DeletedProcedureId, procedureTitle: DeletedTitle);
 
         TimelineMapper.ToDeletedProcedureResponse(deletion).Should().BeEquivalentTo(
-            new PatientTimelineProcedureResponse { Id = DeletedProcedureId, Title = DeletedTitle, IsDeleted = true });
+            new PatientTimelineProcedureResponse { Id = DeletedProcedureId, Title = DeletedTitle, IsDeleted = true, DeletedOn = Today });
     }
 
     private static PatientTimelineEntryResponse Map(PatientProcedureAuditEntry entry, bool isAdmin) =>

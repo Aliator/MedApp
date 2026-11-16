@@ -74,7 +74,7 @@ The patient page gets a timeline: one feed of everything the procedure audit log
 
 ## Findings
 
-Most severe first. None is high or critical. All nine were open when this review was written.
+Most severe first. None is high or critical. All nine were open when this review was written. Each finding's "What happened to it" now says how it was dealt with; all nine are fixed or decided.
 
 ### 1. The governance pack still says only admins can see the audit history
 
@@ -91,7 +91,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `data-subject-rights.md:37`: the same, for the right of access.
   - The customer template's recipients, `ropa.md`, `dpa-template.md`, `security-policies.md` and `nhs-context.md`: "an admin-only audit log; staff see a filtered timeline per patient".
   - `data-inventory.md` needs no change: nothing new is stored.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR. The governance pack now says "the full audit trail is admin-only; staff see a per-patient timeline without its free text": `dpia.md` (Use, the two controls, and risk 6, which now records that admins can see a patient's whole history on screen, deleted procedures included, though there's still no export), `data-subject-rights.md` (right of access), the customer ROPA template's recipients, `ropa.md` (A3.2 and Access), `dpa-template.md`, `security-policies.md` and `nhs-context.md`. Each spells out what staff see (finding 5). The staff privacy notice template's "Who can see it" also says other staff see your username and actions on a patient's timeline. `data-inventory.md` needed no change.
 
 ### 2. Cancelling a blocked procedure is filed under Blocks, but worded as an ordinary status change
 
@@ -104,7 +104,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `AGENTS.md:134`: "Blocks (to or from Blocked)"
   - `MedApp.UnitTests/Application/Procedures/Timeline/Common/PatientTimelineKindsTests.cs:118-135`: the real entries cancel from In progress, never from Blocked
 - **Fix:** make Blocks mean "to Blocked, or back from it", and file a cancellation from Blocked under Status: a third marker, `"to":"Cancelled"`, in `Of` and `WhereKindIn` (diff under Detail). Add a blocked-then-cancelled pair to `RealEntries`, so both copies of the rule are tested on it, and reword `AGENTS.md:134`.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR. A third marker, `"to":"Cancelled"`, in both `Of` and `WhereKindIn`: Blocks is now to Blocked or back from it, and cancelling a blocked procedure is under Status. `RealEntries` gains a blocked-then-cancelled pair recorded through `ProcedureChange`, so both copies of the rule are tested on it, and `AGENTS.md` says so. The web app already worded and drew it as a status change; its test now gives it the Status kind.
 
 ### 3. Entries recorded by one action come out in random order
 
@@ -116,7 +116,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `MedApp.Application/Procedures/Timeline/Queries/GetPatientTimeline/PatientTimelineSearch.cs:43-45`: then by ID
   - `MedApp.UnitTests/Application/Procedures/Timeline/Queries/GetPatientTimeline/PatientTimelineSearchTests.cs:76-83`: the test checks ID order, with hand-picked IDs
 - **Fix:** give the entries of one change an order. Either a `Sequence` column that `ProcedureChange.Audit` numbers 0, 1, 2…, ordered between time and ID and added to the cursor (a migration); or, without one, have `ProcedureChange.Audit` add one tick (100 nanoseconds) to each entry after the first, so times are strictly increasing within a change. The second changes recorded times by under a microsecond and needs no schema change. Either way, test it with entries from a real first notes save.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR, without a migration. `ProcedureChange.Audit` stamps each entry a change writes one tick (100 ns) after the one before, so a first notes save reads Started, the automatic status change, then Saved notes, in that order. `ProcedureChangeTests` checks the times and the newest-first order of a real first notes save. `LastUpdated` stays the change's own time. Entries recorded before this still share a time and fall back to ID order; `AGENTS.md` says so.
 
 ### 4. "Load more" loses focus at the end, and a failed load is announced as "0 older entries loaded"
 
@@ -129,7 +129,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `MedApp.Web/src/components/shared/AlertMessage.tsx:27`: the error is an alert
   - `MedApp.Web/src/components/procedures/PatientTimeline.test.tsx:127-157`: neither the announcement nor focus is tested
 - **Fix:** announce only when the page arrived; after loading, move focus to the first new entry (a focus target on each entry's row), so it's never left on a removed button. Test both (sketch under Detail).
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR. "Load more" announces only when the page arrived and brought entries, and then moves focus to the first new entry (each entry's title is a focus target, `tabIndex={-1}`), so focus is never left on a removed button. Tests check the announcement and focus after the last page, and that a failed load announces nothing and leaves focus on the button.
 
 ### 5. Staff see more of the log than the agreed rule and the docs describe
 
@@ -145,7 +145,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `MedApp.Application/Procedures/Common/ProcedureMapper.cs:11` and `:144`: "Deleted user" on the procedure page; `docs/clinical-safety/hazard-log.md:675`
   - `AGENTS.md:136`; the removed to-do line (`git diff origin/main...HEAD -- docs/todo.md`)
 - **Fix:** decide, and write it down. Either keep it and reword `AGENTS.md:136` to "structured values, old and new (statuses, priorities, due dates, the template, assignees), and the username recorded at the time, never free text", carrying the same wording into the DPIA (finding 1); or leave out `From` values for staff and show deleted accounts as "Deleted user". Keeping it seems the better fit for a history view.
-- **What happened to it:** open.
+- **What happened to it:** **Kept, and written down** (the owner's decision). Staff keep seeing old and new due dates, priorities and statuses, past assignees, and deleted accounts' usernames: structured values, never free text. `AGENTS.md` and the governance pack now say exactly that.
 
 ### 6. The tests check named fields, not the whole staff response, and the SQL is only proven to translate
 
@@ -158,7 +158,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `MedApp.UnitTests/Infrastructure/Data/PatientTimelineTranslationTests.cs:45`: checks the SQL's text only
   - `PatientTimelineSearchTests.cs:85-107`: tie paging, in memory
 - **Fix:** add a canary test: record every action through `ProcedureChange` and the handlers' shapes with one unique string as the notes, title, procedure notes and reason, map each entry for staff, serialise the response to JSON, and check the string never appears; and that it does for an admin (sketch under Detail). Later, when `MedApp.IntegrationTests` has a database, page through tied entries on SQL Server.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in part, as decided. `TimelineStaffCanaryTests` records every action through `ProcedureChange` with one string as all its free text (stage notes, procedure notes, titles, reasons), maps each entry for staff, serialises it as the API does, and checks the string never appears; for an admin it appears in every entry that holds it, and a third test checks every action is covered. `AGENTS.md` asks for new actions and fields to be added to it. Running the query on SQL Server (tied paging, the `LIKE` markers) waits for integration tests with a database (#65); it's recorded in `docs/todo.md` under Testing.
 
 ### 7. The migration drops the old index before building the new one, locking the audit table meanwhile
 
@@ -169,7 +169,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - the scripted migration (`BEGIN TRANSACTION; DROP INDEX …; CREATE INDEX …; COMMIT`)
   - `MedApp.Infrastructure/Data/Repositories/PatientProcedureRepository.cs:38-49`: changes and their audit entries are saved together
 - **Fix:** create the new index first, then drop the old one, so reads keep an index and aren't blocked during the build (writes still wait for an offline build). For a large table, build it online (`IsCreatedOnline()`), which Azure SQL and the Developer edition support, but Standard and Express don't. At today's sizes, reordering is enough; record the online option for later.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR. The migration now creates `IX_PatientProcedureAuditEntries_PatientId_AtUtc` before dropping the old index, and `Down` does the reverse. `has-pending-model-changes` reports no changes, and it was run up, down and up again on a throwaway LocalDB database (the SQL showed `CREATE INDEX` then `DROP INDEX` each way), which was then dropped. Building online (`IsCreatedOnline()`) is noted in the migration's comment, for when table sizes and supported editions call for it.
 
 ### 8. The architecture handbook and one line of `AGENTS.md` lag the change
 
@@ -179,7 +179,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `docs/architecture.md:50`, `:530`, `:532-546`, `:559` and `:1112`
   - `AGENTS.md:137` against `:139` and `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs:38`
 - **Fix:** add a row "Patient timeline | `GET api/patients/{id}/timeline`, `…/timeline/overview` | Staff (admins see more)", make the count 57 in seven controllers, reword line 1112 to "Only admins read the audit log; staff see each patient's timeline without its free text", update lines 50 and 559, and make `AGENTS.md:137` say "with the title recorded in each entry".
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR. The handbook has the timeline row, "57 HTTP endpoints in seven controllers", the audit log feature row (line 50) mentioning the timeline, `PatientTimeline` among the composites (line 559), "Only admins read the audit log; staff see each patient's timeline without its free text" (line 1112), the cursor-paged exception under Paging, and the handler and validator counts (53 and 30). `AGENTS.md` says a deleted procedure's entries each carry the title recorded in that entry, so a procedure renamed before it was deleted shows under both titles.
 
 ### 9. Procedure chips don't scale and can't be told apart
 
@@ -193,7 +193,7 @@ Most severe first. None is high or critical. All nine were open when this review
   - `MedApp.Application/Procedures/Timeline/Common/TimelineMapper.cs:100-113`: the title only
   - `MedApp.Application/Procedures/Timeline/Queries/GetPatientTimeline/GetPatientTimelineValidator.cs:10` and `:27-30`
 - **Fix:** send each procedure's created date (or status) in the overview and add it to the label ("Physiotherapy review, 3 Mar 2026"); show the ten newest with a "More procedures" control, or use a multi-select list instead of chips; and stop the chips at 50, or raise the server's cap to match what the chips allow.
-- **What happened to it:** open.
+- **What happened to it:** **Fixed** in this PR. The overview sends each procedure's UK creation day (`CreatedOn`), or for a deleted one its deletion day (`DeletedOn`), and the chips read "Physio review, 3 Mar 2026" or "Physio review, deleted 1 May 2026". The ten newest show, plus any chosen, with "Show all N" and "Show fewer". Once 50 are chosen (`MAX_TIMELINE_PROCEDURES`, matching the API's `MaxProcedureIds`), the other chips are disabled with a tooltip. Tests cover the labels, the ten-chip rule and the limit.
 
 ## Remaining risks
 

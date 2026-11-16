@@ -8,6 +8,9 @@ export type TimelineOverview = Schemas['PatientTimelineOverviewResponse'];
 export type TimelineUpcoming = Schemas['PatientTimelineUpcomingResponse'];
 export type TimelineProcedure = Schemas['PatientTimelineProcedureResponse'];
 
+/** The most procedures a timeline can be filtered to at once (the API's `GetPatientTimelineValidator.MaxProcedureIds`). */
+export const MAX_TIMELINE_PROCEDURES = 50;
+
 /** Entries per page of a timeline (each "Load more" adds as many again). */
 export const TIMELINE_PAGE_SIZE = 20;
 

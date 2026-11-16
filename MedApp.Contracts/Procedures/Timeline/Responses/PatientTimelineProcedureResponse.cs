@@ -8,4 +8,10 @@ public sealed class PatientTimelineProcedureResponse
 
     /// <summary>Deleted: its title is the one it had when it was deleted (admins only).</summary>
     public bool IsDeleted { get; set; }
+
+    /// <summary>The UK day it was created, to tell procedures with the same title apart; null once deleted.</summary>
+    public DateOnly? CreatedOn { get; set; }
+
+    /// <summary>The UK day it was deleted; null while it exists.</summary>
+    public DateOnly? DeletedOn { get; set; }
 }

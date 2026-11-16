@@ -3083,6 +3083,10 @@ export interface components {
             id?: string;
             title?: string | null;
             isDeleted?: boolean;
+            /** Format: date */
+            createdOn?: string | null;
+            /** Format: date */
+            deletedOn?: string | null;
         };
         PatientTimelineUpcomingResponse: {
             /** Format: uuid */

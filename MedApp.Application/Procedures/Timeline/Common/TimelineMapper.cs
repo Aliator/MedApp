@@ -96,20 +96,22 @@ public static class TimelineMapper
         IsOverdue = ProcedureWorkflow.IsOverdue(procedure, nowUtc),
     };
 
-    /// <summary>A procedure to filter the timeline by.</summary>
+    /// <summary>A procedure to filter the timeline by, with the UK day it was created.</summary>
     public static PatientTimelineProcedureResponse ToProcedureResponse(PatientProcedure procedure) => new()
     {
         Id = procedure.Id,
         Title = procedure.Title,
         IsDeleted = false,
+        CreatedOn = DueDates.ToUkDate(procedure.CreatedAt),
     };
 
-    /// <summary>A deleted procedure to filter the timeline by, from the audit entry of its deletion.</summary>
+    /// <summary>A deleted procedure to filter the timeline by, from the audit entry of its deletion (with its UK day).</summary>
     public static PatientTimelineProcedureResponse ToDeletedProcedureResponse(PatientProcedureAuditEntry deletion) => new()
     {
         Id = deletion.PatientProcedureId,
         Title = deletion.ProcedureTitle,
         IsDeleted = true,
+        DeletedOn = DueDates.ToUkDate(deletion.AtUtc),
     };
 
     private static PatientTimelineChangeResponse Change(string field, IReadOnlyDictionary<string, JsonElement> fromTo, bool showValues) => new()

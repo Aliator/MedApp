@@ -6,8 +6,8 @@ namespace MedApp.Application.Procedures.Timeline.Common;
 
 /// <summary>
 /// Which <see cref="PatientTimelineKind"/> an audit entry is, worked out the same way in memory (<see cref="Of"/>)
-/// and in SQL (<see cref="WhereKindIn"/>). Most follow the action; a status change is a block when it goes to or from
-/// Blocked, and a details edit is a due date change when its changes include the due date. Both read the entry's
+/// and in SQL (<see cref="WhereKindIn"/>). Most follow the action; a status change is a block when it goes to Blocked
+/// or back from it (cancelling a blocked procedure is a status change like any other), and a details edit is a due date change when its changes include the due date. Both read the entry's
 /// JSON details, which <see cref="ProcedureAudit"/> writes compactly with camelCase names, so the markers below match
 /// exactly what it writes. A value someone typed can't fake one: JSON escapes its quotes.
 /// </summary>
@@ -18,6 +18,9 @@ public static class PatientTimelineKinds
 
     /// <summary>A status change from Blocked.</summary>
     public const string FromBlocked = "\"from\":\"Blocked\"";
+
+    /// <summary>A status change to Cancelled: from Blocked, that's a cancellation, not an unblock.</summary>
+    public const string ToCancelled = "\"to\":\"Cancelled\"";
 
     /// <summary>A details edit whose changes include the due date.</summary>
     public const string DueDateChange = "\"dueDate\":{";
@@ -66,12 +69,16 @@ public static class PatientTimelineKinds
             || (stages && (e.Action == StageStarted || e.Action == StageFinished || e.Action == StageUnlocked))
             || (notes && e.Action == StageNotesUpdated)
             || (assignments && (e.Action == Assigned || e.Action == Unassigned))
-            || (blocks && e.Action == StatusChanged && (e.Details.Contains(ToBlocked) || e.Details.Contains(FromBlocked)))
-            || (status && e.Action == StatusChanged && !e.Details.Contains(ToBlocked) && !e.Details.Contains(FromBlocked))
+            || (blocks && e.Action == StatusChanged
+                && (e.Details.Contains(ToBlocked) || (e.Details.Contains(FromBlocked) && !e.Details.Contains(ToCancelled))))
+            || (status && e.Action == StatusChanged
+                && !e.Details.Contains(ToBlocked) && !(e.Details.Contains(FromBlocked) && !e.Details.Contains(ToCancelled)))
             || (dueDates && e.Action == DetailsUpdated && e.Details.Contains(DueDateChange))
             || (details && e.Action == DetailsUpdated && !e.Details.Contains(DueDateChange))
             || (deleted && e.Action == Deleted));
     }
 
-    private static bool IsBlockChange(string details) => details.Contains(ToBlocked) || details.Contains(FromBlocked);
+    /// <summary>To Blocked, or back from it (a cancellation from Blocked isn't an unblock).</summary>
+    private static bool IsBlockChange(string details) =>
+        details.Contains(ToBlocked) || (details.Contains(FromBlocked) && !details.Contains(ToCancelled));
 }

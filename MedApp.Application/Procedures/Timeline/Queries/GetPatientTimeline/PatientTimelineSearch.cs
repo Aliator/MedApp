@@ -10,7 +10,8 @@ namespace MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
 public static class PatientTimelineSearch
 {
     /// <summary>
-    /// The page's entries, newest first (then by ID, so entries saved together keep one order), each with its
+    /// The page's entries, newest first, then by ID so the order is unique (entries one change writes are a tick
+    /// apart, <c>ProcedureChange.Audit</c>, so they already sort in the order they happened), each with its
     /// procedure's title now. It takes one more than the page size, so the handler can tell whether there's more.
     /// Staff (not <see cref="GetPatientTimelineQuery.IsAdmin"/>) only get entries for procedures that still exist.
     /// </summary>

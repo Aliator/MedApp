@@ -43,7 +43,9 @@ public sealed class PatientTimelineKindsTests
             (Action.StatusChanged, PatientTimelineKind.Blocks),
             (Action.StatusChanged, PatientTimelineKind.Status),
             (Action.DetailsUpdated, PatientTimelineKind.DueDates),
-            (Action.DetailsUpdated, PatientTimelineKind.Details));
+            (Action.DetailsUpdated, PatientTimelineKind.Details),
+            (Action.StatusChanged, PatientTimelineKind.Blocks),
+            (Action.StatusChanged, PatientTimelineKind.Status));
     }
 
     [Test]
@@ -114,7 +116,10 @@ public sealed class PatientTimelineKindsTests
         PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted");
     }
 
-    /// <summary>A block, an unblock, another status change, a due date edit and a title edit, as handlers audit them.</summary>
+    /// <summary>
+    /// A block, an unblock, another status change, a block then a cancellation of the blocked procedure, a due date
+    /// edit and a title edit, as handlers audit them.
+    /// </summary>
     private static List<PatientProcedureAuditEntry> RealEntries()
     {
         var procedure = CreateProcedure(PatientProcedureStatus.InProgress);
@@ -131,6 +136,10 @@ public sealed class PatientTimelineKindsTests
             },
         });
         change.Audit(Action.DetailsUpdated, new { changes = new Dictionary<string, object> { ["title"] = new { from = "a", to = "b" } } });
-        return change.AuditEntries.ToList();
+        // Blocked, then cancelled while blocked: the cancellation is a status change, not an unblock.
+        var cancelled = new ProcedureChange(CreateProcedure(PatientProcedureStatus.InProgress), Staff, Now);
+        cancelled.ChangeStatus(PatientProcedureStatus.Blocked, Reason);
+        cancelled.ChangeStatus(PatientProcedureStatus.Cancelled, Reason);
+        return change.AuditEntries.Concat(cancelled.AuditEntries).ToList();
     }
 }

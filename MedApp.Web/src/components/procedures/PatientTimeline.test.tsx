@@ -2,7 +2,7 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
 import {NO_TIMELINE_FILTERS, type TimelineEntry, type TimelineFilters, type TimelineOverview} from '../../api/timeline';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp, staffUser} from '../../test/render';
-import {PatientTimeline} from './PatientTimeline';
+import {PatientTimeline, procedureChipLabel, PROCEDURE_CHIPS_SHOWN} from './PatientTimeline';
 
 const patientId = '00000032-0000-0000-0000-000000000001';
 const procedureId = '00000032-0000-0000-0000-000000000002';
@@ -37,6 +37,9 @@ const overview: TimelineOverview = {
     {id: otherProcedureId, title: 'Overdue scan', isDeleted: false},
   ],
 };
+
+/** The screen reader announcements' live region (Account Settings, Accessibility). */
+const announcer = () => screen.getByTestId('announcer');
 
 /** The timeline, with its filters held as a page holds them. */
 function Harness({initial = NO_TIMELINE_FILTERS}: {initial?: TimelineFilters}) {
@@ -124,7 +127,8 @@ describe('PatientTimeline', () => {
     expect(screen.getByRole('button', {name: 'Old biopsy (deleted)'})).toBeInTheDocument();
   });
 
-  it('loads older entries after the last page, and stops when there are none', async () => {
+  it('loads older entries after the last page, announces them, focuses the first, and stops when there are none', async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
     const fetch = mockApi({
       [`GET ${OVERVIEW}`]: () => json(overview),
       [`GET ${TIMELINE}`]: (request) =>
@@ -140,9 +144,13 @@ describe('PatientTimeline', () => {
     expect(screen.getByText('Finished Consultation')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Before=cursor-1`);
     await waitFor(() => expect(screen.queryByRole('button', {name: 'Load More'})).not.toBeInTheDocument());
+    // Not left on the button, which has gone: on the first entry that came in.
+    await waitFor(() => expect(document.activeElement).toHaveTextContent('Started Consultation'));
+    await waitFor(() => expect(announcer()).toHaveTextContent('1 older entry loaded.'));
   });
 
-  it('says when older entries could not be loaded', async () => {
+  it('says when older entries could not be loaded, without announcing any as loaded', async () => {
+    localStorage.setItem('medapp.accessibility', JSON.stringify({announcements: true}));
     mockApi({
       [`GET ${OVERVIEW}`]: () => json(overview),
       [`GET ${TIMELINE}`]: (request) =>
@@ -154,6 +162,52 @@ describe('PatientTimeline', () => {
 
     expect(await findAlert('Older entries could not be loaded. Please try again.')).toBeInTheDocument();
     expect(screen.getByText('Finished Consultation')).toBeInTheDocument();
+    // Longer than the announcer waits before it speaks.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(announcer()).toHaveTextContent('');
+    expect(screen.getByRole('button', {name: 'Load More'})).toHaveFocus();
+  });
+
+  it('labels procedure chips with the day each was created, or deleted, so the same titles can be told apart', () => {
+    expect(procedureChipLabel({id: procedureId, title: 'Physio review', createdOn: '2026-03-03'})).toBe('Physio review, 3 Mar 2026');
+    expect(procedureChipLabel({id: procedureId, title: 'Physio review', isDeleted: true, deletedOn: '2026-05-01'})).toBe(
+      'Physio review, deleted 1 May 2026',
+    );
+    expect(procedureChipLabel({id: procedureId, title: 'Physio review', isDeleted: true})).toBe('Physio review (deleted)');
+    expect(procedureChipLabel({id: procedureId, title: 'Physio review'})).toBe('Physio review');
+    expect(procedureChipLabel({id: procedureId})).toBe('');
+  });
+
+  it('shows the newest procedure chips, any chosen, and the rest on request', async () => {
+    const many = Array.from({length: 12}, (_, i) => ({
+      id: `00000032-0000-0000-0002-${String(i).padStart(12, '0')}`,
+      title: 'Physio review',
+      isDeleted: false,
+      createdOn: `2026-03-${String(20 - i).padStart(2, '0')}`,
+    }));
+    mockApi({[`GET ${OVERVIEW}`]: () => json({...overview, procedures: many}), [`GET ${TIMELINE}`]: () => json({items: [entry({})], nextCursor: null})});
+    const {user} = renderWithApp(<Harness initial={{kinds: [], procedureIds: [many[11].id]}} />, {user: staffUser});
+
+    const group = within(await screen.findByRole('group', {name: 'Procedures'}));
+    // The ten newest, and the oldest because it's chosen.
+    await waitFor(() => expect(group.getAllByRole('button', {pressed: false})).toHaveLength(PROCEDURE_CHIPS_SHOWN));
+    expect(group.getByRole('button', {name: 'Physio review, 9 Mar 2026'})).toHaveAttribute('aria-pressed', 'true');
+    expect(group.queryByRole('button', {name: 'Physio review, 10 Mar 2026'})).not.toBeInTheDocument();
+
+    await user.click(group.getByRole('button', {name: 'Show all 12'}));
+    expect(group.getByRole('button', {name: 'Physio review, 10 Mar 2026'})).toBeInTheDocument();
+
+    await user.click(group.getByRole('button', {name: 'Show fewer'}));
+    expect(group.queryByRole('button', {name: 'Physio review, 10 Mar 2026'})).not.toBeInTheDocument();
+  });
+
+  it('stops at the most procedures the API takes', async () => {
+    const chosen = Array.from({length: 50}, (_, i) => `00000032-0000-0000-0003-${String(i).padStart(12, '0')}`);
+    mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: [entry({})], nextCursor: null})});
+    renderWithApp(<Harness initial={{kinds: [], procedureIds: chosen}} />, {user: staffUser});
+
+    const chip = await screen.findByRole('button', {name: 'Overdue scan'});
+    expect(chip).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('filters by kind and by procedure, and shows everything again', async () => {
@@ -228,7 +282,7 @@ describe('PatientTimeline', () => {
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'InProgress', toStatus: 'Blocked'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'Blocked', toStatus: 'InProgress'}),
             entry({action: 'StatusChanged', kind: 'Status', fromStatus: 'InReview', toStatus: 'Completed'}),
-            entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'Blocked', toStatus: 'Cancelled'}),
+            entry({action: 'StatusChanged', kind: 'Status', fromStatus: 'Blocked', toStatus: 'Cancelled'}),
             entry({action: 'StageNotesUpdated', kind: 'Notes', changes: [{field: 'stageNotes'}]}),
             entry({action: 'DetailsUpdated', kind: 'DueDates', changes: [{field: 'dueDate', from: '2026-06-20', to: '2026-06-27'}]}),
             entry({action: 'DetailsUpdated', kind: 'Details', changes: [{field: 'title'}]}),
