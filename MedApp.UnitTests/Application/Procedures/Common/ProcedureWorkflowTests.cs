@@ -3,6 +3,7 @@ using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
 using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+using MedApp.Domain.Appointments;
 
 namespace MedApp.UnitTests.Application.Procedures.Common;
 
@@ -189,5 +190,92 @@ public sealed class ProcedureWorkflowTests
     public void Describe_MultiWordStatus_IsLowerCaseWords()
     {
         ProcedureWorkflow.Describe(Status.InReview).Should().Be("in review");
+    }
+
+    private static Appointment StageAppointment(PatientProcedureStage stage, AppointmentStatus status) => new()
+    {
+        Id = Guid.NewGuid(),
+        StageId = stage.Id,
+        Status = status
+    };
+
+    [Test]
+    public void WhyStageNeedsVisit_RequiredWithoutAnAttendedVisit_SaysToBookItAndThatAnAdminCanFinishIt()
+    {
+        var stage = CreateProcedure().StageAt(1);
+        stage.VisitRequirement = VisitRequirement.Required;
+
+        ProcedureWorkflow.WhyStageNeedsVisit(stage, [StageAppointment(stage, AppointmentStatus.Booked)])
+            .Should().Be($"The '{ConsultationStage}' stage needs a visit before it can be finished: book it, and mark it Attended once it's happened. An admin can finish it without one.");
+    }
+
+    [Test]
+    public void WhyStageNeedsVisit_RequiredWithAnAttendedVisit_IsNull()
+    {
+        var stage = CreateProcedure().StageAt(1);
+        stage.VisitRequirement = VisitRequirement.Required;
+
+        ProcedureWorkflow.WhyStageNeedsVisit(stage, [StageAppointment(stage, AppointmentStatus.Attended)]).Should().BeNull();
+    }
+
+    [Test]
+    public void WhyStageNeedsVisit_AttendedVisitForAnotherStage_DoesNotCount()
+    {
+        var procedure = CreateProcedure();
+        var stage = procedure.StageAt(1);
+        stage.VisitRequirement = VisitRequirement.Required;
+
+        ProcedureWorkflow.WhyStageNeedsVisit(stage, [StageAppointment(procedure.StageAt(2), AppointmentStatus.Attended)])
+            .Should().NotBeNull();
+    }
+
+    [TestCase(VisitRequirement.None)]
+    [TestCase(VisitRequirement.Suggested)]
+    public void WhyStageNeedsVisit_NotRequired_IsNull(VisitRequirement requirement)
+    {
+        var stage = CreateProcedure().StageAt(1);
+        stage.VisitRequirement = requirement;
+
+        ProcedureWorkflow.WhyStageNeedsVisit(stage, []).Should().BeNull();
+    }
+
+    [Test]
+    public void WhyStageNeedsVisit_FinishedBeforeAndUnlockedByAnAdmin_IsNull()
+    {
+        var procedure = CreateProcedure(Status.InProgress, finishedStages: 1);
+        var stage = procedure.StageAt(1);
+        stage.VisitRequirement = VisitRequirement.Required;
+        stage.IsLocked = false;
+
+        ProcedureWorkflow.WhyStageNeedsVisit(stage, []).Should().BeNull();
+    }
+
+    [TestCase(VisitRequirement.None, false)]
+    [TestCase(VisitRequirement.Suggested, true)]
+    [TestCase(VisitRequirement.Required, true)]
+    public void FinishesWithoutVisit_NoAttendedVisit_DependsOnTheRequirement(VisitRequirement requirement, bool expected)
+    {
+        var stage = CreateProcedure().StageAt(1);
+        stage.VisitRequirement = requirement;
+
+        ProcedureWorkflow.FinishesWithoutVisit(stage, [StageAppointment(stage, AppointmentStatus.DidNotAttend)]).Should().Be(expected);
+    }
+
+    [Test]
+    public void FinishesWithoutVisit_AttendedVisit_IsFalse()
+    {
+        var stage = CreateProcedure().StageAt(1);
+        stage.VisitRequirement = VisitRequirement.Suggested;
+
+        ProcedureWorkflow.FinishesWithoutVisit(stage, [StageAppointment(stage, AppointmentStatus.Attended)]).Should().BeFalse();
+    }
+
+    [Test]
+    public void FinishesWithoutVisit_FinishedBefore_IsFalse()
+    {
+        var procedure = CreateProcedure(Status.InProgress, finishedStages: 1);
+        procedure.StageAt(1).VisitRequirement = VisitRequirement.Suggested;
+
+        ProcedureWorkflow.FinishesWithoutVisit(procedure.StageAt(1), []).Should().BeFalse();
     }
 }

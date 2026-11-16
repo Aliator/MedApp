@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 
 namespace MedApp.API.Common.Authentication;
@@ -20,4 +21,8 @@ public static class ClaimsPrincipalExtensions
     /// <summary>The signed-in user, as procedure changes record them.</summary>
     public static ProcedureActor ToProcedureActor(this ClaimsPrincipal user) =>
         new(user.GetUserId(), user.Identity?.Name ?? string.Empty);
+
+    /// <summary>The signed-in user, for calendar changes: their own calendar, or anyone's for an admin.</summary>
+    public static CalendarActor ToCalendarActor(this ClaimsPrincipal user) =>
+        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.IsInRole("Admin"));
 }

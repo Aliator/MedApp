@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Authentication.Settings.Repositories;
+﻿using MedApp.Application.Appointments.Repositories;
+using MedApp.Application.Authentication.Settings.Repositories;
+using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Repositories;
@@ -57,6 +59,10 @@ public static class ServiceExtensions
         services.AddScoped<IProcedureAuditRepository, ProcedureAuditRepository>();
         services.AddScoped<IUserSettingsRepository, UserSettingsRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();
+        services.AddScoped<ICalendarRepository, CalendarRepository>();
+        services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<ICalendarLock, CalendarLock>();
         
         return services;
     }

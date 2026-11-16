@@ -1,8 +1,9 @@
 namespace MedApp.Application.Procedures.Timeline.Common;
 
 /// <summary>
-/// What a timeline entry is about, for filtering: a grouping of audit actions (see <see cref="PatientTimelineKinds"/>).
-/// The API takes and returns them by name; they're never stored.
+/// What a timeline entry is about, for filtering: a grouping of audit actions (see <see cref="PatientTimelineKinds"/>),
+/// or an appointment's history (<see cref="Appointments"/>). The API takes and returns them by name; they're never
+/// stored.
 /// </summary>
 public enum PatientTimelineKind
 {
@@ -31,5 +32,11 @@ public enum PatientTimelineKind
     Details,
 
     /// <summary>A procedure was deleted.</summary>
-    Deleted
+    Deleted,
+
+    /// <summary>
+    /// An appointment was requested, booked, moved, attended or not, cancelled, or its notes saved (from appointments'
+    /// history, not the audit log, so no audit entry is of this kind).
+    /// </summary>
+    Appointments
 }

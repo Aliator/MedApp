@@ -10,9 +10,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// A patient's timeline: everything that happened to their procedures, from the procedure audit log. Staff see it
-/// for procedures that still exist, without the free text the log keeps; admins see all of it (see
-/// <see cref="GetPatientTimelineQuery"/>).
+/// A patient's timeline: everything that happened to their procedures and appointments, from the procedure audit log
+/// and appointments' history. Staff see it for procedures that still exist, without the free text the logs keep;
+/// admins see all of it (see <see cref="GetPatientTimelineQuery"/>).
 /// </summary>
 [ApiController]
 [Route("api/patients/{id:guid}/timeline")]

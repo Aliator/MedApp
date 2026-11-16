@@ -2,21 +2,27 @@ using System.Globalization;
 using System.Text.Json;
 using MedApp.Application.Procedures.Common;
 using MedApp.Contracts.Procedures.Timeline.Responses;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Procedures.PatientProcedures;
 using static MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditAction;
 
 namespace MedApp.Application.Procedures.Timeline.Common;
 
 /// <summary>
-/// A patient's timeline as the API returns it: audit entries read into fields (from the JSON details that
-/// <see cref="ProcedureAudit"/> writes), the procedures that are due, and the procedures to filter by.
+/// A patient's timeline as the API returns it: audit entries and appointment history entries read into fields (from
+/// the JSON details that <see cref="ProcedureAudit"/> and <c>AppointmentChange</c> write), the procedures that are
+/// due, and the procedures to filter by.
 /// <para>
-/// Staff see what the procedure page shows anyway (statuses, priorities, due dates, who is assigned), but never the
-/// free text the audit log keeps (notes, titles, reasons), as only admins can read the log itself.
+/// Staff see what the procedure and calendar pages show anyway (statuses, priorities, due dates, who is assigned,
+/// appointment times and staff), but never the free text the logs keep (notes, titles, reasons), as only admins can
+/// read the audit log itself.
 /// </para>
 /// </summary>
 public static class TimelineMapper
 {
+    /// <summary>What an appointment entry's action starts with, before its history action (e.g. AppointmentBooked).</summary>
+    public const string AppointmentAction = "Appointment";
+
     /// <summary>Fields whose values everyone sees in a change; the others (free text) only admins.</summary>
     private static readonly HashSet<string> PublicValueFields = ["dueDate", "priority"];
 
@@ -59,12 +65,18 @@ public static class TimelineMapper
             case StatusChanged:
                 response.FromStatus = Text(details, "from");
                 response.ToStatus = Text(details, "to");
-                response.IsAutomatic = details.TryGetValue("automatic", out var automatic) && automatic.ValueKind == JsonValueKind.True;
+                response.IsAutomatic = IsTrue(details, "automatic");
                 response.Reason = isAdmin ? Text(details, "reason") : null;
                 break;
 
             case Assigned or Unassigned:
                 response.AssigneeUsername = Text(details, "username");
+                break;
+
+            case StageFinished when IsTrue(details, "withoutVisit"):
+                response.FinishedWithoutVisit = true;
+                response.VisitRequirement = Text(details, "visitRequirement");
+                response.Reason = isAdmin ? Text(details, "reason") : null;
                 break;
 
             case StageNotesUpdated:
@@ -79,6 +91,59 @@ public static class TimelineMapper
 
             case Deleted:
                 response.FromStatus = Text(details, "status");
+                break;
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// One appointment history entry: its action is "Appointment" and what happened (e.g. AppointmentBooked), with
+    /// the appointment's time and member of staff after it. Its procedure's title is the one it has now, or, once
+    /// deleted, the one it had at the time; none for an appointment not for a procedure. Cancellation reasons and
+    /// notes are left out unless <paramref name="isAdmin"/>.
+    /// </summary>
+    public static PatientTimelineEntryResponse ToResponse(AppointmentTimelineRow row, bool isAdmin)
+    {
+        var entry = row.Event;
+        var hasProcedure = entry.ProcedureId is not null;
+        var details = ParseDetails(entry.Details);
+
+        var response = new PatientTimelineEntryResponse
+        {
+            Id = entry.Id,
+            Kind = nameof(PatientTimelineKind.Appointments),
+            Action = AppointmentAction + entry.Action,
+            AtUtc = entry.AtUtc,
+            Username = entry.Username,
+            ProcedureId = entry.ProcedureId,
+            ProcedureTitle = hasProcedure ? row.CurrentProcedureTitle ?? entry.ProcedureTitle : null,
+            IsProcedureDeleted = hasProcedure && !row.ProcedureExists,
+            StageName = entry.StageName,
+            AppointmentId = entry.AppointmentId,
+            AppointmentStartUtc = entry.StartUtc,
+            AppointmentEndUtc = entry.EndUtc,
+            AppointmentStaffUsername = entry.StaffUsername,
+            IsAutomatic = IsTrue(details, "automatic"),
+        };
+
+        switch (entry.Action)
+        {
+            case AppointmentEventAction.Rescheduled:
+                response.PreviousStartUtc = Time(details, "previousStartUtc");
+                response.PreviousStaffUsername = Text(details, "previousStaffUsername");
+                break;
+
+            case AppointmentEventAction.Attended or AppointmentEventAction.DidNotAttend:
+                response.FromStatus = Text(details, "previousStatus");
+                break;
+
+            case AppointmentEventAction.Cancelled:
+                response.Reason = isAdmin ? Text(details, "reason") : null;
+                break;
+
+            case AppointmentEventAction.NotesUpdated:
+                response.Changes = [Change("appointmentNotes", details, isAdmin)];
                 break;
         }
 
@@ -139,6 +204,17 @@ public static class TimelineMapper
         element.ValueKind == JsonValueKind.Object
             ? element.EnumerateObject().GroupBy(p => p.Name).ToDictionary(g => g.Key, g => g.Last().Value)
             : new Dictionary<string, JsonElement>();
+
+    private static bool IsTrue(IReadOnlyDictionary<string, JsonElement> values, string name) =>
+        values.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.True;
+
+    /// <summary>A time written as JSON (ISO 8601, UTC), or null when missing or not a time.</summary>
+    private static DateTime? Time(IReadOnlyDictionary<string, JsonElement> values, string name) =>
+        values.TryGetValue(name, out var value)
+        && value.ValueKind == JsonValueKind.String
+        && value.TryGetDateTime(out var time)
+            ? time.Kind == DateTimeKind.Local ? time.ToUniversalTime() : DateTime.SpecifyKind(time, DateTimeKind.Utc)
+            : null;
 
     /// <summary>A value as text: a string as it is, a number or date as written, null when missing or null.</summary>
     private static string? Text(IReadOnlyDictionary<string, JsonElement> values, string name) =>

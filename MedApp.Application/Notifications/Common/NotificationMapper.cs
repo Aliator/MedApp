@@ -16,5 +16,6 @@ public static class NotificationMapper
         notification.Message,
         notification.ProcedureId,
         notification.CreatedAtUtc,
-        notification.ReadAtUtc is not null);
+        notification.ReadAtUtc is not null,
+        notification.AppointmentId);
 }

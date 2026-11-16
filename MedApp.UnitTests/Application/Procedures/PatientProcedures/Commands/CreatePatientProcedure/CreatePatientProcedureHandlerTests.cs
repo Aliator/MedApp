@@ -60,9 +60,7 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
         var act = () => Fixture.Create<CreatePatientProcedureHandler>().Handle(command, CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Template '{command.TemplateId}' was not found.");
-        Repository.Verify(
-            r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        Repository.Verify(r => r.AddAsync(It.IsAny<ProcedureChange>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -73,9 +71,7 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
         var act = () => Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage($"The '{TemplateName}' template has no stages.");
-        Repository.Verify(
-            r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        Repository.Verify(r => r.AddAsync(It.IsAny<ProcedureChange>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -91,20 +87,10 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     [Test]
     public async Task Handle_ValidTemplate_CopiesItsStagesInOrderIncludingRepeats()
     {
-        PatientProcedure? added = null;
-        Repository
-            .Setup(r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), It.IsAny<CancellationToken>()))
-            .Callback((PatientProcedure p, IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken _) =>
-            {
-                added = p;
-                SavedAudit.AddRange(audit);
-            })
-            .Returns(Task.CompletedTask);
-
         var response = await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), CancellationToken.None);
 
-        added.Should().NotBeNull();
-        added!.Stages.Select(s => s.Name).Should().Equal(ConsultationStage, ProcedureStage, ConsultationStage);
+        var added = SavedChanges.Should().ContainSingle().Which.Procedure;
+        added.Stages.Select(s => s.Name).Should().Equal(ConsultationStage, ProcedureStage, ConsultationStage);
         added.Stages.Select(s => s.StageOrder).Should().Equal(1, 2, 3);
         added.Stages[0].Instructions.Should().Be($"{ConsultationStage} instructions");
         added.Status.Should().Be(Status.Unassigned);
@@ -134,8 +120,6 @@ public sealed class CreatePatientProcedureHandlerTests : ProcedureHandlerTestBas
 
         await Fixture.Create<CreatePatientProcedureHandler>().Handle(Command(), cts.Token);
 
-        Repository.Verify(
-            r => r.AddAsync(It.IsAny<PatientProcedure>(), It.IsAny<IEnumerable<PatientProcedureAuditEntry>>(), cts.Token),
-            Times.Once);
+        Repository.Verify(r => r.AddAsync(It.IsAny<ProcedureChange>(), cts.Token), Times.Once);
     }
 }

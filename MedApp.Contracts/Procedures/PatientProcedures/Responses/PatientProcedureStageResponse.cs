@@ -11,6 +11,9 @@ public sealed class PatientProcedureStageResponse
     public string Description { get; set; } = string.Empty;
     public string Instructions { get; set; } = string.Empty;
 
+    /// <summary>Copied from the stage definition: None, Suggested or Required (a visit before it can be finished).</summary>
+    public string VisitRequirement { get; set; } = string.Empty;
+
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>NotStarted, InProgress or Completed.</summary>

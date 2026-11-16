@@ -74,6 +74,7 @@ public static class ProcedureMapper
                     Name = s.Name,
                     Description = s.Description,
                     Instructions = s.Instructions,
+                    VisitRequirement = s.VisitRequirement.ToString(),
                     Notes = s.Notes,
                     State = ProcedureWorkflow.StageState(s),
                     IsCurrent = s.Id == current?.Id,

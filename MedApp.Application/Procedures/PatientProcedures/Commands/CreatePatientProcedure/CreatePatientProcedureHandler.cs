@@ -56,6 +56,7 @@ public sealed class CreatePatientProcedureHandler(
                     Name = map.StageDefinition.Name,
                     Description = map.StageDefinition.Description,
                     Instructions = map.StageDefinition.Instructions,
+                    VisitRequirement = map.StageDefinition.VisitRequirement,
                     CreatedAt = now,
                     LastUpdated = now
                 })
@@ -71,7 +72,10 @@ public sealed class CreatePatientProcedureHandler(
             stageCount = procedure.Stages.Count
         });
 
-        await repository.AddAsync(procedure, change.AuditEntries, cancellationToken);
+        // The first stage's visit, if it involves one.
+        StageVisits.RequestForCurrentStage(change, []);
+
+        await repository.AddAsync(change, cancellationToken);
 
         return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, ProcedureMapper.PatientName(patient));
     }

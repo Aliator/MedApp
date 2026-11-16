@@ -1,5 +1,6 @@
 ﻿using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
@@ -23,6 +24,10 @@ public sealed class DeleteUserHandlerTests
 
         _service = new Mock<IIdentityUserService>();
         _fixture.Inject<IIdentityUserService>(_service.Object);
+
+        // The user has no upcoming appointments unless a test says otherwise.
+        _fixture.Inject(new Mock<IIdentityReadService>().Object);
+        _fixture.Inject(new Mock<IAppointmentRepository>().Object);
 
         _handler = _fixture.Create<DeleteUserHandler>();
 

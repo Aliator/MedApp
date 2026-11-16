@@ -49,7 +49,10 @@ public static class PatientTimelineKinds
         _ => PatientTimelineKind.Details
     };
 
-    /// <summary>Entries of any of these kinds, as LINQ that EF translates (the same rules as <see cref="Of"/>).</summary>
+    /// <summary>
+    /// Entries of any of these kinds, as LINQ that EF translates (the same rules as <see cref="Of"/>). No audit entry is
+    /// of the <see cref="PatientTimelineKind.Appointments"/> kind, so it's ignored here.
+    /// </summary>
     public static IQueryable<PatientProcedureAuditEntry> WhereKindIn(
         this IQueryable<PatientProcedureAuditEntry> entries,
         IReadOnlySet<PatientTimelineKind> kinds)

@@ -6,4 +6,7 @@ public sealed class UpdatePatientProcedureStageDefinitionRequest
     public string? Name { get; set; }
     public string? Description { get; set; }
     public string? Instructions { get; set; }
+
+    /// <summary>None, Suggested or Required. Procedures already created keep their stages' copy.</summary>
+    public string? VisitRequirement { get; set; }
 }

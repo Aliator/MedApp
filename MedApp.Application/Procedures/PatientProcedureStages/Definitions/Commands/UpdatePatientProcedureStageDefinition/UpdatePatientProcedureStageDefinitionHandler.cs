@@ -1,6 +1,8 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Contracts.Procedures.PatientProcedureStages.Definitions.Responses;
+using MedApp.Domain.Procedures.PatientProcedures;
 using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.UpdatePatientProcedureStageDefinition;
@@ -25,6 +27,8 @@ public sealed class UpdatePatientProcedureStageDefinitionHandler(IPatientProcedu
 
         if (request.Description is not null) definition.Description = request.Description;
         if (request.Instructions is not null) definition.Instructions = request.Instructions;
+        if (request.VisitRequirement is not null)
+            definition.VisitRequirement = ProcedureEnums.Parse<VisitRequirement>(request.VisitRequirement);
 
         await repository.UpdateStageDefinitionAsync(definition, cancellationToken);
 

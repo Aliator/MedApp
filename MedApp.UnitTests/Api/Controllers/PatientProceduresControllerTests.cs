@@ -140,7 +140,7 @@ public sealed class PatientProceduresControllerTests
 
     [Test]
     public async Task FinishProcedureStage_FinishesAsTheUser() =>
-        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor), await Controller.FinishProcedureStage(RecordId, OtherId, _cts.Token));
+        ExpectSentAndOk(new FinishProcedureStageCommand(RecordId, OtherId, Actor), await Controller.FinishProcedureStage(RecordId, OtherId, null, _cts.Token));
 
     [Test]
     public async Task UnlockProcedureStage_UnlocksAsTheUser() =>

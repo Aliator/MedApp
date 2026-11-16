@@ -46,10 +46,19 @@ public static class IdentityErrors
             Description = "Too many incorrect passwords. Please try again later."
         };
 
+    /// <summary>The user has Booked appointments still to come, which would be left with nobody.</summary>
+    public static IdentityError HasUpcomingAppointments(string username, int count) =>
+        new()
+        {
+            Code = HasUpcomingAppointmentsCode,
+            Description = $"{username} has {count} upcoming appointment{(count == 1 ? "" : "s")}. Move or cancel them first."
+        };
+
     public const string UserNotFoundCode = "UserNotFound";
     public const string OldPasswordIncorrectCode = "OldPasswordIncorrect";
     public const string RoleNotFoundCode = "RoleNotFound";
     public const string OwnRolesCode = "OwnRoles";
     public const string PasswordIncorrectCode = "PasswordIncorrect";
     public const string LockedOutCode = "LockedOut";
+    public const string HasUpcomingAppointmentsCode = "HasUpcomingAppointments";
 }

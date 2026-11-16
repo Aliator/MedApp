@@ -24,6 +24,9 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
     public async Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken) =>
         await context.PatientProcedures.CountAsync(p => p.PatientId == patientId, cancellationToken);
 
+    public async Task<int> CountAppointmentsAsync(Guid patientId, CancellationToken cancellationToken) =>
+        await context.Appointments.CountAsync(a => a.PatientId == patientId, cancellationToken);
+
     public async Task<IEnumerable<Patient>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await context.Patients

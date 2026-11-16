@@ -1,5 +1,6 @@
 using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
@@ -21,6 +22,7 @@ public sealed class GetPatientTimelineHandlerTests
 
     private Mock<IPatientRepository> _patients = null!;
     private Mock<IProcedureAuditRepository> _audit = null!;
+    private Mock<IAppointmentRepository> _appointments = null!;
     private GetPatientTimelineHandler _handler = null!;
 
     [SetUp]
@@ -29,11 +31,16 @@ public sealed class GetPatientTimelineHandlerTests
         var fixture = AutoFixtureFactory.Create();
         _patients = new Mock<IPatientRepository>();
         _audit = new Mock<IProcedureAuditRepository>();
+        _appointments = new Mock<IAppointmentRepository>();
+        _appointments
+            .Setup(r => r.GetPatientTimelineAsync(It.IsAny<GetPatientTimelineQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         _patients
             .Setup(r => r.GetByIdAsync(PatientId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Patient { Id = PatientId });
         fixture.Inject(_patients.Object);
         fixture.Inject(_audit.Object);
+        fixture.Inject(_appointments.Object);
         _handler = fixture.Create<GetPatientTimelineHandler>();
     }
 

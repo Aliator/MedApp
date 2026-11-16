@@ -8,5 +8,6 @@ public sealed record UpdatePatientProcedureStageDefinitionCommand(
     Guid StageDefinitionId,
     string? Name,
     string? Description,
-    string? Instructions)
+    string? Instructions,
+    string? VisitRequirement = null)
     : IRequest<PatientProcedureStageDefinitionResponse>;

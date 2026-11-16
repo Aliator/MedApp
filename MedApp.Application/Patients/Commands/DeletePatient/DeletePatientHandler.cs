@@ -20,6 +20,12 @@ public sealed class DeletePatientHandler(IPatientRepository repository)
             throw new ConflictException(
                 $"This patient has {procedureCount} procedure{(procedureCount == 1 ? "" : "s")}, so they can't be deleted.");
 
+        // So do appointments, whatever their status.
+        var appointmentCount = await repository.CountAppointmentsAsync(request.Id, cancellationToken);
+        if (appointmentCount > 0)
+            throw new ConflictException(
+                $"This patient has {appointmentCount} appointment{(appointmentCount == 1 ? "" : "s")}, so they can't be deleted.");
+
         await repository.DeleteAsync(request.Id, cancellationToken);
 
         return true;

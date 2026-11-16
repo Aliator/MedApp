@@ -1,0 +1,142 @@
+using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Appointments;
+using static MedApp.Domain.Appointments.AppointmentStatus;
+
+namespace MedApp.Application.Appointments.Common;
+
+/// <summary>
+/// Applies one request's changes to an appointment: sets its status and who did what when, stamps LastUpdated, and
+/// collects the history entries (<see cref="AppointmentEvent"/>) to save with the change. Handlers check that a change
+/// is allowed first (<see cref="AppointmentWorkflow"/>); this only applies it.
+/// <para>
+/// Each entry copies what it shows: the procedure's title and stage's name (given, or from the appointment's
+/// procedure and stage), the member of staff (<paramref name="staffUsername"/> is the current one's username) and
+/// the time, as they are after the change.
+/// </para>
+/// </summary>
+public sealed class AppointmentChange(
+    Appointment appointment,
+    ProcedureActor actor,
+    DateTime nowUtc,
+    string? staffUsername = null,
+    string? procedureTitle = null,
+    string? stageName = null)
+{
+    private readonly List<AppointmentEvent> _events = [];
+    private string? _staffUsername = staffUsername;
+
+    public Appointment Appointment => appointment;
+
+    public IReadOnlyList<AppointmentEvent> Events => _events;
+
+    /// <summary>Whether anything changed (every change is recorded).</summary>
+    public bool HasChanges => _events.Count > 0;
+
+    /// <summary>Records that a new Requested appointment was asked for, by someone or by the app (<paramref name="automatic"/>).</summary>
+    public void Request(bool automatic = false) =>
+        Record(AppointmentEventAction.Requested, automatic ? new { automatic = true } : null);
+
+    /// <summary>
+    /// Books a Requested appointment, or moves a Booked one (recorded with its previous time and member of staff).
+    /// Nothing happens if a Booked one is "moved" to exactly where it is.
+    /// </summary>
+    public void Book(Guid staffUserId, string bookedStaffUsername, DateTime startUtc, DateTime endUtc)
+    {
+        var wasBooked = appointment.Status == Booked;
+        if (wasBooked
+            && appointment.StaffUserId == staffUserId
+            && appointment.StartUtc == startUtc
+            && appointment.EndUtc == endUtc)
+            return;
+
+        var previous = new
+        {
+            previousStartUtc = appointment.StartUtc,
+            previousEndUtc = appointment.EndUtc,
+            previousStaffUserId = appointment.StaffUserId,
+            previousStaffUsername = _staffUsername
+        };
+
+        appointment.StaffUserId = staffUserId;
+        appointment.StartUtc = startUtc;
+        appointment.EndUtc = endUtc;
+        _staffUsername = bookedStaffUsername;
+
+        if (wasBooked)
+        {
+            Record(AppointmentEventAction.Rescheduled, previous);
+            return;
+        }
+
+        appointment.Status = Booked;
+        appointment.BookedAtUtc = nowUtc;
+        appointment.BookedByUserId = actor.UserId;
+        Record(AppointmentEventAction.Booked);
+    }
+
+    /// <summary>Marks it Attended or Did not attend, or corrects one to the other. Nothing happens if it's already that.</summary>
+    public void RecordOutcome(AppointmentStatus outcome)
+    {
+        if (!AppointmentWorkflow.IsOutcome(outcome))
+            throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "An outcome is Attended or DidNotAttend.");
+
+        if (appointment.Status == outcome)
+            return;
+
+        var previous = appointment.Status;
+        appointment.Status = outcome;
+        appointment.OutcomeAtUtc = nowUtc;
+        appointment.OutcomeByUserId = actor.UserId;
+        Record(
+            outcome == Attended ? AppointmentEventAction.Attended : AppointmentEventAction.DidNotAttend,
+            new { previousStatus = previous.ToString() });
+    }
+
+    /// <summary>Cancels it with a reason, by someone or by the app (<paramref name="automatic"/>).</summary>
+    public void Cancel(string reason, bool automatic = false)
+    {
+        appointment.Status = Cancelled;
+        appointment.CancelReason = reason;
+        Record(AppointmentEventAction.Cancelled, new { reason, automatic });
+    }
+
+    /// <summary>Replaces its notes. Nothing happens if they're unchanged.</summary>
+    public void UpdateNotes(string notes)
+    {
+        if (appointment.Notes == notes)
+            return;
+
+        var previous = appointment.Notes;
+        appointment.Notes = notes;
+        Record(AppointmentEventAction.NotesUpdated, new { from = previous, to = notes });
+    }
+
+    /// <summary>
+    /// Records a history entry. Entries one change writes are each a tick (100 ns) after the one before, so they sort
+    /// in the order they happened, as the procedure audit log's do.
+    /// </summary>
+    private void Record(AppointmentEventAction action, object? details = null)
+    {
+        _events.Add(new AppointmentEvent
+        {
+            Id = Guid.NewGuid(),
+            AppointmentId = appointment.Id,
+            PatientId = appointment.PatientId,
+            ProcedureId = appointment.ProcedureId,
+            ProcedureTitle = appointment.ProcedureId is null
+                ? string.Empty
+                : procedureTitle ?? appointment.Procedure?.Title ?? string.Empty,
+            StageName = appointment.StageId is null ? null : stageName ?? appointment.Stage?.Name,
+            Action = action,
+            UserId = actor.UserId,
+            Username = actor.Username,
+            AtUtc = nowUtc.AddTicks(_events.Count),
+            StaffUserId = appointment.StaffUserId,
+            StaffUsername = appointment.StaffUserId is null ? null : _staffUsername,
+            StartUtc = appointment.StartUtc,
+            EndUtc = appointment.EndUtc,
+            Details = ProcedureAudit.Details(details)
+        });
+        appointment.LastUpdated = nowUtc;
+    }
+}

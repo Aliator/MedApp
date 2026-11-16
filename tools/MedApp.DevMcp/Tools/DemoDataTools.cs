@@ -6,6 +6,7 @@ using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
+using MedApp.Infrastructure.Data.Configurations.Calendar;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol;
@@ -88,7 +89,20 @@ public sealed class DemoDataTools
         await db.Database.CreateExecutionStrategy().ExecuteAsync(async cancellationToken =>
         {
             await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
-            // Children before parents: procedure → patient and stage/map → definition don't cascade.
+            // Children before parents: appointment → patient/procedure/stage, procedure → patient and stage/map →
+            // definition don't cascade; nor do calendar blocks and templates → activity type and day template.
+            await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
+            await db.Appointments.ExecuteDeleteAsync(cancellationToken);
+            await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);
+            await db.CalendarBlocks.ExecuteDeleteAsync(cancellationToken);
+            await db.CalendarDayOverrides.ExecuteDeleteAsync(cancellationToken);
+            await db.StaffWeekTemplates.ExecuteDeleteAsync(cancellationToken);
+            await db.WeekTemplateDays.ExecuteDeleteAsync(cancellationToken);
+            await db.WeekTemplates.ExecuteDeleteAsync(cancellationToken);
+            await db.DayTemplateBlocks.ExecuteDeleteAsync(cancellationToken);
+            await db.DayTemplates.ExecuteDeleteAsync(cancellationToken);
+            var seededActivityTypes = CalendarActivityTypeConfiguration.Seeded.Select(t => t.Id).ToList();
+            await db.CalendarActivityTypes.Where(t => !seededActivityTypes.Contains(t.Id)).ExecuteDeleteAsync(cancellationToken);
             await db.PatientProcedureAuditEntries.ExecuteDeleteAsync(cancellationToken);
             await db.PatientProcedureAssignments.ExecuteDeleteAsync(cancellationToken);
             await db.PatientProcedureStages.ExecuteDeleteAsync(cancellationToken);

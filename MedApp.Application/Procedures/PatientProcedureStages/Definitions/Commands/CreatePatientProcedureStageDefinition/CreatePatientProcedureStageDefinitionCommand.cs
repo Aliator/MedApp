@@ -6,5 +6,6 @@ namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Comma
 public sealed record CreatePatientProcedureStageDefinitionCommand(
     string Name,
     string Description,
-    string Instructions)
+    string Instructions,
+    string VisitRequirement = "None")
     : IRequest<PatientProcedureStageDefinitionResponse>;

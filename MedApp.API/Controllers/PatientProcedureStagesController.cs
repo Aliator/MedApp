@@ -40,7 +40,8 @@ public sealed class PatientProcedureStagesController(IMediator mediator) : Contr
         var definition = await mediator.Send(new CreatePatientProcedureStageDefinitionCommand(
             request.Name,
             request.Description,
-            request.Instructions), ct);
+            request.Instructions,
+            request.VisitRequirement), ct);
 
         return Created($"/api/procedures/patient-procedure-stage/definitions/{definition.Id}", definition);
     }
@@ -57,7 +58,8 @@ public sealed class PatientProcedureStagesController(IMediator mediator) : Contr
             id,
             request.Name,
             request.Description,
-            request.Instructions), ct));
+            request.Instructions,
+            request.VisitRequirement), ct));
 
     [HttpPost("definitions/{id:guid}/archive")]
     [ProducesResponseType(typeof(PatientProcedureStageDefinitionResponse), StatusCodes.Status200OK)]

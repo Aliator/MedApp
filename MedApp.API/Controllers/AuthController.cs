@@ -221,7 +221,8 @@ public sealed class AuthController(
     
     /// <summary>
     /// Deletes a user. The signed-in admin confirms with their own password: a wrong one is a 400 (and counts
-    /// towards lockout), an unknown user a 404.
+    /// towards lockout), an unknown user a 404. A user with upcoming booked appointments is a 400
+    /// (<c>HasUpcomingAppointments</c>) until they're moved or cancelled.
     /// </summary>
     [HttpDelete("users/{username}")]
     [Authorize(Roles = "Admin")]

@@ -1,4 +1,5 @@
 using FluentValidation;
+using MedApp.Application.Procedures.Common;
 
 namespace MedApp.Application.Procedures.PatientProcedureStages.Definitions.Commands.CreatePatientProcedureStageDefinition;
 
@@ -23,5 +24,9 @@ public sealed class CreatePatientProcedureStageDefinitionValidator : AbstractVal
             .WithMessage("Instructions are required.")
             .MaximumLength(2000)
             .WithMessage("Instructions must not exceed 2000 characters.");
+
+        RuleFor(x => x.VisitRequirement)
+            .Must(ProcedureEnums.IsVisitRequirement)
+            .WithMessage($"Visit requirement must be one of: {ProcedureEnums.VisitRequirementNames}.");
     }
 }

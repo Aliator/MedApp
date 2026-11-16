@@ -15,6 +15,9 @@ public interface IPatientRepository
     /// <summary>How many procedures the patient has, in any status.</summary>
     Task<int> CountProceduresAsync(Guid patientId, CancellationToken cancellationToken);
 
+    /// <summary>How many appointments the patient has, in any status.</summary>
+    Task<int> CountAppointmentsAsync(Guid patientId, CancellationToken cancellationToken);
+
     /// <summary>One page of patients matching the query's filters, in its sort order, and the total that match.</summary>
     Task<PagedResult<Patient>> SearchAsync(SearchPatientsQuery query, CancellationToken cancellationToken);
 }

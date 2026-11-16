@@ -12,10 +12,11 @@ public sealed class GetPatientTimelineRequest
     public int PageSize { get; set; } = 20;
 
     /// <summary>
-    /// Any of these kinds: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details or Deleted.
+    /// Any of these kinds: Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted or
+    /// Appointments.
     /// </summary>
     public List<string>? Kinds { get; set; }
 
-    /// <summary>Only these procedures' entries.</summary>
+    /// <summary>Only these procedures' entries (appointments not for a procedure are left out).</summary>
     public List<Guid>? ProcedureIds { get; set; }
 }

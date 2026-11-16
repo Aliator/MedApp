@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MedApp.Domain.Appointments;
 using MedApp.Domain.Procedures.PatientProcedures;
 using static MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
 
@@ -16,6 +17,12 @@ namespace MedApp.Application.Procedures.Common;
 /// Stages are worked strictly in order. The current stage is the first one not finished; its notes can be edited until
 /// it's finished, which locks it. An admin can unlock a finished stage to reopen just that stage, which moves an
 /// InReview or Completed procedure back to InProgress.
+/// </para>
+/// <para>
+/// A stage may involve a visit (<see cref="VisitRequirement"/>). When it becomes current, the app asks for an
+/// appointment (<see cref="StageVisits"/>). A Required one can't be finished without an attended appointment, except
+/// by an admin, with a reason; finishing a Suggested one without asks for confirmation in the UI. Finishing a stage
+/// again after an admin unlocked it doesn't ask for a visit again.
 /// </para>
 /// </summary>
 public static partial class ProcedureWorkflow
@@ -101,6 +108,24 @@ public static partial class ProcedureWorkflow
     /// <summary>Whether an admin can unlock a stage: it's finished and locked, and the procedure isn't blocked or closed off.</summary>
     public static bool CanUnlockStage(PatientProcedure procedure, PatientProcedureStage stage) =>
         stage.IsCompleted && stage.IsLocked && (IsOpen(procedure.Status) || procedure.Status == Completed);
+
+    /// <summary>
+    /// Why a stage can't be finished yet for want of its visit: it's Required, being finished for the first time, and
+    /// has no Attended appointment among <paramref name="stageAppointments"/>. Null if it can be finished.
+    /// </summary>
+    public static string? WhyStageNeedsVisit(PatientProcedureStage stage, IEnumerable<Appointment> stageAppointments) =>
+        stage.VisitRequirement == VisitRequirement.Required && FinishesWithoutVisit(stage, stageAppointments)
+            ? $"The '{stage.Name}' stage needs a visit before it can be finished: book it, and mark it Attended once it's happened. An admin can finish it without one."
+            : null;
+
+    /// <summary>
+    /// Whether finishing a stage now would be without the visit it involves: it's Suggested or Required, being finished
+    /// for the first time, and has no Attended appointment among <paramref name="stageAppointments"/>.
+    /// </summary>
+    public static bool FinishesWithoutVisit(PatientProcedureStage stage, IEnumerable<Appointment> stageAppointments) =>
+        stage.VisitRequirement != VisitRequirement.None
+        && !stage.IsCompleted
+        && !stageAppointments.Any(a => a.StageId == stage.Id && a.Status == AppointmentStatus.Attended);
 
     /// <summary>A status in words, e.g. "in review".</summary>
     public static string Describe(PatientProcedureStatus status) =>

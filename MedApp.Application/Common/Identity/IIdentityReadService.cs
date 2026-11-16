@@ -20,6 +20,12 @@ public interface IIdentityReadService
     /// <summary>The usernames of the users with these IDs. IDs with no account (e.g. deleted) are left out.</summary>
     Task<IReadOnlyDictionary<Guid, string>> GetUsernamesByIdAsync(IEnumerable<Guid> userIds, CancellationToken ct);
 
+    /// <summary>
+    /// Every member of staff (a user with the User or Admin role), sorted by username ignoring case: whose calendars
+    /// there are, and who appointments can be booked with.
+    /// </summary>
+    Task<IReadOnlyList<(Guid UserId, string Username)>> GetStaffAsync(CancellationToken ct);
+
     /// <summary>One page of users matching the query's filters, sorted by username, and the total that match.</summary>
     Task<PagedResult<UserResponse>> SearchUsersAsync(SearchUsersQuery query, CancellationToken ct);
 }

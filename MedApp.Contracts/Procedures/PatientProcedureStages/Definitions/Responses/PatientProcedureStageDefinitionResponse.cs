@@ -6,6 +6,9 @@ public sealed class PatientProcedureStageDefinitionResponse
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Instructions { get; set; } = string.Empty;
+
+    /// <summary>Whether the stage involves a visit: None, Suggested or Required.</summary>
+    public string VisitRequirement { get; set; } = string.Empty;
     public bool IsArchived { get; set; }
 
     /// <summary>How many templates use it. A definition in use by a template or procedure can only be archived.</summary>
