@@ -111,6 +111,14 @@ if ! vault get secret medapp-backplane >/dev/null 2>&1; then
     --from-literal=password="$password" \
     --from-literal=connection-string="$release-valkey:6379,password=$password"
 fi
+if ! vault get secret medapp-attachments >/dev/null 2>&1; then
+  # Azurite's account (attachments.azurite.accountName in the chart) and its key: 64 random bytes, base64, like an
+  # Azure Storage account key. openssl wraps base64 at 64 characters, hence the tr.
+  key="$(openssl rand -base64 64 | tr -d '\n')"
+  vault create secret generic medapp-attachments \
+    --from-literal=account-key="$key" \
+    --from-literal=connection-string="DefaultEndpointsProtocol=http;AccountName=medapp;AccountKey=$key;BlobEndpoint=http://$release-azurite:10000/medapp;"
+fi
 
 # Who deploys MedApp: Helm from this script, or Argo CD from git. Not both at once.
 helm_release=$(h list --namespace medapp --filter "^$release\$" --short 2>/dev/null || true)

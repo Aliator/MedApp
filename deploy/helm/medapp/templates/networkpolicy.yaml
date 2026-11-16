@@ -5,7 +5,8 @@ refused. The API's own Node renderer calls it on 127.0.0.1, inside the pod, whic
 {{- if .Values.networkPolicy.enabled }}
 {{- $dns := dict "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" "kube-system")) "podSelector" (dict "matchLabels" (dict "k8s-app" "kube-dns")))) "ports" (list (dict "port" 53 "protocol" "UDP") (dict "port" 53 "protocol" "TCP")) }}
 # The API: requests only from the ingress controller (and the kubelet's probes, which policies don't block); out to
-# DNS, the database and the backplane only.
+# DNS and the parts of MedApp it uses (the database, Valkey and Azurite, when they run in the cluster), plus
+# networkPolicy.extraEgress.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -44,9 +45,40 @@ spec:
         - port: 6379
           protocol: TCP
     {{- end }}
+    {{- if .Values.attachments.azurite.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "azurite") | nindent 14 }}
+      ports:
+        - port: 10000
+          protocol: TCP
+    {{- end }}
     {{- with .Values.networkPolicy.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+{{- if .Values.attachments.azurite.enabled }}
+---
+# Azurite, the attachments' file storage: connections only from the API; nothing out.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "medapp.azuriteName" . }}
+  labels:
+    {{- include "medapp.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "medapp.selectorLabels" (list . "azurite") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "medapp.selectorLabels" (list . "api") | nindent 14 }}
+      ports:
+        - port: blob
+{{- end }}
 {{- if and .Values.backplane.enabled .Values.backplane.valkey.enabled }}
 ---
 # Valkey, the backplane: connections only from the API; nothing out.

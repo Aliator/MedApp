@@ -19,8 +19,13 @@ ingress:
 sql:
   enabled: false
 
+# Attachments' files in an Azure Storage account (main.bicep), not Azurite in the cluster.
+attachments:
+  azurite:
+    enabled: false
+
 # Every secret from Key Vault (main.bicep makes them), through External Secrets Operator signed in with workload
-# identity (bootstrap.sh). Azure SQL has no sa password to pass on.
+# identity (bootstrap.sh). Azure SQL has no sa password to pass on, and the storage account no Azurite key.
 externalSecrets:
   enabled: true
   secretStoreRef:
@@ -28,15 +33,20 @@ externalSecrets:
     name: azure-key-vault
   database:
     sa-password: null
+  attachments:
+    account-key: null
 
 networkPolicy:
   ingressController:
     namespace: traefik
-  # Azure SQL's private endpoint (main.bicep's private-endpoints subnet), for the API and the migrations Job.
+  # The private endpoints (main.bicep's private-endpoints subnet), for the API and the migrations Job: Azure SQL on
+  # 1433, and the attachments' storage account on 443 (only the API uses it).
   extraEgress:
     - to:
         - ipBlock:
             cidr: 10.40.4.0/24
       ports:
         - port: 1433
+          protocol: TCP
+        - port: 443
           protocol: TCP
