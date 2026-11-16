@@ -1,7 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
-import {STABLE_SCROLLBAR} from './AppLayout';
 
 /** Every list is empty: enough for the pages to render their headers. */
 /** No data anywhere: empty lists (an empty page from the search endpoints, which the rest are). */
@@ -34,29 +33,29 @@ async function railRow(user: ReturnType<typeof userEvent.setup>, item: string) {
 describe('AppLayout scrollbar room', {timeout: 15_000}, () => {
   beforeEach(() => sessionStorage.clear());
 
-  it('keeps room for a scrollbar in the main area, so pages that scroll line up with pages that do not', async () => {
+  // jsdom has no layout, but it does apply the rule (`:has()` included), so its effect can be read as computed styles.
+  const gutterOf = (element: Element | null) => (element ? getComputedStyle(element).scrollbarGutter : 'missing');
+
+  it('keeps room for a scrollbar on both sides of the main area, so pages that scroll line up with pages that do not', async () => {
     emptyApi();
     renderApp({path: '/patients', user: adminUser});
 
     await heading('Patients');
-    expect(document.querySelector('style[data-medapp-layout]')?.textContent).toBe(STABLE_SCROLLBAR);
-    expect(STABLE_SCROLLBAR).toContain('[role="main"]');
-    expect(STABLE_SCROLLBAR).toContain('scrollbar-gutter: stable');
-    // No half view: nothing for the rule to leave out.
-    expect(document.querySelector('[data-half-views]')).toBeNull();
+    expect(document.querySelectorAll('[role="main"]')).toHaveLength(1);
+    expect(gutterOf(document.querySelector('[role="main"]'))).toBe('stable both-edges');
   });
 
-  it('leaves the main area to the halves in a half view, each keeping its own room', async () => {
+  it('leaves the room to the halves in a half view, each keeping its own on both sides', async () => {
     sessionStorage.setItem('medapp.halfView', '/admin/audit');
     emptyApi();
     renderApp({path: '/patients', user: adminUser});
 
     await heading('Audit Log');
-    // The rule skips a main area holding the halves, which scroll, and keep the room, themselves.
-    const halves = document.querySelector('[data-half-views]');
-    expect(halves).not.toBeNull();
-    expect(within(halves as HTMLElement).getByRole('heading', {name: 'Patients', level: 1})).toBeInTheDocument();
-    expect(STABLE_SCROLLBAR).toContain(':not(:has([data-half-views]))');
+    // The halves scroll, not the main area, so the main area keeps no room of its own (two gutters would be uneven).
+    expect(gutterOf(document.querySelector('[role="main"]'))).toBe('auto');
+    for (const half of ['Left half', 'Right half']) {
+      expect(gutterOf(document.querySelector(`[aria-label="${half}"]`))).toBe('stable both-edges');
+    }
   });
 });
 

@@ -28,6 +28,19 @@ export const EMAIL_UNAVAILABLE =
 const CHANGE_FIELDS = ['email', 'password'];
 
 /**
+ * What Remove does, in words, for what the account has: removing clears both the address in use and one waiting for
+ * its link to be opened.
+ */
+function removeMessage(email: string | null, pendingEmail: string | null): string {
+  const confirm = 'Enter your password to confirm.';
+  if (email && pendingEmail)
+    return `Remove ${email}? This also cancels the change to ${pendingEmail}, so the link we sent there stops working. Password reset links can't reach you without an email address. You can add one again later. ${confirm}`;
+  if (pendingEmail)
+    return `Remove ${pendingEmail}? It's still waiting for you to open the link we sent, and that link stops working. You can add an address again later. ${confirm}`;
+  return `Remove ${email ?? 'your email address'}? Password reset links can't reach you without an email address. You can add one again later. ${confirm}`;
+}
+
+/**
  * The signed-in user's email address (Account Settings, Email Address): the confirmed one in use, one waiting for its
  * link to be opened, changing it (the API emails a link to the new address; the old one stays in use until it's
  * opened) and removing it. A confirmed address is where password reset links go, so both ask for the password: a
@@ -91,7 +104,12 @@ export function EmailPage() {
       onSuccess: () => {
         closeRemove();
         change.reset();
-        setNotice('Your email address has been removed.');
+        // Only an address waiting for its link: that's what went, and its link no longer works.
+        setNotice(
+          email === null && pendingEmail !== null
+            ? `${pendingEmail} has been removed, and the link we sent there no longer works.`
+            : 'Your email address has been removed.',
+        );
         announce('Email address removed');
       },
     });
@@ -119,7 +137,7 @@ export function EmailPage() {
         <ConfirmDialog
           isOpen={isRemoving}
           title="Remove Email Address"
-          message="Remove your email address? Password reset links can't reach you without one. You can add one again later. Enter your password to confirm."
+          message={removeMessage(email, pendingEmail)}
           icon={AppIcon.Email}
           isDanger
           confirmText="Remove"
@@ -209,7 +227,7 @@ export function EmailPage() {
           </FormCard>
         ) : (
           <ViewCard showFooter={false}>
-            <CardSection title="Change email address">
+            <CardSection title={email || pendingEmail ? 'Change email address' : 'Add an email address'}>
               <Text type="body">{EMAIL_UNAVAILABLE}</Text>
             </CardSection>
           </ViewCard>

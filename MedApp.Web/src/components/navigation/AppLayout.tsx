@@ -16,18 +16,19 @@ import {SessionTimeout} from './SessionTimeout';
 const STORAGE_KEY = 'medapp.halfView';
 
 /**
- * A half of a half view scrolls up and down only, and keeps room for its scrollbar whether or not its page scrolls, so
- * its page doesn't move sideways when it starts to (see `STABLE_SCROLLBAR`).
+ * A half of a half view scrolls up and down only, and keeps room for a scrollbar on both sides whether or not its page
+ * scrolls (see `STABLE_SCROLLBAR`), so the divider between the halves stays put, in the middle, when either starts to.
  */
-const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable'} as const;
+const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable both-edges'} as const;
 
 /**
  * The window's main area keeps room for a scrollbar whether or not its page scrolls. Where scrollbars take up space
- * (Windows), the page is centred in what's left, so without this a page that scrolls (Account Settings, the
- * accessibility statement) sat a few pixels left of one that doesn't. AppShell has no prop for it, so it's a rule on
- * its main area (`role="main"`). In a half view the halves scroll instead, and keep their own room (`HALF`).
+ * (Windows, and most Linux desktops), a page is centred in what's left, so without this a page that scrolls (Account
+ * Settings, the accessibility statement) sat a few pixels away from one that doesn't. The room is kept on both sides,
+ * so the margins stay even. AppShell has no prop for it, so it's a rule on its main area (`role="main"`). In a half
+ * view the halves scroll instead, and keep their own room (`HALF`).
  */
-export const STABLE_SCROLLBAR = '[role="main"]:not(:has([data-half-views])) { scrollbar-gutter: stable; }';
+export const STABLE_SCROLLBAR = '[role="main"]:not(:has([data-half-views])) { scrollbar-gutter: stable both-edges; }';
 
 /** The half view's page, kept for the browser tab so a reload keeps it (storage may be unavailable). */
 function storedPath(): string | null {
