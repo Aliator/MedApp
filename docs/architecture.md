@@ -562,10 +562,11 @@ stateDiagram-v2
 | `ssr/` | `document.tsx` (the whole HTML document when rendering on the server), `requestContext.ts` (the per-request API address, cookie and key) |
 | `themes/medapp/` | The `medapp` theme (Astryx's stone theme with MedApp's blues), built ahead of time and checked in |
 
-**Routes.** `/login` is public. Everything else sits under the `_app` layout route, whose `beforeLoad` guard fetches `whoami` and redirects signed-out visitors to `/login`, then preloads the account's settings and notifications (`src/routes/_app.tsx`). Admin routes add `requireAdmin`.
+**Routes.** `/login` is public. `/change-password` is for someone signed in who must change a password an admin gave them; it sits outside the layout too. Everything else sits under the `_app` layout route, whose `beforeLoad` guard fetches `whoami` and redirects signed-out visitors to `/login` and anyone who must change their password to `/change-password`, then preloads the account's settings and notifications (`src/routes/_app.tsx`). Admin routes add `requireAdmin`.
 
 | Route | Page | Who |
 |---|---|---|
+| `/change-password` | Choose your own password, after a generated one | Signed in, with a password to change |
 | `/` | Welcome | Staff |
 | `/tasks` | My Tasks: Not started and Started | Staff |
 | `/patients`, `/patients/add`, `/patients/$id`, `/patients/$id/edit`, `/patients/$id/procedures` | Patients | Staff |
@@ -1002,7 +1003,7 @@ To delete it, remove the `medapp-keep-database` lock first; deleting the SQL ser
 - **Lockout:** 5 wrong passwords lock the account for 5 minutes. A locked account gets 423 with the time left, even with the right password (#38).
 - **Sensitive actions re-check:** changing your own password needs the old one; deleting a user needs the deleting admin's own password.
 - **The server generates every first password and every reset** (#53): at least 16 characters, or the configured minimum if that's longer, from a cryptographic random number generator (`IdentityUserService.GeneratePassword`). There's no default password. `POST api/auth/users` takes only a username and returns the new password once, with `Cache-Control: no-store`. The Users page shows it once, with a copy button, and forgets it when the dialog closes. The response records print `***` in place of the password, so logging one can't leak it.
-- **A generated password isn't single-use.** It works until its user changes it, and nothing forces a change at first sign-in yet (`docs/todo.md`). Accounts created before #53 were given the published password `DefaultPassword1`, may still have it, and nothing finds them yet ([11.1](#111-security-and-privacy), S1).
+- **A generated password must be changed at first sign-in.** Creating an account or resetting a password sets `ApplicationUser.MustChangePassword`; changing it clears it. Until then the session carries a claim, and `PasswordChangeRequired` refuses every `/api` request with a 403 except who am I, sign out, reading one's own settings and changing one's own password, and the web app holds them on `/change-password`. The first admin and `medapp-dev`'s accounts are exempt. Accounts created before #53 were given the published password `DefaultPassword1`, may still have it, and nothing finds them yet ([11.1](#111-security-and-privacy), S1).
 - **"Forgot password?"** is a stand-in: it says a link was sent, and sends nothing.
 
 #### Authorisation
@@ -1270,7 +1271,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 
 | ID | Risk | Severity | Source |
 |---|---|---|---|
-| S1 | **Fixed in #53: new accounts no longer share a password.** Before #53, every account was created with `DefaultPassword1`, which was in the public source and shown in the UI. Now the server generates each first password and shows it once. **Left over:** accounts created before #53 may still have `DefaultPassword1`, and nothing finds them yet. Nothing forces a change at first sign-in. If the admin leaves the page while an account is being created, its password is never shown. The deprecated Blazor client doesn't show the generated password. | Was high. Now medium (the old accounts) and low (the rest) | (handbook); `docs/reviews/pr-53-generated-first-password.md`, findings 1, 3 and 7; `docs/todo.md` |
+| S1 | **Fixed in #53: new accounts no longer share a password.** Before #53, every account was created with `DefaultPassword1`, which was in the public source and shown in the UI. Now the server generates each first password and shows it once. **Left over:** accounts created before #53 may still have `DefaultPassword1`, and nothing finds them yet (a reset now forces its user to choose their own). A generated password must now be changed at first sign-in. If the admin leaves the page while an account is being created, its password is never shown. The deprecated Blazor client doesn't show the generated password. | Was high. Now medium (the old accounts) and low (the rest) | (handbook); `docs/reviews/pr-53-generated-first-password.md`, findings 1, 3 and 7; `docs/todo.md` |
 | S2 | **Patient records and account administration aren't audited, and reads aren't logged at all.** Any staff member can delete a patient who has no procedures, and nothing records it. For health data, who viewed and changed what is usually required. | High | (handbook) |
 | S3 | **On Azure, the app, the migrations Job and anyone who can read an API pod's environment use the SQL server's admin login.** | High before real data | F15 (the open store half is fixed) |
 | S4 | **No regulatory groundwork:** no DPIA, retention policy, subject access or erasure process ([2.3](#23-regulatory-and-legal-constraints)). | High before real data | (handbook) |
@@ -1384,7 +1385,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | 30 | `up.sh --argocd --revision` left the image pinned | Low | **Fixed** (#52) |
 | 31 | Docs that disagreed with the code | Low | **Partly fixed**; see [Appendix A](#appendix-a-where-the-docs-and-the-code-disagree) |
 
-`docs/todo.md` carries the open deployment items: deploy to Azure for real; passwordless SQL, a least-privilege user, private endpoints and monitoring; the MediatR licence; readiness checks and restarting Node; restarting pods when passwords change; pinning by digest; the remaining repository setting (a deploy-only GitHub App as the only pusher to `env/*`); and moving the page server out of `wwwroot`. Its features list carries what #53 left: forcing a password change at first sign-in, finding the accounts that may still have `DefaultPassword1`, and making `medapp-dev`'s `create_user` all-or-nothing.
+`docs/todo.md` carries the open deployment items: deploy to Azure for real; passwordless SQL, a least-privilege user, private endpoints and monitoring; the MediatR licence; readiness checks and restarting Node; restarting pods when passwords change; pinning by digest; the remaining repository setting (a deploy-only GitHub App as the only pusher to `env/*`); and moving the page server out of `wwwroot`. Its features list carries what #53 left: finding the accounts that may still have `DefaultPassword1`. (Forcing a password change at first sign-in, and making `medapp-dev`'s `create_user` all-or-nothing, are done.)
 
 ---
 
@@ -1556,7 +1557,7 @@ If an NHS pilot is lined up, do a first, smaller penetration test and DSPT submi
   - let admins end anyone's sessions (V7.4.5)
   - store a hash of a random 256-bit token instead of the row's GUID, so a copy of the database can't be replayed as sessions
   - the session timeout warning in `docs/todo.md` (WCAG 2.2.1)
-- **Passwords** (`appsettings.json`, `Identity`): no composition rules, a deny list of common and breached passwords, and a longer minimum ([NCSC](https://www.ncsc.gov.uk/collection/passwords/updating-your-approach); [ASVS](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x15-V6-Authentication.md) V6.2.1 recommends 15 characters, and V6.2.12 a breached-password check). Admin resets already generate a password and show it once, and since #53 so does creating an account. Add the "must change password" flag that #53 left in `docs/todo.md`, so the generated password has to be replaced at the next sign-in (`IdentityUserService`).
+- **Passwords** (`appsettings.json`, `Identity`): no composition rules, a deny list of common and breached passwords, and a longer minimum ([NCSC](https://www.ncsc.gov.uk/collection/passwords/updating-your-approach); [ASVS](https://raw.githubusercontent.com/OWASP/ASVS/master/5.0/en/0x15-V6-Authentication.md) V6.2.1 recommends 15 characters, and V6.2.12 a breached-password check). Admin resets already generate a password and show it once, and since #53 so does creating an account. The "must change password" flag that #53 left is in place: a generated password has to be replaced at the next sign-in (`ApplicationUser.MustChangePassword`, `PasswordChangeRequired`).
 - **Data protection keys:** persist ASP.NET Core's keys, encrypted with Key Vault. `docs/reviews/kubernetes.md` (risk 2) says two pods need this before any emailed link can work (step 4).
 - **Authorisation:**
   - remove `GET api/patients` and `GET api/auth/users`, which return every row and are used only by the deprecated client, and the first also by the UI parity tool's sign-in check
