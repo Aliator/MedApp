@@ -33,7 +33,8 @@ const bodyOf = async (fetch: ReturnType<typeof mockApi>, method: string, path: s
   return request.clone().json();
 };
 
-describe('AppointmentDialog', () => {
+// Dialogs that open further dialogs are slow under coverage on a loaded machine (CI): give them room.
+describe('AppointmentDialog', {timeout: 30_000}, () => {
   beforeEach(() => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
   });

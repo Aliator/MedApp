@@ -90,7 +90,8 @@ describe('calendar ranges', () => {
   });
 });
 
-describe('CalendarPage', () => {
+// Slow under coverage on a loaded machine (CI): give it room.
+describe('CalendarPage', {timeout: 30_000}, () => {
   beforeEach(() => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
   });

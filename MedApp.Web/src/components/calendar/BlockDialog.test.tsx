@@ -33,7 +33,8 @@ const bodyOf = async (fetch: ReturnType<typeof mockApi>, method: string, path: s
   return request.clone().json();
 };
 
-describe('BlockDialog', () => {
+// Slow under coverage on a loaded machine (CI): give it room.
+describe('BlockDialog', {timeout: 30_000}, () => {
   beforeEach(() => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
   });

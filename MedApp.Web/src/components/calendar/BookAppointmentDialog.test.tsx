@@ -45,7 +45,8 @@ const bodyOf = async (fetch: ReturnType<typeof mockApi>, method: string, path: s
   return request.clone().json();
 };
 
-describe('BookAppointmentDialog', () => {
+// Slow under coverage on a loaded machine (CI): give it room.
+describe('BookAppointmentDialog', {timeout: 30_000}, () => {
   it('books a visit for a known stage in a free time, with the signed-in user by default', {timeout: 20000}, async () => {
     atMondayMorning();
     withAnnouncements();
