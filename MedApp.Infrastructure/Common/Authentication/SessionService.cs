@@ -53,7 +53,8 @@ public sealed class SessionService(
         return new SessionValidationResult(
             user.Id,
             user.UserName ?? string.Empty,
-            roles.ToArray());
+            roles.ToArray(),
+            user.MustChangePassword);
     }
 
     public async Task RevokeSessionAsync(

@@ -99,7 +99,36 @@ public sealed class UpdateUserValidatorTests
         var result = _validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e 
+        result.Errors.Should().Contain(e
             => e.PropertyName == nameof(UpdateUserPasswordCommand.NewPassword));
+    }
+
+    [Test]
+    public void Validate_NewPasswordSameAsOld_FailsOnTheNewPassword()
+    {
+        var command = new UpdateUserPasswordCommand(
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Passwords[0],
+            AuthTestConstants.Passwords[0]);
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e
+            => e.PropertyName == nameof(UpdateUserPasswordCommand.NewPassword)
+               && e.ErrorMessage == "The new password must be different from the current one.");
+    }
+
+    [Test]
+    public void Validate_NewPasswordDiffersOnlyInCase_Passes()
+    {
+        var command = new UpdateUserPasswordCommand(
+            AuthTestConstants.Usernames[0],
+            AuthTestConstants.Passwords[0],
+            AuthTestConstants.Passwords[0].ToUpperInvariant());
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
     }
 }

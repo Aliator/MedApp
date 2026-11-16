@@ -37,6 +37,9 @@ public sealed class SessionAuthenticationHandler(
         foreach (var role in validation.Roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
 
+        if (validation.MustChangePassword)
+            claims.Add(new Claim(SessionAuthenticationDefaults.MustChangePasswordClaim, "true"));
+
         var identity = new ClaimsIdentity(
             claims,
             SessionAuthenticationDefaults.Scheme);

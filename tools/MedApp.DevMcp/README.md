@@ -17,6 +17,8 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 - **`restore_snapshot`** first saves the current database as `pre-restore-<timestamp>`.
 - **Synthetic data only.** This is a medical app: `seed_patients` invents names and uses `@example.com` emails. Never enter a real person's details.
 - **Passwords.** `create_user` / `set_password` return any password they generate, so the agent can sign in with it. Only use this for local dev accounts.
+- **No forced password change.** The app makes an account an admin creates or resets change its generated password at first sign-in (`MustChangePassword`). Accounts this tool makes or sets a password on aren't: `create_user`, `set_password`, `ensure_test_admin` and `reset_demo_data`'s staff can sign in and use the app straight away.
+- **All or nothing.** `create_user` makes the account, sets its password and gives it its roles in one transaction, so a failure part-way leaves no account behind.
 
 ## Tools
 

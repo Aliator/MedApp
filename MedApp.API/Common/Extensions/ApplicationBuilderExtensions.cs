@@ -1,4 +1,5 @@
-﻿using MedApp.API.Middleware;
+﻿using MedApp.API.Common.Authentication;
+using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
 
@@ -42,6 +43,8 @@ public static class ApplicationBuilderExtensions
         app.UseMiddleware<ExceptionHandling>();
 
         app.UseAuthentication();
+        // A user with a password an admin gave them can only change it (and sign out) until they do.
+        app.UseMiddleware<PasswordChangeRequired>();
         app.UseAuthorization();
 
         app.MapControllers();

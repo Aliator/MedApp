@@ -390,8 +390,15 @@ public sealed class IdentityRoleServiceTests
 
         var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[0], "Nonexistent"], CancellationToken.None);
 
+        // A failed result rolls the transaction back, though nothing was changed.
         result.Errors.Should().ContainSingle(e => e.Code == IdentityErrors.RoleNotFoundCode);
-        _transactions.Verify(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        VerifyNoRolesChanged();
+    }
+
+    private void VerifyNoRolesChanged()
+    {
+        _userManager.Verify(u => u.RemoveFromRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+        _userManager.Verify(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>()), Times.Never);
     }
 
     [Test]
@@ -405,7 +412,38 @@ public sealed class IdentityRoleServiceTests
         var result = await _service.SetRolesAsync(user.UserName!, [AuthTestConstants.Roles[1].ToLowerInvariant()], CancellationToken.None);
 
         result.Succeeded.Should().BeTrue();
-        _transactions.Verify(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        VerifyNoRolesChanged();
+    }
+
+    [Test]
+    public async Task SetRolesAsync_TransactionRetried_LoadsTheUserAndRolesAgainForTheRetry()
+    {
+        // A retry (after a transient error) runs the work again from the start, with what it loaded before forgotten.
+        // The first attempt's user must not be reused: Identity has already given it a new concurrency stamp.
+        var firstAttempt = AuthTestConstants.CreateValidUser();
+        var retry = AuthTestConstants.CreateValidUser();
+        _transactions
+            .Setup(t => t.RunAsync(It.IsAny<Func<Task<IdentityResult>>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (Func<Task<IdentityResult>> work, CancellationToken _) =>
+            {
+                await work();
+                return await work();
+            });
+        _userManager.SetupSequence(u => u.FindByNameAsync(firstAttempt.UserName!)).ReturnsAsync(firstAttempt).ReturnsAsync(retry);
+        _userManager.Setup(u => u.GetRolesAsync(firstAttempt)).ReturnsAsync([AuthTestConstants.Roles[1]]);
+        _userManager.Setup(u => u.GetRolesAsync(retry)).ReturnsAsync([AuthTestConstants.Roles[1]]);
+        _userManager.Setup(u => u.RemoveFromRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
+        _userManager.Setup(u => u.AddToRolesAsync(It.IsAny<ApplicationUser>(), It.IsAny<IEnumerable<string>>())).ReturnsAsync(IdentityResult.Success);
+        SetUpRoles(AuthTestConstants.Roles[0]);
+
+        var result = await _service.SetRolesAsync(firstAttempt.UserName!, [AuthTestConstants.Roles[0]], CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+        _userManager.Verify(u => u.FindByNameAsync(firstAttempt.UserName!), Times.Exactly(2));
+        _roleManager.Verify(r => r.FindByNameAsync(AuthTestConstants.Roles[0]), Times.Exactly(2));
+        _userManager.Verify(u => u.GetRolesAsync(retry), Times.Once);
+        _userManager.Verify(u => u.RemoveFromRolesAsync(retry, new[] {AuthTestConstants.Roles[1]}), Times.Once);
+        _userManager.Verify(u => u.AddToRolesAsync(retry, new[] {AuthTestConstants.Roles[0]}), Times.Once);
     }
 
     [Test]
