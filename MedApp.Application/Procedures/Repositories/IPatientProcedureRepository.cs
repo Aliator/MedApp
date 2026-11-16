@@ -25,6 +25,9 @@ public interface IPatientProcedureRepository
     /// <summary>Deletes a procedure loaded with <see cref="GetForUpdateAsync"/>, keeping its audit entries.</summary>
     Task DeleteAsync(PatientProcedure procedure, IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken ct);
 
+    /// <summary>A patient's procedures, in any status, read-only and without their stages, assignments or patient.</summary>
+    Task<IReadOnlyList<PatientProcedure>> GetByPatientAsync(Guid patientId, CancellationToken ct);
+
     /// <summary>One page of procedures matching the query (see <c>ProcedureSearch</c>), with patients, stages and assignments.</summary>
     Task<PagedResult<PatientProcedure>> SearchAsync(SearchPatientProceduresQuery query, DateTime nowUtc, CancellationToken ct);
 }
