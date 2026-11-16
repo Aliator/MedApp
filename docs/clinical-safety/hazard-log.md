@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 0.4, draft |
 | **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-22 to H-28 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -54,13 +54,13 @@
 | [H-19](#h-19-part-of-the-clinical-record-is-lost-by-deletion) | Part of the clinical record is lost by deletion | Considerable, Low: **2** | Considerable, Low: **2** | Considerable, Very low: **2** | Yes, later | Open |
 | [H-20](#h-20-data-is-lost-or-restored-to-an-earlier-point) | Data is lost, or restored to an earlier point | Major, Low: **3** | Major, Very low: **2** | Major, Very low: **2** | Operational, before first live use | Open |
 | [H-21](#h-21-work-assigned-to-a-deleted-account-drops-off-every-task-list) | Work assigned to a deleted account drops off every task list | Major, Medium: **3** | Major, Very low: **2** | Major, Very low: **2** | **Yes, before first live use** | Open |
-| [H-22](#h-22-a-visit-the-patient-needs-doesnt-happen) | A visit the patient needs doesn't happen | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-23](#h-23-a-member-of-staff-is-double-booked) | A member of staff is double-booked | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-24](#h-24-a-stage-is-finished-without-the-visit-it-needed) | A stage is finished without the visit it needed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-25](#h-25-an-appointment-is-at-the-wrong-time) | An appointment is at the wrong time | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-26](#h-26-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
-| [H-27](#h-27-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
-| [H-28](#h-28-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-30](#h-22-a-visit-the-patient-needs-doesnt-happen) | A visit the patient needs doesn't happen | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-31](#h-23-a-member-of-staff-is-double-booked) | A member of staff is double-booked | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-32](#h-24-a-stage-is-finished-without-the-visit-it-needed) | A stage is finished without the visit it needed | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-33](#h-25-an-appointment-is-at-the-wrong-time) | An appointment is at the wrong time | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-34](#h-26-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-35](#h-27-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
+| [H-36](#h-28-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -68,7 +68,7 @@
 
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
 
-**Staff calendars and appointments (H-22 to H-28)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-22, H-24, H-26 and H-28), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
+**Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
 ---
 
@@ -307,7 +307,7 @@
 **Existing controls:**
 - The finish confirmation (H-06).
 - Who finished each stage, and when, is shown on the stage and kept in the audit log (`StageList.tsx`; `ProcedureChange.FinishStage`), so it's accountable.
-- **Since staff calendars, for a stage that involves a visit:** a stage whose definition requires a visit can't be finished until an appointment for it is Attended, unless an admin finishes it with a reason; a suggested visit asks for confirmation (`ProcedureWorkflow.WhyStageNeedsVisit`; `docs/calendar-plan.md`, decisions 24 and 25). How that rule can fail is H-24.
+- **Since staff calendars, for a stage that involves a visit:** a stage whose definition requires a visit can't be finished until an appointment for it is Attended, unless an admin finishes it with a reason; a suggested visit asks for confirmation (`ProcedureWorkflow.WhyStageNeedsVisit`; `docs/calendar-plan.md`, decisions 24 and 25). How that rule can fail is H-32.
 - **Transferred:** MedApp records the workflow; the clinical record of what was done stays in the organisation's clinical systems, and the professional who does the step is accountable for it.
 
 **Initial risk:** Major, Low: **3**.
@@ -791,7 +791,7 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 - The procedure page and lists show the assignee as "Deleted user" (`ProcedureMapper.DeletedUser`), which someone looking at the procedure would notice.
 - Any staff member can still work the procedure, and an admin can unassign the deleted account and assign someone else.
 - Overdue badges still show on the full Procedures list.
-- Since staff calendars, an account with upcoming Booked appointments can't be deleted until they're moved or cancelled (H-27). Open assignments still aren't checked.
+- Since staff calendars, an account with upcoming Booked appointments can't be deleted until they're moved or cancelled (H-35). Open assignments still aren't checked.
 
 **Initial risk:** Major, Medium: **3**.
 
@@ -810,13 +810,15 @@ Each removes the procedure from the open lists, where it would otherwise be seen
 
 ## Staff calendars and appointments: draft hazards for the CSO
 
-H-22 to H-28 come from the design of staff calendars and appointments (`docs/calendar-plan.md`), drafted while the feature was being built on `feature/staff-calendars`. "Decision n" refers to section 1 of that plan. In short: staff book appointments for patients on staff calendars; an appointment goes from Requested (needs booking) to Booked, then Attended or Did not attend, or Cancelled; a stage definition can say a stage involves a visit (none, suggested or required), and MedApp then requests an appointment when the stage becomes current and, for a required visit, won't let the stage be finished until the appointment is Attended, unless an admin finishes it with a reason.
+H-30 to H-36 come from the design of staff calendars and appointments (`docs/calendar-plan.md`), drafted while the feature was being built on `feature/staff-calendars`. "Decision n" refers to section 1 of that plan. In short: staff book appointments for patients on staff calendars; an appointment goes from Requested (needs booking) to Booked, then Attended or Did not attend, or Cancelled; a stage definition can say a stage involves a visit (none, suggested or required), and MedApp then requests an appointment when the stage becomes current and, for a required visit, won't let the stage be finished until the appointment is Attended, unless an admin finishes it with a reason.
 
 **Ratings:** left for the CSO to assign. Each entry gives a draft estimate, on the same scheme as the rest of the log, as a starting point. Check every existing control against the code before relying on it.
 
 ---
 
-## H-22: A visit the patient needs doesn't happen
+**Numbering:** H-22 to H-29 are kept for hazards that branches merging before staff calendars add; the calendar hazards start at H-30.
+
+## H-30: A visit the patient needs doesn't happen
 
 **Description.** A patient needs to be seen, but isn't: a Requested appointment is never booked, or a patient who didn't attend is never offered another appointment.
 
@@ -825,7 +827,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 - **Nothing flags a request that has waited too long.** Flagging or notifying old Requested appointments is left for later (plan, section 8).
 - **Did not attend leads nowhere by itself.** It's a status staff record (decision 16). The UI offers "Book another", but nothing reminds anyone later, and nobody else is notified.
 - **Cancelling a Booked appointment doesn't request another.** A Requested appointment is made only when a stage becomes current (decision 23), so after a cancellation the stage has no open appointment until someone books one.
-- **Appointments not for a stage** have no rule behind them at all, and a stage with a suggested visit can be finished without one (H-24).
+- **Appointments not for a stage** have no rule behind them at all, and a stage with a suggested visit can be finished without one (H-32).
 - **Pages don't refresh by themselves** (H-16), so a list left open doesn't show new requests.
 
 **Effect.** The patient isn't seen when they need to be. For a stage whose visit is required, the procedure can't move past that stage, which shows; for anything else, nothing in MedApp shows that the visit didn't happen.
@@ -856,7 +858,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-23: A member of staff is double-booked
+## H-31: A member of staff is double-booked
 
 **Description.** Two patients are booked with one member of staff at the same time, or a patient is booked over time the member of staff has blocked off (for example annual leave or training).
 
@@ -890,14 +892,14 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-24: A stage is finished without the visit it needed
+## H-32: A stage is finished without the visit it needed
 
 **Description.** A stage whose definition says it involves a visit is finished although the patient wasn't seen: a required visit is bypassed in error, or a suggested one is skipped when it was needed.
 
 **Causes:**
 - **The admin bypass** (decision 24) is used without checking, or because an admin was asked to "just finish it".
 - **The suggested-visit confirmation** (decision 25) is clicked through. Confirmations people see often stop being read (H-06).
-- **An appointment is marked Attended in error:** the wrong appointment, the wrong patient (H-26), or a correction from Did not attend made wrongly. Attended satisfies the rule.
+- **An appointment is marked Attended in error:** the wrong appointment, the wrong patient (H-34), or a correction from Did not attend made wrongly. Attended satisfies the rule.
 - **The definition's setting is wrong:** a stage that needs a visit is set to none or suggested. It's copied onto each procedure when it's created (decision 22), so a correction doesn't reach procedures already under way (as H-14).
 - **Finishing again after an unlock** doesn't ask for a visit again (decision 26).
 - **An Attended appointment linked to the stage counts,** however long before the stage it was.
@@ -931,7 +933,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-25: An appointment is at the wrong time
+## H-33: An appointment is at the wrong time
 
 **Description.** An appointment is booked, shown or passed on at a different time or day from the one intended: an hour out, on the wrong day, or in the wrong week.
 
@@ -940,7 +942,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 - **Clock changes:** template times are UK clock times, turned into UTC for each date; done wrongly, blocks and free slots move by an hour after a clock change.
 - **"Today" on the server:** server rendering runs in UTC, so between 23:00 and midnight UTC in summer the server's day and the browser's can differ (H-12's residual note). Home's day calendar or the Calendar page could open on the wrong day for that hour.
 - **The wrong day or slot picked** in the booking dialog, or the wrong week open in the week view.
-- **A reschedule** that moves the appointment, when the patient was told the old time (H-28).
+- **A reschedule** that moves the appointment, when the patient was told the old time (H-36).
 
 **Effect.** The patient and the member of staff turn up at different times, or the patient is told the wrong time.
 
@@ -969,7 +971,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-26: The wrong patient or procedure is booked
+## H-34: The wrong patient or procedure is booked
 
 **Description.** An appointment is booked for a different patient from the one intended, or linked to the wrong procedure or stage.
 
@@ -978,7 +980,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 - **Booking from an empty calendar slot or the New button** asks for the patient (and procedure and stage) to be chosen (decision 30), by name.
 - **An appointment's patient can't be changed:** booking and rescheduling change only the time and member of staff (the plan's API, section 4), so a mistake must be cancelled and booked again; until then it looks real.
 
-**Effect.** The wrong patient is called in, and the right one isn't. An Attended recorded on the wrong patient's appointment could satisfy that patient's required visit (H-24).
+**Effect.** The wrong patient is called in, and the right one isn't. An Attended recorded on the wrong patient's appointment could satisfy that patient's required visit (H-32).
 
 **Possible harm.** Delayed care for one patient, or a step done on the basis of a visit that was someone else's. Considerable.
 
@@ -1003,7 +1005,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-27: An appointment is left without its member of staff
+## H-35: An appointment is left without its member of staff
 
 **Description.** A patient is booked with a member of staff who won't be there: their account has been deleted, they're on leave, or their calendar has changed under the appointment.
 
@@ -1025,9 +1027,9 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
 
 **Further controls:**
-- **After a template change or a day's template is applied,** list the booked appointments it overlaps and notify the member of staff (as H-23). Protective; **proposed**; before first live use.
+- **After a template change or a day's template is applied,** list the booked appointments it overlaps and notify the member of staff (as H-31). Protective; **proposed**; before first live use.
 - **Refuse to remove the last role from someone with upcoming Booked appointments,** as account deletion does. Protective; **proposed**; later.
-- **A local process for absence:** when someone is away unexpectedly, move or cancel their appointments and tell the patients (H-28). Information; transferred; before first live use.
+- **A local process for absence:** when someone is away unexpectedly, move or cancel their appointments and tell the patients (H-36). Information; transferred; before first live use.
 - **Deactivate accounts instead of deleting them** (H-21). Design; **planned** (step 4); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
@@ -1038,7 +1040,7 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
-## H-28: A cancelled or moved appointment isn't passed on to the patient
+## H-36: A cancelled or moved appointment isn't passed on to the patient
 
 **Description.** An appointment is cancelled or rescheduled in MedApp, but the patient isn't told, so they come at the old time, or don't come to the new one.
 
@@ -1090,4 +1092,4 @@ H-22 to H-28 come from the design of staff calendars and appointments (`docs/cal
 | 0.1 | 16 November 2026 | First draft: 20 hazards from reading the code at `88dc1fa` | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: DCB0129's own consequence table, which re-rated H-09, H-10, H-12, H-13, H-14, H-20; an "at first live use" rating; My Tasks' default filter added to H-04, H-05 and H-09; new hazard H-21; H-13's approval step brought forward; H-12's fix in PR #62; smaller corrections | AI coding agent, for review |
 | 0.3 | 16 November 2026 | H-12's defect fixed by PR #62: the fix recorded as built, the residual risk's reasons updated, and what's left to verify | AI coding agent, for review |
-| 0.4 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-22 to H-28 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out | AI coding agent, for review |
+| 0.4 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out | AI coding agent, for review |

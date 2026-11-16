@@ -75,7 +75,7 @@ Hazards are found by:
 - **People who use it:** a hazard workshop with the CSO and at least one clinician from a likely customer before first live use; then user feedback, support requests and incidents.
 - **Every change** that touches clinical workflow ([section 8](#8-changes-and-the-release-gate)).
 
-The first hazard log (`hazard-log.md`) came from the first two of these. The workshop hasn't happened yet. The calendar and appointment hazards (H-22 to H-28) came from walking the booking and stage visit workflows in the feature's design (`docs/calendar-plan.md`), as a change that touches clinical workflow.
+The first hazard log (`hazard-log.md`) came from the first two of these. The workshop hasn't happened yet. The calendar and appointment hazards (H-30 to H-36) came from walking the booking and stage visit workflows in the feature's design (`docs/calendar-plan.md`), as a change that touches clinical workflow.
 
 ### 4.2 Estimating risk
 

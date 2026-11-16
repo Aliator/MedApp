@@ -39,7 +39,7 @@ For the clinical safety lead of a health or care organisation that is deploying 
 |---|---|
 | The intended purpose and the medical device decision | Draft: `intended-purpose-and-device-decision.md` |
 | The clinical risk management plan | Draft: `clinical-risk-management-plan.md` |
-| The hazard log | Draft, 28 hazards, of which H-22 to H-28 (staff calendars and appointments) are drafts still to be rated by the CSO: `hazard-log.md` |
+| The hazard log | Draft, 28 hazards, of which H-30 to H-36 (staff calendars and appointments) are drafts still to be rated by the CSO: `hazard-log.md` |
 | A clinical safety case report for each release | Draft template: `clinical-safety-case-report.md`. **No signed report yet.** |
 | This guide, with a starter hazard log for your deployment | Draft: this document |
 | A named CSO, and a route for reporting safety incidents | **Not yet:** [CSO name], [incident reporting address] |
@@ -84,12 +84,12 @@ If one of these doesn't hold for you, tell the manufacturer: it changes the haza
 | H-17 Stage instructions aren't read | Write anything essential as its own stage, not only in instructions |
 | H-18 A change is recorded under the wrong person's name | No shared accounts; lock screens when away |
 | H-21 Work assigned to a deleted account drops off every task list | A leaver process: reassign a leaver's open procedures, then remove the account |
-| H-22 A visit the patient needs doesn't happen | Who books from the Needs booking list, how often it's reviewed, and who follows up Did not attend |
-| H-23 A member of staff is double-booked | MedApp's calendar is the only diary for the appointments it holds |
-| H-24 A stage is finished without the visit it needed | Clinical sign-off of which stages need a visit; a review of stages finished without one; admins bypass a required visit only with a recorded reason |
-| H-26 The wrong patient or procedure is booked | Positive patient identification; check the patient's name and date of birth when booking |
-| H-27 An appointment is left without its member of staff | Record leave and training in MedApp before booking around it; when someone is away unexpectedly, move or cancel their appointments and tell the patients |
-| H-28 A cancelled or moved appointment isn't passed on to the patient | A process for telling patients about every booking, change and cancellation, including the Booked appointments of a cancelled procedure |
+| H-30 A visit the patient needs doesn't happen | Who books from the Needs booking list, how often it's reviewed, and who follows up Did not attend |
+| H-31 A member of staff is double-booked | MedApp's calendar is the only diary for the appointments it holds |
+| H-32 A stage is finished without the visit it needed | Clinical sign-off of which stages need a visit; a review of stages finished without one; admins bypass a required visit only with a recorded reason |
+| H-34 The wrong patient or procedure is booked | Positive patient identification; check the patient's name and date of birth when booking |
+| H-35 An appointment is left without its member of staff | Record leave and training in MedApp before booking around it; when someone is away unexpectedly, move or cancel their appointments and tell the patients |
+| H-36 A cancelled or moved appointment isn't passed on to the patient | A process for telling patients about every booking, change and cancellation, including the Booked appointments of a cancelled procedure |
 
 ## Configuring MedApp safely
 
@@ -169,4 +169,4 @@ Copy these into your own hazard log, rate them for your setting, and add your ow
 |---|---|---|---|
 | 0.1 | 16 November 2026 | First draft | AI coding agent, for review |
 | 0.2 | 16 November 2026 | After the review of #60: a sign-off, My Tasks' default view, the leaver process (H-21) | AI coding agent, for review |
-| 0.3 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-22 to H-28, training, the downtime day list, and starter hazards D-11 to D-13 | AI coding agent, for review |
+| 0.3 | 16 November 2026 | Staff calendars and appointments: setting up calendars and visit requirements, telling patients, the controls transferred for H-30 to H-36, training, the downtime day list, and starter hazards D-11 to D-13 | AI coding agent, for review |

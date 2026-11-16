@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: adds staff calendars and appointments (risks 1, 3 to 6, and new risk 21) |
+| **Version** | 0.2 (draft), 16 November 2026: adds staff calendars and appointments (risks 1, 3 to 6, and new risk 26) |
 | **Assessed** | MedApp on `main` as of 16 November 2026, and its Azure design (`deploy/azure`), which has not been deployed; staff calendars and appointments from their design (`docs/calendar-plan.md`, branch `feature/staff-calendars`) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
@@ -35,7 +35,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 - **Storage:** in Azure SQL (UK South), reached only through a private network endpoint, with point-in-time backups.
 - **Use:** staff find patients, start procedures from templates, work stages in order, write notes, and see their task lists. Staff also see each patient's timeline on the patient page: who changed what on their procedures and when, with old and new due dates, priorities and statuses, past assignees, and the usernames recorded at the time (deleted accounts' included): structured values, never free text (no notes, titles or reasons from the audit trail), and only for procedures that still exist. Admins assign work, unlock finished stages, read the full audit log, see a patient's whole history on screen (the same timeline with its free text, deleted procedures included), and manage accounts.
 - **Calendars and appointments:** staff book a patient with a member of staff at a time, optionally for a procedure's stage, with optional notes. An appointment goes from requested to booked, then attended or did not attend, or is cancelled with a reason; every change, including old and new notes and the reason, is kept in its history. When a stage that involves a visit becomes current, MedApp requests an appointment for it. Staff block off their own time for activities from an admin-managed list (Lunch, Training, Annual leave, ...), with an optional short note; admins' day and week templates fill each week with its usual blocks. The patient timeline shows appointment history: to staff, structured values only (status, time, member of staff, stage), never notes or cancellation reasons; to admins, everything.
-- **Sharing:** none outside the customer. Within the customer, every staff user can see every patient, and every staff member's calendar and every appointment (section 5, risks 1 and 21).
+- **Sharing:** none outside the customer. Within the customer, every staff user can see every patient, and every staff member's calendar and every appointment (section 5, risks 1 and 26).
 - **Deletion:** staff can delete a patient who has no procedures and no appointments. Admins can delete cancelled or archived procedures; their audit entries remain, and their appointments are kept, detached from the procedure. Nothing is deleted on a schedule.
 - **New technology:** server-side rendering (a Node page server inside the API's container), live notifications over WebSockets with a Valkey relay, and Kubernetes. None involves profiling, AI or automated decisions.
 - **Sources and flows:** [data-inventory.md](data-inventory.md).
@@ -43,7 +43,7 @@ This is the **product DPIA**: the supplier's assessment of MedApp as a hosted se
 ### Scope
 
 - **Data:** name, date of birth and email of patients; procedure titles, notes, due dates, priorities and statuses; stage notes (clinical free text); the audit trail with copies of notes; appointments (patient, member of staff, time, status, notes and cancellation reasons) and their history with copies of the notes and reasons; staff usernames, password hashes, roles, sessions with IP addresses and browsers, settings with saved searches; staff calendars (blocked time with its activity, such as annual leave or training, and a short note); notifications. Field by field: [data-inventory.md](data-inventory.md).
-- **Special category:** health data about patients, including that a patient is being seen and whether they attended. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it. MedApp is not meant to hold health data about staff, but a calendar block's note could ("hospital appointment"; risk 21).
+- **Special category:** health data about patients, including that a patient is being seen and whether they attended. Free text can also hold other special category data (for example religion, sexual life, ethnicity) if staff write it. MedApp is not meant to hold health data about staff, but a calendar block's note could ("hospital appointment"; risk 26).
 - **Volume:** per customer, [patients a year], [staff users]. Across customers, large scale.
 - **Retention:** proposed in [retention-schedule.md](retention-schedule.md); **not enforced today**.
 - **Geography:** patients in the UK; data stored in the UK.
@@ -130,7 +130,7 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 | 18 | **Mixing customers' data:** one customer sees another's patients. | Not possible today (one deployment per customer). Becomes a risk with multi-tenancy (step 8). | Not possible today | Severe | **Low today** (the matrix's one exception, because it can't happen yet); **to rescore at step 8** |
 | 19 | **Lack of transparency:** patients don't know MedApp is used or who runs it. | Depends on the customer's privacy notice. | Possible | Minimal | **Low** |
 | 20 | **Real data in development or testing:** patient data copied into a developer's database, a screenshot, a test, or an AI tool. | Convention only (`AGENTS.md`: synthetic data only); `medapp-dev` refuses anything but a local database. | Remote | Severe | **Medium** |
-| 21 | **Staff calendars reveal more than needed about staff:** colleagues see when someone is on annual leave or away, and a block's note gives a reason that reveals their health or private life (for example "hospital appointment"), or names a patient. | Every staff user can see every calendar; a block's note is free text (200 characters); MedApp can't check what a note says. | Possible | Significant | **Medium** |
+| 26 | **Staff calendars reveal more than needed about staff:** colleagues see when someone is on annual leave or away, and a block's note gives a reason that reveals their health or private life (for example "hospital appointment"), or names a patient. | Every staff user can see every calendar; a block's note is free text (200 characters); MedApp can't check what a note says. | Possible | Significant | **Medium** |
 
 ## Step 6: Measures to reduce the risks
 
@@ -362,7 +362,9 @@ Likelihood is judged for MedApp **as it is today**, if it held real patient data
 
 **Residual risk:** **low**.
 
-### Risk 21: staff calendars reveal more than needed about staff
+**Numbering:** risks 21 to 25 are kept for risks that branches merging before staff calendars add; the calendar risk is 26.
+
+### Risk 26: staff calendars reveal more than needed about staff
 
 | Measure | Status | Where |
 |---|---|---|

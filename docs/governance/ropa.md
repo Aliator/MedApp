@@ -54,7 +54,7 @@ All customers receive the same service, so the categories are the same for each.
 | A3.8 | **Appointments** | Patients; staff users | The patient, optionally the procedure and stage, the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes, a cancellation reason, who requested or booked it and who recorded the outcome | Storage, retrieval, display, change and cancellation, on the customer's staff's actions; a request made automatically when a stage that involves a visit becomes current. Every staff user can see every appointment |
 | A3.9 | **Staff calendars** | Staff users | Time blocked off (its activity, such as annual leave or training, and a short note); a person's default week template and one day's changes to it | Storage; display to every staff user; changes by the calendar's owner or an admin |
 
-**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 21).
+**Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 26).
 
 **What the supplier does not do with customer data:** analytics, profiling, AI training, marketing, sale, research, or any purpose of its own ([roles-and-lawful-bases.md](roles-and-lawful-bases.md), section 1).
 

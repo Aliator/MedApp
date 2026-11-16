@@ -91,7 +91,7 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 | **PR #68 to cover appointments when it merges:** anonymisation clears appointments' notes and cancellation reasons and their history's copies; the export includes appointments and their history | 7 (PR #68) | Data inventory, section 6; DPIA risks 4 and 6; rights; retention |
 | Restriction and "disputed" flags; audited patient edits; archiving instead of hard deletion; an approved erasure workflow | 7 | Rights; DPIA risk 7 |
 | A retention engine: classes per template, the conclusion of treatment date, a due-for-review list, destroy or anonymise, a destruction log, legal hold | 7 | Retention schedule |
-| Automatic deletion of sessions (12 months), notifications (6 months), staff calendar blocks (12 months) and deactivated accounts (12 months) | 7 | Retention schedule; DPIA risk 21 |
+| Automatic deletion of sessions (12 months), notifications (6 months), staff calendar blocks (12 months) and deactivated accounts (12 months) | 7 | Retention schedule; DPIA risk 26 |
 | Clear browser storage at sign-out | 7 | DPIA risk 10; cookies statement |
 | Keep identifying filters (name, email, date of birth) out of the URL, so they don't land in browser history; page, sort and status stay in it | 7 | DPIA risk 10; data inventory |
 | No patient identifiers in notifications | 7 | DPIA risk 3 |
