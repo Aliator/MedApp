@@ -38,6 +38,16 @@ const KIND_ICONS: Record<string, IconType> = {
   MeetingCancelled: AppIcon.Meeting,
 };
 
+/** The bell, which the unread count is placed over. */
+const BELL = {position: 'relative'} as const;
+/** The unread count, over the bell's top right corner, a little outside it. */
+const COUNT = {
+  position: 'absolute',
+  insetBlockStart: 'calc(var(--spacing-1) * -1)',
+  insetInlineEnd: 'calc(var(--spacing-1) * -1)',
+  pointerEvents: 'none',
+} as const;
+
 /** The bell's label: what it is, and how many are unread. */
 const bellLabel = (unread: number) => (unread === 0 ? 'Notifications' : `Notifications, ${unread} unread`);
 
@@ -152,9 +162,12 @@ export function NotificationBell() {
       width={360}
       padding={0}
       label="Notifications">
-      <HStack gap={0} vAlign="center">
+      {/* The count sits over the bell's top right corner, as on most apps' bells, so the bell is the same size with
+          or without one, in the side nav and its folded icons alike. The bell's name already says how many are unread,
+          so the count is hidden from screen readers, and a click on it reaches the bell. */}
+      <HStack gap={0} vAlign="center" style={BELL}>
         <IconButton label={bellLabel(unread)} icon={<Icon icon={AppIcon.Notifications} />} variant="ghost" size="sm" />
-        {unread > 0 && <Badge label={unread > 99 ? '99+' : String(unread)} variant="error" />}
+        {unread > 0 && <Badge label={unread > 99 ? '99+' : String(unread)} variant="error" aria-hidden style={COUNT} />}
       </HStack>
     </Popover>
   );

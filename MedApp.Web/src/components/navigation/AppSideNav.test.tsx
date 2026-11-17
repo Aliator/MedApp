@@ -624,4 +624,51 @@ describe('AppSideNav notepad', () => {
 
     expect(await screen.findByRole('button', {name: WINDOW_BUTTON})).toBeInTheDocument();
   });
+
+  /** The Notepad row's menu, opened from its button (the row is a button, not a link), and its items. */
+  async function notepadMenuItems(openPath: string | null) {
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <NotepadProvider>
+          <AppSideNav />
+        </NotepadProvider>
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    await user.hover(await screen.findByRole('button', {name: 'Notepad'}));
+    const button = await screen.findByRole('button', {name: 'Notepad options'});
+    await user.hover(button);
+    const menu = await waitFor(() => {
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+      return document.querySelector<HTMLElement>(`[aria-labelledby="${CSS.escape(button.id)}"]`)!;
+    });
+    return {user, halfViews, items: within(menu).getAllByRole('menuitem', {hidden: true})};
+  }
+
+  it('opens the notepad in the half view from its menu', async () => {
+    const {user, halfViews, items} = await notepadMenuItems(null);
+
+    expect(items.map((item) => item.textContent)).toEqual(['Open in half view']);
+    await user.click(items[0]);
+
+    expect(halfViews.open).toHaveBeenCalledWith('/notepad');
+  });
+
+  it('offers only the right with a half view open, as the notepad has no page of its own in the main view', async () => {
+    const {user, halfViews, items} = await notepadMenuItems('/tasks');
+
+    expect(items.map((item) => item.textContent)).toEqual(['Open on the right']);
+    await user.click(items[0]);
+
+    expect(halfViews.open).toHaveBeenCalledWith('/notepad');
+    expect(halfViews.openFull).not.toHaveBeenCalled();
+  });
+
+  it('greys out the right while the half view already shows the notepad', async () => {
+    const {items} = await notepadMenuItems('/notepad');
+
+    expect(isDisabled(items[0])).toBe(true);
+    expect(items[0]).toHaveAccessibleName(/Notepad is already open on the right/);
+  });
 });

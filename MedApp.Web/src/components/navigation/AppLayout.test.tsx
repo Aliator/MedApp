@@ -141,6 +141,28 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(screen.queryByRole('heading', {name: 'Patients', level: 1})).not.toBeInTheDocument();
   });
 
+  it('shows the notepad in the half view, and closing the page beside it docks the notepad rather than leaving the app for it', async () => {
+    mockFetch((request) => {
+      const {pathname} = new URL(request.url);
+      if (pathname === '/api/me/notepad') return json({text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30});
+      return json(/\/(templates|definitions|roles)$/.test(pathname) ? [] : pageOf([]));
+    });
+    sessionStorage.setItem('medapp.halfView', '/notepad');
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    const right = screen.getByLabelText('Right half');
+    expect(await within(right).findByRole('region', {name: 'Notepad'}, {timeout: 15000})).toBeInTheDocument();
+    // The notepad has no page header: the only Close half view is the Patients page's.
+    await user.click(screen.getByRole('button', {name: 'Close half view'}));
+
+    await waitFor(() => expect(screen.queryByLabelText('Right half')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/patients');
+    expect(await screen.findByRole('region', {name: 'Notepad'})).toBeInTheDocument();
+    expect(localStorage.getItem('medapp.notepadOpen')).toBe('true');
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+  });
+
   it('closes the half view when the main view goes to the same page', async () => {
     emptyApi();
     sessionStorage.setItem('medapp.halfView', '/admin/audit');

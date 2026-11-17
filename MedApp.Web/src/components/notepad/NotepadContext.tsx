@@ -122,6 +122,11 @@ export interface NotepadProviderProps {
    * and Add Note to Procedure offers the procedure pages open in MedApp's other windows.
    */
   isWindow?: boolean;
+  /**
+   * With `isWindow`, what closing does instead of closing the window: the notepad shown in a half view (`/notepad` in
+   * the half view's router) closes its half.
+   */
+  onClose?: () => void;
 }
 
 /**
@@ -133,7 +138,7 @@ export interface NotepadProviderProps {
  * is added to a procedure (a window showing that procedure then reads it afresh). The signed-in layout shares its
  * procedure pages with the notepad's own window whenever they change and when asked, and none as its window goes.
  */
-export function NotepadProvider({children, isWindow = false}: NotepadProviderProps) {
+export function NotepadProvider({children, isWindow = false, onClose}: NotepadProviderProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(isWindow);
   const [offers, setOffers] = useState<OpenProcedure[]>([]);
@@ -240,9 +245,10 @@ export function NotepadProvider({children, isWindow = false}: NotepadProviderPro
     if (!isWindow) storeOpen(true);
   }, [isWindow]);
   const close = useCallback(() => {
-    // The notepad's own window: closing it closes the window.
+    // The notepad's own window: closing it closes the window (or, in a half view, its half).
     if (isWindow) {
-      closeNotepadWindow();
+      if (onClose) onClose();
+      else closeNotepadWindow();
       return;
     }
     setIsOpen(false);
@@ -267,7 +273,7 @@ export function NotepadProvider({children, isWindow = false}: NotepadProviderPro
     };
     setTimeout(restore);
     setTimeout(restore, FOCUS_AFTER_SHEET_MS);
-  }, [isWindow]);
+  }, [isWindow, onClose]);
   const takeFocus = useCallback(() => {
     const should = shouldFocus.current;
     shouldFocus.current = false;

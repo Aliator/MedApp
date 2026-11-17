@@ -35,7 +35,7 @@ import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {useNotepad} from '../notepad/NotepadContext';
-import {NOTEPAD_WINDOW_BLOCKED, openNotepadWindow} from '../notepad/notepadWindow';
+import {NOTEPAD_WINDOW_BLOCKED, NOTEPAD_WINDOW_PATH, openNotepadWindow} from '../notepad/notepadWindow';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -163,7 +163,18 @@ const MENU_CLOSE_DELAY_MS = 200;
  * has left the button and the menu. Like the rest of a row's controls, the button shows while the row is hovered or
  * focused (and while its menu is open), and always in the folded nav's flyouts. No tooltip: its icon says what it is.
  */
-function RowMenu({label, href, items = []}: {label: string; href: string; items?: DropdownMenuItemData[]}) {
+function RowMenu({
+  label,
+  href,
+  items = [],
+  isRightOnly = false,
+}: {
+  label: string;
+  href: string;
+  items?: DropdownMenuItemData[];
+  /** Offers only the half view (the right), never the main view: the notepad's page has no side nav. */
+  isRightOnly?: boolean;
+}) {
   const isActive = useContext(ActiveRowsContext)(href);
   const {mode} = useColorMode();
   const [isOpen, setIsOpen] = useState(false);
@@ -213,7 +224,8 @@ function RowMenu({label, href, items = []}: {label: string; href: string; items?
     return () => cancelAnimationFrame(frame);
   }, [isOpen, mode]);
 
-  const all = [...useHalfViewItems(label, href), ...items];
+  const halfViewItems = useHalfViewItems(label, href);
+  const all = [...(isRightOnly ? halfViewItems.filter((item) => item.id !== 'left') : halfViewItems), ...items];
   if (all.length === 0) return null;
 
   const setSoon = (open: boolean, delay: number) => {
@@ -609,7 +621,13 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
               data-notepad-toggle=""
               data-nav-row={NOTEPAD_ROW}
               onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
-              actions={<NotepadWindowButton />}
+              actions={
+                <>
+                  <NotepadWindowButton />
+                  {/* Beside the page, in the half view; never on the left, which would leave the app for it. */}
+                  <RowMenu label="Notepad" href={NOTEPAD_ROW} isRightOnly />
+                </>
+              }
             />
           ),
         },
@@ -733,8 +751,11 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   );
 }
 
-/** The Notepad row's key among the rows that show their buttons (it has no link to be known by). */
-const NOTEPAD_ROW = 'notepad';
+/**
+ * The Notepad row's key among the rows that show their buttons (it has no link to be known by): the address of the
+ * notepad's own page, which its window and a half view show.
+ */
+const NOTEPAD_ROW = NOTEPAD_WINDOW_PATH;
 
 /**
  * The Notepad row's button that opens the notepad in a small window of its own (`/notepad`), or brings that window

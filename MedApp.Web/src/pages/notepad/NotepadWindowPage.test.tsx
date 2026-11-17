@@ -1,6 +1,8 @@
 import {fireEvent, screen, waitFor} from '@testing-library/react';
 import type {Notepad} from '../../api/notepad';
+import {NOTEPAD_OPEN_KEY, NotepadProvider, useNotepad} from '../../components/notepad/NotepadContext';
 import {closeNotepadWindow} from '../../components/notepad/notepadWindow';
+import {HalfViewContext, InHalfPaneContext} from '../../components/pages/halfView';
 import {json, mockApi, mustChangePasswordUser, renderApp, renderWithApp, signedOutUser, staffUser} from '../../test/render';
 import {setRichText} from '../../test/richText';
 import {NotepadWindowPage} from './NotepadWindowPage';
@@ -87,6 +89,63 @@ describe('NotepadWindowPage', () => {
     await waitFor(async () => expect(await putBodies(fetch)).toHaveLength(1));
     await screen.findByText(/^Saved /);
     expect(beforeUnload()).toBe(false);
+  });
+});
+
+describe('NotepadWindowPage in a half view', () => {
+  /** Whether the signed-in layout's (docked) notepad is open. */
+  function DockedShown() {
+    return <p>{useNotepad()!.isOpen ? 'docked open' : 'docked closed'}</p>;
+  }
+
+  /** The page in the half view's router, inside the signed-in layout's notepad, as `AppLayout` puts it. */
+  function renderInHalf(onClose = vi.fn()) {
+    const result = renderWithApp(
+      <NotepadProvider>
+        <DockedShown />
+        <InHalfPaneContext.Provider value={true}>
+          <HalfViewContext.Provider value={{isHalf: true, side: 'right', onClose}}>
+            <NotepadWindowPage />
+          </HalfViewContext.Provider>
+        </InHalfPaneContext.Provider>
+      </NotepadProvider>,
+      {user: staffUser},
+    );
+    return {...result, onClose};
+  }
+
+  it("is a region in its half: no main landmark of its own, and the browser tab keeps the main page's name", async () => {
+    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
+    document.title = 'Patients - MedApp';
+    renderInHalf();
+
+    expect(await screen.findByRole('region', {name: 'Notepad'})).toBeInTheDocument();
+    expect(screen.queryByRole('main')).not.toBeInTheDocument();
+    expect(document.title).toBe('Patients - MedApp');
+  });
+
+  it('saves, then closes its half rather than the window', async () => {
+    const fetch = mockApi({
+      [`GET ${NOTEPAD}`]: () => json(notepad()),
+      [`PUT ${NOTEPAD}`]: () => json(notepad({text: 'Synthetic, typed in the half view.', version: 4})),
+    });
+    const {user, onClose} = renderInHalf();
+    await setRichText(await screen.findByRole('textbox', {name: 'Notepad'}), 'Synthetic, typed in the half view.');
+
+    await user.click(screen.getByRole('button', {name: 'Close notepad'}));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(closeNotepadWindow).not.toHaveBeenCalled();
+    expect(await putBodies(fetch)).toEqual([{text: 'Synthetic, typed in the half view.', expectedVersion: 3}]);
+  });
+
+  it('closes the docked notepad as it opens, so it is not open twice side by side', async () => {
+    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
+    localStorage.setItem(NOTEPAD_OPEN_KEY, 'true');
+    renderInHalf();
+
+    expect(await screen.findByRole('region', {name: 'Notepad'})).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('docked closed')).toBeInTheDocument());
   });
 });
 
