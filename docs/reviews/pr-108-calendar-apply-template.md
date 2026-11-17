@@ -1,6 +1,6 @@
 # Review: `feature/calendar-apply-template`, Apply Template and the fixes to the narrow calendar's review
 
-**Branch:** `feature/calendar-apply-template` (no PR yet). **Commits reviewed:** `492f8f9` to `c37782a` (`git diff 9e747d0..c37782a`, 16 commits). **Base:** `9e747d0`, the last of the three narrow-calendar commits, which have their own review ([calendar-narrow.md](calendar-narrow.md)). The commits after `c37782a` only merge #99's latest work in and aren't covered.
+**Branch:** `feature/calendar-apply-template` (no PR yet). **Commits reviewed:** `492f8f9` to `c37782a` (`git diff 9e747d0..c37782a`, 16 commits). **Base:** `9e747d0`, the last of the three narrow-calendar commits, which have their own review ([calendar-narrow.md](pr-108-calendar-narrow.md)). The commits after `c37782a` only merge #99's latest work in and aren't covered.
 
 **Reviewed:** 17 November 2026, independently of the author's conclusions. Each claim below was checked against the code, a test run, or a temporary test. Line numbers are at `c37782a`. **No finding is high or critical:** 1 is medium and 6 are low. **All seven are fixed** (each says how), and so are the 7 found by the browser check (see Browser check).
 
@@ -31,7 +31,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **The Book or Block menu below a wide selection** (`60fd47c`, `selectionMenuPlacement`): beside it up to 320 px, below it when wider.
 - **`PageHeader` wraps its actions** (`16e5ca7`, `PageHeader.tsx:47, 82`): on every page, the actions go under the title when they don't fit beside it.
 - **The phone's top bar uses the app's colours** (`bd6fa7a`, `AppLayout.tsx` `SideNavTheme`): the side nav's dark theme is skipped where Astryx renders the nav's heading in the phone's top bar (`useSideNavRenderMode() === 'topbar'`). The column and the drawer stay dark.
-- **Docs:** decisions 1, 3, 33, 67, 68 and 69, `docs/architecture.md`, both `AGENTS.md` files, a new UI parity screen, and the record of each finding in `calendar-narrow.md`.
+- **Docs:** decisions 1, 3, 33, 67, 68 and 69, `docs/architecture.md`, both `AGENTS.md` files, a new UI parity screen, and the record of each finding in `pr-108-calendar-narrow.md`.
 
 ## Design choices
 
@@ -62,7 +62,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **Read:** the whole diff; `ApplyTemplateDialog.tsx`, `CalendarPage.tsx`, `CalendarGrid.tsx`, `PageHeader.tsx`, `Page.tsx`, `AppLayout.tsx`, `AppSideNav.tsx`, `useNarrowerThan.ts`, `listSettings.tsx`, `BookAppointmentDialog.tsx`, `AppointmentDialog.tsx`, `src/api/calendar.ts`, `ConfirmDialog.tsx`, `AlertMessage.tsx`, `PatientFlagBanners.tsx`, `ProcedurePage.tsx`, `ViewPatientPage.tsx`.
 - **The API:** `ApplyDayTemplateHandler` (takes the calendar lock, 15 s), `ClearDayTemplateHandler` (404 when the day has no override), `GetCalendarHandler` (records `PatientListed`), `CalendarMapper` and `AppointmentMapper` (when items are movable).
 - **Library source:** TanStack Router's scroll restoration (`router-core` 1.171, `scroll-restoration.js`, and where `resetScroll` sets `_scroll.n`); Astryx `Stack`/`StackItem` (`fill` is only `flex-grow: 1` and `min-width: 0`), `Banner` (no maximum width), `AppShell` and `SideNav` (the `topbar`, `drawer` and `default` render modes).
-- **Docs:** decisions 1, 3, 33, 34 and 67 to 69; `calendar-narrow.md`; both `AGENTS.md` files; `docs/governance/dpia.md:156` and `data-inventory.md:31`.
+- **Docs:** decisions 1, 3, 33, 34 and 67 to 69; `pr-108-calendar-narrow.md`; both `AGENTS.md` files; `docs/governance/dpia.md:156` and `data-inventory.md:31`.
 - **Tests:** `npx vitest run` on the 9 changed test files (`ApplyTemplateDialog`, `useNarrowerThan`, `listSettings`, `AppLayout`, `CalendarGrid`, `CalendarPage`, `calendarSearch`, `BookAppointmentDialog`, `AppointmentDialog`): **155 passed**. ESLint on the 16 changed source and test files: clean. `npm run typecheck`: clean.
 - **Temporary tests** (written, run and deleted):
   - **A wobble on an item that has started:** a block 09:00 to 12:00 today, at 10:30. A plain click opened it; a 6 px wobble then a click opened nothing and moved nothing (finding 3).
@@ -115,13 +115,13 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **What could go wrong:**
   - **A nurse records an outcome:** a 10:00 appointment is still Booked at 10:20. Appointments stay movable while Booked (`AppointmentWorkflow.cs:39`), and blocks and meetings all day (`CalendarMapper.cs:106, 130`).
   - **She clicks it on a touchpad,** and the pointer moves 6 px during the press. Nothing opens and nothing moves. She has to click again.
-  - **The fix's claim doesn't hold here:** decision 68 and `calendar-narrow.md`'s finding 1 say "a press that wobbles on its own row is a click, which opens it". That's true only for items that haven't started.
+  - **The fix's claim doesn't hold here:** decision 68 and `pr-108-calendar-narrow.md`'s finding 1 say "a press that wobbles on its own row is a click, which opens it". That's true only for items that haven't started.
 - **Why:**
   - **"Has it left?" is worked out from where the item could go,** not from where the pointer is (`CalendarGrid.tsx:629`).
   - **For a started item, nowhere is allowed:** its own start is in the past, so `to` is null even on its own row (`:626`). Null counts as "left".
   - **So the release is treated as a drag** (`:639-640`): it sets `justDragged`, finds no target and returns. The click that follows is swallowed (`:668-670`).
   - **This predates the branch** (the old code did the same with `isMoving`), but the branch set out to fix exactly this.
-- **Evidence:** `MedApp.Web/src/components/calendar/CalendarGrid.tsx:624-629, 635-645, 667-673`; `docs/calendar-plan.md:118`; `docs/reviews/calendar-narrow.md:93`.
+- **Evidence:** `MedApp.Web/src/components/calendar/CalendarGrid.tsx:624-629, 635-645, 667-673`; `docs/calendar-plan.md:118`; `docs/reviews/pr-108-calendar-narrow.md:93`.
 - **Fix:**
   - **Decide by the pointer:** `hasLeft = drag.hasLeft || col !== drag.from || row !== drag.pickRow` (the column and row under the pointer), and keep `to` for the ghost and the drop only. A started item still can't be dropped anywhere, but a wobble on its own row is a click.
   - **Test it:** a block 09:00 to 12:00 at 10:30 today, nudged 6 px, opens.
