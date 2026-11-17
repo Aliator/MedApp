@@ -257,15 +257,15 @@ Versions come from the `.csproj` files, `MedApp.Web/package.json`, `tools/ui-par
 | Entity Framework Core (SqlServer, Design) | 10.0.15 | Object-relational mapping, migrations, the migrations bundle | LINQ that runs in SQL and in unit tests alike; migrations kept in code. |
 | `dotnet-ef` | 10.0.15 (Dockerfile) | Builds the migrations bundle in the image | Must match EF Core's version. |
 | ASP.NET Core Identity (EntityFrameworkCore) | 10.0.15 | Users, roles, password hashing, lockout | Built in, well tested (inferred). |
-| MediatR | 14.0.0 | Dispatching commands and queries, the validation pipeline | CQRS with pipeline behaviours (predates the written history; inferred). Commercial licence needed for production. |
-| FluentValidation (+ DependencyInjectionExtensions) | 12.1.1 | Validating commands in the MediatR pipeline | Declarative rules, unit-testable. |
+| MediatR | 14.3.0 | Dispatching commands and queries, the validation pipeline | CQRS with pipeline behaviours (predates the written history; inferred). Commercial licence needed for production. |
+| FluentValidation (+ DependencyInjectionExtensions) | 12.2.0 | Validating commands in the MediatR pipeline | Declarative rules, unit-testable. |
 | FluentValidation.AspNetCore | 11.3.1 | Registered auto-validation in the API | Legacy; has nothing to validate (see [11.4](#114-code-and-architecture-debt)). |
 | SignalR, with StackExchangeRedis backplane | 10.0.15 | Live notifications; the backplane across copies | Built in; the Redis backplane is Microsoft's own. |
 | Swashbuckle.AspNetCore, Microsoft.AspNetCore.OpenApi | 10.3.1, 10.0.15 | The OpenAPI document and Swagger UI (Development only) | Feeds the generated TypeScript types. |
-| OpenTelemetry (Hosting, OTLP exporter, ASP.NET Core, HTTP, Runtime instrumentation) | 1.17.0 | Logs, metrics and traces | Comes with Aspire's service defaults. |
-| Microsoft.Extensions.Http.Resilience, ServiceDiscovery | 10.10.0 | HTTP client resilience and discovery (service defaults) | Aspire's defaults; removed from the SSR client in #51. |
+| OpenTelemetry (Hosting, OTLP exporter, ASP.NET Core, HTTP, Runtime instrumentation) | 1.20.1 (ASP.NET Core and HTTP instrumentation 1.20.2) | Logs, metrics and traces | Comes with Aspire's service defaults. |
+| Microsoft.Extensions.Http.Resilience, ServiceDiscovery | 10.11.0 | HTTP client resilience and discovery (service defaults) | Aspire's defaults; removed from the SSR client in #51. |
 | .NET Aspire (AppHost SDK, Hosting.JavaScript, Hosting.SqlServer) | 13.6.5 | Local orchestration: SQL container, API, React dev server, dashboard | One command for the whole dev stack (plan Q1, Q2). |
-| ModelContextProtocol | 2.3.0 | The `medapp-dev` MCP server | Lets AI agents manage local state through the app's own code. |
+| ModelContextProtocol | 2.4.0 | The `medapp-dev` MCP server | Lets AI agents manage local state through the app's own code. |
 | Blazor WebAssembly | 10.0.15 | The deprecated UI, kept compiling | Kept for reference only (plan Q5b). |
 
 **Frontend**
@@ -313,10 +313,10 @@ Versions come from the `.csproj` files, `MedApp.Web/package.json`, `tools/ui-par
 
 | Technology | Version | What it's for |
 |---|---|---|
-| NUnit, NUnit3TestAdapter, NUnit.Analyzers | 3.14.0, 4.5.0, 3.9.0 | .NET test framework |
-| FluentAssertions | 8.8.0 | Assertions (prints a licence banner; expected) |
-| Moq, AutoFixture (+ AutoMoq, NUnit3) | 4.20.72, 4.18.1 | Mocks and test data |
-| coverlet.collector, ReportGenerator | 6.0.0, 5.6.0 | .NET coverage and the PR report |
+| NUnit, NUnit3TestAdapter, NUnit.Analyzers | 3.14.0, 4.6.0, 3.10.0 | .NET test framework |
+| FluentAssertions | 8.11.0 | Assertions (prints a licence banner; expected) |
+| Moq, AutoFixture (+ AutoMoq, NUnit3) | 4.21.0, 4.18.1 | Mocks and test data |
+| coverlet.collector, ReportGenerator | 6.0.4, 5.6.0 | .NET coverage and the PR report |
 | Microsoft.Playwright.NUnit | 1.64.1 | The end-to-end tests |
 | Microsoft.AspNetCore.Mvc.Testing, Testcontainers.MsSql, Respawn | 10.0.15, 4.16.0, 7.0.0 | The integration tests: the API in memory, SQL Server in Docker, the data reset between tests |
 | @playwright/test, @axe-core/playwright | 1.64.1, 4.14.0 | UI parity screenshots and the accessibility audit (`tools/ui-parity`) |
