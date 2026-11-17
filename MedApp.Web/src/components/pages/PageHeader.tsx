@@ -29,7 +29,7 @@ export interface PageHeaderProps {
 
 /**
  * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end and
- * any page message in the middle. In a half view, it ends with the button that closes that half.
+ * any page message in the middle. Where they don't all fit on one line, the actions wrap under the title. In a half view, it ends with the button that closes that half.
  * The line holds the Back link (on pages you drill into) and/or the subtitle, and is the same height either way,
  * so the title and the content below sit in exactly the same place on every page.
  */
@@ -42,7 +42,9 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
   );
 
   return (
-    <HStack gap={4} vAlign="center">
+    // Wraps when the title and the actions don't fit side by side (a phone, a half view): the actions go under the
+    // title, and wrap among themselves, rather than running off the side of the page.
+    <HStack gap={4} vAlign="center" wrap="wrap">
       <VStack gap={1}>
         <Heading level={level}>{title}</Heading>
         {(hasBack || subtitle) && (
@@ -77,7 +79,7 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
         )}
       </StackItem>
       {(actions || close) && (
-        <HStack gap={2} vAlign="center">
+        <HStack gap={2} vAlign="center" wrap="wrap">
           {actions}
           {close}
         </HStack>
