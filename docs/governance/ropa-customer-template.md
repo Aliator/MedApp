@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft template), 16 November 2026: adds appointments and staff calendars |
+| **Version** | 0.2 (draft template), 16 November 2026: adds appointments and staff calendars; 0.3 (draft template), 17 November 2026: meetings and personal calendar templates (review of #99) |
 | **For** | Each customer, as the controller of the personal data it records in MedApp |
 | **Prepared by** | [Company name], the supplier of MedApp, as its processor |
 
@@ -65,9 +65,9 @@
 |---|---|
 | **Purpose** | Giving your staff secure access; knowing who did what; telling staff when they are assigned work (unless they switch it off) or their appointments change; planning staff time around appointments; supervising work, by telling admins about the staff actions their monitoring rules name. |
 | **Data subjects** | Your staff with MedApp accounts |
-| **Personal data** | Username, password hash, roles, lockout state; sign-in sessions with IP address and browser; account settings, including saved searches; notification choices; notifications; calendars: time blocked off (its activity, such as annual leave or training, and a short note) and default week templates; admins' monitoring rules (which admin watches which member of staff, for which actions) and the monitoring notifications they send. |
+| **Personal data** | Username, password hash, roles, lockout state; sign-in sessions with IP address and browser; account settings, including saved searches; notification choices; notifications; calendars: time blocked off (its activity, such as annual leave or training, and a short note), each person's own day and week templates and default week, and meetings your admins arrange (title, notes, time and who's going); admins' monitoring rules (which admin watches which member of staff, for which actions) and the monitoring notifications they send. |
 | **Special category data** | None by design. A calendar block's note could reveal a staff member's health if they write it; tell staff not to. |
 | **Article 6 basis** | [NHS bodies: 6(1)(e), and 6(1)(c) for security records. Private providers: 6(1)(b) for the account and calendar; 6(1)(f) for sessions, security and monitoring rules.] |
-| **Recipients** | Your MedApp admins; your processor. Every member of your staff with an account can see everyone's calendar, including annual leave. |
+| **Recipients** | Your MedApp admins; your processor. Every member of your staff with an account can see everyone's calendar, including annual leave, meetings (with their titles and notes) and templates. |
 | **Retention** | Accounts: while the person needs access, then removed [within your joiners, movers and leavers process]. Sessions: 12 months. Notifications: 6 months. Calendar blocks: 12 months after the day. Monitoring rules: until the admin deletes them [review them under your monitoring policy] ([retention-schedule.md](retention-schedule.md)). **Not applied automatically yet.** |
 | **Privacy information** | [Your staff privacy notice; see [privacy-notice-staff-template.md](privacy-notice-staff-template.md)] |

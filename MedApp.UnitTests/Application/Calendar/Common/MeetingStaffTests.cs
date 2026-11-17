@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentValidation;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
@@ -61,6 +62,33 @@ public sealed class MeetingStaffTests
     public async Task GetStaffOrThrowAsync_NoneAsked_ReturnsNone()
     {
         (await _identity.Object.GetStaffOrThrowAsync([], _cts.Token)).Should().BeEmpty();
+    }
+
+    // ChooseOrThrow
+
+    [Test]
+    public void ChooseOrThrow_AlreadyGoingButNoLongerStaff_DropsThemWithoutAnError()
+    {
+        var chosen = MeetingStaff.ChooseOrThrow(Staff, [Stranger, StaffUserId], alreadyGoing: [Stranger, StaffUserId]);
+
+        chosen.Should().Equal((StaffUserId, StaffUsername));
+    }
+
+    [Test]
+    public void ChooseOrThrow_NewlyAddedButNotStaff_ThrowsNotFoundNamingOnlyThem()
+    {
+        var act = () => MeetingStaff.ChooseOrThrow(Staff, [Stranger, OtherStranger, StaffUserId], alreadyGoing: [Stranger]);
+
+        act.Should().Throw<NotFoundException>().WithMessage($"Staff member(s) not found: {OtherStranger}.");
+    }
+
+    [Test]
+    public void ChooseOrThrow_EveryoneAskedForHasGone_ThrowsValidationOnTheAttendees()
+    {
+        var act = () => MeetingStaff.ChooseOrThrow(Staff, [Stranger], alreadyGoing: [Stranger]);
+
+        act.Should().Throw<ValidationException>().Which.Errors.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { PropertyName = "AttendeeUserIds", ErrorMessage = MeetingStaff.NobodyLeft });
     }
 
     // EnsureEveryoneFreeAsync

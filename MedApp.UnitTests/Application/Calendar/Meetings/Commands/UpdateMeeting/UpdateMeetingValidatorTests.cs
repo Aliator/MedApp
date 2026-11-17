@@ -13,7 +13,7 @@ public sealed class UpdateMeetingValidatorTests
     private readonly UpdateMeetingValidator _validator = new();
 
     private static UpdateMeetingCommand Valid() =>
-        new(MeetingId, Title, Notes, At(NextMonday, 10), At(NextMonday, 11), [StaffUserId], AdminActor);
+        new(MeetingId, Title, Notes, At(NextMonday, 10), At(NextMonday, 11), [StaffUserId], Now.AddDays(-1), AdminActor);
 
     [Test]
     public void Validate_ValidChange_Passes()
@@ -54,5 +54,12 @@ public sealed class UpdateMeetingValidatorTests
     {
         _validator.Validate(Valid() with { AttendeeUserIds = [] })
             .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(MeetingValidation<UpdateMeetingCommand>.NoAttendees);
+    }
+
+    [Test]
+    public void Validate_NoExpectedLastUpdated_Fails()
+    {
+        _validator.Validate(Valid() with { ExpectedLastUpdated = null })
+            .Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(UpdateMeetingValidator.NoExpectedLastUpdated);
     }
 }

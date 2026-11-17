@@ -8934,6 +8934,8 @@ export interface components {
             /** Format: date-time */
             endUtc?: string;
             attendeeUserIds?: string[] | null;
+            /** Format: date-time */
+            expectedLastUpdated?: string | null;
         };
         MeetingResponse: {
             /** Format: uuid */

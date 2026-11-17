@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using MedApp.Contracts.Calendar.Responses;
 using MedApp.E2ETests.Common;
 using Microsoft.Playwright;
 
@@ -16,7 +18,6 @@ public sealed class MeetingTests : E2ETest
     {
         var staffUsername = E2EData.UniqueName("staff").Replace(' ', '-').ToLowerInvariant();
         await Api.CreateUserAsync(staffUsername, "User");
-        // Deleting the account also takes it off any meeting the test leaves behind.
         Data.OnCleanUp($"user {staffUsername}", () => Api.DeleteUserAsync(staffUsername, E2ESettings.Password!));
         var staffId = await Api.UserIdOfAsync(staffUsername);
         var meId = await Api.UserIdOfAsync(E2ESettings.Username!);
@@ -41,13 +42,23 @@ public sealed class MeetingTests : E2ETest
         var first = suggestions.GetByRole(AriaRole.Button).First;
         await Expect(first).ToBeVisibleAsync();
         await first.ClickAsync();
-        await dialog.GetByRole(AriaRole.Button, new() { Name = "Add Meeting" }).ClickAsync();
+        // Wait for the save itself, not for the dialog to hide: while it saves, the dialog is an alertdialog (Astryx's
+        // purpose="required"), so a Dialog locator stops matching, and "hidden" is true, the moment Add Meeting is
+        // pressed (README, "Waiting for a save"). The first meeting a fresh API saves can be slow.
+        var saved = await Page.RunAndWaitForResponseAsync(
+            () => dialog.GetByRole(AriaRole.Button, new() { Name = "Add Meeting" }).ClickAsync(),
+            r => r.Request.Method == "POST" && new Uri(r.Url).AbsolutePath == "/api/calendar/meetings",
+            new() { Timeout = 30_000 });
+        Assert.That(saved.Status, Is.EqualTo(201), "Adding the meeting should succeed.");
+        var meeting = JsonSerializer.Deserialize<MeetingResponse>(await saved.TextAsync(), JsonSerializerOptions.Web)!;
+        // Registered at once, so the meeting goes however the test ends (cancelling it twice is fine).
+        Data.OnCleanUp($"meeting {title}", () => Api.CancelMeetingAsync(meeting.Id));
         await Expect(dialog).ToBeHiddenAsync();
 
         // It's on the member of staff's calendar, with both of us going.
-        var meeting = (await Api.CalendarAsync(staffId, UkToday, UkToday.AddDays(20))).Meetings.Single(m => m.Title == title);
-        Data.OnCleanUp($"meeting {title}", () => Api.CancelMeetingAsync(meeting.Id));
-        Assert.That(meeting.Attendees.Select(a => a.UserId), Is.EquivalentTo(new[] { meId, staffId }));
+        var onTheirs = (await Api.CalendarAsync(staffId, meeting.Date, meeting.Date)).Meetings.Single(m => m.Id == meeting.Id);
+        Assert.That(onTheirs.Title, Is.EqualTo(title));
+        Assert.That(onTheirs.Attendees.Select(a => a.UserId), Is.EquivalentTo(new[] { meId, staffId }));
 
         // Found on their calendar that day, opened, and cancelled.
         await OpenAsync($"/calendar?staff={staffId}&date={meeting.Date:yyyy-MM-dd}&view=day");
@@ -60,7 +71,11 @@ public sealed class MeetingTests : E2ETest
         await Expect(details).ToContainTextAsync(staffUsername);
         await details.GetByRole(AriaRole.Button, new() { Name = "Cancel Meeting" }).ClickAsync();
         var confirm = Page.GetByRole(AriaRole.Dialog, new() { Name = "Cancel Meeting" });
-        await confirm.GetByRole(AriaRole.Button, new() { Name = "Cancel Meeting" }).ClickAsync();
+        // As for the save: the confirmation is an alertdialog while it cancels, so wait for the cancel itself.
+        var cancelled = await Page.RunAndWaitForResponseAsync(
+            () => confirm.GetByRole(AriaRole.Button, new() { Name = "Cancel Meeting" }).ClickAsync(),
+            r => r.Request.Method == "DELETE" && new Uri(r.Url).AbsolutePath == $"/api/calendar/meetings/{meeting.Id}");
+        Assert.That(cancelled.Status, Is.EqualTo(204), "Cancelling the meeting should succeed.");
         await Expect(confirm).ToBeHiddenAsync();
 
         await Expect(onCalendar).ToBeHiddenAsync();
