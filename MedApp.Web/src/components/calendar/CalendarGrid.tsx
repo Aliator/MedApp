@@ -247,12 +247,22 @@ interface Drag {
   offset: number;
   /** The row it was picked up by: it moves a row for each row the pointer moves from there. */
   pickRow: number;
-  /** The pointer has moved further than a click's wobble. */
+  /** The pointer has moved further than a click's wobble (`DRAG_START_PX`). */
   isMoving: boolean;
-  /** It has been somewhere other than where it was: a drag, not a click (which opens it, even if the pointer wobbled). */
+  /**
+   * The pointer, once moving, has left the row and column it picked the item up by: a drag, not a click (which opens
+   * it, even if the pointer wobbled). Decided by where the pointer went, not where the item could go, so a wobble on an
+   * item that has started (which can't go anywhere) is a click too.
+   */
   hasLeft: boolean;
   to: DragTarget | null;
 }
+
+/**
+ * How far (px, in any direction) the pointer must move from where it pressed an item before it's a drag. Any less is a
+ * click's wobble (a touchpad, a finger), whatever row lines it crosses, and the click opens the item.
+ */
+export const DRAG_START_PX = 5;
 
 const sameTarget = (a: DragTarget | null, b: DragTarget | null) => a === b || (a !== null && b !== null && a.col === b.col && a.start === b.start);
 
@@ -612,7 +622,7 @@ export function CalendarGrid({
 
   const onItemPointerMove = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const isMoving = drag.isMoving || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4;
+    const isMoving = drag.isMoving || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) >= DRAG_START_PX;
     if (!isMoving) return;
     const col = columnAt(event.clientX, drag);
     let to: DragTarget | null = null;
@@ -626,7 +636,10 @@ export function CalendarGrid({
         if (nowMs === undefined || start > nowMs) to = {col, start};
       }
     }
-    const hasLeft = drag.hasLeft || !(to !== null && to.col === drag.from && to.start === drag.start);
+    // Where the pointer is, not where the item could go: still over the row and column it pressed, it's a wobble.
+    const ownBox = columnRefs.current[drag.from]?.getBoundingClientRect();
+    const isOverOwnColumn = ownBox !== undefined && event.clientX >= ownBox.left && event.clientX < ownBox.right;
+    const hasLeft = drag.hasLeft || !isOverOwnColumn || rowAt(drag.from, event.clientY) !== drag.pickRow;
     // Most moves stay on the same row: nothing to draw again.
     if (isMoving === drag.isMoving && hasLeft === drag.hasLeft && sameTarget(to, drag.to)) return;
     setDrag({...drag, isMoving, hasLeft, to});
@@ -692,6 +705,13 @@ export function CalendarGrid({
   const labelledCount = layouts.filter((l) => !l.isNarrow && l.column.label).length;
   const dayCount = layouts.length - narrowCount - labelledCount;
   const minInline = `calc(var(--mc-gutter) + ${dayCount} * var(--mc-day-min) + ${labelledCount} * var(--mc-labelled-min) + ${narrowCount} * var(--mc-narrow))`;
+  // Whether the keyboard can reach anything inside the scrolling area (a free time, an item that opens, a day's
+  // heading). When it can't (a read-only day with nothing on it, Home's), the area is a tab stop itself, named after
+  // the grid, so keyboard users can still scroll it (WCAG 2.1.1; axe's scrollable-region-focusable).
+  const hasFocusable =
+    tabStop !== null ||
+    (onItemOpen !== undefined && columns.some((c) => c.items.some((i) => !i.isReadOnly))) ||
+    (onDayOpen !== undefined && !isHeadingHidden && layouts.some((l) => l.day.isWorkingDay && !isOneDay && !l.column.label));
 
   return (
     <VStack
@@ -707,7 +727,7 @@ export function CalendarGrid({
       <VisuallyHidden id={hintId}>
         Arrow keys move between free times. Shift with the up or down arrow selects more. Enter selects.
       </VisuallyHidden>
-      <div className="mc-scroll" onScroll={onScroll}>
+      <div className="mc-scroll" onScroll={onScroll} {...(hasFocusable ? {} : {tabIndex: 0, role: 'group', 'aria-label': `${label}, scrollable`})}>
         {!isHeadingHidden && (
           <div className="mc-head">
             <div className="mc-gutter" aria-hidden />
@@ -1021,7 +1041,7 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
  * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
  * it never relies on colour alone. One too short for any text has a tooltip. On a compact grid its words wrap to the
  * lines it has room for (the short ones at the same size as the rest), in full in a tooltip, and where even that's
- * too narrow, it shows its start time alone.
+ * too narrow, it shows its start time, with its name under it when it's two rows or more tall.
  */
 function GridItem({
   placed,
@@ -1064,6 +1084,9 @@ function GridItem({
     opacity: isDragged ? 0.5 : undefined,
     cursor: onPointerDown ? 'grab' : undefined,
     touchAction: onPointerDown ? 'none' : undefined,
+    // A press that wobbles across its words would select some, and Astryx's ClickableCard ignores a click while its
+    // text is selected: the wobble that should open it would do nothing.
+    userSelect: onPointerDown ? ('none' as const) : undefined,
     ...(isTinted
       ? {}
       : {
@@ -1092,7 +1115,8 @@ function GridItem({
   );
   const content =
     fit === 'tiny' ? null : isCompact ? (
-      // Compact: its words wrap to the lines its height allows; too narrow for any (a phone), its start time alone.
+      // Compact: its words wrap to the lines its height allows; too narrow for them (a phone), its start time, and its
+      // name under it if it's tall enough.
       <VStack gap={0} hAlign="stretch" className={fit === 'short' ? 'mc-item-short' : undefined}>
         <span className="mc-full">
           <HStack gap={1} vAlign="start">
@@ -1109,6 +1133,12 @@ function GridItem({
           <Text type={fit === 'short' ? 'inherit' : 'supporting'} color="primary" weight="semibold" maxLines={1}>
             {formatTime(item.startUtc)}
           </Text>
+          {/* Tall enough for more: its name under the time, broken where it must be to fit. */}
+          {fit === 'rows' && lines >= 2 && (
+            <Text type="supporting" color="primary" maxLines={lines - 1} className="mc-short-name">
+              {item.label}
+            </Text>
+          )}
         </span>
       </VStack>
     ) : fit === 'short' ? (
@@ -1179,6 +1209,7 @@ const GRID_CSS = `
 .medapp-calendar[data-compact] .mc-hour { inset-inline-end: var(--spacing-1); }
 .medapp-calendar[data-compact] .mc-head-cell { padding-inline: 0; overflow: hidden; }
 .medapp-calendar .mc-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.medapp-calendar .mc-scroll:focus-visible { outline: var(--focus-outline-width) var(--focus-outline-style) var(--focus-outline-color); outline-offset: calc(-1 * var(--focus-outline-width)); }
 .medapp-calendar .mc-head { position: sticky; top: 0; z-index: 6; display: flex; min-inline-size: var(--mc-min-inline); background: var(--color-background-card); border-block-end: 1px solid var(--color-border-emphasized); }
 .medapp-calendar .mc-head-cell { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); display: flex; align-items: center; justify-content: center; min-block-size: var(--spacing-9); padding-inline: var(--spacing-1); border-inline-start: 1px solid var(--color-border); }
 .medapp-calendar .mc-head-cell[data-labelled], .medapp-calendar .mc-col[data-labelled] { min-inline-size: var(--mc-labelled-min); }
@@ -1188,9 +1219,9 @@ const GRID_CSS = `
 .medapp-calendar .mc-gutter { position: sticky; inset-inline-start: 0; z-index: 5; flex: 0 0 var(--mc-gutter); background: var(--color-background-card); }
 .medapp-calendar .mc-hour { position: absolute; inset-inline-end: var(--spacing-2); margin-block-start: var(--spacing-0-5); line-height: 1; }
 .medapp-calendar .mc-col { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); block-size: calc(var(--mc-row) * var(--mc-rows)); border-inline-start: 1px solid var(--color-border); }
-.medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: center; justify-content: center; }
+.medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: flex-start; justify-content: center; padding-block-start: var(--spacing-2); box-sizing: border-box; }
 .medapp-calendar .mc-col[data-today] { background: color-mix(in srgb, var(--color-accent) 5%, transparent); }
-.medapp-calendar .mc-weekend-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.medapp-calendar .mc-weekend-text { position: sticky; top: calc(var(--spacing-12) + var(--spacing-1)); writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .medapp-calendar .mc-slot { display: block; box-sizing: border-box; inline-size: 100%; block-size: var(--mc-row); margin: 0; padding: 0; border: 0; background: transparent; border-block-start: 1px dotted var(--color-border); }
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
 .medapp-calendar .mc-slot[data-line="minor"] { border-block-start-color: color-mix(in srgb, var(--color-border) 50%, transparent); }
@@ -1211,6 +1242,7 @@ const GRID_CSS = `
 .medapp-calendar .mc-selection, .medapp-calendar .mc-ghost { container-type: inline-size; }
 .medapp-calendar .mc-full { display: block; min-inline-size: 0; }
 .medapp-calendar .mc-short { display: none; }
+.medapp-calendar .mc-short-name { overflow-wrap: anywhere; hyphens: auto; }
 @container (max-width: 4.5rem) { .medapp-calendar .mc-full { display: none; } .medapp-calendar .mc-short { display: block; } }
 .medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 0; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }
 .medapp-calendar .mc-now-dot { position: absolute; inset-inline-start: calc(-1 * var(--spacing-1)); z-index: 4; margin-block-start: calc(-1 * var(--spacing-1) + 1px); inline-size: var(--spacing-2); block-size: var(--spacing-2); border-radius: var(--radius-full); background: var(--color-icon-error); pointer-events: none; }

@@ -57,6 +57,10 @@ describe('CalendarGrid', () => {
     expect(screen.getByText('08:00')).toBeInTheDocument();
     expect(screen.getByText('17:00')).toBeInTheDocument();
     expect(screen.getByText('Mon 23')).toBeInTheDocument();
+    // "Not a working day" sits at the top of its column, kept in view as the day scrolls (5-minute rows make it tall).
+    const css = document.querySelector('.medapp-calendar style')!.textContent!;
+    expect(css).toMatch(/\.mc-col\[data-weekend\] \{[^}]*align-items: flex-start/);
+    expect(css).toMatch(/\.mc-weekend-text \{ position: sticky; top: /);
     // 40 free 15-minute slots on each of the five working days.
     expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(200);
   });
@@ -316,6 +320,19 @@ describe('CalendarGrid', () => {
     expect(screen.getByText('Monday')).toBeInTheDocument();
     expect(screen.queryByText('Monday 23 November')).not.toBeInTheDocument();
     expect(column('Monday 23 November, today')).toBeInTheDocument();
+    // Its item can take the focus, so the scrolling area isn't a tab stop of its own.
+    expect(document.querySelector('.mc-scroll')).not.toHaveAttribute('tabindex');
+  });
+
+  it('makes its scrolling area a named tab stop when nothing in it can take the focus, so the keyboard can scroll it', async () => {
+    atMondayMorning();
+    // A read-only day with only a read-only item (Home's day calendar, say).
+    const block = {...blockItem(testBlock(MONDAY, '12:00', '13:00')), isReadOnly: true};
+    renderWithApp(<CalendarGrid label="Today" columns={dayColumns([calendarDay(MONDAY, MONDAY)], [block])} isHeadingHidden />);
+
+    const area = await screen.findByRole('group', {name: 'Today, scrollable'});
+    expect(area).toHaveClass('mc-scroll');
+    expect(area).toHaveAttribute('tabindex', '0');
   });
 
   it('shows a held selection, and opens a day from its heading', async () => {
@@ -433,6 +450,45 @@ describe('CalendarGrid', () => {
     fireEvent.click(card);
     expect(onItemMove).toHaveBeenCalledTimes(2);
     expect(onItemOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens an item pressed with a wobble under 5px, or on its own row, even once it has started; only a drag moves it', async () => {
+    // 10:30 on Monday: the 09:00 to 12:00 block has started, so it can't be moved anywhere, but it still opens.
+    atMondayMorning('2026-11-23T10:30:00Z');
+    const started = blockItem(testBlock(MONDAY, '09:00', '12:00', {blockId: 'started'}));
+    const later = blockItem(testBlock(MONDAY, '14:00', '15:00', {blockId: 'later'}));
+    const {onItemMove, onItemOpen} = renderGrid({items: [started, later]});
+    const startedCard = (await screen.findByRole('button', {name: /^Lunch, 09:00 to 12:00/})).closest<HTMLElement>('[data-kind]')!;
+    const laterCard = screen.getByRole('button', {name: /^Lunch, 14:00 to 15:00/}).closest<HTMLElement>('[data-kind]')!;
+    layOutColumns();
+
+    // Its words can't be selected: a wobble across them would, and Astryx's card ignores a click while they are.
+    expect(startedCard.style.userSelect).toBe('none');
+
+    // A 6px sideways wobble on the started block, on its own row: a click.
+    fireEvent.pointerDown(startedCard, {button: 0, pointerId: 1, clientX: 50, clientY: yOf(10)});
+    fireEvent.pointerMove(startedCard, {pointerId: 1, clientX: 56, clientY: yOf(10)});
+    fireEvent.pointerUp(startedCard, {pointerId: 1});
+    fireEvent.click(startedCard);
+    expect(onItemOpen).toHaveBeenCalledTimes(1);
+
+    // 4px down across a row line (from the bottom of 14:00's row into 14:15's): still a click, and nothing moves.
+    const rowEnd = 24 * 22 + 20;
+    fireEvent.pointerDown(laterCard, {button: 0, pointerId: 2, clientX: 50, clientY: rowEnd});
+    fireEvent.pointerMove(laterCard, {pointerId: 2, clientX: 50, clientY: rowEnd + 4});
+    expect(document.querySelector('.mc-ghost')).toBeNull();
+    fireEvent.pointerUp(laterCard, {pointerId: 2});
+    fireEvent.click(laterCard);
+    expect(onItemOpen).toHaveBeenCalledTimes(2);
+    expect(onItemMove).not.toHaveBeenCalled();
+
+    // The same press carried 6px into the next row is a drag: it moves a row, and opens nothing.
+    fireEvent.pointerDown(laterCard, {button: 0, pointerId: 3, clientX: 50, clientY: rowEnd});
+    fireEvent.pointerMove(laterCard, {pointerId: 3, clientX: 50, clientY: rowEnd + 6});
+    fireEvent.pointerUp(laterCard, {pointerId: 3});
+    fireEvent.click(laterCard);
+    expect(onItemMove).toHaveBeenCalledWith(later, {date: MONDAY, startUtc: '2026-11-23T14:15:00.000Z', endUtc: '2026-11-23T15:15:00.000Z', column: MONDAY});
+    expect(onItemOpen).toHaveBeenCalledTimes(2);
   });
 
   it('skips days with nothing free, looks both ways for the nearest free time, and stops at the edges', async () => {
@@ -629,11 +685,13 @@ describe('CalendarGrid', () => {
       const name = 'Test Patient, Knee review: Assessment, 10:00 to 11:00, Booked';
       const card = await screen.findByRole('button', {name});
       const box = card.closest('[data-kind]')!;
-      // Its words, wrapping to the four lines an hour has room for; and its start time alone, which the grid's CSS
-      // shows instead when the card is too narrow for words (a phone).
+      // Its words, wrapping to the four lines an hour has room for; and its start time with its name under it, which
+      // the grid's CSS shows instead when the card is too narrow for words (a phone).
       const full = box.querySelector('.mc-full .astryx-text')!;
       expect(full).toHaveTextContent('Test Patient, Knee review: Assessment');
-      expect(box.querySelector('.mc-short')).toHaveTextContent('10:00');
+      expect(box.querySelector('.mc-short')).toHaveTextContent('10:00Test Patient');
+      // Under two rows, the time alone.
+      expect(screen.getByRole('button', {name: /^Lunch, 14:00 to 14:10/}).closest('[data-kind]')!.querySelector('.mc-short')).toHaveTextContent(/^14:00$/);
       expect(box.getAttribute('style')).toContain('container-type: inline-size');
       const css = document.querySelector('.medapp-calendar style')!.textContent!;
       expect(css).toContain('@container (max-width: 4.5rem) { .medapp-calendar .mc-full { display: none; } .medapp-calendar .mc-short { display: block; } }');
