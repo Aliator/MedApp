@@ -14,6 +14,13 @@ public static class CalendarGuards
             throw new ForbiddenException(CalendarActor.NotYourCalendar);
     }
 
+    /// <summary>A 403 unless the actor may change this person's day and week templates (their own, or anyone's for an admin).</summary>
+    public static void EnsureCanChangeTemplatesOf(this CalendarActor actor, Guid ownerUserId)
+    {
+        if (!actor.CanChangeCalendarOf(ownerUserId))
+            throw new ForbiddenException(CalendarActor.NotYourTemplates);
+    }
+
     /// <summary>A 409 for a UK date before today: past days keep what they had.</summary>
     public static void EnsureNotPast(DateOnly date, DateOnly today)
     {

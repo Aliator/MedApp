@@ -11,8 +11,8 @@ using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 namespace MedApp.IntegrationTests.Calendar;
 
 /// <summary>
-/// Who may change what: a calendar's owner or an admin changes its blocks, days and default week (403 for other
-/// staff, from the handlers' ForbiddenException through the middleware); admins manage activity types and templates.
+/// Who may change what: a calendar's owner or an admin changes its blocks, days, default week and day and week templates
+/// (403 for other staff, from the handlers' ForbiddenException through the middleware); admins manage activity types.
 /// Also the working-day rules (400) and the seeded activity types surviving the reset between tests.
 /// </summary>
 [TestFixture]
@@ -55,8 +55,8 @@ public sealed class CalendarAccessTests : IntegrationTest
     [Test]
     public async Task DaysAndDefaultWeek_SomeoneElsesAsStaff_Return403()
     {
-        var day = await CreateDayTemplateAsync(_admin, TemplateBlock(12, 13));
-        var week = await CreateWeekTemplateAsync(_admin, day.Id);
+        var day = await CreateDayTemplateAsync(_admin, _other.UserId, TemplateBlock(12, 13));
+        var week = await CreateWeekTemplateAsync(_admin, _other.UserId, day.Id);
         var dayUrl = $"/api/calendar/staff/{_other.UserId}/days/{_day:yyyy-MM-dd}/day-template";
 
         await (await SetDefaultWeekAsync(_staff.Client, _other.UserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
@@ -64,12 +64,14 @@ public sealed class CalendarAccessTests : IntegrationTest
             .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         await (await _staff.Client.DeleteAsync(dayUrl)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
 
-        // Their own, and an admin for anyone.
-        await (await SetDefaultWeekAsync(_staff.Client, _staff.UserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        // Their own (from their own templates), and an admin for anyone.
+        var ownDay = await CreateDayTemplateAsync(_staff.Client, _staff.UserId, TemplateBlock(12, 13));
+        var ownWeek = await CreateWeekTemplateAsync(_staff.Client, _staff.UserId, ownDay.Id);
+        await (await SetDefaultWeekAsync(_staff.Client, _staff.UserId, ownWeek.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await SetDefaultWeekAsync(_admin, _other.UserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var staffList = await (await _staff.Client.GetAsync("/api/calendar/staff")).ReadAsAsync<List<StaffMemberResponse>>();
-        staffList.Where(s => s.UserId == _staff.UserId || s.UserId == _other.UserId)
-            .Should().HaveCount(2).And.AllSatisfy(s => s.WeekTemplateId.Should().Be(week.Id));
+        staffList.Single(s => s.UserId == _staff.UserId).WeekTemplateId.Should().Be(ownWeek.Id);
+        staffList.Single(s => s.UserId == _other.UserId).WeekTemplateId.Should().Be(week.Id);
     }
 
     [Test]
@@ -137,12 +139,10 @@ public sealed class CalendarAccessTests : IntegrationTest
     }
 
     [Test]
-    public async Task ActivityTypesAndTemplates_WritesAsStaff_Return403AndReadsSucceed()
+    public async Task ActivityTypes_WritesAsStaff_Return403AndReadsSucceed()
     {
         var client = _staff.Client;
         var activityType = await CreateActivityTypeAsync(_admin);
-        var day = await CreateDayTemplateAsync(_admin, TemplateBlock(12, 13));
-        var week = await CreateWeekTemplateAsync(_admin, day.Id);
 
         var writes = new[]
         {
@@ -150,22 +150,71 @@ public sealed class CalendarAccessTests : IntegrationTest
             await client.PatchAsJsonAsync($"/api/calendar/activity-types/{activityType.Id}", new UpdateActivityTypeRequest { Name = UniqueName("Renamed") }),
             await client.PostAsync($"/api/calendar/activity-types/{activityType.Id}/archive", null),
             await client.DeleteAsync($"/api/calendar/activity-types/{activityType.Id}"),
-            await client.PostAsJsonAsync("/api/calendar/day-templates", new DayTemplateRequest { Name = UniqueName("Day"), Blocks = [TemplateBlock(12, 13)] }),
+        };
+
+        writes.Should().AllSatisfy(r => r.StatusCode.Should().Be(HttpStatusCode.Forbidden));
+        (await GetActivityTypesAsync(client)).Should().Contain(t => t.Id == activityType.Id && t.Name == activityType.Name);
+    }
+
+    /// <summary>
+    /// Templates are personal: another member of staff can read someone's (the calendar names the template a day came
+    /// from) but not add to, change, archive or delete them (403); their owner and an admin can.
+    /// </summary>
+    [Test]
+    public async Task Templates_SomeoneElsesAsStaff_Return403AndReadsSucceed()
+    {
+        var client = _staff.Client;
+        var day = await CreateDayTemplateAsync(_other.Client, _other.UserId, TemplateBlock(12, 13));
+        var week = await CreateWeekTemplateAsync(_other.Client, _other.UserId, day.Id);
+
+        var writes = new[]
+        {
+            await PostDayTemplateAsync(client, _other.UserId, UniqueName("Day"), TemplateBlock(12, 13)),
             await client.PutAsJsonAsync($"/api/calendar/day-templates/{day.Id}", new DayTemplateRequest { Name = day.Name, Blocks = [] }),
             await client.PostAsync($"/api/calendar/day-templates/{day.Id}/archive", null),
             await client.DeleteAsync($"/api/calendar/day-templates/{day.Id}"),
-            await client.PostAsJsonAsync("/api/calendar/week-templates", new WeekTemplateRequest { Name = UniqueName("Week") }),
+            await PostWeekTemplateAsync(client, _other.UserId, null),
             await client.PutAsJsonAsync($"/api/calendar/week-templates/{week.Id}", new WeekTemplateRequest { Name = week.Name }),
             await client.PostAsync($"/api/calendar/week-templates/{week.Id}/archive", null),
             await client.DeleteAsync($"/api/calendar/week-templates/{week.Id}"),
         };
 
         writes.Should().AllSatisfy(r => r.StatusCode.Should().Be(HttpStatusCode.Forbidden));
-        (await GetActivityTypesAsync(client)).Should().Contain(t => t.Id == activityType.Id && t.Name == activityType.Name);
+        (await writes[0].ReadAsAsync<ProblemDetails>(HttpStatusCode.Forbidden)).Title.Should().Be(CalendarActor.NotYourTemplates);
         (await (await client.GetAsync($"/api/calendar/day-templates/{day.Id}")).ReadAsAsync<DayTemplateResponse>())
-            .Blocks.Should().ContainSingle();
-        (await (await client.GetAsync($"/api/calendar/week-templates/{week.Id}")).ReadAsAsync<WeekTemplateResponse>())
-            .Name.Should().Be(week.Name);
+            .Should().BeEquivalentTo(new { OwnerUserId = _other.UserId, CanEdit = false });
+        (await (await client.GetAsync($"/api/calendar/staff/{_other.UserId}/week-templates")).ReadAsAsync<List<WeekTemplateResponse>>())
+            .Should().ContainSingle().Which.Should().BeEquivalentTo(new { week.Id, CanEdit = false });
+
+        // The admin can, for support.
+        await (await _admin.PutAsJsonAsync($"/api/calendar/day-templates/{day.Id}", new DayTemplateRequest { Name = day.Name, Blocks = [] }))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+        (await (await _admin.GetAsync($"/api/calendar/staff/{_other.UserId}/day-templates")).ReadAsAsync<List<DayTemplateResponse>>())
+            .Should().ContainSingle().Which.CanEdit.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A person's templates use only their own: a week template can't name someone else's day template, and a day
+    /// override or a default week can't be someone else's (404, as if it weren't there). Names are unique per owner.
+    /// </summary>
+    [Test]
+    public async Task Templates_SomeoneElsesTemplateInMine_Return404AndNamesArePerOwner()
+    {
+        var theirs = await CreateDayTemplateAsync(_other.Client, _other.UserId, TemplateBlock(12, 13));
+        var theirWeek = await CreateWeekTemplateAsync(_other.Client, _other.UserId, theirs.Id);
+
+        await (await PostWeekTemplateAsync(_staff.Client, _staff.UserId, theirs.Id)).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        await (await _staff.Client.PutAsJsonAsync(
+                $"/api/calendar/staff/{_staff.UserId}/days/{_day:yyyy-MM-dd}/day-template",
+                new ApplyDayTemplateRequest { DayTemplateId = theirs.Id }))
+            .ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+        await (await SetDefaultWeekAsync(_staff.Client, _staff.UserId, theirWeek.Id)).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+
+        // The same name is fine for someone else, but not twice for one person.
+        await (await PostDayTemplateAsync(_staff.Client, _staff.UserId, theirs.Name, TemplateBlock(12, 13)))
+            .ShouldHaveStatusAsync(HttpStatusCode.Created);
+        await (await PostDayTemplateAsync(_staff.Client, _staff.UserId, theirs.Name, TemplateBlock(12, 13)))
+            .ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
 
     [Test]

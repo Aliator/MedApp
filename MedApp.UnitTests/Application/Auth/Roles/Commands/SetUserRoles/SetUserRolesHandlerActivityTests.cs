@@ -29,6 +29,7 @@ public sealed class SetUserRolesHandlerActivityTests
         _fixture.Inject(_roles.Object);
         _fixture.Inject(_read.Object);
         _fixture.Inject<IActivityLog>(_activity);
+        _fixture.Inject<IIdentityTransactions>(new PassThroughIdentityTransactions());
     }
 
     [Test]

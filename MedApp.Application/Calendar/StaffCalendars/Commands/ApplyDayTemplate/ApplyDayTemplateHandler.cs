@@ -26,7 +26,9 @@ public sealed class ApplyDayTemplateHandler(
 
         if (request.DayTemplateId is { } dayTemplateId)
         {
-            var template = await setupRepository.GetDayTemplateOrThrowAsync(dayTemplateId, today, cancellationToken);
+            // Only their own day templates: someone else's is a 404, as if it weren't there.
+            var template = await setupRepository.GetOwnDayTemplateOrThrowAsync(
+                dayTemplateId, request.StaffUserId, today, cancellationToken);
             if (template.IsArchived)
                 throw new ConflictException($"The '{template.Name}' day template is archived, so it can't be chosen.");
         }

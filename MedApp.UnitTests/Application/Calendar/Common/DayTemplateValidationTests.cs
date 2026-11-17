@@ -14,7 +14,7 @@ public sealed class DayTemplateValidationTests
     private readonly CreateDayTemplateValidator _validator = new();
 
     private ValidationResult Validate(params DayTemplateBlockValue[] blocks) =>
-        _validator.Validate(new CreateDayTemplateCommand(DayTemplateName, blocks));
+        _validator.Validate(new CreateDayTemplateCommand(StaffUserId, DayTemplateName, blocks, StaffActor));
 
     [Test]
     public void Validate_NoBlocks_Passes()
@@ -33,7 +33,7 @@ public sealed class DayTemplateValidationTests
     [TestCase(" ")]
     public void Validate_BlankName_Fails(string name)
     {
-        var result = _validator.Validate(new CreateDayTemplateCommand(name, []));
+        var result = _validator.Validate(new CreateDayTemplateCommand(StaffUserId, name, [], StaffActor));
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Name" && e.ErrorMessage == "Name is required.");
     }
@@ -41,7 +41,7 @@ public sealed class DayTemplateValidationTests
     [Test]
     public void Validate_NameTooLong_Fails()
     {
-        var result = _validator.Validate(new CreateDayTemplateCommand(new string('n', CalendarLimits.MaxTemplateNameLength + 1), []));
+        var result = _validator.Validate(new CreateDayTemplateCommand(StaffUserId, new string('n', CalendarLimits.MaxTemplateNameLength + 1), [], StaffActor));
 
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Name" && e.ErrorMessage.Contains("must not exceed"));
     }
@@ -49,14 +49,14 @@ public sealed class DayTemplateValidationTests
     [Test]
     public void Validate_NameAtTheLimit_Passes()
     {
-        _validator.Validate(new CreateDayTemplateCommand(new string('n', CalendarLimits.MaxTemplateNameLength), []))
+        _validator.Validate(new CreateDayTemplateCommand(StaffUserId, new string('n', CalendarLimits.MaxTemplateNameLength), [], StaffActor))
             .IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_NullBlocks_Fails()
     {
-        var result = _validator.Validate(new CreateDayTemplateCommand(DayTemplateName, null!));
+        var result = _validator.Validate(new CreateDayTemplateCommand(StaffUserId, DayTemplateName, null!, StaffActor));
 
         result.Errors.Should().ContainSingle(e => e.ErrorMessage == "Blocks must not be null.");
     }

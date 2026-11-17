@@ -38,9 +38,8 @@ import {
   WORK_START,
   type BlockRow,
 } from './calendarSetup';
-import {calendarTemplatesHref} from './CalendarTemplatesPage';
-
-const BACK = calendarTemplatesHref('day');
+import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
+import {calendarTemplatesHref} from './calendarTemplatesSearch';
 
 let rowCount = 0;
 const newKey = () => `block-${++rowCount}`;
@@ -49,32 +48,47 @@ const newKey = () => `block-${++rowCount}`;
 const rowId = (key: string) => `day-template-${key}`;
 
 /**
- * A new day template (no `id`), or one to edit. This part loads it and the activity types; an unknown one goes back
- * to the list. The editor mounts once they're here, so it starts from the template.
+ * A new day template (no `id`) for `staff` (none: your own), or one to edit. This part loads it, the activity types
+ * and whose it is; an unknown one goes back to the list. The editor mounts once they're here, so it starts from the
+ * template. Only its owner and admins can add or change one: anyone else sees it read-only, or is told they can't add
+ * one.
  */
-export function DayTemplateEditorPage({id}: {id?: string}) {
+export function DayTemplateEditorPage({id, staff}: {id?: string; staff?: string}) {
   const navigate = useNavigate();
   const template = useQuery({...dayTemplateQuery(id ?? ''), enabled: id !== undefined});
   const activities = useQuery(activityTypesQuery);
+  const owner = useTemplatesOwner(template.data?.ownerUserId ?? staff);
+  const back = calendarTemplatesHref('day', owner.staffParam);
   const isMissing = template.error instanceof ApiError && template.error.status === 404;
 
   useEffect(() => {
-    if (isMissing) void navigate({to: BACK, replace: true});
-  }, [isMissing, navigate]);
+    if (isMissing) void navigate({to: back, replace: true});
+  }, [isMissing, navigate, back]);
 
-  const isLoading = activities.isPending || (id !== undefined && template.isPending) || isMissing;
-  if (!isLoading && activities.data && (id === undefined || template.data)) {
-    return <DayTemplateEditor template={template.data ?? null} activities={activities.data} />;
+  // The staff list too, which says whose it is and whether it's yours.
+  const isLoading = activities.isPending || (id !== undefined && template.isPending) || isMissing || owner.staff.isPending;
+  const canAdd = id !== undefined || owner.canEdit;
+  if (!isLoading && activities.data && owner.ownerId && canAdd && (id === undefined || template.data)) {
+    return <DayTemplateEditor template={template.data ?? null} activities={activities.data} owner={owner} ownerId={owner.ownerId} back={back} />;
   }
-  const failed = activities.isError || (template.isError && !isMissing);
+  // Your own, but you're not in the staff list (or it couldn't be loaded).
+  const ownerFailed = !isLoading && owner.ownerId === undefined;
+  const failed = activities.isError || (template.isError && !isMissing) || ownerFailed;
   return (
     <Page
       title={id ? 'Edit Day Template' : 'New Day Template'}
-      backHref={BACK}
+      subtitle={owner.isOwn ? undefined : owner.title}
+      backHref={back}
       backLabel="Back to day templates"
       isLoading={isLoading}
       loadingMessage="Loading day template..."
-      message={failed && <AlertMessage message="The day template could not be loaded. Please try again." />}
+      message={
+        failed ? (
+          <AlertMessage message="The day template could not be loaded. Please try again." />
+        ) : (
+          !canAdd && <AlertMessage status="info" message={`Only ${owner.ownerName || 'their owner'} or an admin can add to ${owner.title}.`} />
+        )
+      }
     />
   );
 }
@@ -90,9 +104,22 @@ const timeOptions = (times: string[], current: string) =>
  * steps of the working day, and an optional note), kept in start order, each flagged at once if it ends before it
  * starts or overlaps another (the server's check is still the one that counts). Beside it (below, when narrow), the
  * day as it will look: its blocks and the free time between them. Saving changes asks first, saying they apply from
- * today and past days keep what they had.
+ * today and past days keep what they had. Without `canEdit` (someone else's, for staff) it's read-only.
  */
-function DayTemplateEditor({template, activities}: {template: DayTemplate | null; activities: ActivityType[]}) {
+function DayTemplateEditor({
+  template,
+  activities,
+  owner,
+  ownerId,
+  back,
+}: {
+  template: DayTemplate | null;
+  activities: ActivityType[];
+  owner: TemplatesOwner;
+  /** Whose it is (or will be, for a new one). */
+  ownerId: string;
+  back: string;
+}) {
   const navigate = useNavigate();
   const isNarrow = useIsNarrow();
   const save = useSaveDayTemplate();
@@ -120,8 +147,12 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
   const activityName = (id: string) => byId.get(id)?.name ?? 'an activity';
   const problems = new Map(rows.map((r) => [r.key, blockProblem(r, rows, activityName)]));
   const hasProblems = [...problems.values()].some(Boolean);
-  const backToList = () => void navigate({to: BACK});
+  const backToList = () => void navigate({to: back});
   const usedIn = template?.weekTemplateCount ?? 0;
+  const canEdit = template ? template.canEdit === true : owner.canEdit;
+  // Fields can't change while saving, or ever on a template the user can't change.
+  const isLocked = save.isPending || !canEdit;
+  const whose = owner.isOwn ? 'your' : owner.ownerName ? `${owner.ownerName}'s` : 'their';
 
   // Puts the focus back on a block's field after the block moved (its start changed) or was added.
   useEffect(() => {
@@ -158,6 +189,7 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
     save.mutate(
       {
         id: template?.id,
+        ownerUserId: ownerId,
         name: name.trim(),
         blocks: byStart(rows).map((r) => ({
           activityTypeId: r.activityTypeId,
@@ -192,13 +224,13 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
   const nameField = (
     <TextInput
       label="Name"
-      description="What admins choose for a weekday in a week template, or for one day on a calendar."
+      description={`What's chosen for a weekday in ${whose} week templates, or for one day on ${whose} calendar.`}
       value={name}
       onChange={setName}
       placeholder="e.g. Standard day"
       autoComplete="off"
       isRequired
-      isDisabled={save.isPending}
+      isDisabled={isLocked}
       status={fieldStatus(problem.validation, 'name')}
     />
   );
@@ -228,7 +260,7 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
                     options={options}
                     value={row.activityTypeId}
                     onChange={(activityTypeId) => change(row.key, {activityTypeId})}
-                    isDisabled={save.isPending}
+                    isDisabled={isLocked}
                     containerStyle={{minWidth: 160}}
                   />
                 </StackItem>
@@ -237,7 +269,7 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
                   options={timeOptions(TIMES.slice(0, -1), row.startTime)}
                   value={row.startTime}
                   onChange={(startTime) => change(row.key, {startTime})}
-                  isDisabled={save.isPending}
+                  isDisabled={isLocked}
                   status={rowProblem?.field === 'startTime' ? {type: 'error', message: rowProblem.message} : undefined}
                   containerStyle={{width: 130}}
                 />
@@ -246,7 +278,7 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
                   options={timeOptions(TIMES.slice(1), row.endTime)}
                   value={row.endTime}
                   onChange={(endTime) => change(row.key, {endTime})}
-                  isDisabled={save.isPending}
+                  isDisabled={isLocked}
                   status={rowProblem?.field === 'endTime' ? {type: 'error', message: rowProblem.message} : undefined}
                   containerStyle={{width: 130}}
                 />
@@ -258,41 +290,45 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
                     onChange={(note) => change(row.key, {note})}
                     placeholder="e.g. Team huddle"
                     autoComplete="off"
-                    isDisabled={save.isPending}
+                    isDisabled={isLocked}
                     containerStyle={{minWidth: 160}}
                   />
                 </StackItem>
-                <VStack gap={1} hAlign="end">
-                  {/* Level with the fields, under their labels (a line of label text, as tall as theirs). */}
-                  <Text type="label" weight="semibold" aria-hidden>
-                    {' '}
-                  </Text>
-                  <IconButton
-                    label={`Remove ${activityName(row.activityTypeId)}, ${row.startTime} to ${row.endTime}`}
-                    tooltip="Remove"
-                    icon={<Icon icon={AppIcon.Delete} />}
-                    variant="ghost"
-                    isDisabled={save.isPending}
-                    onClick={() => remove(row)}
-                  />
-                </VStack>
+                {canEdit && (
+                  <VStack gap={1} hAlign="end">
+                    {/* Level with the fields, under their labels (a line of label text, as tall as theirs). */}
+                    <Text type="label" weight="semibold" aria-hidden>
+                      {' '}
+                    </Text>
+                    <IconButton
+                      label={`Remove ${activityName(row.activityTypeId)}, ${row.startTime} to ${row.endTime}`}
+                      tooltip="Remove"
+                      icon={<Icon icon={AppIcon.Delete} />}
+                      variant="ghost"
+                      isDisabled={isLocked}
+                      onClick={() => remove(row)}
+                    />
+                  </VStack>
+                )}
               </HStack>
             </VStack>
           );
         })
       )}
-      <HStack>
-        <Button
-          label="Add Block"
-          variant="secondary"
-          icon={<Icon icon={AppIcon.Add} />}
-          isDisabled={save.isPending || active.length === 0}
-          onClick={add}
-        />
-      </HStack>
-      {active.length === 0 && (
+      {canEdit && (
+        <HStack>
+          <Button
+            label="Add Block"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Add} />}
+            isDisabled={save.isPending || active.length === 0}
+            onClick={add}
+          />
+        </HStack>
+      )}
+      {canEdit && active.length === 0 && (
         <Text type="supporting" color="secondary">
-          There are no active activity types to block time for. Add one on the Activity Types page first.
+          There are no active activity types to block time for. An admin adds them on the Activity Types page.
         </Text>
       )}
     </VStack>
@@ -301,7 +337,13 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
   const preview = <DayPreview rows={rows} activityName={activityName} colourOf={(id) => byId.get(id)?.colour} />;
 
   const form = (children: ReactNode) => (
-    <FormCard fill saveText={template ? 'Save' : 'Create Day Template'} onSave={onSave} onCancel={backToList} isProcessing={save.isPending}>
+    <FormCard
+      fill
+      saveText={template ? 'Save' : 'Create Day Template'}
+      onSave={canEdit ? onSave : undefined}
+      onCancel={backToList}
+      showFooter={canEdit}
+      isProcessing={save.isPending}>
       {children}
     </FormCard>
   );
@@ -310,16 +352,18 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
 
   return (
     <Page
-      title={template ? 'Edit Day Template' : 'New Day Template'}
-      subtitle={template?.name ?? undefined}
+      title={!canEdit ? 'Day Template' : template ? 'Edit Day Template' : 'New Day Template'}
+      subtitle={[template?.name, owner.isOwn ? undefined : owner.title].filter(Boolean).join(' · ') || undefined}
       onBack={backToList}
       backLabel="Back to day templates"
       fill
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={['name']} />
+        ) : problem.message ? (
+          <AlertMessage message={problem.message} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          !canEdit && <AlertMessage status="info" message={`Only ${owner.ownerName || 'its owner'} or an admin can change this day template.`} />
         )
       }
       dialogs={
@@ -327,7 +371,7 @@ function DayTemplateEditor({template, activities}: {template: DayTemplate | null
           isOpen={isConfirming}
           title="Save Day Template"
           message={`Changes apply from today; past days keep what they had.${
-            usedIn > 0 ? ` It's used in ${count(usedIn, 'week template', 'week templates')}, so their staff's calendars change too.` : ''
+            usedIn > 0 ? ` It's used in ${count(usedIn, 'week template', 'week templates')}, so ${whose} calendar changes too.` : ''
           }`}
           icon={AppIcon.Save}
           confirmText="Save"

@@ -43,8 +43,9 @@ public sealed class UpdateDayTemplateHandlerTests : CalendarSetupHandlerTestBase
             .Returns(Task.CompletedTask);
     }
 
+    /// <summary>A change to <see cref="StaffUserId"/>'s clinic day, by them.</summary>
     private static UpdateDayTemplateCommand Command(string name, params DayTemplateBlockValue[] blocks) =>
-        new(DayTemplateId, name, blocks);
+        new(DayTemplateId, name, blocks, StaffActor);
 
     [Test]
     public async Task Handle_SameBlocks_SavesWithNoChangeToTheBlocks()
@@ -94,7 +95,31 @@ public sealed class UpdateDayTemplateHandlerTests : CalendarSetupHandlerTestBase
         await Handler.Handle(Command($" {OtherDayTemplateName} ", BlockValue(12, 13, Lunch.Id, TemplateNote)), Token);
 
         _template.Name.Should().Be(OtherDayTemplateName);
-        Repository.Verify(r => r.DayTemplateNameExistsAsync(OtherDayTemplateName, DayTemplateId, Token), Times.Once);
+        Repository.Verify(r => r.DayTemplateNameExistsAsync(StaffUserId, OtherDayTemplateName, DayTemplateId, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_AdminRenamesSomeoneElses_ChecksTheNameAmongTheOwnersTemplates()
+    {
+        await Handler.Handle(
+            new UpdateDayTemplateCommand(DayTemplateId, OtherDayTemplateName, [BlockValue(12, 13, Lunch.Id, TemplateNote)], AdminActor),
+            Token);
+
+        _template.Name.Should().Be(OtherDayTemplateName);
+        _saves.Should().Be(1);
+        Repository.Verify(r => r.DayTemplateNameExistsAsync(StaffUserId, OtherDayTemplateName, DayTemplateId, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_OtherStaffChangesSomeoneElses_ThrowsForbiddenAndSavesNothing()
+    {
+        var act = () => Handler.Handle(
+            new UpdateDayTemplateCommand(DayTemplateId, OtherDayTemplateName, [BlockValue(12, 14)], OtherStaffActor),
+            Token);
+
+        await act.Should().ThrowAsync<ForbiddenException>().WithMessage(CalendarActor.NotYourTemplates);
+        _template.Name.Should().Be(DayTemplateName);
+        _saves.Should().Be(0);
     }
 
     [Test]
@@ -102,13 +127,13 @@ public sealed class UpdateDayTemplateHandlerTests : CalendarSetupHandlerTestBase
     {
         await Handler.Handle(Command(DayTemplateName, BlockValue(12, 13, Lunch.Id, TemplateNote)), Token);
 
-        Repository.Verify(r => r.DayTemplateNameExistsAsync(It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
+        Repository.Verify(r => r.DayTemplateNameExistsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
     public async Task Handle_NameTaken_ThrowsConflictAndSavesNothing()
     {
-        Repository.Setup(r => r.DayTemplateNameExistsAsync(OtherDayTemplateName, DayTemplateId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        Repository.Setup(r => r.DayTemplateNameExistsAsync(StaffUserId, OtherDayTemplateName, DayTemplateId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var act = () => Handler.Handle(Command(OtherDayTemplateName), Token);
 
@@ -153,7 +178,7 @@ public sealed class UpdateDayTemplateHandlerTests : CalendarSetupHandlerTestBase
     [Test]
     public async Task Handle_TemplateDoesNotExist_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new UpdateDayTemplateCommand(Guid.NewGuid(), DayTemplateName, []), Token);
+        var act = () => Handler.Handle(new UpdateDayTemplateCommand(Guid.NewGuid(), DayTemplateName, [], StaffActor), Token);
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage("Day template*was not found.");
     }
@@ -168,6 +193,8 @@ public sealed class UpdateDayTemplateHandlerTests : CalendarSetupHandlerTestBase
         response.Id.Should().Be(DayTemplateId);
         response.WeekTemplateCount.Should().Be(3);
         response.CanBeDeleted.Should().BeFalse();
+        response.OwnerUserId.Should().Be(StaffUserId);
+        response.CanEdit.Should().BeTrue();
         Repository.Verify(r => r.GetDayTemplateAsync(DayTemplateId, Today, Token), Times.Once);
         Repository.Verify(r => r.GetDayTemplateUsageAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == DayTemplateId), Today, Token), Times.Once);
         Repository.Verify(r => r.GetActivityTypesByIdAsync(It.IsAny<IEnumerable<Guid>>(), Token), Times.Once);

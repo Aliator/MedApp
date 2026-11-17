@@ -307,20 +307,31 @@ public abstract class IntegrationTest
             EndTime = new TimeOnly(endHour, endMinute),
         };
 
-    protected static async Task<DayTemplateResponse> CreateDayTemplateAsync(HttpClient admin, params DayTemplateBlockRequest[] blocks)
+    /// <summary>Adds a day template to <paramref name="ownerUserId"/>'s own (as them, or as an admin).</summary>
+    protected static async Task<DayTemplateResponse> CreateDayTemplateAsync(
+        HttpClient client, Guid ownerUserId, params DayTemplateBlockRequest[] blocks)
     {
-        var response = await admin.PostAsJsonAsync("/api/calendar/day-templates",
-            new DayTemplateRequest { Name = UniqueName("Day"), Blocks = [.. blocks] });
+        var response = await PostDayTemplateAsync(client, ownerUserId, UniqueName("Day"), blocks);
         return await response.ReadAsAsync<DayTemplateResponse>(HttpStatusCode.Created);
     }
+
+    protected static Task<HttpResponseMessage> PostDayTemplateAsync(
+        HttpClient client, Guid ownerUserId, string name, params DayTemplateBlockRequest[] blocks) =>
+        client.PostAsJsonAsync($"/api/calendar/staff/{ownerUserId}/day-templates",
+            new DayTemplateRequest { Name = name, Blocks = [.. blocks] });
 
     protected static Task<HttpResponseMessage> UpdateDayTemplateAsync(HttpClient admin, DayTemplateResponse template, params DayTemplateBlockRequest[] blocks) =>
         admin.PutAsJsonAsync($"/api/calendar/day-templates/{template.Id}", new DayTemplateRequest { Name = template.Name, Blocks = [.. blocks] });
 
-    /// <summary>A week template using <paramref name="dayTemplateId"/> (or none) on every weekday.</summary>
-    protected static async Task<WeekTemplateResponse> CreateWeekTemplateAsync(HttpClient admin, Guid? dayTemplateId)
-    {
-        var response = await admin.PostAsJsonAsync("/api/calendar/week-templates", new WeekTemplateRequest
+    /// <summary>
+    /// A week template of <paramref name="ownerUserId"/>'s own using <paramref name="dayTemplateId"/> (or none) on every
+    /// weekday.
+    /// </summary>
+    protected static async Task<WeekTemplateResponse> CreateWeekTemplateAsync(HttpClient client, Guid ownerUserId, Guid? dayTemplateId) =>
+        await (await PostWeekTemplateAsync(client, ownerUserId, dayTemplateId)).ReadAsAsync<WeekTemplateResponse>(HttpStatusCode.Created);
+
+    protected static Task<HttpResponseMessage> PostWeekTemplateAsync(HttpClient client, Guid ownerUserId, Guid? dayTemplateId) =>
+        client.PostAsJsonAsync($"/api/calendar/staff/{ownerUserId}/week-templates", new WeekTemplateRequest
         {
             Name = UniqueName("Week"),
             Monday = dayTemplateId,
@@ -329,17 +340,18 @@ public abstract class IntegrationTest
             Thursday = dayTemplateId,
             Friday = dayTemplateId,
         });
-        return await response.ReadAsAsync<WeekTemplateResponse>(HttpStatusCode.Created);
-    }
 
     protected static Task<HttpResponseMessage> SetDefaultWeekAsync(HttpClient client, Guid staffUserId, Guid? weekTemplateId) =>
         client.PutAsJsonAsync($"/api/calendar/staff/{staffUserId}/week-template", new SetStaffWeekTemplateRequest { WeekTemplateId = weekTemplateId });
 
-    /// <summary>Gives a member of staff a default week whose every weekday is a new day template of these blocks.</summary>
+    /// <summary>
+    /// Gives a member of staff a default week of their own whose every weekday is a new day template of theirs with
+    /// these blocks.
+    /// </summary>
     protected static async Task<DayTemplateResponse> GiveDefaultWeekAsync(HttpClient admin, Guid staffUserId, params DayTemplateBlockRequest[] blocks)
     {
-        var day = await CreateDayTemplateAsync(admin, blocks);
-        var week = await CreateWeekTemplateAsync(admin, day.Id);
+        var day = await CreateDayTemplateAsync(admin, staffUserId, blocks);
+        var week = await CreateWeekTemplateAsync(admin, staffUserId, day.Id);
         await (await SetDefaultWeekAsync(admin, staffUserId, week.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         return day;
     }

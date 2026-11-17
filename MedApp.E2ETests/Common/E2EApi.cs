@@ -103,9 +103,15 @@ public sealed class E2EApi(IAPIRequestContext request)
     public async Task CancelAppointmentAsync(Guid id, string reason) =>
         await SendAsync<AppointmentResponse>("POST", $"/api/appointments/{id}/cancel", new { reason });
 
-    /// <summary>One person's calendar for one day: its blocks (stored and from templates) and appointments.</summary>
-    public async Task<CalendarResponse> CalendarAsync(Guid staffUserId, DateOnly date) =>
-        await SendAsync<CalendarResponse>("GET", $"/api/calendar?staffUserId={staffUserId}&from={date:yyyy-MM-dd}&to={date:yyyy-MM-dd}");
+    /// <summary>One person's calendar for one day: its blocks (stored and from their templates), appointments and meetings.</summary>
+    public Task<CalendarResponse> CalendarAsync(Guid staffUserId, DateOnly date) => CalendarAsync(staffUserId, date, date);
+
+    /// <summary>One person's calendar from one UK day to another (at most 31): its blocks, appointments and meetings.</summary>
+    public async Task<CalendarResponse> CalendarAsync(Guid staffUserId, DateOnly from, DateOnly to) =>
+        await SendAsync<CalendarResponse>("GET", $"/api/calendar?staffUserId={staffUserId}&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+    /// <summary>Cancels (deletes) a meeting, as an admin. Nothing happens if it's gone already.</summary>
+    public Task CancelMeetingAsync(Guid id) => DeleteIfThereAsync($"/api/calendar/meetings/{id}");
 
     /// <summary>Deletes a stored block, if it's still there.</summary>
     public Task DeleteBlockAsync(Guid id) => DeleteIfThereAsync($"/api/calendar/blocks/{id}");

@@ -2,7 +2,7 @@
 
 /// <summary>
 /// A notification. <c>Kind</c> is its kind's name, e.g. "ProcedureAssigned". It links to the procedure or appointment
-/// it's about, if any.
+/// it's about, if any, or to the Calendar on <c>CalendarDate</c> (a meeting's day).
 /// </summary>
 public sealed record NotificationResponse(
     Guid Id,
@@ -12,4 +12,5 @@ public sealed record NotificationResponse(
     Guid? ProcedureId,
     DateTime CreatedAtUtc,
     bool IsRead,
-    Guid? AppointmentId = null);
+    Guid? AppointmentId = null,
+    DateOnly? CalendarDate = null);

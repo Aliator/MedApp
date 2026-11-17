@@ -31,25 +31,38 @@ function compact<T extends object>(search: T): T {
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as T;
 }
 
-export const CALENDAR_VIEWS = ['day', 'week'] as const;
+/** People, by user ID: a list, or one or more IDs separated by commas. Invalid ones and repeats are dropped. */
+function ids(value: unknown): string[] | undefined {
+  const parts = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const valid = [...new Set(parts.map(id).filter((v): v is string => v !== undefined).map((v) => v.toLowerCase()))];
+  return valid.length ? valid : undefined;
+}
+
+/** Day, week or (admins only) team: one day with a column for each member of staff. */
+export const CALENDAR_VIEWS = ['day', 'week', 'team'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
-/** The Calendar page: the day shown (today by default), day or week (week), whose (yours), and an open appointment. */
+/**
+ * The Calendar page: the day shown (today by default), day, week or team (week), whose (yours), an open appointment,
+ * and who the team view shows (everyone with a staff role, by default).
+ */
 export interface CalendarSearch {
   date?: string;
   view?: CalendarView;
   staff?: string;
   appointment?: string;
+  who?: string[];
 }
 
 export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearch {
   const view = text(raw.view)?.toLowerCase();
   return compact({
     date: date(raw.date),
-    // Week is the default, so only day is kept.
-    view: view === 'day' ? ('day' as const) : undefined,
+    // Week is the default, so only day and team are kept.
+    view: view === 'day' || view === 'team' ? view : undefined,
     staff: id(raw.staff),
     appointment: id(raw.appointment),
+    who: ids(raw.who),
   });
 }
 

@@ -13,6 +13,7 @@ End-to-end tests for the React app (`MedApp.Web`), written with [Playwright for 
 | `Auth/TwoFactorTests` | Two-factor authentication: a member of staff sets up an authenticator app in Account Settings, Security (the key is read from the page, and codes made from it as an app makes them), sees their recovery codes once, then signs in again with their password and a code. Needs no email, so it runs against the production image as CI starts it. |
 | `Users/UserTests` | A new user from start to finish: the admin adds them (the one-time password dialog) and gives them a role; they sign in with that password, land on `/change-password`, choose their own and reach the app. Deleting a user, confirmed with your password. |
 | `Calendar/BookingTests` | Booking an appointment from the patient page (with you, 30 minutes, the first free day and time), finding it on your Calendar that day, opening it and cancelling it with a reason. |
+| `Calendar/MeetingTests` | Arranging a meeting: the admin opens the Calendar's team view narrowed to themselves and a new member of staff, takes the first suggested time in New Meeting, finds the meeting on the member of staff's calendar that day, and cancels it there. |
 | `Calendar/BlockTimeTests` | Selecting time with the mouse: dragging over free time on your Calendar (an hour, three weeks ahead), the menu that opens staying open, Block time blocking exactly that hour, and deleting the block again. jsdom can't show the menu closing itself, so this is the test for it. |
 | `Calendar/StageVisitTests` | The visit rule: a stage that requires a visit shows it needs booking; an admin's Finish Stage asks "Finish without a visit?" with a reason; the stage finishes, its requested visit comes off Needs booking, and the patient's timeline says it was finished without a visit, and why. |
 | `Notifications/NotificationBellTests` | Another admin assigns you a procedure: the bell's count goes up live (SignalR, no reload), and the notification opens the procedure and is marked read. |
@@ -51,6 +52,7 @@ The whole suite takes about a minute. The tests write to the database the app us
 - the audit log entries of the procedures they made (by design: the audit log outlives deletes)
 - the notification the bell test sends (marked read)
 - the session rows of the accounts they made and deleted (none can be used: their users are gone)
+- nothing from the meeting journey: it cancels its meeting, and its clean-up cancels it too if the test fails first
 - the appointments they made, cancelled (the app never deletes appointments), with their history, and so the `E2E …` patients they were for: a patient who has had an appointment can't be deleted
 
 A run that's cancelled or crashes before its clean-up (against a deployment, through `e2e.yml`, say) can also leave what it made: `E2E …` patients, stages and templates, and `e2e-…` accounts, one of them an admin. Their passwords are random for the run, but delete them by hand.
@@ -78,6 +80,7 @@ public sealed class PatientTests : E2ETest
 - **Rely on nothing you didn't make**, except the signed-in account and the seeded default stage definition. Other data may be there, so filter lists down to your own rows rather than counting everything.
 - **Use synthetic data only.** This is a medical app: never realistic patient details.
 - An account an admin makes must change its generated password before anything else (`UpdateOwnPasswordAsync`), as `NotificationBellTests` does for its second admin.
+- **Waiting for a save:** a dialog that's saving is an `alertdialog`, not a `dialog`. Our dialogs set Astryx's `purpose="required"` while they save (so Escape and a click outside can't close them), and Astryx gives such a dialog the role `alertdialog`. So `Expect(dialog).ToBeHiddenAsync()` on a `GetByRole(AriaRole.Dialog, ...)` locator passes the moment Save is pressed, before the request has finished. Follow it with something that waits for the result on the page (`ToBeVisibleAsync`, `ToContainTextAsync`), or, before reading the API, wrap the click in `Page.RunAndWaitForResponseAsync` for the request and check its status, as `MeetingTests` does.
 
 ## CI
 

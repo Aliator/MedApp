@@ -89,6 +89,24 @@ public sealed class UkTimeTests
     }
 
     [Test]
+    public void DescribeRange_WinterTimes_SaysTheDayDateAndBothTimes()
+    {
+        UkTime.DescribeRange(
+                new DateTime(2026, 11, 23, 10, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 11, 23, 11, 30, 0, DateTimeKind.Utc))
+            .Should().Be("Monday 23 November, 10:00 to 11:30");
+    }
+
+    [Test]
+    public void DescribeRange_SummerTimes_SaysTheUkTimes()
+    {
+        UkTime.DescribeRange(
+                new DateTime(2026, 6, 15, 8, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 6, 15, 9, 5, 0, DateTimeKind.Utc))
+            .Should().Be("Monday 15 June, 09:00 to 10:05");
+    }
+
+    [Test]
     public void DescribeDate_Date_SaysTheDayAndDate()
     {
         UkTime.DescribeDate(NextMonday).Should().Be("Monday 23 November");

@@ -2,6 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Domain.Appointments;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
+using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
 
 namespace MedApp.UnitTests.Application.Calendar.Common;
 
@@ -128,6 +129,137 @@ public sealed class CalendarClashesTests
                 new DateTime(2026, 6, 15, 11, 30, 0, DateTimeKind.Utc),
                 new DateTime(2026, 6, 15, 12, 30, 0, DateTimeKind.Utc))
             .Should().Be("That time overlaps Lunch, 12:00 to 13:00.");
+    }
+
+    [Test]
+    public void Find_OverlapsAMeeting_NamesItAndItsTime()
+    {
+        var data = CreateData(NextMonday) with { Meetings = [NewMeeting(At(NextMonday, 9), At(NextMonday, 10))] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9, 30), At(NextMonday, 10, 30))
+            .Should().Be("That time overlaps the meeting 'MDT', 09:00 to 10:00.");
+    }
+
+    [Test]
+    public void Find_TheMeetingBeingMoved_IsIgnoredButOthersAreNot()
+    {
+        var mdt = NewMeeting(At(NextMonday, 9), At(NextMonday, 10));
+        var huddle = NewMeeting(At(NextMonday, 10), At(NextMonday, 10, 30), id: OtherMeetingId, title: OtherTitle);
+        var data = CreateData(NextMonday) with { Meetings = [mdt, huddle] };
+
+        CalendarClashes.Find(data, At(NextMonday, 9), At(NextMonday, 10), ignoreMeetingId: MeetingId).Should().BeNull();
+        CalendarClashes.Find(data, At(NextMonday, 9, 30), At(NextMonday, 10, 30), ignoreMeetingId: MeetingId)
+            .Should().Be($"That time overlaps the meeting '{OtherTitle}', 10:00 to 10:30.");
+    }
+
+    [Test]
+    public void FindFirst_Overlap_ReturnsWhatAndWhen()
+    {
+        var data = CreateData(NextMonday, templateBlocks: [CreateTemplateBlock(12, 13)]);
+
+        CalendarClashes.FindFirst(data, At(NextMonday, 12, 30), At(NextMonday, 14))
+            .Should().Be(new CalendarClash(At(NextMonday, 12), At(NextMonday, 13), "Lunch"));
+    }
+
+    [Test]
+    public void FindFirst_NothingOverlaps_IsNull()
+    {
+        CalendarClashes.FindFirst(CreateData(NextMonday), At(NextMonday, 12), At(NextMonday, 13)).Should().BeNull();
+    }
+
+    [Test]
+    public void FindFirst_IgnoringATemplateBlockOnOneDate_StillSeesItOnTheOthers()
+    {
+        var lunch = CreateTemplateBlock(12, 13);
+        var tuesday = NextMonday.AddDays(1);
+        var data = CreateData(NextMonday, tuesday, templateBlocks: [lunch]);
+
+        CalendarClashes.FindFirst(data, At(tuesday, 12), At(tuesday, 13), ignoreTemplateBlockId: lunch.Id).Should().BeNull();
+        CalendarClashes.FindFirst(data, At(NextMonday, 12), At(NextMonday, 13), ignoreTemplateBlockId: lunch.Id).Should().BeNull();
+        // Ignored only on the date the time starts: a time from Monday to Tuesday still sees Tuesday's.
+        CalendarClashes.FindFirst(data, At(NextMonday, 12), At(tuesday, 13), ignoreTemplateBlockId: lunch.Id)
+            .Should().Be(new CalendarClash(At(tuesday, 12), At(tuesday, 13), "Lunch"));
+    }
+
+    [Test]
+    public void BusyTimes_EverythingOnTheCalendar_ByStartThenEnd()
+    {
+        var data = CreateData(
+            NextMonday,
+            templateBlocks: [CreateTemplateBlock(12, 13)],
+            blocks: [CreateBlock(At(NextMonday, 9), At(NextMonday, 11))],
+            appointments: [CreateAppointment(startUtc: At(NextMonday, 9)), CreateAppointment(AppointmentStatus.Cancelled, At(NextMonday, 15))]) with
+        {
+            Meetings = [NewMeeting(At(NextMonday, 8), At(NextMonday, 8, 30))]
+        };
+
+        CalendarClashes.BusyTimes(data).Should().Equal(
+            new CalendarClash(At(NextMonday, 8), At(NextMonday, 8, 30), "the meeting 'MDT'"),
+            new CalendarClash(At(NextMonday, 9), At(NextMonday, 9, 30), "another appointment"),
+            new CalendarClash(At(NextMonday, 9), At(NextMonday, 11), "Training"),
+            new CalendarClash(At(NextMonday, 12), At(NextMonday, 13), "Lunch"));
+    }
+
+    [Test]
+    public void BusyTimes_OverSeveralDays_ListsEachWorkingDaysTemplateBlocks()
+    {
+        var data = CreateData(NextMonday, NextSunday, templateBlocks: [CreateTemplateBlock(12, 13)]);
+
+        CalendarClashes.BusyTimes(data).Select(b => b.StartUtc)
+            .Should().Equal(Enumerable.Range(0, 5).Select(i => At(NextMonday.AddDays(i), 12)));
+    }
+
+    [Test]
+    public void BusyTimes_IgnoringAMeeting_LeavesOnlyThatOneOut()
+    {
+        var data = CreateData(NextMonday) with
+        {
+            Meetings =
+            [
+                NewMeeting(At(NextMonday, 9), At(NextMonday, 10)),
+                NewMeeting(At(NextMonday, 14), At(NextMonday, 15), id: OtherMeetingId, title: OtherTitle)
+            ]
+        };
+
+        CalendarClashes.BusyTimes(data, MeetingId).Should().Equal(
+            new CalendarClash(At(NextMonday, 14), At(NextMonday, 15), $"the meeting '{OtherTitle}'"));
+    }
+
+    [Test]
+    public void BusyTimes_BlocksWithoutTheirActivityType_AreCalledABlock()
+    {
+        var stored = CreateBlock(At(NextMonday, 9), At(NextMonday, 10));
+        stored.ActivityType = null!;
+        var template = CreateTemplateBlock(12, 13);
+        template.ActivityType = null!;
+        var data = CreateData(NextMonday, templateBlocks: [template], blocks: [stored]);
+
+        CalendarClashes.BusyTimes(data).Select(b => b.What).Should().Equal("a block", "a block");
+    }
+
+    [Test]
+    public void BusyTimes_BookedAppointmentMissingATime_IsLeftOut()
+    {
+        var noStart = CreateAppointment(startUtc: At(NextMonday, 9));
+        noStart.StartUtc = null;
+        var noEnd = CreateAppointment(startUtc: At(NextMonday, 10));
+        noEnd.EndUtc = null;
+        var data = CreateData(NextMonday, appointments: [noStart, noEnd, CreateAppointment(AppointmentStatus.Requested)]);
+
+        CalendarClashes.BusyTimes(data).Should().BeEmpty();
+    }
+
+    [Test]
+    public void BusyTimes_EmptyCalendar_IsNothing()
+    {
+        CalendarClashes.BusyTimes(CalendarData.Empty(StaffUserId, NextMonday, NextSunday)).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Describe_Meeting_NamesItByTitle()
+    {
+        CalendarClashes.Describe(NewMeeting(At(NextMonday, 9), At(NextMonday, 10), title: "Ward round"))
+            .Should().Be("the meeting 'Ward round'");
     }
 
     [TestCase(10, 0, 11, 0, true)]

@@ -5,7 +5,7 @@ namespace MedApp.Contracts.Calendar.Requests;
 /// </summary>
 public sealed class DayTemplateRequest
 {
-    /// <summary>At most 100 characters, unique.</summary>
+    /// <summary>At most 100 characters, unique among the owner's templates.</summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>At most 30, inside the working day, not overlapping each other.</summary>

@@ -12,6 +12,7 @@ public sealed class GetDayTemplateByIdHandler(ICalendarSetupRepository repositor
     {
         var today = UkTime.Today(timeProvider);
         var template = await repository.GetDayTemplateOrThrowAsync(request.DayTemplateId, today, cancellationToken);
-        return await CalendarSetupMapper.ToResponseAsync(template, repository, today, cancellationToken);
+        return await CalendarSetupMapper.ToResponseAsync(
+            template, repository, today, request.Actor.CanChangeCalendarOf(template.OwnerUserId), cancellationToken);
     }
 }

@@ -153,6 +153,32 @@ public sealed class SetStaffWeekTemplateHandlerTests : StaffCalendarHandlerTestB
     }
 
     [Test]
+    public async Task Handle_SomeoneElsesWeekTemplate_ThrowsNotFound()
+    {
+        GivenWeekTemplate(CreateWeekTemplate(ownerUserId: OtherStaffUserId));
+
+        var act = () => _handler.Handle(new SetStaffWeekTemplateCommand(StaffUserId, WeekTemplateId, StaffActor), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"Week template '{WeekTemplateId}' isn't one of this person's templates.");
+        SetupRepository.Verify(r => r.GetWeekTemplateAsync(WeekTemplateId, Today, Token), Times.Once);
+        VerifyNotLocked();
+        _saved.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Handle_AdminWithTheirOwnWeekTemplateForSomeoneElse_ThrowsNotFound()
+    {
+        // An admin may set anyone's default week, but only to one of that person's own week templates.
+        GivenWeekTemplate(CreateWeekTemplate(ownerUserId: AdminUserId));
+
+        var act = () => _handler.Handle(new SetStaffWeekTemplateCommand(StaffUserId, WeekTemplateId, AdminActor), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+        VerifyNotLocked();
+    }
+
+    [Test]
     public async Task Handle_AdminForSomeoneElse_SetsIt()
     {
         await _handler.Handle(new SetStaffWeekTemplateCommand(StaffUserId, WeekTemplateId, AdminActor), Token);

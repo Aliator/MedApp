@@ -1,5 +1,6 @@
 using AutoFixture;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Common.Identity;
 using MedApp.Domain.Calendar;
 using MedApp.UnitTests.Common.Constants;
 using Moq;
@@ -9,7 +10,8 @@ namespace MedApp.UnitTests.Common.Fixtures;
 /// <summary>
 /// Shared setup for the calendar setup handlers' tests (activity types, day and week templates): a mocked
 /// <see cref="ICalendarSetupRepository"/> where nothing is in use, no names are taken, and the activity types and day
-/// templates the test registers are the ones that exist; and a clock fixed at <see cref="CalendarTestConstants.Now"/>.
+/// templates the test registers are the ones that exist (whoever owns them); an identity service listing
+/// <see cref="CalendarTestConstants.Staff"/>; and a clock fixed at <see cref="CalendarTestConstants.Now"/>.
 /// </summary>
 public abstract class CalendarSetupHandlerTestBase
 {
@@ -18,6 +20,7 @@ public abstract class CalendarSetupHandlerTestBase
 
     protected IFixture Fixture { get; private set; } = null!;
     protected Mock<ICalendarSetupRepository> Repository { get; private set; } = null!;
+    protected Mock<IIdentityReadService> Identity { get; private set; } = null!;
     protected CancellationTokenSource Cts { get; private set; } = null!;
     protected CancellationToken Token => Cts.Token;
 
@@ -26,6 +29,7 @@ public abstract class CalendarSetupHandlerTestBase
     {
         Fixture = AutoFixtureFactory.Create();
         Repository = new Mock<ICalendarSetupRepository>();
+        Identity = new Mock<IIdentityReadService>();
         Cts = new CancellationTokenSource();
         _activityTypes.Clear();
         _dayTemplates.Clear();
@@ -48,7 +52,12 @@ public abstract class CalendarSetupHandlerTestBase
             .ReturnsAsync((IEnumerable<Guid> ids, CancellationToken _) =>
                 (IReadOnlyList<DayTemplate>)_dayTemplates.Where(t => ids.Contains(t.Id)).ToList());
 
+        Identity
+            .Setup(i => i.GetStaffAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CalendarTestConstants.Staff);
+
         Fixture.Inject(Repository.Object);
+        Fixture.Inject(Identity.Object);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(CalendarTestConstants.Now));
     }
 

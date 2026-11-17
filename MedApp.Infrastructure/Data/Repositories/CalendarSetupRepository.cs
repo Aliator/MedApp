@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace MedApp.Infrastructure.Data.Repositories;
 
 /// <summary>
-/// Activity types, day templates and week templates. Templates are loaded with their rows valid on a date (the
-/// current version), and edited by applying a <see cref="TemplateHistoryChange{TRow}"/> to those rows.
+/// Activity types, and each member of staff's day templates and week templates. Templates are loaded with their rows
+/// valid on a date (the current version), and edited by applying a <see cref="TemplateHistoryChange{TRow}"/> to those rows.
 /// </summary>
 public sealed class CalendarSetupRepository(MedAppDbContext context) : ICalendarSetupRepository
 {
@@ -75,9 +75,10 @@ public sealed class CalendarSetupRepository(MedAppDbContext context) : ICalendar
         await context.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<DayTemplate>> GetDayTemplatesAsync(bool includeArchived, DateOnly today, CancellationToken ct) =>
+    public async Task<IReadOnlyList<DayTemplate>> GetDayTemplatesAsync(
+        Guid ownerUserId, bool includeArchived, DateOnly today, CancellationToken ct) =>
         await WithBlocksOn(context.DayTemplates.AsNoTracking(), today)
-            .Where(x => includeArchived || !x.IsArchived)
+            .Where(x => x.OwnerUserId == ownerUserId && (includeArchived || !x.IsArchived))
             .OrderBy(x => x.Name)
             .AsSplitQuery()
             .ToListAsync(ct);
@@ -94,10 +95,11 @@ public sealed class CalendarSetupRepository(MedAppDbContext context) : ICalendar
         return await context.DayTemplates.AsNoTracking().Where(x => list.Contains(x.Id)).ToListAsync(ct);
     }
 
-    public async Task<bool> DayTemplateNameExistsAsync(string name, Guid? exceptId, CancellationToken ct)
+    public async Task<bool> DayTemplateNameExistsAsync(Guid ownerUserId, string name, Guid? exceptId, CancellationToken ct)
     {
         var lower = name.Trim().ToLower();
-        return await context.DayTemplates.AnyAsync(x => x.Name.ToLower() == lower && (exceptId == null || x.Id != exceptId), ct);
+        return await context.DayTemplates.AnyAsync(
+            x => x.OwnerUserId == ownerUserId && x.Name.ToLower() == lower && (exceptId == null || x.Id != exceptId), ct);
     }
 
     public async Task<IReadOnlyDictionary<Guid, DayTemplateUsage>> GetDayTemplateUsageAsync(
@@ -155,9 +157,10 @@ public sealed class CalendarSetupRepository(MedAppDbContext context) : ICalendar
         await context.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<WeekTemplate>> GetWeekTemplatesAsync(bool includeArchived, DateOnly today, CancellationToken ct) =>
+    public async Task<IReadOnlyList<WeekTemplate>> GetWeekTemplatesAsync(
+        Guid ownerUserId, bool includeArchived, DateOnly today, CancellationToken ct) =>
         await WithDaysOn(context.WeekTemplates.AsNoTracking(), today)
-            .Where(x => includeArchived || !x.IsArchived)
+            .Where(x => x.OwnerUserId == ownerUserId && (includeArchived || !x.IsArchived))
             .OrderBy(x => x.Name)
             .AsSplitQuery()
             .ToListAsync(ct);
@@ -168,10 +171,11 @@ public sealed class CalendarSetupRepository(MedAppDbContext context) : ICalendar
     public async Task<WeekTemplate?> GetWeekTemplateForUpdateAsync(Guid id, DateOnly today, CancellationToken ct) =>
         await WithDaysOn(context.WeekTemplates, today).FirstOrDefaultAsync(x => x.Id == id, ct);
 
-    public async Task<bool> WeekTemplateNameExistsAsync(string name, Guid? exceptId, CancellationToken ct)
+    public async Task<bool> WeekTemplateNameExistsAsync(Guid ownerUserId, string name, Guid? exceptId, CancellationToken ct)
     {
         var lower = name.Trim().ToLower();
-        return await context.WeekTemplates.AnyAsync(x => x.Name.ToLower() == lower && (exceptId == null || x.Id != exceptId), ct);
+        return await context.WeekTemplates.AnyAsync(
+            x => x.OwnerUserId == ownerUserId && x.Name.ToLower() == lower && (exceptId == null || x.Id != exceptId), ct);
     }
 
     public async Task<IReadOnlyDictionary<Guid, WeekTemplateUsage>> GetWeekTemplateUsageAsync(

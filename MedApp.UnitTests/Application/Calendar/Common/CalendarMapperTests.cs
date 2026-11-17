@@ -3,6 +3,7 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
+using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 
 namespace MedApp.UnitTests.Application.Calendar.Common;
@@ -10,6 +11,75 @@ namespace MedApp.UnitTests.Application.Calendar.Common;
 [TestFixture]
 public sealed class CalendarMapperTests
 {
+    [Test]
+    public void ToResponse_Meetings_InTimeOrderThenById()
+    {
+        var later = MeetingsTestConstants.NewMeeting(At(NextMonday, 14), At(NextMonday, 15), id: MeetingsTestConstants.MeetingId);
+        var sameTimeHigherId = MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10), id: MeetingsTestConstants.OtherMeetingId);
+        var sameTimeLowerId = MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 9, 30), id: Guid.Parse("0000000d-0000-0000-0000-000000000000"));
+        var data = CreateData(NextMonday) with { Meetings = [later, sameTimeHigherId, sameTimeLowerId] };
+
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, MeetingsTestConstants.Usernames, Now, isAdmin: true);
+
+        response.Meetings.Select(m => m.Id).Should().Equal(sameTimeLowerId.Id, sameTimeHigherId.Id, later.Id);
+        response.Meetings[0].Attendees.Select(a => a.Username).Should().Equal(OtherStaffUsername, StaffUsername);
+        response.Meetings[0].OrganiserUsername.Should().Be(AdminUsername);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ToResponse_Meetings_OnlyAnAdminCanChangeThem(bool isAdmin)
+    {
+        var data = CreateData(NextMonday) with
+        {
+            Meetings = [MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10))]
+        };
+
+        // canEdit is about the person's own calendar: their blocks, not meetings.
+        var response = CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now, isAdmin);
+
+        response.Meetings.Single().CanEdit.Should().Be(isAdmin);
+    }
+
+    [Test]
+    public void ToResponse_IsAdminLeftOut_MeetingsCantBeChanged()
+    {
+        var data = CreateData(NextMonday) with
+        {
+            Meetings = [MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10))]
+        };
+
+        CalendarMapper.ToResponse(data, StaffUsername, null, canEdit: true, Today, Usernames, Now)
+            .Meetings.Single().CanEdit.Should().BeFalse();
+    }
+
+    [Test]
+    public void ToResponse_NoMeetings_HasNone()
+    {
+        CalendarMapper.ToResponse(CreateData(NextMonday), StaffUsername, null, canEdit: true, Today, Usernames, Now, isAdmin: true)
+            .Meetings.Should().BeEmpty();
+    }
+
+    [Test]
+    public void UserIds_AppointmentsAndMeetings_EveryoneTheyNameOnce()
+    {
+        var appointment = CreateAppointment(startUtc: At(NextMonday, 10));
+        appointment.BookedByUserId = OtherStaffUserId;
+        var data = CreateData(NextMonday, appointments: [appointment]) with
+        {
+            Meetings = [MeetingsTestConstants.NewMeeting(At(NextMonday, 9), At(NextMonday, 10), [StaffUserId, OtherStaffUserId])]
+        };
+
+        CalendarMapper.UserIds(data).Should().BeEquivalentTo([StaffUserId, OtherStaffUserId, AdminUserId]);
+        CalendarMapper.UserIds(data).Should().OnlyHaveUniqueItems();
+    }
+
+    [Test]
+    public void UserIds_NothingOn_IsNobody()
+    {
+        CalendarMapper.UserIds(CreateData(NextMonday)).Should().BeEmpty();
+    }
+
     private static readonly IReadOnlyDictionary<Guid, string> Usernames = new Dictionary<Guid, string>
     {
         [StaffUserId] = StaffUsername

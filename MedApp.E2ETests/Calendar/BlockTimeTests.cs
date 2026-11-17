@@ -82,7 +82,7 @@ public sealed class BlockTimeTests : E2ETest
 
     /// <summary>
     /// A working day three to six weeks ahead (clear of the other journeys' bookings and of time that has passed) and an
-    /// hour on it with nothing on the calendar: no block (stored or from a template) and no appointment.
+    /// hour on it with nothing on the calendar: no block (stored or from a template), appointment or meeting.
     /// </summary>
     private async Task<(DateOnly Day, int Hour)> FreeHourAsync(Guid staffUserId)
     {
@@ -97,7 +97,8 @@ public sealed class BlockTimeTests : E2ETest
                 var start = Utc(day, hour);
                 var end = Utc(day, hour + 1);
                 var taken = calendar.Blocks.Any(b => b.StartUtc < end && start < b.EndUtc)
-                            || calendar.Appointments.Any(a => a.StartUtc < end && start < a.EndUtc);
+                            || calendar.Appointments.Any(a => a.StartUtc < end && start < a.EndUtc)
+                            || calendar.Meetings.Any(m => m.StartUtc < end && start < m.EndUtc);
                 if (!taken)
                     return (day, hour);
             }

@@ -12,6 +12,7 @@ public sealed class GetWeekTemplateByIdHandler(ICalendarSetupRepository reposito
     {
         var today = UkTime.Today(timeProvider);
         var template = await repository.GetWeekTemplateOrThrowAsync(request.WeekTemplateId, today, cancellationToken);
-        return await CalendarSetupMapper.ToResponseAsync(template, repository, today, cancellationToken);
+        return await CalendarSetupMapper.ToResponseAsync(
+            template, repository, today, request.Actor.CanChangeCalendarOf(template.OwnerUserId), cancellationToken);
     }
 }

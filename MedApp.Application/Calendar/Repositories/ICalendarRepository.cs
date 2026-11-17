@@ -12,6 +12,13 @@ public interface ICalendarRepository
     /// <summary>Everything on one person's calendar from <paramref name="from"/> to <paramref name="to"/> (UK dates), read-only.</summary>
     Task<CalendarData> GetCalendarDataAsync(Guid staffUserId, DateOnly from, DateOnly to, CancellationToken ct);
 
+    /// <summary>
+    /// Everything on each of these people's calendars from <paramref name="from"/> to <paramref name="to"/>, read-only,
+    /// loaded together: one <see cref="CalendarData"/> per person, in the order given (each once).
+    /// </summary>
+    Task<IReadOnlyList<CalendarData>> GetCalendarsAsync(
+        IReadOnlyCollection<Guid> staffUserIds, DateOnly from, DateOnly to, CancellationToken ct);
+
     /// <summary>Everyone's default week template row valid on a date, each with its week template.</summary>
     Task<IReadOnlyList<StaffWeekTemplate>> GetStaffWeekTemplatesOnAsync(DateOnly date, CancellationToken ct);
 

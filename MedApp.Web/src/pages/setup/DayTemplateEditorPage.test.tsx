@@ -1,9 +1,12 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
-import {adminUser, expectAnnounced, findAlert, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
+import {adminUser, expectAnnounced, findAlert, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {DayTemplateEditorPage} from './DayTemplateEditorPage';
 
 const BASE = '/api/calendar';
+const ADMIN = {userId: '00000000-0000-0000-0000-0000000000a9', username: 'test-admin'};
+const ME = {userId: '00000000-0000-0000-0000-0000000000a1', username: 'test-user'};
+const OTHER = {userId: '00000000-0000-0000-0000-0000000000b2', username: 'b.staff'};
 
 const activities = [
   {id: 'a1', name: 'Lunch', colour: 'green', isArchived: false},
@@ -13,8 +16,10 @@ const activities = [
 
 const template = {
   id: 'dt1',
+  ownerUserId: ADMIN.userId,
   name: 'Standard day',
   isArchived: false,
+  canEdit: true,
   weekTemplateCount: 2,
   blocks: [
     {id: 'b2', activityTypeId: 'a3', activityName: 'Old meeting', colour: 'red', startTime: '16:00:00', endTime: '17:00:00', note: 'Huddle'},
@@ -22,14 +27,15 @@ const template = {
   ],
 };
 
-function renderEditor(id?: string, extra: Parameters<typeof mockApi>[0] = {}) {
+function renderEditor(id?: string, extra: Parameters<typeof mockApi>[0] = {}, {user = adminUser, staff}: {user?: typeof adminUser; staff?: string} = {}) {
   const fetch = mockApi({
+    [`GET ${BASE}/staff`]: () => json([ADMIN, ME, OTHER]),
     [`GET ${BASE}/activity-types`]: () => json(activities),
     [`GET ${BASE}/day-templates/dt1`]: () => json(template),
     ...extra,
   });
-  const path = id ? `/admin/calendar-templates/day/${id}` : '/admin/calendar-templates/day/new';
-  return {fetch, ...renderWithApp(<DayTemplateEditorPage id={id} />, {user: adminUser, path})};
+  const path = id ? `/calendar/templates/day/${id}` : '/calendar/templates/day/new';
+  return {fetch, ...renderWithApp(<DayTemplateEditorPage id={id} staff={staff} />, {user, path})};
 }
 
 const sent = (fetch: ReturnType<typeof mockApi>, method: string) =>
@@ -43,7 +49,7 @@ const choose = async (user: ReturnType<typeof renderEditor>['user'], combobox: H
 describe('DayTemplateEditorPage', () => {
   it('builds a new day template, previews the day, and creates it without asking', async () => {
     withAnnouncements();
-    const {user, fetch, router} = renderEditor(undefined, {[`POST ${BASE}/day-templates`]: () => json({id: 'dt9'}, 201)});
+    const {user, fetch, router} = renderEditor(undefined, {[`POST ${BASE}/staff/${ADMIN.userId}/day-templates`]: () => json({id: 'dt9'}, 201)});
 
     await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Clinic day');
     expect(screen.getByText('No blocks yet')).toBeInTheDocument();
@@ -69,7 +75,7 @@ describe('DayTemplateEditorPage', () => {
 
     await user.click(screen.getByRole('button', {name: 'Create Day Template'}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/calendar-templates'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/templates'));
     expect(openDialog()).toBeNull();
     expect(await sent(fetch, 'POST')!.json()).toEqual({
       name: 'Clinic day',
@@ -124,7 +130,7 @@ describe('DayTemplateEditorPage', () => {
     expect(dialog.getByText('Old meeting 16:00 to 17:00')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Save'}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/calendar-templates'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/templates'));
     expect(await sent(fetch, 'PUT')!.json()).toEqual({
       name: 'Standard day',
       blocks: [{activityTypeId: 'a3', startTime: '16:00:00', endTime: '17:00:00', note: 'Huddle'}],
@@ -148,7 +154,7 @@ describe('DayTemplateEditorPage', () => {
   });
 
   it('says why a save failed for another reason', async () => {
-    const {user} = renderEditor(undefined, {[`POST ${BASE}/day-templates`]: () => json({title: 'Down'}, 500)});
+    const {user} = renderEditor(undefined, {[`POST ${BASE}/staff/${ADMIN.userId}/day-templates`]: () => json({title: 'Down'}, 500)});
 
     await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Day');
     await user.click(screen.getByRole('button', {name: 'Create Day Template'}));
@@ -171,12 +177,12 @@ describe('DayTemplateEditorPage', () => {
   });
 
   it('puts the details, blocks and day in one card in a half view', async () => {
-    mockApi({[`GET ${BASE}/activity-types`]: () => json(activities)});
+    mockApi({[`GET ${BASE}/activity-types`]: () => json(activities), [`GET ${BASE}/staff`]: () => json([ADMIN])});
     renderWithApp(
       <HalfViewContext.Provider value={{isHalf: true}}>
         <DayTemplateEditorPage />
       </HalfViewContext.Provider>,
-      {user: adminUser, path: '/admin/calendar-templates/day/new'},
+      {user: adminUser, path: '/calendar/templates/day/new'},
     );
 
     expect(await screen.findByRole('heading', {name: 'The Day'})).toBeInTheDocument();
@@ -192,7 +198,7 @@ describe('DayTemplateEditorPage', () => {
   it('goes back to the list for an unknown one', async () => {
     const {router} = renderEditor('dt404', {[`GET ${BASE}/day-templates/dt404`]: () => json({title: 'Not found'}, 404)});
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/calendar-templates'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/templates'));
   });
 
   it('keeps a time off the 15-minute steps, and copes with activity types and blocks without their optional fields', async () => {
@@ -222,6 +228,72 @@ describe('DayTemplateEditorPage', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Cancel'}));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/calendar-templates'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/templates'));
+  });
+
+  it("adds one to someone else's templates for an admin, and goes back to their list", async () => {
+    const {user, fetch, router} = renderEditor(
+      undefined,
+      {[`POST ${BASE}/staff/${OTHER.userId}/day-templates`]: () => json({id: 'dt9'}, 201)},
+      {staff: OTHER.userId},
+    );
+
+    await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Clinic day');
+    expect(screen.getByText("b.staff's calendar templates")).toBeInTheDocument();
+    expect(screen.getByText(/in b.staff's week templates, or for one day on b.staff's calendar/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Create Day Template'}));
+
+    await waitFor(() => expect(router.state.location.href).toBe(`/calendar/templates?staff=${OTHER.userId}`));
+    expect(sent(fetch, 'POST')).toBeDefined();
+  });
+
+  it("goes back to the list of the template's owner, and says whose calendar a change affects", async () => {
+    const {user, router} = renderEditor('dt1', {[`GET ${BASE}/day-templates/dt1`]: () => json({...template, ownerUserId: OTHER.userId})});
+
+    expect(await screen.findByText("Standard day · b.staff's calendar templates")).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    expect(within(openDialog()!).getByText(/so b.staff's calendar changes too./)).toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    await user.click(screen.getByRole('button', {name: 'Cancel'}));
+
+    await waitFor(() => expect(router.state.location.href).toBe(`/calendar/templates?staff=${OTHER.userId}`));
+  });
+
+  it("shows staff someone else's template read-only", async () => {
+    renderEditor('dt1', {[`GET ${BASE}/day-templates/dt1`]: () => json({...template, ownerUserId: OTHER.userId, canEdit: false})}, {user: staffUser});
+
+    expect(await screen.findByRole('heading', {name: 'Day Template'})).toBeInTheDocument();
+    expect(screen.getByText('Only b.staff or an admin can change this day template.')).toBeInTheDocument();
+    expect(isDisabled(screen.getByRole('textbox', {name: /Name/}))).toBe(true);
+    expect(isDisabled(block(1).getByRole('combobox', {name: 'Activity'}))).toBe(true);
+    expect(screen.queryByRole('button', {name: 'Save'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add Block'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Remove/})).not.toBeInTheDocument();
+  });
+
+  it("names the owner plainly when they aren't in the staff list", async () => {
+    renderEditor(
+      'dt1',
+      {
+        [`GET ${BASE}/day-templates/dt1`]: () => json({...template, ownerUserId: '00000000-0000-0000-0000-0000000000c3', canEdit: false}),
+      },
+      {user: staffUser},
+    );
+
+    expect(await screen.findByText('Only its owner or an admin can change this day template.')).toBeInTheDocument();
+    expect(screen.getByText(/in their week templates, or for one day on their calendar/)).toBeInTheDocument();
+  });
+
+  it("doesn't let staff add to someone else's templates", async () => {
+    renderEditor(undefined, {}, {user: staffUser, staff: OTHER.userId});
+
+    expect(await screen.findByText("Only b.staff or an admin can add to b.staff's calendar templates.")).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', {name: /Name/})).not.toBeInTheDocument();
+  });
+
+  it("says so when it can't tell whose a new one is", async () => {
+    renderEditor(undefined, {[`GET ${BASE}/staff`]: () => json({title: 'Down'}, 500)});
+
+    expect(await findAlert('The day template could not be loaded. Please try again.')).toBeInTheDocument();
   });
 });

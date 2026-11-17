@@ -5,7 +5,7 @@ using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 namespace MedApp.UnitTests.Common.Constants;
 
 /// <summary>
-/// Synthetic data for the tests of what admins set calendars up with: activity types, day templates and week
+/// Synthetic data for the tests of what calendars are set up with: activity types, and staff's day templates and week
 /// templates. Dates and times follow <see cref="CalendarTestConstants"/> ("today" is Monday 16 November 2026).
 /// </summary>
 public static class CalendarSetupTestConstants
@@ -50,27 +50,31 @@ public static class CalendarSetupTestConstants
         int endMinute = 0) =>
         new(activityTypeId ?? Lunch.Id, new TimeOnly(startHour, startMinute), new TimeOnly(endHour, endMinute), note);
 
-    /// <summary>A day template (the clinic day by default) with these blocks.</summary>
+    /// <summary>A day template (the clinic day by default, <see cref="StaffUserId"/>'s by default) with these blocks.</summary>
     public static DayTemplate BuildDayTemplate(
         IEnumerable<DayTemplateBlock>? blocks = null,
         Guid? id = null,
         string name = DayTemplateName,
-        bool isArchived = false) => new()
+        bool isArchived = false,
+        Guid? ownerUserId = null) => new()
     {
         Id = id ?? DayTemplateId,
+        OwnerUserId = ownerUserId ?? StaffUserId,
         Name = name,
         IsArchived = isArchived,
         Blocks = (blocks ?? []).ToList()
     };
 
-    /// <summary>A week template (the standard week by default) with these days.</summary>
+    /// <summary>A week template (the standard week by default, <see cref="StaffUserId"/>'s by default) with these days.</summary>
     public static WeekTemplate BuildWeekTemplate(
         IEnumerable<WeekTemplateDay>? days = null,
         Guid? id = null,
         string name = CalendarTestConstants.WeekTemplateName,
-        bool isArchived = false) => new()
+        bool isArchived = false,
+        Guid? ownerUserId = null) => new()
     {
         Id = id ?? WeekTemplateId,
+        OwnerUserId = ownerUserId ?? StaffUserId,
         Name = name,
         IsArchived = isArchived,
         Days = (days ?? []).ToList()

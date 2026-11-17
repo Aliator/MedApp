@@ -99,6 +99,8 @@ import {
   RiUserLine,
   RiUserMinusLine,
   RiUserUnfollowLine,
+  RiGroupLine,
+  RiLightbulbLine,
 } from '@remixicon/react';
 
 /**
@@ -210,8 +212,14 @@ export const AppIcon = {
   Book: remix(RiCalendarScheduleLine),
   /** Blocked time on a calendar. */
   BlockTime: remix(RiHourglassLine),
-  /** Calendar setup (admin): day and week templates, and activity types. */
+  /** Calendar setup: each person's day and week templates, and activity types (admin). */
   CalendarTemplates: remix(RiCalendar2Line),
+  /** A meeting on a calendar (beside its colour, so it never relies on colour alone), and New Meeting. */
+  Meeting: remix(RiGroupLine),
+  /** The Calendar page's team view (admins): a column per member of staff. */
+  TeamView: remix(RiLayoutColumnLine),
+  /** Suggested meeting times. */
+  Suggestion: remix(RiLightbulbLine),
   ActivityTypes: remix(RiPriceTag3Line),
   // Attached files: adding and downloading them, and each type's icon where there's no thumbnail
   Attachment: remix(RiAttachment2),

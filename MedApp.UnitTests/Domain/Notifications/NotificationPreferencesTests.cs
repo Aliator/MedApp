@@ -27,12 +27,30 @@ public sealed class NotificationPreferencesTests
     }
 
     [Test]
-    public void HasFixedTitle_TheAppointmentAndMonitoringKinds()
+    public void HasFixedTitle_TheAppointmentMeetingAndMonitoringKinds()
     {
         Enum.GetValues<NotificationKind>().Where(Notification.HasFixedTitle)
             .Should().BeEquivalentTo(Enum.GetValues<NotificationKind>()
-                .Where(k => k.ToString().StartsWith("Monitored") || k.ToString().StartsWith("Appointment")));
+                .Where(k => k.ToString().StartsWith("Monitored")
+                            || k.ToString().StartsWith("Appointment")
+                            || k.ToString().StartsWith("Meeting")));
         Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsMonitoring_NotTheMeetingKinds()
+    {
+        Notification.IsMonitoring(NotificationKind.MeetingInvited).Should().BeFalse();
+        Notification.IsMonitoring(NotificationKind.MeetingCancelled).Should().BeFalse();
+        Notification.IsMonitoring(NotificationKind.MonitoredProcedureCreated).Should().BeTrue();
+    }
+
+    [TestCase(NotificationKind.MeetingInvited, 4)]
+    [TestCase(NotificationKind.MeetingChanged, 5)]
+    [TestCase(NotificationKind.MeetingCancelled, 6)]
+    public void MeetingKinds_KeepTheirStoredNumbers(NotificationKind kind, int number)
+    {
+        ((int)kind).Should().Be(number);
     }
 
     [Test]

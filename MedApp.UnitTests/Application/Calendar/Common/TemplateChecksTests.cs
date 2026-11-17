@@ -40,9 +40,11 @@ public sealed class TemplateChecksTests
     private Task CheckActivityTypes(IReadOnlySet<Guid>? already, params DayTemplateBlockValue[] blocks) =>
         TemplateChecks.CheckActivityTypesAsync(_repository.Object, blocks, already ?? new HashSet<Guid>(), _cts.Token);
 
+    /// <summary>Checks a week template of <see cref="StaffUserId"/>'s with these weekdays.</summary>
     private Task CheckDayTemplates(IReadOnlySet<Guid>? already, params Guid?[] weekdays) =>
         TemplateChecks.CheckDayTemplatesAsync(
             _repository.Object,
+            StaffUserId,
             WeekTemplateDayValue.From(weekdays[0], weekdays.ElementAtOrDefault(1), weekdays.ElementAtOrDefault(2), weekdays.ElementAtOrDefault(3), weekdays.ElementAtOrDefault(4)),
             already ?? new HashSet<Guid>(),
             _cts.Token);
@@ -109,7 +111,31 @@ public sealed class TemplateChecksTests
 
         var act = () => CheckDayTemplates(null, DayTemplateId, missing);
 
-        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Day template(s) not found: {missing}.");
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Day template(s) not found among this person's templates: {missing}.");
+    }
+
+    [Test]
+    public async Task CheckDayTemplatesAsync_SomeoneElses_ThrowsNotFoundNamingThem()
+    {
+        var theirs = BuildDayTemplate(id: Guid.NewGuid(), ownerUserId: OtherStaffUserId);
+        _dayTemplates.Add(theirs);
+
+        var act = () => CheckDayTemplates(null, DayTemplateId, theirs.Id);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"Day template(s) not found among this person's templates: {theirs.Id}.");
+    }
+
+    [Test]
+    public async Task CheckDayTemplatesAsync_SomeoneElsesAlreadyInTheWeek_ThrowsNotFound()
+    {
+        // Even one the week already has: a week template only ever uses its owner's day templates.
+        var theirs = BuildDayTemplate(id: Guid.NewGuid(), ownerUserId: OtherStaffUserId);
+        _dayTemplates.Add(theirs);
+
+        var act = () => CheckDayTemplates(new HashSet<Guid> { theirs.Id }, theirs.Id);
+
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Test]

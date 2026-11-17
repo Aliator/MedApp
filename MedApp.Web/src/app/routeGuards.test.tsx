@@ -56,6 +56,26 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: /user management/i})).toBeInTheDocument();
   });
 
+  it('lets any member of staff into their own calendar templates', async () => {
+    const me = '0000000d-0000-4000-8000-0000000000a1';
+    mockApi({
+      'GET /api/calendar/staff': () => json([{userId: me, username: staffUser.username}]),
+      [`GET /api/calendar/staff/${me}/day-templates`]: () => json([{id: 'dt1', ownerUserId: me, name: 'Clinic day', canEdit: true, blocks: []}]),
+    });
+    renderApp({path: '/calendar/templates', user: staffUser});
+
+    expect(await screen.findByRole('heading', {name: 'My calendar templates', level: 1})).toBeInTheDocument();
+    expect(await screen.findByText('Clinic day')).toBeInTheDocument();
+  });
+
+  it('sends the old admin Calendar Templates page to calendar templates, on the same tab', async () => {
+    mockFetch(() => json([]));
+    const {router} = renderApp({path: '/admin/calendar-templates?tab=week', user: staffUser});
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/templates'));
+    expect(router.state.location.search).toEqual({tab: 'week'});
+  });
+
   it('sends a non-admin away from Insights', async () => {
     const {router} = renderApp({path: '/admin/insights', user: staffUser});
 

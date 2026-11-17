@@ -33,6 +33,30 @@ public sealed class CalendarGuardsTests
     }
 
     [Test]
+    public void EnsureCanChangeTemplatesOf_OwnTemplates_Passes()
+    {
+        var act = () => StaffActor.EnsureCanChangeTemplatesOf(StaffUserId);
+
+        act.Should().NotThrow();
+    }
+
+    [Test]
+    public void EnsureCanChangeTemplatesOf_AdminOnSomeoneElses_Passes()
+    {
+        var act = () => AdminActor.EnsureCanChangeTemplatesOf(StaffUserId);
+
+        act.Should().NotThrow();
+    }
+
+    [Test]
+    public void EnsureCanChangeTemplatesOf_StaffOnSomeoneElses_ThrowsForbiddenAboutTemplates()
+    {
+        var act = () => OtherStaffActor.EnsureCanChangeTemplatesOf(StaffUserId);
+
+        act.Should().Throw<ForbiddenException>().WithMessage(CalendarActor.NotYourTemplates);
+    }
+
+    [Test]
     public void EnsureNotPast_Yesterday_ThrowsConflict()
     {
         var act = () => CalendarGuards.EnsureNotPast(Today.AddDays(-1), Today);

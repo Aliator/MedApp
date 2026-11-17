@@ -128,6 +128,27 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  {
+    name: 'calendar-team',
+    title: "Calendar's team view (admins): everyone free, then a column per member of staff, scrolling sideways",
+    path: '/calendar?view=team',
+    prepare: async (page) => {
+      await page.getByRole('group', { name: /^Team/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-new-meeting',
+    title: 'New Meeting from the team view: who, length, notes and suggested times (not saved)',
+    path: '/calendar?view=team',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'New meeting' }).click();
+      await waitVisible(page, DIALOG);
+      await page.locator(DIALOG).getByRole('group', { name: 'Suggested times' }).waitFor();
+      await settle(page);
+    },
+  },
   { name: 'needs-booking', title: 'Needs Booking: appointments asked for but not yet booked, soonest due first', path: '/calendar/needs-booking' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
@@ -396,20 +417,20 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'calendar-templates', title: 'Calendar templates (admin): the day templates tab', path: '/admin/calendar-templates' },
-  { name: 'calendar-templates-week', title: 'Calendar templates (admin): the week templates tab', path: '/admin/calendar-templates?tab=week' },
-  { name: 'calendar-templates-staff', title: "Calendar templates (admin): each member of staff's default week", path: '/admin/calendar-templates?tab=staff' },
+  { name: 'calendar-templates', title: 'My calendar templates: the day templates tab (an admin also picks whose)', path: '/calendar/templates' },
+  { name: 'calendar-templates-week', title: 'My calendar templates: the week templates tab', path: '/calendar/templates?tab=week' },
+  { name: 'calendar-templates-default', title: 'My calendar templates: my default week', path: '/calendar/templates?tab=default' },
   {
     name: 'day-template-editor',
     title: 'New day template with two blocks (not saved), beside the day it makes',
-    path: '/admin/calendar-templates/day/new',
+    path: '/calendar/templates/day/new',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Add Block' }).click();
       await page.getByRole('button', { name: 'Add Block' }).click();
       await settle(page);
     },
   },
-  { name: 'week-template-editor', title: 'New week template: a day template for each weekday', path: '/admin/calendar-templates/week/new' },
+  { name: 'week-template-editor', title: 'New week template: one of my day templates for each weekday', path: '/calendar/templates/week/new' },
   { name: 'admin-audit', title: 'Audit log (admin)', path: '/admin/audit' },
   {
     name: 'admin-insights',

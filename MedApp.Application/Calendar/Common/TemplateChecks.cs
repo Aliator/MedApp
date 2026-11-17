@@ -33,21 +33,24 @@ public static class TemplateChecks
     }
 
     /// <summary>
-    /// Every day template a week template's days name must exist (404), and archived ones may only stay where the
-    /// template already has them (409).
+    /// Every day template a week template's days name must exist and be its owner's own (404: someone else's isn't one
+    /// of theirs), and archived ones may only stay where the template already has them (409).
     /// </summary>
     public static async Task CheckDayTemplatesAsync(
         ICalendarSetupRepository repository,
+        Guid ownerUserId,
         IEnumerable<WeekTemplateDayValue> days,
         IReadOnlySet<Guid> alreadyInTemplate,
         CancellationToken ct)
     {
         var ids = days.Select(d => d.DayTemplateId).Distinct().ToList();
-        var dayTemplates = (await repository.GetDayTemplatesByIdAsync(ids, ct)).ToDictionary(t => t.Id);
+        var dayTemplates = (await repository.GetDayTemplatesByIdAsync(ids, ct))
+            .Where(t => t.OwnerUserId == ownerUserId)
+            .ToDictionary(t => t.Id);
 
         var missing = ids.Where(id => !dayTemplates.ContainsKey(id)).ToList();
         if (missing.Count != 0)
-            throw new NotFoundException($"Day template(s) not found: {string.Join(", ", missing)}.");
+            throw new NotFoundException($"Day template(s) not found among this person's templates: {string.Join(", ", missing)}.");
 
         var archived = ids
             .Where(id => dayTemplates[id].IsArchived && !alreadyInTemplate.Contains(id))
