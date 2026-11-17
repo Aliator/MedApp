@@ -65,6 +65,7 @@ import {
   RiMailLine,
   RiMenuLine,
   RiNotification3Line,
+  RiPaintBrushLine,
   RiPaletteLine,
   RiPlayCircleLine,
   RiPriceTag3Line,
@@ -214,6 +215,8 @@ export const AppIcon = {
   BlockTime: remix(RiHourglassLine),
   /** Calendar setup: each person's day and week templates, and activity types (admin). */
   CalendarTemplates: remix(RiCalendar2Line),
+  /** Apply Template on the Calendar page: one of a person's day templates put on some days, like a format painter. */
+  ApplyTemplate: remix(RiPaintBrushLine),
   /** A meeting on a calendar (beside its colour, so it never relies on colour alone), and New Meeting. */
   Meeting: remix(RiGroupLine),
   /** The Calendar page's team view (admins): a column per member of staff. */

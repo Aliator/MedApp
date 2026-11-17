@@ -29,6 +29,7 @@ import {preload} from '../../api/preload';
 import {useAnnounce} from '../../app/announcements';
 import {useCurrentUser} from '../../auth/auth';
 import {AppointmentDialog, appointmentWhen} from '../../components/calendar/AppointmentDialog';
+import {ApplyTemplateDialog} from '../../components/calendar/ApplyTemplateDialog';
 import {BlockDialog} from '../../components/calendar/BlockDialog';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
 import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarSelection} from '../../components/calendar/CalendarGrid';
@@ -83,8 +84,9 @@ export const needsBookingCountQuery = appointmentsQuery({Statuses: ['Requested']
 
 /**
  * What the Calendar page reads, for its route's loader: the team view's day (admins), or the person's calendar and
- * then (once it's known whose it is) their week templates, and on a day they can change, their day templates.
- * Rendering on the server it all waits; in the browser the templates start only if the calendar is already here.
+ * then (once it's known whose it is) their week templates. Rendering on the server it all waits; in the browser the
+ * templates start only if the calendar is already here. Their day templates aren't preloaded: only Apply Template
+ * shows them, and the page reads them after mount when it offers that.
  */
 export async function preloadCalendarPage(queryClient: QueryClient, search: CalendarSearch, isAdmin: boolean, today: string = ukToday()) {
   const shared = [staffQuery, needsBookingCountQuery];
@@ -94,7 +96,7 @@ export async function preloadCalendarPage(queryClient: QueryClient, search: Cale
   const calendar = queryClient.getQueryData(query.queryKey);
   if (!calendar?.staffUserId) return;
   const owner = calendar.staffUserId;
-  await preload(queryClient, weekTemplatesQuery(owner), ...(search.view === 'day' && calendar.canEdit ? [dayTemplatesQuery(owner)] : []));
+  await preload(queryClient, weekTemplatesQuery(owner));
 }
 
 /** "23 to 29 November 2026", "30 November to 6 December 2026", or across a year, both dates in full. */
@@ -129,8 +131,10 @@ interface PendingMove {
  * with them all at that time. New does the same without the grid, and admins can arrange a meeting from it. Opening an
  * item opens its dialog (an appointment, a block or a meeting); dragging one moves it (an appointment after a
  * confirmation naming the new time; a meeting by an admin, keeping its title, notes and attendees). The toolbar goes
- * between days, weeks and the team, applies one of the person's day templates to the day shown, sets their default
- * week from their week templates, and leads to their calendar templates.
+ * between days, weeks and the team, sets their default week from their week templates, and leads to their calendar
+ * templates. Apply Template, beside New, applies one of their day templates (or none, or the default week's) to days of
+ * the week shown (`ApplyTemplateDialog`, decision 69), in the day, week and compact week views, for whoever can change
+ * the calendar.
  *
  * Its state is in the URL (`calendarSearch.ts`): the day, the view, whose calendar, an open appointment (which
  * notifications link to), and who the team view shows. In a narrow window or a half view it opens on a day rather than
@@ -171,8 +175,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const rangeLabel = view === 'week' ? formatRange(from, to) : formatDayHeading(`${date}T12:00:00Z`);
   const days = person?.days ?? [];
 
-  // The person's own templates: their day templates for the day shown, and their week templates for the default week.
-  const dayTemplates = useQuery({...dayTemplatesQuery(staffUserId), enabled: canEdit && view === 'day' && staffUserId !== ''});
+  // The person's own templates: their week templates for the default week, and (read ahead, so Apply Template opens
+  // with them) their day templates, wherever it's offered.
+  useQuery({...dayTemplatesQuery(staffUserId), enabled: canEdit && staffUserId !== ''});
   const weekTemplates = useQuery({...weekTemplatesQuery(staffUserId), enabled: canSetDefaultWeek && staffUserId !== ''});
 
   // The team view: everyone shown, in name order, after "Everyone free".
@@ -187,6 +192,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const [blocking, setBlocking] = useState<{selection?: CalendarSelection; block?: CalendarBlock; calendar?: Calendar} | null>(null);
   const [move, setMove] = useState<PendingMove | null>(null);
   const [meeting, setMeeting] = useState<Pick<MeetingDialogProps, 'meeting' | 'initial'> | null>(null);
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
 
   // An appointment in the URL (from a notification, or opened here): shown in its dialog, on its day.
   const linked = useQuery({...appointmentQuery(search.appointment ?? ''), enabled: search.appointment !== undefined});
@@ -299,39 +305,6 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     );
   };
 
-  const day = days.find((d) => d.date === date);
-  const templateItems: DropdownMenuOption[] = [
-    ...(dayTemplates.data ?? [])
-      .filter((t) => !t.isArchived)
-      .map((t) => ({
-        label: t.name ?? '',
-        icon: t.id === day?.dayTemplateId ? <Icon icon={AppIcon.Check} /> : undefined,
-        onClick: () => applyDayTemplate(t.id ?? null, `${t.name} applied to ${formatCalendarDay(date)}`),
-      })),
-    {label: 'No template', icon: day && !day.dayTemplateId ? <Icon icon={AppIcon.Check} /> : undefined, onClick: () => applyDayTemplate(null, 'No template on this day')},
-    ...(day?.isDayTemplateOverridden
-      ? [
-          {type: 'divider' as const},
-          {
-            label: "Back to the week's template",
-            onClick: () =>
-              calendarActions.clearDayTemplate.mutate(
-                {userId: staffUserId, date},
-                {onSuccess: () => announce("Back to the week's template"), onError: (error) => setMessage(problemMessage(error, 'The day could not be changed.'))},
-              ),
-          },
-        ]
-      : []),
-  ];
-
-  function applyDayTemplate(dayTemplateId: string | null, done: string) {
-    setMessage(null);
-    calendarActions.applyDayTemplate.mutate(
-      {userId: staffUserId, date, dayTemplateId},
-      {onSuccess: () => announce(done), onError: (error) => setMessage(problemMessage(error, 'The day could not be changed.'))},
-    );
-  }
-
   const weekItems: DropdownMenuOption[] = [
     ...(weekTemplates.data ?? [])
       .filter((t) => !t.isArchived || t.id === person?.defaultWeekTemplateId)
@@ -415,6 +388,18 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             href="/calendar/needs-booking"
             icon={<Icon icon={AppIcon.NeedsBooking} />}
           />
+          {/* One person's calendar they can change (never the team view): their day templates on days of this week. */}
+          {canEdit && (
+            <Button
+              label="Apply Template"
+              variant="secondary"
+              icon={<Icon icon={AppIcon.ApplyTemplate} />}
+              onClick={() => {
+                setMessage(null);
+                setIsApplyingTemplate(true);
+              }}
+            />
+          )}
           <DropdownMenu
             button={{label: 'New', variant: 'primary', icon: <Icon icon={AppIcon.Add} />}}
             items={[
@@ -456,6 +441,17 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             stepMinutes={rowMinutes}
             onClose={() => setBlocking(null)}
           />
+          {canEdit && (
+            <ApplyTemplateDialog
+              isOpen={isApplyingTemplate}
+              staffUserId={staffUserId}
+              calendarStaff={search.staff}
+              date={date}
+              // The day shown, or in a week, today (ticked only when it's in that week).
+              startDate={view === 'day' ? date : today}
+              onClose={() => setIsApplyingTemplate(false)}
+            />
+          )}
           <MeetingDialog isOpen={meeting !== null} meeting={meeting?.meeting} initial={meeting?.initial} onClose={() => setMeeting(null)} />
           <AppointmentDialog appointment={search.appointment ? linkedAppointment : null} onClose={() => go({appointment: undefined})} />
           <ConfirmDialog
@@ -591,12 +587,6 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           </HStack>
           <StackItem size="fill" />
           <HStack gap={2} vAlign="center" wrap="wrap">
-            {view === 'day' && canEdit && day?.isWorkingDay && !day.isPast && (
-              <DropdownMenu
-                button={{label: day.dayTemplateName ? `This day: ${day.dayTemplateName}` : "This day's template", variant: 'secondary'}}
-                items={templateItems}
-              />
-            )}
             {canSetDefaultWeek && person && (
               <DropdownMenu
                 button={{

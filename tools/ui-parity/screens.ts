@@ -89,7 +89,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'calendar-day',
-    title: "Calendar: my day, with This day's template and Default week",
+    title: 'Calendar: my day, with Apply Template beside New, and Default week',
     path: '/calendar?view=day',
     prepare: async (page) => {
       await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
@@ -144,6 +144,17 @@ export const screens: Screen[] = [
       await page.getByRole('button', { name: 'New' }).click();
       await page.getByRole('menuitem', { name: 'Block time' }).click();
       await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-apply-template',
+    title: "Apply Template: a day template, No template or the default week's, on ticked days of the week (not applied)",
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Apply Template' }).click();
+      await waitVisible(page, DIALOG);
+      await page.locator(DIALOG).getByRole('group', { name: /Days/ }).waitFor();
       await settle(page);
     },
   },

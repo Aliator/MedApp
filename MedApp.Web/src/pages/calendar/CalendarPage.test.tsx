@@ -369,35 +369,83 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     });
   });
 
-  it("applies a day template to the day shown, or goes back to the week's", async () => {
+  it('offers Apply Template in the day, week and compact week, to someone who can change the calendar', async () => {
+    const week = renderPage();
+    expect(await screen.findByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
+    // The old menu for the day shown is gone.
+    expect(screen.queryByRole('button', {name: /^This day/})).not.toBeInTheDocument();
+    week.unmount();
+
+    const day = renderPage({search: {view: 'day', date: '2026-11-24'}});
+    expect(await screen.findByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^This day/})).not.toBeInTheDocument();
+    day.unmount();
+
+    const compact = renderPage({isNarrow: true, search: {view: 'week'}});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
+    expect(screen.getByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
+    compact.unmount();
+
+    // Not on a calendar they can't change.
+    renderPage({search: {staff: STAFF_OTHER.userId}, calendar: {canEdit: false}});
+    await screen.findByRole('group', {name: /^b.staff's calendar,/});
+    expect(screen.queryByRole('button', {name: 'Apply Template'})).not.toBeInTheDocument();
+  });
+
+  it('leaves Apply Template out of the team view', async () => {
+    renderPage({user: adminUser, search: {view: 'team'}});
+
+    await screen.findByRole('group', {name: /^Team,/});
+    expect(screen.queryByRole('button', {name: 'Apply Template'})).not.toBeInTheDocument();
+  });
+
+  it('starts Apply Template with the day shown ticked in the day view, and today in the week', async () => {
+    const {user, fetch, unmount} = renderPage({search: {view: 'day', date: '2026-11-25'}});
+
+    await user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Wed 25/})).toBeChecked();
+    expect(dialog().getByRole('checkbox', {name: /^Mon 23/})).not.toBeChecked();
+    // The day view reads the rest of its week only for the dialog.
+    expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29');
+    unmount();
+
+    const week = renderPage();
+    await week.user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Mon 23/})).toBeChecked();
+    expect(dialog().getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)).toHaveLength(1);
+    week.unmount();
+
+    // A week without today in it: nothing ticked.
+    const next = renderPage({search: {date: '2026-11-30'}});
+    await next.user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Mon 30/})).not.toBeChecked();
+    expect(dialog().getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)).toHaveLength(0);
+  });
+
+  it("applies one of the person's day templates to days of the week, and gives the focus back to the button", async () => {
     withAnnouncements();
     const {user, fetch} = renderPage({
-      search: {view: 'day', date: '2026-11-24'},
-      calendar: {},
+      user: adminUser,
+      search: {staff: STAFF_OTHER.userId},
       handlers: {
-        'GET /api/calendar': (request) => {
-          const from = new URL(request.url).searchParams.get('From')!;
-          const calendar = testCalendar({from, dayCount: 1, today: MONDAY});
-          calendar.days = calendar.days!.map((d) => ({...d, dayTemplateId: 'day-short', dayTemplateName: 'Short day', isDayTemplateOverridden: true}));
-          return json(calendar);
-        },
-        [`PUT /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => json({}),
-        [`DELETE /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => new Response(null, {status: 204}),
+        [`PUT /api/calendar/staff/${STAFF_OTHER.userId}/days/2026-11-23/day-template`]: () => json({}),
+        [`PUT /api/calendar/staff/${STAFF_OTHER.userId}/days/2026-11-24/day-template`]: () => json({}),
       },
     });
 
-    await user.click(await screen.findByRole('button', {name: 'This day: Short day'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Standard day'}));
-    await expectAnnounced('Standard day applied to Tuesday 24 November');
-    expect(await bodyOf(fetch, 'PUT', `/api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`)).toEqual({dayTemplateId: 'day-standard'});
+    const button = await screen.findByRole('button', {name: 'Apply Template'});
+    await user.click(button);
+    await user.click(await dialog().findByRole('combobox', {name: /Template/}));
+    await user.click(await screen.findByRole('option', {name: /^Short day/}));
+    await user.click(await dialog().findByRole('checkbox', {name: /^Tue 24/}));
+    await user.click(dialog().getByRole('button', {name: 'Apply'}));
 
-    await user.click(screen.getByRole('button', {name: 'This day: Short day'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'No template'}));
-    await expectAnnounced('No template on this day');
-
-    await user.click(screen.getByRole('button', {name: 'This day: Short day'}));
-    await user.click(await screen.findByRole('menuitem', {name: "Back to the week's template"}));
-    await expectAnnounced("Back to the week's template");
+    await expectAnnounced('Short day applied to Mon 23 and Tue 24');
+    await waitFor(() => expect(openDialog()).toBeNull());
+    await waitFor(() => expect(button).toHaveFocus());
+    expect(await bodyOf(fetch, 'PUT', `/api/calendar/staff/${STAFF_OTHER.userId}/days/2026-11-24/day-template`)).toEqual({dayTemplateId: 'day-short'});
+    // b.staff's own day templates.
+    expect(calls(fetch)).toContain(`GET /api/calendar/staff/${STAFF_OTHER.userId}/day-templates?includeArchived=true`);
   });
 
   it('sets the default week, and shows when that fails', async () => {
@@ -452,36 +500,6 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByText('That time overlaps Training, 14:00 to 15:00.')).toBeInTheDocument();
   });
 
-  it("says when the day's template can't be changed", async () => {
-    const {user} = renderPage({
-      search: {view: 'day', date: '2026-11-24'},
-      handlers: {[`PUT /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => json({title: 'That day has passed.'}, 409)},
-    });
-
-    await user.click(await screen.findByRole('button', {name: "This day's template"}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Short day'}));
-    expect(await screen.findByText('That day has passed.')).toBeInTheDocument();
-  });
-
-  it("says when going back to the week's template fails", async () => {
-    const {user} = renderPage({
-      search: {view: 'day', date: '2026-11-24'},
-      handlers: {
-        'GET /api/calendar': (request) => {
-          const from = new URL(request.url).searchParams.get('From')!;
-          const calendar = testCalendar({from, dayCount: 1, today: MONDAY});
-          calendar.days = calendar.days!.map((d) => ({...d, dayTemplateId: null, isDayTemplateOverridden: true}));
-          return json(calendar);
-        },
-        [`DELETE /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => json({title: 'That day has passed.'}, 409),
-      },
-    });
-
-    await user.click(await screen.findByRole('button', {name: "This day's template"}));
-    await user.click(await screen.findByRole('menuitem', {name: "Back to the week's template"}));
-    expect(await screen.findByText('That day has passed.')).toBeInTheDocument();
-  });
-
   it('goes to a date typed into the date picker', async () => {
     const {user, onSearchChange} = renderPage();
 
@@ -498,15 +516,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     const admin = renderPage({user: adminUser, search: {staff: STAFF_OTHER.userId, view: 'day', date: '2026-11-24'}});
     expect(await screen.findByRole('link', {name: "b.staff's calendar templates"})).toHaveAttribute('href', `/calendar/templates?staff=${STAFF_OTHER.userId}`);
-    // The day's template and the default week come from b.staff's own templates.
-    await admin.user.click(await screen.findByRole('button', {name: "This day's template"}));
-    expect(await screen.findByRole('menuitem', {name: 'Standard day'})).toBeInTheDocument();
-    expect(calls(admin.fetch)).toEqual(
-      expect.arrayContaining([
-        `GET /api/calendar/staff/${STAFF_OTHER.userId}/day-templates?includeArchived=true`,
-        `GET /api/calendar/staff/${STAFF_OTHER.userId}/week-templates?includeArchived=true`,
-      ]),
-    );
+    // The default week comes from b.staff's own week templates.
+    await waitFor(() => expect(calls(admin.fetch)).toContain(`GET /api/calendar/staff/${STAFF_OTHER.userId}/week-templates?includeArchived=true`));
     admin.unmount();
 
     // Someone else's, for anyone but an admin: nothing to lead to.
@@ -904,17 +915,11 @@ describe('the Calendar page outside React', () => {
     await waitFor(() => expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29'));
     expect(calls(fetch).some((c) => c.includes('-templates'))).toBe(false);
 
-    // Once it is, whose it is says whose templates: the day's too, on a day they can change.
+    // Once it is, whose it is says whose week templates. Their day templates wait for the page (Apply Template).
     queryClient.setQueryData(['calendar', 'days', 'me', '2026-11-24', '2026-11-24'], testCalendar({from: '2026-11-24', dayCount: 1, today: MONDAY}));
     await preloadCalendarPage(queryClient, {view: 'day', date: '2026-11-24'}, false, MONDAY);
-    await waitFor(() =>
-      expect(calls(fetch)).toEqual(
-        expect.arrayContaining([
-          `GET /api/calendar/staff/${STAFF_ME.userId}/week-templates?includeArchived=true`,
-          `GET /api/calendar/staff/${STAFF_ME.userId}/day-templates?includeArchived=true`,
-        ]),
-      ),
-    );
+    await waitFor(() => expect(calls(fetch)).toContain(`GET /api/calendar/staff/${STAFF_ME.userId}/week-templates?includeArchived=true`));
+    expect(calls(fetch).some((c) => c.includes('/day-templates'))).toBe(false);
     queryClient.clear();
   });
 });
