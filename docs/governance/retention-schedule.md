@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: what roadmap step 7 built (section 6); 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), the same day: meetings, the team view, suggested meeting times and personal calendar templates (`docs/calendar-plan.md`, decisions 50 on) |
+| **Version** | 0.2 (draft), 16 November 2026: what roadmap step 7 built (section 6); 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), the same day: meetings, the team view, suggested meeting times and personal calendar templates (`docs/calendar-plan.md`, decisions 50 on); 0.5 (draft), 17 November 2026: what happens to templates when their owner's account goes (review of #99) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Approved by** | Not yet approved |
 | **Next review** | Every 12 months, and when the NHS Records Management Code of Practice changes |
@@ -87,7 +87,7 @@ Everything about the patient, kept and destroyed together:
 | **Browser storage** (`localStorage` and `sessionStorage`, `medapp.*`) | Until sign-out | Cleared at sign-out, but for the four visual settings (built in step 7) | Shared computers. |
 | **Stage definitions and templates** | For the life of the customer's contract | Returned or deleted at exit | Configuration, not personal data. Archived ones are kept because procedures refer to them. |
 | **Activity types** | For the life of the customer's contract | Returned or deleted at exit | Calendar configuration, not personal data. Archived ones are kept because blocks and dated template rows refer to them. |
-| **Day and week templates** (each person's own) | While the owner's account exists, and as long as dated rows or blocks still refer to them | Returned or deleted at exit | A person's usual working pattern (staff data, but not sensitive by design). Archived ones are kept because past days project from their dated rows. |
+| **Day and week templates** (each person's own) | Until their owner or an admin deletes them (one that's in use is archived instead, and kept as long as dated rows or blocks refer to it) | Deleted by their owner or an admin; returned or deleted at exit. **Deleting an account doesn't remove its templates yet** (to be built: `docs/todo.md`): they stay, unused, where no list shows them. The migration that made templates personal gave the templates only leavers had used to the longest-standing admin | A person's usual working pattern (staff data, but not sensitive by design). Archived ones are kept because past days project from their dated rows. |
 | **Application logs and traces** (Log Analytics, step 5) | **90 days** | Deleted automatically by the workspace's retention setting | Enough for troubleshooting and incident investigation; logs aren't the record. |
 | **Azure activity and infrastructure sign-in logs** (supplier's own) | **12 months** | Deleted automatically | Security investigation. |
 

@@ -8,11 +8,18 @@ namespace MedApp.Infrastructure.Migrations
     /// <summary>
     /// Day and week templates become each member of staff's own (<c>OwnerUserId</c>), with names unique per owner.
     /// <para>
-    /// The data is moved so that nothing changes on anyone's calendar, past or future: everyone who uses a template, as
-    /// their default week (any dated row) or a day override, gets their own copy of every template they use, with all its
-    /// dated rows, and their default week rows, day overrides and block exceptions point at their copies. Templates
-    /// nobody uses go to the longest-standing admin (the earliest account created with the Admin role), or are deleted
-    /// when there's no admin, since they affect no calendar. See <see cref="Up"/>.
+    /// The data is moved so that nothing changes on anyone's calendar, past or future: every member of staff (an account
+    /// with the Admin or User role) who uses a template, as their default week (any dated row) or a day override, gets
+    /// their own copy of every template they use, with all its dated rows, and their default week rows, day overrides
+    /// and block exceptions point at their copies. Templates no member of staff uses (nobody, or only people who have
+    /// left: their account deleted, or every staff role taken away) go to the longest-standing admin (the earliest
+    /// account created with the Admin role), or are deleted when there's no admin, since they affect no calendar anyone
+    /// can open. A leaver's rows keep pointing at the template they used, whoever now owns it. See <see cref="Up"/>.
+    /// </para>
+    /// <para>
+    /// <c>OwnerUserId</c> has no database default, so code from before this migration (old pods during a rollout, or
+    /// after a rollback) can't make a template owned by nobody: its insert fails instead. It's added nullable, filled,
+    /// then made required.
     /// </para>
     /// </summary>
     public partial class MadeCalendarTemplatesPersonal : Migration
@@ -20,15 +27,16 @@ namespace MedApp.Infrastructure.Migrations
         /// <summary>
         /// Gives every template an owner, copying a template for each further person who uses it.
         /// <list type="number">
-        /// <item>Pairs each week template with everyone who has ever had it as their default week, then the unused ones
-        /// with the admin; then each day template with everyone whose week templates (any dated row) or day overrides
-        /// use it, then the unused ones with the admin.</item>
+        /// <item>Pairs each week template with every member of staff who has ever had it as their default week, then the
+        /// rest with the admin; then each day template with the owners of the week templates using it (any dated row) and
+        /// every member of staff whose day overrides use it, then the rest with the admin.</item>
         /// <item>The first owner of a template (by user ID) keeps it, IDs and all; every other owner gets a copy, with
         /// copies of all its dated rows (<c>ValidFrom</c> and <c>ValidTo</c> kept). A week template's days point at
         /// their owner's copies of the day templates.</item>
         /// <item>Each person's default week rows, day overrides and block exceptions (template block to template block,
         /// old ID to new) point at their own copies.</item>
-        /// <item>Without an admin, templates nobody used are deleted, with their rows.</item>
+        /// <item>Without an admin, the templates left without an owner are deleted, with their rows and the default week
+        /// rows and day overrides of people who have left that still point at them.</item>
         /// </list>
         /// One copy per person per template, shared by their week templates and their overrides. Names stay as they
         /// were: they were unique across the organisation, so they're unique per owner.
@@ -43,21 +51,38 @@ namespace MedApp.Infrastructure.Migrations
                 name: "IX_DayTemplates_Name",
                 table: "DayTemplates");
 
+            // Nullable while it's filled, and never with a default: an insert that doesn't give an owner must fail.
             migrationBuilder.AddColumn<Guid>(
                 name: "OwnerUserId",
                 table: "WeekTemplates",
                 type: "uniqueidentifier",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                nullable: true);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "OwnerUserId",
                 table: "DayTemplates",
                 type: "uniqueidentifier",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                nullable: true);
 
             migrationBuilder.Sql(GiveTemplatesOwners);
+
+            migrationBuilder.AlterColumn<Guid>(
+                name: "OwnerUserId",
+                table: "WeekTemplates",
+                type: "uniqueidentifier",
+                nullable: false,
+                oldClrType: typeof(Guid),
+                oldType: "uniqueidentifier",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<Guid>(
+                name: "OwnerUserId",
+                table: "DayTemplates",
+                type: "uniqueidentifier",
+                nullable: false,
+                oldClrType: typeof(Guid),
+                oldType: "uniqueidentifier",
+                oldNullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_WeekTemplates_OwnerUserId_Name",
@@ -122,7 +147,19 @@ namespace MedApp.Infrastructure.Migrations
                 WHERE r.NormalizedName = N'ADMIN'
                 ORDER BY u.CreatedAt, u.Id);
 
-            -- Who owns which week template: everyone who has ever had it as their default week, then the admin.
+            -- The members of staff: accounts with the Admin or User role. Only they get templates; a template used only
+            -- by people who have left (their account deleted, or every staff role taken away) goes to the admin, as an
+            -- unused one does, rather than to someone nobody can open the templates of.
+            CREATE TABLE #Staff (UserId uniqueidentifier NOT NULL PRIMARY KEY);
+
+            INSERT INTO #Staff (UserId)
+            SELECT DISTINCT ur.UserId
+            FROM AspNetUserRoles ur
+            JOIN AspNetRoles r ON r.Id = ur.RoleId
+            WHERE r.NormalizedName IN (N'ADMIN', N'USER');
+
+            -- Who owns which week template: every member of staff who has ever had it as their default week, then the
+            -- admin.
             CREATE TABLE #WeekOwners (
                 WeekTemplateId uniqueidentifier NOT NULL,
                 OwnerUserId uniqueidentifier NOT NULL,
@@ -131,7 +168,10 @@ namespace MedApp.Infrastructure.Migrations
 
             INSERT INTO #WeekOwners (WeekTemplateId, OwnerUserId, NewId)
             SELECT p.WeekTemplateId, p.StaffUserId, NEWID()
-            FROM (SELECT DISTINCT WeekTemplateId, StaffUserId FROM StaffWeekTemplates) p;
+            FROM (
+                SELECT DISTINCT s.WeekTemplateId, s.StaffUserId
+                FROM StaffWeekTemplates s
+                JOIN #Staff staff ON staff.UserId = s.StaffUserId) p;
 
             IF @admin IS NOT NULL
                 INSERT INTO #WeekOwners (WeekTemplateId, OwnerUserId, NewId)
@@ -139,8 +179,8 @@ namespace MedApp.Infrastructure.Migrations
                 FROM WeekTemplates t
                 WHERE NOT EXISTS (SELECT 1 FROM #WeekOwners o WHERE o.WeekTemplateId = t.Id);
 
-            -- Who owns which day template: the owners of the week templates using it (any dated row), everyone with a
-            -- day override using it, then the admin.
+            -- Who owns which day template: the owners of the week templates using it (any dated row), every member of
+            -- staff with a day override using it, then the admin.
             CREATE TABLE #DayOwners (
                 DayTemplateId uniqueidentifier NOT NULL,
                 OwnerUserId uniqueidentifier NOT NULL,
@@ -156,6 +196,7 @@ namespace MedApp.Infrastructure.Migrations
                 UNION
                 SELECT v.DayTemplateId, v.StaffUserId
                 FROM CalendarDayOverrides v
+                JOIN #Staff staff ON staff.UserId = v.StaffUserId
                 WHERE v.DayTemplateId IS NOT NULL) p;
 
             IF @admin IS NOT NULL
@@ -229,7 +270,8 @@ namespace MedApp.Infrastructure.Migrations
             JOIN #WeekOwners o ON o.WeekTemplateId = d.WeekTemplateId AND o.NewId = o.WeekTemplateId
             JOIN #DayOwners dayOwner ON dayOwner.DayTemplateId = d.DayTemplateId AND dayOwner.OwnerUserId = o.OwnerUserId;
 
-            -- Each person's calendar points at their own copies.
+            -- Each member of staff's calendar points at their own copies. A leaver's rows aren't owners' rows, so they
+            -- keep pointing at the original, which its first owner kept.
             UPDATE s SET WeekTemplateId = o.NewId
             FROM StaffWeekTemplates s
             JOIN #WeekOwners o ON o.WeekTemplateId = s.WeekTemplateId AND o.OwnerUserId = s.StaffUserId;
@@ -242,14 +284,26 @@ namespace MedApp.Infrastructure.Migrations
             FROM CalendarBlockExceptions e
             JOIN #BlockCopies c ON c.OldId = e.DayTemplateBlockId AND c.OwnerUserId = e.StaffUserId;
 
-            -- With no admin to take them, templates nobody used have no owner: they affect no calendar, so they go
-            -- (their days, blocks and any exceptions to those blocks cascade).
-            DELETE FROM WeekTemplates WHERE OwnerUserId = '00000000-0000-0000-0000-000000000000';
-            DELETE FROM DayTemplates WHERE OwnerUserId = '00000000-0000-0000-0000-000000000000';
+            -- With no admin to take them, templates no member of staff used have no owner: they affect no calendar
+            -- anyone can open, so they go, with the rows of people who have left that still point at them (their days,
+            -- blocks and any exceptions to those blocks cascade).
+            DELETE s
+            FROM StaffWeekTemplates s
+            JOIN WeekTemplates t ON t.Id = s.WeekTemplateId
+            WHERE t.OwnerUserId IS NULL;
+
+            DELETE v
+            FROM CalendarDayOverrides v
+            JOIN DayTemplates t ON t.Id = v.DayTemplateId
+            WHERE t.OwnerUserId IS NULL;
+
+            DELETE FROM WeekTemplates WHERE OwnerUserId IS NULL;
+            DELETE FROM DayTemplates WHERE OwnerUserId IS NULL;
 
             DROP TABLE #BlockCopies;
             DROP TABLE #DayOwners;
             DROP TABLE #WeekOwners;
+            DROP TABLE #Staff;
             """;
 
         /// <summary>
