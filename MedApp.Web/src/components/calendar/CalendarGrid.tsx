@@ -83,8 +83,9 @@ export interface CalendarGridProps {
    */
   onSelectRange?: (selection: CalendarSelection, anchor: HTMLElement | null) => void;
   /**
-   * Moving an item marked `isMovable` by dragging it to another time or column; it keeps its length, in 15-minute
-   * steps. `to.column` is the column it was dropped in.
+   * Moving an item marked `isMovable` by dragging it to another time or column: it moves a row at a time from where it
+   * is, and keeps its exact length, so 10:05 to 10:25 dragged a 15-minute row down is 10:20 to 10:40. A press that never
+   * takes it anywhere else is a click, and opens it. `to.column` is the column it was dropped in.
    */
   onItemMove?: (item: CalendarGridItem, to: CalendarSelection) => void;
   /** Items move only within their own column (the team view, where a column is a person), never to another. */
@@ -210,7 +211,16 @@ interface Pending {
   focus: number;
 }
 
-/** An item being dragged: where it was picked up, and where it would go. */
+/** Where a dragged item would go: a column (by its index), and its start there. */
+interface DragTarget {
+  col: number;
+  start: number;
+}
+
+/**
+ * An item being dragged: where it was picked up, and where it would go. It moves by whole rows from where it is, and
+ * keeps its exact length, so an item that starts or ends between rows (10:05 to 10:25, in 15-minute rows) keeps both.
+ */
 interface Drag {
   item: CalendarGridItem;
   /** The column it was picked up from. */
@@ -218,10 +228,18 @@ interface Drag {
   pointerId: number;
   x: number;
   y: number;
-  /** Rows between the item's start and the point it was picked up by. */
-  grabRows: number;
+  /** Its start and length, in ms. */
+  start: number;
+  length: number;
+  /** Its start in its column, in ms after the column's start, so it keeps its time of day in another column. */
+  offset: number;
+  /** The row it was picked up by: it moves a row for each row the pointer moves from there. */
+  pickRow: number;
+  /** The pointer has moved further than a click's wobble. */
   isMoving: boolean;
-  to: Slot | null;
+  /** It has been somewhere other than where it was: a drag, not a click (which opens it, even if the pointer wobbled). */
+  hasLeft: boolean;
+  to: DragTarget | null;
 }
 
 /** Whether a held selection is in a column: by its column's key, or (without one) the first column on its date. */
@@ -515,18 +533,25 @@ export function CalendarGrid({
   };
 
   // Dragging an item.
-  const lengthRows = (item: CalendarGridItem) => {
-    const t = intervalOf(item.startUtc, item.endUtc);
-    return Math.max(1, Math.round((t.end - t.start) / SLOT));
-  };
-
   const onItemPointerDown = (event: PointerEvent<HTMLElement>, item: CalendarGridItem, col: number) => {
     justDragged.current = false;
     if (event.button !== 0 || !onItemMove || !item.isMovable) return;
-    const row = rowAt(col, event.clientY);
-    const itemRow = Math.round((parseUtc(item.startUtc).getTime() - layouts[col].start) / SLOT);
+    const {start, end} = intervalOf(item.startUtc, item.endUtc);
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    setDrag({item, from: col, pointerId: event.pointerId, x: event.clientX, y: event.clientY, grabRows: row === null ? 0 : row - itemRow, isMoving: false, to: null});
+    setDrag({
+      item,
+      from: col,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      start,
+      length: end - start,
+      offset: start - layouts[col].start,
+      pickRow: rowAt(col, event.clientY) ?? 0,
+      isMoving: false,
+      hasLeft: false,
+      to: null,
+    });
   };
 
   const onItemPointerMove = (event: PointerEvent) => {
@@ -534,36 +559,38 @@ export function CalendarGrid({
     const isMoving = drag.isMoving || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4;
     if (!isMoving) return;
     const col = columnAt(event.clientX, drag);
-    let to: Drag['to'] = null;
+    let to: DragTarget | null = null;
     if (col !== null) {
       const row = rowAt(col, event.clientY);
       if (row !== null) {
-        const length = lengthRows(drag.item);
-        const target = Math.max(0, Math.min(layouts[col].rows - length, row - drag.grabRows));
+        const l = layouts[col];
+        // A row for each row the pointer has moved, from where it is, kept inside the working day.
+        const start = Math.max(l.start, Math.min(l.start + l.span - drag.length, l.start + drag.offset + (row - drag.pickRow) * SLOT));
         // Nothing moves into time that has started.
-        if (nowMs === undefined || layouts[col].start + target * SLOT > nowMs) to = {col, row: target};
+        if (nowMs === undefined || start > nowMs) to = {col, start};
       }
     }
-    setDrag({...drag, isMoving, to});
+    const hasLeft = drag.hasLeft || !(to !== null && to.col === drag.from && to.start === drag.start);
+    setDrag({...drag, isMoving, hasLeft, to});
   };
 
   const onItemPointerUp = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     setDrag(null);
-    if (!drag.isMoving) return;
+    // Never taken away from where it was: a click (with a wobble, perhaps), so the click that follows opens it.
+    if (!drag.hasLeft) return;
     justDragged.current = true;
     const target = ghostOf(drag);
     if (!target) return;
-    const isWhereItWas = target.column === layouts[drag.from].column.key && target.startUtc === iso(parseUtc(drag.item.startUtc).getTime());
+    const isWhereItWas = drag.to!.col === drag.from && drag.to!.start === drag.start;
     if (!isWhereItWas) onItemMove?.(drag.item, target);
   };
 
-  /** Where a dragged item would go. */
+  /** Where a dragged item would go: its own length, from its new start. */
   function ghostOf(d: Drag): CalendarSelection | null {
     if (!d.to) return null;
     const l = layouts[d.to.col];
-    const start = l.start + d.to.row * SLOT;
-    return {date: l.date, startUtc: iso(start), endUtc: iso(start + lengthRows(d.item) * SLOT), column: l.column.key};
+    return {date: l.date, startUtc: iso(d.to.start), endUtc: iso(d.to.start + d.length), column: l.column.key};
   }
 
   // Escape drops a drag.
@@ -572,8 +599,8 @@ export function CalendarGrid({
     const cancel = (event: globalThis.KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setDrag(null);
-      // The click that ends the press doesn't open the item either.
-      justDragged.current = drag.isMoving;
+      // The click that ends the press doesn't open the item either, unless it never left its place.
+      justDragged.current = drag.hasLeft;
     };
     window.addEventListener('keydown', cancel);
     return () => window.removeEventListener('keydown', cancel);
@@ -600,7 +627,7 @@ export function CalendarGrid({
 
   const rowsShown = layouts[0]?.rows ?? DEFAULT_DAY / SLOT;
   const isOneDay = layouts.length === 1 && !layouts[0].column.label;
-  const ghost = drag?.isMoving && drag.to ? {col: drag.to.col, range: ghostOf(drag)!} : null;
+  const ghost = drag?.hasLeft && drag.to ? {col: drag.to.col, range: ghostOf(drag)!} : null;
   // The narrowest the columns can be together, so more than fit scroll sideways rather than squeeze.
   const narrowCount = layouts.filter((l) => l.isNarrow).length;
   const labelledCount = layouts.filter((l) => !l.isNarrow && l.column.label).length;
@@ -797,7 +824,7 @@ export function CalendarGrid({
                     placed={p}
                     rows={l.rows}
                     isCompact={isCompact}
-                    isDragged={drag?.isMoving === true && drag.from === col && drag.item.key === p.item.key}
+                    isDragged={drag?.hasLeft === true && drag.from === col && drag.item.key === p.item.key}
                     onOpen={onItemOpen && !p.item.isReadOnly ? () => openItem(p.item, l.column) : undefined}
                     onPointerDown={onItemMove && p.item.isMovable ? (event) => onItemPointerDown(event, p.item, col) : undefined}
                     onPointerMove={onItemPointerMove}

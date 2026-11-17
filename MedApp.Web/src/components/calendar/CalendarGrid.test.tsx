@@ -360,6 +360,7 @@ describe('CalendarGrid', () => {
     const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest<HTMLElement>('[data-kind]')!;
     layOutColumns();
 
+    // A wobble on its own row takes it nowhere: a click, which opens it.
     fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 50, clientY: yOf(4)});
     fireEvent.pointerMove(card, {pointerId: 1, clientX: 60, clientY: yOf(4) + 10});
     fireEvent.pointerUp(card, {pointerId: 1});
@@ -387,8 +388,51 @@ describe('CalendarGrid', () => {
     fireEvent.pointerUp(fixedCard, {pointerId: 5});
 
     expect(onItemMove).not.toHaveBeenCalled();
-    expect(onItemOpen).toHaveBeenCalledTimes(1);
+    expect(onItemOpen).toHaveBeenCalledTimes(2);
     expect(onItemOpen).toHaveBeenCalledWith(appointment, expect.objectContaining({key: MONDAY}));
+  });
+
+  it('moves an item between rows by whole rows from where it is, keeping its exact length', async () => {
+    atMondayMorning();
+    // 10:05 to 10:25 in 15-minute rows: it starts a third of the way into row 8 (10:00) and ends partway through row 9.
+    const block = blockItem(testBlock(MONDAY, '10:05', '10:25'));
+    const {onItemMove, onItemOpen} = renderGrid({items: [block]});
+    const card = (await screen.findByRole('button', {name: /^Lunch, 10:05 to 10:25/})).closest<HTMLElement>('[data-kind]')!;
+    layOutColumns();
+    const pressed = yOf(8) + 4;
+
+    // Nudged 6px on its own row (a touchpad's click): it stays where it is, and the click opens it.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 1, clientX: 50, clientY: pressed + 6});
+    expect(document.querySelector('.mc-ghost')).toBeNull();
+    fireEvent.pointerUp(card, {pointerId: 1});
+    fireEvent.click(card);
+    expect(onItemMove).not.toHaveBeenCalled();
+    expect(onItemOpen).toHaveBeenCalledTimes(1);
+
+    // A row down: 15 minutes later, the same 20 minutes long.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 2, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 2, clientX: 50, clientY: pressed + 22});
+    expect(screen.getByText('10:20 to 10:40')).toBeInTheDocument();
+    fireEvent.pointerUp(card, {pointerId: 2});
+    fireEvent.click(card);
+    expect(onItemMove).toHaveBeenLastCalledWith(block, {date: MONDAY, startUtc: '2026-11-23T10:20:00.000Z', endUtc: '2026-11-23T10:40:00.000Z', column: MONDAY});
+
+    // To Tuesday on the same row: the same time of day.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 3, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 3, clientX: 150, clientY: pressed});
+    fireEvent.pointerUp(card, {pointerId: 3});
+    fireEvent.click(card);
+    expect(onItemMove).toHaveBeenLastCalledWith(block, {date: '2026-11-24', startUtc: '2026-11-24T10:05:00.000Z', endUtc: '2026-11-24T10:25:00.000Z', column: '2026-11-24'});
+
+    // Away and back again: a drag that ended where it began, so nothing moves and nothing opens.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 4, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 4, clientX: 50, clientY: pressed + 44});
+    fireEvent.pointerMove(card, {pointerId: 4, clientX: 50, clientY: pressed + 2});
+    fireEvent.pointerUp(card, {pointerId: 4});
+    fireEvent.click(card);
+    expect(onItemMove).toHaveBeenCalledTimes(2);
+    expect(onItemOpen).toHaveBeenCalledTimes(1);
   });
 
   it('skips days with nothing free, looks both ways for the nearest free time, and stops at the edges', async () => {
