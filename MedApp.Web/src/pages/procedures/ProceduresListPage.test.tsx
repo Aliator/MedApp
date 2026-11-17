@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {adminUser, calls, findAlert, json, mockApi, openAlertDetails, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
 import {HalfViewContext} from '../../components/pages/halfView';
 import type {ProceduresListSearch} from '../listSearch';
@@ -211,10 +211,10 @@ describe('ProceduresListPage', () => {
   });
 
   it("shows the patient's banners over their procedures", async () => {
-    renderList({}, {patientId, patientFlags: {isDisputed: true, disputeReason: 'Synthetic allergy', isRestricted: true, restrictionReason: 'Synthetic check'}});
+    const {user} = renderList({}, {patientId, patientFlags: {isDisputed: true, disputeReason: 'Synthetic allergy', isRestricted: true, restrictionReason: 'Synthetic check'}});
 
-    expect(await screen.findByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
-    expect(screen.getByText(/Restricted record/)).toBeInTheDocument();
+    expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Restricted record, show details'})).toBeInTheDocument();
   });
 
   it("shows someone's procedures, named from the accounts for an admin", async () => {

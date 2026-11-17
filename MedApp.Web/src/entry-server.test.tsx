@@ -598,6 +598,23 @@ describe('server rendering', () => {
     expect(html).toMatch(/NHS No\. (<!-- -->)?999 000 0018/);
   });
 
+  it("renders a restricted record's short label on the server, with the whole message for screen readers, closed", async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      [`/api/patients/${patient.id}`]: {...patient, isRestricted: true, restrictionReason: 'Synthetic accuracy check'},
+    });
+
+    const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
+
+    expect(html).toContain('aria-label="Restricted record, show details"');
+    expect(html).toContain('aria-expanded="false"');
+    // The whole message is in the page (visually hidden), but its overlay isn't open.
+    expect(html).toMatch(/Restricted record: nothing about this patient[^<]*Reason: Synthetic accuracy check/);
+    expect(html).not.toContain('Restricted record: details');
+  });
+
   it('still renders the page when its data fails, for it to show its error', async () => {
     api({
       '/api/auth/whoami': signedIn,

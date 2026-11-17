@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {NO_DATE} from '../../api/patients';
-import {adminUser, staffUser, calls, findAlert, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, staffUser, calls, findAlert, isDisabled, openAlertDetails, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
@@ -182,7 +182,7 @@ describe('ViewPatientPage: appointments', () => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, isRestricted: true}), [`GET ${APPOINTMENTS}`]: () => json(pageOf([])), ...timeline});
     renderWithApp(<PatientView id={id} isNarrow={false} />, {user: adminUser});
 
-    expect(await screen.findByText(/Restricted record/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Restricted record, show details'})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Procedures'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
@@ -347,20 +347,20 @@ describe('AddPatientPage', () => {
 
 describe('EditPatientPage', () => {
   it.each([
-    ['restricted', {isRestricted: true, restrictionReason: 'Synthetic accuracy check'}, /Restricted record: nothing about this patient/],
-    ['anonymised', {isAnonymised: true}, /This record has been anonymised/],
-  ])('says before anyone tries that a %s record cannot be changed, with its banner', async (_, flags, message) => {
+    ['restricted', {isRestricted: true, restrictionReason: 'Synthetic accuracy check'}, 'Restricted record', /^Restricted record: nothing about this patient/],
+    ['anonymised', {isAnonymised: true}, 'Anonymised record', /^This record has been anonymised/],
+  ])('says before anyone tries that a %s record cannot be changed, with its banner', async (_, flags, label, message) => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, ...flags})});
-    renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
-    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(within(await openAlertDetails(user, label)).getByText(message)).toBeInTheDocument();
   });
 
   it("shows a dispute's banner, saying what the patient disputes", async () => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, isDisputed: true, disputeReason: 'Synthetic date of birth'})});
-    renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
-    expect(await screen.findByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();
+    expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();
   });
 
   it('says when someone else changed the record while it was being edited', async () => {

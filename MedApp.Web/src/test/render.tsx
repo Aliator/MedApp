@@ -192,6 +192,15 @@ export async function findAlert(text: string | RegExp) {
   });
 }
 
+/**
+ * Opens a `SummaryAlert`'s whole message (a click on its label, e.g. "Restricted record") and returns the overlay, to
+ * look inside with `within`. `scope` narrows where the label is looked for (a dialog, when a page shows the same one).
+ */
+export async function openAlertDetails(user: ReturnType<typeof userEvent.setup>, label: string, scope: HTMLElement = document.body) {
+  await user.click(await within(scope).findByRole('button', {name: `${label}, show details`}));
+  return screen.findByRole('dialog', {name: `${label}: details`});
+}
+
 /** The description line Astryx shows under a field's label (found through the input's aria-describedby), untrimmed. */
 export const descriptionOf = (input: HTMLElement) =>
   (input.getAttribute('aria-describedby') ?? '')

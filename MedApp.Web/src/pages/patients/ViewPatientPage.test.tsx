@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
-import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
+import {adminUser, calls, isDisabled, json, openAlertDetails, mockApi, openDialog, pageOf, renderWithApp, staffUser} from '../../test/render';
 import {ViewPatientPage} from './ViewPatientPage';
 
 const id = 'c184a7b8-2585-4437-bcd4-e1700be38299';
@@ -67,7 +67,8 @@ describe('ViewPatientPage, privacy', () => {
     await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Synthetic accuracy check');
     await user.click(within(dialog).getByRole('button', {name: 'Restrict Record'}));
 
-    expect(await screen.findByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(within(await openAlertDetails(user, 'Restricted record')).getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
     const put = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
     expect(new URL(put.url).pathname).toBe(`/api/patients/${id}/restriction`);
@@ -93,7 +94,7 @@ describe('ViewPatientPage, privacy', () => {
       [`PUT /api/patients/${id}/restriction`]: () => json({title: "This patient's record has been anonymised, so it can't be changed."}, 409),
     });
 
-    expect(await screen.findByText(/Restricted record/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Restricted record, show details'})).toBeInTheDocument();
     expect(isDisabled(await privacyItem(user, 'Anonymise Record'))).toBe(true);
     await user.click(await privacyItem(user, 'Lift Restriction'));
     await user.click(within(await waitFor(() => openDialog()!)).getByRole('button', {name: 'Lift Restriction'}));
@@ -112,7 +113,8 @@ describe('ViewPatientPage, privacy', () => {
     await user.type(within(dialog).getByRole('textbox', {name: /what's disputed/i}), 'Synthetic date of birth');
     await user.click(within(dialog).getByRole('button', {name: 'Mark Disputed'}));
 
-    expect(await screen.findByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic date of birth")).toBeInTheDocument();
     expect(calls(fetch)).toContain(`PUT /api/patients/${id}/dispute`);
     await user.click(await privacyItem(user, 'Clear Dispute'));
     await user.click(within(await waitFor(() => openDialog()!)).getByRole('button', {name: 'Clear Dispute'}));
@@ -146,7 +148,7 @@ describe('ViewPatientPage, privacy', () => {
     await user.type(within(dialog).getByRole('textbox', {name: /to confirm/i}), 'Oriel Penhallow');
     await user.click(within(dialog).getByRole('button', {name: 'Anonymise Record'}));
 
-    expect(await screen.findByText(/This record has been anonymised/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Anonymised record, show details'})).toBeInTheDocument();
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(screen.queryByRole('link', {name: 'Edit Patient'})).not.toBeInTheDocument();
     expect(isDisabled(await privacyItem(user, 'Restrict Record'))).toBe(true);
