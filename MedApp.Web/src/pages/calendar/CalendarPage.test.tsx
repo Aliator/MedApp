@@ -211,6 +211,27 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:00');
   });
 
+  it('opens the menu from the selected time, and gives the focus back to that time when it closes', async () => {
+    const {user} = renderPage();
+
+    await screen.findByRole('group', {name: /^My calendar,/});
+    select('Tuesday 24 November, 10:00, free');
+
+    // The held selection is the button the menu opens from (so it's placed beside it), and says the menu is open.
+    const selection = await screen.findByRole('button', {name: 'Selected time, 10:00 to 10:15'});
+    await waitFor(() => expect(selection).toHaveAttribute('aria-expanded', 'true'));
+    expect(selection).toHaveAttribute('tabindex', '-1');
+    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    select('Tuesday 24 November, 11:00, free');
+    expect(await screen.findByRole('button', {name: 'Book appointment'})).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Tuesday 24 November, 11:00, free'})).toHaveFocus());
+  });
+
   it("goes straight to booking on a calendar I can only book on", async () => {
     renderPage({search: {staff: STAFF_OTHER.userId}, calendar: {canEdit: false}});
 
@@ -470,27 +491,6 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await waitFor(() => expect(onSearchChange).toHaveBeenLastCalledWith({date: '2026-12-02'}));
   });
 
-  it('opens the menu from the selected time, and gives the focus back to that time when it closes', async () => {
-    const {user} = renderPage();
-
-    await screen.findByRole('group', {name: /^My calendar,/});
-    select('Tuesday 24 November, 10:00, free');
-
-    // The held selection is the button the menu opens from (so it's placed beside it), and says the menu is open.
-    const selection = await screen.findByRole('button', {name: 'Selected time, 10:00 to 10:15'});
-    await waitFor(() => expect(selection).toHaveAttribute('aria-expanded', 'true'));
-    expect(selection).toHaveAttribute('tabindex', '-1');
-    await user.click(await screen.findByRole('button', {name: 'Block time'}));
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(openDialog()).toBeNull());
-
-    select('Tuesday 24 November, 11:00, free');
-    expect(await screen.findByRole('button', {name: 'Book appointment'})).toBeInTheDocument();
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('button', {name: 'Tuesday 24 November, 11:00, free'})).toHaveFocus());
-  });
-
   it("leads to the person's own calendar templates: mine, or for an admin, theirs", async () => {
     const {unmount} = renderPage();
     expect(await screen.findByRole('link', {name: 'My calendar templates'})).toHaveAttribute('href', '/calendar/templates');
@@ -618,6 +618,24 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(await screen.findByRole('button', {name: 'Block time'}));
     expect(await screen.findByRole('heading', {name: 'Block Time'})).toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:00');
+  });
+
+  it('opens New meeting from the selected time in Everyone free, as from any column, and gives the focus back when it closes', async () => {
+    const {user} = renderPage({user: adminUser, search: {view: 'team'}});
+    await screen.findByRole('group', {name: /^Team,/});
+
+    select('Everyone free, Monday 23 November, 10:00, free');
+
+    // The held selection is the button the menu opens from (PR #96), in this column too.
+    const selection = await screen.findByRole('button', {name: 'Selected time, 10:00 to 10:15'});
+    await waitFor(() => expect(selection).toHaveAttribute('aria-expanded', 'true'));
+    expect(selection).toHaveAttribute('tabindex', '-1');
+    expect(await screen.findByRole('button', {name: 'New meeting'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book appointment'})).not.toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('button', {name: /^Selected time/})).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Everyone free, Monday 23 November, 10:00, free'})).toHaveFocus());
   });
 
   it("goes straight to booking in the column of someone the admin can only book for", async () => {
