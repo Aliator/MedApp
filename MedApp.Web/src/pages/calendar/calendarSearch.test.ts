@@ -24,10 +24,11 @@ describe('parseCalendarSearch', () => {
     expect(parseCalendarSearch({view: 'Week'})).toEqual({view: 'week'});
   });
 
-  it('keeps 5-minute rows, and leaves out 15, the default', () => {
+  it('keeps the row length a link names: 5 or 15 minutes', () => {
     expect(parseCalendarSearch({rows: '5'})).toEqual({rows: 5});
     expect(parseCalendarSearch({rows: 5})).toEqual({rows: 5});
-    expect(parseCalendarSearch({rows: '15'})).toEqual({});
+    // 15 too: a link can name it over someone's own default of 5.
+    expect(parseCalendarSearch({rows: '15'})).toEqual({rows: 15});
   });
 
   it('drops what it cannot read', () => {

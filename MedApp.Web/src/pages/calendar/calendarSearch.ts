@@ -53,8 +53,11 @@ export interface CalendarSearch {
   staff?: string;
   appointment?: string;
   who?: string[];
-  /** 5-minute rows on the grid; left out for the default, 15. */
-  rows?: 5;
+  /**
+   * The grid's row length: 5-minute rows, written when they're chosen, or 15, which a link can name; left out, the
+   * person's own default (the one they chose last, `useListSettings().calendarRows`).
+   */
+  rows?: 5 | 15;
 }
 
 export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearch {
@@ -66,7 +69,7 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
     staff: id(raw.staff),
     appointment: id(raw.appointment),
     who: ids(raw.who),
-    rows: text(raw.rows) === '5' ? 5 : undefined,
+    rows: text(raw.rows) === '5' ? 5 : text(raw.rows) === '15' ? 15 : undefined,
   });
 }
 

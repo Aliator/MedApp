@@ -27,6 +27,7 @@ import {
 import {problemMessage} from '../../api/errors';
 import {preload} from '../../api/preload';
 import {useAnnounce} from '../../app/announcements';
+import {useListSettings} from '../../app/listSettings';
 import {useCurrentUser} from '../../auth/auth';
 import {AppointmentDialog, appointmentWhen} from '../../components/calendar/AppointmentDialog';
 import {ApplyTemplateDialog} from '../../components/calendar/ApplyTemplateDialog';
@@ -155,7 +156,10 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const isTeam = view === 'team';
   // A week in a narrow window or a half view: Monday to Friday, squeezed in.
   const isCompactWeek = isNarrow && view === 'week';
-  const rowMinutes = search.rows ?? 15;
+  // The row length: the URL's, or the one this person chose last (a setting, so it follows them to the Calendar from
+  // anywhere, and the server renders it too).
+  const {calendarRows, setCalendarRows} = useListSettings();
+  const rowMinutes: CalendarRowMinutes = search.rows ?? calendarRows;
   const {from, to} = calendarRange(date, view);
 
   const staff = useQuery(staffQuery);
@@ -593,7 +597,10 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               items={ROW_CHOICES.map((minutes) => ({
                 label: `${minutes}-minute rows`,
                 icon: minutes === rowMinutes ? <Icon icon={AppIcon.Check} /> : undefined,
-                onClick: () => go({rows: minutes === 5 ? 5 : undefined}),
+                onClick: () => {
+                  setCalendarRows(minutes);
+                  go({rows: minutes === 5 ? 5 : undefined});
+                },
               }))}
             />
             {canSetDefaultWeek && person && (

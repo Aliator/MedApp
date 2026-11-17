@@ -872,6 +872,24 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined});
   });
 
+  it('remembers the row length last chosen, for an address that names none', async () => {
+    const {user, unmount} = renderPage();
+    await user.click(await screen.findByRole('button', {name: 'Rows: 15 min'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    expect(localStorage.getItem('medapp.calendarRows')).toBe('5');
+    unmount();
+
+    // Back from the side nav, Home or a notification (no rows in the address): 5-minute rows.
+    const again = renderPage();
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
+    again.unmount();
+
+    // A link that names 15 still shows 15.
+    renderPage({search: {rows: 15}});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '15');
+    expect(screen.getByRole('button', {name: 'Rows: 15 min'})).toBeInTheDocument();
+  });
+
   it('opens with the row length the address names', async () => {
     renderPage({isNarrow: true, search: {view: 'week', rows: 5}});
     const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
