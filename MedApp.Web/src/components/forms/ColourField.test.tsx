@@ -15,10 +15,29 @@ describe('ColourField', () => {
     expect(onChange).toHaveBeenCalledWith('#2a3550');
   });
 
-  it('shows a warning under the colour when it has one', async () => {
+  it('shows a warning under the colour when it has one, detached, so it never covers the colour', async () => {
     renderWithApp(<ColourField label="Cards" value="#25252a" onChange={() => {}} warning="Hard to read." />);
 
-    expect(await screen.findByText('Hard to read.')).toBeInTheDocument();
+    const warning = await screen.findByText('Hard to read.');
+    // The attached style pulls itself up to join a text box, over the colour and its value.
+    expect(warning.closest('[data-variant]')).not.toHaveAttribute('data-variant', 'attached');
+  });
+
+  it('opens the picker from a click anywhere on the row, once', async () => {
+    const {user} = renderWithApp(<ColourField label="Cards" description="The card colour." value="#25252a" onChange={() => {}} />);
+    const input = await screen.findByLabelText(/Cards/);
+    const clicks = vi.fn();
+    input.addEventListener('click', clicks);
+
+    // The row's empty space and its hex value.
+    await user.click(screen.getByText('The card colour.'));
+    await user.click(screen.getByText('#25252a'));
+    expect(clicks).toHaveBeenCalledTimes(2);
+
+    // The colour itself, and its label, open it as they always did: once each, not twice.
+    await user.click(input);
+    await user.click(screen.getByText('Cards'));
+    expect(clicks).toHaveBeenCalledTimes(4);
   });
 
   it('shades under the pointer, as list rows do', async () => {
