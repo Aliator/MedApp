@@ -76,17 +76,15 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
   });
 
-  it('has the calendar and Needs Booking for everyone, each marked current on its own page', async () => {
-    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar/needs-booking'});
-
-    expect(await screen.findByRole('link', {name: 'Needs Booking'})).toHaveAttribute('aria-current', 'page');
+  it('has the calendar for everyone, marked current on every page under it, Requires Appointment with no item of its own', async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar'});
+    expect(await screen.findByRole('link', {name: 'Calendar'})).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', {name: 'Calendar'})).toHaveAttribute('href', '/calendar');
-    expect(screen.getByRole('link', {name: 'Calendar'})).not.toHaveAttribute('aria-current');
     unmount();
 
-    renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar'});
+    renderWithApp(<AppSideNav />, {user: staffUser, path: '/calendar/requires-appointment'});
     expect(await screen.findByRole('link', {name: 'Calendar'})).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', {name: 'Needs Booking'})).not.toHaveAttribute('aria-current');
+    expect(screen.queryByRole('link', {name: /requires appointment|needs booking/i})).not.toBeInTheDocument();
   });
 
   it('navigates on the client when a link is clicked', async () => {
@@ -483,12 +481,12 @@ describe('AppSideNav with a half view open', () => {
     expect(rowOf(screen.getByRole('link', {name: /^procedures$/i})).style.backgroundColor).toBe('');
   });
 
-  it("marks Needs Booking in the half view beside the calendar", async () => {
-    renderWithHalf('/calendar', '/calendar/needs-booking');
+  it("marks the calendar when Requires Appointment is in the half view", async () => {
+    renderWithHalf('/patients', '/calendar/requires-appointment');
 
-    const needsBooking = await screen.findByRole('link', {name: 'Needs Booking'});
-    expect(rowOf(needsBooking).style.backgroundColor).toBe(HALF_VIEW_SHADE);
-    expect(rowOf(screen.getByRole('link', {name: 'Calendar'})).style.backgroundColor).toBe('');
+    const calendar = await screen.findByRole('link', {name: 'Calendar'});
+    expect(rowOf(calendar).style.backgroundColor).toBe(HALF_VIEW_SHADE);
+    expect(calendar).not.toHaveAttribute('aria-current');
   });
 
   it("marks a patient whose page is in the half view under Patients, and a section whose list is", async () => {

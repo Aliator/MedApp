@@ -56,11 +56,6 @@ export function isCurrentSection(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-const NEEDS_BOOKING = '/calendar/needs-booking';
-
-/** The Calendar page, but not Needs booking (under its address, with a nav item of its own). */
-const isCalendarPage = (pathname: string) => isCurrentSection(pathname, '/calendar') && !isCurrentSection(pathname, NEEDS_BOOKING);
-
 const ID = '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
 const PATIENT_PAGE = new RegExp(`^/patients/${ID}(?:/|$)`, 'i');
 const PROCEDURE_PAGE = new RegExp(`^/procedures/${ID}(?:/|$)`, 'i');
@@ -555,33 +550,25 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
-    // The calendar, and the appointments asked for but not yet booked (under the calendar's address, but an item of
-    // their own).
-    ...[
-      {key: 'calendar', label: 'Calendar', icon: AppIcon.Calendar, href: '/calendar', isHere: (path: string) => isCalendarPage(path)},
-      {key: 'needs-booking', label: 'Needs Booking', icon: AppIcon.NeedsBooking, href: NEEDS_BOOKING, isHere: (path: string) => isCurrentSection(path, NEEDS_BOOKING)},
-    ].map(({key, label, icon, href, isHere}) => {
-      const isSelected = isHere(pathname);
-      const isHalfView = halfPath !== null && isHere(halfPath) && !isSelected;
-      return {
-        key,
-        label,
-        icon,
-        href,
-        isSelected,
-        isHalfView,
-        row: (
-          <SideNavItem
-            label={label}
-            icon={icon}
-            href={href}
-            isSelected={isSelected}
-            ref={halfViewRow(isHalfView)}
-            actions={<RowMenu label={label} href={href} />}
-          />
-        ),
-      };
-    }),
+    // The calendar, marked current on every page under it (Requires Appointment, reached from the Calendar page, too).
+    {
+      key: 'calendar',
+      label: 'Calendar',
+      icon: AppIcon.Calendar,
+      href: '/calendar',
+      isSelected: isAt('/calendar'),
+      isHalfView: isHalfAt('/calendar'),
+      row: (
+        <SideNavItem
+          label="Calendar"
+          icon={AppIcon.Calendar}
+          href="/calendar"
+          isSelected={isAt('/calendar')}
+          ref={halfViewRow(isHalfAt('/calendar'))}
+          actions={<RowMenu label="Calendar" href="/calendar" />}
+        />
+      ),
+    },
   ];
   const admin: NavRailEntry[] = user.isAdmin
     ? ADMIN_PAGES.map((page) => ({

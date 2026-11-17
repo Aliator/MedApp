@@ -59,7 +59,7 @@ function entryIcon(entry: TimelineEntry): IconType {
     case 'StageFinished':
       return entry.finishedWithoutVisit ? AppIcon.Warning : AppIcon.Success;
     case 'AppointmentRequested':
-      return AppIcon.NeedsBooking;
+      return AppIcon.RequiresAppointment;
     case 'AppointmentAttended':
       return AppIcon.Success;
     case 'AppointmentDidNotAttend':

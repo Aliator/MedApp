@@ -108,7 +108,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_StageAlreadyHasAVisitInNeedsBooking_ThrowsConflictPointingToIt()
+    public async Task Handle_StageAlreadyHasAVisitInRequiresAppointment_ThrowsConflictPointingToIt()
     {
         var procedure = GivenProcedure();
         var stageId = procedure.StageAt(1).Id;
@@ -119,7 +119,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
         var act = () => _handler.Handle(Request(procedure.Id, stageId), cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage("This stage already has a visit in Needs booking. Book that one instead.");
+            .WithMessage("This stage already has a visit in Requires Appointment. Book that one instead.");
         Added.Should().BeEmpty();
     }
 
@@ -159,7 +159,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
         var act = () => _handler.Handle(Request(procedure.Id, stageId), cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage("This stage already has a visit in Needs booking. Book that one instead.");
+            .WithMessage("This stage already has a visit in Requires Appointment. Book that one instead.");
         Repository.Verify(r => r.GetOpenForStageAsync(stageId, cts.Token), Times.Exactly(2));
     }
 
