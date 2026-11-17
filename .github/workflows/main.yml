@@ -6,19 +6,20 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
-  # Whether this push changed anything outside docs/. A push of only docs/ (a review document, say) on top of a commit
-  # whose run of this workflow passed needs no new build or tests: its code is exactly the code that passed, and no
-  # build or test reads docs/ (the image's build leaves it out too). The jobs that build and test are then skipped, and
-  # GitHub counts a job skipped by its `if` as passing a required check. Anything else runs them all: a new or reopened
-  # pull request, a force push, a previous run that failed, was cancelled or hasn't finished yet, a change outside docs/
-  # (a file moved out of or into docs/ counts by both its names), a push of 300 files or more (the comparison lists
-  # only that many), or this job failing. It compares this push only, not the whole pull request, which is why
-  # paths-ignore can't do it.
+  # Whether this push needs the build and tests. A push of only docs/ (a review document, say) on top of a commit whose
+  # run of this workflow passed, with nothing merged into the base branch since that run started, needs none: a run
+  # tests the pull request merged into its base, so this one would test exactly what that run did, and no build or
+  # test reads docs/ (the image's build leaves it out too). The jobs that build and test are then skipped, and GitHub
+  # counts a job skipped by its `if` as passing a required check. Anything else runs them all: a new or reopened pull
+  # request, a force push, a previous run that failed, was cancelled or hasn't finished yet, anything merged into the
+  # base since it started, a change outside docs/ (a file moved out of or into docs/ counts by both its names), a push
+  # of 300 files or more (the comparison lists only that many), or this job failing. It compares this push only, not
+  # the whole pull request, which is why paths-ignore can't do it.
   changes:
     runs-on: ubuntu-latest
     permissions:
       actions: read    # the previous commit's runs of this workflow
-      contents: read   # compare the two commits
+      contents: read   # compare the two commits, and list the base branch's commits since the passing run
     outputs:
       code: ${{ steps.check.outputs.code }}
     steps:
@@ -30,6 +31,7 @@ jobs:
           ACTION: ${{ github.event.action }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.event.pull_request.base.ref }}
         run: |
           code=true
           reason='not a push to an open pull request'
@@ -39,14 +41,21 @@ jobs:
             compared=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" \
               --jq '(.files // []) as $f | "\(.status) \($f | length) \([$f[] | .filename, (.previous_filename // empty) | select(startswith("docs/") | not)] | length)"') \
               || compared='unknown'
-            passed=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?head_sha=$BEFORE&event=pull_request&status=success" \
-              --jq '.total_count') || passed=0
+            # The previous commit's passing runs, and when the latest of them started.
+            passing=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?head_sha=$BEFORE&event=pull_request&status=success" \
+              --jq '"\(.total_count) \([.workflow_runs[].run_started_at] | max // "none")"') || passing='0 none'
             read -r status files outside <<< "$compared"
-            if [ "$status" = ahead ] && [ "${files:-300}" -lt 300 ] && [ "$outside" = 0 ] && [ "${passed:-0}" -gt 0 ]; then
+            read -r passed started <<< "$passing"
+            # Anything merged into the base since then (a run tests the pull request merged into its base as it was).
+            moved=unknown
+            if [ "${passed:-0}" -gt 0 ] && [ "$started" != none ]; then
+              moved=$(gh api "repos/$REPO/commits?sha=$BASE&since=$started&per_page=1" --jq 'length') || moved=unknown
+            fi
+            if [ "$status" = ahead ] && [ "${files:-300}" -lt 300 ] && [ "$outside" = 0 ] && [ "${passed:-0}" -gt 0 ] && [ "$moved" = 0 ]; then
               code=false
-              reason="only docs/ changed since $BEFORE, whose run passed"
+              reason="only docs/ changed since $BEFORE, whose run passed, and nothing has merged into $BASE since it started"
             else
-              reason="compared with $BEFORE: ${compared}; its passing runs: ${passed:-0}"
+              reason="compared with $BEFORE: ${compared}; its passing runs: ${passed:-0}; commits on $BASE since: ${moved}"
             fi
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
@@ -79,8 +88,8 @@ jobs:
       # An advisory with no fixed version yet can be accepted for a short, dated time (AGENTS.md, Supply chain rules),
       # by its GitHub advisory ID in ACCEPTED, with a docs/todo.md entry it expires with. Only those IDs are let through;
       # any other high or critical advisory still fails, and after ACCEPTED_UNTIL the audit counts them all again.
-      #   GHSA-fc5q-39xc-vjpf (picomatch ReDoS, high, published 17 November 2026): every picomatch up to 4.0.7, the
-      #   latest, is affected. It reaches only build and test tools (Vite, Vitest, the router plugin,
+      #   GHSA-fc5q-39xc-vjpf (picomatch ReDoS, high; failing the audit from 17 November 2026): every picomatch up to
+      #   4.0.7, the latest, is affected. Accepted to the end of 17 December 2026. It reaches only build and test tools (Vite, Vitest, the router plugin,
       #   typescript-eslint, the Astryx CLI), never the app: `npm audit --omit=dev` is clean.
       - name: Audit dependencies
         env:
@@ -89,6 +98,11 @@ jobs:
         run: |
           # The whole report, for the log.
           npm audit --audit-level=high || true
+          # The end date must be a date, at most 31 days ahead, so a typo can't keep an exception open.
+          if [[ -n "$ACCEPTED" ]] && { ! [[ "$ACCEPTED_UNTIL" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || [[ "$ACCEPTED_UNTIL" > "$(date -u -d '+31 days' +%F)" ]]; }; then
+            echo "::error::ACCEPTED_UNTIL must be a date (YYYY-MM-DD) at most 31 days ahead, not '$ACCEPTED_UNTIL'."
+            exit 1
+          fi
           if [[ -z "$ACCEPTED" || "$(date -u +%F)" > "$ACCEPTED_UNTIL" ]]; then
             [[ -n "$ACCEPTED" ]] && echo "::warning::$ACCEPTED was accepted until $ACCEPTED_UNTIL: the audit counts it again."
             npm audit --audit-level=high
