@@ -738,7 +738,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
             // Folded, Astryx's heading adds a "MedApp" tooltip it can't leave out; the app's mark speaks for itself,
             // so it's a plain link here, like the rail's icons.
             // With the bell under it, as the rail has no room beside it.
-            <VStack gap={1} hAlign="center">
+            // Room under the logo for the bell's count, which sits over its top right corner.
+            <VStack gap={3} hAlign="center">
               <IconButton
                 label="MedApp"
                 icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}

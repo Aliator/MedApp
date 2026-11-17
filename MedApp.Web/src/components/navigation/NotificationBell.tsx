@@ -40,11 +40,12 @@ const KIND_ICONS: Record<string, IconType> = {
 
 /** The bell, which the unread count is placed over. */
 const BELL = {position: 'relative'} as const;
-/** The unread count, over the bell's top right corner, a little outside it. */
+/** The unread count, centred on the bell's top right corner, so it covers only that corner of the bell. */
 const COUNT = {
   position: 'absolute',
-  insetBlockStart: 'calc(var(--spacing-1) * -1)',
-  insetInlineEnd: 'calc(var(--spacing-1) * -1)',
+  insetBlockStart: 0,
+  insetInlineEnd: 0,
+  translate: '45% -45%',
   pointerEvents: 'none',
 } as const;
 
