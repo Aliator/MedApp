@@ -76,8 +76,45 @@ jobs:
 
       # A known high or critical advisory in any installed package fails the pull request. Dev dependencies too: they
       # run here, in CI, and in the image's build stage. Moderate and low ones are left to Dependabot.
+      # An advisory with no fixed version yet can be accepted for a short, dated time (AGENTS.md, Supply chain rules),
+      # by its GitHub advisory ID in ACCEPTED, with a docs/todo.md entry it expires with. Only those IDs are let through;
+      # any other high or critical advisory still fails, and after ACCEPTED_UNTIL the audit counts them all again.
+      #   GHSA-fc5q-39xc-vjpf (picomatch ReDoS, high, published 17 November 2026): every picomatch up to 4.0.7, the
+      #   latest, is affected. It reaches only build and test tools (Vite, Vitest, the router plugin,
+      #   typescript-eslint, the Astryx CLI), never the app: `npm audit --omit=dev` is clean.
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        env:
+          ACCEPTED: GHSA-fc5q-39xc-vjpf
+          ACCEPTED_UNTIL: '2026-12-17'
+        run: |
+          # The whole report, for the log.
+          npm audit --audit-level=high || true
+          if [[ -z "$ACCEPTED" || "$(date -u +%F)" > "$ACCEPTED_UNTIL" ]]; then
+            [[ -n "$ACCEPTED" ]] && echo "::warning::$ACCEPTED was accepted until $ACCEPTED_UNTIL: the audit counts it again."
+            npm audit --audit-level=high
+            exit
+          fi
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
+          node -e '
+            const report = JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP + "/npm-audit.json", "utf8"));
+            if (!report.vulnerabilities) {
+              console.error("npm audit gave no report:", JSON.stringify(report).slice(0, 500));
+              process.exit(1);
+            }
+            // Advisories are the objects in each package`s "via" (the strings there name packages that bring one in).
+            const found = new Set();
+            for (const pkg of Object.values(report.vulnerabilities))
+              for (const via of pkg.via)
+                if (typeof via === "object" && ["high", "critical"].includes(via.severity))
+                  found.add(String(via.url ?? via.source).split("/").pop());
+            const accepted = process.env.ACCEPTED.split(/\s+/);
+            const others = [...found].filter((id) => !accepted.includes(id));
+            if (others.length > 0) {
+              console.error("High or critical advisories:", others.join(", "));
+              process.exit(1);
+            }
+            console.log(`No high or critical advisories but ${[...found].join(", ") || "none"}, accepted until ${process.env.ACCEPTED_UNTIL}.`);
+          '
 
       - name: Lint
         run: npm run lint
