@@ -1287,7 +1287,8 @@ This describes what the code does today. It isn't a compliance statement; [secti
 - **Three stages** for every real change: plan at the highest effort, implement with a separate agent at high effort, then review with a fresh agent at the highest effort, which isn't told the author's conclusions ([ADR-19](#9-architecture-decisions)).
 - **"Merge it" or "ship it"** runs a fixed flow (`AGENTS.md`): commit and push; open the pull request; write the review document (`docs/reviews/pr-<number>-<name>.md`) and stop on any high or critical finding; wait for CI; merge; delete the branch; pull `main`; and check the Publish run, which is the deploy.
 - **CI is watched, not assumed.** A background agent follows the run for the pushed commit and reports a failure with its cause and a proposed fix; nothing is fixed without the owner's approval.
-- **UI changes** get targeted parity screenshots while working, and the full set when merging.
+- **Testing is targeted locally, complete in CI.** A change is checked locally with only the tests for what it touched (a filtered unit test run, the changed files' Vitest tests, one integration fixture when SQL or Identity is involved). CI runs every suite on each pull request, on GitHub's machines, and a pull request merges only when it's green. That keeps a developer's PC free of the heavy runs (Docker, browsers) without lowering the bar for `main`.
+- **UI changes** get parity screenshots of just the screens they touch.
 
 ---
 

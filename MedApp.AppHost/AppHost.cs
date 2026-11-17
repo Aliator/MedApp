@@ -7,6 +7,10 @@ var sql = builder.AddSqlServer("sql", port: 14330)
     .WithDataVolume("medapp-sql-data")
     // medapp-dev's save_snapshot / restore_snapshot write .bak files here, so they land in the repo's git-ignored folder.
     .WithBindMount("../tools/MedApp.DevMcp/.backups", "/var/opt/mssql/backups")
+    // SQL Server otherwise takes up to 80% of the memory it can see, which in Docker Desktop is the WSL machine's (half
+    // the PC's by default). 2 GB, its documented minimum, is plenty for development. Changing an environment variable
+    // recreates the persistent container once; the data stays in the volume.
+    .WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "2048")
     .WithLifetime(ContainerLifetime.Persistent);
 
 // Aspire creates the database if it's missing; migrations are still applied by hand (see AGENTS.md).

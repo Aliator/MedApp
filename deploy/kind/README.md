@@ -51,6 +51,18 @@ To have the cluster follow git instead, use `up.sh --argocd`: Argo CD deploys th
 
 `deploy/kind/down.sh` deletes the cluster, its database, its attachments' files and its secret store. The AppHost's dev database isn't affected.
 
+### Stopping and starting
+
+The cluster uses memory and CPU the whole time it runs, even idle. Stop it when you're not testing the chart or a deploy:
+
+```bash
+docker stop medapp-control-plane    # stops it; everything in it is kept
+docker start medapp-control-plane   # starts it again; give the pods a minute or two
+```
+
+- **If it comes back by itself** when Docker Desktop starts, run `docker update --restart=no medapp-control-plane` once. Then it starts only when you start it.
+- **With Argo CD,** a restarted cluster catches up with `env/kind` by itself.
+
 ## Reading email
 
 The cluster sends no real email. The API sends everything (password resets, email confirmations, security notices) to **Mailpit**, a mail catcher the chart runs beside it (`mailpit.enabled` in `values.yaml`). To read it, forward Mailpit's inbox to this machine and open **http://localhost:8025**:
