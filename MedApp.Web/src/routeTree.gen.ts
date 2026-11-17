@@ -36,6 +36,7 @@ import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settin
 import { Route as AppAdminStagesRouteImport } from './routes/_app/admin/stages'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
+import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calendar/needs-booking'
 import { Route as AppCalendarRequiresAppointmentRouteImport } from './routes/_app/calendar/requires-appointment'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
@@ -191,6 +192,11 @@ const AppCalendarIndexRoute = AppCalendarIndexRouteImport.update({
   path: '/calendar/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCalendarNeedsBookingRoute = AppCalendarNeedsBookingRouteImport.update({
+  id: '/calendar/needs-booking',
+  path: '/calendar/needs-booking',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCalendarRequiresAppointmentRoute =
   AppCalendarRequiresAppointmentRouteImport.update({
     id: '/calendar/requires-appointment',
@@ -318,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
@@ -365,6 +372,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/stages': typeof AppAdminStagesRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/procedures/new': typeof AppProceduresNewRoute
@@ -414,6 +422,7 @@ export interface FileRoutesById {
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/stages': typeof AppAdminStagesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
+  '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
   '/_app/procedures/new': typeof AppProceduresNewRoute
@@ -463,6 +472,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/stages'
     | '/admin/users'
+    | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
     | '/patients/add'
     | '/procedures/new'
@@ -510,6 +520,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/stages'
     | '/admin/users'
+    | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
     | '/patients/add'
     | '/procedures/new'
@@ -558,6 +569,7 @@ export interface FileRouteTypes {
     | '/_app/admin/settings'
     | '/_app/admin/stages'
     | '/_app/admin/users'
+    | '/_app/calendar/needs-booking'
     | '/_app/calendar/requires-appointment'
     | '/_app/patients/add'
     | '/_app/procedures/new'
@@ -783,6 +795,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCalendarIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/calendar/needs-booking': {
+      id: '/_app/calendar/needs-booking'
+      path: '/calendar/needs-booking'
+      fullPath: '/calendar/needs-booking'
+      preLoaderRoute: typeof AppCalendarNeedsBookingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/calendar/requires-appointment': {
       id: '/_app/calendar/requires-appointment'
       path: '/calendar/requires-appointment'
@@ -937,6 +956,7 @@ interface AppRouteChildren {
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminStagesRoute: typeof AppAdminStagesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
+  AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
   AppProceduresNewRoute: typeof AppProceduresNewRoute
@@ -978,6 +998,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminStagesRoute: AppAdminStagesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
+  AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
   AppProceduresNewRoute: AppProceduresNewRoute,
