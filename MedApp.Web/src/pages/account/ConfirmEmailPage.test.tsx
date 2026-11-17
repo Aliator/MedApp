@@ -117,6 +117,33 @@ describe('ConfirmEmailPage', () => {
     });
   });
 
+  describe('as the app runs in development (StrictMode, which runs effects twice)', () => {
+    const renderStrict = (user: typeof staffUser) => {
+      window.history.replaceState(null, '', LINK);
+      const fetch = mockApi({[CONFIRM]: () => new Response(null, {status: 204})});
+      return {...renderWithApp(<ConfirmEmailPage />, {path: '/confirm-email', user, strict: true}), fetch};
+    };
+
+    it('asks someone signed out to sign in, keeping the link it read', async () => {
+      const {user} = renderStrict(signedOutUser);
+
+      await user.click(await screen.findByRole('button', {name: 'Sign in'}));
+
+      expect(screen.queryByText(BROKEN_EMAIL_LINK)).not.toBeInTheDocument();
+      expect(pendingEmailConfirmation.read()).toEqual({userId: USER, token: 'synthetic+token'});
+      expect(window.location.hash).toBe('');
+    });
+
+    it("confirms with the link's token for someone signed in", async () => {
+      const {user, fetch} = renderStrict(staffUser);
+
+      await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+
+      expect(await screen.findByText(EMAIL_CONFIRMED)).toBeInTheDocument();
+      expect(await (confirmCalls(fetch)[0][0] as Request).json()).toEqual({userId: USER, token: 'synthetic+token'});
+    });
+  });
+
   describe('back from signing in', () => {
     it('confirms the kept link with a click, then forgets it', async () => {
       pendingEmailConfirmation.save({userId: USER, token: 'kept-token'});
