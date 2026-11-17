@@ -108,9 +108,10 @@ export interface CalendarGridProps {
    */
   isHeadingHidden?: boolean;
   /**
-   * Squeezed into a narrow window (the Calendar page's compact week): a narrower hour gutter, columns that may be
-   * narrower, and every item on one line, cut short, its words in full in its tooltip and accessible name. Each day's
-   * heading still names its full date to screen readers.
+   * Squeezed into a card too narrow for the full week (the Calendar page's compact week): a narrower hour gutter,
+   * columns that may be narrower, headed by the weekday over the date, and items whose words wrap to the lines their
+   * height allows, in full in their tooltip and accessible name; in a column too narrow for words (a phone), an item
+   * shows its start time alone. Each day's heading still names its full date to screen readers.
    */
   isCompact?: boolean;
   /**
@@ -270,8 +271,8 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
  * edge. A week's weekends show as narrow greyed columns that do nothing. A week's columns are headed by their days; a
  * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
  * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put. A compact grid
- * (`isCompact`, with `dayColumns`' `weekdaysOnly`) fits a week into a narrow window: Monday to Friday, a narrower hour
- * gutter, and items on one line each.
+ * (`isCompact`, with `dayColumns`' `weekdaysOnly`) fits a week into a narrow card: Monday to Friday, a narrower hour
+ * gutter, two-line headings, and items kept to the lines they have room for (or their start time, on a phone).
  *
  * Use it for any calendar: the Calendar page (selecting free time, opening and dragging items, a person's day or
  * week, and the team view), Home's day calendar (read-only), or anything else that shows people's time. It knows
@@ -1005,8 +1006,9 @@ const stripe = (colour: string) =>
   `light-dark(var(--color-background-${colour}), color-mix(in srgb, var(--color-background-${colour}) 50%, transparent))`;
 
 /**
- * How an item's text fits its height, in rows (15 minutes each): `tiny` (under 10 minutes) shows none, its words only in
- * its tooltip and accessible name; `short` (10 to 15 minutes) one small, tight line; otherwise one line a row.
+ * How an item's text fits its height, in rows (each as tall as a line of text, whatever the row length): `tiny` (under
+ * two thirds of a row: under 10 minutes in 15-minute rows) shows none, its words only in its tooltip and accessible
+ * name; `short` (under a row) one small, tight line; otherwise one line a row.
  */
 function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
   // A little leeway, so 10 minutes (two thirds of a row) counts as short whatever the rounding.
@@ -1017,8 +1019,9 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
 /**
  * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter), as many lines as fit,
  * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
- * it never relies on colour alone. One under 10 minutes, too short for any text, has a tooltip. On a compact grid every
- * item is one line, cut short, with its words in full in a tooltip.
+ * it never relies on colour alone. One too short for any text has a tooltip. On a compact grid its words wrap to the
+ * lines it has room for (the short ones at the same size as the rest), in full in a tooltip, and where even that's
+ * too narrow, it shows its start time alone.
  */
 function GridItem({
   placed,
