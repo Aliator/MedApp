@@ -120,6 +120,13 @@ describe('freeStarts', () => {
     expect(formatTime(starts[starts.length - 1])).toBe('17:30');
   });
 
+  it('offers every 5 minutes instead, for a calendar showing 5-minute rows', () => {
+    const starts = freeStarts(day, [], 30, EARLY, 5).map(formatTime);
+    expect(starts).toHaveLength(115);
+    expect(starts.slice(0, 3)).toEqual(['08:00', '08:05', '08:10']);
+    expect(freeStartsByDay({days: [day]}, 30, EARLY, undefined, 5)[MONDAY]).toHaveLength(115);
+  });
+
   it('leaves out times that would overlap something, and fits up to it exactly', () => {
     const busy = [intervalOf(ukTime(MONDAY, '09:00'), ukTime(MONDAY, '10:00'))];
     const times = freeStarts(day, busy, 30, EARLY).map(formatTime);

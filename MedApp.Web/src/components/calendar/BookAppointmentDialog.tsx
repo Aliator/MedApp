@@ -67,6 +67,8 @@ export interface BookAppointmentDialogProps {
   endUtc?: string;
   /** The member of staff to suggest when none is preselected (e.g. a procedure's only assignee); otherwise the signed-in user. */
   suggestedStaffUserId?: string;
+  /** The steps free start times come in: 15 minutes, or 5 from a calendar showing 5-minute rows. */
+  stepMinutes?: number;
 }
 
 /**
@@ -132,6 +134,7 @@ function BookingForm({
   startUtc,
   endUtc,
   suggestedStaffUserId,
+  stepMinutes,
 }: BookAppointmentDialogProps) {
   const me = useCurrentUser();
   const isNarrow = useIsNarrow();
@@ -197,8 +200,8 @@ function BookingForm({
   const weekEnd = addDays(week, 4);
   const calendar = useQuery({...calendarQuery({staffUserId: staffId, from: week, to: weekEnd}), enabled: isOpen && staffId !== undefined});
   const free = useMemo(
-    () => (calendar.data ? freeStartsByDay(calendar.data, length, now, appointment?.id) : {}),
-    [calendar.data, length, now, appointment?.id],
+    () => (calendar.data ? freeStartsByDay(calendar.data, length, now, appointment?.id, stepMinutes) : {}),
+    [calendar.data, length, now, appointment?.id, stepMinutes],
   );
   const weekDays = (calendar.data?.days ?? []).filter((d) => d.isWorkingDay);
   const firstFreeDay = weekDays.find((d) => (free[d.date ?? '']?.length ?? 0) > 0)?.date;

@@ -1,10 +1,11 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
 import type {CalendarDay} from '../../api/calendar';
 import {calendarDay, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
 import {renderWithApp} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
 import {appointmentItem, blockItem, meetingItem, type CalendarGridItem} from './calendarItems';
-import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarGridProps} from './CalendarGrid';
+import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarGridProps, type CalendarRowMinutes} from './CalendarGrid';
 
 const MONDAY = '2026-11-23';
 const week = (today = MONDAY) => Array.from({length: 7}, (_, i) => calendarDay(addDays(MONDAY, i), today));
@@ -590,6 +591,127 @@ describe('CalendarGrid', () => {
 
       expect(screen.getByRole('button', {name: 'Lunch, Team lunch, 12:00 to 13:00'}).closest('[data-kind]')).toHaveTextContent('Lunch, Team lunch');
     });
+  });
+
+  describe('with 5-minute rows', () => {
+    /** Each day's column laid out with 5-minute rows as tall as 15-minute ones: 22px a row, 120 rows. */
+    function layOutFiveMinuteColumns() {
+      document.querySelectorAll<HTMLElement>('.mc-col').forEach((element, i) => {
+        element.getBoundingClientRect = () => ({left: i * 100, right: (i + 1) * 100, top: 0, bottom: 2640, width: 100, height: 2640, x: i * 100, y: 0, toJSON: () => ({})});
+      });
+    }
+
+    it('has three times the rows, with lighter quarter hours down the side, and selects 5 minutes at a time', async () => {
+      atMondayMorning();
+      const {user, onSelectRange} = renderGrid({rowMinutes: 5});
+
+      expect(await screen.findByRole('group', {name: "test-user's calendar"})).toHaveAttribute('data-row-minutes', '5');
+      // 120 free 5-minute rows on each of the five working days.
+      expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(600);
+      expect(screen.getByText('08:15').closest('.mc-hour')).toHaveAttribute('data-quarter');
+      expect(screen.getByText('09:00').closest('.mc-hour')).not.toHaveAttribute('data-quarter');
+      expect(document.querySelector('[data-slot="0-1"]')).toHaveAttribute('data-line', 'minor');
+      expect(document.querySelector('[data-slot="0-3"]')).toHaveAttribute('data-line', 'quarter');
+
+      const free = slot('Tuesday 24 November, 09:05, free');
+      fireEvent.pointerDown(free, {button: 0, pointerId: 1});
+      fireEvent.pointerUp(free, {pointerId: 1});
+      await waitFor(() =>
+        expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: '2026-11-24T09:05:00.000Z', endUtc: '2026-11-24T09:10:00.000Z', column: '2026-11-24'}, free),
+      );
+
+      // The keyboard goes a row (5 minutes) at a time.
+      free.focus();
+      await user.keyboard('{ArrowDown}');
+      expect(slot('Tuesday 24 November, 09:10, free')).toHaveFocus();
+      await user.keyboard('{Shift>}{ArrowDown}{/Shift}{Enter}');
+      expect(onSelectRange).toHaveBeenLastCalledWith(
+        {date: '2026-11-24', startUtc: '2026-11-24T09:10:00.000Z', endUtc: '2026-11-24T09:20:00.000Z', column: '2026-11-24'},
+        expect.anything(),
+      );
+    });
+
+    it('drags a selection and an item by 5 minutes', async () => {
+      atMondayMorning();
+      const appointment = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '09:30'}));
+      const {onSelectRange, onItemMove} = renderGrid({rowMinutes: 5, items: [appointment]});
+      const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest<HTMLElement>('[data-kind]')!;
+      layOutFiveMinuteColumns();
+
+      // From 10:00 (row 24) down to 10:10 (row 26).
+      fireEvent.pointerDown(slot('Tuesday 24 November, 10:00, free'), {button: 0, pointerId: 1, clientX: 150, clientY: yOf(24)});
+      fireEvent.pointerMove(column('Tuesday 24 November'), {pointerId: 1, clientX: 150, clientY: yOf(26)});
+      fireEvent.pointerUp(column('Tuesday 24 November'), {pointerId: 1});
+      await waitFor(() =>
+        expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: '2026-11-24T10:00:00.000Z', endUtc: '2026-11-24T10:15:00.000Z', column: '2026-11-24'}, expect.anything()),
+      );
+
+      // Picked up by its top (09:00, row 12), dropped on Wednesday at 14:05 (row 73), keeping its 30 minutes.
+      fireEvent.pointerDown(card, {button: 0, pointerId: 7, clientX: 50, clientY: yOf(12)});
+      fireEvent.pointerMove(card, {pointerId: 7, clientX: 250, clientY: yOf(73)});
+      expect(screen.getByText('14:05 to 14:35')).toBeInTheDocument();
+      fireEvent.pointerUp(card, {pointerId: 7});
+      expect(onItemMove).toHaveBeenCalledWith(appointment, {date: '2026-11-25', startUtc: '2026-11-25T14:05:00.000Z', endUtc: '2026-11-25T14:35:00.000Z', column: '2026-11-25'});
+    });
+
+    it('keeps the same time at the top when the row length changes', async () => {
+      // Columns as tall as their rows, 22px each, as a browser would lay them out (jsdom lays out nothing).
+      const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-col') ? Number(this.closest<HTMLElement>('.medapp-calendar')!.dataset.rowMinutes === '5' ? 2640 : 880) : 0;
+        },
+      });
+      try {
+        atMondayMorning();
+        // The same grid throughout, its row length switched as the Calendar page's control does.
+        function Switchable() {
+          const [rowMinutes, setRowMinutes] = useState<CalendarRowMinutes>(15);
+          return (
+            <>
+              <button type="button" onClick={() => setRowMinutes(rowMinutes === 15 ? 5 : 15)}>
+                Switch
+              </button>
+              <CalendarGrid label="test-user's calendar" columns={dayColumns(week(), [])} rowMinutes={rowMinutes} />
+            </>
+          );
+        }
+        const {user} = renderWithApp(<Switchable />);
+        await screen.findByRole('group', {name: 'Monday 23 November, today'});
+        const scroller = document.querySelector<HTMLElement>('.mc-scroll')!;
+
+        // 10:30 at the top: a quarter of the way through the working day.
+        scroller.scrollTop = 220;
+        fireEvent.scroll(scroller);
+        await user.click(screen.getByRole('button', {name: 'Switch'}));
+        expect(document.querySelector('.medapp-calendar')).toHaveAttribute('data-row-minutes', '5');
+        expect(scroller.scrollTop).toBe(660);
+
+        await user.click(screen.getByRole('button', {name: 'Switch'}));
+        expect(scroller.scrollTop).toBe(220);
+      } finally {
+        Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+      }
+    });
+  });
+
+  it('opens at the start of the working day once it has ended', async () => {
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('mc-col') ? 880 : 0;
+      },
+    });
+    try {
+      atMondayMorning('2026-11-23T19:00:00Z');
+      renderGrid();
+      await screen.findByRole('group', {name: 'Monday 23 November, today'});
+      expect(document.querySelector<HTMLElement>('.mc-scroll')!.scrollTop).toBe(0);
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+    }
   });
 
   it('shows nothing much for no days', async () => {

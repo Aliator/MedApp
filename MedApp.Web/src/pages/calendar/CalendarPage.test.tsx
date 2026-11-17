@@ -827,6 +827,40 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('button', {name: 'Block time'})).toBeInTheDocument();
   });
 
+  it('switches between 15 and 5 minute rows, kept in the address, and books or blocks on 5-minute steps', async () => {
+    const {user, onSearchChange} = renderPage();
+    const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    expect(grid).toHaveAttribute('data-row-minutes', '15');
+    expect(screen.getByRole('radio', {name: '15 min'})).toBeChecked();
+
+    await user.click(screen.getByRole('radio', {name: '5 min'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({rows: 5});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
+
+    select('Tuesday 24 November, 10:05, free');
+    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    expect(await dialog().findByText('Tuesday 24 November, 10:05 to 10:10 with test-user')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    select('Tuesday 24 November, 11:10, free');
+    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:10');
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('radio', {name: '15 min'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined});
+  });
+
+  it('opens with the row length the address names', async () => {
+    renderPage({isNarrow: true, search: {view: 'week', rows: 5}});
+    const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    expect(grid).toHaveAttribute('data-row-minutes', '5');
+    expect(grid).toHaveAttribute('data-compact');
+    expect(screen.getByRole('radio', {name: '5 min'})).toBeChecked();
+  });
+
   it("keeps the menu for the selected time to its buttons' width, not the selection's", async () => {
     renderPage({isNarrow: true});
     await screen.findByRole('group', {name: /^My calendar,/});

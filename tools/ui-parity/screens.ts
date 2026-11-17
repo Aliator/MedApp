@@ -117,6 +117,15 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-5min-rows',
+    title: 'Calendar with 5-minute rows: the week three times taller, scrolling, with quarter hours down the side',
+    path: '/calendar?rows=5',
+    prepare: async (page) => {
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-book-dialog',
     title: 'Book Appointment from New: who, with whom and how long beside the free days and times (not saved)',
     path: '/calendar',

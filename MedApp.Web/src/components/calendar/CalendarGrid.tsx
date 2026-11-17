@@ -6,12 +6,15 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
-import {useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
+import {useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, isWeekday, SLOT_MINUTES} from '../../utils/calendarSlots';
+import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, isWeekday} from '../../utils/calendarSlots';
 import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
+
+/** How long each row of the grid is, in minutes: 15 (the default) or 5. */
+export type CalendarRowMinutes = 15 | 5;
 
 /** A stretch of free time in one column: what selecting on the grid gives, and where an item is moved to. */
 export interface CalendarSelection {
@@ -102,14 +105,19 @@ export interface CalendarGridProps {
    * heading still names its full date to screen readers.
    */
   isCompact?: boolean;
+  /**
+   * How long each row is: 15 minutes (the default), or 5, when the rows stay as tall, so the day is three times taller
+   * and scrolls inside the grid, with lighter quarter-hour times down the side. Selecting, the keyboard and dragging
+   * all go a row at a time. Switching keeps the same time at the top.
+   */
+  rowMinutes?: CalendarRowMinutes;
 }
 
 const MINUTE = 60_000;
-const SLOT = SLOT_MINUTES * MINUTE;
-/** How much of today before now stays in view when the grid opens on it. */
+/** How much of today before now stays in view when the grid opens on it (at most a third of what's in view). */
 const SCROLL_LEAD = 60 * MINUTE;
-/** Rows in a working day (08:00 to 18:00), when a day doesn't say. */
-const DEFAULT_ROWS = 40;
+/** A working day (08:00 to 18:00), when a day doesn't say. */
+const DEFAULT_DAY = 10 * 60 * MINUTE;
 
 interface ColumnLayout {
   column: CalendarColumn;
@@ -121,6 +129,8 @@ interface ColumnLayout {
   isNarrow: boolean;
   start: number;
   rows: number;
+  /** The time its rows cover, in ms: `rows` times the row length. */
+  span: number;
   /** Free time can be selected in it: a working day that isn't past, on a grid that selects. */
   canSelect: boolean;
   /** Each row is taken: by an item, or outside the column's `freeTime`. */
@@ -140,7 +150,7 @@ interface PlacedItem {
 
 /** Items beside each other where they overlap: each cluster of overlapping items shares the width. */
 function placeItems(items: CalendarGridItem[], layout: ColumnLayout): PlacedItem[] {
-  const span = layout.rows * SLOT;
+  const {span} = layout;
   const sorted = [...items]
     .map((item) => ({item, ...intervalOf(item.startUtc, item.endUtc)}))
     .sort((a, b) => a.start - b.start || b.end - a.end);
@@ -221,8 +231,8 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
 }
 
 /**
- * A member of staff's time as a grid (docs/calendar-plan.md, decision 28): 08:00 to 18:00 in 15-minute rows, hour
- * labels down the side, appointments, blocked time and meetings placed by their times, in columns. A column is a day of
+ * A member of staff's time as a grid (docs/calendar-plan.md, decisions 28 and 68): 08:00 to 18:00 in 15-minute rows
+ * (or 5-minute ones, `rowMinutes`), hour labels down the side, appointments, blocked time and meetings placed by their times, in columns. A column is a day of
  * one person's calendar (a day or a week, from `dayColumns`) or a person on one day (the team view, where each column
  * is labelled with who it is). Past days and times are dimmed, today's columns are tinted, and a line shows the time
  * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
@@ -254,19 +264,21 @@ export function CalendarGrid({
   onDayOpen,
   isHeadingHidden = false,
   isCompact = false,
+  rowMinutes = 15,
 }: CalendarGridProps) {
   const now = useNow();
   const hintId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
   const canSelect = onSelectRange !== undefined;
+  const SLOT = rowMinutes * MINUTE;
 
   const layouts = useMemo<ColumnLayout[]>(
     () =>
       columns.map((column) => {
         const {day} = column;
         const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
-        const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_ROWS * SLOT;
+        const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_DAY;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
         const busy = column.items.map((i) => intervalOf(i.startUtc, i.endUtc));
         const free = column.freeTime?.filter((f) => f.startUtc && f.endUtc).map((f) => intervalOf(f.startUtc!, f.endUtc!));
@@ -288,20 +300,22 @@ export function CalendarGrid({
           isNarrow: !day.isWorkingDay && !column.label,
           start,
           rows,
+          span: rows * SLOT,
           canSelect: canSelect && !!day.isWorkingDay && !day.isPast,
           taken,
           unavailable,
         };
       }),
-    [columns, canSelect],
+    [columns, canSelect, SLOT],
   );
 
   const placedByColumn = useMemo(() => layouts.map((l) => placeItems(l.column.items, l)), [layouts]);
 
   const nowMs = now ?? undefined;
 
-  // Opens on the part of today that matters: once the time is known (after mount), with today shown and the day under
-  // way, it scrolls so an hour before now is at the top. Only the first time; moving through days leaves it alone.
+  // Opens on the part of today that matters: once the time is known (after mount), with today shown and the working
+  // day under way, it scrolls so the time now is in view, an hour before it at the top (or less, in a short window).
+  // Otherwise it stays at the start of the working day. Only the first time; moving through days leaves it alone.
   const hasScrolledToNow = useRef(false);
   useEffect(() => {
     if (hasScrolledToNow.current || nowMs === undefined) return;
@@ -311,9 +325,28 @@ export function CalendarGrid({
     const column = columnRefs.current[index];
     if (index < 0 || !scroller || !column) return;
     const today = layouts[index];
-    const fraction = (nowMs - SCROLL_LEAD - today.start) / (today.rows * SLOT);
-    if (fraction > 0) scroller.scrollTop = Math.min(fraction, 1) * column.offsetHeight;
+    if (nowMs < today.start || nowMs >= today.start + today.span) return;
+    const height = column.offsetHeight;
+    const lead = (SCROLL_LEAD / today.span) * height;
+    const top = ((nowMs - today.start) / today.span) * height - (scroller.clientHeight > 0 ? Math.min(lead, scroller.clientHeight / 3) : lead);
+    if (top > 0) scroller.scrollTop = top;
   }, [nowMs, layouts]);
+
+  // Where the view is, as a share of the day, so a change of row length keeps the same time at the top.
+  const topShare = useRef(0);
+  const onScroll = () => {
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const height = columnRefs.current[0]?.offsetHeight ?? 0;
+    if (scroller && height > 0) topShare.current = scroller.scrollTop / height;
+  };
+  const shownRowMinutes = useRef(rowMinutes);
+  useLayoutEffect(() => {
+    if (shownRowMinutes.current === rowMinutes) return;
+    shownRowMinutes.current = rowMinutes;
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const height = columnRefs.current[0]?.offsetHeight ?? 0;
+    if (scroller && height > 0) scroller.scrollTop = topShare.current * height;
+  }, [rowMinutes]);
 
   /** A slot that can be selected: free, in a column that can be, and not started yet. */
   const isFree = (col: number, row: number) => {
@@ -554,13 +587,18 @@ export function CalendarGrid({
     onItemOpen?.(item, column);
   };
 
+  // The hours down the side, and with 5-minute rows the quarter hours between them, lighter.
   const hourLabels = useMemo(() => {
     const first = layouts.find((l) => l.day.isWorkingDay) ?? layouts[0];
     if (!first) return [];
-    return Array.from({length: Math.ceil(first.rows / 4)}, (_, hour) => ({row: hour * 4, text: formatTime(iso(first.start + hour * 4 * SLOT))}));
-  }, [layouts]);
+    const every = (rowMinutes === 5 ? 15 : 60) / rowMinutes;
+    return Array.from({length: Math.ceil(first.rows / every)}, (_, i) => {
+      const row = i * every;
+      return {row, text: formatTime(iso(first.start + row * SLOT)), isQuarter: (row * rowMinutes) % 60 !== 0};
+    });
+  }, [layouts, rowMinutes, SLOT]);
 
-  const rowsShown = layouts[0]?.rows ?? DEFAULT_ROWS;
+  const rowsShown = layouts[0]?.rows ?? DEFAULT_DAY / SLOT;
   const isOneDay = layouts.length === 1 && !layouts[0].column.label;
   const ghost = drag?.isMoving && drag.to ? {col: drag.to.col, range: ghostOf(drag)!} : null;
   // The narrowest the columns can be together, so more than fit scroll sideways rather than squeeze.
@@ -577,12 +615,13 @@ export function CalendarGrid({
       height="100%"
       className="medapp-calendar"
       data-compact={isCompact || undefined}
+      data-row-minutes={rowMinutes}
       style={{['--mc-rows' as string]: rowsShown, ['--mc-min-inline' as string]: minInline, minHeight: 0}}>
       <style>{GRID_CSS}</style>
       <VisuallyHidden id={hintId}>
         Arrow keys move between free times. Shift with the up or down arrow selects more. Enter selects.
       </VisuallyHidden>
-      <div className="mc-scroll">
+      <div className="mc-scroll" onScroll={onScroll}>
         {!isHeadingHidden && (
           <div className="mc-head">
             <div className="mc-gutter" aria-hidden />
@@ -624,7 +663,7 @@ export function CalendarGrid({
         <div className="mc-body">
           <div className="mc-gutter" aria-hidden>
             {hourLabels.map((h) => (
-              <span key={h.row} className="mc-hour" style={{top: `calc(var(--mc-row) * ${h.row})`}}>
+              <span key={h.row} className="mc-hour" data-quarter={h.isQuarter || undefined} style={{top: `calc(var(--mc-row) * ${h.row})`}}>
                 <Text type="supporting" color="secondary">
                   {h.text}
                 </Text>
@@ -635,8 +674,8 @@ export function CalendarGrid({
             const weekend = !l.day.isWorkingDay;
             const placed = placedByColumn[col];
             const nowTop =
-              l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.rows * SLOT
-                ? `${((nowMs - l.start) / (l.rows * SLOT)) * 100}%`
+              l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.span
+                ? `${((nowMs - l.start) / l.span) * 100}%`
                 : null;
             const shownSelection =
               pending && pending.col === col
@@ -675,7 +714,9 @@ export function CalendarGrid({
                 ) : (
                   Array.from({length: l.rows}, (_, row) => {
                     const start = l.start + row * SLOT;
-                    const line = row % 4 === 0 ? 'hour' : row % 2 === 0 ? 'half' : 'quarter';
+                    // The line above the row: the hour's, the half hour's, a quarter's, or (5-minute rows) a fainter one.
+                    const minute = row * rowMinutes;
+                    const line = minute % 60 === 0 ? 'hour' : minute % 30 === 0 ? 'half' : minute % 15 === 0 ? 'quarter' : 'minor';
                     const isPast = l.day.isPast || (nowMs !== undefined && start + SLOT <= nowMs);
                     if (!isFree(col, row)) {
                       return (
@@ -781,7 +822,7 @@ export function CalendarGrid({
 
 /** A stretch of a day as a position in its column. */
 function rangeStyle(l: ColumnLayout, startUtc: string, endUtc: string) {
-  const span = l.rows * SLOT;
+  const {span} = l;
   const t = intervalOf(startUtc, endUtc);
   return {top: `${((t.start - l.start) / span) * 100}%`, height: `${((t.end - t.start) / span) * 100}%`};
 }
@@ -954,6 +995,10 @@ const GRID_CSS = `
 .medapp-calendar .mc-weekend-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .medapp-calendar .mc-slot { display: block; box-sizing: border-box; inline-size: 100%; block-size: var(--mc-row); margin: 0; padding: 0; border: 0; background: transparent; border-block-start: 1px dotted var(--color-border); }
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
+.medapp-calendar .mc-slot[data-line="minor"] { border-block-start-color: color-mix(in srgb, var(--color-border) 50%, transparent); }
+.medapp-calendar[data-row-minutes="5"] .mc-slot[data-line="quarter"] { border-block-start-style: solid; }
+.medapp-calendar .mc-hour[data-quarter] { opacity: 0.7; }
+.medapp-calendar .mc-hour[data-quarter] .astryx-text { font-size: var(--font-size-xs); }
 .medapp-calendar .mc-slot[data-line="hour"] { border-block-start: 1px solid var(--color-border-emphasized); }
 .medapp-calendar .mc-slot[data-past], .medapp-calendar .mc-slot[data-unavailable], .medapp-calendar .mc-col[data-past] .mc-slot { background: var(--color-background-muted); }
 .medapp-calendar button.mc-slot { cursor: pointer; transition: background-color var(--duration-fast); }

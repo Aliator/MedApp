@@ -44,7 +44,8 @@ export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
 /**
  * The Calendar page: the day shown (today by default), day, week or team (the week, or the day in a narrow window),
- * whose (yours), an open appointment, and who the team view shows (everyone with a staff role, by default).
+ * whose (yours), an open appointment, who the team view shows (everyone with a staff role, by default), and the
+ * grid's row length (15 minutes, or 5).
  */
 export interface CalendarSearch {
   date?: string;
@@ -52,6 +53,8 @@ export interface CalendarSearch {
   staff?: string;
   appointment?: string;
   who?: string[];
+  /** 5-minute rows on the grid; left out for the default, 15. */
+  rows?: 5;
 }
 
 export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearch {
@@ -63,6 +66,7 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
     staff: id(raw.staff),
     appointment: id(raw.appointment),
     who: ids(raw.who),
+    rows: text(raw.rows) === '5' ? 5 : undefined,
   });
 }
 

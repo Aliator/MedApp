@@ -24,8 +24,14 @@ describe('parseCalendarSearch', () => {
     expect(parseCalendarSearch({view: 'Week'})).toEqual({view: 'week'});
   });
 
+  it('keeps 5-minute rows, and leaves out 15, the default', () => {
+    expect(parseCalendarSearch({rows: '5'})).toEqual({rows: 5});
+    expect(parseCalendarSearch({rows: 5})).toEqual({rows: 5});
+    expect(parseCalendarSearch({rows: '15'})).toEqual({});
+  });
+
   it('drops what it cannot read', () => {
-    expect(parseCalendarSearch({date: '2026-02-30', staff: 'someone', appointment: 42})).toEqual({});
+    expect(parseCalendarSearch({date: '2026-02-30', staff: 'someone', appointment: 42, rows: '10'})).toEqual({});
     expect(parseCalendarSearch({date: 'tomorrow', view: 'month', staff: ' ', appointment: {}})).toEqual({});
   });
 });

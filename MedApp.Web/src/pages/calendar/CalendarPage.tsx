@@ -135,7 +135,8 @@ interface PendingMove {
  * Its state is in the URL (`calendarSearch.ts`): the day, the view, whose calendar, an open appointment (which
  * notifications link to), and who the team view shows. In a narrow window or a half view it opens on a day rather than
  * the week, and a week is compact: Monday to Friday, a narrower hour gutter and items on one line (decision 67). The
- * team view still works there, scrolling sideways. Both apply after mount, as the server renders the wide page.
+ * team view still works there, scrolling sideways. Both apply after mount, as the server renders the wide page. Row
+ * length shows 15 or 5 minute rows (`rows=5`, decision 68), and the dialogs opened from here offer times in those steps.
  */
 export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const me = useCurrentUser();
@@ -147,6 +148,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const isTeam = view === 'team';
   // A week in a narrow window or a half view: Monday to Friday, squeezed in.
   const isCompactWeek = isNarrow && view === 'week';
+  const rowMinutes = search.rows ?? 15;
   const {from, to} = calendarRange(date, view);
 
   const staff = useQuery(staffQuery);
@@ -438,6 +440,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             staffUserId={booking?.staffUserId ?? (isTeam ? undefined : staffUserId || undefined)}
             startUtc={booking?.selection?.startUtc}
             endUtc={booking?.selection?.endUtc}
+            stepMinutes={rowMinutes}
             onClose={() => setBooking(null)}
           />
           <BlockDialog
@@ -450,6 +453,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             startUtc={blocking?.selection?.startUtc}
             endUtc={blocking?.selection?.endUtc}
             calendar={blocking?.calendar ?? person}
+            stepMinutes={rowMinutes}
             onClose={() => setBlocking(null)}
           />
           <MeetingDialog isOpen={meeting !== null} meeting={meeting?.meeting} initial={meeting?.initial} onClose={() => setMeeting(null)} />
@@ -551,6 +555,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                 <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
               ))}
             </SegmentedControl>
+            {/* How long each row of the grid is: 5-minute rows are as tall, so the day scrolls. In the URL as rows=5. */}
+            <SegmentedControl label="Row length" value={String(rowMinutes)} onChange={(value) => go({rows: value === '5' ? 5 : undefined})} style={PRIMARY_TEXT}>
+              <SegmentedControlItem value="15" label="15 min" />
+              <SegmentedControlItem value="5" label="5 min" />
+            </SegmentedControl>
             {isTeam ? (
               <MultiSelector
                 label="Who"
@@ -623,6 +632,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                 onItemMove={moveItem}
                 keepsItemsInColumn={isTeam}
                 isCompact={isCompactWeek}
+                rowMinutes={rowMinutes}
                 onDayOpen={(d) => go({date: d, view: 'day'})}
               />
             )}
