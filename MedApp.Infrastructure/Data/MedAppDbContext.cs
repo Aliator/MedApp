@@ -4,6 +4,7 @@ using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Monitoring;
+using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
@@ -34,6 +35,9 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
     public DbSet<PatientProcedureNote> PatientProcedureNotes => Set<PatientProcedureNote>();
     public DbSet<PatientProcedureNoteVersion> PatientProcedureNoteVersions => Set<PatientProcedureNoteVersion>();
+
+    /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
+    public DbSet<Notepad> Notepads => Set<Notepad>();
     public DbSet<CalendarActivityType> CalendarActivityTypes => Set<CalendarActivityType>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<CalendarBlockException> CalendarBlockExceptions => Set<CalendarBlockException>();

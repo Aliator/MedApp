@@ -2,6 +2,8 @@ using System.Text.Json;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Calendar.Responses;
+using MedApp.Contracts.Notepads.Requests;
+using MedApp.Contracts.Notepads.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -149,6 +151,16 @@ public sealed class E2EApi(IAPIRequestContext request)
     public async Task<NotificationsResponse> NotificationsAsync() => await SendAsync<NotificationsResponse>("GET", "/api/notifications");
 
     public async Task MarkNotificationReadAsync(Guid id) => await SendAsync<object>("POST", $"/api/notifications/{id}/read");
+
+    /// <summary>The signed-in account's notepad.</summary>
+    public async Task<NotepadResponse> NotepadAsync() => await SendAsync<NotepadResponse>("GET", "/api/me/notepad");
+
+    /// <summary>Saves the signed-in account's notepad from the version it has now.</summary>
+    public async Task<NotepadResponse> SaveNotepadAsync(string text)
+    {
+        var current = await NotepadAsync();
+        return await SendAsync<NotepadResponse>("PUT", "/api/me/notepad", new SaveNotepadRequest { Text = text, ExpectedVersion = current.Version });
+    }
 
     private async Task<T> SendAsync<T>(string method, string url, object? body = null)
     {

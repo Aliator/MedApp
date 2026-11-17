@@ -491,7 +491,11 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         notes.Should().HaveCountGreaterThan(100);
         notes.GroupBy(n => n.PatientProcedureId).Count(g => g.Count() > 1).Should().BeGreaterThan(20, "many procedures have several notes");
         notes.Count(n => n.Version > 1).Should().BeGreaterThan(5, "a few notes were edited");
-        notes.Where(n => n.AuthorUserId is { } id && !staff.Contains(id)).Should().BeEmpty("notes are by staff with accounts");
+        // Each note by someone has its NoteAdded entry by them (some have left since: their notes show "Deleted user").
+        var added = noteAudit.Where(e => e.Action == PatientProcedureAuditAction.NoteAdded)
+            .Select(e => (ProcedureNotes.VersionOf(e)?.NoteId, e.UserId)).ToHashSet();
+        notes.Where(n => n.AuthorUserId is { } id && !added.Contains((n.Id, id))).Should().BeEmpty("each note is added by its author");
+        notes.Count(n => n.AuthorUserId is { } id && staff.Contains(id)).Should().BeGreaterThan(notes.Count / 2, "most authors still work here");
         notes.Where(n => n.AuthorUserId is null).Should().NotBeEmpty("the imported records' notes have no known author");
 
         var byNote = versions.GroupBy(v => v.NoteId).ToDictionary(g => g.Key, g => g.OrderBy(v => v.Version).ToList());

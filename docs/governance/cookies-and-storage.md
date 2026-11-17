@@ -21,6 +21,7 @@ The Privacy and Electronic Communications Regulations (PECR), regulation 6, requ
 | `medapp.pageSize`, `medapp.proceduresStartOnMine`, `medapp.startPage`, `medapp.navClosesHalfView`, `medapp.navFlyoutDelay` | `localStorage` | List and navigation preferences | Until cleared | As above |
 | `medapp.favourites` | `localStorage` | Saved searches and quick filters. **The terms can be patient names.** | Until cleared | As above (`favourites.ts`) |
 | `medapp.pins` | `localStorage` | The IDs of the patients and procedures a user has pinned in the side navigation. (Older versions kept them under `medapp.pinnedPatients.<username>` and `medapp.pinnedProcedures.<username>`; they move to `medapp.pins` and the old keys are removed at sign-out.) | Until sign-out | `MedApp.Web/src/components/navigation/pins.ts` |
+| `medapp.notepadOpen` | `localStorage` | Whether the notepad is open, so it opens again after a reload. Never its text, which is kept on the server with the account | Until the notepad is closed, or the user signs out | `MedApp.Web/src/components/notepad/NotepadContext.tsx` |
 | `medapp.halfView` | `sessionStorage` | The page open in the half view, which can include a patient or procedure ID | Until the tab closes or the user signs out | `MedApp.Web/src/components/navigation/AppLayout.tsx` |
 
 The settings and pins are also stored with the account on the server (`UserSettings`), so they follow the user between computers; the half view is kept only in the browser.

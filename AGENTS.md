@@ -247,6 +247,15 @@ The concept and decisions are in `docs/calendar-plan.md`. In short: every member
   - **Not monitored:** appointments aren't `MonitoringEvent`s, and neither is the admin bypass yet (`docs/todo.md`).
 - **Endpoints** are under `api/calendar` and `api/appointments` (the plan's section 4). The stage finish endpoint takes the optional `{ withoutVisit, reason }`.
 
+### Notepad
+
+Each member of staff has one notepad (`Notepad`, keyed by their account's ID): Markdown jottings beside every page of the web app, for a call or a clinic (`MedApp.Application/Notepads`).
+- **Endpoints:** `GET api/me/notepad` and `PUT api/me/notepad` `{text, expectedVersion}`, open to anyone signed in (`[Authorize]`, no role), always the caller's own. The response carries `version` (0 for none) and `keepDays`. A save from a version other than the stored one is a 409 (`NotepadRules.ChangedMeanwhileMessage`: another tab saved first); the row version catches two saves at once, and two first saves at once hit the key (also a 409).
+- **Kept on the server, never in the browser,** because it may hold patient details. The web app keeps only whether it's open (`medapp.notepadOpen`).
+- **Retention:** cleared (the row deleted) once it has gone `Notepad:KeepDays` (30) without a change, when it's next read or saved; a save that finds it expired is a 409 saying so (`NotepadRules.ClearedMessage`), so the page's old text isn't saved again. No scheduled job yet (`docs/todo.md`). Deleted with the account (a foreign key's cascade).
+- **Not in the activity log:** it's the user's own and not linked to a patient (`EndpointCoverageTests` says so). For the same reason a patient's export and anonymisation can't find what it says: the DPIA accepts that (risk 26), with the 30 days and **Add note to procedure** as the controls.
+- **Add note to procedure** (web only) adds its text, or the part selected, as a note on an open procedure through `POST .../notes`, after a confirmation that shows the patient as the banner does (hazard H-37).
+
 ### Monitoring
 
 Admins' rules for being told what staff do to procedures (`/admin/monitoring`, `api/monitoring/rules`, admin-only): for example "Notify me when **sam** finishes **Bloods** on a **High or Urgent** priority procedure".

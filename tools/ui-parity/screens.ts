@@ -275,6 +275,35 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'notepad-open',
+    title: "The notepad docked on the right of a procedure's page (opened from the side nav), the page in its narrow layout beside it",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
+      await page.getByRole('complementary', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
+      await settle(page);
+    },
+  },
+  {
+    name: 'notepad-add-note',
+    title: "The notepad's Add Note to Procedure confirmation: the patient as the banner shows them, the procedure, the text, and Remove it from the notepad (only opened, never confirmed)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
+      const notepad = page.getByRole('complementary', { name: 'Notepad' });
+      const box = notepad.getByRole('textbox', { name: 'Notepad' });
+      await box.waitFor({ state: 'visible' });
+      // Whatever the account's notepad holds is what would be added; type a line if it's empty, so there's something to show.
+      if (!(await box.innerText()).trim()) {
+        await box.click();
+        await page.keyboard.type('Synthetic jotting for the parity screenshot.');
+      }
+      await notepad.getByRole('button', { name: 'Add Note to Procedure' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
     name: 'procedure-narrow',
     title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
     path: (d) => `/procedures/${d.procedureId}`,

@@ -9,6 +9,9 @@ import {LiveNotifications} from '../../app/LiveNotifications';
 import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
+import {NOTEPAD_WIDTH, NotepadProvider, useNotepadDocked} from '../notepad/NotepadContext';
+import {NotepadPane} from '../notepad/NotepadPane';
+import {NotepadSheet} from '../notepad/NotepadSheet';
 import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
 import {AppSideNav} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
@@ -22,6 +25,9 @@ const STORAGE_KEY = 'medapp.halfView';
  */
 const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable both-edges'} as const;
 
+/** The line between the two halves of a half view, inset from the top and bottom like the pages. */
+const DIVIDER = {marginBlock: 'var(--spacing-6)', blockSize: 'auto', alignSelf: 'stretch'} as const;
+
 /**
  * The window's main area keeps room for a scrollbar whether or not its page scrolls. Where scrollbars take up space
  * (Windows, and most Linux desktops), a page is centred in what's left, so without this a page that scrolls (Account
@@ -29,7 +35,8 @@ const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable both-edges'} as cons
  * so the margins stay even. AppShell has no prop for it, so it's a rule on its main area (`role="main"`). In a half
  * view the halves scroll instead, and keep their own room (`HALF`).
  */
-export const STABLE_SCROLLBAR = '[role="main"]:not(:has([data-half-views])) { scrollbar-gutter: stable both-edges; }';
+export const STABLE_SCROLLBAR =
+  '[role="main"]:not(:has([data-half-views])):not(:has([data-notepad-docked])) { scrollbar-gutter: stable both-edges; }';
 
 /** The half view's page, kept for the browser tab so a reload keeps it (storage may be unavailable). */
 function storedPath(): string | null {
@@ -59,7 +66,14 @@ function storePath(path: string | null) {
  * Inside a half view's own router, this is just the page: the shell is the main page's.
  */
 export function AppLayout() {
-  return useContext(InHalfPaneContext) ? <Outlet /> : <MainLayout />;
+  return useContext(InHalfPaneContext) ? (
+    <Outlet />
+  ) : (
+    // The notepad, docked beside the page or a sheet over it, stays open while moving around the app.
+    <NotepadProvider>
+      <MainLayout />
+    </NotepadProvider>
+  );
 }
 
 function MainLayout() {
@@ -128,8 +142,31 @@ function MainLayout() {
       }),
     [closeHalf, router],
   );
-  const mainHalf: HalfView = {isHalf: true, onClose: () => close(true)};
-  const otherHalf: HalfView = {isHalf: true, onClose: () => close(false)};
+  const mainHalf: HalfView = {isHalf: true, side: 'left', onClose: () => close(true)};
+  const otherHalf: HalfView = {isHalf: true, side: 'right', onClose: () => close(false)};
+  const isNotepadDocked = useNotepadDocked();
+
+  const pages = half ? (
+    // Each half scrolls on its own: a long page scrolls in its half, not the whole window, and only up and
+    // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
+    // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
+    // fits its half exactly (it would otherwise reach out over the shell's padding, and overflow its half).
+    <HStack gap={0} height="100%" data-half-views="">
+      <StackItem size="fill" isScrollable aria-label="Left half" style={HALF}>
+        <HalfViewContext.Provider value={mainHalf}>
+          <Outlet />
+        </HalfViewContext.Provider>
+      </StackItem>
+      <Divider orientation="vertical" style={DIVIDER} />
+      <StackItem size="fill" isScrollable aria-label="Right half" style={HALF}>
+        <HalfViewContext.Provider value={otherHalf}>
+          <HalfPane key={half.key} path={half.path} onPathChange={trackHalf} />
+        </HalfViewContext.Provider>
+      </StackItem>
+    </HStack>
+  ) : (
+    <Outlet />
+  );
 
   return (
     // Ctrl+S saves the form that's open, in either half.
@@ -157,30 +194,30 @@ function MainLayout() {
               />
             </SideNavTheme>
           }
-          // In a half view, each half's page frame insets it instead (see below).
-          contentPadding={half ? 0 : 6}>
-          {half ? (
-            // Each half scrolls on its own: a long page scrolls in its half, not the whole window, and only up and
-            // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
-            // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
-            // fits its half exactly (it would otherwise reach out over the shell's padding, and overflow its half).
-            <HStack gap={0} height="100%" data-half-views="">
-              <StackItem size="fill" isScrollable aria-label="Left half" style={HALF}>
-                <HalfViewContext.Provider value={mainHalf}>
-                  <Outlet />
-                </HalfViewContext.Provider>
-              </StackItem>
-              <Divider orientation="vertical" style={{marginBlock: 'var(--spacing-6)', blockSize: 'auto', alignSelf: 'stretch'}} />
-              <StackItem size="fill" isScrollable aria-label="Right half" style={HALF}>
-                <HalfViewContext.Provider value={otherHalf}>
-                  <HalfPane key={half.key} path={half.path} onPathChange={trackHalf} />
-                </HalfViewContext.Provider>
+          // In a half view, or beside the docked notepad, each page's frame insets it instead (see below).
+          contentPadding={half || isNotepadDocked ? 0 : 6}>
+          {isNotepadDocked ? (
+            // The notepad docked on the right, the page (or the half view's two) in the rest: the page scrolls on its
+            // own, as a half does, and the notepad stays put.
+            <HStack gap={0} height="100%" data-notepad-docked="">
+              {half ? (
+                <StackItem size="fill">{pages}</StackItem>
+              ) : (
+                <StackItem size="fill" isScrollable aria-label="Page" style={HALF}>
+                  {pages}
+                </StackItem>
+              )}
+              <Divider orientation="vertical" />
+              <StackItem style={{inlineSize: NOTEPAD_WIDTH, flexShrink: 0, blockSize: '100%'}}>
+                <NotepadPane />
               </StackItem>
             </HStack>
           ) : (
-            <Outlet />
+            pages
           )}
         </AppShell>
+        {/* On a narrow window, the notepad is a full-screen sheet instead. */}
+        <NotepadSheet />
       </HalfViewsContext.Provider>
     </SaveShortcutProvider>
   );

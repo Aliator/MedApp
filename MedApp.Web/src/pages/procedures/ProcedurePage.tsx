@@ -36,6 +36,7 @@ import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AppointmentList} from '../../components/procedures/AppointmentList';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
 import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../components/procedures/ProcedureCells';
+import {useOfferToNotepad} from '../../components/notepad/NotepadContext';
 import {ProcedureNotes} from '../../components/procedures/ProcedureNotes';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/procedures/StageList';
@@ -109,6 +110,8 @@ export interface ProcedureViewProps {
 export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   const user = useCurrentUser();
   const {data: procedure, error, isPending} = useQuery(procedureQuery(id));
+  // While it's open, the notepad can add what's written to it as a note.
+  useOfferToNotepad(procedure);
   const actions = useProcedureActions(id);
   const remove = useDeleteProcedure(id);
   const appointmentsQuery = useQuery(procedureAppointmentsQuery(id));

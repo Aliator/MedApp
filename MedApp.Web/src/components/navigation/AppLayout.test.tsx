@@ -227,3 +227,44 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument();
   });
 });
+
+// The whole app renders: more than the default 5s on a slow machine.
+describe('AppLayout notepad', {timeout: 20_000}, () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it('opens the notepad from the side nav, docked beside the page, and keeps it open moving to another page', async () => {
+    emptyApi();
+    const {user} = renderApp({path: '/patients', user: adminUser});
+    await heading('Patients');
+
+    const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
+    await user.click(nav.getByRole('button', {name: 'Notepad'}));
+
+    expect(await screen.findByRole('complementary', {name: 'Notepad'})).toBeInTheDocument();
+    expect(document.querySelector('[data-notepad-docked]')).not.toBeNull();
+    expect(localStorage.getItem('medapp.notepadOpen')).toBe('true');
+
+    await user.click(nav.getAllByRole('link', {name: 'Procedures'})[0]);
+    await heading('Procedures');
+    expect(screen.getByRole('complementary', {name: 'Notepad'})).toBeInTheDocument();
+
+    // The same button closes it.
+    await user.click(nav.getByRole('button', {name: 'Notepad'}));
+    await waitFor(() => expect(screen.queryByRole('complementary', {name: 'Notepad'})).not.toBeInTheDocument());
+    expect(localStorage.getItem('medapp.notepadOpen')).toBeNull();
+  });
+
+  it('opens the notepad again after a reload, and leaves the page room beside it', async () => {
+    localStorage.setItem('medapp.notepadOpen', 'true');
+    emptyApi();
+    renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    expect(await screen.findByRole('complementary', {name: 'Notepad'})).toBeInTheDocument();
+    // The page scrolls on its own beside it, so the main area keeps no scrollbar room of its own.
+    expect(getComputedStyle(document.querySelector('[role="main"]')!).scrollbarGutter).toBe('auto');
+  });
+});

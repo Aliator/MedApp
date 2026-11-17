@@ -1,5 +1,6 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
+import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
 import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
@@ -515,5 +516,37 @@ describe('AppSideNav with a half view open', () => {
 
     await user.click(users);
     expect(halfViews.openFull).toHaveBeenCalledWith('/admin/users');
+  });
+});
+
+describe('AppSideNav notepad', () => {
+  afterEach(() => localStorage.clear());
+
+  function NotepadShown() {
+    return <p>{useNotepad()!.isOpen ? 'notepad open' : 'notepad closed'}</p>;
+  }
+
+  it('opens and closes the notepad from the account footer, marking it while open', async () => {
+    const {user} = renderWithApp(
+      <NotepadProvider>
+        <AppSideNav />
+        <NotepadShown />
+      </NotepadProvider>,
+      {user: staffUser},
+    );
+
+    const notepad = await screen.findByRole('button', {name: 'Notepad'});
+    await user.click(notepad);
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', {name: 'Notepad'}));
+    expect(screen.getByText('notepad closed')).toBeInTheDocument();
+  });
+
+  it('has no notepad outside the signed-in layout', async () => {
+    renderWithApp(<AppSideNav />, {user: staffUser});
+
+    await screen.findByRole('button', {name: 'Logout'});
+    expect(screen.queryByRole('button', {name: 'Notepad'})).not.toBeInTheDocument();
   });
 });

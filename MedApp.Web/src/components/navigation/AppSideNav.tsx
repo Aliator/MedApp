@@ -33,6 +33,7 @@ import {NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
+import {useNotepad} from '../notepad/NotepadContext';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -599,7 +600,28 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         ),
       }))
     : [];
+  // The notepad opens beside every page (or over it, on a phone), and stays open while moving around.
+  const notepad = useNotepad();
+  const notepadEntry: NavRailEntry[] = notepad
+    ? [
+        {
+          key: 'notepad',
+          label: 'Notepad',
+          icon: AppIcon.Notes,
+          isSelected: notepad.isOpen,
+          row: (
+            <SideNavItem
+              label="Notepad"
+              icon={AppIcon.Notes}
+              isSelected={notepad.isOpen}
+              onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
+            />
+          ),
+        },
+      ]
+    : [];
   const account: NavRailEntry[] = [
+    ...notepadEntry,
     {
       key: 'account',
       label: user.username,

@@ -5204,6 +5204,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/notepad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["NotepadResponse"];
+                        "application/json": components["schemas"]["NotepadResponse"];
+                        "text/json": components["schemas"]["NotepadResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SaveNotepadRequest"];
+                    "text/json": components["schemas"]["SaveNotepadRequest"];
+                    "application/*+json": components["schemas"]["SaveNotepadRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["NotepadResponse"];
+                        "application/json": components["schemas"]["NotepadResponse"];
+                        "text/json": components["schemas"]["NotepadResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -9179,6 +9265,15 @@ export interface components {
             /** Format: date-time */
             updatedAtUtc?: string;
         };
+        NotepadResponse: {
+            text?: string | null;
+            /** Format: date-time */
+            lastUpdatedUtc?: string | null;
+            /** Format: int32 */
+            version?: number;
+            /** Format: int32 */
+            keepDays?: number;
+        };
         NotificationPreferencesResponse: {
             procedureAssigned?: boolean;
         };
@@ -9655,6 +9750,11 @@ export interface components {
             /** Format: uuid */
             stageDefinitionId?: string | null;
             isEnabled?: boolean;
+        };
+        SaveNotepadRequest: {
+            text?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         SaveSecuritySettingsRequest: {
             requireTwoFactorForAdmins?: boolean;

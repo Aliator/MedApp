@@ -13,6 +13,7 @@ using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Demographics.Common;
 using MedApp.Application.Monitoring.Repositories;
+using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Repositories;
@@ -162,6 +163,7 @@ public static class ServiceExtensions
         services.AddScoped<IPatientProcedureRepository, PatientProcedureRepository>();
         services.AddScoped<IPatientProcedureStagesRepository, PatientProcedureStagesRepository>();
         services.AddScoped<IProcedureAuditRepository, ProcedureAuditRepository>();
+        services.AddScoped<INotepadRepository, NotepadRepository>();
         services.AddScoped<IProcedureInsightsRepository, ProcedureInsightsRepository>();
         services.AddScoped<IUserSettingsRepository, UserSettingsRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();

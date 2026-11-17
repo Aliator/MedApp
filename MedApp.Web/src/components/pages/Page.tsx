@@ -5,6 +5,7 @@ import {Spinner} from '@astryxdesign/core/Spinner';
 import {StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useContext, type ReactNode} from 'react';
 import {usePageTitle} from '../../app/announcements';
+import {useNotepadDocked} from '../notepad/NotepadContext';
 import {InHalfPaneContext, useHalfView} from './halfView';
 import {PageHeader, type PageHeaderProps} from './PageHeader';
 
@@ -48,12 +49,13 @@ export const PAGE_MAX_WIDTH = 1600;
 export const NARROW_WINDOW_QUERY = '(max-width: 1399px)';
 
 /**
- * Whether a page should use its narrow layout: in a narrow window, or in a half view (two pages side by side).
- * Pages with two columns ask this rather than the window.
+ * Whether a page should use its narrow layout: in a narrow window, in a half view (two pages side by side), or beside
+ * the docked notepad. Pages with two columns ask this rather than the window.
  */
 export function useIsNarrow(): boolean {
   const isNarrowWindow = useMediaQuery(NARROW_WINDOW_QUERY, false);
-  return useHalfView().isHalf || isNarrowWindow;
+  const isBesideNotepad = useNotepadDocked();
+  return useHalfView().isHalf || isNarrowWindow || isBesideNotepad;
 }
 
 export function Page({

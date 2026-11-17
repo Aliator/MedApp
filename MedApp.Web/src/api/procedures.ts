@@ -199,26 +199,43 @@ export function useUpdateProcedure(id: string) {
  * time), lists and timelines then refresh.
  */
 export function useProcedureNoteActions(id: string) {
-  const queryClient = useQueryClient();
-  const show = async (note: ProcedureNote) => {
-    queryClient.setQueryData(procedureQuery(id).queryKey, (procedure) =>
-      procedure && {...procedure, notes: [note, ...(procedure.notes ?? []).filter((n) => n.id !== note.id)].sort(newestFirst)},
-    );
-    await queryClient.invalidateQueries({queryKey: procedureQuery(id).queryKey});
-    await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
-    await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
-  };
-
+  const show = useShowNote();
   return {
     add: useMutation({
       mutationFn: (text: string) => unwrap(api.POST(`${PROCEDURE}/notes`, {params: {path: {id}}, body: {text}})),
-      onSuccess: show,
+      onSuccess: (note) => show(id, note),
     }),
     edit: useMutation({
       mutationFn: ({noteId, text, expectedVersion}: {noteId: string; text: string; expectedVersion: number}) =>
         unwrap(api.PUT(`${PROCEDURE}/notes/{noteId}`, {params: {path: {id, noteId}}, body: {text, expectedVersion}})),
-      onSuccess: show,
+      onSuccess: (note) => show(id, note),
     }),
+  };
+}
+
+/**
+ * Adding a note to whichever procedure is given (the notepad's Add Note to Procedure, which can choose between two
+ * open ones). Like `useProcedureNoteActions`' `add`, the note shows on that procedure's page at once.
+ */
+export function useAddProcedureNote() {
+  const show = useShowNote();
+  return useMutation({
+    mutationFn: ({procedureId, text}: {procedureId: string; text: string}) =>
+      unwrap(api.POST(`${PROCEDURE}/notes`, {params: {path: {id: procedureId}}, body: {text}})),
+    onSuccess: (note, {procedureId}) => show(procedureId, note),
+  });
+}
+
+/** Puts a saved note into its cached procedure (newest first), then refreshes the procedure, lists and timelines. */
+function useShowNote() {
+  const queryClient = useQueryClient();
+  return async (procedureId: string, note: ProcedureNote) => {
+    queryClient.setQueryData(procedureQuery(procedureId).queryKey, (procedure) =>
+      procedure && {...procedure, notes: [note, ...(procedure.notes ?? []).filter((n) => n.id !== note.id)].sort(newestFirst)},
+    );
+    await queryClient.invalidateQueries({queryKey: procedureQuery(procedureId).queryKey});
+    await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+    await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
   };
 }
 

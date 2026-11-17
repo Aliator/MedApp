@@ -827,6 +827,33 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("MonitoringRules", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Notepads.Notepad", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("LastUpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("Notepads", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Notifications.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1716,6 +1743,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("DayTemplate");
 
                     b.Navigation("WeekTemplate");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Notepads.Notepad", b =>
+                {
+                    b.HasOne("MedApp.Infrastructure.Common.Identity.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("MedApp.Domain.Notepads.Notepad", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
