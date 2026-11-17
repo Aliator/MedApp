@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using MedApp.Application.Calendar.Common;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Calendar.Requests;
 using MedApp.Contracts.Calendar.Responses;
@@ -46,6 +47,14 @@ public sealed class MeetingTests : IntegrationTest
         EndUtc = endUtc,
         AttendeeUserIds = [.. attendees],
     };
+
+    /// <summary>A change to a meeting, made from the copy <paramref name="seen"/> (its version is sent with it).</summary>
+    private static MeetingRequest Change(MeetingResponse seen, DateTime startUtc, DateTime endUtc, params Guid[] attendees)
+    {
+        var request = Meeting(startUtc, endUtc, attendees);
+        request.ExpectedLastUpdated = seen.LastUpdated;
+        return request;
+    }
 
     private static Task<HttpResponseMessage> PostMeetingAsync(HttpClient client, MeetingRequest request) =>
         client.PostAsJsonAsync("/api/calendar/meetings", request);
@@ -126,7 +135,7 @@ public sealed class MeetingTests : IntegrationTest
         var third = await CreateStaffAsync(UserRole);
 
         // Overlapping its own old time is fine: the meeting itself isn't a clash.
-        var moved = Meeting(UkAt(_day, 9, 30), UkAt(_day, 10, 30), _staff.UserId, third.UserId);
+        var moved = Change(meeting, UkAt(_day, 9, 30), UkAt(_day, 10, 30), _staff.UserId, third.UserId);
         var response = await _admin.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}", moved);
 
         (await response.ReadAsAsync<MeetingResponse>()).Attendees.Select(a => a.UserId).Should().BeEquivalentTo([_staff.UserId, third.UserId]);
@@ -135,6 +144,52 @@ public sealed class MeetingTests : IntegrationTest
         (await LatestNotificationAsync(_staff.Client)).Should().BeEquivalentTo(new { Kind = "MeetingChanged", Title = "Meeting moved", CalendarDate = (DateOnly?)_day });
         (await LatestNotificationAsync(_other.Client)).Should().BeEquivalentTo(new { Kind = "MeetingCancelled", Title = "Meeting cancelled" });
         (await LatestNotificationAsync(third.Client)).Should().BeEquivalentTo(new { Kind = "MeetingInvited", Title = "Meeting invitation" });
+    }
+
+    [Test]
+    public async Task UpdateMeeting_FromACopyOlderThanAnotherAdminsChange_Returns409AndKeepsTheirs()
+    {
+        var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
+        var secondAdmin = await CreateStaffAsync(AdminRole, UserRole);
+
+        // Another admin adds _other.
+        await (await secondAdmin.Client.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}",
+                Change(meeting, UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId)))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        // This admin, still looking at the copy from before, drags it half an hour on, with the attendees it showed.
+        var stale = await _admin.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}",
+            Change(meeting, UkAt(_day, 9, 30), UkAt(_day, 10, 30), _staff.UserId));
+
+        (await stale.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Be(MeetingLimits.ChangedMeanwhile);
+        var kept = await (await _admin.GetAsync($"/api/calendar/meetings/{meeting.Id}")).ReadAsAsync<MeetingResponse>();
+        kept.Attendees.Select(a => a.UserId).Should().BeEquivalentTo([_staff.UserId, _other.UserId]);
+        kept.StartUtc.Should().Be(UkAt(_day, 9));
+
+        // From the copy that change returned, it goes through; without saying which copy, it's a 400.
+        await (await _admin.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}",
+                Change(kept, UkAt(_day, 9, 30), UkAt(_day, 10, 30), _staff.UserId, _other.UserId)))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await _admin.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}", Meeting(UkAt(_day, 11), UkAt(_day, 12), _staff.UserId)))
+            .ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task UpdateMeeting_AnAttendeeWhoseAccountHasGone_DropsThemRatherThanRefusing()
+    {
+        // A meeting already under way when an attendee's account goes keeps them: only meetings to come lose them.
+        var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 11), _staff.UserId, _other.UserId);
+        MoveClockPast(UkAt(_day, 9));
+        await (await _admin.DeleteAsJsonAsync($"/api/auth/users/{_other.Username}", new DeleteUserRequest(AdminPassword)))
+            .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        var started = await (await _admin.GetAsync($"/api/calendar/meetings/{meeting.Id}")).ReadAsAsync<MeetingResponse>();
+        started.Attendees.Should().HaveCount(2);
+
+        // Cut short, with everyone the dialog shows: the account that has gone is dropped, not a 404.
+        var response = await _admin.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}",
+            Change(started, UkAt(_day, 9), UkAt(_day, 10), _staff.UserId, _other.UserId));
+
+        (await response.ReadAsAsync<MeetingResponse>()).Attendees.Select(a => a.UserId).Should().Equal(_staff.UserId);
     }
 
     [Test]
@@ -161,7 +216,7 @@ public sealed class MeetingTests : IntegrationTest
         var refused = new[]
         {
             await PostMeetingAsync(client, Meeting(UkAt(_day, 11), UkAt(_day, 12), _staff.UserId)),
-            await client.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}", Meeting(UkAt(_day, 11), UkAt(_day, 12), _staff.UserId)),
+            await client.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}", Change(meeting, UkAt(_day, 11), UkAt(_day, 12), _staff.UserId)),
             await client.DeleteAsync($"/api/calendar/meetings/{meeting.Id}"),
             await client.GetAsync($"/api/calendar/team?date={_day:yyyy-MM-dd}"),
             await client.GetAsync($"/api/calendar/availability?staffUserIds={_staff.UserId}&from={_day:yyyy-MM-dd}&to={_day:yyyy-MM-dd}&durationMinutes=30"),
