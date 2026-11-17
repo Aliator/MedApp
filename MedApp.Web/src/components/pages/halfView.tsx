@@ -37,6 +37,13 @@ export const HalfViewsContext = createContext<HalfViews | null>(null);
 export const useHalfViews = () => useContext(HalfViewsContext);
 
 /**
+ * Inside a dialog, which sits over the whole window rather than in a half: what's in it lays out by the window alone,
+ * not by a half view or the docked notepad beside the page that opened it (`DialogFrame` sets it; `useIsNarrow` reads
+ * it).
+ */
+export const OverWholeWindowContext = createContext(false);
+
+/**
  * Inside a half view's own router. Its pages render without the app shell (the side nav is the main page's).
  */
 export const InHalfPaneContext = createContext(false);

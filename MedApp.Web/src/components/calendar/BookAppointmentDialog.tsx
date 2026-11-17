@@ -46,7 +46,7 @@ import {formatShortDate, formatTime, parseUtc, ukDay} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
-import {useIsNarrow} from '../pages/Page';
+import {useIsNarrowWindow} from '../pages/Page';
 import {ValidationAlert, AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {AppointmentPatientBanner, useAppointmentPatient, type AppointmentPatientDetails} from './AppointmentPatient';
@@ -155,7 +155,8 @@ function BookingForm({
   stepMinutes,
 }: BookAppointmentDialogProps) {
   const me = useCurrentUser();
-  const isNarrow = useIsNarrow();
+  // Its size and layout follow the window, as a dialog sits over all of it (not a half view it was opened from).
+  const isNarrow = useIsNarrowWindow();
   const announce = useAnnounce();
   const queryClient = useQueryClient();
   const create = useCreateAppointment();
