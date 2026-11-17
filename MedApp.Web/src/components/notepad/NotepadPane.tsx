@@ -281,9 +281,16 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
       const editable = scroller.querySelector<HTMLElement>('[contenteditable]');
       if (!editable) return;
       const top = editable.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-      const padding = parseFloat(getComputedStyle(scroller).paddingBlockEnd) || 0;
+      // What sits below the writing area in the scroller: the bottom padding, border and margin of each box it's in
+      // (the editor's frame), and the scroller's own padding. Measured rather than guessed, so an empty notepad fits
+      // exactly and shows no scrollbar.
+      let below = parseFloat(getComputedStyle(scroller).paddingBlockEnd) || 0;
+      for (let element = editable.parentElement; element && element !== scroller; element = element.parentElement) {
+        const style = getComputedStyle(element);
+        below += (parseFloat(style.paddingBlockEnd) || 0) + (parseFloat(style.borderBlockEndWidth) || 0) + (parseFloat(style.marginBlockEnd) || 0);
+      }
       const least = 12 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-      const height = Math.max(least, Math.floor(scroller.clientHeight - top - padding - 2));
+      const height = Math.max(least, Math.floor(scroller.clientHeight - top - below));
       setFitted((current) => (current !== undefined && Math.abs(current - height) < 2 ? current : height));
     };
     const observer = new ResizeObserver(fit);
