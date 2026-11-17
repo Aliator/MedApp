@@ -1,17 +1,15 @@
 import {Field} from '@astryxdesign/core/Field';
+import {hasTextSelection} from '@astryxdesign/core/hooks';
 import {HStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {type MouseEvent, useId, useRef, useState} from 'react';
-import {NO_FIELD_STATUS_LINE, NO_STATUS_LINE} from './fieldSpace';
-
 /**
- * Padded and rounded like a list row (and as wide as the list's rows), so its hover shade has room. It keeps no empty
- * line for a message: a warning, when there is one, is detached (below the colour, in the flow), so it takes its own
- * room. The attached style is for bordered text boxes: it pulls itself up to join the box, over the colour and its value.
+ * Padded and rounded like a list row (and as wide as the list's rows), so its hover shade has room. Its padding replaces
+ * the empty line the theme keeps under a field for a message: a warning, when there is one, is detached (below the
+ * colour, in the flow), so it takes its own room. The attached style is for bordered text boxes: it pulls itself up to
+ * join the box, over the colour and its value.
  */
 const ROW = {
-  ...NO_STATUS_LINE,
-  ...NO_FIELD_STATUS_LINE,
   padding: 'var(--spacing-3)',
   borderRadius: 'var(--radius-element)',
   cursor: 'pointer',
@@ -35,6 +33,8 @@ export interface ColourFieldProps {
  */
 export function ColourField({label, description, value, onChange, warning}: ColourFieldProps) {
   const id = useId();
+  const descriptionID = `${id}-description`;
+  const warningID = `${id}-warning`;
   const inputRef = useRef<HTMLInputElement>(null);
   const reachedInputRef = useRef(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -44,7 +44,9 @@ export function ColourField({label, description, value, onChange, warning}: Colo
   // - the colour itself, and its label, which hands its click on afterwards, as the browser's default action
   // - anything that hands its click on to the colour first (Astryx's description does): the input notes the click as
   //   it passes, and forgets it once the click has finished
+  // A click that ends a text selection (dragging over the hex value to copy it) selects, as in Astryx's clickable rows.
   const openPicker = (event: MouseEvent) => {
+    if (hasTextSelection(event.currentTarget)) return;
     if (event.target instanceof Element && event.target.closest('input, label')) return;
     if (reachedInputRef.current) return;
     inputRef.current?.click();
@@ -56,7 +58,8 @@ export function ColourField({label, description, value, onChange, warning}: Colo
       label={label}
       description={description}
       inputID={id}
-      status={warning ? {type: 'warning', message: warning} : undefined}
+      descriptionID={description ? descriptionID : undefined}
+      status={warning ? {type: 'warning', message: warning, messageID: warningID} : undefined}
       statusVariant="detached"
       onClick={openPicker}
       onMouseEnter={() => setIsHovered(true)}
@@ -65,6 +68,8 @@ export function ColourField({label, description, value, onChange, warning}: Colo
       <HStack gap={3} vAlign="center">
         <input
           ref={inputRef}
+          // Someone who tabs to the colour later hears what it's for, and its warning.
+          aria-describedby={[description && descriptionID, warning && warningID].filter(Boolean).join(' ') || undefined}
           onClick={() => {
             reachedInputRef.current = true;
             queueMicrotask(() => {
