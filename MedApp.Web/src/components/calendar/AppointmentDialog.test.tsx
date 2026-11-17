@@ -8,7 +8,7 @@ import {AppointmentDialog, appointmentWhen} from './AppointmentDialog';
 
 const MONDAY = '2026-11-23';
 
-function renderDialog(appointment: Appointment, handlers: Parameters<typeof mockApi>[0] = {}) {
+function renderDialog(appointment: Appointment, handlers: Parameters<typeof mockApi>[0] = {}, stepMinutes?: number) {
   const onClose = vi.fn();
   const fetch = mockApi({
     [`GET /api/appointments/${appointment.id}`]: () => json(appointment),
@@ -19,7 +19,7 @@ function renderDialog(appointment: Appointment, handlers: Parameters<typeof mock
   });
   const result = renderWithApp(
     <SaveShortcutProvider>
-      <AppointmentDialog appointment={appointment} onClose={onClose} />
+      <AppointmentDialog appointment={appointment} onClose={onClose} stepMinutes={stepMinutes} />
     </SaveShortcutProvider>,
     {user: staffUser},
   );
@@ -163,6 +163,21 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     expect(await screen.findByRole('heading', {name: 'Reschedule Appointment'})).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
+  });
+
+  it('reschedules in the steps of the calendar it was opened from', async () => {
+    const {user} = renderDialog(testAppointment({id: 'appt-1'}), {}, 5);
+
+    await user.click(await dialog().findByRole('button', {name: 'Reschedule'}));
+    const morning = await dialog().findByRole('group', {name: 'Morning times on Monday 23 November'});
+    // 5-minute steps around its own time (09:00), as the calendar's 5-minute rows have, and only there.
+    expect(within(morning).getByRole('button', {name: '09:05'})).toBeInTheDocument();
+    expect(within(morning).getByRole('button', {name: '08:55'})).toBeInTheDocument();
+    expect(within(morning).queryByRole('button', {name: '10:05'})).not.toBeInTheDocument();
+    // Choosing another time leaves them there, so nothing moves under the pointer.
+    await user.click(within(morning).getByRole('button', {name: '10:00'}));
+    expect(within(morning).getByRole('button', {name: '09:05'})).toBeInTheDocument();
+    expect(within(morning).queryByRole('button', {name: '10:05'})).not.toBeInTheDocument();
   });
 
   it('books a Requested appointment, which says who asked for it', async () => {

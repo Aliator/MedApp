@@ -11,4 +11,10 @@ public sealed class GetCalendarRequest
 
     /// <summary>The last UK date (inclusive).</summary>
     public DateOnly To { get; set; }
+
+    /// <summary>
+    /// Leaves the appointments out, and with them their patients, so the read records nothing in the activity log: for
+    /// a view that shows no patients, such as Apply Template's days.
+    /// </summary>
+    public bool WithoutAppointments { get; set; }
 }

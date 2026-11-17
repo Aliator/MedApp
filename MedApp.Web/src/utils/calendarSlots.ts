@@ -104,15 +104,15 @@ export function busyTimes(calendar: Pick<Calendar, 'blocks' | 'appointments' | '
 }
 
 /**
- * The start times (UTC, ISO) on one day at which something `lengthMinutes` long fits: every 15 minutes from the start of
- * the working day, ending by its end, starting after `now`, and overlapping nothing in `busy`. None on a day that isn't
- * a working day or is past.
+ * The start times (UTC, ISO) on one day at which something `lengthMinutes` long fits: every 15 minutes (or
+ * `stepMinutes`) from the start of the working day, ending by its end, starting after `now`, and overlapping nothing in
+ * `busy`. None on a day that isn't a working day or is past.
  */
-export function freeStarts(day: CalendarDay, busy: Interval[], lengthMinutes: number, now: Date): string[] {
+export function freeStarts(day: CalendarDay, busy: Interval[], lengthMinutes: number, now: Date, stepMinutes: number = SLOT_MINUTES): string[] {
   if (!day.isWorkingDay || day.isPast || !day.workStartUtc || !day.workEndUtc || lengthMinutes <= 0) return [];
   const {start: dayStart, end: dayEnd} = intervalOf(day.workStartUtc, day.workEndUtc);
   const starts: string[] = [];
-  for (let start = dayStart; start + lengthMinutes * MINUTE <= dayEnd; start += SLOT_MINUTES * MINUTE) {
+  for (let start = dayStart; start + lengthMinutes * MINUTE <= dayEnd; start += stepMinutes * MINUTE) {
     const slot = {start, end: start + lengthMinutes * MINUTE};
     if (start > now.getTime() && !busy.some((b) => overlaps(slot, b))) starts.push(new Date(start).toISOString());
   }
@@ -125,9 +125,10 @@ export function freeStartsByDay(
   lengthMinutes: number,
   now: Date,
   ignoreAppointmentId?: string,
+  stepMinutes: number = SLOT_MINUTES,
 ): Record<string, string[]> {
   const busy = busyTimes(calendar, ignoreAppointmentId);
-  return Object.fromEntries((calendar.days ?? []).map((day) => [day.date ?? '', freeStarts(day, busy, lengthMinutes, now)]));
+  return Object.fromEntries((calendar.days ?? []).map((day) => [day.date ?? '', freeStarts(day, busy, lengthMinutes, now, stepMinutes)]));
 }
 
 const UK_HOUR = new Intl.DateTimeFormat('en-GB', {hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/London'});

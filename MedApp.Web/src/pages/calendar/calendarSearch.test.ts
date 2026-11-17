@@ -20,8 +20,19 @@ describe('parseCalendarSearch', () => {
     expect(parseCalendarSearch({who: {}})).toEqual({});
   });
 
-  it('drops what it cannot read, and the week view, which is the default', () => {
-    expect(parseCalendarSearch({date: '2026-02-30', view: 'week', staff: 'someone', appointment: 42})).toEqual({});
+  it('keeps the week view when named, as a narrow window would otherwise open on a day', () => {
+    expect(parseCalendarSearch({view: 'Week'})).toEqual({view: 'week'});
+  });
+
+  it('keeps the row length a link names: 5 or 15 minutes', () => {
+    expect(parseCalendarSearch({rows: '5'})).toEqual({rows: 5});
+    expect(parseCalendarSearch({rows: 5})).toEqual({rows: 5});
+    // 15 too: a link can name it over someone's own default of 5.
+    expect(parseCalendarSearch({rows: '15'})).toEqual({rows: 15});
+  });
+
+  it('drops what it cannot read', () => {
+    expect(parseCalendarSearch({date: '2026-02-30', staff: 'someone', appointment: 42, rows: '10'})).toEqual({});
     expect(parseCalendarSearch({date: 'tomorrow', view: 'month', staff: ' ', appointment: {}})).toEqual({});
   });
 });

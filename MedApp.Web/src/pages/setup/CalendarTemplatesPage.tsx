@@ -39,6 +39,7 @@ import {blockLabel, count, weekSummary} from './calendarSetup';
 import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
 import {calendarTemplateEditorHref, type CalendarTemplatesSearch, type CalendarTemplatesTab} from './calendarTemplatesSearch';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {NO_FIELD_STATUS_LINE} from '../../components/forms/fieldSpace';
 
 export interface CalendarTemplatesPageProps {
   search: CalendarTemplatesSearch;
@@ -94,7 +95,8 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
         )
       }
       actions={
-        <HStack gap={2} vAlign="center" wrap="wrap">
+        // The picker never shows an error, so it drops the line kept for one, and lines up with New Day Template.
+        <HStack gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
           {owner.isAdmin && (
             <StaffPicker
               label="Whose calendar templates"

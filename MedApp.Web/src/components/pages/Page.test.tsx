@@ -25,6 +25,11 @@ describe('PageHeader', () => {
     expect(alert).toHaveTextContent('The patients could not be loaded.');
     expect(heading.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(alert.compareDocumentPosition(screen.getByRole('button', {name: 'Search'})) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // It starts from no width and takes what's left (with a minimum), so a long message wraps its own words beside the
+    // title rather than taking a line of its own and pushing the actions under it.
+    const space = alert.closest<HTMLElement>('[style*="flex-basis"]')!;
+    expect(space.style.flexBasis).toBe('0px');
+    expect(space.style.minInlineSize).toBe('12rem');
   });
 
   it('ends with a button that closes its half, in a half view', async () => {
@@ -40,6 +45,12 @@ describe('PageHeader', () => {
     expect(onClose).toHaveBeenCalledOnce();
     // Only the page's own header has it, not a section's.
     expect(screen.getAllByRole('button', {name: 'Close half view'})).toHaveLength(1);
+    // Outside the part that wraps, so it stays top right when the actions go under the title.
+    const close = screen.getByRole('button', {name: 'Close half view'});
+    const heading = screen.getByRole('heading', {level: 1, name: 'Patients'});
+    let row = screen.getByRole('button', {name: 'Search'}).parentElement!;
+    while (!row.contains(heading)) row = row.parentElement!;
+    expect(row.contains(close)).toBe(false);
   });
 
   it('has no back button unless asked for one', async () => {

@@ -175,4 +175,19 @@ public sealed class GetCalendarHandlerTests : StaffCalendarHandlerTestBase
         procedureId.Should().BeNull();
         activity.Tokens.Should().Equal(Token);
     }
+
+    [Test]
+    public async Task Handle_WithoutAppointments_LeavesThemOutAndRecordsNothing()
+    {
+        var activity = new RecordingActivityLog();
+        Fixture.Inject<IActivityLog>(activity);
+
+        var response = await Fixture.Create<GetCalendarHandler>()
+            .Handle(new GetCalendarQuery(null, NextMonday, NextFriday, StaffActor, WithoutAppointments: true), Token);
+
+        response.Appointments.Should().BeEmpty();
+        response.Days.Should().HaveCount(5);
+        response.Blocks.Should().HaveCount(6, "the days and their blocks are still there");
+        activity.Views.Should().BeEmpty();
+    }
 }

@@ -108,6 +108,8 @@ describe('CalendarTemplatesPage', () => {
 
     const picker = await screen.findByRole('combobox', {name: 'Whose calendar templates'});
     await waitFor(() => expect(picker).toHaveTextContent('My templates'));
+    // It never shows an error, so it keeps no line for one, and lines up with the New button beside it.
+    expect(picker.closest<HTMLElement>('[style*="--medapp-field-status-line"]')?.style.getPropertyValue('--medapp-field-status-line')).toBe('0px');
     await user.click(picker);
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['My templates', 'b.staff', 'test-user']);
     await user.click(screen.getByRole('option', {name: 'b.staff'}));
