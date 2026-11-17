@@ -542,6 +542,56 @@ describe('CalendarGrid', () => {
     });
   });
 
+  describe('compact (a week in a narrow window)', () => {
+    it('leaves out Saturday and Sunday, unless something is somehow on one', () => {
+      const weekday = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '09:30'}));
+      expect(dayColumns(week(), [weekday], {weekdaysOnly: true}).map((c) => c.date)).toEqual(['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27']);
+      expect(dayColumns(week(), [weekday]).map((c) => c.date)).toHaveLength(7);
+
+      // Nothing can be on a weekend, but if something were, it would never be hidden.
+      const saturday = appointmentItem(testAppointment({id: 'saturday', date: '2026-11-28', start: '09:00', end: '09:30'}));
+      expect(dayColumns(week(), [saturday], {weekdaysOnly: true}).map((c) => c.date)).toContain('2026-11-28');
+    });
+
+    it('heads each day short, naming its full date to screen readers, and selects as the full grid does', async () => {
+      atMondayMorning();
+      const onDayOpen = vi.fn();
+      const {user, onSelectRange} = renderGrid({columns: dayColumns(week(), [], {weekdaysOnly: true}), isCompact: true, onDayOpen});
+
+      const grid = await screen.findByRole('group', {name: "test-user's calendar"});
+      expect(grid).toHaveAttribute('data-compact');
+      expect(document.querySelectorAll('.mc-col')).toHaveLength(5);
+      expect(document.querySelector('.mc-head')).toHaveTextContent('Mon 23Tue 24Wed 25Thu 26Fri 27');
+      expect(column('Tuesday 24 November')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', {name: 'Mon 23, today: show Monday 23 November'}));
+      expect(onDayOpen).toHaveBeenCalledWith(MONDAY);
+      expect(screen.getByRole('button', {name: 'Fri 27: show Friday 27 November'})).toBeInTheDocument();
+
+      fireEvent.pointerDown(slot('Tuesday 24 November, 10:00, free'), {button: 0, pointerId: 1});
+      fireEvent.pointerUp(column('Tuesday 24 November'), {pointerId: 1});
+      await waitFor(() => expect(onSelectRange).toHaveBeenCalledWith(expect.objectContaining({date: '2026-11-24', column: '2026-11-24'}), expect.anything()));
+    });
+
+    it('shows every item on one line, in its colour, with its words in full in its tooltip and name', async () => {
+      atMondayMorning();
+      const hour = appointmentItem(testAppointment({id: 'hour', date: MONDAY, start: '10:00', end: '11:00'}));
+      const block = blockItem(testBlock(MONDAY, '12:00', '13:00', {note: 'Team lunch'}));
+      const {user, onItemOpen} = renderGrid({columns: dayColumns(week(), [hour, block], {weekdaysOnly: true}), isCompact: true});
+
+      const name = 'Test Patient, Knee review: Assessment, 10:00 to 11:00, Booked';
+      const card = await screen.findByRole('button', {name});
+      const lines = Array.from(card.closest('[data-kind]')!.querySelectorAll('.astryx-text')).filter((t) => !t.parentElement?.closest('.astryx-text'));
+      expect(lines.map((t) => t.textContent)).toEqual(['Test Patient, Knee review: Assessment']);
+      expect(card.closest('[data-kind]')!.getAttribute('style')).toContain(`var(--color-border-${hour.colour})`);
+      await user.hover(card);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(name);
+      await user.click(card);
+      expect(onItemOpen).toHaveBeenCalledWith(hour, expect.objectContaining({key: MONDAY}));
+
+      expect(screen.getByRole('button', {name: 'Lunch, Team lunch, 12:00 to 13:00'}).closest('[data-kind]')).toHaveTextContent('Lunch, Team lunch');
+    });
+  });
+
   it('shows nothing much for no days', async () => {
     renderWithApp(<CalendarGrid label="Nothing" columns={[]} />);
     expect(await screen.findByRole('group', {name: 'Nothing'})).toBeInTheDocument();

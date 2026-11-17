@@ -107,6 +107,16 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-narrow-week',
+    title: 'Calendar on a narrow window: the compact week, Monday to Friday with items on one line',
+    path: '/calendar?view=week',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 900, height: 900 });
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-book-dialog',
     title: 'Book Appointment from New: who, with whom and how long beside the free days and times (not saved)',
     path: '/calendar',

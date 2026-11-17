@@ -43,8 +43,8 @@ export const CALENDAR_VIEWS = ['day', 'week', 'team'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
 /**
- * The Calendar page: the day shown (today by default), day, week or team (week), whose (yours), an open appointment,
- * and who the team view shows (everyone with a staff role, by default).
+ * The Calendar page: the day shown (today by default), day, week or team (the week, or the day in a narrow window),
+ * whose (yours), an open appointment, and who the team view shows (everyone with a staff role, by default).
  */
 export interface CalendarSearch {
   date?: string;
@@ -58,8 +58,8 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
   const view = text(raw.view)?.toLowerCase();
   return compact({
     date: date(raw.date),
-    // Week is the default, so only day and team are kept.
-    view: view === 'day' || view === 'team' ? view : undefined,
+    // Week is the default in a wide window, but a narrow one opens on a day, so a week is kept when it's named.
+    view: view === 'day' || view === 'week' || view === 'team' ? view : undefined,
     staff: id(raw.staff),
     appointment: id(raw.appointment),
     who: ids(raw.who),

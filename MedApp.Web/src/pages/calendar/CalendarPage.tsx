@@ -59,12 +59,13 @@ export function calendarRange(date: string, view: CalendarView): {from: string; 
 }
 
 /**
- * The view shown for a search: the team view only for admins (anyone else gets the week), and in a narrow window or a
- * half view a day instead of a week (the team view still works there: it scrolls sideways).
+ * The view shown for a search: the one it names (the team view only for admins), or by default the week, and in a
+ * narrow window or a half view the day. A week asked for there is kept, in its compact form (Monday to Friday, items on
+ * one line); the team view works there too, scrolling sideways.
  */
 export function shownView(search: CalendarSearch, isAdmin: boolean, isNarrow = false): CalendarView {
-  const view = search.view === 'team' && !isAdmin ? 'week' : (search.view ?? 'week');
-  return isNarrow && view === 'week' ? 'day' : view;
+  const view = search.view === 'team' && !isAdmin ? undefined : search.view;
+  return view ?? (isNarrow ? 'day' : 'week');
 }
 
 /** One person's calendar for a search (what its route preloads): the week by default, the user's own. */
@@ -132,8 +133,9 @@ interface PendingMove {
  * week from their week templates, and leads to their calendar templates.
  *
  * Its state is in the URL (`calendarSearch.ts`): the day, the view, whose calendar, an open appointment (which
- * notifications link to), and who the team view shows. In a narrow window or a half view it shows a day instead of a
- * week; the team view still works there, scrolling sideways.
+ * notifications link to), and who the team view shows. In a narrow window or a half view it opens on a day rather than
+ * the week, and a week is compact: Monday to Friday, a narrower hour gutter and items on one line (decision 67). The
+ * team view still works there, scrolling sideways. Both apply after mount, as the server renders the wide page.
  */
 export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const me = useCurrentUser();
@@ -143,6 +145,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const date = search.date ?? today;
   const view = shownView(search, me.isAdmin, isNarrow);
   const isTeam = view === 'team';
+  // A week in a narrow window or a half view: Monday to Friday, squeezed in.
+  const isCompactWeek = isNarrow && view === 'week';
   const {from, to} = calendarRange(date, view);
 
   const staff = useQuery(staffQuery);
@@ -369,7 +373,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const teamDay = team.data?.day;
   const teamDate = team.data?.date ?? date;
   const columns: CalendarColumn[] = !isTeam
-    ? dayColumns(days, calendarItems(person))
+    ? dayColumns(days, calendarItems(person), {weekdaysOnly: isCompactWeek})
     : teamDay
       ? [
           {key: EVERYONE_FREE, label: 'Everyone free', date: teamDate, day: teamDay, items: [], freeTime: team.data?.everyoneFree ?? []},
@@ -386,7 +390,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const heldOwner = held && held.column !== EVERYONE_FREE ? calendarOf(held.column) : undefined;
   const viewChoices: {value: CalendarView; label: string}[] = [
     {value: 'day', label: 'Day'},
-    ...(isNarrow ? [] : [{value: 'week' as const, label: 'Week'}]),
+    {value: 'week', label: 'Week'},
     ...(me.isAdmin ? [{value: 'team' as const, label: 'Team'}] : []),
   ];
   const requestedCount = needsBooking.data?.totalCount ?? 0;
@@ -535,14 +539,18 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               format="date_weekday"
               width={TOOLBAR_FIELD_WIDTH}
             />
-            {viewChoices.length > 1 && (
-              // Its unselected choices use the primary text colour: the secondary one is under 4.5:1 on its track.
-              <SegmentedControl label="View" value={view} onChange={(value) => go({view: value === 'day' || value === 'team' ? value : undefined})} style={PRIMARY_TEXT}>
-                {viewChoices.map((choice) => (
-                  <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
-                ))}
-              </SegmentedControl>
-            )}
+            {/* Its unselected choices use the primary text colour: the secondary one is under 4.5:1 on its track. The
+                week is left out of the URL where it's the default (a wide window), and named in a narrow one, where
+                the day is the default, so it stays a week. */}
+            <SegmentedControl
+              label="View"
+              value={view}
+              onChange={(value) => go({view: value === 'day' || value === 'team' ? value : isNarrow ? 'week' : undefined})}
+              style={PRIMARY_TEXT}>
+              {viewChoices.map((choice) => (
+                <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
+              ))}
+            </SegmentedControl>
             {isTeam ? (
               <MultiSelector
                 label="Who"
@@ -614,6 +622,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                 onItemOpen={openItem}
                 onItemMove={moveItem}
                 keepsItemsInColumn={isTeam}
+                isCompact={isCompactWeek}
                 onDayOpen={(d) => go({date: d, view: 'day'})}
               />
             )}

@@ -8,7 +8,7 @@ import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
 import {useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, SLOT_MINUTES} from '../../utils/calendarSlots';
+import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, isWeekday, SLOT_MINUTES} from '../../utils/calendarSlots';
 import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
@@ -49,12 +49,18 @@ export interface CalendarColumn {
   freeTime?: {startUtc?: string; endUtc?: string}[];
 }
 
-/** One person's days as columns, each with the items on its date: a day (one column) or a week. */
-export function dayColumns(days: CalendarDay[], items: CalendarGridItem[]): CalendarColumn[] {
-  return days.map((day) => {
-    const date = day.date ?? '';
-    return {key: date, date, day, items: items.filter((i) => i.date === date)};
-  });
+/**
+ * One person's days as columns, each with the items on its date: a day (one column) or a week. With `weekdaysOnly`
+ * (a compact week), Saturday and Sunday are left out: nothing can be booked, blocked or met on them, and templates put
+ * nothing there, so they're always empty. One that somehow has something on it is kept, so nothing is ever hidden.
+ */
+export function dayColumns(days: CalendarDay[], items: CalendarGridItem[], {weekdaysOnly = false}: {weekdaysOnly?: boolean} = {}): CalendarColumn[] {
+  return days
+    .map((day) => {
+      const date = day.date ?? '';
+      return {key: date, date, day, items: items.filter((i) => i.date === date)};
+    })
+    .filter((column) => !weekdaysOnly || isWeekday(column.date) || column.items.length > 0);
 }
 
 export interface CalendarGridProps {
@@ -62,7 +68,7 @@ export interface CalendarGridProps {
   label: string;
   /**
    * The columns, in order: one person's day or week (`dayColumns`: a week runs Monday to Sunday, and its weekends show
-   * as narrow, greyed columns), or people side by side on one day. More than fit scroll sideways inside the grid, with
+   * as narrow, greyed columns; a compact week, Monday to Friday), or people side by side on one day. More than fit scroll sideways inside the grid, with
    * the hours staying put.
    */
   columns: CalendarColumn[];
@@ -90,6 +96,12 @@ export interface CalendarGridProps {
    * is still named for screen readers.
    */
   isHeadingHidden?: boolean;
+  /**
+   * Squeezed into a narrow window (the Calendar page's compact week): a narrower hour gutter, columns that may be
+   * narrower, and every item on one line, cut short, its words in full in its tooltip and accessible name. Each day's
+   * heading still names its full date to screen readers.
+   */
+  isCompact?: boolean;
 }
 
 const MINUTE = 60_000;
@@ -216,7 +228,9 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
  * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
  * edge. A week's weekends show as narrow greyed columns that do nothing. A week's columns are headed by their days; a
  * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
- * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put.
+ * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put. A compact grid
+ * (`isCompact`, with `dayColumns`' `weekdaysOnly`) fits a week into a narrow window: Monday to Friday, a narrower hour
+ * gutter, and items on one line each.
  *
  * Use it for any calendar: the Calendar page (selecting free time, opening and dragging items, a person's day or
  * week, and the team view), Home's day calendar (read-only), or anything else that shows people's time. It knows
@@ -239,6 +253,7 @@ export function CalendarGrid({
   selectionRef,
   onDayOpen,
   isHeadingHidden = false,
+  isCompact = false,
 }: CalendarGridProps) {
   const now = useNow();
   const hintId = useId();
@@ -561,6 +576,7 @@ export function CalendarGrid({
       aria-label={label}
       height="100%"
       className="medapp-calendar"
+      data-compact={isCompact || undefined}
       style={{['--mc-rows' as string]: rowsShown, ['--mc-min-inline' as string]: minInline, minHeight: 0}}>
       <style>{GRID_CSS}</style>
       <VisuallyHidden id={hintId}>
@@ -585,7 +601,7 @@ export function CalendarGrid({
                     <Button
                       label={name}
                       // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
-                      aria-label={`${name}${l.day.isToday ? ', today' : ''}: show the day`}
+                      aria-label={`${name}${l.day.isToday ? ', today' : ''}: show ${isCompact ? formatCalendarDay(l.date) : 'the day'}`}
                       variant="ghost"
                       size="sm"
                       onClick={() => onDayOpen(l.date)}
@@ -739,6 +755,7 @@ export function CalendarGrid({
                     key={p.item.key}
                     placed={p}
                     rows={l.rows}
+                    isCompact={isCompact}
                     isDragged={drag?.isMoving === true && drag.from === col && drag.item.key === p.item.key}
                     onOpen={onItemOpen && !p.item.isReadOnly ? () => openItem(p.item, l.column) : undefined}
                     onPointerDown={onItemMove && p.item.isMovable ? (event) => onItemPointerDown(event, p.item, col) : undefined}
@@ -786,11 +803,13 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
 /**
  * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter), as many lines as fit,
  * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
- * it never relies on colour alone. One under 10 minutes, too short for any text, has a tooltip.
+ * it never relies on colour alone. One under 10 minutes, too short for any text, has a tooltip. On a compact grid every
+ * item is one line, cut short, with its words in full in a tooltip.
  */
 function GridItem({
   placed,
   rows,
+  isCompact,
   isDragged,
   onOpen,
   onPointerDown,
@@ -799,6 +818,7 @@ function GridItem({
 }: {
   placed: PlacedItem;
   rows: number;
+  isCompact: boolean;
   isDragged: boolean;
   onOpen?: () => void;
   onPointerDown?: (event: PointerEvent<HTMLElement>) => void;
@@ -818,7 +838,7 @@ function GridItem({
     insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
     inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
     zIndex: isTinted ? 2 : 1,
-    padding: '0 var(--spacing-1-5)',
+    padding: isCompact ? '0 var(--spacing-1)' : '0 var(--spacing-1-5)',
     overflow: 'hidden',
     borderInlineStart: `var(--spacing-1) solid var(--color-border-${item.colour})`,
     borderRadius: 'var(--radius-inner)',
@@ -859,7 +879,7 @@ function GridItem({
       </VStack>
     ) : (
       <VStack gap={0} hAlign="stretch">
-        {lines === 1 ? (
+        {lines === 1 || isCompact ? (
           oneLine('supporting')
         ) : (
           <>
@@ -882,8 +902,8 @@ function GridItem({
       </VStack>
     );
   const variant = isTinted ? item.colour : 'default';
-  // Too short for any text: what it is shows on hover and focus.
-  const withTooltip = (card: ReactElement) => (fit === 'tiny' ? <Tooltip content={item.description}>{card}</Tooltip> : card);
+  // Too short for any text, or cut short on a compact grid: what it is shows on hover and focus.
+  const withTooltip = (card: ReactElement) => (fit === 'tiny' || isCompact ? <Tooltip content={item.description}>{card}</Tooltip> : card);
   if (!onOpen) {
     // Nothing to open: shown as a plain card, named by its description.
     return withTooltip(
@@ -916,6 +936,9 @@ function GridItem({
  */
 const GRID_CSS = `
 .medapp-calendar { --mc-row: calc(var(--spacing-5) + var(--spacing-0-5)); --mc-gutter: var(--spacing-12); --mc-narrow: var(--spacing-10); --mc-day-min: 6rem; --mc-labelled-min: 8rem; }
+.medapp-calendar[data-compact] { --mc-gutter: var(--spacing-10); --mc-day-min: 2.5rem; }
+.medapp-calendar[data-compact] .mc-hour { inset-inline-end: var(--spacing-1); }
+.medapp-calendar[data-compact] .mc-head-cell { padding-inline: 0; overflow: hidden; }
 .medapp-calendar .mc-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
 .medapp-calendar .mc-head { position: sticky; top: 0; z-index: 6; display: flex; min-inline-size: var(--mc-min-inline); background: var(--color-background-card); border-block-end: 1px solid var(--color-border-emphasized); }
 .medapp-calendar .mc-head-cell { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); display: flex; align-items: center; justify-content: center; min-block-size: var(--spacing-9); padding-inline: var(--spacing-1); border-inline-start: 1px solid var(--color-border); }
