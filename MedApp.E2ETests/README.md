@@ -52,7 +52,7 @@ The whole suite takes about a minute. The tests write to the database the app us
 - the audit log entries of the procedures they made (by design: the audit log outlives deletes)
 - the notification the bell test sends (marked read)
 - the session rows of the accounts they made and deleted (none can be used: their users are gone)
-- nothing from the meeting journey: it cancels its meeting, and deleting its account would take it off any meeting left
+- nothing from the meeting journey: it cancels its meeting, and its clean-up cancels it too if the test fails first
 - the appointments they made, cancelled (the app never deletes appointments), with their history, and so the `E2E …` patients they were for: a patient who has had an appointment can't be deleted
 
 A run that's cancelled or crashes before its clean-up (against a deployment, through `e2e.yml`, say) can also leave what it made: `E2E …` patients, stages and templates, and `e2e-…` accounts, one of them an admin. Their passwords are random for the run, but delete them by hand.
@@ -80,6 +80,7 @@ public sealed class PatientTests : E2ETest
 - **Rely on nothing you didn't make**, except the signed-in account and the seeded default stage definition. Other data may be there, so filter lists down to your own rows rather than counting everything.
 - **Use synthetic data only.** This is a medical app: never realistic patient details.
 - An account an admin makes must change its generated password before anything else (`UpdateOwnPasswordAsync`), as `NotificationBellTests` does for its second admin.
+- **Waiting for a save:** a dialog that's saving is an `alertdialog`, not a `dialog`. Our dialogs set Astryx's `purpose="required"` while they save (so Escape and a click outside can't close them), and Astryx gives such a dialog the role `alertdialog`. So `Expect(dialog).ToBeHiddenAsync()` on a `GetByRole(AriaRole.Dialog, ...)` locator passes the moment Save is pressed, before the request has finished. Follow it with something that waits for the result on the page (`ToBeVisibleAsync`, `ToContainTextAsync`), or, before reading the API, wrap the click in `Page.RunAndWaitForResponseAsync` for the request and check its status, as `MeetingTests` does.
 
 ## CI
 
