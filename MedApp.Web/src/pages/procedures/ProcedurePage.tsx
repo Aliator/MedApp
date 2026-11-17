@@ -37,6 +37,7 @@ import {AppointmentList} from '../../components/procedures/AppointmentList';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
 import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../components/procedures/ProcedureCells';
 import {useOfferToNotepad} from '../../components/notepad/NotepadContext';
+import {NoteDeletionRequestDialog} from '../../components/procedures/NoteDeletionRequestDialog';
 import {ProcedureNotes} from '../../components/procedures/ProcedureNotes';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/procedures/StageList';
@@ -91,10 +92,28 @@ interface Booking {
  * Staff save the current stage's notes, finish it, and change the status (block, cancel, complete, archive);
  * admins also assign and unassign staff and unlock finished stages. Anyone can work on any procedure, but if
  * it isn't assigned to you, the first change of the visit asks you to confirm.
+ *
+ * A request to delete one of its notes in the address (`?deletionRequest=<id>`, from an admin's "Note deletion
+ * requested" notification) opens in `NoteDeletionRequestDialog` over the page, for admins; closing it takes it out of
+ * the address.
  */
-export function ProcedurePage({id}: {id: string}) {
+export function ProcedurePage({id, deletionRequest, onCloseDeletionRequest}: ProcedurePageProps) {
   const isNarrow = useIsNarrow();
-  return <ProcedureView id={id} isNarrow={isNarrow} />;
+  const {isAdmin} = useCurrentUser();
+  return (
+    <>
+      <ProcedureView id={id} isNarrow={isNarrow} />
+      <NoteDeletionRequestDialog requestId={isAdmin ? (deletionRequest ?? null) : null} onClose={() => onCloseDeletionRequest?.()} />
+    </>
+  );
+}
+
+export interface ProcedurePageProps {
+  id: string;
+  /** A request to delete one of its notes, to open (admins only): `?deletionRequest=<id>`. */
+  deletionRequest?: string;
+  /** Takes the request out of the address. */
+  onCloseDeletionRequest?: () => void;
 }
 
 export interface ProcedureViewProps {

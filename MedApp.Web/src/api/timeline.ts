@@ -187,6 +187,16 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       const noteText = noteTextOf(changes);
       return {title: 'Note edited', detail: noteText ? 'It now reads:' : '', noteText};
     }
+    // Deleted by an admin (kept, but hidden): staff see who and when; admins also the reason and the text it had.
+    case 'NoteDeleted': {
+      const noteText = changes.find((c) => c.from?.trim())?.from?.trim();
+      const reason = entry.reason?.trim();
+      return {
+        title: 'Note deleted',
+        detail: [reason ? `Reason: ${reason}` : null, noteText ? 'It read:' : null].filter(Boolean).join(' '),
+        noteText,
+      };
+    }
     case 'Assigned':
       return {title: `Assigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
     case 'Unassigned':

@@ -1,6 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {procedureQuery, type Procedure, type ProcedureNote} from '../../api/procedures';
-import {isDisabled, mockFetch, renderWithApp, staffUser} from '../../test/render';
+import type {CurrentUser} from '../../auth/auth';
+import {adminUser, isDisabled, mockFetch, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {richText, setRichText} from '../../test/richText';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {NOTE_CONFLICT_FALLBACK, ProcedureNotes, whyNoNotes} from './ProcedureNotes';
@@ -30,12 +31,12 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
 }
 
-function renderNotes(p: Procedure = procedure()) {
+function renderNotes(p: Procedure = procedure(), signedIn: CurrentUser = staffUser) {
   const result = renderWithApp(
     <SaveShortcutProvider>
       <ProcedureNotes procedure={p} />
     </SaveShortcutProvider>,
-    {user: staffUser},
+    {user: signedIn},
   );
   result.queryClient.setQueryData(procedureQuery(p.id ?? '').queryKey, p);
   return result;
@@ -209,6 +210,127 @@ describe('ProcedureNotes', () => {
 
     expect(await screen.findByText('The note could not be added.')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Reload'})).not.toBeInTheDocument();
+  });
+
+  describe('deleting notes', () => {
+    const deletable = () =>
+      procedure({
+        noteList: [note({canDelete: true, canRequestDeletion: true}), note({id: 'n2', authorUsername: 'k.ashford', canEdit: false, canDelete: true, canRequestDeletion: true})],
+      });
+    const requests = (fetch: ReturnType<typeof mockFetch>) =>
+      fetch.mock.calls.map(([input]) => input as Request).filter((r) => r.method === 'POST');
+
+    it('offers admins Delete on every note they can delete, and never Request Deletion', async () => {
+      renderNotes(deletable(), adminUser);
+
+      const items = within(await screen.findByRole('list', {name: 'Notes'})).getAllByRole('listitem');
+      expect(within(items[0]).getByRole('button', {name: 'Delete'})).toBeInTheDocument();
+      expect(within(items[1]).getByRole('button', {name: 'Delete'})).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Request Deletion'})).not.toBeInTheDocument();
+    });
+
+    it('offers staff Request Deletion on any note, and never Delete', async () => {
+      renderNotes(deletable());
+
+      const items = within(await screen.findByRole('list', {name: 'Notes'})).getAllByRole('listitem');
+      expect(within(items[0]).getByRole('button', {name: 'Request Deletion'})).toBeInTheDocument();
+      expect(within(items[1]).getByRole('button', {name: 'Request Deletion'})).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Delete'})).not.toBeInTheDocument();
+    });
+
+    it('offers neither when the API says no (a restricted record)', async () => {
+      renderNotes(procedure({noteList: [note({canDelete: false, canRequestDeletion: false})]}), adminUser);
+      await screen.findByText('mornings');
+      expect(screen.queryByRole('button', {name: 'Delete'})).not.toBeInTheDocument();
+    });
+
+    it('deletes a note for an admin, with a reason, and takes it off the list at once', async () => {
+      const fetch = mockFetch(async (request) => (request.method === 'POST' ? new Response(null, {status: 204}) : json(procedure({noteList: []}))));
+      const {user, queryClient} = renderNotes(deletable(), adminUser);
+      const first = within(await screen.findByRole('list', {name: 'Notes'})).getAllByRole('listitem')[0];
+      await user.click(within(first).getByRole('button', {name: 'Delete'}));
+
+      const dialog = within(openDialog()!);
+      // The note being deleted shows in the dialog, and a reason is needed first.
+      expect(dialog.getByText('mornings')).toBeInTheDocument();
+      expect(isDisabled(dialog.getByRole('button', {name: 'Delete Note'}))).toBe(true);
+      await user.type(dialog.getByRole('textbox', {name: /Reason/}), 'Synthetic: on the wrong patient.');
+      await user.click(dialog.getByRole('button', {name: 'Delete Note'}));
+
+      const post = await waitFor(() => requests(fetch)[0]);
+      expect(new URL(post.url).pathname).toBe('/api/procedures/patient-procedures/p1/notes/n1/delete');
+      expect(await post.json()).toEqual({reason: 'Synthetic: on the wrong patient.'});
+      await waitFor(() => expect(queryClient.getQueryData<Procedure>(['procedures', 'p1'])?.noteList?.some((n) => n.id === 'n1')).toBe(false));
+      await waitFor(() => expect(openDialog()).toBeNull());
+    });
+
+    it("asks an admin to delete a note for staff, and shows it's been asked", async () => {
+      const asked = note({id: 'n2', authorUsername: 'k.ashford', canEdit: false, canRequestDeletion: false, deletionRequestId: 'r1'});
+      const fetch = mockFetch(async (request) => (request.method === 'POST' ? json(asked, 201) : json(procedure({noteList: [asked]}))));
+      const {user, queryClient} = renderNotes(deletable());
+      const second = within(await screen.findByRole('list', {name: 'Notes'})).getAllByRole('listitem')[1];
+      await user.click(within(second).getByRole('button', {name: 'Request Deletion'}));
+
+      const dialog = within(openDialog()!);
+      await user.type(dialog.getByRole('textbox', {name: /Reason/}), 'Synthetic: a duplicate.');
+      await user.click(dialog.getByRole('button', {name: 'Request Deletion'}));
+
+      const post = await waitFor(() => requests(fetch)[0]);
+      expect(new URL(post.url).pathname).toBe('/api/procedures/patient-procedures/p1/notes/n2/deletion-requests');
+      expect(await post.json()).toEqual({reason: 'Synthetic: a duplicate.'});
+      await waitFor(() =>
+        expect(queryClient.getQueryData<Procedure>(['procedures', 'p1'])?.noteList?.find((n) => n.id === 'n2')?.deletionRequestId).toBe('r1'),
+      );
+    });
+
+    it("shows the API's words when a request is refused, and keeps the dialog open", async () => {
+      mockFetch(async (request) =>
+        request.method === 'POST'
+          ? json({title: 'k.ashford already asked for this note to be deleted, Tuesday 17 November at 10:00. An admin will decide.'}, 409)
+          : json(deletable()),
+      );
+      const {user} = renderNotes(deletable());
+      await user.click((await screen.findAllByRole('button', {name: 'Request Deletion'}))[0]);
+      const dialog = within(openDialog()!);
+      await user.type(dialog.getByRole('textbox', {name: /Reason/}), 'Synthetic reason.');
+      await user.click(dialog.getByRole('button', {name: 'Request Deletion'}));
+
+      expect(await dialog.findByText(/already asked for this note to be deleted/)).toBeInTheDocument();
+      expect(openDialog()).not.toBeNull();
+    });
+
+    it("puts the API's 400 on the reason", async () => {
+      mockFetch(async (request) =>
+        request.method === 'POST'
+          ? json({title: 'Validation failed', status: 400, errors: {Reason: ['Say why the note should be deleted.']}}, 400)
+          : json(deletable()),
+      );
+      const {user} = renderNotes(deletable(), adminUser);
+      await user.click((await screen.findAllByRole('button', {name: 'Delete'}))[0]);
+      const dialog = within(openDialog()!);
+      await user.type(dialog.getByRole('textbox', {name: /Reason/}), 'x');
+      await user.click(dialog.getByRole('button', {name: 'Delete Note'}));
+
+      expect(await dialog.findByText('Say why the note should be deleted.')).toBeInTheDocument();
+    });
+
+    it('marks a note whose deletion has been asked for, and lets an admin open the request', async () => {
+      const fetch = mockFetch(() => json({}, 404));
+      const {user} = renderNotes(procedure({noteList: [note({deletionRequestId: 'r1', canRequestDeletion: false, canDelete: true})]}), adminUser);
+
+      expect(await screen.findByText('Deletion requested')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', {name: 'Review Request'}));
+      await waitFor(() =>
+        expect(fetch.mock.calls.some(([input]) => new URL((input as Request).url).pathname === '/api/procedures/note-deletion-requests/r1')).toBe(true),
+      );
+    });
+
+    it("shows staff that a deletion's been asked for, without the admin's Review Request", async () => {
+      renderNotes(procedure({noteList: [note({deletionRequestId: 'r1', canRequestDeletion: false})]}));
+      expect(await screen.findByText('Deletion requested')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Review Request'})).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Request Deletion'})).not.toBeInTheDocument();
+    });
   });
 
   it("warns when a note is too long, and won't send it", async () => {

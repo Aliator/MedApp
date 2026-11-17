@@ -32,6 +32,31 @@ const PRINT_CSS = '@media print { .astryx-side-nav, button { display: none !impo
 export const exportFileName = (data: PatientExport) =>
   `patient-${data.patient?.id ?? 'record'}-${(data.exportedAtUtc ?? '').slice(0, 10) || 'export'}.json`;
 
+type ExportedNote = NonNullable<NonNullable<PatientExport['procedures']>[number]['notes']>[number];
+type ExportedDeletionRequest = NonNullable<PatientExport['noteDeletionRequests']>[number];
+
+/** A deleted note's line: "Deleted by admin, 17 Nov 2026, 10:32. Reason: On the wrong patient." */
+export function deletedNoteText(note: Pick<ExportedNote, 'deletedAtUtc' | 'deletedBy' | 'deletionReason'>): string {
+  const reason = note.deletionReason?.trim();
+  return `Deleted by ${note.deletedBy ?? 'an admin'}, ${formatDateTime(note.deletedAtUtc ?? '')}.${reason ? ` Reason: ${reason}` : ''}`;
+}
+
+/** Where a request to delete a note stands: waiting, or what an admin decided, by whom and when. */
+export function deletionRequestOutcome(request: Pick<ExportedDeletionRequest, 'status' | 'decidedBy' | 'decidedAtUtc'>): string {
+  const by = request.decidedBy ?? 'an admin';
+  const at = request.decidedAtUtc ? `, ${formatDateTime(request.decidedAtUtc)}` : '';
+  switch (request.status) {
+    case 'Approved':
+      return `Note deleted by ${by}${at}.`;
+    case 'Declined':
+      return `Note kept by ${by}${at}.`;
+    case 'Closed':
+      return `Closed without a decision${at}.`;
+    default:
+      return 'Waiting for an admin to decide.';
+  }
+}
+
 /** Saves the export as a JSON file, through a link to it in memory (nothing is sent anywhere). */
 export function downloadExport(data: PatientExport) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
@@ -221,6 +246,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const history = data.procedureHistory ?? [];
   // Every version of every note, those of deleted procedures too.
   const noteHistory = data.noteHistory ?? [];
+  // Staff's requests to delete notes, with their reasons and outcomes.
+  const deletionRequests = data.noteDeletionRequests ?? [];
   const appointments = data.appointments ?? [];
   const appointmentHistory = data.appointmentHistory ?? [];
   const access = data.accessLog ?? [];
@@ -283,9 +310,14 @@ function ExportContent({data}: {data: PatientExport}) {
                   {(procedure.notes ?? []).length > 0 && <Heading level={4}>{`Notes (${(procedure.notes ?? []).length})`}</Heading>}
                   {(procedure.notes ?? []).map((note) => (
                     <VStack key={note.id} gap={1} hAlign="stretch">
-                      <Text type="supporting" color="secondary">
-                        {`Note by ${note.author}, ${when(note.createdAtUtc)}${note.lastEditedAtUtc ? `, edited ${when(note.lastEditedAtUtc)}` : ''}`}
-                      </Text>
+                      <HStack gap={2} vAlign="center" wrap="wrap">
+                        <Text type="supporting" color="secondary">
+                          {`Note by ${note.author}, ${when(note.createdAtUtc)}${note.lastEditedAtUtc ? `, edited ${when(note.lastEditedAtUtc)}` : ''}`}
+                        </Text>
+                        {note.deletedAtUtc && <Token label="Deleted" size="sm" />}
+                      </HStack>
+                      {/* Hidden from the procedure page, but kept: when, by whom and why. */}
+                      {note.deletedAtUtc && <Text type="supporting" color="secondary">{deletedNoteText(note)}</Text>}
                       <RichText>{note.text ?? ''}</RichText>
                     </VStack>
                   ))}
@@ -404,6 +436,31 @@ function ExportContent({data}: {data: PatientExport}) {
                         {procedureTitles.get(version.procedureId) || 'A deleted procedure'}
                       </Text>
                       <RichText>{version.text ?? ''}</RichText>
+                    </VStack>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Note Deletion Requests (${deletionRequests.length})`}>
+        {deletionRequests.length === 0
+          ? nothing('No requests to delete notes.')
+          : (
+            <List hasDividers edge="bleed">
+              {deletionRequests.map((request) => (
+                <ListItem
+                  key={request.id}
+                  align="first-line"
+                  label={<Text type="body">{`${when(request.requestedAtUtc)}: ${request.requestedBy} asked for a note to be deleted`}</Text>}
+                  description={
+                    <VStack gap={1} hAlign="stretch">
+                      <Text type="supporting" color="secondary">
+                        {procedureTitles.get(request.procedureId) || 'A deleted procedure'}
+                      </Text>
+                      <Text type="body">{`Reason: ${request.reason ?? ''}`}</Text>
+                      <Text type="body">{deletionRequestOutcome(request)}</Text>
                     </VStack>
                   }
                 />

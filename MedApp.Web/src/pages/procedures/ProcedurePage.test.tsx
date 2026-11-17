@@ -49,6 +49,32 @@ describe('ProcedurePage', () => {
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
   });
 
+  it('opens a request to delete a note from the address for an admin, and closes it', async () => {
+    const requestId = '0000000d-0000-0000-0000-000000000001';
+    const fetch = mockApi({
+      [`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure),
+      [`GET /api/procedures/note-deletion-requests/${requestId}`]: () =>
+        json({id: requestId, status: 'Declined', reason: 'Synthetic reason.', requestedByUsername: 's.nurse', requestedAtUtc: '2026-11-17T10:00:00Z', procedureId: id, procedureTitle: 'Colonoscopy', decidedByUsername: 'other.admin', decidedAtUtc: '2026-11-17T11:00:00Z', note: null, canDecide: false}),
+    });
+    const onClose = vi.fn();
+    const {user} = renderWithApp(<ProcedurePage id={id} deletionRequest={requestId} onCloseDeletionRequest={onClose} />, {user: adminUser});
+
+    expect(await screen.findByText(/^other\.admin kept this note/)).toBeInTheDocument();
+    // The footer's Close (the header has its own).
+    await user.click(within(openDialog()!).getAllByRole('button', {name: 'Close'}).at(-1)!);
+    expect(onClose).toHaveBeenCalled();
+    expect(calls(fetch)).toContain(`GET /api/procedures/note-deletion-requests/${requestId}`);
+  });
+
+  it("never opens a request to delete a note for staff, who can't read it", async () => {
+    const fetch = mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
+    renderWithApp(<ProcedurePage id={id} deletionRequest="0000000d-0000-0000-0000-000000000001" />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
+    expect(openDialog()).toBeNull();
+    expect(calls(fetch).some((call) => call.includes('note-deletion-requests'))).toBe(false);
+  });
+
   it('has no banner when the procedure comes without its patient', async () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});

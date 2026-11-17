@@ -15,13 +15,16 @@ import {timeAgo} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 
 /**
- * Where a notification leads: an appointment opens on the calendar, a procedure on its page, and anything else about a
- * day on the calendar (a meeting) opens that day there.
+ * Where a notification leads: an appointment opens on the calendar, a request to delete a note opens on its
+ * procedure's page (for the admin to decide), a procedure on its page, and anything else about a day on the calendar
+ * (a meeting) opens that day there.
  */
 const hrefOf = (notification: AppNotification) =>
   notification.appointmentId
     ? `/calendar?appointment=${notification.appointmentId}`
-    : notification.procedureId
+    : notification.noteDeletionRequestId && notification.procedureId
+      ? `/procedures/${notification.procedureId}?deletionRequest=${notification.noteDeletionRequestId}`
+      : notification.procedureId
       ? `/procedures/${notification.procedureId}`
       : notification.calendarDate
         ? `/calendar?date=${notification.calendarDate}&view=day`
@@ -36,6 +39,9 @@ const KIND_ICONS: Record<string, IconType> = {
   MeetingInvited: AppIcon.Meeting,
   MeetingChanged: AppIcon.Meeting,
   MeetingCancelled: AppIcon.Meeting,
+  NoteDeletionRequested: AppIcon.Delete,
+  NoteDeletionApproved: AppIcon.Delete,
+  NoteDeletionDeclined: AppIcon.Notes,
 };
 
 /** The bell's label: what it is, and how many are unread. */

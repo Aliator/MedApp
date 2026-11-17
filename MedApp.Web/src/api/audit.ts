@@ -26,6 +26,7 @@ export const AUDIT_ACTIONS = [
   'AttachmentDownloaded',
   'NoteAdded',
   'NoteEdited',
+  'NoteDeleted',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -45,6 +46,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   AttachmentDownloaded: 'File downloaded',
   NoteAdded: 'Note added',
   NoteEdited: 'Note edited',
+  NoteDeleted: 'Note deleted',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -154,6 +156,12 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     case 'NoteAdded':
     case 'NoteEdited':
       return typeof d.version === 'number' ? `Version ${d.version}` : '';
+    // The version deleted and the admin's reason; still never the note's text.
+    case 'NoteDeleted': {
+      const version = typeof d.version === 'number' ? `Version ${d.version}` : '';
+      const reason = typeof d.reason === 'string' && d.reason.trim() ? d.reason.trim() : '';
+      return [version, reason].filter(Boolean).join(': ');
+    }
     default:
       return '';
   }

@@ -6,6 +6,8 @@ export type Procedure = Schemas['PatientProcedureResponse'];
 export type ProcedureStage = Schemas['PatientProcedureStageResponse'];
 /** One of a procedure's notes: its author, times, version and whether you can edit it (only your own). */
 export type ProcedureNote = Schemas['PatientProcedureNoteResponse'];
+/** A member of staff's request to delete a note, as an admin decides it: the note, the patient, who asked and why. */
+export type NoteDeletionRequest = Schemas['NoteDeletionRequestResponse'];
 
 /**
  * Every procedure query is keyed under ['procedures'], so a change to any procedure refreshes them all.
@@ -247,6 +249,64 @@ export function useReloadProcedure(id: string) {
   const queryClient = useQueryClient();
   // Read again even where nothing shows it now (a note's conflict can be seen from the notepad, too).
   return () => queryClient.invalidateQueries({queryKey: procedureQuery(id).queryKey, refetchType: 'all'});
+}
+
+/**
+ * Deleting a note (admins, with a reason) and asking an admin to delete one (staff, with a reason). Deleting is soft:
+ * the API keeps the note, hidden, so it's taken out of the cached procedure at once; asking returns the note, which
+ * then shows "Deletion requested". The procedure, lists and timelines then refresh.
+ */
+export function useNoteDeletionActions(id: string) {
+  const queryClient = useQueryClient();
+  const show = useShowNote();
+  return {
+    remove: useMutation({
+      mutationFn: ({noteId, reason}: {noteId: string; reason: string}) =>
+        unwrap(api.POST(`${PROCEDURE}/notes/{noteId}/delete`, {params: {path: {id, noteId}}, body: {reason}})),
+      onSuccess: async (_, {noteId}) => {
+        queryClient.setQueryData(procedureQuery(id).queryKey, (procedure) =>
+          procedure && {...procedure, noteList: (procedure.noteList ?? []).filter((n) => n.id !== noteId)},
+        );
+        await queryClient.invalidateQueries({queryKey: procedureQuery(id).queryKey});
+        await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+        await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
+      },
+    }),
+    request: useMutation({
+      mutationFn: ({noteId, reason}: {noteId: string; reason: string}) =>
+        unwrap(api.POST(`${PROCEDURE}/notes/{noteId}/deletion-requests`, {params: {path: {id, noteId}}, body: {reason}})),
+      onSuccess: (note) => show(id, note),
+    }),
+  };
+}
+
+/** Keyed under ['procedures'], so a change to any procedure (a note deleted) reads it afresh. */
+export const noteDeletionRequestKey = (id: string) => ['procedures', 'note-deletion-requests', id] as const;
+
+/** A request to delete a note (`GET api/procedures/note-deletion-requests/{id}`, admins). Reading it is recorded as a view. */
+export function noteDeletionRequestQuery(id: string) {
+  return queryOptions({
+    queryKey: noteDeletionRequestKey(id),
+    queryFn: () => unwrap(api.GET('/api/procedures/note-deletion-requests/{id}', {params: {path: {id}}})),
+  });
+}
+
+/**
+ * An admin's decision on a request to delete a note: delete it (with the reason given) or keep it. The request comes
+ * back decided; its procedure (the note gone, or no longer waiting), lists and timelines refresh.
+ */
+export function useDecideNoteDeletion(requestId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {deleteNote: boolean; reason?: string | null}) =>
+      unwrap(api.POST('/api/procedures/note-deletion-requests/{id}/decision', {params: {path: {id: requestId}}, body})),
+    onSuccess: async (decided) => {
+      queryClient.setQueryData(noteDeletionRequestKey(requestId), decided);
+      await queryClient.invalidateQueries({queryKey: procedureQuery(decided.procedureId ?? '').queryKey});
+      await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+      await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
+    },
+  });
 }
 
 /** Deletes a procedure (admins, and only once it's cancelled or archived). */
