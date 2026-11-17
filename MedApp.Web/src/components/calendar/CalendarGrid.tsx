@@ -78,8 +78,9 @@ export interface CalendarGridProps {
   /** Opening an item (a click, or Enter on it), with the column it's in. Without it, items still show but do nothing. */
   onItemOpen?: (item: CalendarGridItem, column: CalendarColumn) => void;
   /**
-   * Selecting free time: a click on an empty slot (15 minutes), a drag across slots, or the keyboard. With the slot
-   * where it ended, e.g. to show a menu there. Without it, the grid is read-only: nothing can be selected.
+   * Selecting free time: a click on an empty slot (15 minutes, whatever the row length, or less where something
+   * follows sooner), a drag across slots, or the keyboard (Enter alone selects 15 minutes too; Shift with the arrows
+   * any number of rows). With the slot where it ended, e.g. to show a menu there. Without it, the grid is read-only.
    */
   onSelectRange?: (selection: CalendarSelection, anchor: HTMLElement | null) => void;
   /**
@@ -117,6 +118,8 @@ export interface CalendarGridProps {
 const MINUTE = 60_000;
 /** How much of today before now stays in view when the grid opens on it (at most a third of what's in view). */
 const SCROLL_LEAD = 60 * MINUTE;
+/** How much time a click on a free slot selects, whatever the row length: the shortest appointment. */
+const CLICK_MINUTES = 15;
 /** A working day (08:00 to 18:00), when a day doesn't say. */
 const DEFAULT_DAY = 10 * 60 * MINUTE;
 
@@ -428,9 +431,16 @@ export function CalendarGrid({
     return {date: l.date, startUtc: iso(l.start + first * SLOT), endUtc: iso(l.start + (last + 1) * SLOT), column: l.column.key};
   };
 
+  /**
+   * Selects a pending selection. One row alone (a click, or Enter on a slot) is taken as the usual shortest length
+   * instead, 15 minutes, as far as the time is free: in 5-minute rows a single row would be a 5-minute booking. The
+   * slot it's said to end at is where the keyboard or pointer was.
+   */
   const commit = (p: Pending) => {
     setPending(null);
-    onSelectRange?.(rangeOf(p), slotElement({col: p.col, row: p.focus}));
+    const single = p.anchor === p.focus;
+    const selected = single ? {...p, focus: reach(p.col, p.anchor, p.anchor + Math.max(1, Math.round(CLICK_MINUTES / rowMinutes)) - 1)} : p;
+    onSelectRange?.(rangeOf(selected), slotElement({col: p.col, row: p.focus}));
   };
 
   /** How far a selection can reach from `anchor` towards `row`: up to the last free slot before something taken. */

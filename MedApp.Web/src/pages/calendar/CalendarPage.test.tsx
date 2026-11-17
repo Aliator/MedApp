@@ -856,7 +856,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     select('Tuesday 24 November, 10:05, free');
     await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
-    expect(await dialog().findByText('Tuesday 24 November, 10:05 to 10:10 with test-user')).toBeInTheDocument();
+    // A click selects 15 minutes, from the 5-minute row clicked.
+    expect(await dialog().findByText('Tuesday 24 November, 10:05 to 10:20 with test-user')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 

@@ -647,11 +647,12 @@ describe('CalendarGrid', () => {
 
     it('has three times the rows, with smaller quarter hours down the side, and selects 5 minutes at a time', async () => {
       atMondayMorning();
-      const {user, onSelectRange} = renderGrid({rowMinutes: 5});
+      // Lunch from 12:40, so a click at 12:30 has only 10 minutes free.
+      const {user, onSelectRange} = renderGrid({rowMinutes: 5, items: [blockItem(testBlock('2026-11-24', '12:40', '13:00'))]});
 
       expect(await screen.findByRole('group', {name: "test-user's calendar"})).toHaveAttribute('data-row-minutes', '5');
       // 120 free 5-minute rows on each of the five working days.
-      expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(600);
+      expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(596);
       expect(screen.getByText('08:15').closest('.mc-hour')).toHaveAttribute('data-quarter');
       expect(screen.getByText('09:00').closest('.mc-hour')).not.toHaveAttribute('data-quarter');
       // Smaller, but never fainter: the secondary text colour at full strength is what passes 4.5:1.
@@ -661,17 +662,30 @@ describe('CalendarGrid', () => {
       expect(document.querySelector('[data-slot="0-1"]')).toHaveAttribute('data-line', 'minor');
       expect(document.querySelector('[data-slot="0-3"]')).toHaveAttribute('data-line', 'quarter');
 
+      // A click selects 15 minutes, not one 5-minute row: a single row would make a 5-minute booking.
       const free = slot('Tuesday 24 November, 09:05, free');
       fireEvent.pointerDown(free, {button: 0, pointerId: 1});
       fireEvent.pointerUp(free, {pointerId: 1});
       await waitFor(() =>
-        expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: '2026-11-24T09:05:00.000Z', endUtc: '2026-11-24T09:10:00.000Z', column: '2026-11-24'}, free),
+        expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: '2026-11-24T09:05:00.000Z', endUtc: '2026-11-24T09:20:00.000Z', column: '2026-11-24'}, free),
+      );
+      // Or up to whatever comes sooner.
+      const beforeLunch = slot('Tuesday 24 November, 12:30, free');
+      fireEvent.pointerDown(beforeLunch, {button: 0, pointerId: 2});
+      fireEvent.pointerUp(beforeLunch, {pointerId: 2});
+      await waitFor(() =>
+        expect(onSelectRange).toHaveBeenLastCalledWith({date: '2026-11-24', startUtc: '2026-11-24T12:30:00.000Z', endUtc: '2026-11-24T12:40:00.000Z', column: '2026-11-24'}, beforeLunch),
       );
 
-      // The keyboard goes a row (5 minutes) at a time.
+      // The keyboard goes a row (5 minutes) at a time; Enter alone selects 15 minutes too, Shift any number of rows.
       free.focus();
       await user.keyboard('{ArrowDown}');
       expect(slot('Tuesday 24 November, 09:10, free')).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(onSelectRange).toHaveBeenLastCalledWith(
+        {date: '2026-11-24', startUtc: '2026-11-24T09:10:00.000Z', endUtc: '2026-11-24T09:25:00.000Z', column: '2026-11-24'},
+        slot('Tuesday 24 November, 09:10, free'),
+      );
       await user.keyboard('{Shift>}{ArrowDown}{/Shift}{Enter}');
       expect(onSelectRange).toHaveBeenLastCalledWith(
         {date: '2026-11-24', startUtc: '2026-11-24T09:10:00.000Z', endUtc: '2026-11-24T09:20:00.000Z', column: '2026-11-24'},

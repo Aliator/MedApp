@@ -456,7 +456,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
             />
           )}
           <MeetingDialog isOpen={meeting !== null} meeting={meeting?.meeting} initial={meeting?.initial} onClose={() => setMeeting(null)} />
-          <AppointmentDialog appointment={search.appointment ? linkedAppointment : null} onClose={() => go({appointment: undefined})} />
+          <AppointmentDialog appointment={search.appointment ? linkedAppointment : null} stepMinutes={rowMinutes} onClose={() => go({appointment: undefined})} />
           <ConfirmDialog
             isOpen={move !== null}
             title="Move Appointment"
