@@ -170,11 +170,14 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
 
     await user.click(await dialog().findByRole('button', {name: 'Reschedule'}));
     const morning = await dialog().findByRole('group', {name: 'Morning times on Monday 23 November'});
+    // 5-minute steps around its own time (09:00), as the calendar's 5-minute rows have, and only there.
+    expect(within(morning).getByRole('button', {name: '09:05'})).toBeInTheDocument();
+    expect(within(morning).getByRole('button', {name: '08:55'})).toBeInTheDocument();
     expect(within(morning).queryByRole('button', {name: '10:05'})).not.toBeInTheDocument();
+    // Choosing another time leaves them there, so nothing moves under the pointer.
     await user.click(within(morning).getByRole('button', {name: '10:00'}));
-    // 5-minute steps around the chosen time, as the calendar's 5-minute rows have.
-    expect(within(morning).getByRole('button', {name: '10:05'})).toBeInTheDocument();
-    expect(within(morning).getByRole('button', {name: '09:55'})).toBeInTheDocument();
+    expect(within(morning).getByRole('button', {name: '09:05'})).toBeInTheDocument();
+    expect(within(morning).queryByRole('button', {name: '10:05'})).not.toBeInTheDocument();
   });
 
   it('books a Requested appointment, which says who asked for it', async () => {

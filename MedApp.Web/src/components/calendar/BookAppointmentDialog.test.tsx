@@ -143,11 +143,11 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     // 16 quarter hours from 08:00, and the three finer times around 10:05.
     expect(times).toHaveLength(16 + 3);
 
-    // Choosing another time moves the finer steps there.
+    // Choosing another time leaves them where they are, so no button moves under the pointer.
     await user.click(within(morning).getByRole('button', {name: '11:30'}));
-    expect(within(morning).queryByRole('button', {name: '10:05'})).not.toBeInTheDocument();
-    expect(within(morning).getByRole('button', {name: '11:25'})).toBeInTheDocument();
-    expect(within(morning).getByRole('button', {name: '11:40'})).toBeInTheDocument();
+    expect(within(morning).getAllByRole('button').map((b) => b.textContent!.slice(0, 5))).toEqual(times);
+    expect(within(morning).getByRole('button', {name: '11:30'})).toHaveAttribute('aria-pressed', 'true');
+    expect(within(morning).queryByRole('button', {name: '11:25'})).not.toBeInTheDocument();
   });
 
   it('shows only quarter hours without a finer step or a chosen time', () => {
