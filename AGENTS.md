@@ -12,8 +12,8 @@ Run everything from the repo root. `global.json` pins the SDK to 10.0.x, and eve
 
 ```bash
 dotnet build MedApp.sln                     # build everything
-dotnet test MedApp.UnitTests                # unit tests (CI's unit-tests job)
-dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run a subset
+dotnet test MedApp.UnitTests -c Release     # unit tests (CI's unit-tests job; Release, as medapp-dev locks Debug)
+dotnet test MedApp.UnitTests -c Release --filter "FullyQualifiedName~UpdatePatient"   # run a subset
 dotnet test MedApp.IntegrationTests         # the API against SQL Server in Docker (needs Docker running; about 1.5 min)
 
 # End-to-end tests (Playwright) against the running AppHost, signed in as the local dev admin. They make their own
@@ -41,7 +41,23 @@ To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-d
 
 Azure (AKS, Azure SQL, Key Vault, Azure Container Registry, and a storage account for attached files) is in `deploy/azure`. It's written and checked, but **not deployed**. Its Bicep (`main.bicep`) is compiled and linted in CI. Deploying it costs money, so never run `deploy.sh` or `bootstrap.sh` without the user asking. Once it's set up, the Publish workflow's `azure` job deploys each merge through the `env/azure` branch; until then the job is skipped. Chart versions for both clusters are in `deploy/versions.sh`. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
-Before you call a change done, `dotnet build MedApp.sln` must succeed with no new warnings and `dotnet test MedApp.UnitTests` must pass. For a change to the API's behaviour, run `dotnet test MedApp.IntegrationTests` too. For a change in `MedApp.Web`, `npm run lint`, `npm run typecheck` and `npm test` must pass there too.
+**Testing a change: only what it touches.** CI runs every suite on each PR, on GitHub's machines (about 8 minutes), and a PR merges only once it's green. So locally, run only what checks your change, and leave the rest to CI:
+- **Use Release locally** (`-c Release`) for builds and tests. A Debug build of either test project rebuilds `medapp-dev` into the folder the running tool has locked (see [Dev MCP server](#dev-mcp-server-medapp-dev)).
+- **Build** the projects you changed, with no new warnings (`dotnet build <project> -c Release`). CI's `unit-tests` job builds the whole solution.
+- **.NET unit tests:** only the ones for the code you changed, e.g. `dotnet test MedApp.UnitTests -c Release --filter "FullyQualifiedName~UpdatePatient"`.
+- **`MedApp.Web`:**
+  - the changed files' tests (`npx vitest run <files>`)
+  - `npm run typecheck`
+  - ESLint on the changed files (`npx eslint <files>`)
+- **Integration tests** start SQL Server and Azurite in Docker. Run them only for something unit tests can't reach, such as SQL translation, Identity, a migration, middleware or the demo data seed. Then run only that fixture (`--filter "FullyQualifiedName~<Fixture>"`).
+- **A visible change is looked at in a browser.** Nothing in CI does that. Start the AppHost if it isn't running (it's the light setup). Then capture the UI parity screenshots of just the screens it touches and look at them. Run the axe audit on just those screens too (`npm run a11y -- -g "<screen>"` in `tools/ui-parity`). The accessibility statement promises the checks run again whenever screens change.
+- **A change to how MedApp is deployed is tried on kind** before it merges. That covers the chart (`deploy/helm`), the Dockerfile or what's in the image, `deploy/kind` or `deploy/argocd`, and a new setting, secret, port, container or connection the API needs outside Development. Start the cluster, run `deploy/kind/up.sh`, and check the app answers. CI lints and renders the chart, but never installs it.
+- **Not locally**, unless the user asks, a rule above calls for it, or you're chasing one failing test:
+  - the full unit, web or integration suites
+  - E2E tests
+  - the whole UI parity set, or the axe audit of every screen
+  - the kind cluster
+- **When CI fails,** run only the failing tests locally.
 
 ## Solution layout
 
@@ -412,7 +428,7 @@ All UI work goes in `MedApp.Web`. Its conventions are in `MedApp.Web/AGENTS.md`,
 `tools/ui-parity/` is the Playwright tool that compared the Blazor and React apps screen by screen during the migration. It writes `tools/ui-parity/report.html`. It's a development aid, not E2E tests.
 - **Don't capture every screen after every change.** A full run takes about a minute, and reading the images costs tokens, so keep it targeted:
   - **While working,** capture only the screens your change affects, by name (from `screens.ts`), and look at their `react.png`. With the AppHost running, in `tools/ui-parity`: `npm run parity:react -- -g "patient-view|patients-list"`. Sign-in still runs first; one screen takes a few seconds. For a shared component (`Page`, `DataTable`, the side nav), pick two or three screens that use it rather than all of them.
-  - **When merging** (step 1 of the merge flow), run the whole set once (`npm run parity:react`) and check that every screen still passes. Then look only at the screens the branch changed.
+  - **The whole set** (`npm run parity:react`) is only for a change that touches many screens at once (the layout, the theme), or when the user asks. It isn't part of merging.
 - The Blazor screenshots on disk are the last baseline from before cutover. Capturing Blazor again means running `MedApp.Client.Deprecated` by hand and allowing its origin in the API again.
 - **New screens or states** go in `tools/ui-parity/screens.ts`. Never make a screen confirm a destructive action; only open the dialog.
 - **Credentials** live in the git-ignored `tools/ui-parity/.env`; never commit them. Setup and run steps are in `tools/ui-parity/README.md`.
@@ -432,6 +448,7 @@ All UI work goes in `MedApp.Web`. Its conventions are in `MedApp.Web/AGENTS.md`,
 It only runs against a local database: by default the AppHost's SQL container, using the password from the AppHost's user secrets, so the AppHost must have run once. It protects `admin`, and destructive tools need `confirm: true`.
 - **Before a destructive experiment:** take a `save_snapshot`.
 - **Build it first:** `dotnet build tools/MedApp.DevMcp`, because `.mcp.json` runs it with `--no-build`.
+- **While it runs, `dotnet build MedApp.sln` fails** with "file is locked by: MedApp.DevMcp". The unit and integration tests reference the tool, and the tool isn't in the solution, so a solution build always rebuilds it as Debug, into the folder the running tool uses. Build and test in Release instead (`dotnet build MedApp.UnitTests -c Release`). The running tool keeps the code it started with, so after a change to the app's rules or the seed, give it the new code: stop it in Claude Code's `/mcp`, run `dotnet build tools/MedApp.DevMcp`, then start it again.
 - **`reset_demo_data`** (`tools/MedApp.DevMcp/DemoData`) wipes the data and replays a clinic's 18 months: staff (with a second admin using two-factor, a new starter, a locked-out account and a deleted leaver), about 260 patients, six templates with distinct weekly volumes, about 650 procedures and 2,500 appointments (the numbers vary a little with the day it's run), calendars, notifications, monitoring rules, 60 days of activity log, settings, today's sessions and, when Azurite answers, files. History goes through the shared code the handlers call (`ProcedureChange`, `ProcedureCreation`, `StageFinishing`, `ProcedureDetails`, `StageVisits`, `AppointmentChange`, `AssignmentNotifications`, `AppointmentNotifications`, the monitor's `FindMatchesAsync`, `PatientSearch.FiltersUsed`, the activity log's writer) and, where only a handler is right, its commands, with a clock the seed moves. It returns the generated passwords and the two-factor key and recovery codes. Locally, pass `keepUsers: ["dev-parity"]`. `docs/demo-data.md` is the guided tour of what's in it.
   - **When the app's rules change:** a change to shared code (an audit entry's details, a notification's wording, a stage's visit, a calendar clash) changes the demo data with it. The seed still writes its history's sign-in and search activity entries itself: `DemoActivityParityTests` (unit tests) runs the real commands and fails if they write something else. So change the seed's copy with them.
   - **Its tests:** `DemoDataSeedTests` (integration tests) runs the whole seed at fixed moments (a Saturday, just after midnight the day after a clock change, a Friday afternoon seeded twice) and checks it obeys the app's rules: visits before finishing, no calendar clashes for appointments or stored blocks, nothing before a patient existed or after "now", the same counts from the same seed. `DemoCalendarsTests` checks the calendars at a dozen moments.
@@ -444,6 +461,20 @@ It only runs against a local database: by default the AppHost's SQL container, u
   - The container is **persistent**: it keeps running after the AppHost stops, so `dotnet ef` and `medapp-dev` can still reach it. `docker stop` it to free memory; the next AppHost run starts it again.
   - **Attached files** are in Azurite, another persistent container the AppHost starts, with its data in the `medapp-azurite-data` volume. `medapp-dev`'s snapshots and `reset_demo_data` cover only the database, so after restoring an older snapshot some files' bytes may be missing (a 404 on download) and some blobs orphaned. Its blob endpoint is on host port `14331` (bound to `127.0.0.1`), so `reset_demo_data` can attach files with Azurite's well-known development account (`devmcp.json`); without it, the reset skips files and says so.
   - Aspire generated the `sa` password on the first run and keeps it in the AppHost's user secrets (`Parameters:sql-password`). The database in the volume only accepts that `sa` password, so don't delete or change it.
+- **Keeping memory down.** Docker Desktop runs containers in a WSL 2 virtual machine. By default that machine may take half the PC's memory, and it keeps what it used as cache.
+  - **The AppHost is the light setup:**
+    - in Docker: SQL Server (capped at 2 GB with `MSSQL_MEMORY_LIMIT_MB`, which otherwise takes up to 80% of the machine's memory), Azurite and Mailpit
+    - ordinary processes: the API, the Vite dev server and the dashboard
+    - the integration tests' SQL Server has the same cap
+  - **The kind cluster is the full production-like setup** (the locked-down chart, the separate page server container, Argo CD and the rest), and much the heaviest. It uses memory and CPU even when idle. Start it only to test the chart or a deploy, and stop it afterwards (`deploy/kind/README.md`, Stopping and starting).
+  - **Most changes need no containers:**
+    - builds, unit tests and Vitest run without Docker
+    - the AppHost is for trying the app
+    - the integration tests start their own containers and remove them afterwards
+  - **A cap for WSL itself** is a setting on each PC, not in the repo. `%UserProfile%\.wslconfig` with `[wsl2] memory=12GB` keeps Docker under 12 GB on a PC with more than 24 GB (below that, the default of half is already lower).
+    - Raise it to 16 GB if you run kind and the AppHost together.
+    - Current WSL already gives cached memory back when idle (`[experimental] autoMemoryReclaim=dropCache`, the default).
+    - To apply it, quit Docker Desktop first, then run `wsl --shutdown`, then start Docker Desktop. Shutting WSL down under Docker kills its containers mid-run.
 - The API's `appsettings*.json` have **no connection string**: the AppHost injects `ConnectionStrings__DefaultConnection`. Running the API on its own needs that variable set.
 - **An empty database** (a new volume) isn't migrated at startup. Apply the migrations with the command under [Commands](#commands), then load the demo data with `medapp-dev`'s `reset_demo_data`.
 - The React dev server (`npm run dev`: Node with Vite, rendering pages on the server) proxies `/api` and `/swagger` to the API, and its own server-side API calls go through that proxy too. If `/api` calls start returning the app's HTML instead of JSON, the proxy has dropped out; restart the AppHost.
@@ -537,7 +568,7 @@ When the subagent reports back, do step 4 yourself, and don't interrupt the user
 3. **If it failed**, find the cause before reporting.
    - Note which step failed. A failure in "Set up job" means the workflow itself is broken (bad action ref, runner image), not the code.
    - Read the annotations with `GET /repos/Aliator/MedApp/check-runs/<job_id>/annotations`. Full job logs need auth, so read them through `gh run view <run_id> --log-failed` when `gh` is available.
-   - Reproduce the failure locally the way CI runs it: `dotnet test MedApp.UnitTests --configuration Release`, or the `web` job's npm scripts in `MedApp.Web`.
+   - Reproduce only the failing tests locally, the way CI runs them: `--configuration Release` with a `--filter` for those tests, or the `web` job's npm script with the failing files.
    - Check whether the failure is yours or already broken on `main`, for example when the workflow file is unchanged by your branch.
 4. **Prompt the user before fixing.** Tell them which step failed and the error, the cause, whether your change caused it or it was already broken, and the fix you propose with the exact diff. Wait for them to approve before you commit or push it, unless they've already told you to fix it. After pushing a fix, check the new run again (step 1).
 
@@ -554,7 +585,7 @@ The user wants each change made in three stages, each at its own reasoning effor
 | Stage | Effort | Who does it |
 |---|---|---|
 | **Thinking:** understanding the task, reading the code, the design and the plan | **xhigh** | The main session (its effort setting is `xhigh`). |
-| **Implementation:** writing the code, tests and docs to the plan | **high** | A subagent with `effort: "high"`, given the plan, the files and the conventions. The main session checks its work (build, tests, a read of the diff) before calling it done. |
+| **Implementation:** writing the code, tests and docs to the plan | **high** | A subagent with `effort: "high"`, given the plan, the files and the conventions. The main session checks its work (a build, the tests for what changed, a read of the diff) before calling it done. |
 | **Review:** a fresh, adversarial look at the whole PR | **xhigh** | A subagent with `effort: "xhigh"` that wasn't told the author's conclusions, as part of every merge (below). |
 
 Small, mechanical edits (a typo, a one-line config change) can be done directly in the main session; the stages are for real changes.
@@ -566,11 +597,15 @@ Small, mechanical edits (a typo, a one-line config change) can be done directly 
 **The medical device decision:** a change that adds calculations, scores, dose checks, decision support, triage or prioritising, alerts from clinical values, or medical claims must update `docs/clinical-safety/intended-purpose-and-device-decision.md` before it merges.
 
 When the user says to merge, do every step, in order, without stopping to ask again:
-1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. If the branch changed the UI, run the full set of UI parity screenshots first (see [UI parity screenshots](#ui-parity-screenshots)). New scripts need their executable bit set in git (`git update-index --chmod=+x`), since this checkout doesn't track file modes.
+1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. New scripts need their executable bit set in git (`git update-index --chmod=+x`), since this checkout doesn't track file modes.
 2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
 3. **Review the PR at xhigh**, with a subagent (`effort: "xhigh"`), and write it up as a review document:
    - **What to review:** the PR's whole diff against `main` (`git diff main...HEAD`), its description, and the code around the changes. Give the reviewer the PR and the files, not your own conclusions, so its view isn't anchored on yours.
    - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), consistency between docs and code, whether the governance documents in `docs/governance/` are still true (a change to what personal data is held, who can see it, where it goes or how long it's kept must update them in the same PR), and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence, and a suggested fix.
+   - **How the reviewer checks:**
+     - by reading the code
+     - for anything it doubts, with the narrowest test: a filtered unit test run, or Vitest on named files
+     - it starts no Docker, AppHost, kind cluster or browser, and runs no full suite: CI does that, and step 4 waits for it
    - **The document:** `docs/reviews/pr-<number>-<short-name>.md`. Commit it to the branch and push, so it's merged with the PR. Write it in the format below (see [Review document format](#review-document-format)).
    - **If it finds anything high or critical, stop.** Don't merge. Check those findings yourself against the code, then report them to the user with the fixes you propose, and wait. Medium and low findings are recorded in the document and don't block. Mention them when you report the merge.
 4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (the one with the review document) to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
@@ -578,7 +613,10 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 5. **Merge** the PR with a merge commit (`gh pr merge <n> --merge`), matching the existing "Merge pull request #N" history. If the local checkout has uncommitted changes, stash them first, or the merge's local step fails after the merge on GitHub has already happened.
 6. **Delete the branch**, both on GitHub and locally (`--delete-branch` handles both).
 7. **Pull `main` locally:** `git switch main` then `git pull`, so the working copy is up to date and ready for the next change. Then confirm the merge commit and that the working tree is clean.
-8. **Check the deploy:** each merge runs the Publish workflow, which deploys through the environment branches (`deploy/argocd/README.md`). Check that its run for the merge commit succeeded, as with CI. Then check that Argo CD's `medapp` Application on kind is **Synced and Healthy** at that commit (`kubectl --context kind-medapp -n argocd get application medapp`): a green Publish run only means `env/kind` moved, not that the cluster took it. A change that adds a secret store entry needs `deploy/kind/up.sh --argocd` run against the existing cluster before it merges (`deploy/kind/README.md`).
+8. **Check the deploy:** each merge runs the Publish workflow, which deploys through the environment branches (`deploy/argocd/README.md`). Check that its run for the merge commit succeeded, as with CI. A green Publish run only means `env/kind` moved, not that the cluster took it.
+   - **If the kind cluster is running,** check that Argo CD's `medapp` Application is **Synced and Healthy** at that commit (`kubectl --context kind-medapp -n argocd get application medapp`).
+   - **Don't start the cluster just for this.** When it next starts, Argo CD catches up with `env/kind` by itself. A change to how MedApp is deployed was already tried on kind before merging ([Commands](#commands), Testing a change).
+   - A change that adds a secret store entry needs `deploy/kind/up.sh --argocd` run against the existing cluster before it merges (`deploy/kind/README.md`).
 
 ### Review document format
 

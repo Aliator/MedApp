@@ -127,9 +127,9 @@ Read this before anything else if you're assessing the product.
 
 ### 2.2 Organisational constraints
 
-- **One maintainer, AI-assisted.** `AGENTS.md` is the binding set of conventions, written for AI coding agents. It requires a build with no new warnings, passing tests, and for web changes `npm run lint`, `npm run typecheck` and `npm test`, before a change is called done.
+- **One maintainer, AI-assisted.** `AGENTS.md` is the binding set of conventions, written for AI coding agents. It requires a build with no new warnings and the tests for what changed before a change is called done. A visible change is also looked at in a browser, and a deployment change is tried on kind. CI runs every suite on every pull request ([8.10](#810-how-changes-are-made)).
 - **Three stages for every real change** (`AGENTS.md`, "Effort for each stage of a change"): planning and design at the highest reasoning effort, implementation by a separate agent at high effort, then an adversarial review by a fresh agent that isn't told the author's conclusions. Each merge writes a review document under `docs/reviews/`, and a high or critical finding blocks the merge. See [ADR-19](#9-architecture-decisions).
-- **Pull requests only.** `main` changes only through pull requests. As of 15 November 2026 its ruleset (`Protect`) requires the `web`, `image`, `helm` and `unit-tests` checks to pass, and needs no approvals. The `env/*` branches have their own ruleset (`Environment branches`) that blocks deletion and force-pushes.
+- **Pull requests only.** `main` changes only through pull requests. As of 17 November 2026 its ruleset (`Protect`) requires the `web`, `image`, `helm`, `unit-tests`, `integration-tests` and `e2e` checks to pass, and needs no approvals. The `env/*` branches have their own ruleset (`Environment branches`) that blocks deletion and force-pushes.
 - **Cost.** Azure would cost roughly £150 to £200 a month (`deploy/azure/README.md`, Cost), so it stays undeployed until the owner chooses.
 - **Synthetic data only**, in code, tests, seeds, fixtures and screenshots (`AGENTS.md`, Testing conventions).
 - **Docker Desktop** must run on the developer's machine. Its licence is free only for personal use and for organisations under 250 employees and $10M revenue (`docs/react-migration-plan.md`, Q2).
@@ -822,7 +822,7 @@ Measured on kind with two copies (#50): 8 of 8 notifications arrived live with t
 
 ### 6.5 A deploy, from merge to running in the cluster
 
-1. **The pull request.** CI (`.github/workflows/main.yml`) runs `web`, `image`, `helm`, `unit-tests` and `coverage-comment` ([7.7](#77-the-gitops-pipeline)). `web`, `image`, `helm` and `unit-tests` must pass before merging.
+1. **The pull request.** CI (`.github/workflows/main.yml`) runs `web`, `image`, `helm`, `unit-tests` and `coverage-comment` ([7.7](#77-the-gitops-pipeline)). `web`, `image`, `helm`, `unit-tests`, `integration-tests` and `e2e` must pass before merging.
 2. **The merge** to `main`, as a merge commit.
 3. **Publish** (`.github/workflows/publish.yml`) runs on the push, unless only Markdown or `docs/` changed. Runs queue one at a time (`concurrency: publish`). The workflow grants no permissions itself; each of its three jobs asks for only what it needs.
    - **`image` job:** builds `MedApp.API/Dockerfile` with the GitHub Actions cache and pushes `ghcr.io/aliator/medapp-api:<commit SHA>`.
@@ -1016,7 +1016,9 @@ flowchart LR
 | `web` | `npm ci`, lint, type check, the built theme is current, Vitest with coverage thresholds, the full production build (client, SSR bundle, page server) | Yes |
 | `image` | Builds the Dockerfile as Publish does, without pushing | Yes |
 | `helm` | `helm lint --strict` in five configurations (defaults, kind, an external database with TLS, an external database from a secret store, Azure); renders the chart; builds and lints the Bicep; renders Traefik, cert-manager, External Secrets and Argo CD at the pinned versions with every values file the scripts use | Yes |
-| `unit-tests` | Builds `tools/MedApp.DevMcp` (which isn't in the solution), then `dotnet test MedApp.UnitTests` in Release with coverage, and a report of classes under 80% | Yes |
+| `unit-tests` | Builds the whole solution and `tools/MedApp.DevMcp` (which isn't in it), then `dotnet test MedApp.UnitTests` in Release with coverage, and a report of classes under 80% | Yes |
+| `integration-tests` | `dotnet test MedApp.IntegrationTests` in Release, against SQL Server and Azurite in the runner's Docker (Testcontainers) | Yes |
+| `e2e` | Builds the production image and runs it under the chart's restrictions, with SQL Server, migrations by the image's bundle and a first admin, then `MedApp.E2ETests` in Chromium | Yes |
 | `coverage-comment` | One sticky PR comment with both coverage reports | No |
 
 **Environment branches.** `env/kind` and `env/azure` each hold the full deployed state: the chart, the values and the image, from one commit, because Argo CD can't take the chart and the image tag from two revisions of one repository ([ADR-18](#9-architecture-decisions)). Each deploy commit is `main`'s files plus the image file, except `.github/workflows`, which keeps the branch's own ([6.5](#65-a-deploy-from-merge-to-running-in-the-cluster)). `git log --first-parent env/kind` is the deploy history. A hand commit to an `env/*` branch is for emergencies only, and the next deploy replaces it.
@@ -1043,14 +1045,14 @@ dotnet ef database update --project MedApp.Infrastructure --startup-project MedA
 dotnet build tools/MedApp.DevMcp      # then ask the agent for medapp-dev's reset_demo_data
 ```
 
-Sign in as `admin` / `admin`. Before calling a change done:
+Sign in as `admin` / `admin`. Before calling a change done, check what it touched, in Release (CI runs everything):
 
 ```bash
-dotnet build MedApp.sln && dotnet test MedApp.UnitTests
-cd MedApp.Web && npm run lint && npm run typecheck && npm test
+dotnet build MedApp.UnitTests -c Release && dotnet test MedApp.UnitTests -c Release --filter "FullyQualifiedName~<Area>"
+cd MedApp.Web && npx vitest run <changed tests> && npm run typecheck && npx eslint <changed files>
 ```
 
-**Local Kubernetes.** Needs Docker Desktop, kind, kubectl, Helm, and Bash with openssl (Git Bash on Windows); about 4 GB of memory.
+**Local Kubernetes.** Needs Docker Desktop, kind, kubectl, Helm, and Bash with openssl (Git Bash on Windows); 4 GB of memory or more (the chart lets SQL Server alone use 3 GB).
 
 ```bash
 deploy/kind/up.sh                         # an empty database with a first admin
@@ -1287,7 +1289,8 @@ This describes what the code does today. It isn't a compliance statement; [secti
 - **Three stages** for every real change: plan at the highest effort, implement with a separate agent at high effort, then review with a fresh agent at the highest effort, which isn't told the author's conclusions ([ADR-19](#9-architecture-decisions)).
 - **"Merge it" or "ship it"** runs a fixed flow (`AGENTS.md`): commit and push; open the pull request; write the review document (`docs/reviews/pr-<number>-<name>.md`) and stop on any high or critical finding; wait for CI; merge; delete the branch; pull `main`; and check the Publish run, which is the deploy.
 - **CI is watched, not assumed.** A background agent follows the run for the pushed commit and reports a failure with its cause and a proposed fix; nothing is fixed without the owner's approval.
-- **UI changes** get targeted parity screenshots while working, and the full set when merging.
+- **Testing is targeted locally, complete in CI.** A change is checked locally with only the tests for what it touched (a filtered unit test run, the changed files' Vitest tests, one integration fixture when SQL or Identity is involved). CI runs every suite on each pull request, on GitHub's machines, and a pull request merges only when it's green. That keeps a developer's PC free of the heavy runs (Docker, browsers) without lowering the bar for `main`.
+- **UI changes** get parity screenshots of just the screens they touch.
 
 ---
 
@@ -1447,7 +1450,7 @@ Severity is for taking MedApp into production with real patient data. Each item 
 | 4 | `bootstrap.sh` would fail on Traefik's values | High | **Fixed** (#52), and CI now renders the cluster services |
 | 5 | Changing an Azure password causes an outage | Medium | **Documented**, not fixed: restart by hand |
 | 6 | The first admin couldn't change their own password | Medium | **Fixed** (#51): the first admin gets both roles, and the endpoint now allows any staff member |
-| 7 | CI wasn't required before merging | Medium | **Fixed** in repository settings: `web`, `image`, `helm` and `unit-tests` are all required |
+| 7 | CI wasn't required before merging | Medium | **Fixed** in repository settings: `web`, `image`, `helm` and `unit-tests` are all required (and since then `integration-tests` and `e2e`) |
 | 8 | Env branches and Argo CD's project unrestricted; manual runs deployed any branch | Medium | **Mostly fixed** (#52): an AppProject limited to this repository, the `medapp` namespace and the chart's kinds, with nothing cluster-wide; main-only deploys; branch rules block deletion and force-push, not pushes |
 | 9 | No EF retries against serverless Azure SQL | Medium | **Fixed** (#52) |
 | 10 | Node inherited the API's connection strings | Medium | **Fixed** (#51) |
