@@ -15,11 +15,17 @@ public sealed class PatientRecord
 {
     public required Patient Patient { get; init; }
 
-    /// <summary>Their procedures, with stages (in order) and assignments.</summary>
+    /// <summary>Their procedures, with stages (in order), assignments and notes.</summary>
     public required IReadOnlyList<PatientProcedure> Procedures { get; init; }
 
     /// <summary>The procedure audit entries with the patient's ID, oldest first, including those of deleted procedures.</summary>
     public required IReadOnlyList<PatientProcedureAuditEntry> ProcedureHistory { get; init; }
+
+    /// <summary>
+    /// Every version of every note on the patient's procedures, oldest first, including those of procedures since
+    /// deleted (versions have no foreign keys and outlive them).
+    /// </summary>
+    public IReadOnlyList<PatientProcedureNoteVersion> NoteVersions { get; init; } = [];
 
     /// <summary>The activity log entries about the patient, oldest first.</summary>
     public required IReadOnlyList<ActivityEntry> Activity { get; init; }

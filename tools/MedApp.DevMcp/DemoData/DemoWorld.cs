@@ -33,6 +33,9 @@ public sealed class DemoWorld
 
     public List<PatientProcedure> Procedures { get; } = [];
     public List<PatientProcedureAuditEntry> Audit { get; } = [];
+
+    /// <summary>Every version of every procedure note (the notes themselves are on their procedures).</summary>
+    public List<PatientProcedureNoteVersion> NoteVersions { get; } = [];
     public List<Appointment> Appointments { get; } = [];
     public List<AppointmentEvent> AppointmentEvents { get; } = [];
     public List<Notification> Notifications { get; } = [];

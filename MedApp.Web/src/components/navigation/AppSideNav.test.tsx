@@ -1,5 +1,6 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
+import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
 import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
@@ -515,5 +516,42 @@ describe('AppSideNav with a half view open', () => {
 
     await user.click(users);
     expect(halfViews.openFull).toHaveBeenCalledWith('/admin/users');
+  });
+});
+
+describe('AppSideNav notepad', () => {
+  afterEach(() => localStorage.clear());
+
+  function NotepadShown() {
+    return <p>{useNotepad()!.isOpen ? 'notepad open' : 'notepad closed'}</p>;
+  }
+
+  it('opens and closes the notepad from the account footer, as a toggle pressed while open', async () => {
+    const {user} = renderWithApp(
+      <NotepadProvider>
+        <AppSideNav />
+        <NotepadShown />
+      </NotepadProvider>,
+      {user: staffUser},
+    );
+
+    const notepad = await screen.findByRole('button', {name: 'Notepad'});
+    expect(notepad).toHaveAttribute('aria-pressed', 'false');
+    await user.click(notepad);
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
+    const pressed = screen.getByRole('button', {name: 'Notepad', pressed: true});
+    // A toggle, never the current page.
+    expect(pressed).not.toHaveAttribute('aria-current');
+
+    await user.click(pressed);
+    expect(screen.getByText('notepad closed')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Notepad'})).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('has no notepad outside the signed-in layout', async () => {
+    renderWithApp(<AppSideNav />, {user: staffUser});
+
+    await screen.findByRole('button', {name: 'Logout'});
+    expect(screen.queryByRole('button', {name: 'Notepad'})).not.toBeInTheDocument();
   });
 });

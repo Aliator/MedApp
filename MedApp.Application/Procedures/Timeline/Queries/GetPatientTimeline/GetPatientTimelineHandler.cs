@@ -2,6 +2,7 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Application.Procedures.Timeline.Common;
 using MedApp.Contracts.Procedures.Timeline.Responses;
@@ -50,6 +51,10 @@ public sealed class GetPatientTimelineHandler(
             .ToList();
         var page = merged.Take(request.PageSize).ToList();
 
+        // Admins see the text of the notes added and edited, from the note versions (the audit holds none).
+        if (request.IsAdmin)
+            page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
+
         return new PatientTimelinePageResponse
         {
             // The searches already leave deleted procedures out for staff; this makes sure nothing slips through.
@@ -64,6 +69,33 @@ public sealed class GetPatientTimelineHandler(
                 .ToList(),
             NextCursor = merged.Count > request.PageSize ? page[^1].Position.Encode() : null,
         };
+    }
+
+    /// <summary>The page with each note entry's text, and for an edit the text before, from the note versions.</summary>
+    private async Task<List<Entry>> WithNoteTextAsync(Guid patientId, List<Entry> page, CancellationToken ct)
+    {
+        var keys = page
+            .Select(e => e.Audit is { } audit ? ProcedureNotes.VersionOf(audit.Entry) : null)
+            .OfType<NoteVersionKey>()
+            .ToList();
+        if (keys.Count == 0)
+            return page;
+
+        var versions = (await auditRepository.GetNoteVersionsAsync(patientId, keys.Distinct().ToList(), ct))
+            .ToDictionary(v => new NoteVersionKey(v.NoteId, v.Version), v => v.Text);
+
+        return page
+            .Select(e => e.Audit is { } audit && ProcedureNotes.VersionOf(audit.Entry) is { } key
+                ? e with
+                {
+                    Audit = audit with
+                    {
+                        NoteText = versions.GetValueOrDefault(key),
+                        PreviousNoteText = key.Version > 1 ? versions.GetValueOrDefault(key with { Version = key.Version - 1 }) : null
+                    }
+                }
+                : e)
+            .ToList();
     }
 
     /// <summary>One entry of the merged feed, from the audit log or from appointments' history.</summary>

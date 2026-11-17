@@ -25,6 +25,6 @@ public sealed class GetPatientProcedureByIdHandler(
         await activityLog.RecordViewsAsync(ActivityAction.ProcedureViewed, [procedure.PatientId], cancellationToken, procedure.Id);
 
         return await ProcedureMapper.ToResponseAsync(
-            procedure, identityReadService, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+            procedure, identityReadService, timeProvider.GetUtcNow().UtcDateTime, cancellationToken, viewerId: request.ViewerId);
     }
 }

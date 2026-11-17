@@ -3,9 +3,12 @@ import {ProcedurePage} from '../../../../pages/procedures/ProcedurePage';
 import {attachmentsQuery} from '../../../../api/attachments';
 import {preload} from '../../../../api/preload';
 import {procedureQuery} from '../../../../api/procedures';
+import {lowerCaseId} from '../../../../utils/routeIds';
 import {procedureAppointmentsQuery} from '../../../../api/appointments';
 
 export const Route = createFileRoute('/_app/procedures/$id/')({
+  // The ID in lower case, as the API returns it, so the page and its saves share one cache entry.
+  params: lowerCaseId,
   // The procedure, its appointments (its stages' visits and the Appointments list), and its own files (open beside it
   // as the page opens; a stage's are fetched when opened).
   loader: ({context, params}) =>

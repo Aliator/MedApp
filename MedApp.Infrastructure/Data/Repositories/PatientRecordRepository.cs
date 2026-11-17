@@ -22,6 +22,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         var procedures = await Tracking(context.PatientProcedures, forUpdate)
             .Include(p => p.Assignments)
             .Include(p => p.Stages.OrderBy(s => s.StageOrder))
+            .Include(p => p.Notes)
             .Where(p => p.PatientId == patientId)
             .AsSplitQuery()
             .ToListAsync(ct);
@@ -33,6 +34,12 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         var history = await Tracking(context.PatientProcedureAuditEntries, forUpdate)
             .Where(e => e.PatientId == patientId)
             .OrderBy(e => e.AtUtc).ThenBy(e => e.Id)
+            .ToListAsync(ct);
+
+        // Every version of every note, those of deleted procedures included.
+        var noteVersions = await Tracking(context.PatientProcedureNoteVersions, forUpdate)
+            .Where(v => v.PatientId == patientId)
+            .OrderBy(v => v.AtUtc).ThenBy(v => v.Version).ThenBy(v => v.Id)
             .ToListAsync(ct);
 
         var activity = await Tracking(context.ActivityEntries, forUpdate)
@@ -77,6 +84,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Patient = patient,
             Procedures = procedures,
             ProcedureHistory = history,
+            NoteVersions = noteVersions,
             Activity = activity,
             Appointments = appointments,
             AppointmentHistory = appointmentHistory,

@@ -5,6 +5,7 @@ using MedApp.Application.Common.Behaviors;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Security;
 using MedApp.Application.Monitoring.Common;
+using MedApp.Application.Notepads.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Notifications.Common;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,6 +51,8 @@ public static class ServiceExtensions
         services.AddScoped<IActivityLog, ActivityLog>();
         services.AddOptions<ActivityOptions>();
         services.AddOptions<RetentionOptions>();
+        // How long a notepad is kept without a change (the host binds it, the Notepad section).
+        services.AddOptions<NotepadOptions>();
 
         return services;
     }

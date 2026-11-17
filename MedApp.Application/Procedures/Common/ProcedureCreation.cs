@@ -19,7 +19,6 @@ public static class ProcedureCreation
         PatientProcedureStageTemplate template,
         Guid patientId,
         string? title,
-        string notes,
         DateOnly dueDate,
         PatientProcedurePriority priority,
         DateTime nowUtc)
@@ -32,7 +31,6 @@ public static class ProcedureCreation
             TemplateId = template.Id,
             TemplateName = template.Name,
             Title = string.IsNullOrWhiteSpace(title) ? template.Name : title.Trim(),
-            Notes = notes,
             DueDateUtc = DueDates.EndOfDayUtc(dueDate),
             Priority = priority,
             Status = PatientProcedureStatus.Unassigned,
@@ -61,9 +59,10 @@ public static class ProcedureCreation
 
     /// <summary>
     /// Records a new procedure's creation on its change: the Created audit entry (the template's name, the due date,
-    /// the priority and how many stages), then the first stage's visit, if it involves one.
+    /// the priority and how many stages), then its first note, if <paramref name="notes"/> has any text, then the
+    /// first stage's visit, if it involves one.
     /// </summary>
-    public static void Record(ProcedureChange change, string templateName, DateOnly dueDate)
+    public static void Record(ProcedureChange change, string templateName, DateOnly dueDate, string? notes = null)
     {
         var procedure = change.Procedure;
         change.Audit(PatientProcedureAuditAction.Created, new
@@ -73,6 +72,9 @@ public static class ProcedureCreation
             priority = procedure.Priority.ToString(),
             stageCount = procedure.Stages.Count
         });
+
+        if (!string.IsNullOrWhiteSpace(notes))
+            change.AddNote(notes);
 
         StageVisits.RequestForCurrentStage(change, []);
     }

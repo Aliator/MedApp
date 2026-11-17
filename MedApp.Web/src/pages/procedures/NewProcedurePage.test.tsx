@@ -87,7 +87,7 @@ describe('NewProcedurePage', () => {
     await user.click(screen.getByRole('option', {name: 'Knee review'}));
     await user.type(screen.getByRole('combobox', {name: /Due Date/}), '01/12/2099');
     await user.tab();
-    await typeRichText(screen.getByRole('textbox', {name: 'Notes'}), 'Bring previous scans.');
+    await typeRichText(screen.getByRole('textbox', {name: /First note/}), 'Bring previous scans.');
     await user.click(screen.getByRole('button', {name: 'Create Procedure'}));
 
     const dialog = within(openDialog()!);

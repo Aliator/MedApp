@@ -23,6 +23,7 @@
     "@astryxdesign/richtext": "0.7.15",
     "@astryxdesign/theme-stone": "0.7.15",
     "@fontsource/atkinson-hyperlegible": "5.2.8",
+    "@lexical/clipboard": "0.52.0",
     "@lexical/code": "0.52.0",
     "@lexical/extension": "0.52.0",
     "@lexical/headless": "0.52.0",

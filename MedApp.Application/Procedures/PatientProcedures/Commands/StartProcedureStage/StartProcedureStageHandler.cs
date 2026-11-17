@@ -36,6 +36,6 @@ public sealed class StartProcedureStageHandler(
             await procedureMonitor.NotifyAsync(change, cancellationToken);
         }
 
-        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
+        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId);
     }
 }

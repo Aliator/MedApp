@@ -20,10 +20,12 @@ public interface IPatientProcedureRepository
     /// </summary>
     Task AddAsync(ProcedureChange change, CancellationToken ct);
 
-    /// <summary>A procedure with its patient, stages and assignments, read-only.</summary>
+    /// <summary>A procedure with its patient, stages, assignments and notes, read-only.</summary>
     Task<PatientProcedure?> GetByIdAsync(Guid id, CancellationToken ct);
 
-    /// <summary>A procedure with its patient, stages and assignments, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
+    /// <summary>
+    /// A procedure with its patient, stages, assignments and notes, tracked so <see cref="SaveAsync"/> saves changes to it.
+    /// </summary>
     Task<PatientProcedure?> GetForUpdateAsync(Guid id, CancellationToken ct);
 
     /// <summary>Saves changes to procedures loaded with <see cref="GetForUpdateAsync"/>, with their audit entries.</summary>
@@ -31,7 +33,8 @@ public interface IPatientProcedureRepository
 
     /// <summary>
     /// Saves a change to a procedure loaded with <see cref="GetForUpdateAsync"/>: its audit entries, the appointments it
-    /// asked for, and the history entries of those and of the appointments it changed. Appointments loaded for update
+    /// asked for, the history entries of those and of the appointments it changed, and the notes it added or edited with
+    /// their versions (a note edited meanwhile is a 409, <c>ProcedureNotes.ChangedMeanwhileMessage</c>). Appointments loaded for update
     /// with <c>IAppointmentRepository</c> in the same request share this DbContext, so they're saved by the same
     /// <c>SaveChangesAsync</c>.
     /// </summary>

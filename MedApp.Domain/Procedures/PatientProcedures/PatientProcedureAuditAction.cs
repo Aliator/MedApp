@@ -21,5 +21,11 @@ public enum PatientProcedureAuditAction
     AttachmentDeleted = 11,
 
     /// <summary>An attached file was downloaded. Not on the patient timeline: only in the audit log.</summary>
-    AttachmentDownloaded = 12
+    AttachmentDownloaded = 12,
+
+    /// <summary>A note was added to the procedure. The details hold its ID and version, never its text.</summary>
+    NoteAdded = 13,
+
+    /// <summary>A note on the procedure was edited. The details hold its ID and new version, never its text.</summary>
+    NoteEdited = 14
 }

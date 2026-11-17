@@ -108,6 +108,21 @@ describe('groupByDay', () => {
 });
 
 describe('describeTimelineEntry', () => {
+  it("gives a note's text (admins only) as Markdown to show formatted, never in the detail line", () => {
+    const added = describeTimelineEntry(entry({action: 'NoteAdded', changes: [{field: 'note', from: null, to: 'Prefers **mornings**.'}]}));
+    expect(added).toEqual({title: 'Note added', detail: '', noteText: 'Prefers **mornings**.'});
+
+    const edited = describeTimelineEntry(entry({action: 'NoteEdited', changes: [{field: 'note', from: 'Old.', to: '- Bloods taken'}]}));
+    expect(edited).toEqual({title: 'Note edited', detail: 'It now reads:', noteText: '- Bloods taken'});
+
+    // Staff get no text: just that it was added or edited.
+    expect(describeTimelineEntry(entry({action: 'NoteEdited', changes: [{field: 'note', from: null, to: null}]}))).toEqual({
+      title: 'Note edited',
+      detail: '',
+      noteText: undefined,
+    });
+  });
+
   it.each([
     [{action: 'StageStarted', stageName: 'Consultation'}, 'Started Consultation', ''],
     [{action: 'StageFinished', stageName: 'Consultation'}, 'Finished Consultation', ''],

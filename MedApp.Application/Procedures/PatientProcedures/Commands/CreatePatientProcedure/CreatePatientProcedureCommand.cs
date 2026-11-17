@@ -4,7 +4,10 @@ using MediatR;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 
-/// <summary>Starts a procedure for a patient from a template, copying the template's stages. A blank title uses the template's name.</summary>
+/// <summary>
+/// Starts a procedure for a patient from a template, copying the template's stages. A blank title uses the template's
+/// name. Notes, if any, become its first note, by the actor.
+/// </summary>
 public sealed record CreatePatientProcedureCommand(
     Guid PatientId,
     Guid TemplateId,

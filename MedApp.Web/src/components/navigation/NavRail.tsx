@@ -13,6 +13,11 @@ export interface NavRailEntry {
   label: string;
   icon: IconType;
   isSelected: boolean;
+  /**
+   * For a toggle rather than a page (the notepad): whether it's on. It's filled as a current page is, but announced
+   * as pressed, never as the current page.
+   */
+  isPressed?: boolean;
   /** Its page is the one in the half view: marked a shade darker than the current page's. */
   isHalfView?: boolean;
   /** Where its icon goes; without one (Logout), the icon only shows its row. */
@@ -314,13 +319,14 @@ function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailIt
               transition: 'none',
               backgroundColor: isOpen
                 ? undefined
-                : entry.isSelected
+                : entry.isSelected || entry.isPressed
                   ? 'var(--color-neutral)'
                   : entry.isHalfView
                     ? 'color-mix(in srgb, var(--color-neutral) 65%, transparent)'
                     : undefined,
             }}
             aria-current={entry.isSelected ? 'page' : undefined}
+            aria-pressed={entry.isPressed}
             href={entry.href}
             onClick={entry.href ? undefined : onShow}
           />

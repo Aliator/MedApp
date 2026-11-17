@@ -35,6 +35,6 @@ public sealed class UnassignPatientProcedureHandler(
         await repository.SaveAsync(change.AuditEntries, cancellationToken);
         await procedureMonitor.NotifyAsync(change, cancellationToken);
 
-        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
+        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId);
     }
 }

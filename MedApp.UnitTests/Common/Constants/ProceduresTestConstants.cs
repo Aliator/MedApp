@@ -61,7 +61,6 @@ public static class ProceduresTestConstants
         {
             Id = id,
             Title = title,
-            Notes = string.Empty,
             DueDateUtc = dueDateUtc ?? Now.AddDays(7),
             Priority = priority,
             Status = status,
@@ -117,6 +116,27 @@ public static class ProceduresTestConstants
         stage.IsLocked = true;
         stage.CompletedAtUtc = Now.AddDays(-4);
         stage.CompletedByUserId = Staff.UserId;
+    }
+
+    /// <summary>Synthetic text for a procedure note.</summary>
+    public const string NoteText = "Synthetic note: prefers a morning appointment.";
+
+    /// <summary>Adds a note (version 1, unedited) to a procedure, by <paramref name="author"/> (default <see cref="Staff"/>).</summary>
+    public static PatientProcedureNote AddNote(
+        this PatientProcedure procedure, Guid? author = null, string text = NoteText, DateTime? createdAt = null, int version = 1)
+    {
+        var note = new PatientProcedureNote
+        {
+            Id = Guid.NewGuid(),
+            PatientProcedureId = procedure.Id,
+            AuthorUserId = author ?? Staff.UserId,
+            Text = text,
+            CreatedAtUtc = createdAt ?? Now.AddDays(-2),
+            LastEditedAtUtc = version > 1 ? Now.AddDays(-1) : null,
+            Version = version,
+        };
+        procedure.Notes.Add(note);
+        return note;
     }
 
     /// <summary>The ordered stage at a 1-based position.</summary>

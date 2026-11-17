@@ -12,26 +12,27 @@ public sealed class UpdatePatientProcedureValidatorTests
     [Test]
     public void Validate_NothingToChange_Passes()
     {
-        _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, null, null, Staff)).IsValid.Should().BeTrue();
+        _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, null, Staff)).IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_BlankTitle_Fails()
     {
-        _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), "  ", null, null, null, Staff)).IsValid.Should().BeFalse();
+        _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), "  ", null, null, Staff)).IsValid.Should().BeFalse();
     }
 
     [Test]
     public void Validate_UnknownPriority_Fails()
     {
-        _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, null, "Soon", Staff)).IsValid.Should().BeFalse();
+        _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, "Soon", Staff)).IsValid.Should().BeFalse();
     }
 
-    [Test]
-    public void Validate_NotesTooLong_Fails()
+    [TestCase("")]
+    [TestCase("Synthetic notes from a page loaded before the change.")]
+    public void Validate_OldNotesField_FailsSayingWhereNotesGoNow(string notes)
     {
-        var command = new UpdatePatientProcedureCommand(Guid.NewGuid(), null, new string('a', MaxNotesLength + 1), null, null, Staff);
+        var result = _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, null, Staff, notes));
 
-        _validator.Validate(command).IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(UpdatePatientProcedureValidator.NotesMovedMessage);
     }
 }

@@ -10,6 +10,8 @@ import {createContext, useContext, useEffect, useState} from 'react';
 /** Where a page is being shown: in a half view (with a way to close that half), or on its own. */
 export interface HalfView {
   isHalf: boolean;
+  /** Which half: the main page is on the left, the half view's on the right. */
+  side?: 'left' | 'right';
   /** Closes this half, leaving the other page on its own. */
   onClose?: () => void;
 }

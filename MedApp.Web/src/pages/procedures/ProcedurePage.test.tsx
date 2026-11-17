@@ -13,7 +13,8 @@ const procedure = {
   templateId: 'tpl-1',
   templateName: 'Diagnostic procedure',
   title: 'Colonoscopy',
-  notes: 'Bowel preparation pack posted.',
+  canAddNotes: true,
+  noteList: [{id: 'n1', authorUserId: 'u1', authorUsername: 'a.user', text: 'Bowel preparation pack posted.', createdAtUtc: '2026-11-01T10:30:00Z', version: 1, canEdit: false}],
   dueDate: '2026-12-01',
   dueDateUtc: '2026-12-01T23:59:59Z',
   priority: 'High',
@@ -104,6 +105,10 @@ describe('ProcedurePage', () => {
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
     expect(screen.getByText('a.user')).toBeInTheDocument();
     expect(screen.getByText('Bowel preparation pack posted.')).toBeInTheDocument();
+    // In the Notes section, with who wrote it, and Add Note (only your own notes can be edited).
+    expect(screen.getByText(/^a\.user, /)).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Add Note'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Edit'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
     expect(screen.getByRole('link', {name: 'View Patient'})).toHaveAttribute('href', '/patients/patient-1');
     expect(screen.getByRole('button', {name: /^1\. Consultation/})).toHaveAttribute('aria-expanded', 'false');
@@ -117,6 +122,7 @@ describe('ProcedurePage', () => {
     expect(await screen.findByRole('heading', {name: 'Current stage', level: 2})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Hide notes'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Assigned staff'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');

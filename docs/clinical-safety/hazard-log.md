@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Document** | CS-02, hazard log (DCB0129) |
-| **Version** | 0.9, draft |
-| **Date** | 16 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`) |
+| **Version** | 1.0, draft |
+| **Date** | 17 November 2026 |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Procedure (`feature/procedure-notes`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -69,6 +69,7 @@
 | [H-34](#h-34-the-wrong-patient-or-procedure-is-booked) | The wrong patient or procedure is booked | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, before first live use** | Open, draft for the CSO |
 | [H-35](#h-35-an-appointment-is-left-without-its-member-of-staff) | An appointment is left without its member of staff | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Yes, before first live use | Open, draft for the CSO |
 | [H-36](#h-36-a-cancelled-or-moved-appointment-isnt-passed-on-to-the-patient) | A cancelled or moved appointment isn't passed on to the patient | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | **Yes, before first live use** | Open, draft for the CSO |
+| [H-37](#h-37-a-note-from-the-notepad-is-added-to-the-wrong-patients-procedure) | A note from the notepad is added to the wrong patient's procedure | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, built (the confirmation)** | Open, draft for the CSO |
 
 **Initial ratings, at `88dc1fa`:** one hazard is rated 4 (H-13), and twelve are rated 3 (H-01, H-02, H-04, H-05, H-07, H-09, H-10, H-12, H-14, H-15, H-20 and H-21). None is rated 5. Since then, H-12's defect is fixed (PR #62), which brings it to its residual 2 once the CSO has verified the fix, leaving eleven at 3.
 
@@ -79,6 +80,8 @@
 **The patient banner,** the main control for H-01 and H-02, and for files on the wrong record (H-23), is built on branch `feature/nhs-integrations`, with the NHS number. It doesn't change any rating yet: the initial ratings are for `88dc1fa`, and the "at first live use" ratings already assumed it. Those two ratings now depend on the CSO verifying the banner, and on the other controls marked "before first live use" (the date of birth in lists, the patient's name in the page title and in the confirmations), which aren't built.
 
 **Residual,** with every control built: H-13 stays at 3, because the worst credible harm of a wrong template, affecting many patients, stays catastrophic however unlikely it's made. All the others come down to 2.
+
+**The notepad and several notes per procedure (H-37)** is a draft for the CSO too, written with the feature (branch `feature/procedure-notes`), with a draft estimate in the same way: 3 to start, 2 with its confirmation, which is built.
 
 **Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
@@ -1399,6 +1402,43 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 
 ---
 
+## H-37: A note from the notepad is added to the wrong patient's procedure
+
+**Description.** A member of staff jots something about a patient in their notepad (during a call or a clinic), then uses Add Note to Procedure, and it's added as a note on a different patient's procedure, or on the right patient's wrong procedure.
+
+**Causes:**
+- **The notepad isn't tied to a patient.** It's one per member of staff, open beside every page, so what's in it can be about anyone, and the procedure page open beside it may not be the patient it's about.
+- **Two procedure pages open at once** (a half view), each a possible target.
+- **Several patients' jottings in one notepad,** where all of it is added rather than the part about this patient.
+- **A note can't be deleted** (clinical record integrity): a wrong one stays, visible, until it's marked "entered in error", which isn't built (`docs/todo.md`).
+- **The same words in two patients' jottings** ("obs stable", "bloods sent", "call back"): taking the added text out of the notepad could take out the wrong copy, leaving the other patient's line short and this patient's still there, ready to be added again elsewhere. Found in the review of #110: the first build searched the notepad for the selected text and removed the first copy it found.
+
+**Effect.** A clinical note about one patient sits on another patient's record: the wrong patient may be treated on it, the right one's record misses it, and it's a disclosure.
+
+**Possible harm.** A clinical decision made on someone else's information, or information missed; distress and a breach of confidentiality. Considerable.
+
+**Existing controls:**
+- **A confirmation before anything is added** (`AddToProcedureDialog`), showing the patient as the patient banner does (`SURNAME, Forename`, date of birth and age, NHS number), the procedure's title, and the exact text that will be added. Protective; **built**.
+- **With two procedures open, it asks which,** naming each by its side (Left, Right), title and patient, and nothing is chosen until the member of staff chooses: Add Note stays disabled until then. Protective; **built**.
+- **Only the selected text is added when there is a selection,** so one patient's part can be added on its own. It's taken from the editor's own selection, as Markdown, so it keeps its formatting (bold, a whole list item's bullet) and the confirmation shows exactly what will be saved. Protective; **built**.
+- **"Remove it from the notepad" takes out exactly what was selected,** by its position in the editor (the editor deletes that range, as pressing Delete would), never by searching for the same words, so another line with the same text is never touched. It starts ticked, so the text doesn't linger there to be added again elsewhere. **When it can't be done exactly,** it says so rather than guessing: if the editor can't say where the selection is, the option is off and disabled in the confirmation, with the reason shown; if the notepad changed while the note was being added, nothing is taken out, and the pane says so, on the pane and to screen readers, so the member of staff removes it themselves. Protective; **built** (`RichTextField`'s `selection()`, `NotepadPane`; tested with the same words on two lines).
+- **The note is added by the member of staff, with the time, audited** (`NoteAdded`), and shows on the procedure page at once, under the patient banner; its author can edit it. Detective; **built**.
+- **The notepad says it's for jottings, and that anything about a patient belongs in their record.** Information; **built**.
+- **Transferred:** staff check the patient before writing in their record, as for any note.
+
+**Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3** (without the confirmation).
+
+**Further controls:**
+- **Mark a note "entered in error"**, so a note added to the wrong record can be visibly withdrawn without deleting it. Corrective; **planned** (`docs/todo.md`); later.
+
+**At first live use:** Draft: Considerable, Low: **2**.
+
+**Residual risk:** Draft: Considerable, Low: **2**.
+
+**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+
+---
+
 ## Hazards considered and not logged
 
 - **Stages worked out of order.** Designed out while no stage is unlocked: only the current stage can be started, edited or finished, checked by the API (`ProcedureWorkflow.WhyStageCantBeEdited`), with tests. Once an admin unlocks a finished stage, it and the current stage can both be edited and finished; that's logged under H-06.
@@ -1426,3 +1466,4 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 | 0.7 | 16 November 2026 | File attachments: six new hazards, H-23 (a file on the wrong record), H-24 (a missing document), H-25 (malware), H-26 (a file deleted by mistake), H-27 (an out-of-date or duplicate document) and H-28 (file storage unavailable); links from H-01, H-02, H-10, H-19 and H-20. H-23 has the built patient banner (PR #69) as a control, and the restriction guard and anonymisation (PR #68) are causes in H-22, H-23, H-24 and H-26. After the review of #85: hostile images and archives as a cause of H-10, with their bounds; the upload re-checked after staging (H-23); active content in Word and PDF files refused (H-25); storage failures bounded and a 503 (H-28, its defect fixed); anonymisation's file deletions audited (H-26). No earlier rating changed | AI coding agent, for review |
 | 0.8 | 16 November 2026 | `feature/email-2fa`: a new cause of H-10 (a member of staff locked out by two-factor or the lockout) with its controls (recovery codes, an admin reset, reset by email); optional two-factor added to H-18's controls. Ratings unchanged, for the CSO to assess | AI coding agent, for review |
 | 0.9 | 16 November 2026 | Staff calendars and appointments (`docs/calendar-plan.md`): new draft hazards H-30 to H-36 for the CSO, with ratings left for the CSO to assign; the visit rule added to H-07's existing controls, and the refused deletion of an account with booked appointments to H-21's; three more hazards considered and designed out. On merging 0.4 to 0.6: a restricted record's appointments added to H-22's causes and H-30's, and the patient banner and NHS number to H-34 (drafted as this branch's 0.4). On merging 0.7 (file attachments): the calendar hazards keep H-30 to H-36, which now follow H-29 with no gap. On merging 0.8 (email and two-factor sign-in): no new hazard, so the numbering stands | AI coding agent, for review |
+| 0.10 | 17 November 2026 | Several notes per procedure and the pop-out notepad (branch `feature/procedure-notes`): new draft hazard H-37 (a note added from the notepad to the wrong patient's procedure), with its confirmation as the control. Procedure notes can no longer be deleted or overwritten (each edit is a version, by its author only), which strengthens H-03 and H-15 without changing their ratings. After the review of #110: a new cause of H-37 (the same words in two patients' jottings), and "Remove it from the notepad" described as built: it takes out exactly the selection, by its position, or says it can't. Still a draft (0.10, after 0.9), not an issued version | AI coding agent, for review |

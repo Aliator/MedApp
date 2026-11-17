@@ -3,10 +3,12 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Application.Procedures.Timeline.Common;
 using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.ProceduresTestConstants;
@@ -297,4 +299,56 @@ public sealed class GetPatientTimelineHandlerTests
         await act.Should().ThrowAsync<NotFoundException>();
         _appointments.Verify(r => r.GetPatientTimelineAsync(It.IsAny<GetPatientTimelineQuery>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Test]
+    public async Task Handle_Admin_GetsEachNotesTextFromTheVersions()
+    {
+        var noteId = Guid.NewGuid();
+        var added = CreateEntry(Action.NoteAdded, Now.AddHours(-2), $$"""{"noteId":"{{noteId}}","version":1}""");
+        var edited = CreateEntry(Action.NoteEdited, Now.AddHours(-1), $$"""{"noteId":"{{noteId}}","version":2}""");
+        GivenRows(new(edited, CurrentTitle), new(added, CurrentTitle));
+        _audit
+            .Setup(r => r.GetNoteVersionsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<NoteVersionKey>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([NoteVersion(noteId, 1, "Synthetic first."), NoteVersion(noteId, 2, "Synthetic second.")]);
+
+        var result = await _handler.Handle(CreateTimelineQuery(isAdmin: true), CancellationToken.None);
+
+        result.Items.Select(i => (i.Action, i.Changes.Single().From, i.Changes.Single().To)).Should().Equal(
+            ("NoteEdited", "Synthetic first.", "Synthetic second."),
+            ("NoteAdded", null, "Synthetic first."));
+        _audit.Verify(r => r.GetNoteVersionsAsync(
+            CreateTimelineQuery(isAdmin: true).PatientId,
+            It.Is<IReadOnlyCollection<NoteVersionKey>>(keys => keys.SequenceEqual(new[] { new NoteVersionKey(noteId, 2), new NoteVersionKey(noteId, 1) })),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_Staff_NeverReadsTheNotesText()
+    {
+        var noteId = Guid.NewGuid();
+        GivenRows(new PatientTimelineRow(CreateEntry(Action.NoteAdded, Now, $$"""{"noteId":"{{noteId}}","version":1}"""), CurrentTitle));
+
+        var result = await _handler.Handle(CreateTimelineQuery(), CancellationToken.None);
+
+        var change = result.Items.Should().ContainSingle().Which.Changes.Should().ContainSingle().Subject;
+        change.Field.Should().Be(TimelineMapper.NoteField);
+        change.To.Should().BeNull();
+        _audit.Verify(r => r.GetNoteVersionsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<NoteVersionKey>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_AdminWithoutNoteEntries_DoesNotLookForVersions()
+    {
+        GivenRows(new PatientTimelineRow(CreateEntry(Action.Created, Now), CurrentTitle));
+
+        await _handler.Handle(CreateTimelineQuery(isAdmin: true), CancellationToken.None);
+
+        _audit.Verify(r => r.GetNoteVersionsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<NoteVersionKey>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static PatientProcedureNoteVersion NoteVersion(Guid noteId, int version, string text) => new()
+    {
+        Id = Guid.NewGuid(), NoteId = noteId, Version = version, PatientProcedureId = ProcedureId, PatientId = PatientId,
+        Text = text, UserId = Staff.UserId, Username = Staff.Username, AtUtc = Now.AddHours(-3 + version)
+    };
 }

@@ -38,7 +38,16 @@ const data: PatientExport = {
       dueDate: '2026-10-01',
       createdAt: '2026-09-01T09:00:00Z',
       lastUpdated: '2026-10-02T09:00:00Z',
-      notes: 'Synthetic procedure note',
+      notes: [
+        {
+          id: 'note-1',
+          author: 'k.ashford',
+          text: 'Synthetic procedure note',
+          createdAtUtc: '2026-09-01T10:00:00Z',
+          lastEditedAtUtc: '2026-09-02T10:00:00Z',
+          version: 2,
+        },
+      ],
       assignedTo: ['k.ashford'],
       stages: [
         {
@@ -53,6 +62,10 @@ const data: PatientExport = {
         {order: 2, name: 'Scan', notes: ''},
       ],
     },
+  ],
+  noteHistory: [
+    {noteId: 'note-1', procedureId, version: 1, text: 'Synthetic first version', username: 'k.ashford', atUtc: '2026-09-01T10:00:00Z'},
+    {noteId: 'note-2', procedureId: 'deleted-procedure', version: 1, text: 'Synthetic deleted note', username: 'Unknown', atUtc: '2026-08-01T10:00:00Z'},
   ],
   procedureHistory: [
     {
@@ -180,7 +193,14 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/Synthetic legal hold$/)).toBeInTheDocument();
     // Procedures, with their stages and notes.
     expect(screen.getByText('Procedures (1)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Synthetic knee review', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Notes (1)', level: 4})).toBeInTheDocument();
     expect(screen.getByText('Synthetic procedure note')).toBeInTheDocument();
+    expect(screen.getByText(/^Note by k\.ashford, .*, edited /)).toBeInTheDocument();
+    expect(screen.getByText('Note History (2)')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic first version')).toBeInTheDocument();
+    expect(screen.getByText('A deleted procedure')).toBeInTheDocument();
+    expect(screen.getByText(/: Note added by Unknown$/)).toBeInTheDocument();
     expect(screen.getByText('1. Consent')).toBeInTheDocument();
     expect(screen.getByText(/Started .* by k\.ashford, finished .* by l\.northcott/)).toBeInTheDocument();
     expect(screen.getByText('Synthetic stage note')).toBeInTheDocument();

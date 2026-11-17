@@ -393,4 +393,14 @@ describe('PatientTimeline', () => {
       expect(screen.getByText('Deleted scan.png')).toBeInTheDocument();
     });
   });
+
+  it("shows a note's text to admins formatted, not as its Markdown marks", async () => {
+    const note = entry({id: 'n-1', kind: 'Notes', action: 'NoteAdded', changes: [{field: 'note', from: null, to: 'Prefers **mornings**.'}]});
+    mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: [note], nextCursor: null})});
+    renderWithApp(<Harness />, {user: adminUser});
+
+    const row = within((await screen.findByText('Note added')).closest('li')!);
+    expect(row.getByText('mornings').closest('strong, b')).not.toBeNull();
+    expect(row.queryByText(/\*\*/)).not.toBeInTheDocument();
+  });
 });

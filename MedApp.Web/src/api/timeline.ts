@@ -115,6 +115,7 @@ const FIELD_NAMES: Record<string, string> = {
   priority: 'priority',
   stageNotes: 'notes',
   appointmentNotes: 'notes',
+  note: 'note',
 };
 
 /**
@@ -141,7 +142,12 @@ function describeChange(change: TimelineChange): string {
 export interface TimelineWording {
   title: string;
   detail: string;
+  /** A procedure note's text, as Markdown (admins only), shown formatted under the detail. */
+  noteText?: string;
 }
+
+/** A note's text from its entry's changes (only admins get it), or undefined. */
+const noteTextOf = (changes: TimelineChange[]) => changes.find((c) => c.to?.trim())?.to?.trim();
 
 /**
  * An entry in words, e.g. {title: "Blocked", detail: "Was in progress. Awaiting results"}. It says only what the API
@@ -173,6 +179,14 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Unlocked ${stage}`, detail: ''};
     case 'StageNotesUpdated':
       return {title: `Saved notes on ${stage}`, detail: changes.filter(hasValues).map(describeChange).join('; ')};
+    // Staff are told that a note was added or edited, and by whom; only admins get its text.
+    // The text is Markdown, so it's shown formatted (`noteText`), never as its raw marks.
+    case 'NoteAdded':
+      return {title: 'Note added', detail: '', noteText: noteTextOf(changes)};
+    case 'NoteEdited': {
+      const noteText = noteTextOf(changes);
+      return {title: 'Note edited', detail: noteText ? 'It now reads:' : '', noteText};
+    }
     case 'Assigned':
       return {title: `Assigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
     case 'Unassigned':

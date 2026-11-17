@@ -33,6 +33,7 @@ import {NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
+import {useNotepad} from '../notepad/NotepadContext';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -599,7 +600,31 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         ),
       }))
     : [];
+  // The notepad opens beside every page (or over it, on a phone), and stays open while moving around.
+  const notepad = useNotepad();
+  const notepadEntry: NavRailEntry[] = notepad
+    ? [
+        {
+          key: 'notepad',
+          label: 'Notepad',
+          icon: notepad.isOpen ? AppIcon.NotesOpen : AppIcon.Notes,
+          // A toggle, not a page: announced as pressed while it's open (never as the current page), and filled.
+          isSelected: false,
+          isPressed: notepad.isOpen,
+          row: (
+            <SideNavItem
+              label="Notepad"
+              icon={notepad.isOpen ? AppIcon.NotesOpen : AppIcon.Notes}
+              aria-pressed={notepad.isOpen}
+              data-notepad-toggle=""
+              onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
+            />
+          ),
+        },
+      ]
+    : [];
   const account: NavRailEntry[] = [
+    ...notepadEntry,
     {
       key: 'account',
       label: user.username,

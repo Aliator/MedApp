@@ -49,21 +49,44 @@ public sealed class PatientAnonymiserTests
     public void Apply_Procedures_TakeTheTemplateName_AndLoseTheirNotes()
     {
         var withNotes = CreateProcedure(Status.Completed, finishedStages: 3, title: "Synthetic title naming a condition");
-        withNotes.Notes = PrivacyTestConstants.NotesText;
+        withNotes.LegacyNotes = PrivacyTestConstants.NotesText;
+        var note = withNotes.AddNote(text: PrivacyTestConstants.NotesText, version: 2);
         var noTemplate = CreateProcedure(Status.Cancelled, finishedStages: 0);
         noTemplate.TemplateName = " ";
-        var record = PrivacyTestConstants.CreateRecord(null, withNotes, noTemplate);
+        var record = PrivacyTestConstants.WithNoteVersions(
+            PrivacyTestConstants.CreateRecord(null, withNotes, noTemplate),
+            NoteVersion(withNotes, note.Id, 1, PrivacyTestConstants.NotesText),
+            NoteVersion(withNotes, note.Id, 2, PrivacyTestConstants.NotesText + " Edited."),
+            // A deleted procedure's note: only its versions remain, found by the patient.
+            NoteVersion(withNotes, Guid.NewGuid(), 1, PrivacyTestConstants.NotesText, procedureId: Guid.NewGuid()));
 
         PatientAnonymiser.Apply(record, AnonymisedAt);
 
         withNotes.Title.Should().Be(TemplateName);
-        withNotes.Notes.Should().Be(PatientAnonymiser.RemovedText);
+        withNotes.LegacyNotes.Should().Be(PatientAnonymiser.RemovedText);
+        note.Text.Should().Be(PatientAnonymiser.RemovedText);
+        record.NoteVersions.Should().HaveCount(3).And.AllSatisfy(v => v.Text.Should().Be(PatientAnonymiser.RemovedText));
         withNotes.Stages.Should().AllSatisfy(s => s.Notes.Should().Be(PatientAnonymiser.RemovedText));
         withNotes.Stages[0].Name.Should().Be(ConsultationStage, "stage names come from definitions, not the patient");
         noTemplate.Title.Should().Be(PatientAnonymiser.ProcedureTitle);
-        noTemplate.Notes.Should().BeEmpty("empty text stays empty");
+        noTemplate.LegacyNotes.Should().BeEmpty("empty text stays empty");
+        noTemplate.Notes.Should().BeEmpty();
         noTemplate.Stages.Should().AllSatisfy(s => s.Notes.Should().BeEmpty());
     }
+
+    private static PatientProcedureNoteVersion NoteVersion(
+        PatientProcedure procedure, Guid noteId, int version, string text, Guid? procedureId = null) => new()
+    {
+        Id = Guid.NewGuid(),
+        NoteId = noteId,
+        Version = version,
+        PatientProcedureId = procedureId ?? procedure.Id,
+        PatientId = procedure.PatientId,
+        Text = text,
+        UserId = Staff.UserId,
+        Username = Staff.Username,
+        AtUtc = Now.AddDays(-version)
+    };
 
     [Test]
     public void Apply_ProcedureHistory_TakesTheNewTitles_AndADeletedProceduresGetsThePlaceholder()

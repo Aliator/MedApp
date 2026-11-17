@@ -11,7 +11,12 @@ public sealed class PatientProcedure
 
     public string Title { get; set; } = string.Empty;
 
-    public string Notes { get; set; } = string.Empty;
+    /// <summary>
+    /// The old single notes field, no longer used: its text was moved to <see cref="Notes"/> as one note each. Kept
+    /// (stored in the <c>Notes</c> column) only so API copies from before the move still work during a rollout; dropped
+    /// in a later release. Anonymisation still clears it.
+    /// </summary>
+    public string LegacyNotes { get; set; } = string.Empty;
 
     public DateTime DueDateUtc { get; set; }
 
@@ -36,4 +41,7 @@ public sealed class PatientProcedure
 
     public List<PatientProcedureStage> Stages { get; set; } = [];
     public List<PatientProcedureAssignment> Assignments { get; set; } = [];
+
+    /// <summary>Its notes (see <see cref="PatientProcedureNote"/>).</summary>
+    public List<PatientProcedureNote> Notes { get; set; } = [];
 }

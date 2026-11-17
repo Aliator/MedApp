@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 
@@ -18,8 +19,8 @@ public sealed class CreatePatientProcedureValidator : AbstractValidator<CreatePa
         RuleFor(x => x.Notes)
             .NotNull()
             .WithMessage("Notes must not be null.")
-            .MaximumLength(4000)
-            .WithMessage("Notes must not exceed 4000 characters.");
+            .MaximumLength(PatientProcedureNote.MaxTextLength)
+            .WithMessage($"Notes must not exceed {PatientProcedureNote.MaxTextLength} characters.");
 
         RuleFor(x => x.Priority)
             .Must(ProcedureEnums.IsPriority)

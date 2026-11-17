@@ -10,6 +10,7 @@ public sealed class CreatePatientProcedureRequest
     /// <summary>Optional; defaults to the template's name.</summary>
     public string? Title { get; set; }
 
+    /// <summary>Optional: becomes the procedure's first note, by whoever creates it.</summary>
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Due by the end of this day, UK time.</summary>
