@@ -612,7 +612,7 @@ stateDiagram-v2
 | Live notifications | WebSocket `/api/notifications/hub` | Staff |
 | FHIR (branch `feature/nhs-integrations`) | `GET api/fhir/Patient/{id}`; `GET api/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number\|{number}`. Read-only FHIR R4 in the UK Core shape, `application/fhir+json`, errors as OperationOutcomes | Staff |
 | Demographics (branch `feature/nhs-integrations`) | `GET api/demographics/status`; `POST api/demographics/lookup` (the NHS number in the body). Off unless `Pds:Mode` is set; only an offline stub exists | Staff |
-| Calendars | `GET api/calendar?staffUserId&from&to` (one person's days, at most 31, with their blocks, stored and from templates, and appointments); `GET api/calendar/staff` (everyone with a role, with their default week) | Staff |
+| Calendars | `GET api/calendar?staffUserId&from&to&withoutAppointments` (one person's days, at most 31, with their blocks, stored and from templates, and appointments, unless `withoutAppointments`, which records no reads); `GET api/calendar/staff` (everyone with a role, with their default week) | Staff |
 | A calendar's own setup | `POST api/calendar/blocks`, `PUT`/`DELETE blocks/{id}`; `PUT`/`DELETE staff/{userId}/days/{date}/template-blocks/{templateBlockId}` (one day's template block); `PUT`/`DELETE staff/{userId}/days/{date}/day-template` (a day template for one day, or back to the week's); `PUT staff/{userId}/week-template` (the default week; `GET` for staff) | The calendar's owner, or an admin |
 | Calendar setup | `api/calendar/activity-types`, `day-templates`, `week-templates`: list (`includeArchived`), get | Staff |
 | | add, edit, archive, restore, delete | Admin |

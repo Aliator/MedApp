@@ -2,7 +2,7 @@
 
 **Branch:** `feature/calendar-apply-template` (no PR yet). **Commits reviewed:** `492f8f9` to `c37782a` (`git diff 9e747d0..c37782a`, 16 commits). **Base:** `9e747d0`, the last of the three narrow-calendar commits, which have their own review ([calendar-narrow.md](calendar-narrow.md)). The commits after `c37782a` only merge #99's latest work in and aren't covered.
 
-**Reviewed:** 17 November 2026, independently of the author's conclusions. Each claim below was checked against the code, a test run, or a temporary test. Line numbers are at `c37782a`. **No finding is high or critical:** 1 is medium and 6 are low.
+**Reviewed:** 17 November 2026, independently of the author's conclusions. Each claim below was checked against the code, a test run, or a temporary test. Line numbers are at `c37782a`. **No finding is high or critical:** 1 is medium and 6 are low. **All seven are fixed** (each says how), and so are the 7 found by the browser check (see Browser check).
 
 ## Summary
 
@@ -92,7 +92,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
   - **Let the message take only what's left:** `style={{flexBasis: 0, minInlineSize: '12rem'}}` on the message's `StackItem` (a layout value the component has no prop for). It then forces a wrap only when the title, 12rem and the actions don't fit, as on a phone.
   - **Keep "Close half view" on the title's line,** outside the group that wraps.
   - **Check it:** add UI parity screens for a restricted patient's procedure page and for the Calendar with a page message, and look at them at 1366 px and in a half view. Run the full parity set before merging, as the merge flow requires for a UI change.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed. The message's `StackItem` now has `flexBasis: 0` and `minInlineSize: 12rem` (only when there's a message), so it takes what the title and actions leave and wraps its own words. "Close half view" is outside the part that wraps, top right on the title's line. Seen in a browser: a restricted patient's procedure page at 1366 and 1920 px keeps Block and Cancel Procedure on the title's line (at 1366, with that 505 px title, the banner is narrow and tall), and both halves' close buttons sit level with their titles. Two UI parity screens added (`procedure-restricted`, `procedure-restricted-half`, using a restricted patient the sign-in step now finds). A Calendar screen with a page message isn't added: the message only comes from a failed save, which the parity tool doesn't make.
 
 ### 2. On a phone, the Calendar's three header buttons still run off the side
 
@@ -107,7 +107,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
   - **An analogy:** a removal van that can split its load across trips, but was handed one crate already nailed shut.
 - **Evidence:** `MedApp.Web/src/pages/calendar/CalendarPage.tsx:418-455`; `MedApp.Web/src/components/pages/PageHeader.tsx:81-86`; `docs/calendar-plan.md:121`. The only other page that groups its actions does so with `wrap="wrap"` (`CalendarTemplatesPage.tsx:97`).
 - **Fix:** pass the buttons as a fragment, as `ProcedurePage` does, or add `wrap="wrap"` to the Calendar's `HStack`. Check it at 390 px.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed. The Calendar passes its header buttons as a fragment, so the header wraps them among themselves; the export page's two buttons likewise (the only other page with a non-wrapping group; the templates page's already wrapped). Seen at 390 px: New is at x 196 to 297, inside the window.
 
 ### 3. A click with a wobble on an item that has already started does nothing
 
@@ -125,7 +125,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **Fix:**
   - **Decide by the pointer:** `hasLeft = drag.hasLeft || col !== drag.from || row !== drag.pickRow` (the column and row under the pointer), and keep `to` for the ghost and the drop only. A started item still can't be dropped anywhere, but a wobble on its own row is a click.
   - **Test it:** a block 09:00 to 12:00 at 10:30 today, nudged 6 px, opens.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed, by the pointer: a press whose pointer moves less than 5 px (`DRAG_START_PX`), or never leaves the row and column it pressed, is a click. A new test covers a started block (a 6 px wobble opens it), a 4 px nudge across a row line (opens, doesn't move) and 6 px across one (moves a row). The browser found a second cause: a wobble across an item's words selected some, and Astryx's `ClickableCard` ignores a click while its text is selected, so movable items now have `user-select: none`.
 
 ### 4. Back after choosing Rows doesn't undo it, and moves the view to another time
 
@@ -139,7 +139,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
   - **`resetScroll: false` covers only the page's own navigations** (`routes/_app/calendar/index.tsx:22`). Back and Forward still restore saved pixel positions, which belong to the old row length.
 - **Evidence:** `MedApp.Web/src/pages/calendar/CalendarPage.tsx:186-187, 624-631`; `MedApp.Web/src/routes/_app/calendar/index.tsx:22`; `MedApp.Web/src/app/listSettings.tsx:50, 55`.
 - **Fix:** treat the row length as a preference, not a step in history. Change the address with `replace: true` when Rows is chosen (an option on `onSearchChange`), so Back goes to where the person was before the Calendar's last real move. Test it with the router, as the scroll test does: choose 5, go Back, and expect the time at the top kept.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed. Rows changes the address with `replace` (`onSearchChange(next, {replace: true})`, passed through to the router), so Back goes to where the person was before. The router test now checks the history has no new entry.
 
 ### 5. Apply Template from the day view logs the whole week's patients as listed
 
@@ -153,7 +153,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
   - **Decision 69 accepts it knowingly** (`docs/calendar-plan.md:126`), which is why this is low.
 - **Evidence:** `MedApp.Web/src/components/calendar/ApplyTemplateDialog.tsx:76-77`; `MedApp.Application/Calendar/StaffCalendars/Queries/GetCalendar/GetCalendarHandler.cs:31`; `docs/governance/dpia.md:156`; `docs/governance/data-inventory.md:31`.
 - **Fix:** give the dialog a read of the days alone: each day's template, override and past flag, without appointments, recording nothing (a new endpoint, or a flag on `GET api/calendar` that leaves out the items and the log). Classify it in `EndpointCoverageTests`. Or, to keep it, change `dpia.md:156` to say a template change reads the week.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed properly, not just documented. `GET api/calendar` takes `withoutAppointments`, which leaves the appointments out and records nothing (`GetCalendarHandler`, with a unit test and an integration test in `EndpointCoverageTests`). The dialog reads the week that way (`calendarDaysQuery`). `dpia.md`, decision 69, both `AGENTS.md` files and `architecture.md` say so.
 
 ### 6. "The default week's" trusts the page's copy of which days have overrides
 
@@ -164,7 +164,7 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **Why:** the days to change are picked from `isDayTemplateOverridden` in the cached week (`ApplyTemplateDialog.tsx:114-115`), and the API refuses to clear a day with nothing to clear (`ClearDayTemplateHandler.cs:17`).
 - **Evidence:** `MedApp.Web/src/components/calendar/ApplyTemplateDialog.tsx:112-115, 126-130`; `MedApp.Application/Calendar/StaffCalendars/Commands/ClearDayTemplate/ClearDayTemplateHandler.cs:16-17`.
 - **Fix:** make clearing idempotent on the server (a 204 when the day already follows the week: the goal is reached), and send the `DELETE` for every ticked day. Update the handler's unit and integration tests.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed in the web app rather than the API (which keeps its 404, a true answer). The dialog reads the week afresh each time it opens, and Apply waits until it's current; "The default week's" sends the `DELETE` for every ticked day and takes a 404 as done; afterwards it reads the days again and names any day that still has a template of its own. Tests cover all three; the browser showed the 404 closing the dialog as done.
 
 ### 7. The booking dialog's times move when one is chosen
 
@@ -176,7 +176,24 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **Why:** the finer times are worked out around the *latest* choice (`chosenStart`, `BookAppointmentDialog.tsx:236`), and the list is rebuilt on every choice (`:131-137`).
 - **Evidence:** `MedApp.Web/src/components/calendar/BookAppointmentDialog.tsx:131-137, 236, 601`.
 - **Fix:** anchor the finer times on the time the dialog opened with (the selection's start), so the list never moves. If nudging another time by 5 minutes is wanted, add "5 minutes earlier" and "5 minutes later" beside the chosen time instead.
-- **What happened to it:** left for the author.
+- **What happened to it:** fixed. The finer times gather round the time selected on the calendar (or the appointment's own when rescheduling; on a day with neither, the first time chosen there), and stay put as other times are chosen. The tests check the list doesn't change.
+
+## Browser check
+
+A separate check looked at the branch in Chromium (Playwright), on a throwaway copy of the demo data, at 390, 960, 1366 and 1920 px, light and dark. It found seven more things; all are fixed and were looked at again in the browser.
+
+| # | Severity | What the browser showed | What happened |
+|---|---|---|---|
+| 8 | medium | **At 390 px the Calendar's toolbar took seven lines,** leaving the grid about 320 of 844 px. | Fixed. Under 44rem the toolbar keeps Previous, Today, Next, the view and the date in view, at the small size, and puts whose calendar, Rows, the default week and the templates link under **View options** (a menu). Two lines at 390 px (grid 494 px), one at 960 px (grid 774 of 1000). Astryx's date field is at least 180 px, which decided the order: the day buttons and the view share the first line. |
+| 9 | low to medium | **Apply Template in the week view always ticked today,** even with another day in the address, so ticking Thursday and Friday changed today too unless unticked. | Fixed. A week ticks the address's date when it's in that week and can change, and nothing without one. Seen: `date=2026-11-19` ticks only Thu 19; no date ticks nothing. |
+| 10 | low | **The templates page's picker sat 16 px above New Day Template**, keeping a field's empty status line. | Fixed with `NO_FIELD_STATUS_LINE`. Both are now centred on the same line at 1366 px (y 54). |
+| 11 | low | **With 5-minute rows, "Not a working day" was centred** in the three-times-taller weekend column, so only "g day" showed. | Fixed. It sits at the top, sticky below the headings; it stayed in view at the top, middle and bottom of the scroll. |
+| 12 | low | **At 960 px the toolbar's last line started 26 px right** of the lines above. | Fixed. The spacer between the two groups is gone; the toolbar uses `justify="between"`, so a wrapped group starts on the left (seen at 1100 px). At 960 the toolbar is now the narrow one, on one line. |
+| 13 | low | **At 390 px, tall items in the compact week showed only their start time.** | Fixed. Items two rows or more tall show their name under the time ("14:30 / Rhys Kaur"). |
+| 14 | low (on `main` too) | **Axe's `scrollable-region-focusable` on Home's day calendar** when nothing inside can take the focus. | Fixed. When nothing in the grid's scrolling area can take the focus, the area is a tab stop of its own, named "<label>, scrollable". |
+| 3 | low | **Small wobbles:** a 3 to 6 px sideways wobble did nothing, and a 2 to 4 px nudge across a row line did nothing or offered to move the item. | Fixed (finding 3). Seen: a plain click, a 6 px sideways wobble, and 4 px and diagonal nudges across a row line open the item, on a started item too; 6 px or more across a row line, or 30 px, offers to move it. |
+
+**The axe audit** (`calendar`, `home`, `patient-view`, `procedure-view` and the two new restricted screens, in three colour themes): one finding, `label-content-name-mismatch`, on the Audit Log page that the new half-view screen opens beside the procedure: `RowCards`' sort button shows "Sort: When" but is named "Sort by When, descending". It's on `main` too, untouched by this branch, and left as a to-do.
 
 ## Remaining risks
 
@@ -186,7 +203,12 @@ The Calendar's "This day's template" menu, which only appeared in the day view, 
 - **The Rows menu marks the current choice with an icon only,** not as a checked menu item (`menuitemradio`). The button's name ("Rows: 5 min") says it, so screen readers aren't left without it.
 - **`selectionMenuPlacement`'s wiring isn't tested:** jsdom lays nothing out, so the slot's width is always 0 and the menu always "beside". A tall selection that runs past the visible grid relies on Astryx flipping the menu "below" to above.
 - **Not one transaction:** a partial failure leaves some days changed (documented, and the dialog names them).
-- **Tests not written for:** the dialog opening fresh after a close (it does), "The default week's" when no ticked day has an override (it closes, announcing success, with no call), and the header with a message.
+- **Tests not written for:** the dialog opening fresh after a close (it does). (The header with a message, and "The default week's" on a day with nothing of its own, now have tests.)
+- **After the fixes:**
+  - **A long page message beside a long title is narrow and tall** (at 1366 px, the restricted banner is about 180 px wide and 200 px tall beside a 505 px procedure title). The actions stay on the title's line, which was the point, but the header is taller than before.
+  - **View options lists everyone as a submenu,** without the staff picker's search. Fine for a team of a dozen; a large site would want the search back (a dialog, or the picker inside the menu).
+  - **The narrow toolbar is chosen after mount,** like the compact week, so a phone shows the full toolbar for a frame first.
+  - **The axe audit's one finding** (`RowCards`' sort button name, on `main` too) is left as a to-do.
 
 ## Say it like this
 
