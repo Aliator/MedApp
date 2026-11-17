@@ -450,6 +450,46 @@ describe('AppSideNav folded, and its menus', () => {
     await waitFor(() => expect(panel.style.translate).toBe(`${240 + 8 - 300}px ${100 - 90}px`));
     expect(panel.closest<HTMLElement>('[data-astryx-layer-root]')?.style.colorScheme ?? panel.style.colorScheme).toBe('dark');
   });
+
+  it('covers the gap between the menu button and its open menu, so the pointer crossing it keeps the menu open', async () => {
+    // jsdom has no layout: the menu button ends at 228 (its row at 100, 40 tall), and the menu starts at 300.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.matches('.astryx-side-nav')) return new DOMRect(0, 0, 240, 800);
+      if (this.matches('.astryx-side-nav-item')) return new DOMRect(8, 100, 224, 40);
+      if (this.matches('button[aria-label$=" options"]')) return new DOMRect(200, 104, 28, 32);
+      if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(300, 100, 200, 120);
+      return new DOMRect();
+    });
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+    await rowMenuItem(user, 'My Tasks', 'Open in half view');
+    const button = screen.getByRole('button', {name: 'My Tasks options'});
+
+    const bridge = await waitFor(() => {
+      const strip = document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
+      expect(strip).not.toBeNull();
+      return strip!;
+    });
+    expect(bridge).toHaveAttribute('aria-hidden', 'true');
+    // From the button's end to the menu's start, as tall as both.
+    expect(bridge.style).toMatchObject({position: 'fixed', left: '228px', top: '100px', width: '72px', height: '120px'});
+
+    // On the strip, past the time a menu waits before closing once the pointer has left it: still open.
+    await user.hover(bridge);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    // Off it, onto the page: it closes, and the strip goes with it.
+    await user.unhover(bridge);
+    await user.hover(document.body);
+    await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
+    expect(document.querySelector('[data-nav-bridge]')).toBeNull();
+  });
 });
 
 describe('AppSideNav with a half view open', () => {

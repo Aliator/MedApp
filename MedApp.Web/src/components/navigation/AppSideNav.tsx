@@ -21,6 +21,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
+import {createPortal} from 'react-dom';
 import {patientLabelsQuery} from '../../api/patients';
 import {procedureLabelsQuery} from '../../api/procedures';
 import {useColorMode} from '../../app/colorMode';
@@ -80,6 +81,9 @@ const ActiveRowsContext = createContext<(href: string) => boolean>(() => true);
 /** The address of the nav row an element is in (its link's, or for a row with no link, its `data-nav-row`), or null. */
 function rowHref(target: EventTarget | null): string | null {
   if (!(target instanceof Element)) return null;
+  // The strip between a row's menu button and its open menu (RowMenu) belongs to that row.
+  const bridge = target.closest('[data-nav-bridge]');
+  if (bridge) return bridge.getAttribute('data-nav-bridge');
   const row = target.closest('.astryx-side-nav-item');
   return row?.querySelector('a[href]')?.getAttribute('href') ?? row?.querySelector('[data-nav-row]')?.getAttribute('data-nav-row') ?? null;
 }
@@ -152,6 +156,17 @@ function useHalfViewItems(label: string, href: string): DropdownMenuItemData[] {
   ];
 }
 
+/** The gap between a row's menu button and its open menu, which the pointer can cross without the menu closing. */
+interface Bridge {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** Above the page it lies over (the menu itself is in the browser's top layer, above everything). */
+const BRIDGE_Z_INDEX = 1000;
+
 /** How long the pointer rests on a row's menu button before the menu opens (so passing over it doesn't). */
 const MENU_OPEN_DELAY_MS = 150;
 /** How long the menu stays after the pointer leaves the button and the menu, so it can cross between them. */
@@ -178,6 +193,9 @@ function RowMenu({
   const isActive = useContext(ActiveRowsContext)(href);
   const {mode} = useColorMode();
   const [isOpen, setIsOpen] = useState(false);
+  // The gap between the button and its open menu (the menu sits a little off the nav's edge), in the window's
+  // coordinates: an invisible strip covers it while the menu is open (below).
+  const [bridge, setBridge] = useState<Bridge | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const triggerId = useRef<string | null>(null);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -214,6 +232,14 @@ function RowMenu({
           const dx = edge + (navRight - rowRight) - box.left;
           const dy = row.getBoundingClientRect().top - box.top;
           panel.style.translate = `${dx}px ${dy}px`;
+          // Where the gap is once the menu has moved: from the button's end to the menu's start, as tall as both.
+          frame = requestAnimationFrame(() => {
+            const from = button!.getBoundingClientRect();
+            const to = surface.getBoundingClientRect();
+            const top = Math.min(from.top, to.top);
+            const width = to.left - from.right;
+            setBridge(width > 0 ? {left: from.right, top, width, height: Math.max(from.bottom, to.bottom) - top} : null);
+          });
           return;
         }
       }
@@ -239,6 +265,27 @@ function RowMenu({
       onMouseEnter={() => setSoon(true, MENU_OPEN_DELAY_MS)}
       onMouseLeave={() => setSoon(false, MENU_CLOSE_DELAY_MS)}
       style={shownFor(isActive || isOpen)}>
+      {/* The pointer crossing from the button to the menu crosses a gap that's part of neither, which closed the menu
+          (and a folded nav's row brought out, and the row's buttons). While the menu is open, an invisible strip
+          covers that gap. It's in this row's React tree (a portal), so the pointer on it is still on the row, its
+          menu and the flyout, and nothing closes. Over the page, outside the side nav, as the nav would cut it off. */}
+      {isOpen &&
+        bridge &&
+        createPortal(
+          <VStack
+            aria-hidden
+            data-nav-bridge={href}
+            style={{
+              position: 'fixed',
+              left: bridge.left,
+              top: bridge.top,
+              width: bridge.width,
+              height: bridge.height,
+              zIndex: BRIDGE_Z_INDEX,
+            }}
+          />,
+          document.body,
+        )}
       <DropdownMenu
         items={all}
         // Beside the nav, level with the row, rather than under the row (over the rows below it).
