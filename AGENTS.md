@@ -12,8 +12,8 @@ Run everything from the repo root. `global.json` pins the SDK to 10.0.x, and eve
 
 ```bash
 dotnet build MedApp.sln                     # build everything
-dotnet test MedApp.UnitTests                # unit tests (CI's unit-tests job)
-dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"   # run a subset
+dotnet test MedApp.UnitTests -c Release     # unit tests (CI's unit-tests job; Release, as medapp-dev locks Debug)
+dotnet test MedApp.UnitTests -c Release --filter "FullyQualifiedName~UpdatePatient"   # run a subset
 dotnet test MedApp.IntegrationTests         # the API against SQL Server in Docker (needs Docker running; about 1.5 min)
 
 # End-to-end tests (Playwright) against the running AppHost, signed in as the local dev admin. They make their own
@@ -42,18 +42,20 @@ To try the production image in Kubernetes, `deploy/kind/up.sh --demo-data kind-d
 Azure (AKS, Azure SQL, Key Vault, Azure Container Registry, and a storage account for attached files) is in `deploy/azure`. It's written and checked, but **not deployed**. Its Bicep (`main.bicep`) is compiled and linted in CI. Deploying it costs money, so never run `deploy.sh` or `bootstrap.sh` without the user asking. Once it's set up, the Publish workflow's `azure` job deploys each merge through the `env/azure` branch; until then the job is skipped. Chart versions for both clusters are in `deploy/versions.sh`. See the `README.md` in each. CI lints the chart (the `helm` job), so after changing it run `helm lint --strict deploy/helm/medapp --set image.tag=ci`.
 
 **Testing a change: only what it touches.** CI runs every suite on each PR, on GitHub's machines (about 8 minutes), and a PR merges only once it's green. So locally, run only what checks your change, and leave the rest to CI:
-- **Build:** `dotnet build MedApp.sln` must succeed with no new warnings (while `medapp-dev` runs, build the changed projects instead: see [Dev MCP server](#dev-mcp-server-medapp-dev)).
-- **.NET unit tests:** only the ones for the code you changed, e.g. `dotnet test MedApp.UnitTests --filter "FullyQualifiedName~UpdatePatient"`.
+- **Use Release locally** (`-c Release`) for builds and tests. A Debug build of either test project rebuilds `medapp-dev` into the folder the running tool has locked (see [Dev MCP server](#dev-mcp-server-medapp-dev)).
+- **Build** the projects you changed, with no new warnings (`dotnet build <project> -c Release`). CI's `unit-tests` job builds the whole solution.
+- **.NET unit tests:** only the ones for the code you changed, e.g. `dotnet test MedApp.UnitTests -c Release --filter "FullyQualifiedName~UpdatePatient"`.
 - **`MedApp.Web`:**
   - the changed files' tests (`npx vitest run <files>`)
   - `npm run typecheck`
   - ESLint on the changed files (`npx eslint <files>`)
 - **Integration tests** start SQL Server and Azurite in Docker. Run them only for something unit tests can't reach, such as SQL translation, Identity, a migration, middleware or the demo data seed. Then run only that fixture (`--filter "FullyQualifiedName~<Fixture>"`).
-- **Not locally**, unless the user asks or you're chasing one failing test:
+- **A visible change is looked at in a browser.** Nothing in CI does that. Start the AppHost if it isn't running (it's the light setup). Then capture the UI parity screenshots of just the screens it touches and look at them. Run the axe audit on just those screens too (`npm run a11y -- -g "<screen>"` in `tools/ui-parity`). The accessibility statement promises the checks run again whenever screens change.
+- **A change to how MedApp is deployed is tried on kind** before it merges. That covers the chart (`deploy/helm`), the Dockerfile or what's in the image, `deploy/kind` or `deploy/argocd`, and a new setting, secret, port, container or connection the API needs outside Development. Start the cluster, run `deploy/kind/up.sh`, and check the app answers. CI lints and renders the chart, but never installs it.
+- **Not locally**, unless the user asks, a rule above calls for it, or you're chasing one failing test:
   - the full unit, web or integration suites
   - E2E tests
-  - the whole UI parity set
-  - accessibility audits
+  - the whole UI parity set, or the axe audit of every screen
   - the kind cluster
 - **When CI fails,** run only the failing tests locally.
 
@@ -446,7 +448,7 @@ All UI work goes in `MedApp.Web`. Its conventions are in `MedApp.Web/AGENTS.md`,
 It only runs against a local database: by default the AppHost's SQL container, using the password from the AppHost's user secrets, so the AppHost must have run once. It protects `admin`, and destructive tools need `confirm: true`.
 - **Before a destructive experiment:** take a `save_snapshot`.
 - **Build it first:** `dotnet build tools/MedApp.DevMcp`, because `.mcp.json` runs it with `--no-build`.
-- **While it runs, `dotnet build MedApp.sln` fails** with "file is locked by: MedApp.DevMcp". The unit and integration tests reference the tool, and the tool isn't in the solution, so a solution build always rebuilds it as Debug, into the folder the running tool uses. Build the projects you changed instead (`dotnet build MedApp.UnitTests -c Release`), or restart the tool afterwards with `/mcp` in Claude Code.
+- **While it runs, `dotnet build MedApp.sln` fails** with "file is locked by: MedApp.DevMcp". The unit and integration tests reference the tool, and the tool isn't in the solution, so a solution build always rebuilds it as Debug, into the folder the running tool uses. Build and test in Release instead (`dotnet build MedApp.UnitTests -c Release`). The running tool keeps the code it started with, so after a change to the app's rules or the seed, give it the new code: stop it in Claude Code's `/mcp`, run `dotnet build tools/MedApp.DevMcp`, then start it again.
 - **`reset_demo_data`** (`tools/MedApp.DevMcp/DemoData`) wipes the data and replays a clinic's 18 months: staff (with a second admin using two-factor, a new starter, a locked-out account and a deleted leaver), about 260 patients, six templates with distinct weekly volumes, about 650 procedures and 2,500 appointments (the numbers vary a little with the day it's run), calendars, notifications, monitoring rules, 60 days of activity log, settings, today's sessions and, when Azurite answers, files. History goes through the shared code the handlers call (`ProcedureChange`, `ProcedureCreation`, `StageFinishing`, `ProcedureDetails`, `StageVisits`, `AppointmentChange`, `AssignmentNotifications`, `AppointmentNotifications`, the monitor's `FindMatchesAsync`, `PatientSearch.FiltersUsed`, the activity log's writer) and, where only a handler is right, its commands, with a clock the seed moves. It returns the generated passwords and the two-factor key and recovery codes. Locally, pass `keepUsers: ["dev-parity"]`. `docs/demo-data.md` is the guided tour of what's in it.
   - **When the app's rules change:** a change to shared code (an audit entry's details, a notification's wording, a stage's visit, a calendar clash) changes the demo data with it. The seed still writes its history's sign-in and search activity entries itself: `DemoActivityParityTests` (unit tests) runs the real commands and fails if they write something else. So change the seed's copy with them.
   - **Its tests:** `DemoDataSeedTests` (integration tests) runs the whole seed at fixed moments (a Saturday, just after midnight the day after a clock change, a Friday afternoon seeded twice) and checks it obeys the app's rules: visits before finishing, no calendar clashes for appointments or stored blocks, nothing before a patient existed or after "now", the same counts from the same seed. `DemoCalendarsTests` checks the calendars at a dozen moments.
@@ -469,7 +471,10 @@ It only runs against a local database: by default the AppHost's SQL container, u
     - builds, unit tests and Vitest run without Docker
     - the AppHost is for trying the app
     - the integration tests start their own containers and remove them afterwards
-  - **A cap for WSL itself** is a setting on each PC, not in the repo. `%UserProfile%\.wslconfig` with `[wsl2] memory=12GB` and `[experimental] autoMemoryReclaim=dropCache` keeps Docker under 12 GB and gives cached memory back when it's idle. It applies after `wsl --shutdown`.
+  - **A cap for WSL itself** is a setting on each PC, not in the repo. `%UserProfile%\.wslconfig` with `[wsl2] memory=12GB` keeps Docker under 12 GB on a PC with more than 24 GB (below that, the default of half is already lower).
+    - Raise it to 16 GB if you run kind and the AppHost together.
+    - Current WSL already gives cached memory back when idle (`[experimental] autoMemoryReclaim=dropCache`, the default).
+    - To apply it, quit Docker Desktop first, then run `wsl --shutdown`, then start Docker Desktop. Shutting WSL down under Docker kills its containers mid-run.
 - The API's `appsettings*.json` have **no connection string**: the AppHost injects `ConnectionStrings__DefaultConnection`. Running the API on its own needs that variable set.
 - **An empty database** (a new volume) isn't migrated at startup. Apply the migrations with the command under [Commands](#commands), then load the demo data with `medapp-dev`'s `reset_demo_data`.
 - The React dev server (`npm run dev`: Node with Vite, rendering pages on the server) proxies `/api` and `/swagger` to the API, and its own server-side API calls go through that proxy too. If `/api` calls start returning the app's HTML instead of JSON, the proxy has dropped out; restart the AppHost.
@@ -610,7 +615,7 @@ When the user says to merge, do every step, in order, without stopping to ask ag
 7. **Pull `main` locally:** `git switch main` then `git pull`, so the working copy is up to date and ready for the next change. Then confirm the merge commit and that the working tree is clean.
 8. **Check the deploy:** each merge runs the Publish workflow, which deploys through the environment branches (`deploy/argocd/README.md`). Check that its run for the merge commit succeeded, as with CI. A green Publish run only means `env/kind` moved, not that the cluster took it.
    - **If the kind cluster is running,** check that Argo CD's `medapp` Application is **Synced and Healthy** at that commit (`kubectl --context kind-medapp -n argocd get application medapp`).
-   - **Don't start the cluster just for this.** When it next starts, Argo CD catches up with `env/kind` by itself.
+   - **Don't start the cluster just for this.** When it next starts, Argo CD catches up with `env/kind` by itself. A change to how MedApp is deployed was already tried on kind before merging ([Commands](#commands), Testing a change).
    - A change that adds a secret store entry needs `deploy/kind/up.sh --argocd` run against the existing cluster before it merges (`deploy/kind/README.md`).
 
 ### Review document format

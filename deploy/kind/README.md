@@ -53,14 +53,14 @@ To have the cluster follow git instead, use `up.sh --argocd`: Argo CD deploys th
 
 ### Stopping and starting
 
-The cluster uses memory and CPU the whole time it runs, even idle. Stop it when you're not testing the chart or a deploy:
+The cluster uses memory and CPU the whole time it runs, even idle. Stop it when you're not testing the chart or a deploy. Give it two minutes to stop: Docker's default of 10 seconds kills the node before its services have shut down.
 
 ```bash
-docker stop medapp-control-plane    # stops it; everything in it is kept
-docker start medapp-control-plane   # starts it again; give the pods a minute or two
+docker stop --time 120 medapp-control-plane   # stops it; everything in it is kept
+docker start medapp-control-plane             # starts it again; give the pods a minute or two
 ```
 
-- **If it comes back by itself** when Docker Desktop starts, run `docker update --restart=no medapp-control-plane` once. Then it starts only when you start it.
+- **If it comes back by itself** when Docker Desktop starts, run `docker update --restart=no medapp-control-plane`. Then it starts only when you start it. Run it again after `down.sh` and `up.sh` make a new cluster.
 - **With Argo CD,** a restarted cluster catches up with `env/kind` by itself.
 
 ## Reading email
