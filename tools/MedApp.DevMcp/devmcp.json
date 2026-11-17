@@ -4,6 +4,9 @@
     "SqlContainer": {
       "ConnectionString": "Server=127.0.0.1,14330;Database=MedApp;User ID=sa;TrustServerCertificate=True",
       "BackupDirectory": "/var/opt/mssql/backups"
+    },
+    "Azurite": {
+      "ConnectionString": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:14331/devstoreaccount1;"
     }
   }
 }

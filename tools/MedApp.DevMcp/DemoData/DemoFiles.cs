@@ -1,0 +1,204 @@
+using Azure.Storage.Blobs;
+using MediatR;
+using MedApp.Application.Attachments.Commands.DeleteAttachment;
+using MedApp.Application.Attachments.Commands.DownloadAttachment;
+using MedApp.Application.Attachments.Commands.UploadAttachment;
+using MedApp.Application.Attachments.Queries.GetAttachments;
+using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.Infrastructure.Attachments;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
+
+namespace MedApp.DevMcp.DemoData;
+
+/// <summary>
+/// Attached files, uploaded through the app's own command (its type sniffing, SHA-256, thumbnails, scan state, audit
+/// entry and record), by the staff working on each record, at moments in the record's story: referral letters on
+/// patients, reports, consent copies, discharge summaries and traces on procedures, and a diagram and a note on
+/// stages under way (files go on a stage only while it can be edited). Two are deleted, one by its uploader and one
+/// by an admin. Some are listed and downloaded, as the activity log and audit record. Only when the attachment store
+/// (the AppHost's Azurite) answers; otherwise skipped, and the summary says so.
+/// </summary>
+public static class DemoFiles
+{
+    /// <summary>Whether files can be stored: a local attachment store is configured and answers. Null if so; else why not.</summary>
+    public static async Task<string?> WhyNotAvailableAsync(IConfiguration configuration, CancellationToken ct)
+    {
+        var connection = configuration.GetConnectionString(AttachmentStorageOptions.ConnectionStringName);
+        if (string.IsNullOrWhiteSpace(connection))
+            return "No attachment store is configured (ConnectionStrings:Attachments), so no files were added.";
+
+        try
+        {
+            var client = new BlobServiceClient(AttachmentStorageOptions.WithoutContainerName(connection),
+                new BlobClientOptions { Retry = { MaxRetries = 0, NetworkTimeout = TimeSpan.FromSeconds(3) } });
+            if (!client.Uri.IsLoopback)
+                return $"The attachment store isn't local ({client.Uri.Host}), so no files were added.";
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            await client.GetPropertiesAsync(timeout.Token);
+            return null;
+        }
+        catch (Exception e) when (!ct.IsCancellationRequested)
+        {
+            return $"The attachment store didn't answer ({e.GetType().Name}: {e.Message.Split('\n')[0]}); is the AppHost's Azurite running? No files were added.";
+        }
+    }
+
+    public static async Task<object> CreateAsync(SeedServices services, DemoWorld world, IReadOnlyList<PatientSeed> patients, CancellationToken ct)
+    {
+        var random = world.Random;
+        var now = world.Timeline.NowUtc;
+        var recent = world.Timeline.ActivityFromUtc;
+        var uploaded = new List<(Guid Id, StaffMember By, Guid PatientId, DateTime At)>();
+        var deleted = 0;
+
+        async Task<Guid?> Upload(StaffMember by, DateTime at, string name, byte[] bytes, Guid? patientId = null, Guid? procedureId = null, Guid? stageId = null)
+        {
+            if (at >= now)
+                at = now.AddMinutes(-random.Next(5, 60));
+            services.At(at, by.ActivityActor);
+            await using var content = new MemoryStream(bytes, writable: false);
+            var response = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
+                new UploadAttachmentCommand(patientId, procedureId, stageId, name, bytes.Length, content, by.Actor, by.IsAdminAt(at)), ct)));
+            var patient = patientId ?? world.Procedures.Single(p => p.Id == procedureId || p.Stages.Any(s => s.Id == stageId)).PatientId;
+            uploaded.Add((response.Id, by, patient, at));
+            return response.Id;
+        }
+
+        // Referral letters on patients registered in the last two months.
+        var referred = patients.Where(p => p.Role == PatientRole.Active && !p.Restricted && p.CreatedUtc >= recent).OrderBy(p => p.CreatedUtc).Take(10).ToList();
+        foreach (var patient in referred)
+            await Upload(world.Coordinator, patient.CreatedUtc.AddMinutes(random.Next(5, 90)), "Referral letter.pdf",
+                SyntheticFiles.Pdf("Referral letter (synthetic)", ["From: the GP", "Reason for referral: see the procedure record.", "Please see and treat."]),
+                patientId: patient.Id);
+
+        // On procedures that are open or completed (files can't be added to cancelled or archived ones).
+        var restricted = patients.Where(p => p.Restricted).Select(p => p.Id).ToHashSet();
+        var takesFiles = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && p.TemplateId is not null && p.Status is not (Status.Cancelled or Status.Archived) && p.CreatedAt >= now.AddDays(-150)).ToList();
+        PatientProcedure? Pick(Func<PatientProcedure, bool> where) =>
+            takesFiles.Where(where).OrderBy(_ => random.Next()).FirstOrDefault();
+        DateTime When(PatientProcedure p) => Max(p.CreatedAt.AddDays(random.Next(1, 20)), recent.AddDays(random.Next(0, 50)));
+
+        foreach (var _ in Enumerable.Range(0, 6))
+        {
+            var p = Pick(x => x.Stages.Any(s => s.Name == "Pre-assessment" && s.IsCompleted));
+            if (p is null)
+                continue;
+            await Upload(Worker(world, p, "Pre-assessment"), When(p), "Pre-op bloods report.pdf",
+                SyntheticFiles.Pdf("Pre-operative bloods (synthetic)",
+                    [$"Haemoglobin: {random.Next(118, 156)} g/L (normal)", $"White cells: {random.Next(4, 10)}.{random.Next(0, 9)} (normal)",
+                     $"Sodium: {random.Next(136, 144)} mmol/L", $"Creatinine: {random.Next(55, 98)} micromol/L", "Group and save: done"]),
+                procedureId: p.Id);
+        }
+
+        foreach (var _ in Enumerable.Range(0, 4))
+        {
+            var p = Pick(x => x.Stages.Any(s => s.Name == "Pre-assessment" && s.IsCompleted));
+            if (p is null)
+                continue;
+            await Upload(Worker(world, p, "Pre-assessment"), When(p), "ECG.png", SyntheticFiles.TracePng(random.Next(58, 92), random), procedureId: p.Id);
+        }
+
+        foreach (var _ in Enumerable.Range(0, 5))
+        {
+            var p = Pick(x => x.Stages.Any(s => s.Name == "Consent" && s.IsCompleted));
+            if (p is null)
+                continue;
+            await Upload(Worker(world, p, "Consent"), When(p), "Consent form copy.pdf",
+                SyntheticFiles.Pdf("Consent form (synthetic copy)", [$"Procedure: {p.Title}", "Benefits, risks and alternatives discussed.", "Signed by the patient and the clinician."]),
+                procedureId: p.Id);
+        }
+
+        foreach (var _ in Enumerable.Range(0, 4))
+        {
+            var p = Pick(x => x.Status == Status.Completed || x.Status == Status.InReview);
+            if (p is null)
+                continue;
+            await Upload(Worker(world, p, p.Stages.OrderBy(s => s.StageOrder).Last().Name), When(p), "Discharge summary.pdf",
+                SyntheticFiles.Pdf("Discharge summary (synthetic)", [$"Procedure: {p.Title}", "Outcome: as planned.", "Follow-up: as in the record.", "Copy to the GP."]),
+                procedureId: p.Id);
+        }
+
+        // On stages under way: a diagram for a physiotherapy session, and a phone note.
+        var physio = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status)
+                                                 && ProcedureWorkflow.CurrentStage(p) is { Name: "Physiotherapy session", StartedAtUtc: not null }).Take(2).ToList();
+        foreach (var p in physio)
+        {
+            var stage = ProcedureWorkflow.CurrentStage(p)!;
+            await Upload(world.Member("a.pemberton"), Max(stage.StartedAtUtc!.Value.AddMinutes(20), recent), "Exercise plan.png",
+                SyntheticFiles.DiagramPng(["Range", "Strength", "Balance", "Function"]), stageId: stage.Id);
+        }
+
+        var underWay = world.Procedures.Where(p => !restricted.Contains(p.PatientId) && ProcedureWorkflow.IsOpen(p.Status) && p.Status != Status.Unassigned
+                                                   && ProcedureWorkflow.CurrentStage(p) is { StartedAtUtc: not null } s && s.Name != "Physiotherapy session")
+            .OrderBy(_ => random.Next()).Take(3).ToList();
+        foreach (var p in underWay)
+        {
+            var stage = ProcedureWorkflow.CurrentStage(p)!;
+            await Upload(Worker(world, p, stage.Name), Max(stage.StartedAtUtc!.Value.AddMinutes(15), recent), "Phone note.txt",
+                SyntheticFiles.Text("Telephone note (synthetic)", ["Called the patient to confirm the plan.", "No new concerns.", "Next step as in the record."]),
+                stageId: stage.Id);
+        }
+
+        // Two deleted: one attached to the wrong record by its uploader, one removed by an admin.
+        if (referred.Count > 2)
+        {
+            var wrong = await Upload(world.Coordinator, referred[1].CreatedUtc.AddMinutes(100), "Referral letter (duplicate).pdf",
+                SyntheticFiles.Pdf("Referral letter (synthetic duplicate)", ["Duplicate scan."]), patientId: referred[1].Id);
+            services.At(referred[1].CreatedUtc.AddMinutes(104), world.Coordinator.ActivityActor);
+            await services.Run(sp => sp.GetRequiredService<IMediator>().Send(new DeleteAttachmentCommand(wrong!.Value, world.Coordinator.Actor, false), ct));
+            deleted++;
+
+            var extra = await Upload(world.Coordinator, referred[2].CreatedUtc.AddMinutes(60), "Scanned letter.pdf",
+                SyntheticFiles.Pdf("Scanned letter (synthetic)", ["Belongs to another record."]), patientId: referred[2].Id);
+            var deleteAt = Max(referred[2].CreatedUtc.AddDays(2), recent);
+            services.At(deleteAt, world.Lead.ActivityActor);
+            await services.Run(sp => sp.GetRequiredService<IMediator>().Send(new DeleteAttachmentCommand(extra!.Value, world.Lead.Actor, true), ct));
+            deleted++;
+        }
+
+        // Some files looked at and downloaded by the staff working on them, as the activity log and audit record.
+        var downloads = 0;
+        foreach (var file in uploaded.Where(u => u.At < now.AddHours(-2)).OrderBy(_ => random.Next()).Take(8))
+        {
+            var by = random.NextDouble() < 0.6 ? file.By : world.Lead;
+            var at = file.At.AddHours(1 + random.NextDouble() * 48);
+            if (at >= now)
+                continue;
+            services.At(at, by.ActivityActor);
+            var ok = await services.Run(async sp =>
+            {
+                var mediator = sp.GetRequiredService<IMediator>();
+                await mediator.Send(new GetAttachmentsQuery(file.PatientId, null, null, false, by.Id, by.IsAdminAt(at)), ct);
+                try
+                {
+                    var download = await mediator.Send(new DownloadAttachmentCommand(file.Id, by.Actor), ct);
+                    await download.Content.DisposeAsync();
+                    return true;
+                }
+                catch (Exception) when (!ct.IsCancellationRequested)
+                {
+                    return false; // a deleted file can't be downloaded
+                }
+            });
+            if (ok)
+                downloads++;
+        }
+
+        return new { uploaded = uploaded.Count, deleted, downloaded = downloads };
+    }
+
+    /// <summary>Who worked on a stage of a procedure (who started it), else its first assignee, else the coordinator.</summary>
+    private static StaffMember Worker(DemoWorld world, PatientProcedure procedure, string stageName)
+    {
+        var started = procedure.Stages.FirstOrDefault(s => s.Name == stageName && s.StartedByUserId is not null)?.StartedByUserId
+                      ?? procedure.Assignments.FirstOrDefault()?.UserId;
+        return world.Staff.FirstOrDefault(s => s.Id == started && s.LeftUtc is null) ?? world.Coordinator;
+    }
+
+    private static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
+}

@@ -41,6 +41,8 @@
         <ProjectReference Include="..\MedApp.Application\MedApp.Application.csproj" />
         <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
         <ProjectReference Include="..\MedApp.Infrastructure\MedApp.Infrastructure.csproj" />
+        <!-- The dev MCP tool (not in the solution): DemoDataSeedTests runs its demo data set on a database of its own. -->
+        <ProjectReference Include="..\tools\MedApp.DevMcp\MedApp.DevMcp.csproj" />
     </ItemGroup>
 
 </Project>

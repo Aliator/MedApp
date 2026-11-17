@@ -469,6 +469,11 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # Local checks build only the projects a change touches (AGENTS.md, Testing a change), so this is the one place the
+      # whole solution is built, the deprecated Blazor client and the AppHost included.
+      - name: Build the solution
+        run: dotnet build MedApp.sln --configuration Release
+
       # The dev MCP tool (tools/MedApp.DevMcp) isn't in MedApp.sln, so nothing else builds it. It once stopped
       # compiling, unnoticed, when an Application command it calls changed.
       - name: Build the dev MCP tool

@@ -7,6 +7,10 @@ var sql = builder.AddSqlServer("sql", port: 14330)
     .WithDataVolume("medapp-sql-data")
     // medapp-dev's save_snapshot / restore_snapshot write .bak files here, so they land in the repo's git-ignored folder.
     .WithBindMount("../tools/MedApp.DevMcp/.backups", "/var/opt/mssql/backups")
+    // SQL Server otherwise takes up to 80% of the memory it can see, which in Docker Desktop is the WSL machine's (half
+    // the PC's by default). 2 GB, its documented minimum, is plenty for development. Changing an environment variable
+    // recreates the persistent container once; the data stays in the volume.
+    .WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "2048")
     .WithLifetime(ContainerLifetime.Persistent);
 
 // Aspire creates the database if it's missing; migrations are still applied by hand (see AGENTS.md).
@@ -35,11 +39,13 @@ var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "htt
 // Attached files' bytes: Azure Blob Storage, emulated by Azurite in Docker, kept in a volume and running between
 // AppHost runs, like SQL Server. The API gets its connection string as ConnectionStrings__Attachments and creates the
 // container itself. Only when running: deployments set up storage with the Helm chart (Azurite on kind, a storage
-// account on Azure), not from here.
+// account on Azure), not from here. The blob endpoint has a fixed host port (bound to 127.0.0.1, like SQL Server's
+// 14330), so medapp-dev's reset_demo_data can attach files, with Azurite's well-known development account.
 if (builder.ExecutionContext.IsRunMode)
 {
     var attachments = builder.AddAzureStorage("storage")
         .RunAsEmulator(azurite => azurite
+            .WithBlobPort(14331)
             .WithDataVolume("medapp-azurite-data")
             .WithLifetime(ContainerLifetime.Persistent))
         .AddBlobs("attachments");

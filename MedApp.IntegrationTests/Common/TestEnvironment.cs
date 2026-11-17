@@ -52,7 +52,8 @@ public sealed class TestEnvironment
     [OneTimeSetUp]
     public async Task StartAsync()
     {
-        _sql = new MsSqlBuilder(SqlImage).Build();
+        // Capped like the AppHost's: uncapped, SQL Server takes up to 80% of the memory Docker can see.
+        _sql = new MsSqlBuilder(SqlImage).WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "2048").Build();
         // The storage SDK asks for newer service versions than Azurite knows; the chart skips the check too.
         _azurite = new AzuriteBuilder(AzuriteImage).WithCommand("--skipApiVersionCheck").Build();
         try
