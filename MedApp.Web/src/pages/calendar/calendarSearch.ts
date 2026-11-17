@@ -43,8 +43,9 @@ export const CALENDAR_VIEWS = ['day', 'week', 'team'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
 /**
- * The Calendar page: the day shown (today by default), day, week or team (week), whose (yours), an open appointment,
- * and who the team view shows (everyone with a staff role, by default).
+ * The Calendar page: the day shown (today by default), day, week or team (the week, or the day in a narrow window),
+ * whose (yours), an open appointment, who the team view shows (everyone with a staff role, by default), and the
+ * grid's row length (15 minutes, or 5).
  */
 export interface CalendarSearch {
   date?: string;
@@ -52,17 +53,23 @@ export interface CalendarSearch {
   staff?: string;
   appointment?: string;
   who?: string[];
+  /**
+   * The grid's row length: 5-minute rows, written when they're chosen, or 15, which a link can name; left out, the
+   * person's own default (the one they chose last, `useListSettings().calendarRows`).
+   */
+  rows?: 5 | 15;
 }
 
 export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearch {
   const view = text(raw.view)?.toLowerCase();
   return compact({
     date: date(raw.date),
-    // Week is the default, so only day and team are kept.
-    view: view === 'day' || view === 'team' ? view : undefined,
+    // Week is the default in a wide window, but a narrow one opens on a day, so a week is kept when it's named.
+    view: view === 'day' || view === 'week' || view === 'team' ? view : undefined,
     staff: id(raw.staff),
     appointment: id(raw.appointment),
     who: ids(raw.who),
+    rows: text(raw.rows) === '5' ? 5 : text(raw.rows) === '15' ? 15 : undefined,
   });
 }
 

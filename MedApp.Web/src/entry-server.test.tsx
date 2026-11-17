@@ -497,6 +497,9 @@ describe('server rendering', () => {
     expect(html).toContain('My calendar · 23 to 29 November 2026');
     expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
     expect(html).toContain('Needs Booking (2)');
+    // Apply Template, on a calendar they can change; its day templates are read only in the browser.
+    expect(html).toMatch(/<button(?:(?!<\/button>).)*Apply Template/);
+    expect(requests.some((r) => new URL(r.url).pathname.endsWith('/day-templates'))).toBe(false);
     expect(html).not.toContain('class="mc-now"');
     const calendar = requests.find((r) => new URL(r.url).pathname === '/api/calendar')!;
     expect(new URL(calendar.url).search).toBe('?From=2026-11-23&To=2026-11-29');
@@ -526,6 +529,7 @@ describe('server rendering', () => {
     expect(html).toContain(STAFF_ME.username);
     expect(html).toContain(STAFF_OTHER.username);
     expect(html).toContain('Team huddle');
+    expect(html).not.toContain('Apply Template');
     const team = requests.find((r) => new URL(r.url).pathname === '/api/calendar/team')!;
     expect(new URL(team.url).searchParams.get('Date')).toBe('2026-11-24');
   });

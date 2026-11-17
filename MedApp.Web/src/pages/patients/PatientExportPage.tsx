@@ -182,11 +182,12 @@ export function PatientExportPage({id}: {id: string}) {
         )
       }
       actions={
+        // A fragment, so the header wraps the buttons among themselves when they don't fit side by side.
         data && (
-          <HStack gap={2}>
+          <>
             <Button label="Print" variant="secondary" icon={<Icon icon={AppIcon.View} />} onClick={() => window.print()} />
             <Button label="Download JSON" variant="primary" icon={<Icon icon={AppIcon.Save} />} onClick={() => downloadExport(data)} />
-          </HStack>
+          </>
         )
       }>
       <style data-medapp-print="">{PRINT_CSS}</style>

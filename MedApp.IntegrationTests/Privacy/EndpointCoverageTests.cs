@@ -45,7 +45,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/fhir/Patient"] = Records("PatientListed"), // and one PatientsSearched entry, via "fhir"
         ["api/appointments/{id:guid}"] = Records("PatientViewed"),
         ["api/appointments/search"] = Records("PatientListed"),
-        ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar
+        ["api/calendar"] = Records("PatientListed"), // each patient with an appointment on the calendar; nothing withoutAppointments
         ["api/calendar/team"] = Records("PatientListed"), // each patient with an appointment on any calendar shown
         ["api/attachments"] = Records("AttachmentsViewed"),
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the procedure audit log
@@ -170,6 +170,27 @@ public sealed class EndpointCoverageTests : IntegrationTest
                 .ReadAsAsync<PagedResponse<ActivityEntryResponse>>()).Items;
             entries.Should().Contain(e => e.PatientId == expectedPatient, url);
         }
+    }
+
+    [Test]
+    public async Task CalendarWithoutAppointments_NamesNoPatientsAndRecordsNothing()
+    {
+        var admin = await SignInAsAdminAsync();
+        var adminId = await GetUserIdAsync(admin, AdminUsername);
+        var procedure = await CreatePatientWithProcedureAsync(admin);
+        var day = NextWorkingDay();
+        await BookNewAppointmentAsync(admin, procedure.PatientId, adminId, UkAt(day, 9));
+        await ExecuteSqlAsync($"DELETE FROM ActivityEntries");
+
+        // What Apply Template reads: the days, which name no patients.
+        var response = await admin.GetAsync($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}&withoutAppointments=true");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().NotContain(procedure.PatientId.ToString());
+
+        var entries = (await (await admin.GetAsync($"/api/activity/search?PageSize=100&UserId={adminId}&Actions=PatientListed"))
+            .ReadAsAsync<PagedResponse<ActivityEntryResponse>>()).Items;
+        entries.Should().BeEmpty();
     }
 
     [Test]

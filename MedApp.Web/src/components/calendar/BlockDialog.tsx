@@ -47,6 +47,8 @@ export interface BlockDialogProps {
    * starts in the first free time instead of on top of something.
    */
   calendar?: Pick<Calendar, 'blocks' | 'appointments'>;
+  /** The steps its start and end times come in: 15 minutes, or 5 from a calendar showing 5-minute rows. */
+  stepMinutes?: number;
 }
 
 /** The fields a 400 can name, shown on the fields themselves. */
@@ -54,7 +56,7 @@ const FIELDS = ['activityTypeId', 'startUtc', 'endUtc', 'note'];
 
 /**
  * Adding or changing blocked time (docs/calendar-plan.md, decisions 5 and 12): the activity (in its colour), the day,
- * the start and end in 15-minute steps through the working day, and a note, which is about staff, never patients.
+ * the start and end in 15-minute steps (or `stepMinutes`) through the working day, and a note, which is about staff, never patients.
  *
  * A stored block is saved or deleted. A block from a day template is changed or removed for that day only (the
  * template stays as it is), and the dialog says which template it's from. Clashes (409) and field errors (400) show
@@ -103,7 +105,7 @@ function defaultTimes(day: CalendarDay | undefined, dayMinutes: number, busy: In
   return fallback(Math.min(from, latest));
 }
 
-function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, endUtc, canEdit = true, calendar}: BlockDialogProps) {
+function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, endUtc, canEdit = true, calendar, stepMinutes = SLOT_MINUTES}: BlockDialogProps) {
   const announce = useAnnounce();
   const actions = useCalendarActions();
   const activityTypes = useQuery({...activityTypesQuery, enabled: isOpen});
@@ -136,10 +138,10 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
   // The first activity is the default for a new block.
   const activityId = activityTypeId || (block ? '' : (activities[0]?.id ?? ''));
 
-  /** Times in 15-minute steps through the working day, keeping an existing time that isn't on a step. */
+  /** Times in 15-minute (or `stepMinutes`) steps through the working day, keeping an existing time that isn't on a step. */
   const timeOptions = (from: number, to: number, keep: number) => {
     const offsets = new Set<number>();
-    for (let m = from; m <= to; m += SLOT_MINUTES) offsets.add(m);
+    for (let m = from; m <= to; m += stepMinutes) offsets.add(m);
     if (keep >= 0 && keep <= dayMinutes) offsets.add(keep);
     return [...offsets].sort((a, b) => a - b).map((m) => ({value: String(m), label: dayStart ? formatTime(addMinutes(dayStart, m)) : String(m)}));
   };
@@ -292,11 +294,11 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
                     onChange={(value) => {
                       const next = Number(value);
                       // Keep its length where it can, so moving the start moves the whole block.
-                      setEnd(Math.min(dayMinutes, next + Math.max(SLOT_MINUTES, end - start)));
+                      setEnd(Math.min(dayMinutes, next + Math.max(stepMinutes, end - start)));
                       setStart(next);
                     }}
                     status={fieldStatus(problem.validation, 'startUtc')}
-                    options={timeOptions(0, dayMinutes - SLOT_MINUTES, start)}
+                    options={timeOptions(0, dayMinutes - stepMinutes, start)}
                   />
                 </StackItem>
                 <StackItem size="fill">
@@ -305,7 +307,7 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
                     value={String(end)}
                     onChange={(value) => setEnd(Number(value))}
                     status={end <= start ? {type: 'error', message: 'Ends before it starts.'} : fieldStatus(problem.validation, 'endUtc')}
-                    options={timeOptions(SLOT_MINUTES, dayMinutes, end)}
+                    options={timeOptions(stepMinutes, dayMinutes, end)}
                   />
                 </StackItem>
               </HStack>

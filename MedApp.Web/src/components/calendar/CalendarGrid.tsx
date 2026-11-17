@@ -6,12 +6,21 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
-import {useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
+import {memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
 import type {CalendarDay} from '../../api/calendar';
-import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, SLOT_MINUTES} from '../../utils/calendarSlots';
+import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, isWeekday} from '../../utils/calendarSlots';
 import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
+
+/**
+ * The narrowest a full week fits, in rem (the grid's own CSS: a 3rem hour gutter, five days of at least 6rem and two
+ * 2.5rem weekends). Narrower than this, a week is better shown compact (`isCompact`) than scrolled sideways.
+ */
+export const FULL_WEEK_MIN_REM = 3 + 5 * 6 + 2 * 2.5;
+
+/** How long each row of the grid is, in minutes: 15 (the default) or 5. */
+export type CalendarRowMinutes = 15 | 5;
 
 /** A stretch of free time in one column: what selecting on the grid gives, and where an item is moved to. */
 export interface CalendarSelection {
@@ -49,12 +58,18 @@ export interface CalendarColumn {
   freeTime?: {startUtc?: string; endUtc?: string}[];
 }
 
-/** One person's days as columns, each with the items on its date: a day (one column) or a week. */
-export function dayColumns(days: CalendarDay[], items: CalendarGridItem[]): CalendarColumn[] {
-  return days.map((day) => {
-    const date = day.date ?? '';
-    return {key: date, date, day, items: items.filter((i) => i.date === date)};
-  });
+/**
+ * One person's days as columns, each with the items on its date: a day (one column) or a week. With `weekdaysOnly`
+ * (a compact week), Saturday and Sunday are left out: nothing can be booked, blocked or met on them, and templates put
+ * nothing there, so they're always empty. One that somehow has something on it is kept, so nothing is ever hidden.
+ */
+export function dayColumns(days: CalendarDay[], items: CalendarGridItem[], {weekdaysOnly = false}: {weekdaysOnly?: boolean} = {}): CalendarColumn[] {
+  return days
+    .map((day) => {
+      const date = day.date ?? '';
+      return {key: date, date, day, items: items.filter((i) => i.date === date)};
+    })
+    .filter((column) => !weekdaysOnly || isWeekday(column.date) || column.items.length > 0);
 }
 
 export interface CalendarGridProps {
@@ -62,20 +77,22 @@ export interface CalendarGridProps {
   label: string;
   /**
    * The columns, in order: one person's day or week (`dayColumns`: a week runs Monday to Sunday, and its weekends show
-   * as narrow, greyed columns), or people side by side on one day. More than fit scroll sideways inside the grid, with
+   * as narrow, greyed columns; a compact week, Monday to Friday), or people side by side on one day. More than fit scroll sideways inside the grid, with
    * the hours staying put.
    */
   columns: CalendarColumn[];
   /** Opening an item (a click, or Enter on it), with the column it's in. Without it, items still show but do nothing. */
   onItemOpen?: (item: CalendarGridItem, column: CalendarColumn) => void;
   /**
-   * Selecting free time: a click on an empty slot (15 minutes), a drag across slots, or the keyboard. With the slot
-   * where it ended, e.g. to show a menu there. Without it, the grid is read-only: nothing can be selected.
+   * Selecting free time: a click on an empty slot (15 minutes, whatever the row length, or less where something
+   * follows sooner), a drag across slots, or the keyboard (Enter alone selects 15 minutes too; Shift with the arrows
+   * any number of rows). With the slot where it ended, e.g. to show a menu there. Without it, the grid is read-only.
    */
   onSelectRange?: (selection: CalendarSelection, anchor: HTMLElement | null) => void;
   /**
-   * Moving an item marked `isMovable` by dragging it to another time or column; it keeps its length, in 15-minute
-   * steps. `to.column` is the column it was dropped in.
+   * Moving an item marked `isMovable` by dragging it to another time or column: it moves a row at a time from where it
+   * is, and keeps its exact length, so 10:05 to 10:25 dragged a 15-minute row down is 10:20 to 10:40. A press that never
+   * takes it anywhere else is a click, and opens it. `to.column` is the column it was dropped in.
    */
   onItemMove?: (item: CalendarGridItem, to: CalendarSelection) => void;
   /** Items move only within their own column (the team view, where a column is a person), never to another. */
@@ -90,14 +107,28 @@ export interface CalendarGridProps {
    * is still named for screen readers.
    */
   isHeadingHidden?: boolean;
+  /**
+   * Squeezed into a card too narrow for the full week (the Calendar page's compact week): a narrower hour gutter,
+   * columns that may be narrower, headed by the weekday over the date, and items whose words wrap to the lines their
+   * height allows, in full in their tooltip and accessible name; in a column too narrow for words (a phone), an item
+   * shows its start time alone. Each day's heading still names its full date to screen readers.
+   */
+  isCompact?: boolean;
+  /**
+   * How long each row is: 15 minutes (the default), or 5, when the rows stay as tall, so the day is three times taller
+   * and scrolls inside the grid, with smaller quarter-hour times down the side. Selecting, the keyboard and dragging
+   * all go a row at a time. Switching keeps the same time at the top.
+   */
+  rowMinutes?: CalendarRowMinutes;
 }
 
 const MINUTE = 60_000;
-const SLOT = SLOT_MINUTES * MINUTE;
-/** How much of today before now stays in view when the grid opens on it. */
+/** How much of today before now stays in view when the grid opens on it (at most a third of what's in view). */
 const SCROLL_LEAD = 60 * MINUTE;
-/** Rows in a working day (08:00 to 18:00), when a day doesn't say. */
-const DEFAULT_ROWS = 40;
+/** How much time a click on a free slot selects, whatever the row length: the shortest appointment. */
+const CLICK_MINUTES = 15;
+/** A working day (08:00 to 18:00), when a day doesn't say. */
+const DEFAULT_DAY = 10 * 60 * MINUTE;
 
 interface ColumnLayout {
   column: CalendarColumn;
@@ -109,6 +140,10 @@ interface ColumnLayout {
   isNarrow: boolean;
   start: number;
   rows: number;
+  /** How long each row is, in ms. */
+  slot: number;
+  /** The time its rows cover, in ms: `rows` times the row length. */
+  span: number;
   /** Free time can be selected in it: a working day that isn't past, on a grid that selects. */
   canSelect: boolean;
   /** Each row is taken: by an item, or outside the column's `freeTime`. */
@@ -128,7 +163,7 @@ interface PlacedItem {
 
 /** Items beside each other where they overlap: each cluster of overlapping items shares the width. */
 function placeItems(items: CalendarGridItem[], layout: ColumnLayout): PlacedItem[] {
-  const span = layout.rows * SLOT;
+  const {span} = layout;
   const sorted = [...items]
     .map((item) => ({item, ...intervalOf(item.startUtc, item.endUtc)}))
     .sort((a, b) => a.start - b.start || b.end - a.end);
@@ -188,7 +223,16 @@ interface Pending {
   focus: number;
 }
 
-/** An item being dragged: where it was picked up, and where it would go. */
+/** Where a dragged item would go: a column (by its index), and its start there. */
+interface DragTarget {
+  col: number;
+  start: number;
+}
+
+/**
+ * An item being dragged: where it was picked up, and where it would go. It moves by whole rows from where it is, and
+ * keeps its exact length, so an item that starts or ends between rows (10:05 to 10:25, in 15-minute rows) keeps both.
+ */
 interface Drag {
   item: CalendarGridItem;
   /** The column it was picked up from. */
@@ -196,11 +240,31 @@ interface Drag {
   pointerId: number;
   x: number;
   y: number;
-  /** Rows between the item's start and the point it was picked up by. */
-  grabRows: number;
+  /** Its start and length, in ms. */
+  start: number;
+  length: number;
+  /** Its start in its column, in ms after the column's start, so it keeps its time of day in another column. */
+  offset: number;
+  /** The row it was picked up by: it moves a row for each row the pointer moves from there. */
+  pickRow: number;
+  /** The pointer has moved further than a click's wobble (`DRAG_START_PX`). */
   isMoving: boolean;
-  to: Slot | null;
+  /**
+   * The pointer, once moving, has left the row and column it picked the item up by: a drag, not a click (which opens
+   * it, even if the pointer wobbled). Decided by where the pointer went, not where the item could go, so a wobble on an
+   * item that has started (which can't go anywhere) is a click too.
+   */
+  hasLeft: boolean;
+  to: DragTarget | null;
 }
+
+/**
+ * How far (px, in any direction) the pointer must move from where it pressed an item before it's a drag. Any less is a
+ * click's wobble (a touchpad, a finger), whatever row lines it crosses, and the click opens the item.
+ */
+export const DRAG_START_PX = 5;
+
+const sameTarget = (a: DragTarget | null, b: DragTarget | null) => a === b || (a !== null && b !== null && a.col === b.col && a.start === b.start);
 
 /** Whether a held selection is in a column: by its column's key, or (without one) the first column on its date. */
 function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], col: number): boolean {
@@ -209,14 +273,16 @@ function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], co
 }
 
 /**
- * A member of staff's time as a grid (docs/calendar-plan.md, decision 28): 08:00 to 18:00 in 15-minute rows, hour
- * labels down the side, appointments, blocked time and meetings placed by their times, in columns. A column is a day of
+ * A member of staff's time as a grid (docs/calendar-plan.md, decisions 28 and 68): 08:00 to 18:00 in 15-minute rows
+ * (or 5-minute ones, `rowMinutes`), hour labels down the side, appointments, blocked time and meetings placed by their times, in columns. A column is a day of
  * one person's calendar (a day or a week, from `dayColumns`) or a person on one day (the team view, where each column
  * is labelled with who it is). Past days and times are dimmed, today's columns are tinted, and a line shows the time
  * now (both once it's in the browser), drawn behind items so their text stays readable, with a dot at the column's
  * edge. A week's weekends show as narrow greyed columns that do nothing. A week's columns are headed by their days; a
  * single day, which the page around it already dates, by its weekday only; labelled columns by their labels. Columns
- * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put.
+ * keep a minimum width: more than fit scroll sideways inside the grid, the hours staying put. A compact grid
+ * (`isCompact`, with `dayColumns`' `weekdaysOnly`) fits a week into a narrow card: Monday to Friday, a narrower hour
+ * gutter, two-line headings, and items kept to the lines they have room for (or their start time, on a phone).
  *
  * Use it for any calendar: the Calendar page (selecting free time, opening and dragging items, a person's day or
  * week, and the team view), Home's day calendar (read-only), or anything else that shows people's time. It knows
@@ -239,19 +305,22 @@ export function CalendarGrid({
   selectionRef,
   onDayOpen,
   isHeadingHidden = false,
+  isCompact = false,
+  rowMinutes = 15,
 }: CalendarGridProps) {
   const now = useNow();
   const hintId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
   const canSelect = onSelectRange !== undefined;
+  const SLOT = rowMinutes * MINUTE;
 
   const layouts = useMemo<ColumnLayout[]>(
     () =>
       columns.map((column) => {
         const {day} = column;
         const start = day.workStartUtc ? parseUtc(day.workStartUtc).getTime() : 0;
-        const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_ROWS * SLOT;
+        const end = day.workEndUtc ? parseUtc(day.workEndUtc).getTime() : start + DEFAULT_DAY;
         const rows = Math.max(1, Math.round((end - start) / SLOT));
         const busy = column.items.map((i) => intervalOf(i.startUtc, i.endUtc));
         const free = column.freeTime?.filter((f) => f.startUtc && f.endUtc).map((f) => intervalOf(f.startUtc!, f.endUtc!));
@@ -273,39 +342,76 @@ export function CalendarGrid({
           isNarrow: !day.isWorkingDay && !column.label,
           start,
           rows,
+          slot: SLOT,
+          span: rows * SLOT,
           canSelect: canSelect && !!day.isWorkingDay && !day.isPast,
           taken,
           unavailable,
         };
       }),
-    [columns, canSelect],
+    [columns, canSelect, SLOT],
   );
 
   const placedByColumn = useMemo(() => layouts.map((l) => placeItems(l.column.items, l)), [layouts]);
 
   const nowMs = now ?? undefined;
 
-  // Opens on the part of today that matters: once the time is known (after mount), with today shown and the day under
-  // way, it scrolls so an hour before now is at the top. Only the first time; moving through days leaves it alone.
+  /**
+   * With today shown and its working day under way, scrolls so the time now is in view, an hour before it at the top
+   * (or less, in a short window), and says it did; otherwise leaves the view alone.
+   */
+  const scrollToNow = (): boolean => {
+    const index = layouts.findIndex((l) => l.day.isToday);
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const column = columnRefs.current[index];
+    if (nowMs === undefined || index < 0 || !scroller || !column) return false;
+    const today = layouts[index];
+    if (nowMs < today.start || nowMs >= today.start + today.span) return false;
+    const height = column.offsetHeight;
+    const lead = (SCROLL_LEAD / today.span) * height;
+    const top = ((nowMs - today.start) / today.span) * height - (scroller.clientHeight > 0 ? Math.min(lead, scroller.clientHeight / 3) : lead);
+    scroller.scrollTop = Math.max(0, top);
+    return true;
+  };
+
+  // Opens on the part of today that matters, once the time is known (after mount): the time now, while today's
+  // working day is under way, otherwise the start of the working day. Only the first time; moving through days leaves
+  // it alone.
   const hasScrolledToNow = useRef(false);
   useEffect(() => {
     if (hasScrolledToNow.current || nowMs === undefined) return;
     hasScrolledToNow.current = true;
-    const index = layouts.findIndex((l) => l.day.isToday);
-    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
-    const column = columnRefs.current[index];
-    if (index < 0 || !scroller || !column) return;
-    const today = layouts[index];
-    const fraction = (nowMs - SCROLL_LEAD - today.start) / (today.rows * SLOT);
-    if (fraction > 0) scroller.scrollTop = Math.min(fraction, 1) * column.offsetHeight;
+    scrollToNow();
+    // Only once the time is known: scrollToNow reads the rest as it is then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowMs, layouts]);
 
-  /** A slot that can be selected: free, in a column that can be, and not started yet. */
-  const isFree = (col: number, row: number) => {
-    const l = layouts[col];
-    if (!l?.canSelect || row < 0 || row >= l.rows || l.taken[row]) return false;
-    return nowMs === undefined || l.start + row * SLOT > nowMs;
+  // Where the view is, as a share of the day, so a change of row length keeps the same time at the top.
+  const topShare = useRef(0);
+  const onScroll = () => {
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const height = columnRefs.current[0]?.offsetHeight ?? 0;
+    if (scroller && height > 0) topShare.current = scroller.scrollTop / height;
   };
+  const shownRowMinutes = useRef(rowMinutes);
+  useLayoutEffect(() => {
+    const before = shownRowMinutes.current;
+    if (before === rowMinutes) return;
+    shownRowMinutes.current = rowMinutes;
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const height = columnRefs.current[0]?.offsetHeight ?? 0;
+    if (!scroller || height <= 0) return;
+    // Rows keep their height, so the day was this tall before. If all of it was in view (nothing scrolled, so there
+    // was no "time at the top" to keep), it goes to the time now, as opening does; otherwise it keeps that time.
+    const contentBefore = scroller.scrollHeight - height + (height * rowMinutes) / before;
+    const couldScroll = scroller.clientHeight === 0 || contentBefore > scroller.clientHeight + 1;
+    if (!couldScroll && scrollToNow()) return;
+    scroller.scrollTop = topShare.current * height;
+    // Only on a change of row length.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowMinutes]);
+
+  const isFree = (col: number, row: number) => isFreeRow(layouts[col], row, nowMs);
 
   const firstFree = (): Slot | null => {
     for (let col = 0; col < layouts.length; col++) {
@@ -314,7 +420,11 @@ export function CalendarGrid({
     return null;
   };
 
-  const [active, setActive] = useState<Slot | null>(null);
+  // The slot last moved to, as a time in its column (minutes from its start), so a change of row length keeps the
+  // keyboard's place on the same time rather than the same row.
+  const [activeAt, setActiveAt] = useState<{col: number; minute: number} | null>(null);
+  const active: Slot | null = activeAt ? {col: activeAt.col, row: Math.floor(activeAt.minute / rowMinutes)} : null;
+  const setActive = (slot: Slot) => setActiveAt({col: slot.col, minute: slot.row * rowMinutes});
   const [pending, setPending] = useState<Pending | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const isSelecting = useRef(false);
@@ -338,9 +448,16 @@ export function CalendarGrid({
     return {date: l.date, startUtc: iso(l.start + first * SLOT), endUtc: iso(l.start + (last + 1) * SLOT), column: l.column.key};
   };
 
+  /**
+   * Selects a pending selection. One row alone (a click, or Enter on a slot) is taken as the usual shortest length
+   * instead, 15 minutes, as far as the time is free: in 5-minute rows a single row would be a 5-minute booking. The
+   * slot it's said to end at is where the keyboard or pointer was.
+   */
   const commit = (p: Pending) => {
     setPending(null);
-    onSelectRange?.(rangeOf(p), slotElement({col: p.col, row: p.focus}));
+    const single = p.anchor === p.focus;
+    const selected = single ? {...p, focus: reach(p.col, p.anchor, p.anchor + Math.max(1, Math.round(CLICK_MINUTES / rowMinutes)) - 1)} : p;
+    onSelectRange?.(rangeOf(selected), slotElement({col: p.col, row: p.focus}));
   };
 
   /** How far a selection can reach from `anchor` towards `row`: up to the last free slot before something taken. */
@@ -448,6 +565,21 @@ export function CalendarGrid({
     columnRefs.current[slot.col]?.setPointerCapture?.(event.pointerId);
   };
 
+  // The slots' handlers, the same functions from render to render (each calls the latest), so a drag, which draws the
+  // grid again on every row it crosses, doesn't draw every slot again too (`SlotRows` is memoised).
+  const slotHandlerRef = useRef<SlotHandlers | null>(null);
+  useLayoutEffect(() => {
+    slotHandlerRef.current = {onFocus: (slot) => setActive(slot), onKeyDown: onSlotKeyDown, onPointerDown: onSlotPointerDown};
+  });
+  const slotHandlers = useMemo<SlotHandlers>(
+    () => ({
+      onFocus: (slot) => slotHandlerRef.current?.onFocus(slot),
+      onKeyDown: (event, slot) => slotHandlerRef.current?.onKeyDown(event, slot),
+      onPointerDown: (event, slot) => slotHandlerRef.current?.onPointerDown(event, slot),
+    }),
+    [],
+  );
+
   const onColumnPointerMove = (event: PointerEvent, col: number) => {
     if (!isSelecting.current || !pending || pending.col !== col) return;
     const row = rowAt(col, event.clientY);
@@ -467,55 +599,69 @@ export function CalendarGrid({
   };
 
   // Dragging an item.
-  const lengthRows = (item: CalendarGridItem) => {
-    const t = intervalOf(item.startUtc, item.endUtc);
-    return Math.max(1, Math.round((t.end - t.start) / SLOT));
-  };
-
   const onItemPointerDown = (event: PointerEvent<HTMLElement>, item: CalendarGridItem, col: number) => {
     justDragged.current = false;
     if (event.button !== 0 || !onItemMove || !item.isMovable) return;
-    const row = rowAt(col, event.clientY);
-    const itemRow = Math.round((parseUtc(item.startUtc).getTime() - layouts[col].start) / SLOT);
+    const {start, end} = intervalOf(item.startUtc, item.endUtc);
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    setDrag({item, from: col, pointerId: event.pointerId, x: event.clientX, y: event.clientY, grabRows: row === null ? 0 : row - itemRow, isMoving: false, to: null});
+    setDrag({
+      item,
+      from: col,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      start,
+      length: end - start,
+      offset: start - layouts[col].start,
+      pickRow: rowAt(col, event.clientY) ?? 0,
+      isMoving: false,
+      hasLeft: false,
+      to: null,
+    });
   };
 
   const onItemPointerMove = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const isMoving = drag.isMoving || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4;
+    const isMoving = drag.isMoving || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) >= DRAG_START_PX;
     if (!isMoving) return;
     const col = columnAt(event.clientX, drag);
-    let to: Drag['to'] = null;
+    let to: DragTarget | null = null;
     if (col !== null) {
       const row = rowAt(col, event.clientY);
       if (row !== null) {
-        const length = lengthRows(drag.item);
-        const target = Math.max(0, Math.min(layouts[col].rows - length, row - drag.grabRows));
+        const l = layouts[col];
+        // A row for each row the pointer has moved, from where it is, kept inside the working day.
+        const start = Math.max(l.start, Math.min(l.start + l.span - drag.length, l.start + drag.offset + (row - drag.pickRow) * SLOT));
         // Nothing moves into time that has started.
-        if (nowMs === undefined || layouts[col].start + target * SLOT > nowMs) to = {col, row: target};
+        if (nowMs === undefined || start > nowMs) to = {col, start};
       }
     }
-    setDrag({...drag, isMoving, to});
+    // Where the pointer is, not where the item could go: still over the row and column it pressed, it's a wobble.
+    const ownBox = columnRefs.current[drag.from]?.getBoundingClientRect();
+    const isOverOwnColumn = ownBox !== undefined && event.clientX >= ownBox.left && event.clientX < ownBox.right;
+    const hasLeft = drag.hasLeft || !isOverOwnColumn || rowAt(drag.from, event.clientY) !== drag.pickRow;
+    // Most moves stay on the same row: nothing to draw again.
+    if (isMoving === drag.isMoving && hasLeft === drag.hasLeft && sameTarget(to, drag.to)) return;
+    setDrag({...drag, isMoving, hasLeft, to});
   };
 
   const onItemPointerUp = (event: PointerEvent) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     setDrag(null);
-    if (!drag.isMoving) return;
+    // Never taken away from where it was: a click (with a wobble, perhaps), so the click that follows opens it.
+    if (!drag.hasLeft) return;
     justDragged.current = true;
     const target = ghostOf(drag);
     if (!target) return;
-    const isWhereItWas = target.column === layouts[drag.from].column.key && target.startUtc === iso(parseUtc(drag.item.startUtc).getTime());
+    const isWhereItWas = drag.to!.col === drag.from && drag.to!.start === drag.start;
     if (!isWhereItWas) onItemMove?.(drag.item, target);
   };
 
-  /** Where a dragged item would go. */
+  /** Where a dragged item would go: its own length, from its new start. */
   function ghostOf(d: Drag): CalendarSelection | null {
     if (!d.to) return null;
     const l = layouts[d.to.col];
-    const start = l.start + d.to.row * SLOT;
-    return {date: l.date, startUtc: iso(start), endUtc: iso(start + lengthRows(d.item) * SLOT), column: l.column.key};
+    return {date: l.date, startUtc: iso(d.to.start), endUtc: iso(d.to.start + d.length), column: l.column.key};
   }
 
   // Escape drops a drag.
@@ -524,8 +670,8 @@ export function CalendarGrid({
     const cancel = (event: globalThis.KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setDrag(null);
-      // The click that ends the press doesn't open the item either.
-      justDragged.current = drag.isMoving;
+      // The click that ends the press doesn't open the item either, unless it never left its place.
+      justDragged.current = drag.hasLeft;
     };
     window.addEventListener('keydown', cancel);
     return () => window.removeEventListener('keydown', cancel);
@@ -539,20 +685,33 @@ export function CalendarGrid({
     onItemOpen?.(item, column);
   };
 
+  // The hours down the side, and with 5-minute rows the quarter hours between them, smaller. Both are in the full
+  // secondary text colour: anything fainter falls under 4.5:1 (WCAG 1.4.3).
   const hourLabels = useMemo(() => {
     const first = layouts.find((l) => l.day.isWorkingDay) ?? layouts[0];
     if (!first) return [];
-    return Array.from({length: Math.ceil(first.rows / 4)}, (_, hour) => ({row: hour * 4, text: formatTime(iso(first.start + hour * 4 * SLOT))}));
-  }, [layouts]);
+    const every = (rowMinutes === 5 ? 15 : 60) / rowMinutes;
+    return Array.from({length: Math.ceil(first.rows / every)}, (_, i) => {
+      const row = i * every;
+      return {row, text: formatTime(iso(first.start + row * SLOT)), isQuarter: (row * rowMinutes) % 60 !== 0};
+    });
+  }, [layouts, rowMinutes, SLOT]);
 
-  const rowsShown = layouts[0]?.rows ?? DEFAULT_ROWS;
+  const rowsShown = layouts[0]?.rows ?? DEFAULT_DAY / SLOT;
   const isOneDay = layouts.length === 1 && !layouts[0].column.label;
-  const ghost = drag?.isMoving && drag.to ? {col: drag.to.col, range: ghostOf(drag)!} : null;
+  const ghost = drag?.hasLeft && drag.to ? {col: drag.to.col, range: ghostOf(drag)!} : null;
   // The narrowest the columns can be together, so more than fit scroll sideways rather than squeeze.
   const narrowCount = layouts.filter((l) => l.isNarrow).length;
   const labelledCount = layouts.filter((l) => !l.isNarrow && l.column.label).length;
   const dayCount = layouts.length - narrowCount - labelledCount;
   const minInline = `calc(var(--mc-gutter) + ${dayCount} * var(--mc-day-min) + ${labelledCount} * var(--mc-labelled-min) + ${narrowCount} * var(--mc-narrow))`;
+  // Whether the keyboard can reach anything inside the scrolling area (a free time, an item that opens, a day's
+  // heading). When it can't (a read-only day with nothing on it, Home's), the area is a tab stop itself, named after
+  // the grid, so keyboard users can still scroll it (WCAG 2.1.1; axe's scrollable-region-focusable).
+  const hasFocusable =
+    tabStop !== null ||
+    (onItemOpen !== undefined && columns.some((c) => c.items.some((i) => !i.isReadOnly))) ||
+    (onDayOpen !== undefined && !isHeadingHidden && layouts.some((l) => l.day.isWorkingDay && !isOneDay && !l.column.label));
 
   return (
     <VStack
@@ -561,12 +720,14 @@ export function CalendarGrid({
       aria-label={label}
       height="100%"
       className="medapp-calendar"
+      data-compact={isCompact || undefined}
+      data-row-minutes={rowMinutes}
       style={{['--mc-rows' as string]: rowsShown, ['--mc-min-inline' as string]: minInline, minHeight: 0}}>
       <style>{GRID_CSS}</style>
       <VisuallyHidden id={hintId}>
         Arrow keys move between free times. Shift with the up or down arrow selects more. Enter selects.
       </VisuallyHidden>
-      <div className="mc-scroll">
+      <div className="mc-scroll" onScroll={onScroll} {...(hasFocusable ? {} : {tabIndex: 0, role: 'group', 'aria-label': `${label}, scrollable`})}>
         {!isHeadingHidden && (
           <div className="mc-head">
             <div className="mc-gutter" aria-hidden />
@@ -574,6 +735,7 @@ export function CalendarGrid({
               const weekend = !l.day.isWorkingDay;
               // A single day is dated by the page around it (its subtitle, or a card's title), so it's headed by its weekday.
               const name = l.column.label ?? (isOneDay ? formatWeekday(l.date) : formatShortDay(l.date));
+              const headingName = `${name}${l.day.isToday ? ', today' : ''}: show ${isCompact ? formatCalendarDay(l.date) : 'the day'}`;
               return (
                 <div
                   key={l.column.key}
@@ -583,13 +745,19 @@ export function CalendarGrid({
                   data-today={(l.day.isToday && !l.column.label) || undefined}>
                   {onDayOpen && !weekend && !isOneDay && !l.column.label ? (
                     <Button
-                      label={name}
+                      // Compact, its content is its own (below), and Astryx names it by its label.
+                      label={isCompact ? headingName : name}
                       // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
-                      aria-label={`${name}${l.day.isToday ? ', today' : ''}: show the day`}
+                      aria-label={headingName}
                       variant="ghost"
                       size="sm"
                       onClick={() => onDayOpen(l.date)}
-                    />
+                      // Compact: the weekday over the date, so even a phone's 50px column tells Tue from Thu.
+                      style={isCompact ? COMPACT_HEADING_BUTTON : undefined}>
+                      {isCompact ? <CompactHeading date={l.date} /> : undefined}
+                    </Button>
+                  ) : isCompact && !l.isNarrow && !l.column.label ? (
+                    <CompactHeading date={l.date} isToday={l.day.isToday} />
                   ) : (
                     <Text
                       type={l.isNarrow ? 'supporting' : 'body'}
@@ -608,7 +776,7 @@ export function CalendarGrid({
         <div className="mc-body">
           <div className="mc-gutter" aria-hidden>
             {hourLabels.map((h) => (
-              <span key={h.row} className="mc-hour" style={{top: `calc(var(--mc-row) * ${h.row})`}}>
+              <span key={h.row} className="mc-hour" data-quarter={h.isQuarter || undefined} style={{top: `calc(var(--mc-row) * ${h.row})`}}>
                 <Text type="supporting" color="secondary">
                   {h.text}
                 </Text>
@@ -619,8 +787,8 @@ export function CalendarGrid({
             const weekend = !l.day.isWorkingDay;
             const placed = placedByColumn[col];
             const nowTop =
-              l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.rows * SLOT
-                ? `${((nowMs - l.start) / (l.rows * SLOT)) * 100}%`
+              l.day.isToday && nowMs !== undefined && nowMs >= l.start && nowMs < l.start + l.span
+                ? `${((nowMs - l.start) / l.span) * 100}%`
                 : null;
             const shownSelection =
               pending && pending.col === col
@@ -657,39 +825,15 @@ export function CalendarGrid({
                     </Text>
                   </span>
                 ) : (
-                  Array.from({length: l.rows}, (_, row) => {
-                    const start = l.start + row * SLOT;
-                    const line = row % 4 === 0 ? 'hour' : row % 2 === 0 ? 'half' : 'quarter';
-                    const isPast = l.day.isPast || (nowMs !== undefined && start + SLOT <= nowMs);
-                    if (!isFree(col, row)) {
-                      return (
-                        <div
-                          key={row}
-                          className="mc-slot"
-                          data-line={line}
-                          data-past={isPast || undefined}
-                          data-unavailable={l.unavailable[row] || undefined}
-                          aria-hidden
-                        />
-                      );
-                    }
-                    const isStop = tabStop?.col === col && tabStop.row === row;
-                    return (
-                      <button
-                        key={row}
-                        type="button"
-                        className="mc-slot"
-                        data-line={line}
-                        data-slot={`${col}-${row}`}
-                        tabIndex={isStop ? 0 : -1}
-                        aria-label={`${l.name}, ${formatTime(iso(start))}, free`}
-                        aria-describedby={hintId}
-                        onFocus={() => setActive({col, row})}
-                        onKeyDown={(event) => onSlotKeyDown(event, {col, row})}
-                        onPointerDown={(event) => onSlotPointerDown(event, {col, row})}
-                      />
-                    );
-                  })
+                  <SlotRows
+                    layout={l}
+                    col={col}
+                    rowMinutes={rowMinutes}
+                    nowMs={nowMs}
+                    tabStopRow={tabStop?.col === col ? tabStop.row : null}
+                    hintId={hintId}
+                    handlers={slotHandlers}
+                  />
                 )}
                 {/* A column of only some free times (everyone free): each one marked, in words as well as by the
                     shading of the rest, so it never relies on colour alone. Presses go through to the slots. */}
@@ -707,9 +851,7 @@ export function CalendarGrid({
                   (pending ? (
                     // Being dragged out: just the highlight.
                     <span className="mc-selection" style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
-                      <Text type="supporting" weight="semibold" maxLines={1}>
-                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
-                      </Text>
+                      <RangeText startUtc={shownSelection.startUtc} endUtc={shownSelection.endUtc} />
                     </span>
                   ) : (
                     // Held: a button, as a menu opened from it (the Calendar page's Book or Block) is anchored to a button,
@@ -721,9 +863,7 @@ export function CalendarGrid({
                       className="mc-selection"
                       aria-label={`Selected time, ${formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}`}
                       style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
-                      <Text type="supporting" weight="semibold" maxLines={1}>
-                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
-                      </Text>
+                      <RangeText startUtc={shownSelection.startUtc} endUtc={shownSelection.endUtc} />
                     </button>
                   ))}
                 {/* The time now: a line behind the items (before them, and under them in the CSS), so it never runs through their
@@ -739,7 +879,8 @@ export function CalendarGrid({
                     key={p.item.key}
                     placed={p}
                     rows={l.rows}
-                    isDragged={drag?.isMoving === true && drag.from === col && drag.item.key === p.item.key}
+                    isCompact={isCompact}
+                    isDragged={drag?.hasLeft === true && drag.from === col && drag.item.key === p.item.key}
                     onOpen={onItemOpen && !p.item.isReadOnly ? () => openItem(p.item, l.column) : undefined}
                     onPointerDown={onItemMove && p.item.isMovable ? (event) => onItemPointerDown(event, p.item, col) : undefined}
                     onPointerMove={onItemPointerMove}
@@ -748,9 +889,7 @@ export function CalendarGrid({
                 ))}
                 {ghost && ghost.col === col && (
                   <span className="mc-ghost" style={rangeStyle(l, ghost.range.startUtc, ghost.range.endUtc)} aria-hidden>
-                    <Text type="supporting" weight="semibold" maxLines={1}>
-                      {formatTimeRange(ghost.range.startUtc, ghost.range.endUtc)}
-                    </Text>
+                    <RangeText startUtc={ghost.range.startUtc} endUtc={ghost.range.endUtc} />
                   </span>
                 )}
               </div>
@@ -762,9 +901,122 @@ export function CalendarGrid({
   );
 }
 
+/** A slot that can be selected: free, in a column that can be, and not started yet. */
+function isFreeRow(l: ColumnLayout | undefined, row: number, nowMs: number | undefined): boolean {
+  if (!l?.canSelect || row < 0 || row >= l.rows || l.taken[row]) return false;
+  return nowMs === undefined || l.start + row * l.slot > nowMs;
+}
+
+/** What the free slots do when focused, pressed or keyed. */
+interface SlotHandlers {
+  onFocus: (slot: Slot) => void;
+  onKeyDown: (event: KeyboardEvent, slot: Slot) => void;
+  onPointerDown: (event: PointerEvent, slot: Slot) => void;
+}
+
+/**
+ * A working day's rows in one column: a button for each free one (the grid's one tab stop among them), and a plain,
+ * shaded cell for the rest. Memoised: it draws again only when the column, the time now or the tab stop changes.
+ */
+const SlotRows = memo(function SlotRows({
+  layout: l,
+  col,
+  rowMinutes,
+  nowMs,
+  tabStopRow,
+  hintId,
+  handlers,
+}: {
+  layout: ColumnLayout;
+  col: number;
+  rowMinutes: CalendarRowMinutes;
+  nowMs: number | undefined;
+  tabStopRow: number | null;
+  hintId: string;
+  handlers: SlotHandlers;
+}) {
+  return (
+    <>
+      {Array.from({length: l.rows}, (_, row) => {
+        const start = l.start + row * l.slot;
+        // The line above the row: the hour's, the half hour's, a quarter's, or (5-minute rows) a fainter one.
+        const minute = row * rowMinutes;
+        const line = minute % 60 === 0 ? 'hour' : minute % 30 === 0 ? 'half' : minute % 15 === 0 ? 'quarter' : 'minor';
+        const isPast = l.day.isPast || (nowMs !== undefined && start + l.slot <= nowMs);
+        if (!isFreeRow(l, row, nowMs)) {
+          return (
+            <div
+              key={row}
+              className="mc-slot"
+              data-line={line}
+              data-past={isPast || undefined}
+              data-unavailable={l.unavailable[row] || undefined}
+              aria-hidden
+            />
+          );
+        }
+        return (
+          <button
+            key={row}
+            type="button"
+            className="mc-slot"
+            data-line={line}
+            data-slot={`${col}-${row}`}
+            tabIndex={tabStopRow === row ? 0 : -1}
+            aria-label={`${l.name}, ${formatTime(iso(start))}, free`}
+            aria-describedby={hintId}
+            onFocus={() => handlers.onFocus({col, row})}
+            onKeyDown={(event) => handlers.onKeyDown(event, {col, row})}
+            onPointerDown={(event) => handlers.onPointerDown(event, {col, row})}
+          />
+        );
+      })}
+    </>
+  );
+});
+
+/** A compact column heading's button: as tall as its two lines, and no wider than the column. */
+const COMPACT_HEADING_BUTTON = {blockSize: 'auto', minInlineSize: 0, maxInlineSize: '100%', paddingBlock: 'var(--spacing-0-5)', paddingInline: 'var(--spacing-1)'};
+
+/** A day's heading in a compact week: its weekday ("Tue") over its date ("17"). */
+function CompactHeading({date, isToday = false}: {date: string; isToday?: boolean}) {
+  const [weekday, day] = formatShortDay(date).split(' ');
+  return (
+    <VStack gap={0} hAlign="center">
+      <Text type="supporting" color={isToday ? 'accent' : 'secondary'} maxLines={1}>
+        {weekday}
+      </Text>{' '}
+      <Text type="body" weight="semibold" color={isToday ? 'accent' : 'primary'} maxLines={1}>
+        {day}
+      </Text>
+    </VStack>
+  );
+}
+
+/**
+ * A selection's or a dragged item's times: "10:30 to 10:45", or where that won't fit (a phone's compact week) just
+ * "10:30" (the grid's CSS chooses, by the width it has).
+ */
+function RangeText({startUtc, endUtc}: {startUtc: string; endUtc: string}) {
+  return (
+    <>
+      <span className="mc-full">
+        <Text type="supporting" weight="semibold" maxLines={1}>
+          {formatTimeRange(startUtc, endUtc)}
+        </Text>
+      </span>
+      <span className="mc-short">
+        <Text type="supporting" weight="semibold" maxLines={1}>
+          {formatTime(startUtc)}
+        </Text>
+      </span>
+    </>
+  );
+}
+
 /** A stretch of a day as a position in its column. */
 function rangeStyle(l: ColumnLayout, startUtc: string, endUtc: string) {
-  const span = l.rows * SLOT;
+  const {span} = l;
   const t = intervalOf(startUtc, endUtc);
   return {top: `${((t.start - l.start) / span) * 100}%`, height: `${((t.end - t.start) / span) * 100}%`};
 }
@@ -774,8 +1026,9 @@ const stripe = (colour: string) =>
   `light-dark(var(--color-background-${colour}), color-mix(in srgb, var(--color-background-${colour}) 50%, transparent))`;
 
 /**
- * How an item's text fits its height, in rows (15 minutes each): `tiny` (under 10 minutes) shows none, its words only in
- * its tooltip and accessible name; `short` (10 to 15 minutes) one small, tight line; otherwise one line a row.
+ * How an item's text fits its height, in rows (each as tall as a line of text, whatever the row length): `tiny` (under
+ * two thirds of a row: under 10 minutes in 15-minute rows) shows none, its words only in its tooltip and accessible
+ * name; `short` (under a row) one small, tight line; otherwise one line a row.
  */
 function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
   // A little leeway, so 10 minutes (two thirds of a row) counts as short whatever the rounding.
@@ -786,11 +1039,14 @@ function itemFit(rowsTall: number): 'tiny' | 'short' | 'rows' {
 /**
  * One item: a card in its colour (appointments and meetings tinted, blocks striped and quieter), as many lines as fit,
  * always in the same order: its name, then what it's for, then its time. A meeting has its icon before its name, so
- * it never relies on colour alone. One under 10 minutes, too short for any text, has a tooltip.
+ * it never relies on colour alone. One too short for any text has a tooltip. On a compact grid its words wrap to the
+ * lines it has room for (the short ones at the same size as the rest), in full in a tooltip, and where even that's
+ * too narrow, it shows its start time, with its name under it when it's two rows or more tall.
  */
 function GridItem({
   placed,
   rows,
+  isCompact,
   isDragged,
   onOpen,
   onPointerDown,
@@ -799,6 +1055,7 @@ function GridItem({
 }: {
   placed: PlacedItem;
   rows: number;
+  isCompact: boolean;
   isDragged: boolean;
   onOpen?: () => void;
   onPointerDown?: (event: PointerEvent<HTMLElement>) => void;
@@ -818,13 +1075,18 @@ function GridItem({
     insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
     inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
     zIndex: isTinted ? 2 : 1,
-    padding: '0 var(--spacing-1-5)',
+    // What its text shows depends on its own width (the grid's CSS: its start time alone when it's very narrow).
+    containerType: 'inline-size' as const,
+    padding: isCompact ? '0 var(--spacing-1)' : '0 var(--spacing-1-5)',
     overflow: 'hidden',
     borderInlineStart: `var(--spacing-1) solid var(--color-border-${item.colour})`,
     borderRadius: 'var(--radius-inner)',
     opacity: isDragged ? 0.5 : undefined,
     cursor: onPointerDown ? 'grab' : undefined,
     touchAction: onPointerDown ? 'none' : undefined,
+    // A press that wobbles across its words would select some, and Astryx's ClickableCard ignores a click while its
+    // text is selected: the wobble that should open it would do nothing.
+    userSelect: onPointerDown ? ('none' as const) : undefined,
     ...(isTinted
       ? {}
       : {
@@ -852,7 +1114,34 @@ function GridItem({
     </HStack>
   );
   const content =
-    fit === 'tiny' ? null : fit === 'short' ? (
+    fit === 'tiny' ? null : isCompact ? (
+      // Compact: its words wrap to the lines its height allows; too narrow for them (a phone), its start time, and its
+      // name under it if it's tall enough.
+      <VStack gap={0} hAlign="stretch" className={fit === 'short' ? 'mc-item-short' : undefined}>
+        <span className="mc-full">
+          <HStack gap={1} vAlign="start">
+            {marks}
+            <Text type={fit === 'short' ? 'inherit' : 'supporting'} color="primary" maxLines={fit === 'short' ? 1 : lines}>
+              <Text type="inherit" weight="semibold">
+                {item.label}
+              </Text>
+              {item.sublabel ? `, ${item.sublabel}` : `, ${time}`}
+            </Text>
+          </HStack>
+        </span>
+        <span className="mc-short">
+          <Text type={fit === 'short' ? 'inherit' : 'supporting'} color="primary" weight="semibold" maxLines={1}>
+            {formatTime(item.startUtc)}
+          </Text>
+          {/* Tall enough for more: its name under the time, broken where it must be to fit. */}
+          {fit === 'rows' && lines >= 2 && (
+            <Text type="supporting" color="primary" maxLines={lines - 1} className="mc-short-name">
+              {item.label}
+            </Text>
+          )}
+        </span>
+      </VStack>
+    ) : fit === 'short' ? (
       // Too short for a line of supporting text: a smaller one, set tight.
       <VStack gap={0} hAlign="stretch" className="mc-item-short">
         {oneLine('inherit')}
@@ -882,8 +1171,8 @@ function GridItem({
       </VStack>
     );
   const variant = isTinted ? item.colour : 'default';
-  // Too short for any text: what it is shows on hover and focus.
-  const withTooltip = (card: ReactElement) => (fit === 'tiny' ? <Tooltip content={item.description}>{card}</Tooltip> : card);
+  // Too short for any text, or cut short on a compact grid: what it is shows on hover and focus.
+  const withTooltip = (card: ReactElement) => (fit === 'tiny' || isCompact ? <Tooltip content={item.description}>{card}</Tooltip> : card);
   if (!onOpen) {
     // Nothing to open: shown as a plain card, named by its description.
     return withTooltip(
@@ -916,7 +1205,11 @@ function GridItem({
  */
 const GRID_CSS = `
 .medapp-calendar { --mc-row: calc(var(--spacing-5) + var(--spacing-0-5)); --mc-gutter: var(--spacing-12); --mc-narrow: var(--spacing-10); --mc-day-min: 6rem; --mc-labelled-min: 8rem; }
+.medapp-calendar[data-compact] { --mc-gutter: var(--spacing-10); --mc-day-min: 2.5rem; }
+.medapp-calendar[data-compact] .mc-hour { inset-inline-end: var(--spacing-1); }
+.medapp-calendar[data-compact] .mc-head-cell { padding-inline: 0; overflow: hidden; }
 .medapp-calendar .mc-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.medapp-calendar .mc-scroll:focus-visible { outline: var(--focus-outline-width) var(--focus-outline-style) var(--focus-outline-color); outline-offset: calc(-1 * var(--focus-outline-width)); }
 .medapp-calendar .mc-head { position: sticky; top: 0; z-index: 6; display: flex; min-inline-size: var(--mc-min-inline); background: var(--color-background-card); border-block-end: 1px solid var(--color-border-emphasized); }
 .medapp-calendar .mc-head-cell { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); display: flex; align-items: center; justify-content: center; min-block-size: var(--spacing-9); padding-inline: var(--spacing-1); border-inline-start: 1px solid var(--color-border); }
 .medapp-calendar .mc-head-cell[data-labelled], .medapp-calendar .mc-col[data-labelled] { min-inline-size: var(--mc-labelled-min); }
@@ -926,11 +1219,14 @@ const GRID_CSS = `
 .medapp-calendar .mc-gutter { position: sticky; inset-inline-start: 0; z-index: 5; flex: 0 0 var(--mc-gutter); background: var(--color-background-card); }
 .medapp-calendar .mc-hour { position: absolute; inset-inline-end: var(--spacing-2); margin-block-start: var(--spacing-0-5); line-height: 1; }
 .medapp-calendar .mc-col { position: relative; flex: 1 1 0; min-inline-size: var(--mc-day-min); block-size: calc(var(--mc-row) * var(--mc-rows)); border-inline-start: 1px solid var(--color-border); }
-.medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: center; justify-content: center; }
+.medapp-calendar .mc-col[data-weekend] { background: var(--color-background-muted); display: flex; align-items: flex-start; justify-content: center; padding-block-start: var(--spacing-2); box-sizing: border-box; }
 .medapp-calendar .mc-col[data-today] { background: color-mix(in srgb, var(--color-accent) 5%, transparent); }
-.medapp-calendar .mc-weekend-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.medapp-calendar .mc-weekend-text { position: sticky; top: calc(var(--spacing-12) + var(--spacing-1)); writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .medapp-calendar .mc-slot { display: block; box-sizing: border-box; inline-size: 100%; block-size: var(--mc-row); margin: 0; padding: 0; border: 0; background: transparent; border-block-start: 1px dotted var(--color-border); }
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
+.medapp-calendar .mc-slot[data-line="minor"] { border-block-start-color: color-mix(in srgb, var(--color-border) 50%, transparent); }
+.medapp-calendar[data-row-minutes="5"] .mc-slot[data-line="quarter"] { border-block-start-style: solid; }
+.medapp-calendar .mc-hour[data-quarter] .astryx-text { font-size: calc((var(--font-size-xs) + var(--font-size-sm)) / 2); }
 .medapp-calendar .mc-slot[data-line="hour"] { border-block-start: 1px solid var(--color-border-emphasized); }
 .medapp-calendar .mc-slot[data-past], .medapp-calendar .mc-slot[data-unavailable], .medapp-calendar .mc-col[data-past] .mc-slot { background: var(--color-background-muted); }
 .medapp-calendar button.mc-slot { cursor: pointer; transition: background-color var(--duration-fast); }
@@ -942,6 +1238,12 @@ const GRID_CSS = `
 .medapp-calendar button.mc-selection { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; margin: 0; padding-block: 0; font: inherit; color: inherit; text-align: start; appearance: none; }
 .medapp-calendar .mc-ghost { background: var(--color-background-popover); border: 2px dashed var(--color-accent); box-shadow: var(--shadow-med, none); }
 .medapp-calendar .mc-item-short { font-size: var(--font-size-xs); line-height: 1; padding-block-start: var(--spacing-0-5); }
+.medapp-calendar[data-compact] .mc-item-short { font-size: var(--text-supporting-size, var(--font-size-sm)); }
+.medapp-calendar .mc-selection, .medapp-calendar .mc-ghost { container-type: inline-size; }
+.medapp-calendar .mc-full { display: block; min-inline-size: 0; }
+.medapp-calendar .mc-short { display: none; }
+.medapp-calendar .mc-short-name { overflow-wrap: anywhere; hyphens: auto; }
+@container (max-width: 4.5rem) { .medapp-calendar .mc-full { display: none; } .medapp-calendar .mc-short { display: block; } }
 .medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 0; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }
 .medapp-calendar .mc-now-dot { position: absolute; inset-inline-start: calc(-1 * var(--spacing-1)); z-index: 4; margin-block-start: calc(-1 * var(--spacing-1) + 1px); inline-size: var(--spacing-2); block-size: var(--spacing-2); border-radius: var(--radius-full); background: var(--color-icon-error); pointer-events: none; }
 `;

@@ -63,13 +63,17 @@ export function renderWithApp(ui: ReactNode, {path = '/', user}: {path?: string;
   return {...result, router, queryClient, user: userEvent.setup()};
 }
 
-/** Renders the whole app (real routes and guards) starting at `path`. */
-export function renderApp({path = '/', user}: {path?: string; user?: CurrentUser} = {}) {
+/**
+ * Renders the whole app (real routes and guards) starting at `path`. `scrollRestoration` turns on the router's, as the
+ * app's own router has it, for tests of what it does to scrolled elements.
+ */
+export function renderApp({path = '/', user, scrollRestoration = false}: {path?: string; user?: CurrentUser; scrollRestoration?: boolean} = {}) {
   const queryClient = testQueryClient(user);
   const router = createRouter({
     routeTree,
     context: {queryClient},
     history: createMemoryHistory({initialEntries: [path]}),
+    scrollRestoration,
   });
   const result = render(
     <AppProviders queryClient={queryClient}>

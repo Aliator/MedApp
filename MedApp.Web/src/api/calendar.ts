@@ -79,6 +79,18 @@ export function calendarQuery({staffUserId, from, to}: {staffUserId?: string; fr
   });
 }
 
+/**
+ * The same calendar without its appointments, so it names no patients and the API records no reads of them: for a
+ * view that shows none, such as Apply Template's days (each day's template, and whether it's the day's own).
+ */
+export function calendarDaysQuery({staffUserId, from, to}: {staffUserId?: string; from: string; to: string}) {
+  return queryOptions({
+    queryKey: [...calendarKeys.calendar(staffUserId, from, to), 'withoutAppointments'] as const,
+    queryFn: () =>
+      unwrap(api.GET('/api/calendar', {params: {query: {StaffUserId: staffUserId, From: from, To: to, WithoutAppointments: true}}})),
+  });
+}
+
 /** Everyone with a role (who can have a calendar), by username, with their default week template. */
 export const staffQuery = queryOptions({
   queryKey: calendarKeys.staff,

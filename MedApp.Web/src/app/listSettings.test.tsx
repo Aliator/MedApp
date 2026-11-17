@@ -37,7 +37,7 @@ describe('ListSettingsProvider', () => {
     useEffect(() => {
       api = value;
     });
-    return <output>{`${value.pageSize} ${value.startsOnMine}`}</output>;
+    return <output>{`${value.pageSize} ${value.startsOnMine} ${value.calendarRows}`}</output>;
   }
   const renderSettings = () =>
     render(
@@ -48,12 +48,12 @@ describe('ListSettingsProvider', () => {
 
   it('changes and remembers the page size and where procedure lists start', () => {
     renderSettings();
-    expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false`);
+    expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false 15`);
 
     act(() => api.setPageSize(25));
     act(() => api.setStartsOnMine(true));
 
-    expect(screen.getByRole('status')).toHaveTextContent('25 true');
+    expect(screen.getByRole('status')).toHaveTextContent('25 true 15');
     expect(localStorage.getItem('medapp.pageSize')).toBe('25');
     expect(localStorage.getItem('medapp.proceduresStartOnMine')).toBe('true');
   });
@@ -63,7 +63,19 @@ describe('ListSettingsProvider', () => {
 
     act(() => api.setPageSize(MAX_PAGE_SIZE + 1));
 
-    expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false`);
+    expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false 15`);
+  });
+
+  it("remembers the Calendar's row length, keeping only 5 (15 is the default)", () => {
+    renderSettings();
+
+    act(() => api.setCalendarRows(5));
+    expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false 5`);
+    expect(localStorage.getItem('medapp.calendarRows')).toBe('5');
+
+    act(() => api.setCalendarRows(15));
+    expect(screen.getByRole('status')).toHaveTextContent(`${DEFAULT_PAGE_SIZE} false 15`);
+    expect(localStorage.getItem('medapp.calendarRows')).toBeNull();
   });
 
   it('has the defaults outside its provider (a part tested on its own), and changes nothing there', () => {
@@ -71,8 +83,9 @@ describe('ListSettingsProvider', () => {
 
     result.current.setPageSize(50);
     result.current.setStartsOnMine(true);
+    result.current.setCalendarRows(5);
 
-    expect(result.current).toMatchObject({pageSize: DEFAULT_PAGE_SIZE, startsOnMine: false});
+    expect(result.current).toMatchObject({pageSize: DEFAULT_PAGE_SIZE, startsOnMine: false, calendarRows: 15});
     expect(localStorage.length).toBe(0);
   });
 });

@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testRequested, ukTime} from '../../test/calendar';
 import {calls, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
-import {BookAppointmentDialog, type BookAppointmentDialogProps} from './BookAppointmentDialog';
+import {BookAppointmentDialog, shownStarts, type BookAppointmentDialogProps} from './BookAppointmentDialog';
 
 const MONDAY = '2026-11-23';
 const STAFF = [STAFF_ME, STAFF_OTHER];
@@ -121,6 +121,41 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
         stageId: null,
       }),
     );
+  });
+
+  it('lists times every 15 minutes, with 5-minute steps only around the time picked on a calendar in 5-minute rows', async () => {
+    atMondayMorning();
+    const {user} = renderDialog({
+      patient: TEST_PATIENT,
+      startUtc: ukTime('2026-11-25', '10:05'),
+      endUtc: ukTime('2026-11-25', '10:20'),
+      stepMinutes: 5,
+    }, {'GET /api/procedures/patient-procedures/search': () => json(pageOf([]))});
+
+    await screen.findByRole('dialog');
+    expect(await dialog().findByText('Wednesday 25 November, 10:05 to 10:20 with test-user')).toBeInTheDocument();
+    // The day still counts its quarter hours, not every 5 minutes.
+    expect(dialog().getByRole('button', {name: 'Wed 25, 40 free times'})).toBeInTheDocument();
+    const morning = dialog().getByRole('group', {name: 'Morning times on Wednesday 25 November'});
+    // Astryx's toggle buttons hold their label's text twice: the first five characters are the time.
+    const times = within(morning).getAllByRole('button').map((b) => b.textContent!.slice(0, 5));
+    expect(times.filter((t) => t!.startsWith('09:') || t!.startsWith('10:'))).toEqual(['09:00', '09:15', '09:30', '09:45', '09:55', '10:00', '10:05', '10:10', '10:15', '10:30', '10:45']);
+    // 16 quarter hours from 08:00, and the three finer times around 10:05.
+    expect(times).toHaveLength(16 + 3);
+
+    // Choosing another time leaves them where they are, so no button moves under the pointer.
+    await user.click(within(morning).getByRole('button', {name: '11:30'}));
+    expect(within(morning).getAllByRole('button').map((b) => b.textContent!.slice(0, 5))).toEqual(times);
+    expect(within(morning).getByRole('button', {name: '11:30'})).toHaveAttribute('aria-pressed', 'true');
+    expect(within(morning).queryByRole('button', {name: '11:25'})).not.toBeInTheDocument();
+  });
+
+  it('shows only quarter hours without a finer step or a chosen time', () => {
+    const quarters = [ukTime(MONDAY, '10:00'), ukTime(MONDAY, '10:15')];
+    const fine = [ukTime(MONDAY, '10:00'), ukTime(MONDAY, '10:05'), ukTime(MONDAY, '10:10'), ukTime(MONDAY, '10:15')];
+    expect(shownStarts(quarters, undefined, ukTime(MONDAY, '10:00'))).toEqual(quarters);
+    expect(shownStarts(quarters, fine, undefined)).toEqual(quarters);
+    expect(shownStarts(quarters, fine, ukTime(MONDAY, '10:15'))).toEqual([ukTime(MONDAY, '10:00'), ukTime(MONDAY, '10:05'), ukTime(MONDAY, '10:10'), ukTime(MONDAY, '10:15')]);
   });
 
   it('offers an odd preselected length alongside the usual ones, and forgets the time when the length changes', async () => {

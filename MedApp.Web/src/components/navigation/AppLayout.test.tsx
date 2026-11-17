@@ -1,6 +1,8 @@
-import {screen, waitFor, within} from '@testing-library/react';
+import {SideNavRenderContext} from '@astryxdesign/core/SideNav';
+import {render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
+import {SideNavTheme} from './AppLayout';
 
 /** Every list is empty: enough for the pages to render their headers. */
 /** No data anywhere: empty lists (an empty page from the search endpoints, which the rest are). */
@@ -29,6 +31,30 @@ async function railRow(user: ReturnType<typeof userEvent.setup>, item: string) {
   await waitFor(() => expect(nav.getAllByRole('link', {name: item})).toHaveLength(2), {timeout: 3000});
   return nav.getAllByRole('link', {name: item})[1];
 }
+
+describe('SideNavTheme', () => {
+  it("keeps the side nav dark in its column and drawer, but takes the app's mode on a phone's top bar", () => {
+    const {unmount} = render(
+      <SideNavRenderContext value="default">
+        <SideNavTheme>
+          <p>Side nav</p>
+        </SideNavTheme>
+      </SideNavRenderContext>,
+    );
+    expect(screen.getByText('Side nav').closest('[data-theme]')).toHaveAttribute('data-theme', 'dark');
+    unmount();
+
+    // The top bar sits on the page's own background: white text there was unreadable in light mode.
+    render(
+      <SideNavRenderContext value="topbar">
+        <SideNavTheme>
+          <p>Top bar</p>
+        </SideNavTheme>
+      </SideNavRenderContext>,
+    );
+    expect(screen.getByText('Top bar').closest('[data-theme="dark"]')).toBeNull();
+  });
+});
 
 describe('AppLayout scrollbar room', {timeout: 15_000}, () => {
   beforeEach(() => sessionStorage.clear());
@@ -105,7 +131,9 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await heading('Patients');
     await user.click(await halfViewItem(user, 'Audit Log'));
     await heading('Audit Log');
-    const patientsHeader = screen.getByRole('heading', {name: 'Patients', level: 1}).parentElement!.parentElement!;
+    // The Patients page's header: the nearest box round its title that holds a close button.
+    let patientsHeader = screen.getByRole('heading', {name: 'Patients', level: 1}).parentElement!;
+    while (!within(patientsHeader).queryByRole('button', {name: 'Close half view'})) patientsHeader = patientsHeader.parentElement!;
     await user.click(within(patientsHeader).getByRole('button', {name: 'Close half view'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/audit'));

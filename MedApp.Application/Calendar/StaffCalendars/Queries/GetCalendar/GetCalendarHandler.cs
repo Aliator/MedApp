@@ -10,7 +10,7 @@ namespace MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendar;
 
 /// <summary>
 /// One person's calendar. Its appointments name their patients, so each patient with one on it is recorded as listed
-/// (once per person every few minutes).
+/// (once per person every few minutes). Asked for without its appointments, it names no patients and records nothing.
 /// </summary>
 public sealed class GetCalendarHandler(
     ICalendarRepository repository,
@@ -28,7 +28,10 @@ public sealed class GetCalendarHandler(
         var today = UkTime.DateOf(now);
 
         var data = await repository.GetCalendarDataAsync(staffUserId, request.From, request.To, cancellationToken);
-        await activityLog.RecordViewsAsync(ActivityAction.PatientListed, data.Appointments.Select(a => a.PatientId), cancellationToken);
+        if (request.WithoutAppointments)
+            data = data with { Appointments = [] };
+        else
+            await activityLog.RecordViewsAsync(ActivityAction.PatientListed, data.Appointments.Select(a => a.PatientId), cancellationToken);
         var defaultWeek = await repository.GetStaffWeekTemplateOnAsync(staffUserId, today, cancellationToken);
         var usernames = await identityReadService.GetUsernamesByIdAsync(CalendarMapper.UserIds(data), cancellationToken);
 
