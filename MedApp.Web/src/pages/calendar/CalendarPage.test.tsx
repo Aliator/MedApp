@@ -5,9 +5,10 @@ import type {TeamCalendar} from '../../api/calendar';
 import type {MeetingDialogProps} from '../../components/calendar/MeetingDialog';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {calendarDay, STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../../test/calendar';
-import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderApp, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
-import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, shownView} from './CalendarPage';
+import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, selectionMenuPlacement, shownView} from './CalendarPage';
+import {givenWidth} from '../../test/layout';
 import type {CalendarSearch} from './calendarSearch';
 
 // The meeting dialog has tests of its own: here, a stand-in that shows what it was opened with.
@@ -65,15 +66,9 @@ function teamDay(date: string, members: Partial<Calendar>[] = []): TeamCalendar 
   };
 }
 
-function renderPage({
-  search: initial = {},
-  calendar = {},
-  handlers = {},
-  user = staffUser,
-  isNarrow = false,
-}: {search?: CalendarSearch; calendar?: Partial<Calendar>; handlers?: Parameters<typeof mockApi>[0]; user?: CurrentUser; isNarrow?: boolean} = {}) {
-  const onSearchChange = vi.fn();
-  const fetch = mockApi({
+/** Answers the API as the Calendar page asks it: the staff, their templates, the team view and calendars. */
+function answerCalendarApi(calendar: Partial<Calendar> = {}, handlers: Parameters<typeof mockApi>[0] = {}) {
+  return mockApi({
     'GET /api/calendar/staff': () => json(STAFF),
     // Each person's own templates.
     'GET /api/calendar/staff/*': (request) => json(new URL(request.url).pathname.endsWith('/day-templates') ? DAY_TEMPLATES : WEEK_TEMPLATES),
@@ -91,13 +86,36 @@ function renderPage({
     },
     ...handlers,
   });
+}
+
+function renderPage({
+  search: initial = {},
+  calendar = {},
+  handlers = {},
+  user = staffUser,
+  isNarrow = false,
+  cardWidth,
+}: {
+  search?: CalendarSearch;
+  calendar?: Partial<Calendar>;
+  handlers?: Parameters<typeof mockApi>[0];
+  user?: CurrentUser;
+  isNarrow?: boolean;
+  /** The calendar's card, measured this wide (jsdom lays out nothing, so it's never measured otherwise). */
+  cardWidth?: number;
+} = {}) {
+  if (cardWidth !== undefined) givenWidth(cardWidth);
+  const onSearchChange = vi.fn();
+  const fetch = answerCalendarApi(calendar, handlers);
   function Harness() {
     const [search, setSearch] = useState<CalendarSearch>(initial);
     return (
       <CalendarPage
         search={search}
-        onSearchChange={(next) => {
-          onSearchChange(next);
+        onSearchChange={(next, options) => {
+          // Options only when given, so a plain change is checked as one argument.
+          if (options) onSearchChange(next, options);
+          else onSearchChange(next);
           setSearch(next);
         }}
       />
@@ -177,8 +195,9 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('button', {name: 'Today'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({date: undefined, view: 'day'});
 
+    // Named in the address, so the week stays a week if the window narrows or a half view opens.
     await user.click(screen.getByRole('radio', {name: 'Week'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({date: undefined, view: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith({date: undefined, view: 'week'});
   });
 
   it("shows someone else's calendar, chosen by name", async () => {
@@ -369,35 +388,92 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     });
   });
 
-  it("applies a day template to the day shown, or goes back to the week's", async () => {
+  it('offers Apply Template in the day, week and compact week, to someone who can change the calendar', async () => {
+    const week = renderPage();
+    expect(await screen.findByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
+    // The old menu for the day shown is gone.
+    expect(screen.queryByRole('button', {name: /^This day/})).not.toBeInTheDocument();
+    week.unmount();
+
+    const day = renderPage({search: {view: 'day', date: '2026-11-24'}});
+    expect(await screen.findByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^This day/})).not.toBeInTheDocument();
+    day.unmount();
+
+    const compact = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week'}});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
+    expect(screen.getByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
+    compact.unmount();
+
+    // Not on a calendar they can't change.
+    renderPage({search: {staff: STAFF_OTHER.userId}, calendar: {canEdit: false}});
+    await screen.findByRole('group', {name: /^b.staff's calendar,/});
+    expect(screen.queryByRole('button', {name: 'Apply Template'})).not.toBeInTheDocument();
+  });
+
+  it('leaves Apply Template out of the team view', async () => {
+    renderPage({user: adminUser, search: {view: 'team'}});
+
+    await screen.findByRole('group', {name: /^Team,/});
+    expect(screen.queryByRole('button', {name: 'Apply Template'})).not.toBeInTheDocument();
+  });
+
+  it('starts Apply Template with the day shown ticked in the day view, and in the week the date the address names', async () => {
+    const {user, fetch, unmount} = renderPage({search: {view: 'day', date: '2026-11-25'}});
+
+    await user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Wed 25/})).toBeChecked();
+    expect(dialog().getByRole('checkbox', {name: /^Mon 23/})).not.toBeChecked();
+    // The dialog reads the week's days without their appointments, so it records no patients as listed.
+    expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29&WithoutAppointments=true');
+    unmount();
+
+    // A week with a date in the address: that day, not today.
+    const dated = renderPage({search: {date: '2026-11-26'}});
+    await dated.user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Thu 26/})).toBeChecked();
+    expect(dialog().getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)).toHaveLength(1);
+    dated.unmount();
+
+    // A week with no date in the address: nothing ticked, not even today.
+    const week = renderPage();
+    await week.user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Mon 23/})).not.toBeChecked();
+    expect(dialog().getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)).toHaveLength(0);
+    week.unmount();
+
+    // Another week, from the address: its date there.
+    const next = renderPage({search: {date: '2026-12-01'}});
+    await next.user.click(await screen.findByRole('button', {name: 'Apply Template'}));
+    expect(await dialog().findByRole('checkbox', {name: /^Tue 1/})).toBeChecked();
+    expect(dialog().getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)).toHaveLength(1);
+  });
+
+  it("applies one of the person's day templates to days of the week, and gives the focus back to the button", async () => {
     withAnnouncements();
     const {user, fetch} = renderPage({
-      search: {view: 'day', date: '2026-11-24'},
-      calendar: {},
+      user: adminUser,
+      search: {staff: STAFF_OTHER.userId},
       handlers: {
-        'GET /api/calendar': (request) => {
-          const from = new URL(request.url).searchParams.get('From')!;
-          const calendar = testCalendar({from, dayCount: 1, today: MONDAY});
-          calendar.days = calendar.days!.map((d) => ({...d, dayTemplateId: 'day-short', dayTemplateName: 'Short day', isDayTemplateOverridden: true}));
-          return json(calendar);
-        },
-        [`PUT /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => json({}),
-        [`DELETE /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => new Response(null, {status: 204}),
+        [`PUT /api/calendar/staff/${STAFF_OTHER.userId}/days/2026-11-23/day-template`]: () => json({}),
+        [`PUT /api/calendar/staff/${STAFF_OTHER.userId}/days/2026-11-24/day-template`]: () => json({}),
       },
     });
 
-    await user.click(await screen.findByRole('button', {name: 'This day: Short day'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Standard day'}));
-    await expectAnnounced('Standard day applied to Tuesday 24 November');
-    expect(await bodyOf(fetch, 'PUT', `/api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`)).toEqual({dayTemplateId: 'day-standard'});
+    const button = await screen.findByRole('button', {name: 'Apply Template'});
+    await user.click(button);
+    await user.click(await dialog().findByRole('combobox', {name: /Template/}));
+    await user.click(await screen.findByRole('option', {name: /^Short day/}));
+    await user.click(await dialog().findByRole('checkbox', {name: /^Mon 23/}));
+    await user.click(dialog().getByRole('checkbox', {name: /^Tue 24/}));
+    await user.click(dialog().getByRole('button', {name: 'Apply'}));
 
-    await user.click(screen.getByRole('button', {name: 'This day: Short day'}));
-    await user.click(await screen.findByRole('menuitem', {name: 'No template'}));
-    await expectAnnounced('No template on this day');
-
-    await user.click(screen.getByRole('button', {name: 'This day: Short day'}));
-    await user.click(await screen.findByRole('menuitem', {name: "Back to the week's template"}));
-    await expectAnnounced("Back to the week's template");
+    await expectAnnounced('Short day applied to Mon 23 and Tue 24');
+    await waitFor(() => expect(openDialog()).toBeNull());
+    await waitFor(() => expect(button).toHaveFocus());
+    expect(await bodyOf(fetch, 'PUT', `/api/calendar/staff/${STAFF_OTHER.userId}/days/2026-11-24/day-template`)).toEqual({dayTemplateId: 'day-short'});
+    // b.staff's own day templates.
+    expect(calls(fetch)).toContain(`GET /api/calendar/staff/${STAFF_OTHER.userId}/day-templates?includeArchived=true`);
   });
 
   it('sets the default week, and shows when that fails', async () => {
@@ -452,36 +528,6 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByText('That time overlaps Training, 14:00 to 15:00.')).toBeInTheDocument();
   });
 
-  it("says when the day's template can't be changed", async () => {
-    const {user} = renderPage({
-      search: {view: 'day', date: '2026-11-24'},
-      handlers: {[`PUT /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => json({title: 'That day has passed.'}, 409)},
-    });
-
-    await user.click(await screen.findByRole('button', {name: "This day's template"}));
-    await user.click(await screen.findByRole('menuitem', {name: 'Short day'}));
-    expect(await screen.findByText('That day has passed.')).toBeInTheDocument();
-  });
-
-  it("says when going back to the week's template fails", async () => {
-    const {user} = renderPage({
-      search: {view: 'day', date: '2026-11-24'},
-      handlers: {
-        'GET /api/calendar': (request) => {
-          const from = new URL(request.url).searchParams.get('From')!;
-          const calendar = testCalendar({from, dayCount: 1, today: MONDAY});
-          calendar.days = calendar.days!.map((d) => ({...d, dayTemplateId: null, isDayTemplateOverridden: true}));
-          return json(calendar);
-        },
-        [`DELETE /api/calendar/staff/${STAFF_ME.userId}/days/2026-11-24/day-template`]: () => json({title: 'That day has passed.'}, 409),
-      },
-    });
-
-    await user.click(await screen.findByRole('button', {name: "This day's template"}));
-    await user.click(await screen.findByRole('menuitem', {name: "Back to the week's template"}));
-    expect(await screen.findByText('That day has passed.')).toBeInTheDocument();
-  });
-
   it('goes to a date typed into the date picker', async () => {
     const {user, onSearchChange} = renderPage();
 
@@ -498,15 +544,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     const admin = renderPage({user: adminUser, search: {staff: STAFF_OTHER.userId, view: 'day', date: '2026-11-24'}});
     expect(await screen.findByRole('link', {name: "b.staff's calendar templates"})).toHaveAttribute('href', `/calendar/templates?staff=${STAFF_OTHER.userId}`);
-    // The day's template and the default week come from b.staff's own templates.
-    await admin.user.click(await screen.findByRole('button', {name: "This day's template"}));
-    expect(await screen.findByRole('menuitem', {name: 'Standard day'})).toBeInTheDocument();
-    expect(calls(admin.fetch)).toEqual(
-      expect.arrayContaining([
-        `GET /api/calendar/staff/${STAFF_OTHER.userId}/day-templates?includeArchived=true`,
-        `GET /api/calendar/staff/${STAFF_OTHER.userId}/week-templates?includeArchived=true`,
-      ]),
-    );
+    // The default week comes from b.staff's own week templates.
+    await waitFor(() => expect(calls(admin.fetch)).toContain(`GET /api/calendar/staff/${STAFF_OTHER.userId}/week-templates?includeArchived=true`));
     admin.unmount();
 
     // Someone else's, for anyone but an admin: nothing to lead to.
@@ -763,7 +802,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     unmount();
 
     renderPage({user: adminUser, search: {view: 'team'}, handlers: {'GET /api/calendar/team': () => json({date: MONDAY})}});
-    expect(await screen.findByRole('group', {name: /^Team,/})).toBeInTheDocument();
+    expect(await screen.findByRole('group', {name: 'Team, Monday 23 November 2026'})).toBeInTheDocument();
     expect(document.querySelectorAll('.mc-col')).toHaveLength(0);
   });
 
@@ -773,31 +812,235 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(screen.queryByRole('radio', {name: 'Team'})).not.toBeInTheDocument();
     staff.unmount();
 
-    // In a narrow window or a half view, people see a day: with nothing to choose between, no View control.
+    // In a narrow window or a half view, people start on a day, and can choose the week.
     const narrowStaff = renderPage({isNarrow: true});
     expect(await screen.findByText('My calendar · Monday 23 November 2026')).toBeInTheDocument();
-    expect(screen.queryByRole('radiogroup', {name: 'View'})).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', {name: 'Day'})).toBeChecked();
+    expect(screen.getByRole('radio', {name: 'Week'})).toBeInTheDocument();
+    expect(screen.queryByRole('radio', {name: 'Team'})).not.toBeInTheDocument();
     narrowStaff.unmount();
 
-    // Admins choose between the day and the team.
+    // Admins can choose the team too.
     const {user, onSearchChange} = renderPage({user: adminUser, isNarrow: true});
     expect(await screen.findByText('My calendar · Monday 23 November 2026')).toBeInTheDocument();
-    expect(screen.queryByRole('radio', {name: 'Week'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', {name: 'Team'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'team'});
     expect(await screen.findByRole('group', {name: 'Team, Monday 23 November 2026'})).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Next day'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'team', date: '2026-11-24'});
   });
+
+  it('offers the week in a narrow window, and keeps it, in a compact form: Monday to Friday, headed short', async () => {
+    const {user, onSearchChange, fetch} = renderPage({isNarrow: true, cardWidth: 500});
+    expect(await screen.findByText('My calendar · Monday 23 November 2026')).toBeInTheDocument();
+    expect(await screen.findByRole('group', {name: 'My calendar, Monday 23 November 2026'})).not.toHaveAttribute('data-compact');
+
+    await user.click(screen.getByRole('radio', {name: 'Week'}));
+    // Named in the address, as a narrow window would otherwise open on a day.
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'week'});
+    expect(await screen.findByText('My calendar · 23 to 29 November 2026')).toBeInTheDocument();
+    expect(screen.getByRole('radio', {name: 'Week'})).toBeChecked();
+    expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29');
+
+    const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    expect(grid).toHaveAttribute('data-compact');
+    expect(document.querySelectorAll('.mc-col')).toHaveLength(5);
+    expect(document.querySelector('.mc-head')).toHaveTextContent('Mon 23Tue 24Wed 25Thu 26Fri 27');
+    expect(screen.queryByRole('group', {name: /^Saturday/})).not.toBeInTheDocument();
+    expect(screen.getByRole('group', {name: 'Monday 23 November, today'})).toBeInTheDocument();
+
+    // Weeks at a time, and a day from its heading.
+    await user.click(screen.getByRole('button', {name: 'Next week'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'week', date: '2026-11-30'});
+    expect(await screen.findByText('My calendar · 30 November to 6 December 2026')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', {name: 'Wed 2: show Wednesday 2 December'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'day', date: '2026-12-02'});
+    expect(await screen.findByText('My calendar · Wednesday 2 December 2026')).toBeInTheDocument();
+  });
+
+  it('opens the week named in the address in a narrow window, and offers to book or block time selected on it', async () => {
+    const {user} = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week'}});
+
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
+    select('Tuesday 24 November, 10:00, free');
+    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    expect(await dialog().findByText('Tuesday 24 November, 10:00 to 10:15 with test-user')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    select('Thursday 26 November, 11:00, free');
+    expect(await screen.findByRole('button', {name: 'Block time'})).toBeInTheDocument();
+  });
+
+  it('switches between 15 and 5 minute rows, kept in the address, and books or blocks on 5-minute steps', async () => {
+    const {user, onSearchChange} = renderPage();
+    const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    expect(grid).toHaveAttribute('data-row-minutes', '15');
+
+    // Named by what it shows, so it isn't read as an appointment's length.
+    await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    // Replacing the address: the row length is a preference, not a step Back goes through.
+    expect(onSearchChange).toHaveBeenLastCalledWith({rows: 5}, {replace: true});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
+
+    select('Tuesday 24 November, 10:05, free');
+    await user.click(await screen.findByRole('button', {name: 'Book appointment'}));
+    // A click selects 15 minutes, from the 5-minute row clicked.
+    expect(await dialog().findByText('Tuesday 24 November, 10:05 to 10:20 with test-user')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    select('Tuesday 24 November, 11:10, free');
+    await user.click(await screen.findByRole('button', {name: 'Block time'}));
+    expect(dialog().getByRole('combobox', {name: /Start/})).toHaveTextContent('11:10');
+    await user.click(dialog().getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
+    await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined}, {replace: true});
+  });
+
+  it("shows the week compact by its card's width, not the window's", async () => {
+    // A wide window whose card has only 500px (under the full week's 608px and a scrollbar): compact.
+    const narrowCard = renderPage({cardWidth: 500});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
+    narrowCard.unmount();
+
+    // A half view with room for the whole week: the full week, weekends and all.
+    renderPage({isNarrow: true, cardWidth: 1000, search: {view: 'week'}});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).not.toHaveAttribute('data-compact');
+    expect(document.querySelectorAll('.mc-col')).toHaveLength(7);
+  });
+
+  it('remembers the row length last chosen, for an address that names none', async () => {
+    const {user, unmount} = renderPage();
+    await user.click(await screen.findByRole('button', {name: 'Rows: 15 min'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    expect(localStorage.getItem('medapp.calendarRows')).toBe('5');
+    unmount();
+
+    // Back from the side nav, Home or a notification (no rows in the address): 5-minute rows.
+    const again = renderPage();
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
+    again.unmount();
+
+    // A link that names 15 still shows 15.
+    renderPage({search: {rows: 15}});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '15');
+    expect(screen.getByRole('button', {name: 'Rows: 15 min'})).toBeInTheDocument();
+  });
+
+  it('opens with the row length the address names', async () => {
+    const {user} = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week', rows: 5}});
+    const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    expect(grid).toHaveAttribute('data-row-minutes', '5');
+    expect(grid).toHaveAttribute('data-compact');
+    // A narrow toolbar keeps the row length under View options.
+    await user.click(screen.getByRole('button', {name: 'View options'}));
+    expect(await screen.findByText('Rows: 5 min')).toBeInTheDocument();
+  });
+
+  it('puts whose calendar, the rows, the default week and the templates under View options in a narrow toolbar', async () => {
+    const {user, onSearchChange} = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week'}});
+    await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
+    // Getting about stays in view, the date without its weekday so it fits beside the buttons.
+    expect(screen.getByRole('button', {name: 'Previous week'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Today'})).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', {name: 'View'})).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', {name: 'Whose calendar'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Rows/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Default week/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'My calendar templates'})).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', {name: 'View options'}));
+    expect(await screen.findByRole('menuitem', {name: 'Whose calendar: My calendar'})).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', {name: /Default week: None/})).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', {name: 'My calendar templates'})).toHaveAttribute('href', '/calendar/templates');
+    await user.click(screen.getByRole('menuitem', {name: '5-minute rows'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'week', rows: 5}, {replace: true});
+
+    await user.click(screen.getByRole('button', {name: 'View options'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Whose calendar: My calendar'}));
+    await user.click(await screen.findByRole('menuitem', {name: STAFF_OTHER.username}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'week', rows: 5, staff: STAFF_OTHER.userId, appointment: undefined});
+  });
+
+  it("keeps the menu for the selected time to its buttons' width, not the selection's", async () => {
+    renderPage({isNarrow: true});
+    await screen.findByRole('group', {name: /^My calendar,/});
+
+    select('Monday 23 November, 10:00, free');
+    const menu = (await screen.findByRole('button', {name: 'Book appointment'})).closest('[data-layer-root], [data-astryx-layer-root]') as HTMLElement;
+    // Astryx sets the surface's width from the prop (`width: var(--x-width)`): left to its default, the surface would
+    // stretch to the selection, a whole column wide.
+    expect(menu.style.getPropertyValue('--x-width')).toBe('max-content');
+  });
+
+  it('keeps the same time at the top when the row length changes through the address, as the real router has it', async () => {
+    // Columns as tall as their rows, 22px each (jsdom lays out nothing).
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('mc-col') ? (this.closest<HTMLElement>('.medapp-calendar')!.dataset.rowMinutes === '5' ? 2640 : 880) : 0;
+      },
+    });
+    try {
+      answerCalendarApi({}, {
+        'GET /api/notifications': () => json({items: [], unreadCount: 0}),
+        'GET /api/auth/me/settings': () => json({settings: null}),
+      });
+      // The router restores the scroll positions it saved for an address, on every navigation that resets scroll.
+      const {user, router} = renderApp({path: '/calendar', user: staffUser, scrollRestoration: true});
+      const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'}, {timeout: 15_000});
+      const scroller = grid.querySelector<HTMLElement>('.mc-scroll')!;
+
+      // 10:30 at the top: a quarter of the way through the working day.
+      scroller.scrollTop = 220;
+      fireEvent.scroll(scroller);
+      await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
+      await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+      await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5'));
+      // Past the router's own work after the navigation, which once put back the old 220px (09:00 at the top).
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(scroller.scrollTop).toBe(660);
+      // The address changed in place: no new history entry for Back to step through.
+      expect(router.state.location.search).toEqual({rows: 5});
+      expect(router.history.length).toBe(1);
+
+      await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
+      await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+      await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '15'));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(scroller.scrollTop).toBe(220);
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+    }
+  });
 });
 
 describe('the Calendar page outside React', () => {
-  it('shows the team view only to admins, and a day for a week in a narrow window', () => {
+  it('shows the team view only to admins, and a day by default in a narrow window', () => {
     expect(shownView({view: 'team'}, true)).toBe('team');
     expect(shownView({view: 'team'}, false)).toBe('week');
     expect(shownView({view: 'team'}, false, true)).toBe('day');
     expect(shownView({view: 'team'}, true, true)).toBe('team');
     expect(shownView({}, false)).toBe('week');
+    // A narrow window opens on a day, but keeps a week named in the address.
+    expect(shownView({}, false, true)).toBe('day');
+    expect(shownView({view: 'week'}, false, true)).toBe('week');
+    expect(shownView({view: 'day'}, false)).toBe('day');
+  });
+
+  it('opens the menu for selected time beside it, or below it when the selection is too wide for beside', () => {
+    // A week's column: beside it. A day's column in a wide window: below it, near what was selected, rather than
+    // flipped to the far side over the side nav.
+    expect(selectionMenuPlacement(0)).toBe('end');
+    expect(selectionMenuPlacement(120)).toBe('end');
+    expect(selectionMenuPlacement(320)).toBe('end');
+    expect(selectionMenuPlacement(800)).toBe('below');
   });
 
   it("preloads the team view's day for admins, or the person's calendar and then their templates", async () => {
@@ -818,17 +1061,11 @@ describe('the Calendar page outside React', () => {
     await waitFor(() => expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29'));
     expect(calls(fetch).some((c) => c.includes('-templates'))).toBe(false);
 
-    // Once it is, whose it is says whose templates: the day's too, on a day they can change.
+    // Once it is, whose it is says whose week templates. Their day templates wait for the page (Apply Template).
     queryClient.setQueryData(['calendar', 'days', 'me', '2026-11-24', '2026-11-24'], testCalendar({from: '2026-11-24', dayCount: 1, today: MONDAY}));
     await preloadCalendarPage(queryClient, {view: 'day', date: '2026-11-24'}, false, MONDAY);
-    await waitFor(() =>
-      expect(calls(fetch)).toEqual(
-        expect.arrayContaining([
-          `GET /api/calendar/staff/${STAFF_ME.userId}/week-templates?includeArchived=true`,
-          `GET /api/calendar/staff/${STAFF_ME.userId}/day-templates?includeArchived=true`,
-        ]),
-      ),
-    );
+    await waitFor(() => expect(calls(fetch)).toContain(`GET /api/calendar/staff/${STAFF_ME.userId}/week-templates?includeArchived=true`));
+    expect(calls(fetch).some((c) => c.includes('/day-templates'))).toBe(false);
     queryClient.clear();
   });
 });

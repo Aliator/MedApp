@@ -1949,6 +1949,7 @@ export interface paths {
                     StaffUserId?: string;
                     From?: string;
                     To?: string;
+                    WithoutAppointments?: boolean;
                 };
                 header?: never;
                 path?: never;

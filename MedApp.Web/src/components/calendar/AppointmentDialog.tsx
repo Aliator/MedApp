@@ -27,6 +27,8 @@ export interface AppointmentDialogProps {
   /** The appointment to show; it's fetched afresh, and shown from this until then. Null when closed. */
   appointment: Appointment | null;
   onClose: () => void;
+  /** The finest steps booking and rescheduling offer (`BookAppointmentDialog`'s): 5 from a calendar in 5-minute rows. */
+  stepMinutes?: number;
 }
 
 /** When an appointment is, in words: "Monday 23 November, 09:00 to 09:30 with jsmith", or that it isn't booked yet. */
@@ -50,7 +52,7 @@ type Mode = 'view' | 'book' | 'bookAnother' | 'cancel';
  *
  * Use it wherever an appointment is opened: the calendar, Needs booking, a procedure or a patient.
  */
-export function AppointmentDialog({appointment: initial, onClose}: AppointmentDialogProps) {
+export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: AppointmentDialogProps) {
   const isOpen = initial !== null;
   const announce = useAnnounce();
   const actions = useAppointmentActions();
@@ -275,6 +277,7 @@ export function AppointmentDialog({appointment: initial, onClose}: AppointmentDi
       <BookAppointmentDialog
         isOpen={isOpen && mode === 'book'}
         appointment={appointment}
+        stepMinutes={stepMinutes}
         onClose={() => setMode('view')}
       />
       <BookAppointmentDialog
@@ -283,6 +286,7 @@ export function AppointmentDialog({appointment: initial, onClose}: AppointmentDi
         procedure={appointment.procedureId ? {id: appointment.procedureId, title: appointment.procedureTitle ?? ''} : undefined}
         stage={appointment.stageId ? {id: appointment.stageId, name: appointment.stageName ?? ''} : undefined}
         suggestedStaffUserId={appointment.staffUserId ?? undefined}
+        stepMinutes={stepMinutes}
         onSaved={onClose}
         onClose={() => setMode('view')}
       />

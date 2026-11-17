@@ -15,6 +15,8 @@ export interface ParityData {
   patientId: string;
   /** An in-progress procedure, for the procedure page (React only: Blazor never had one). */
   procedureId?: string;
+  /** A procedure of a restricted patient, for a page with a long page message (the restricted banner). */
+  restrictedProcedureId?: string;
 }
 
 const root = __dirname;

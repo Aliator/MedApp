@@ -38,10 +38,11 @@ import {
   isMorning,
   minutesBetween,
   sameMoment,
+  SLOT_MINUTES,
   ukToday,
   weekStart,
 } from '../../utils/calendarSlots';
-import {formatShortDate, formatTime, ukDay} from '../../utils/dates';
+import {formatShortDate, formatTime, parseUtc, ukDay} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {DialogFrame} from '../modals/DialogFrame';
@@ -67,6 +68,11 @@ export interface BookAppointmentDialogProps {
   endUtc?: string;
   /** The member of staff to suggest when none is preselected (e.g. a procedure's only assignee); otherwise the signed-in user. */
   suggestedStaffUserId?: string;
+  /**
+   * The finest steps start times come in: 15 minutes (the default), or 5 from a calendar showing 5-minute rows. The
+   * times are listed every 15 minutes either way; finer ones are added only around the chosen time (`shownStarts`).
+   */
+  stepMinutes?: number;
 }
 
 /**
@@ -117,6 +123,20 @@ interface Problem {
 
 const NO_PROBLEM: Problem = {validation: null, message: null};
 
+/**
+ * The start times to offer on a day: every quarter hour that's free, and with a finer step (5-minute rows on the
+ * calendar), the free times within a quarter of an hour either side of `anchor` (the time selected on the calendar),
+ * without a hundred buttons for the whole day. `fine` holds every free time at the finer step. The anchor stays put as
+ * other times are chosen, so the buttons never move under the pointer.
+ */
+export function shownStarts(quarters: string[], fine: string[] | undefined, anchor: string | undefined): string[] {
+  if (!fine || !anchor) return quarters;
+  const at = parseUtc(anchor).getTime();
+  const near = fine.filter((s) => Math.abs(parseUtc(s).getTime() - at) < SLOT_MINUTES * 60_000);
+  const all = new Map([...quarters, ...near].map((s) => [parseUtc(s).getTime(), s]));
+  return [...all.entries()].sort(([a], [b]) => a - b).map(([, s]) => s);
+}
+
 /** How many weeks ahead the dialog looks for a free day when it opens, before settling on the first. */
 const WEEKS_TO_LOOK_AHEAD = 4;
 
@@ -132,6 +152,7 @@ function BookingForm({
   startUtc,
   endUtc,
   suggestedStaffUserId,
+  stepMinutes,
 }: BookAppointmentDialogProps) {
   const me = useCurrentUser();
   const isNarrow = useIsNarrow();
@@ -165,6 +186,9 @@ function BookingForm({
   const [hasMovedWeek, setHasMovedWeek] = useState(initialDay !== undefined);
   const [chosenDay, setChosenDay] = useState<string | undefined>(initialDay);
   const [chosenStart, setChosenStart] = useState<string | undefined>(startUtc);
+  // Where the finer times gather (`shownStarts`): the time selected on the calendar, or the appointment's own when
+  // rescheduling; on a day with neither, the first time chosen there. Never the latest choice, which would move them.
+  const [fineAnchor, setFineAnchor] = useState<string | undefined>(startUtc ?? (isRescheduling ? (appointment?.startUtc ?? undefined) : undefined));
   const [notes, setNotes] = useState('');
   const [problem, setProblem] = useState<Problem>(NO_PROBLEM);
 
@@ -196,9 +220,13 @@ function BookingForm({
 
   const weekEnd = addDays(week, 4);
   const calendar = useQuery({...calendarQuery({staffUserId: staffId, from: week, to: weekEnd}), enabled: isOpen && staffId !== undefined});
-  const free = useMemo(
-    () => (calendar.data ? freeStartsByDay(calendar.data, length, now, appointment?.id) : {}),
-    [calendar.data, length, now, appointment?.id],
+  // Every quarter hour that's free (what each day counts, and what's listed), and with a finer step, every free time
+  // at that step, for the times around the chosen one.
+  const free = useMemo(() => (calendar.data ? freeStartsByDay(calendar.data, length, now, appointment?.id) : {}), [calendar.data, length, now, appointment?.id]);
+  const isFine = stepMinutes !== undefined && stepMinutes < SLOT_MINUTES;
+  const fine = useMemo(
+    () => (calendar.data && isFine ? freeStartsByDay(calendar.data, length, now, appointment?.id, stepMinutes) : undefined),
+    [calendar.data, length, now, appointment?.id, stepMinutes, isFine],
   );
   const weekDays = (calendar.data?.days ?? []).filter((d) => d.isWorkingDay);
   const firstFreeDay = weekDays.find((d) => (free[d.date ?? '']?.length ?? 0) > 0)?.date;
@@ -209,7 +237,12 @@ function BookingForm({
   }
 
   const day = chosenDay !== undefined && chosenDay >= week && chosenDay <= weekEnd ? chosenDay : firstFreeDay;
-  const dayStarts = day ? (free[day] ?? []) : [];
+  const dayAnchor = fineAnchor !== undefined && ukDay(fineAnchor) === day ? fineAnchor : undefined;
+  const dayStarts = day ? shownStarts(free[day] ?? [], fine?.[day], dayAnchor) : [];
+  const chooseStart = (next: string | undefined) => {
+    setChosenStart(next);
+    if (next && dayAnchor === undefined) setFineAnchor(next);
+  };
   const start = dayStarts.find((s) => sameMoment(s, chosenStart));
   const end = start ? addMinutes(start, length) : undefined;
 
@@ -458,14 +491,14 @@ function BookingForm({
                 heading="Morning"
                 starts={dayStarts.filter(isMorning)}
                 chosen={start}
-                onChoose={setChosenStart}
+                onChoose={chooseStart}
               />
               <TimeChoices
                 label={`Afternoon times on ${formatCalendarDay(day)}`}
                 heading="Afternoon"
                 starts={dayStarts.filter((s) => !isMorning(s))}
                 chosen={start}
-                onChoose={setChosenStart}
+                onChoose={chooseStart}
               />
             </VStack>
           )}

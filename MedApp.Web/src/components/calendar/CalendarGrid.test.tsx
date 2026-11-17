@@ -1,10 +1,11 @@
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
 import type {CalendarDay} from '../../api/calendar';
 import {calendarDay, testAppointment, testBlock, testMeeting, ukTime} from '../../test/calendar';
 import {renderWithApp} from '../../test/render';
 import {addDays} from '../../utils/calendarSlots';
 import {appointmentItem, blockItem, meetingItem, type CalendarGridItem} from './calendarItems';
-import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarGridProps} from './CalendarGrid';
+import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarGridProps, type CalendarRowMinutes} from './CalendarGrid';
 
 const MONDAY = '2026-11-23';
 const week = (today = MONDAY) => Array.from({length: 7}, (_, i) => calendarDay(addDays(MONDAY, i), today));
@@ -56,6 +57,10 @@ describe('CalendarGrid', () => {
     expect(screen.getByText('08:00')).toBeInTheDocument();
     expect(screen.getByText('17:00')).toBeInTheDocument();
     expect(screen.getByText('Mon 23')).toBeInTheDocument();
+    // "Not a working day" sits at the top of its column, kept in view as the day scrolls (5-minute rows make it tall).
+    const css = document.querySelector('.medapp-calendar style')!.textContent!;
+    expect(css).toMatch(/\.mc-col\[data-weekend\] \{[^}]*align-items: flex-start/);
+    expect(css).toMatch(/\.mc-weekend-text \{ position: sticky; top: /);
     // 40 free 15-minute slots on each of the five working days.
     expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(200);
   });
@@ -315,6 +320,19 @@ describe('CalendarGrid', () => {
     expect(screen.getByText('Monday')).toBeInTheDocument();
     expect(screen.queryByText('Monday 23 November')).not.toBeInTheDocument();
     expect(column('Monday 23 November, today')).toBeInTheDocument();
+    // Its item can take the focus, so the scrolling area isn't a tab stop of its own.
+    expect(document.querySelector('.mc-scroll')).not.toHaveAttribute('tabindex');
+  });
+
+  it('makes its scrolling area a named tab stop when nothing in it can take the focus, so the keyboard can scroll it', async () => {
+    atMondayMorning();
+    // A read-only day with only a read-only item (Home's day calendar, say).
+    const block = {...blockItem(testBlock(MONDAY, '12:00', '13:00')), isReadOnly: true};
+    renderWithApp(<CalendarGrid label="Today" columns={dayColumns([calendarDay(MONDAY, MONDAY)], [block])} isHeadingHidden />);
+
+    const area = await screen.findByRole('group', {name: 'Today, scrollable'});
+    expect(area).toHaveClass('mc-scroll');
+    expect(area).toHaveAttribute('tabindex', '0');
   });
 
   it('shows a held selection, and opens a day from its heading', async () => {
@@ -359,6 +377,7 @@ describe('CalendarGrid', () => {
     const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest<HTMLElement>('[data-kind]')!;
     layOutColumns();
 
+    // A wobble on its own row takes it nowhere: a click, which opens it.
     fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 50, clientY: yOf(4)});
     fireEvent.pointerMove(card, {pointerId: 1, clientX: 60, clientY: yOf(4) + 10});
     fireEvent.pointerUp(card, {pointerId: 1});
@@ -386,8 +405,90 @@ describe('CalendarGrid', () => {
     fireEvent.pointerUp(fixedCard, {pointerId: 5});
 
     expect(onItemMove).not.toHaveBeenCalled();
-    expect(onItemOpen).toHaveBeenCalledTimes(1);
+    expect(onItemOpen).toHaveBeenCalledTimes(2);
     expect(onItemOpen).toHaveBeenCalledWith(appointment, expect.objectContaining({key: MONDAY}));
+  });
+
+  it('moves an item between rows by whole rows from where it is, keeping its exact length', async () => {
+    atMondayMorning();
+    // 10:05 to 10:25 in 15-minute rows: it starts a third of the way into row 8 (10:00) and ends partway through row 9.
+    const block = blockItem(testBlock(MONDAY, '10:05', '10:25'));
+    const {onItemMove, onItemOpen} = renderGrid({items: [block]});
+    const card = (await screen.findByRole('button', {name: /^Lunch, 10:05 to 10:25/})).closest<HTMLElement>('[data-kind]')!;
+    layOutColumns();
+    const pressed = yOf(8) + 4;
+
+    // Nudged 6px on its own row (a touchpad's click): it stays where it is, and the click opens it.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 1, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 1, clientX: 50, clientY: pressed + 6});
+    expect(document.querySelector('.mc-ghost')).toBeNull();
+    fireEvent.pointerUp(card, {pointerId: 1});
+    fireEvent.click(card);
+    expect(onItemMove).not.toHaveBeenCalled();
+    expect(onItemOpen).toHaveBeenCalledTimes(1);
+
+    // A row down: 15 minutes later, the same 20 minutes long.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 2, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 2, clientX: 50, clientY: pressed + 22});
+    expect(screen.getByText('10:20 to 10:40')).toBeInTheDocument();
+    fireEvent.pointerUp(card, {pointerId: 2});
+    fireEvent.click(card);
+    expect(onItemMove).toHaveBeenLastCalledWith(block, {date: MONDAY, startUtc: '2026-11-23T10:20:00.000Z', endUtc: '2026-11-23T10:40:00.000Z', column: MONDAY});
+
+    // To Tuesday on the same row: the same time of day.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 3, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 3, clientX: 150, clientY: pressed});
+    fireEvent.pointerUp(card, {pointerId: 3});
+    fireEvent.click(card);
+    expect(onItemMove).toHaveBeenLastCalledWith(block, {date: '2026-11-24', startUtc: '2026-11-24T10:05:00.000Z', endUtc: '2026-11-24T10:25:00.000Z', column: '2026-11-24'});
+
+    // Away and back again: a drag that ended where it began, so nothing moves and nothing opens.
+    fireEvent.pointerDown(card, {button: 0, pointerId: 4, clientX: 50, clientY: pressed});
+    fireEvent.pointerMove(card, {pointerId: 4, clientX: 50, clientY: pressed + 44});
+    fireEvent.pointerMove(card, {pointerId: 4, clientX: 50, clientY: pressed + 2});
+    fireEvent.pointerUp(card, {pointerId: 4});
+    fireEvent.click(card);
+    expect(onItemMove).toHaveBeenCalledTimes(2);
+    expect(onItemOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens an item pressed with a wobble under 5px, or on its own row, even once it has started; only a drag moves it', async () => {
+    // 10:30 on Monday: the 09:00 to 12:00 block has started, so it can't be moved anywhere, but it still opens.
+    atMondayMorning('2026-11-23T10:30:00Z');
+    const started = blockItem(testBlock(MONDAY, '09:00', '12:00', {blockId: 'started'}));
+    const later = blockItem(testBlock(MONDAY, '14:00', '15:00', {blockId: 'later'}));
+    const {onItemMove, onItemOpen} = renderGrid({items: [started, later]});
+    const startedCard = (await screen.findByRole('button', {name: /^Lunch, 09:00 to 12:00/})).closest<HTMLElement>('[data-kind]')!;
+    const laterCard = screen.getByRole('button', {name: /^Lunch, 14:00 to 15:00/}).closest<HTMLElement>('[data-kind]')!;
+    layOutColumns();
+
+    // Its words can't be selected: a wobble across them would, and Astryx's card ignores a click while they are.
+    expect(startedCard.style.userSelect).toBe('none');
+
+    // A 6px sideways wobble on the started block, on its own row: a click.
+    fireEvent.pointerDown(startedCard, {button: 0, pointerId: 1, clientX: 50, clientY: yOf(10)});
+    fireEvent.pointerMove(startedCard, {pointerId: 1, clientX: 56, clientY: yOf(10)});
+    fireEvent.pointerUp(startedCard, {pointerId: 1});
+    fireEvent.click(startedCard);
+    expect(onItemOpen).toHaveBeenCalledTimes(1);
+
+    // 4px down across a row line (from the bottom of 14:00's row into 14:15's): still a click, and nothing moves.
+    const rowEnd = 24 * 22 + 20;
+    fireEvent.pointerDown(laterCard, {button: 0, pointerId: 2, clientX: 50, clientY: rowEnd});
+    fireEvent.pointerMove(laterCard, {pointerId: 2, clientX: 50, clientY: rowEnd + 4});
+    expect(document.querySelector('.mc-ghost')).toBeNull();
+    fireEvent.pointerUp(laterCard, {pointerId: 2});
+    fireEvent.click(laterCard);
+    expect(onItemOpen).toHaveBeenCalledTimes(2);
+    expect(onItemMove).not.toHaveBeenCalled();
+
+    // The same press carried 6px into the next row is a drag: it moves a row, and opens nothing.
+    fireEvent.pointerDown(laterCard, {button: 0, pointerId: 3, clientX: 50, clientY: rowEnd});
+    fireEvent.pointerMove(laterCard, {pointerId: 3, clientX: 50, clientY: rowEnd + 6});
+    fireEvent.pointerUp(laterCard, {pointerId: 3});
+    fireEvent.click(laterCard);
+    expect(onItemMove).toHaveBeenCalledWith(later, {date: MONDAY, startUtc: '2026-11-23T14:15:00.000Z', endUtc: '2026-11-23T15:15:00.000Z', column: MONDAY});
+    expect(onItemOpen).toHaveBeenCalledTimes(2);
   });
 
   it('skips days with nothing free, looks both ways for the nearest free time, and stops at the edges', async () => {
@@ -540,6 +641,290 @@ describe('CalendarGrid', () => {
       expect(weekend).not.toHaveAttribute('data-narrow');
       expect(document.querySelector('.mc-head')).toHaveTextContent('k.ashford');
     });
+  });
+
+  describe('compact (a week in a narrow window)', () => {
+    it('leaves out Saturday and Sunday, unless something is somehow on one', () => {
+      const weekday = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '09:30'}));
+      expect(dayColumns(week(), [weekday], {weekdaysOnly: true}).map((c) => c.date)).toEqual(['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27']);
+      expect(dayColumns(week(), [weekday]).map((c) => c.date)).toHaveLength(7);
+
+      // Nothing can be on a weekend, but if something were, it would never be hidden.
+      const saturday = appointmentItem(testAppointment({id: 'saturday', date: '2026-11-28', start: '09:00', end: '09:30'}));
+      expect(dayColumns(week(), [saturday], {weekdaysOnly: true}).map((c) => c.date)).toContain('2026-11-28');
+    });
+
+    it('heads each day short, naming its full date to screen readers, and selects as the full grid does', async () => {
+      atMondayMorning();
+      const onDayOpen = vi.fn();
+      const {user, onSelectRange} = renderGrid({columns: dayColumns(week(), [], {weekdaysOnly: true}), isCompact: true, onDayOpen});
+
+      const grid = await screen.findByRole('group', {name: "test-user's calendar"});
+      expect(grid).toHaveAttribute('data-compact');
+      expect(document.querySelectorAll('.mc-col')).toHaveLength(5);
+      expect(document.querySelector('.mc-head')).toHaveTextContent('Mon 23Tue 24Wed 25Thu 26Fri 27');
+      // The weekday over the date, so a narrow column tells Tue from Thu.
+      expect(screen.getByRole('button', {name: 'Thu 26: show Thursday 26 November'}).querySelectorAll('.astryx-text')).toHaveLength(2);
+      expect(column('Tuesday 24 November')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', {name: 'Mon 23, today: show Monday 23 November'}));
+      expect(onDayOpen).toHaveBeenCalledWith(MONDAY);
+      expect(screen.getByRole('button', {name: 'Fri 27: show Friday 27 November'})).toBeInTheDocument();
+
+      fireEvent.pointerDown(slot('Tuesday 24 November, 10:00, free'), {button: 0, pointerId: 1});
+      fireEvent.pointerUp(column('Tuesday 24 November'), {pointerId: 1});
+      await waitFor(() => expect(onSelectRange).toHaveBeenCalledWith(expect.objectContaining({date: '2026-11-24', column: '2026-11-24'}), expect.anything()));
+    });
+
+    it('shows each item in its colour, its words wrapping to the lines it has room for, in full in its tooltip and name', async () => {
+      atMondayMorning();
+      const hour = appointmentItem(testAppointment({id: 'hour', date: MONDAY, start: '10:00', end: '11:00'}));
+      const block = blockItem(testBlock(MONDAY, '12:00', '13:00', {note: 'Team lunch'}));
+      const short = blockItem(testBlock(MONDAY, '14:00', '14:10', {blockId: 'short'}));
+      const {user, onItemOpen} = renderGrid({columns: dayColumns(week(), [hour, block, short], {weekdaysOnly: true}), isCompact: true});
+
+      const name = 'Test Patient, Knee review: Assessment, 10:00 to 11:00, Booked';
+      const card = await screen.findByRole('button', {name});
+      const box = card.closest('[data-kind]')!;
+      // Its words, wrapping to the four lines an hour has room for; and its start time with its name under it, which
+      // the grid's CSS shows instead when the card is too narrow for words (a phone).
+      const full = box.querySelector('.mc-full .astryx-text')!;
+      expect(full).toHaveTextContent('Test Patient, Knee review: Assessment');
+      expect(box.querySelector('.mc-short')).toHaveTextContent('10:00Test Patient');
+      // Under two rows, the time alone.
+      expect(screen.getByRole('button', {name: /^Lunch, 14:00 to 14:10/}).closest('[data-kind]')!.querySelector('.mc-short')).toHaveTextContent(/^14:00$/);
+      expect(box.getAttribute('style')).toContain('container-type: inline-size');
+      const css = document.querySelector('.medapp-calendar style')!.textContent!;
+      expect(css).toContain('@container (max-width: 4.5rem) { .medapp-calendar .mc-full { display: none; } .medapp-calendar .mc-short { display: block; } }');
+      // A 10-minute item's text is the same size as the rest in a compact week.
+      expect(screen.getByRole('button', {name: /^Lunch, 14:00 to 14:10/}).closest('[data-kind]')!.querySelector('.mc-item-short')).not.toBeNull();
+      expect(css).toContain('.medapp-calendar[data-compact] .mc-item-short { font-size: var(--text-supporting-size');
+      expect(card.closest('[data-kind]')!.getAttribute('style')).toContain(`var(--color-border-${hour.colour})`);
+      await user.hover(card);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(name);
+      await user.click(card);
+      expect(onItemOpen).toHaveBeenCalledWith(hour, expect.objectContaining({key: MONDAY}));
+
+      expect(screen.getByRole('button', {name: 'Lunch, Team lunch, 12:00 to 13:00'}).closest('[data-kind]')).toHaveTextContent('Lunch, Team lunch');
+    });
+  });
+
+  describe('with 5-minute rows', () => {
+    /** Each day's column laid out with 5-minute rows as tall as 15-minute ones: 22px a row, 120 rows. */
+    function layOutFiveMinuteColumns() {
+      document.querySelectorAll<HTMLElement>('.mc-col').forEach((element, i) => {
+        element.getBoundingClientRect = () => ({left: i * 100, right: (i + 1) * 100, top: 0, bottom: 2640, width: 100, height: 2640, x: i * 100, y: 0, toJSON: () => ({})});
+      });
+    }
+
+    it('has three times the rows, with smaller quarter hours down the side, and selects 5 minutes at a time', async () => {
+      atMondayMorning();
+      // Lunch from 12:40, so a click at 12:30 has only 10 minutes free.
+      const {user, onSelectRange} = renderGrid({rowMinutes: 5, items: [blockItem(testBlock('2026-11-24', '12:40', '13:00'))]});
+
+      expect(await screen.findByRole('group', {name: "test-user's calendar"})).toHaveAttribute('data-row-minutes', '5');
+      // 120 free 5-minute rows on each of the five working days.
+      expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(596);
+      expect(screen.getByText('08:15').closest('.mc-hour')).toHaveAttribute('data-quarter');
+      expect(screen.getByText('09:00').closest('.mc-hour')).not.toHaveAttribute('data-quarter');
+      // Smaller, but never fainter: the secondary text colour at full strength is what passes 4.5:1.
+      const css = document.querySelector('.medapp-calendar style')!.textContent!;
+      expect(css).toMatch(/\.mc-hour\[data-quarter\] \.astryx-text \{ font-size: /);
+      expect(css).not.toMatch(/data-quarter\][^{]*\{[^}]*opacity/);
+      expect(document.querySelector('[data-slot="0-1"]')).toHaveAttribute('data-line', 'minor');
+      expect(document.querySelector('[data-slot="0-3"]')).toHaveAttribute('data-line', 'quarter');
+
+      // A click selects 15 minutes, not one 5-minute row: a single row would make a 5-minute booking.
+      const free = slot('Tuesday 24 November, 09:05, free');
+      fireEvent.pointerDown(free, {button: 0, pointerId: 1});
+      fireEvent.pointerUp(free, {pointerId: 1});
+      await waitFor(() =>
+        expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: '2026-11-24T09:05:00.000Z', endUtc: '2026-11-24T09:20:00.000Z', column: '2026-11-24'}, free),
+      );
+      // Or up to whatever comes sooner.
+      const beforeLunch = slot('Tuesday 24 November, 12:30, free');
+      fireEvent.pointerDown(beforeLunch, {button: 0, pointerId: 2});
+      fireEvent.pointerUp(beforeLunch, {pointerId: 2});
+      await waitFor(() =>
+        expect(onSelectRange).toHaveBeenLastCalledWith({date: '2026-11-24', startUtc: '2026-11-24T12:30:00.000Z', endUtc: '2026-11-24T12:40:00.000Z', column: '2026-11-24'}, beforeLunch),
+      );
+
+      // The keyboard goes a row (5 minutes) at a time; Enter alone selects 15 minutes too, Shift any number of rows.
+      free.focus();
+      await user.keyboard('{ArrowDown}');
+      expect(slot('Tuesday 24 November, 09:10, free')).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(onSelectRange).toHaveBeenLastCalledWith(
+        {date: '2026-11-24', startUtc: '2026-11-24T09:10:00.000Z', endUtc: '2026-11-24T09:25:00.000Z', column: '2026-11-24'},
+        slot('Tuesday 24 November, 09:10, free'),
+      );
+      await user.keyboard('{Shift>}{ArrowDown}{/Shift}{Enter}');
+      expect(onSelectRange).toHaveBeenLastCalledWith(
+        {date: '2026-11-24', startUtc: '2026-11-24T09:10:00.000Z', endUtc: '2026-11-24T09:20:00.000Z', column: '2026-11-24'},
+        expect.anything(),
+      );
+    });
+
+    it('drags a selection and an item by 5 minutes', async () => {
+      atMondayMorning();
+      const appointment = appointmentItem(testAppointment({date: MONDAY, start: '09:00', end: '09:30'}));
+      const {onSelectRange, onItemMove} = renderGrid({rowMinutes: 5, items: [appointment]});
+      const card = (await screen.findByRole('button', {name: /^Test Patient/})).closest<HTMLElement>('[data-kind]')!;
+      layOutFiveMinuteColumns();
+
+      // From 10:00 (row 24) down to 10:10 (row 26).
+      fireEvent.pointerDown(slot('Tuesday 24 November, 10:00, free'), {button: 0, pointerId: 1, clientX: 150, clientY: yOf(24)});
+      fireEvent.pointerMove(column('Tuesday 24 November'), {pointerId: 1, clientX: 150, clientY: yOf(26)});
+      fireEvent.pointerUp(column('Tuesday 24 November'), {pointerId: 1});
+      await waitFor(() =>
+        expect(onSelectRange).toHaveBeenCalledWith({date: '2026-11-24', startUtc: '2026-11-24T10:00:00.000Z', endUtc: '2026-11-24T10:15:00.000Z', column: '2026-11-24'}, expect.anything()),
+      );
+
+      // Picked up by its top (09:00, row 12), dropped on Wednesday at 14:05 (row 73), keeping its 30 minutes.
+      fireEvent.pointerDown(card, {button: 0, pointerId: 7, clientX: 50, clientY: yOf(12)});
+      fireEvent.pointerMove(card, {pointerId: 7, clientX: 250, clientY: yOf(73)});
+      expect(screen.getByText('14:05 to 14:35')).toBeInTheDocument();
+      fireEvent.pointerUp(card, {pointerId: 7});
+      expect(onItemMove).toHaveBeenCalledWith(appointment, {date: '2026-11-25', startUtc: '2026-11-25T14:05:00.000Z', endUtc: '2026-11-25T14:35:00.000Z', column: '2026-11-25'});
+    });
+
+    it('keeps the same time at the top when the row length changes', async () => {
+      // Columns as tall as their rows, 22px each, as a browser would lay them out (jsdom lays out nothing).
+      const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-col') ? Number(this.closest<HTMLElement>('.medapp-calendar')!.dataset.rowMinutes === '5' ? 2640 : 880) : 0;
+        },
+      });
+      try {
+        atMondayMorning();
+        // The same grid throughout, its row length switched as the Calendar page's control does.
+        function Switchable() {
+          const [rowMinutes, setRowMinutes] = useState<CalendarRowMinutes>(15);
+          return (
+            <>
+              <button type="button" onClick={() => setRowMinutes(rowMinutes === 15 ? 5 : 15)}>
+                Switch
+              </button>
+              <CalendarGrid label="test-user's calendar" columns={dayColumns(week(), [])} rowMinutes={rowMinutes} />
+            </>
+          );
+        }
+        const {user} = renderWithApp(<Switchable />);
+        await screen.findByRole('group', {name: 'Monday 23 November, today'});
+        const scroller = document.querySelector<HTMLElement>('.mc-scroll')!;
+
+        // 10:30 at the top: a quarter of the way through the working day.
+        scroller.scrollTop = 220;
+        fireEvent.scroll(scroller);
+        await user.click(screen.getByRole('button', {name: 'Switch'}));
+        expect(document.querySelector('.medapp-calendar')).toHaveAttribute('data-row-minutes', '5');
+        expect(scroller.scrollTop).toBe(660);
+
+        await user.click(screen.getByRole('button', {name: 'Switch'}));
+        expect(scroller.scrollTop).toBe(220);
+      } finally {
+        Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+      }
+    });
+
+    it("keeps the keyboard's place on the same time when the row length changes", async () => {
+      atMondayMorning();
+      function Switchable() {
+        const [rowMinutes, setRowMinutes] = useState<CalendarRowMinutes>(15);
+        return (
+          <>
+            <button type="button" onClick={() => setRowMinutes(rowMinutes === 15 ? 5 : 15)}>
+              Switch
+            </button>
+            <CalendarGrid label="test-user's calendar" columns={dayColumns(week(), [])} rowMinutes={rowMinutes} onSelectRange={() => {}} />
+          </>
+        );
+      }
+      const {user} = renderWithApp(<Switchable />);
+      (await screen.findByRole('button', {name: 'Tuesday 24 November, 10:00, free'})).focus();
+
+      await user.click(screen.getByRole('button', {name: 'Switch'}));
+      expect(slot('Tuesday 24 November, 10:00, free')).toHaveAttribute('tabindex', '0');
+
+      // In 5-minute rows, to 10:10; back in 15-minute rows, the row it's in: 10:00.
+      slot('Tuesday 24 November, 10:00, free').focus();
+      await user.keyboard('{ArrowDown}{ArrowDown}');
+      expect(slot('Tuesday 24 November, 10:10, free')).toHaveFocus();
+      await user.click(screen.getByRole('button', {name: 'Switch'}));
+      expect(slot('Tuesday 24 November, 10:00, free')).toHaveAttribute('tabindex', '0');
+      expect(slot('Monday 23 November, 08:00, free')).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('goes to the time now on switching, when the whole day was in view and today is under way', async () => {
+      // A tall window: the 15-minute day (40px of headings and 880px of rows) fits its 1,000px, so nothing scrolled.
+      const descriptors = Object.fromEntries(
+        (['offsetHeight', 'clientHeight', 'scrollHeight'] as const).map((name) => [name, Object.getOwnPropertyDescriptor(HTMLElement.prototype, name)]),
+      );
+      const rowsTall = (element: HTMLElement) => (element.closest<HTMLElement>('.medapp-calendar')!.dataset.rowMinutes === '5' ? 2640 : 880);
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-col') ? rowsTall(this) : 0;
+        },
+      });
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-scroll') ? 1000 : 0;
+        },
+      });
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-scroll') ? 40 + rowsTall(this) : 0;
+        },
+      });
+      try {
+        atMondayMorning('2026-11-23T15:00:00Z');
+        function Switchable() {
+          const [rowMinutes, setRowMinutes] = useState<CalendarRowMinutes>(15);
+          return (
+            <>
+              <button type="button" onClick={() => setRowMinutes(rowMinutes === 15 ? 5 : 15)}>
+                Switch
+              </button>
+              <CalendarGrid label="test-user's calendar" columns={dayColumns(week(), [])} rowMinutes={rowMinutes} />
+            </>
+          );
+        }
+        const {user} = renderWithApp(<Switchable />);
+        await screen.findByRole('group', {name: 'Monday 23 November, today'});
+        const scroller = document.querySelector<HTMLElement>('.mc-scroll')!;
+        // 15:00 is 7 hours into the 10-hour day: 1,848px down 2,640, less the hour before it (264px) kept above.
+        await user.click(screen.getByRole('button', {name: 'Switch'}));
+        expect(scroller.scrollTop).toBeCloseTo(1584);
+      } finally {
+        // clientHeight and scrollHeight are Element's, not HTMLElement's: removing these brings them back.
+        for (const [name, descriptor] of Object.entries(descriptors)) {
+          if (descriptor) Object.defineProperty(HTMLElement.prototype, name, descriptor);
+          else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
+        }
+      }
+    });
+  });
+
+  it('opens at the start of the working day once it has ended', async () => {
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('mc-col') ? 880 : 0;
+      },
+    });
+    try {
+      atMondayMorning('2026-11-23T19:00:00Z');
+      renderGrid();
+      await screen.findByRole('group', {name: 'Monday 23 November, today'});
+      expect(document.querySelector<HTMLElement>('.mc-scroll')!.scrollTop).toBe(0);
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+    }
   });
 
   it('shows nothing much for no days', async () => {

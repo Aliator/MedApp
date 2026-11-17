@@ -16,6 +16,10 @@ const parsePageSize = (stored: string | null) => {
 
 const PAGE_SIZE_KEY = defineSetting('medapp.pageSize');
 const START_ON_MINE_KEY = defineSetting('medapp.proceduresStartOnMine');
+const CALENDAR_ROWS_KEY = defineSetting('medapp.calendarRows');
+
+/** How long each row of the Calendar page's grid is, in minutes. */
+export type CalendarRows = 15 | 5;
 
 interface ListSettingsContextValue {
   pageSize: number;
@@ -23,23 +27,36 @@ interface ListSettingsContextValue {
   /** Whether the procedure lists start on "Assigned to me" (their URL can still say otherwise). */
   startsOnMine: boolean;
   setStartsOnMine: (starts: boolean) => void;
+  /**
+   * The Calendar page's row length when its URL doesn't say (`rows`): the one last chosen there, 15 minutes until then,
+   * so it follows the person to the Calendar from the side nav, Home or a notification.
+   */
+  calendarRows: CalendarRows;
+  setCalendarRows: (rows: CalendarRows) => void;
 }
 
 const ListSettingsContext = createContext<ListSettingsContextValue | null>(null);
 
-/** How the lists show (Account Settings, Lists), kept in this browser and with the account (`settingsStore`). */
+/**
+ * How the lists show (Account Settings, Lists), and the Calendar's row length, kept in this browser and with the
+ * account (`settingsStore`).
+ */
 export function ListSettingsProvider({children}: {children: ReactNode}) {
   const [storedSize, storeSize] = useAppSetting(PAGE_SIZE_KEY);
   const [storedMine, storeMine] = useAppSetting(START_ON_MINE_KEY);
+  const [storedRows, storeRows] = useAppSetting(CALENDAR_ROWS_KEY);
   const pageSize = parsePageSize(storedSize) ?? DEFAULT_PAGE_SIZE;
   const startsOnMine = storedMine === 'true';
+  const calendarRows: CalendarRows = storedRows === '5' ? 5 : 15;
 
   const setPageSize = useCallback((size: number) => storeSize(String(parsePageSize(String(size)) ?? DEFAULT_PAGE_SIZE)), [storeSize]);
   const setStartsOnMine = useCallback((starts: boolean) => storeMine(String(starts)), [storeMine]);
+  // Only 5 is kept: 15 is the default, so choosing it removes the setting.
+  const setCalendarRows = useCallback((rows: CalendarRows) => storeRows(rows === 5 ? '5' : null), [storeRows]);
 
   const value = useMemo(
-    () => ({pageSize, setPageSize, startsOnMine, setStartsOnMine}),
-    [pageSize, setPageSize, startsOnMine, setStartsOnMine],
+    () => ({pageSize, setPageSize, startsOnMine, setStartsOnMine, calendarRows, setCalendarRows}),
+    [pageSize, setPageSize, startsOnMine, setStartsOnMine, calendarRows, setCalendarRows],
   );
   return <ListSettingsContext.Provider value={value}>{children}</ListSettingsContext.Provider>;
 }
@@ -49,6 +66,8 @@ const DEFAULTS: ListSettingsContextValue = {
   setPageSize: () => {},
   startsOnMine: false,
   setStartsOnMine: () => {},
+  calendarRows: 15,
+  setCalendarRows: () => {},
 };
 
 /** The list settings; outside the provider (tests of one part), the defaults. */

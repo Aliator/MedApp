@@ -20,7 +20,7 @@ public sealed class BlockTimeTests : E2ETest
     private static readonly int[] Hours = [14, 10, 15, 11, 16, 9];
 
     [Test]
-    public async Task BlockTime_DraggedOverFreeTime_OpensTheMenuBesideItAndBlocksThatTime()
+    public async Task BlockTime_DraggedOverFreeTime_OpensTheMenuNextToItAndBlocksThatTime()
     {
         var myId = await Api.UserIdOfAsync((await Api.WhoAmIAsync()).Name!);
         var (day, hour) = await FreeHourAsync(myId);
@@ -49,7 +49,7 @@ public sealed class BlockTimeTests : E2ETest
         await Page.Mouse.MoveAsync(to.X + 10, to.Y + to.Height / 2, new() { Steps = 6 });
         await Page.Mouse.UpAsync();
 
-        // The menu opens for the hour selected, stays open, and sits beside the selection (not in the window's corner).
+        // The menu opens for the hour selected, stays open, and sits next to the selection (not in the window's corner).
         var range = $"{hour:00}:00 to {hour + 1:00}:00";
         var menu = Page.GetByRole(AriaRole.Dialog, new() { Name = "Selected time" });
         var selection = Main.GetByRole(AriaRole.Button, new() { Name = $"Selected time, {range}" });
@@ -57,10 +57,14 @@ public sealed class BlockTimeTests : E2ETest
         await Expect(selection).ToHaveAttributeAsync("aria-expanded", "true");
         await Page.WaitForTimeoutAsync(500);
         await Expect(menu).ToBeVisibleAsync();
+        // Next to the selection on any side (in day view a wide selection has it below, or above when there's no room
+        // below; in week view beside), never off in the window's corner.
         var menuBox = (await menu.BoundingBoxAsync())!;
         var selectionBox = (await selection.BoundingBoxAsync())!;
-        Assert.That(menuBox.Y, Is.InRange(selectionBox.Y - menuBox.Height, selectionBox.Y + selectionBox.Height),
-            "The menu should open beside the selection, level with it.");
+        var gapX = Math.Max(0, Math.Max(menuBox.X - (selectionBox.X + selectionBox.Width), selectionBox.X - (menuBox.X + menuBox.Width)));
+        var gapY = Math.Max(0, Math.Max(menuBox.Y - (selectionBox.Y + selectionBox.Height), selectionBox.Y - (menuBox.Y + menuBox.Height)));
+        Assert.That(Math.Max(gapX, gapY), Is.LessThanOrEqualTo(12),
+            $"The menu should open next to the selection: it was {gapX:0} px across and {gapY:0} px up or down from it.");
         await menu.GetByRole(AriaRole.Button, new() { Name = "Block time" }).ClickAsync();
 
         // Block Time, for that hour, with the first activity.

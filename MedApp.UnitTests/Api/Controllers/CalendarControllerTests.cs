@@ -75,7 +75,7 @@ public sealed class CalendarControllerTests
         var request = _fixture.Create<GetCalendarRequest>();
 
         await ExpectOk(_fixture.Create<CalendarResponse>(),
-            new GetCalendarQuery(request.StaffUserId, request.From, request.To, new CalendarActor(UserId, Username, isAdmin)),
+            new GetCalendarQuery(request.StaffUserId, request.From, request.To, new CalendarActor(UserId, Username, isAdmin), request.WithoutAppointments),
             c => c.GetCalendar(request, _cts.Token), role);
     }
 

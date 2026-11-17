@@ -29,6 +29,14 @@ setup('sign in and find shared records', async ({ page }, info) => {
     `${apiUrl}/api/procedures/patient-procedures/search?Statuses=InProgress&Sort=title&PageSize=1`,
   );
   const procedureId = procedures.ok() ? ((await procedures.json()) as { items: { id: string }[] }).items[0]?.id : undefined;
+  // And a procedure of the first restricted patient (the demo data has some), for a page with a long page message.
+  const restricted = (patients as { id: string; isRestricted?: boolean }[]).find((p) => p.isRestricted);
+  const restrictedProcedures = restricted
+    ? await page.request.get(`${apiUrl}/api/procedures/patient-procedures/search?PatientId=${restricted.id}&Sort=title&PageSize=1`)
+    : undefined;
+  const restrictedProcedureId = restrictedProcedures?.ok()
+    ? ((await restrictedProcedures.json()) as { items: { id: string }[] }).items[0]?.id
+    : undefined;
 
-  writeData(app, { patientId: patients[0].id, procedureId });
+  writeData(app, { patientId: patients[0].id, procedureId, restrictedProcedureId });
 });

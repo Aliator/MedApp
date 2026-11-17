@@ -31,13 +31,17 @@ namespace MedApp.API.Controllers;
 [Authorize(Policy = AuthPolicies.Staff)]
 public sealed class CalendarController(IMediator mediator) : ControllerBase
 {
-    /// <summary>One person's calendar (yours by default) from one UK date to another, at most 31 days.</summary>
+    /// <summary>
+    /// One person's calendar (yours by default) from one UK date to another, at most 31 days; with
+    /// <c>WithoutAppointments</c>, without its appointments, recording no reads of patients.
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(CalendarResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCalendar([FromQuery] GetCalendarRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetCalendarQuery(request.StaffUserId, request.From, request.To, User.ToCalendarActor()), ct));
+        Ok(await mediator.Send(
+            new GetCalendarQuery(request.StaffUserId, request.From, request.To, User.ToCalendarActor(), request.WithoutAppointments), ct));
 
     /// <summary>
     /// The team view (admins): one UK date of several people's calendars (everyone with a staff role when none are
