@@ -7,7 +7,7 @@ import {HalfViewContext} from '../../components/pages/halfView';
 import {calendarDay, STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../../test/calendar';
 import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderApp, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
-import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, shownView} from './CalendarPage';
+import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, selectionMenuPlacement, shownView} from './CalendarPage';
 import {givenWidth} from '../../test/layout';
 import type {CalendarSearch} from './calendarSearch';
 
@@ -984,6 +984,15 @@ describe('the Calendar page outside React', () => {
     expect(shownView({}, false, true)).toBe('day');
     expect(shownView({view: 'week'}, false, true)).toBe('week');
     expect(shownView({view: 'day'}, false)).toBe('day');
+  });
+
+  it('opens the menu for selected time beside it, or below it when the selection is too wide for beside', () => {
+    // A week's column: beside it. A day's column in a wide window: below it, near what was selected, rather than
+    // flipped to the far side over the side nav.
+    expect(selectionMenuPlacement(0)).toBe('end');
+    expect(selectionMenuPlacement(120)).toBe('end');
+    expect(selectionMenuPlacement(320)).toBe('end');
+    expect(selectionMenuPlacement(800)).toBe('below');
   });
 
   it("preloads the team view's day for admins, or the person's calendar and then their templates", async () => {

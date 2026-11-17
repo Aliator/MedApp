@@ -60,6 +60,18 @@ const TOOLBAR_FIELD_WIDTH = 175;
 /** Text in the secondary colour shown in the primary one instead (the View control's unselected choices). */
 const PRIMARY_TEXT = {'--color-text-secondary': 'var(--color-text-primary)'} as CSSProperties;
 
+/**
+ * Where the menu for selected time (Book or Block) opens: beside the selection, or below it when the selection is
+ * wider than this (a day in a wide window, a team view of a few), where "beside" has no room and flips the menu to the
+ * far side, over the side nav and the hours.
+ */
+export function selectionMenuPlacement(selectionWidth: number): 'end' | 'below' {
+  return selectionWidth > WIDE_SELECTION_PX ? 'below' : 'end';
+}
+
+/** A selection this wide (px) or narrower has room for its menu beside it. */
+const WIDE_SELECTION_PX = 320;
+
 /** The row lengths the grid offers, in minutes. */
 const ROW_CHOICES: CalendarRowMinutes[] = [15, 5];
 
@@ -206,6 +218,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
 
   const [message, setMessage] = useState<string | null>(null);
   const [held, setHeld] = useState<CalendarSelection | null>(null);
+  const [heldPlacement, setHeldPlacement] = useState<'end' | 'below'>('end');
   const heldAnchor = useRef<HTMLElement | null>(null);
   const selectionRef = useRef<HTMLElement>(null) as RefObject<HTMLElement>;
   const [booking, setBooking] = useState<{selection?: CalendarSelection; staffUserId?: string} | null>(null);
@@ -247,6 +260,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     const owner = calendarOf(selection.column);
     if (selection.column === EVERYONE_FREE || owner?.canEdit === true) {
       heldAnchor.current = anchor;
+      // The slot it ended at is as wide as the selection: its column.
+      setHeldPlacement(selectionMenuPlacement(anchor?.offsetWidth ?? 0));
       setHeld(selection);
     } else {
       setBooking({selection, staffUserId: owner?.staffUserId});
@@ -498,7 +513,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               if (!open) releaseSelection();
             }}
             label="Selected time"
-            placement="end"
+            placement={heldPlacement}
             padding={1}
             content={
               <VStack gap={0.5} hAlign="stretch" data-selected-time-menu="">
