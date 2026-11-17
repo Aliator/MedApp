@@ -9,6 +9,13 @@ using MediatR;
 
 namespace MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
 
+/// <summary>
+/// Changes a meeting, holding the calendar locks of everyone going before and after. It's refused (a 409) when the
+/// meeting has changed since the caller read it (<see cref="UpdateMeetingCommand.ExpectedLastUpdated"/>), so a change
+/// made from a stale screen or a drag can't silently undo another admin's. Only the attendees it newly adds must be
+/// staff; anyone already going whose account has gone (or who is no longer staff) is dropped, untold
+/// (<see cref="MeetingStaff.ChooseOrThrow"/>).
+/// </summary>
 public sealed class UpdateMeetingHandler(
     IMeetingRepository repository,
     ICalendarRepository calendarRepository,
@@ -23,6 +30,10 @@ public sealed class UpdateMeetingHandler(
         var existing = await repository.GetAsync(request.MeetingId, cancellationToken)
                        ?? throw new NotFoundException($"Meeting '{request.MeetingId}' was not found.");
 
+        // The validator requires it; compared here first so a stale change fails without taking anyone's lock.
+        var expected = UkTime.Utc(request.ExpectedLastUpdated!.Value);
+        EnsureUnchanged(existing, expected);
+
         var start = UkTime.Utc(request.StartUtc);
         var end = UkTime.Utc(request.EndUtc);
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -30,8 +41,9 @@ public sealed class UpdateMeetingHandler(
         CalendarGuards.EnsureNotPast(UkTime.DateOf(existing.StartUtc), today);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(start), today);
 
-        var attendees = await identityReadService.GetStaffOrThrowAsync(request.AttendeeUserIds, cancellationToken);
         var previousAttendees = existing.Attendees.Select(a => a.StaffUserId).ToList();
+        var staff = await identityReadService.GetStaffAsync(cancellationToken);
+        var attendees = MeetingStaff.ChooseOrThrow(staff, request.AttendeeUserIds, previousAttendees);
         var locked = previousAttendees.Concat(attendees.Select(a => a.UserId)).Distinct().ToList();
 
         // Holding the locks of everyone going before and after, so nothing can take the new time meanwhile.
@@ -39,6 +51,9 @@ public sealed class UpdateMeetingHandler(
         {
             var tracked = await repository.GetForUpdateAsync(request.MeetingId, ct)
                           ?? throw new NotFoundException($"Meeting '{request.MeetingId}' was not found.");
+
+            // Compared again with the copy read under the locks: someone may have saved a change since the first read.
+            EnsureUnchanged(tracked, expected);
 
             // Someone else changed who's going since it was read: their locks weren't taken.
             if (tracked.Attendees.Any(a => !locked.Contains(a.StaffUserId)))
@@ -62,11 +77,20 @@ public sealed class UpdateMeetingHandler(
             return (tracked, was);
         }, cancellationToken);
 
+        // Only staff are told: nobody whose account has gone (or who is no longer staff) hears they were taken off.
+        var staffIds = staff.Select(s => s.UserId).ToHashSet();
         foreach (var notification in MeetingNotifications.AfterChanging(
-                     meeting, before.Attendees, before.StartUtc, before.EndUtc, request.Actor, now))
+                     meeting, before.Attendees.Where(staffIds.Contains).ToList(), before.StartUtc, before.EndUtc, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);
 
         var usernames = await identityReadService.GetUsernamesByIdAsync(MeetingMapper.UserIds(meeting), cancellationToken);
         return MeetingMapper.ToResponse(meeting, usernames, request.Actor.IsAdmin, today);
+    }
+
+    /// <summary>A 409 when the meeting isn't as the caller last read it.</summary>
+    private static void EnsureUnchanged(Meeting meeting, DateTime expectedLastUpdated)
+    {
+        if (meeting.LastUpdated != expectedLastUpdated)
+            throw new ConflictException(MeetingLimits.ChangedMeanwhile);
     }
 }

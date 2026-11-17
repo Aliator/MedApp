@@ -291,7 +291,8 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
     if (!canSave) return false;
     setProblem(NO_PROBLEM);
     const body = {title: title.trim(), notes: notes.trim() || null, startUtc: times.startUtc, endUtc: times.endUtc, attendeeUserIds: attendees};
-    if (meeting) actions.save.mutate({id: meeting.id ?? '', ...body}, {onSuccess: succeed, onError: fail});
+    // A change says which version of the meeting it was made from: if anyone has changed it since, it's a 409.
+    if (meeting) actions.save.mutate({id: meeting.id ?? '', ...body, expectedLastUpdated: meeting.lastUpdated}, {onSuccess: succeed, onError: fail});
     else actions.create.mutate(body, {onSuccess: succeed, onError: fail});
   };
 

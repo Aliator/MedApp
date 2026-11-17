@@ -47,7 +47,10 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
         return Created($"/api/calendar/meetings/{meeting.Id}", meeting);
     }
 
-    /// <summary>Changes a meeting's title, notes, time and attendees.</summary>
+    /// <summary>
+    /// Changes a meeting's title, notes, time and attendees. The request carries the meeting's <c>lastUpdated</c> as the
+    /// caller last read it (<c>expectedLastUpdated</c>): a 409 if it has changed since.
+    /// </summary>
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(MeetingResponse), StatusCodes.Status200OK)]
@@ -62,6 +65,7 @@ public sealed class MeetingsController(IMediator mediator) : ControllerBase
             request.StartUtc,
             request.EndUtc,
             request.AttendeeUserIds ?? [],
+            request.ExpectedLastUpdated,
             User.ToCalendarActor()), ct));
 
     /// <summary>Cancels (deletes) a meeting; its attendees are told.</summary>

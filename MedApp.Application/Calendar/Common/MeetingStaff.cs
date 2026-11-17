@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.Results;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
@@ -8,21 +10,40 @@ namespace MedApp.Application.Calendar.Common;
 /// <summary>Who a meeting is for, and whether they can all go at its time.</summary>
 public static class MeetingStaff
 {
+    public const string NobodyLeft =
+        "Nobody left on this meeting can go: their accounts have gone or they're no longer staff. Add someone, or cancel it.";
+
     /// <summary>
     /// The members of staff with these IDs (each once), by username, or a 404 naming any that aren't staff (no
     /// account, or no role).
     /// </summary>
     public static async Task<IReadOnlyList<(Guid UserId, string Username)>> GetStaffOrThrowAsync(
-        this IIdentityReadService identity, IEnumerable<Guid> staffUserIds, CancellationToken ct)
+        this IIdentityReadService identity, IEnumerable<Guid> staffUserIds, CancellationToken ct) =>
+        ChooseOrThrow(await identity.GetStaffAsync(ct), staffUserIds, alreadyGoing: []);
+
+    /// <summary>
+    /// The attendees a meeting asks for, from <paramref name="staff"/> (everyone with a staff role). Only those not
+    /// <paramref name="alreadyGoing"/> must be staff: a 404 names any that aren't. Anyone already going whose account
+    /// has since gone, or who is no longer staff, is left out without an error, so a change drops them (they can't go,
+    /// and an account that goes is taken off its meetings to come anyway). A 400 when that leaves nobody.
+    /// </summary>
+    public static IReadOnlyList<(Guid UserId, string Username)> ChooseOrThrow(
+        IReadOnlyList<(Guid UserId, string Username)> staff,
+        IEnumerable<Guid> staffUserIds,
+        IReadOnlyCollection<Guid> alreadyGoing)
     {
         var wanted = staffUserIds.Distinct().ToList();
-        var staff = (await identity.GetStaffAsync(ct)).Where(s => wanted.Contains(s.UserId)).ToList();
+        var chosen = staff.Where(s => wanted.Contains(s.UserId)).ToList();
 
-        var missing = wanted.Where(id => staff.All(s => s.UserId != id)).ToList();
+        var missing = wanted.Where(id => !alreadyGoing.Contains(id) && chosen.All(s => s.UserId != id)).ToList();
         if (missing.Count != 0)
             throw new NotFoundException($"Staff member(s) not found: {string.Join(", ", missing)}.");
 
-        return staff;
+        // Something was asked for, but everyone asked for has gone.
+        if (wanted.Count != 0 && chosen.Count == 0)
+            throw new ValidationException([new ValidationFailure(nameof(IMeetingCommand.AttendeeUserIds), NobodyLeft)]);
+
+        return chosen;
     }
 
     /// <summary>

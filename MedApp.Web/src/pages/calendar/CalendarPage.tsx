@@ -255,10 +255,19 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     }
     if (item.kind === 'meeting') {
       // The same meeting at the new time: its title, notes and attendees as they are. A clash is the API's 409, in
-      // its words, and the meeting stays where it was.
+      // its words, and the meeting stays where it was; so is a meeting someone changed since this copy was loaded
+      // (its `lastUpdated`), so a drag can't undo their change.
       const m = meetingOf(source, item);
       meetingActions.save.mutate(
-        {id: m.id ?? '', title: m.title, notes: m.notes, attendeeUserIds: (m.attendees ?? []).map((a) => a.userId ?? ''), startUtc: to.startUtc, endUtc: to.endUtc},
+        {
+          id: m.id ?? '',
+          title: m.title,
+          notes: m.notes,
+          attendeeUserIds: (m.attendees ?? []).map((a) => a.userId ?? ''),
+          startUtc: to.startUtc,
+          endUtc: to.endUtc,
+          expectedLastUpdated: m.lastUpdated,
+        },
         {onSuccess: () => announce('Meeting moved'), onError: (error) => setMessage(problemMessage(error, 'The meeting could not be moved.'))},
       );
       return;

@@ -355,6 +355,8 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       startUtc: '2026-11-19T09:00:00.000Z',
       endUtc: '2026-11-19T10:00:00.000Z',
       attendeeUserIds: [KAY.userId, GONE],
+      // The version it was changed from: the API refuses the change if anyone has changed the meeting since.
+      expectedLastUpdated: MEETING.lastUpdated,
     });
   });
 
