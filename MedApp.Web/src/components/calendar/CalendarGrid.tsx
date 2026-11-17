@@ -6,7 +6,7 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Tooltip} from '@astryxdesign/core/Tooltip';
 import {VisuallyHidden} from '@astryxdesign/core/VisuallyHidden';
-import {useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
+import {memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type Ref} from 'react';
 import type {CalendarDay} from '../../api/calendar';
 import {formatCalendarDay, formatShortDay, formatWeekday, formatTimeRange, intervalOf, isWeekday} from '../../utils/calendarSlots';
 import {formatTime, parseUtc} from '../../utils/dates';
@@ -130,6 +130,8 @@ interface ColumnLayout {
   isNarrow: boolean;
   start: number;
   rows: number;
+  /** How long each row is, in ms. */
+  slot: number;
   /** The time its rows cover, in ms: `rows` times the row length. */
   span: number;
   /** Free time can be selected in it: a working day that isn't past, on a grid that selects. */
@@ -242,6 +244,8 @@ interface Drag {
   to: DragTarget | null;
 }
 
+const sameTarget = (a: DragTarget | null, b: DragTarget | null) => a === b || (a !== null && b !== null && a.col === b.col && a.start === b.start);
+
 /** Whether a held selection is in a column: by its column's key, or (without one) the first column on its date. */
 function isSelectionIn(selection: CalendarSelection, layouts: ColumnLayout[], col: number): boolean {
   if (selection.column !== undefined) return selection.column === layouts[col].column.key;
@@ -318,6 +322,7 @@ export function CalendarGrid({
           isNarrow: !day.isWorkingDay && !column.label,
           start,
           rows,
+          slot: SLOT,
           span: rows * SLOT,
           canSelect: canSelect && !!day.isWorkingDay && !day.isPast,
           taken,
@@ -366,12 +371,7 @@ export function CalendarGrid({
     if (scroller && height > 0) scroller.scrollTop = topShare.current * height;
   }, [rowMinutes]);
 
-  /** A slot that can be selected: free, in a column that can be, and not started yet. */
-  const isFree = (col: number, row: number) => {
-    const l = layouts[col];
-    if (!l?.canSelect || row < 0 || row >= l.rows || l.taken[row]) return false;
-    return nowMs === undefined || l.start + row * SLOT > nowMs;
-  };
+  const isFree = (col: number, row: number) => isFreeRow(layouts[col], row, nowMs);
 
   const firstFree = (): Slot | null => {
     for (let col = 0; col < layouts.length; col++) {
@@ -514,6 +514,21 @@ export function CalendarGrid({
     columnRefs.current[slot.col]?.setPointerCapture?.(event.pointerId);
   };
 
+  // The slots' handlers, the same functions from render to render (each calls the latest), so a drag, which draws the
+  // grid again on every row it crosses, doesn't draw every slot again too (`SlotRows` is memoised).
+  const slotHandlerRef = useRef<SlotHandlers | null>(null);
+  useLayoutEffect(() => {
+    slotHandlerRef.current = {onFocus: (slot) => setActive(slot), onKeyDown: onSlotKeyDown, onPointerDown: onSlotPointerDown};
+  });
+  const slotHandlers = useMemo<SlotHandlers>(
+    () => ({
+      onFocus: (slot) => slotHandlerRef.current?.onFocus(slot),
+      onKeyDown: (event, slot) => slotHandlerRef.current?.onKeyDown(event, slot),
+      onPointerDown: (event, slot) => slotHandlerRef.current?.onPointerDown(event, slot),
+    }),
+    [],
+  );
+
   const onColumnPointerMove = (event: PointerEvent, col: number) => {
     if (!isSelecting.current || !pending || pending.col !== col) return;
     const row = rowAt(col, event.clientY);
@@ -571,6 +586,8 @@ export function CalendarGrid({
       }
     }
     const hasLeft = drag.hasLeft || !(to !== null && to.col === drag.from && to.start === drag.start);
+    // Most moves stay on the same row: nothing to draw again.
+    if (isMoving === drag.isMoving && hasLeft === drag.hasLeft && sameTarget(to, drag.to)) return;
     setDrag({...drag, isMoving, hasLeft, to});
   };
 
@@ -739,41 +756,15 @@ export function CalendarGrid({
                     </Text>
                   </span>
                 ) : (
-                  Array.from({length: l.rows}, (_, row) => {
-                    const start = l.start + row * SLOT;
-                    // The line above the row: the hour's, the half hour's, a quarter's, or (5-minute rows) a fainter one.
-                    const minute = row * rowMinutes;
-                    const line = minute % 60 === 0 ? 'hour' : minute % 30 === 0 ? 'half' : minute % 15 === 0 ? 'quarter' : 'minor';
-                    const isPast = l.day.isPast || (nowMs !== undefined && start + SLOT <= nowMs);
-                    if (!isFree(col, row)) {
-                      return (
-                        <div
-                          key={row}
-                          className="mc-slot"
-                          data-line={line}
-                          data-past={isPast || undefined}
-                          data-unavailable={l.unavailable[row] || undefined}
-                          aria-hidden
-                        />
-                      );
-                    }
-                    const isStop = tabStop?.col === col && tabStop.row === row;
-                    return (
-                      <button
-                        key={row}
-                        type="button"
-                        className="mc-slot"
-                        data-line={line}
-                        data-slot={`${col}-${row}`}
-                        tabIndex={isStop ? 0 : -1}
-                        aria-label={`${l.name}, ${formatTime(iso(start))}, free`}
-                        aria-describedby={hintId}
-                        onFocus={() => setActive({col, row})}
-                        onKeyDown={(event) => onSlotKeyDown(event, {col, row})}
-                        onPointerDown={(event) => onSlotPointerDown(event, {col, row})}
-                      />
-                    );
-                  })
+                  <SlotRows
+                    layout={l}
+                    col={col}
+                    rowMinutes={rowMinutes}
+                    nowMs={nowMs}
+                    tabStopRow={tabStop?.col === col ? tabStop.row : null}
+                    hintId={hintId}
+                    handlers={slotHandlers}
+                  />
                 )}
                 {/* A column of only some free times (everyone free): each one marked, in words as well as by the
                     shading of the rest, so it never relies on colour alone. Presses go through to the slots. */}
@@ -846,6 +837,80 @@ export function CalendarGrid({
     </VStack>
   );
 }
+
+/** A slot that can be selected: free, in a column that can be, and not started yet. */
+function isFreeRow(l: ColumnLayout | undefined, row: number, nowMs: number | undefined): boolean {
+  if (!l?.canSelect || row < 0 || row >= l.rows || l.taken[row]) return false;
+  return nowMs === undefined || l.start + row * l.slot > nowMs;
+}
+
+/** What the free slots do when focused, pressed or keyed. */
+interface SlotHandlers {
+  onFocus: (slot: Slot) => void;
+  onKeyDown: (event: KeyboardEvent, slot: Slot) => void;
+  onPointerDown: (event: PointerEvent, slot: Slot) => void;
+}
+
+/**
+ * A working day's rows in one column: a button for each free one (the grid's one tab stop among them), and a plain,
+ * shaded cell for the rest. Memoised: it draws again only when the column, the time now or the tab stop changes.
+ */
+const SlotRows = memo(function SlotRows({
+  layout: l,
+  col,
+  rowMinutes,
+  nowMs,
+  tabStopRow,
+  hintId,
+  handlers,
+}: {
+  layout: ColumnLayout;
+  col: number;
+  rowMinutes: CalendarRowMinutes;
+  nowMs: number | undefined;
+  tabStopRow: number | null;
+  hintId: string;
+  handlers: SlotHandlers;
+}) {
+  return (
+    <>
+      {Array.from({length: l.rows}, (_, row) => {
+        const start = l.start + row * l.slot;
+        // The line above the row: the hour's, the half hour's, a quarter's, or (5-minute rows) a fainter one.
+        const minute = row * rowMinutes;
+        const line = minute % 60 === 0 ? 'hour' : minute % 30 === 0 ? 'half' : minute % 15 === 0 ? 'quarter' : 'minor';
+        const isPast = l.day.isPast || (nowMs !== undefined && start + l.slot <= nowMs);
+        if (!isFreeRow(l, row, nowMs)) {
+          return (
+            <div
+              key={row}
+              className="mc-slot"
+              data-line={line}
+              data-past={isPast || undefined}
+              data-unavailable={l.unavailable[row] || undefined}
+              aria-hidden
+            />
+          );
+        }
+        return (
+          <button
+            key={row}
+            type="button"
+            className="mc-slot"
+            data-line={line}
+            data-slot={`${col}-${row}`}
+            tabIndex={tabStopRow === row ? 0 : -1}
+            aria-label={`${l.name}, ${formatTime(iso(start))}, free`}
+            aria-describedby={hintId}
+            onFocus={() => handlers.onFocus({col, row})}
+            onKeyDown={(event) => handlers.onKeyDown(event, {col, row})}
+            onPointerDown={(event) => handlers.onPointerDown(event, {col, row})}
+          />
+        );
+      })}
+    </>
+  );
+});
 
 /** A stretch of a day as a position in its column. */
 function rangeStyle(l: ColumnLayout, startUtc: string, endUtc: string) {
