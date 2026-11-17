@@ -2,7 +2,9 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
@@ -19,6 +21,7 @@ public sealed class SetUserRolesHandlerTests
     private Mock<IIdentityReadService> _read = null!;
     private Mock<IAppointmentRepository> _appointments = null!;
     private Mock<IMeetingRepository> _meetings = null!;
+    private PassThroughIdentityTransactions _transactions = null!;
     private SetUserRolesHandler _handler = null!;
 
     [SetUp]
@@ -39,6 +42,8 @@ public sealed class SetUserRolesHandlerTests
         _fixture.Inject(_read.Object);
         _fixture.Inject(_appointments.Object);
         _fixture.Inject<TimeProvider>(new FixedTimeProvider(CalendarTestConstants.Now));
+        _transactions = new PassThroughIdentityTransactions();
+        _fixture.Inject<IIdentityTransactions>(_transactions);
 
         _handler = _fixture.Create<SetUserRolesHandler>();
     }
@@ -57,6 +62,37 @@ public sealed class SetUserRolesHandlerTests
 
         result.Succeeded.Should().BeTrue();
         _service.Verify(s => s.SetRolesAsync(command.Username, command.Roles, cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_EveryStaffRoleTaken_ChangesTheRolesAndTheirMeetingsInOneTransaction()
+    {
+        var inside = new List<string>();
+        _service.Setup(s => s.SetRolesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .Callback(() => inside.Add($"roles {_transactions.IsRunning}"))
+            .ReturnsAsync(IdentityResult.Success);
+        _meetings.Setup(r => r.RemoveAttendeeFromUpcomingAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback(() => inside.Add($"meetings {_transactions.IsRunning}"))
+            .ReturnsAsync(1);
+
+        await _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        inside.Should().Equal("roles True", "meetings True");
+        _transactions.Runs.Should().Be(1);
+    }
+
+    [Test]
+    public async Task Handle_MeetingsChangedMeanwhile_ThrowsFromInsideTheTransaction()
+    {
+        // Another admin saved one of the meetings at that moment: the 409 leaves the transaction, which rolls the role
+        // change back.
+        _meetings.Setup(r => r.RemoveAttendeeFromUpcomingAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _transactions.IsRunning.Should().BeTrue())
+            .ThrowsAsync(new ConflictException(MeetingLimits.ChangedMeanwhile));
+
+        var act = () => _handler.Handle(new SetUserRolesCommand(AuthTestConstants.Usernames[1], [], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(MeetingLimits.ChangedMeanwhile);
     }
 
     [Test]
