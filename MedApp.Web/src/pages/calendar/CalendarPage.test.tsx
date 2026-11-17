@@ -842,9 +842,10 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     const {user, onSearchChange} = renderPage();
     const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
     expect(grid).toHaveAttribute('data-row-minutes', '15');
-    expect(screen.getByRole('radio', {name: '15 min'})).toBeChecked();
 
-    await user.click(screen.getByRole('radio', {name: '5 min'}));
+    // Named by what it shows, so it isn't read as an appointment's length.
+    await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: 5});
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
 
@@ -860,7 +861,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(dialog().getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
-    await user.click(screen.getByRole('radio', {name: '15 min'}));
+    await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
+    await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined});
   });
 
@@ -869,7 +871,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
     expect(grid).toHaveAttribute('data-row-minutes', '5');
     expect(grid).toHaveAttribute('data-compact');
-    expect(screen.getByRole('radio', {name: '5 min'})).toBeChecked();
+    expect(screen.getByRole('button', {name: 'Rows: 5 min'})).toBeInTheDocument();
   });
 
   it("keeps the menu for the selected time to its buttons' width, not the selection's", async () => {

@@ -32,7 +32,7 @@ import {AppointmentDialog, appointmentWhen} from '../../components/calendar/Appo
 import {ApplyTemplateDialog} from '../../components/calendar/ApplyTemplateDialog';
 import {BlockDialog} from '../../components/calendar/BlockDialog';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
-import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarSelection} from '../../components/calendar/CalendarGrid';
+import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarRowMinutes, type CalendarSelection} from '../../components/calendar/CalendarGrid';
 import {appointmentKey, blockKey, calendarItems, meetingKey, type CalendarGridItem} from '../../components/calendar/calendarItems';
 import {MeetingDialog, type MeetingDialogProps} from '../../components/calendar/MeetingDialog';
 import {StaffPicker} from '../../components/calendar/StaffPicker';
@@ -50,6 +50,9 @@ const TOOLBAR_FIELD_WIDTH = 175;
 
 /** Text in the secondary colour shown in the primary one instead (the View control's unselected choices). */
 const PRIMARY_TEXT = {'--color-text-secondary': 'var(--color-text-primary)'} as CSSProperties;
+
+/** The row lengths the grid offers, in minutes. */
+const ROW_CHOICES: CalendarRowMinutes[] = [15, 5];
 
 /** The team view's first column, when everyone shown is free: its key on the grid (never a user ID). */
 export const EVERYONE_FREE = 'everyone-free';
@@ -139,8 +142,8 @@ interface PendingMove {
  * Its state is in the URL (`calendarSearch.ts`): the day, the view, whose calendar, an open appointment (which
  * notifications link to), and who the team view shows. In a narrow window or a half view it opens on a day rather than
  * the week, and a week is compact: Monday to Friday, a narrower hour gutter and items on one line (decision 67). The
- * team view still works there, scrolling sideways. Both apply after mount, as the server renders the wide page. Row
- * length shows 15 or 5 minute rows (`rows=5`, decision 68), and the dialogs opened from here offer times in those steps.
+ * team view still works there, scrolling sideways. Both apply after mount, as the server renders the wide page. Rows
+ * shows 15 or 5 minute rows (`rows=5`, decision 68), and the dialogs opened from here offer times in those steps.
  */
 export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const me = useCurrentUser();
@@ -551,11 +554,6 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                 <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
               ))}
             </SegmentedControl>
-            {/* How long each row of the grid is: 5-minute rows are as tall, so the day scrolls. In the URL as rows=5. */}
-            <SegmentedControl label="Row length" value={String(rowMinutes)} onChange={(value) => go({rows: value === '5' ? 5 : undefined})} style={PRIMARY_TEXT}>
-              <SegmentedControlItem value="15" label="15 min" />
-              <SegmentedControlItem value="5" label="5 min" />
-            </SegmentedControl>
             {isTeam ? (
               <MultiSelector
                 label="Who"
@@ -587,6 +585,17 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           </HStack>
           <StackItem size="fill" />
           <HStack gap={2} vAlign="center" wrap="wrap">
+            {/* How long each row of the grid is: 5-minute rows are as tall, so the day scrolls. In the URL as rows=5. A
+                menu named by what it shows ("Rows: 15 min"), so it's never read as an appointment's length, and small
+                enough to share a line with what's beside it in a narrow window. */}
+            <DropdownMenu
+              button={{label: `Rows: ${rowMinutes} min`, variant: 'secondary'}}
+              items={ROW_CHOICES.map((minutes) => ({
+                label: `${minutes}-minute rows`,
+                icon: minutes === rowMinutes ? <Icon icon={AppIcon.Check} /> : undefined,
+                onClick: () => go({rows: minutes === 5 ? 5 : undefined}),
+              }))}
+            />
             {canSetDefaultWeek && person && (
               <DropdownMenu
                 button={{
