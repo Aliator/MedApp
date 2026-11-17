@@ -4,7 +4,7 @@
 
 **Reviewed:** 17 November 2026, independently of the PR description's conclusions. Each claim below was checked against the code, a test run, or the PR's CI run.
 
-**No finding is high or critical.** Six are medium and six are low.
+**No finding is high or critical.** Six are medium and six are low. **All twelve are fixed or documented on the branch** (`2f8e3da`, `d9bc070`, `af04def`, `60d47bb`), and a browser check of the fixes is at the end of the findings.
 
 ## Summary
 
@@ -109,7 +109,7 @@
   - **Reopen the half view where it was:** give `HalfPane` the tracked path when it has to be rebuilt.
   - **Save on unmount:** if the notepad has unsaved changes when its pane unmounts, save them.
   - **Test it:** a page's heading element survives opening and closing the notepad, in one view and in a half view.
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`). The page always sits in the same two wrappers (`display: contents` while the notepad is closed), so it never changes parent; the half view's `HalfPane` gets the tracked path; the pane saves what's unsaved as it unmounts, putting the text in the shared copy first, so the pane taking over starts from it. Tests: the Patients heading and both halves' headings stay the same elements through opening and closing, and the right half stays on the page it moved to (`AppLayout.test.tsx`); a pane that unmounts saves (`NotepadPane.test.tsx`). Checked in the browser too (below). **Left:** between 1,400 and 1,783 px wide, docking still switches the procedure page from its wide to its narrow layout (finding 10's rule), which rebuilds its sections; at 1,920 and below 1,400 nothing switches.
 
 ### 2. Two saves asked for while one is in flight send the same version: a false "saved somewhere else", and Reload discards what was typed since
 
@@ -121,7 +121,7 @@
 - **Why:** `saveNow` checks `if (inFlight.current) await inFlight.current;` once. After that await, another waiter may already have started a new save, so this one should wait again.
 - **Evidence:** `MedApp.Web/src/components/notepad/NotepadPane.tsx:133-165`, line 135. The temporary test sent versions 3, 4 and 4 and showed Reload.
 - **Fix:** `while (inFlight.current) await inFlight.current;` (JavaScript runs the rest up to `inFlight.current = attempt` without a break, so no third save can slip in). Add a Vitest case with a held save and two more requests.
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`): `while (inFlight.current) await inFlight.current;`. The test holds the first save open, asks for two more, and checks the versions sent are 3 then 4, with no conflict.
 
 ### 3. "Remove it from the notepad" removes the first copy of the selected text, which may be another patient's line
 
@@ -137,7 +137,7 @@
   - **Remove by position:** have the editor delete its own selection and read the Markdown back.
   - **At least,** remove only when the text occurs exactly once; otherwise say "The selected text appears more than once: remove it yourself", as it already does when it isn't found.
   - **Test it** with repeated text, and add the case to H-37's causes.
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`), and H-37 updated (`af04def`, version 0.10). The selection now comes from the editor's own Lexical selection (`RichTextField`'s `selection()`, through `$generateJSONFromSelectedNodes`, `@lexical/clipboard` added as a direct dependency at the version already installed), and removing it deletes that range by its position (`removeText()` on a copy of the selection), never by searching. If the box changed since it was selected, nothing is taken out and the pane says so (shown and announced); if the editor can't say what's selected, "Remove it from the notepad" is unticked and disabled, with the reason. `removeFirst` is gone. Tests: the review's "obs stable" case (`RichTextField.test.tsx`, `NotepadPane.test.tsx`), the changed-meanwhile case and the can't-tell case.
 
 ### 4. The migration credits all of a procedure's old notes to whoever created it, even text others wrote later, and then lets the creator edit it
 
@@ -154,7 +154,7 @@
   - **Set `LastEditedAtUtc`** to the last notes change, so the page says "Edited".
   - **Test it:** a procedure whose notes another user edited. The SQL is in Detail.
   - The migration hasn't been applied to a lasting database, so it can be edited in place.
-- **Status:** open.
+- **Status:** fixed in the PR (`2f8e3da`). The review's SQL as written fails on SQL Server (error 8124: an aggregate mixing an outer column and an inner one), so it's written with a CTE of the notes edits, `MAX` for the last edit and `EXISTS` for an edit by anyone else; the version row then has no user, an empty username, and the last edit's time. `ProcedureNotesMigrationTests` has the mixed-author case (and creator-only edits, a title-only edit by someone else, and no creator).
 
 ### 5. Notes written by old code during a rollout or after a rollback land in a column nothing reads, which the plan then drops; old browser tabs crash or lose edits
 
@@ -170,7 +170,7 @@
   - **Before dropping the column,** add a migration that turns any old-column text that doesn't match the procedure's moved first note into a new note by "Unknown", or one that refuses to drop while such text exists. Say so in the to-do.
   - **Document the window** in the chart README's list: what old pods write, and what a rollback shows.
   - **For one release, refuse rather than ignore:** keep `notes` on the PATCH request and answer a non-null one with a 400 ("Notes are now added on the procedure's page. Reload the page."). Keep a `notes` string on the response (empty, or the newest note's text) so old pages don't crash, or add a "new version, reload" prompt to the app.
-- **Status:** open.
+- **Status:** fixed in the PR (`2f8e3da`, `af04def`). `PatientProcedureResponse.Notes` is a string again (deprecated: the first note's text, or the old column's), with the list as `NoteList`; `PATCH` with `notes` is a 400 (`NotesMovedMessage`); the chart's README lists what old pods do and what a rollback shows; the to-do for dropping the column now starts with copying, or reporting, any old-column text that differs from the first note, and removes the shims in the same release. Integration tests for both shims.
 
 ### 6. DPIA risk 26 understates the risk: the 30-day clear only catches notepads nobody uses, and the impact is rated "Minimal"
 
@@ -184,7 +184,7 @@
 - **Fix:** choose one, and make the documents say exactly that:
   - **Age the text, not the last save:** record when the notepad last went from empty to holding text, and after `KeepDays` show "Your notepad has held text since 3 November: add it to a record or clear it" (or clear it, after warning).
   - **Or accept it plainly:** rate the impact Significant, give residual medium even with the purge, and add a step to the rights procedure (an admin searches notepads for the patient's name and NHS number when answering a request). For the DPO to confirm.
-- **Status:** open.
+- **Status:** documented (`af04def`), and the notepad's own wording made true (`d9bc070`). Risk 26 is now Probable and Significant, **High**; the measures say the 30 days restart with every change; residual stays medium with the purge, low only once text is aged by when it was written, which is a new to-do; a rights procedure step is listed for the DPO. The data inventory, retention schedule, staff notice and the governance README say the same. For the DPO to confirm.
 
 ### 7. A note's edit sends the version it has at saving time, not the one it started from
 
@@ -192,7 +192,7 @@
 - **What could go wrong:** the same procedure is open in both halves of a half view (or two tabs). The author opens Edit on a note on the left, then edits and saves the same note on the right (version 2). The left copy is refreshed in the cache, so its `note.version` is now 2, but its editor still holds the text from version 1. Saving on the left sends version 2, which matches, and silently replaces the right-hand edit. The versions table keeps it, so nothing is lost for good, but the 409 the design promises never comes.
 - **Evidence:** `MedApp.Web/src/components/procedures/ProcedureNotes.tsx:148` (`expectedVersion: note.version` from the current render), `:209` (the draft fixed when the editor opens); `MedApp.Web/src/components/forms/RichTextField.tsx:26-31` (not controlled).
 - **Fix:** keep the version with the editing state when Edit is pressed (`{id, version}`) and send that.
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`): the editing state keeps `{id, version}` from when Edit was pressed. A test changes the cached note to version 2 mid-edit and checks version 1 is sent, and the 409 shows beside the note.
 
 ### 8. Every tab shows the notepad, each with its own old copy, so typing in an older tab is a 409 and Reload loses it
 
@@ -200,7 +200,7 @@
 - **What could go wrong:** whether the notepad is open is kept in `localStorage`, which every tab shares, so opening it in one tab opens it in all of them on their next load. Each reads the notepad once (`staleTime: Infinity`, and the app never refetches on focus). Someone writes in tab A, then switches to tab B, which still shows the old text, and adds a line: a 409, "saved somewhere else", and Reload replaces their line with tab A's text.
 - **Evidence:** `MedApp.Web/src/api/notepad.ts:17`; `MedApp.Web/src/app/queryClient.ts:9`; `MedApp.Web/src/components/notepad/NotepadContext.tsx:10-27`.
 - **Fix:** when the tab becomes visible again and the box has no unsaved changes, read the notepad afresh. Or tell other tabs about a save (a `BroadcastChannel`).
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`): with nothing typed, the pane reads the notepad afresh when the tab is shown again (`visibilitychange`, and the window's `focus`), and a newer copy replaces the box's; a newer version with the same text is just adopted. Tests for both, and that nothing is read over unsaved typing.
 
 ### 9. Accessibility: the docked notepad sits inside the main landmark, and focus isn't moved to it or back
 
@@ -210,7 +210,7 @@
   - **Focus:** opening it from the side nav leaves focus on the nav, so a keyboard user has to tab through the whole page to reach it. Closing it with its own Close button removes the focused button, so focus falls back to the start of the document. There's no shortcut for it.
 - **Evidence:** `MedApp.Web/src/components/navigation/AppLayout.tsx:198-217`; `MedApp.Web/src/components/notepad/NotepadPane.tsx:60, 67`.
 - **Fix:** move focus into the box when it opens, and back to the side nav's Notepad item when it closes; place the docked column outside `main` if `AppShell` allows (or drop the landmark role for a labelled region); consider a shortcut; include a screen with the notepad open in the axe run (`tools/ui-parity`).
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`, `60d47bb`). The pane is a labelled `region`, not a `complementary` landmark (AppShell has no slot outside `main`); it takes the focus when its user opens it (not when it reopens with a page); closing gives the focus back to the opener, or the side nav's Notepad, or, on a phone whose nav drawer has gone, the page's title. The side nav item is a toggle (`aria-pressed`, a filled icon), never `aria-current`. The axe run includes the notepad screens (below). No shortcut yet.
 
 ### 10. Every page takes its narrow layout beside the docked notepad, however wide the window
 
@@ -218,7 +218,7 @@
 - **What could go wrong:** on a 2,560 px screen, a page beside the 24rem (384 px) notepad has about 2,000 px, but shows the layout meant for a half view or a small window. At 1,024 px it has about 400 px beside the side nav, which is tighter than any layout was designed for.
 - **Evidence:** `MedApp.Web/src/components/pages/Page.tsx:55-59`; `MedApp.Web/src/components/notepad/NotepadContext.tsx:41-44`.
 - **Fix:** while docked, go narrow only when the window minus the notepad is under the usual 1,400 px (a `(max-width: 1783px)` query), and consider showing the sheet below about 1,280 px.
-- **Status:** open.
+- **Status:** fixed in the PR (`d9bc070`): beside the docked notepad, pages go narrow only below `(max-width: 1783px)` (`NARROW_BESIDE_NOTEPAD_QUERY`). At 1,920 the procedure page keeps its Stages column. The sheet still starts below 1,024 px.
 
 ### 11. The tests miss the cases above, and the E2E journey's "shows on the page" check also matches the notepad
 
@@ -230,7 +230,7 @@
   - **The E2E journey:** `Expect(Main).ToContainTextAsync(jotting)` is meant to show the note on the procedure page. The docked notepad is inside `main` too, so the check could pass from the notepad's own text. It's saved by the API check after it.
 - **Evidence:** `MedApp.E2ETests/Notepad/NotepadTests.cs` (the `Main` check after Add Note); the test lists in `NotepadPane.test.tsx`, `ProcedureNotes.test.tsx` and `ProcedureNotesMigrationTests.cs`.
 - **Fix:** add the tests with the fixes; in the E2E journey, look for the note inside the procedure page's Notes list (`GetByRole(List, "Notes")`).
-- **Status:** open.
+- **Status:** fixed in the PR: the tests listed with each finding, the API tests for a PATCH that sends `notes` and the 201's `Location`, and the E2E journey looks for the note in the procedure page's Notes list. Not added: two edits of one note at the same instant (the row version's 409).
 
 ### 12. Smaller hardening and drift
 
@@ -241,7 +241,33 @@
   - **The 201's `Location`** names a note URL that has no GET (`MedApp.API/Controllers/PatientProceduresController.cs:131`). Point it at the procedure, or leave it out.
   - **The procedure page's Add Note** says "Too long" but still sends, for a 400 (`ProcedureNotes.tsx:115-125`). Disable it, as the notepad's dialog does.
   - **The hazard log's history** puts version 1.0 above 0.9, and "1.0" reads as an issued version for a draft (`docs/clinical-safety/hazard-log.md:1467-1468`). Call it 0.10 (or 1.0 draft, placed below 0.9).
-- **Status:** open.
+- **Status:** fixed in the PR (`2f8e3da`, `d9bc070`, `af04def`): the versions are read by patient and by the version numbers needed; `Notepad:KeepDays` under 1 stops the API at startup; the 201's `Location` is the procedure; Add Note is disabled (and Ctrl+S does nothing) while too long; the hazard log's entry is 0.10, after 0.9.
+
+## Browser check
+
+A separate browser check of `f6e7b93` (before the fixes) found these; then the fixes were checked in Chromium (Playwright), at 1,920, 1,366, 960 and 390 px wide, in light and dark, against a throwaway copy of the demo data (`MedApp_Preview`, dropped afterwards), signed in as an admin.
+
+| Found before the fixes | What happened | Seen after |
+|---|---|---|
+| **Focus:** adding a note from the page's New note box sent the focus to `<body>` (the box is rebuilt empty) | Fixed: the new box takes the focus | The focus is in the New note box after adding |
+| **The editor's toolbar was cut off** in the 384 px pane and at 390 px, with no sign more existed | Fixed: the toolbar's buttons wrap onto a second row (one layout rule, `WRAPPING_TOOLBAR_CSS`, in `RichTextField`, so stage notes and every rich text box get it) | Inline code and Link sit inside the pane at every width |
+| **An upper-case procedure ID** in the address stopped the notes list updating after adding | Fixed: the procedure routes read `$id` in lower case (`lowerCaseId`) | A note added on `/procedures/<ID in capitals>` shows at once |
+| **The admin timeline showed raw Markdown** for note text | Fixed: the text is shown with `RichText` (compact) | Bold and a list show formatted, no `**` |
+| **New Procedure's hint was visually hidden** (a hidden label hides its description) | Fixed: the box is labelled "First note", shown, with its hint | The hint shows under the label |
+| **A note's 409 showed at the top of the Notes section**, possibly off screen | Fixed: it shows under the note being edited, with Reload | The alert and Reload are in the edited note's row |
+| **Blocked procedures** (cancelled, archived, restricted) said nothing about why notes couldn't be added | Fixed: the section says why (the restriction's reason, or the status), as the stage section does | "Notes can't be added or edited while the procedure is cancelled." |
+| **The export page's procedure notes had no heading** | Fixed: each procedure's title is a heading (level 3), and its notes are under "Notes (n)" (level 4) | Both headings show |
+| **An empty, never-used notepad** said "Not saved yet" | Fixed: "Nothing written yet" | Shown on a notepad with no row |
+| **At 960 px the sheet's editor** stayed 12rem tall with a large empty area below | Fixed: the writing area is fitted to the room left in the pane, docked or a sheet (a `ResizeObserver`, at least 12rem) | The editor reaches the footer at every width |
+| **Selected text lost its formatting** | Fixed with finding 3: the selection is Markdown from the editor | Bold and a list item keep their formatting in the confirmation, the saved note and the timeline |
+| **Already on `main`: Escape after Tab doesn't close a dialog** | Cause found, left as a to-do (`docs/todo.md`, Accessibility): Tab moves the focus to the dialog's Close button, whose tooltip shows on keyboard focus and is a layer of its own in Astryx's dismissal stack, so the first Escape dismisses the tooltip and the second closes the dialog. It's Astryx's behaviour (WCAG 1.4.13 asks for the tooltip to be dismissible), not MedApp's code | Log Out at 1,366: one Escape leaves it open (the tooltip goes), the second closes it |
+
+**The fixes, as seen:**
+- **No rebuild:** text typed in the New note box survives opening and closing the docked notepad at 1,920; with a half view (the right half moved on to Add New Patient, a field typed in), opening the notepad keeps both halves and the field.
+- **Layout:** at 1,920 the procedure page keeps its two columns beside the notepad; at 1,366 it's narrow (as it is without the notepad below 1,400); at 960 and 390 the notepad is a full-screen sheet.
+- **Focus and roles:** opening from the side nav puts the focus in the notepad's box, docked and as a sheet; its own Close gives it back to the side nav's Notepad (docked, and at 960) or the page's title (390, where the nav drawer has closed). The nav item has `aria-pressed`, no `aria-current`; there's no complementary landmark in `main`.
+- **Add Note to Procedure:** a selection across a bold word and a list item is added as `**worried** about the result.` and `- Bloods taken`; with "Bed 3: obs stable" and "Bed 4: obs stable", selecting the second "obs stable" and adding it takes out exactly that one, leaving Bed 3's line.
+- **Axe** (`tools/ui-parity`, WCAG 2.2 A and AA) on `patient-view`, `patient-view-narrow`, `procedure-view`, `procedure-notes`, `notepad-open` and `notepad-add-note`, in dark, light and light with a colour theme: 18 runs, **no violations**. The notepad screens in `screens.ts` now find the notepad as a region.
 
 ## Remaining risks
 
@@ -250,7 +276,9 @@
 - **No scheduled purge** of notepads, sessions or notifications.
 - **Notepad typing in the last 1.5 seconds** is lost if the tab is closed or the session times out (there's no save on page unload, and an ended session can't save).
 - **Old browser tabs after any deploy:** MedApp has no "a new version is available" prompt, so any change to a response's shape can break pages already open (finding 5 is one case).
-- **The selection loses its formatting** when added (plain text). The confirmation shows exactly what will be saved, so it's visible, but lists and bold are flattened.
+- **A partly selected list item** is added without its bullet (as copying does); a whole item keeps it.
+- **The procedure page's wide and narrow layouts** are separate trees, so between 1,400 and 1,783 px wide, docking the notepad still rebuilds the page's sections (finding 1).
+- **Escape after Tab in a dialog** takes two presses (Astryx's tooltip; a to-do).
 - **Edits have no time limit:** an author can change a note months later. The version history and the "Edited" label keep that visible.
 
 ## Say it like this
