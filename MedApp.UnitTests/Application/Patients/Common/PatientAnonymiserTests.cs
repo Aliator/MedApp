@@ -1,6 +1,8 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using MedApp.Application.Activity.Common;
 using MedApp.Application.Patients.Common;
+using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -15,6 +17,36 @@ namespace MedApp.UnitTests.Application.Patients.Common;
 public sealed class PatientAnonymiserTests
 {
     private static readonly DateTime AnonymisedAt = new(2026, 11, 16, 9, 0, 0, DateTimeKind.Utc);
+
+    [Test]
+    public void Apply_NoteDeletions_LoseTheirReasons_AndWaitingRequestsAreClosedByWhoeverAnonymises()
+    {
+        var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
+        var deleted = procedure.AddNote();
+        var waiting = procedure.AddNote(text: "Synthetic second note.");
+        var approved = procedure.RequestDeletion(deleted);
+        new ProcedureChange(procedure, Admin, Now).DeleteNote(deleted, DeletionReason, approved.Id);
+        approved.Close(NoteDeletionRequestStatus.Approved, Admin.UserId, Admin.Username, Now);
+        var pending = procedure.RequestDeletion(waiting);
+        var record = PrivacyTestConstants.WithNoteDeletionRequests(PrivacyTestConstants.CreateRecord(null, procedure), approved, pending);
+        var by = new ActivityActor(Admin.UserId, Admin.Username, null);
+
+        PatientAnonymiser.Apply(record, AnonymisedAt, by);
+
+        deleted.DeletionReason.Should().Be(PatientAnonymiser.RemovedText);
+        deleted.IsDeleted.Should().BeTrue("a deleted note stays deleted");
+        waiting.DeletionReason.Should().BeNull();
+        waiting.PendingDeletionRequestId.Should().BeNull();
+        record.NoteDeletionRequests.Should().AllSatisfy(r => r.Reason.Should().Be(PatientAnonymiser.RemovedText));
+        approved.Should().BeEquivalentTo(new { Status = NoteDeletionRequestStatus.Approved, DecidedAtUtc = (DateTime?)Now });
+        pending.Should().BeEquivalentTo(new
+        {
+            Status = NoteDeletionRequestStatus.Closed,
+            DecidedByUserId = (Guid?)Admin.UserId,
+            DecidedByUsername = Admin.Username,
+            DecidedAtUtc = (DateTime?)AnonymisedAt
+        });
+    }
 
     [Test]
     public void Apply_Patient_ReplacesTheirDetails_KeepsTheYearOfBirth_AndClearsTheFlags()

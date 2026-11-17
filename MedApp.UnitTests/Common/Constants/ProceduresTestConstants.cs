@@ -139,6 +139,32 @@ public static class ProceduresTestConstants
         return note;
     }
 
+    /// <summary>Synthetic reason for deleting a note, or asking to.</summary>
+    public const string DeletionReason = "Synthetic reason: written on the wrong record.";
+
+    /// <summary>
+    /// A pending request, by <paramref name="requester"/> (default <see cref="Staff"/>), to delete a note on the
+    /// procedure, made a day before <see cref="Now"/>; the note points at it, as the handler leaves it.
+    /// </summary>
+    public static ProcedureNoteDeletionRequest RequestDeletion(
+        this PatientProcedure procedure, PatientProcedureNote note, ProcedureActor? requester = null)
+    {
+        requester ??= Staff;
+        var request = new ProcedureNoteDeletionRequest
+        {
+            Id = Guid.NewGuid(),
+            NoteId = note.Id,
+            PatientProcedureId = procedure.Id,
+            PatientId = procedure.PatientId,
+            RequestedByUserId = requester.UserId,
+            RequestedByUsername = requester.Username,
+            Reason = DeletionReason,
+            RequestedAtUtc = Now.AddDays(-1)
+        };
+        note.PendingDeletionRequestId = request.Id;
+        return request;
+    }
+
     /// <summary>The ordered stage at a 1-based position.</summary>
     public static PatientProcedureStage StageAt(this PatientProcedure procedure, int order) =>
         procedure.Stages.Single(s => s.StageOrder == order);

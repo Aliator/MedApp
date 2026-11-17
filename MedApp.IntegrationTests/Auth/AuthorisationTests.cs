@@ -43,6 +43,9 @@ public sealed class AuthorisationTests : IntegrationTest
         yield return Case("DELETE", $"{procedure}/assignments/{AnyId}");
         yield return Case("POST", $"{procedure}/stages/{AnyId}/unlock");
         yield return Case("DELETE", procedure);
+        yield return Case("POST", $"{procedure}/notes/{AnyId}/delete");
+        yield return Case("GET", $"/api/procedures/note-deletion-requests/{AnyId}");
+        yield return Case("POST", $"/api/procedures/note-deletion-requests/{AnyId}/decision");
         yield return Case("GET", "/api/procedures/audit/search");
         yield return Case("GET", "/api/monitoring/rules");
         yield return Case("POST", "/api/monitoring/rules");

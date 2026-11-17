@@ -8,6 +8,7 @@ using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProc
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.DeleteProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
@@ -109,6 +110,9 @@ public sealed class ProcedureCommandsMonitoringTests : ProcedureHandlerTestBase
         yield return Case<EditProcedureNoteHandler>(Status.InProgress, 0, (t, p) =>
             t.Fixture.Create<EditProcedureNoteHandler>().Handle(
                 new EditProcedureNoteCommand(p.Id, p.AddNote().Id, "Synthetic note, edited.", 1, Staff), t.Token));
+        yield return Case<DeleteProcedureNoteHandler>(Status.Cancelled, 0, (t, p) =>
+            t.Fixture.Create<DeleteProcedureNoteHandler>().Handle(
+                new DeleteProcedureNoteCommand(p.Id, p.AddNote().Id, DeletionReason, Admin), t.Token));
         yield return Case<UpdateProcedureStageNotesHandler>(Status.InProgress, 0, (t, p) =>
             t.Fixture.Create<UpdateProcedureStageNotesHandler>().Handle(
                 new UpdateProcedureStageNotesCommand(p.Id, p.StageAt(1).Id, "Synthetic notes.", Staff), t.Token));

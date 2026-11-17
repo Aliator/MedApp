@@ -10,6 +10,7 @@ using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Patients.Responses;
+using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.IntegrationTests.Common;
@@ -198,6 +199,15 @@ public sealed class PatientPrivacyTests : IntegrationTest
                 new EditProcedureNoteRequest { Text = $"Even more about {Canary}", ExpectedVersion = 1 }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         await ExecuteSqlAsync($"UPDATE PatientProcedures SET Notes = {"Legacy notes about " + Canary} WHERE Id = {procedure.Id}");
+        // A second note, deleted by an admin with a reason naming the canary (kept, so its text and reason must go too),
+        // and a request from staff to delete the first, with a reason naming it, still waiting when the record is anonymised.
+        var deletedNote = await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes", new AddProcedureNoteRequest { Text = $"Wrong record: {Canary}" }))
+            .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
+        (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{deletedNote.Id}/delete", new DeleteProcedureNoteRequest { Reason = $"Deleted for {Canary}" }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var deletionRequest = await (await staff.Client.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{note.Id}/deletion-requests",
+                new RequestNoteDeletionRequest { Reason = $"Asked for {Canary}" }))
+            .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
         // Another admin watching cancellations, so they have a monitoring notification about this procedure too.
         var watcher = await CreateStaffAsync(AdminRole, UserRole);
         (await watcher.Client.PostAsJsonAsync("/api/monitoring/rules", new SaveMonitoringRuleRequest { Event = "ProcedureCancelled" }))
@@ -260,6 +270,8 @@ public sealed class PatientPrivacyTests : IntegrationTest
                      (_admin, $"/api/procedures/audit/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"/api/activity/search?PatientId={patient.Id}&PageSize=100"),
                      (_admin, $"{PatientUrl(patient.Id)}/export"),
+                     (_admin, $"/api/procedures/note-deletion-requests/{deletionRequest.DeletionRequestId}"),
+                     (_admin, "/api/notifications"),
                      (_admin, AppointmentUrl(booked.Id)),
                      (_admin, AppointmentUrl(requested.Id)),
                      (_admin, $"/api/appointments/search?PatientId={patient.Id}&PageSize=100"),
@@ -282,7 +294,7 @@ public sealed class PatientPrivacyTests : IntegrationTest
             var legacy = await db.PatientProcedures.AsNoTracking().Where(p => p.Id == procedure.Id).Select(p => p.LegacyNotes).SingleAsync();
             return (versions, legacy);
         });
-        stored.versions.Should().HaveCount(2).And.AllBe(PatientAnonymiser.RemovedText);
+        stored.versions.Should().HaveCount(3).And.AllBe(PatientAnonymiser.RemovedText);
         stored.legacy.Should().Be(PatientAnonymiser.RemovedText);
 
         // Every file is deleted (its bytes wait for the purge), renamed, and can't be downloaded.

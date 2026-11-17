@@ -2,11 +2,13 @@
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Procedures.Common;
+using MedApp.Application.Procedures.NoteDeletionRequests.Commands.RequestNoteDeletion;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AddProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.DeleteProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
@@ -17,6 +19,7 @@ using MedApp.Application.Procedures.PatientProcedures.Commands.UpdateProcedureSt
 using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedureById;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.UnitTests.Common.Fixtures;
@@ -148,6 +151,47 @@ public sealed class PatientProceduresControllerTests
 
         _mediator.Request.Should().Be(new DeletePatientProcedureCommand(RecordId, Actor));
         result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Test]
+    public async Task DeleteProcedureNote_DeletesAsTheUserWithTheReasonAndReturnsNoContent()
+    {
+        var noteId = Guid.NewGuid();
+
+        var result = await Controller.DeleteProcedureNote(RecordId, noteId, new DeleteProcedureNoteRequest { Reason = "Synthetic reason." }, _cts.Token);
+
+        _mediator.Request.Should().Be(new DeleteProcedureNoteCommand(RecordId, noteId, "Synthetic reason.", Actor));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        result.Should().BeOfType<NoContentResult>();
+    }
+
+    [Test]
+    public async Task RequestNoteDeletion_ReturnsTheNoteWithTheRequestsAddress()
+    {
+        var note = _fixture.Create<PatientProcedureNoteResponse>();
+        _mediator = new RecordingMediator(_ => note);
+        var noteId = Guid.NewGuid();
+
+        var result = await Controller.RequestNoteDeletion(RecordId, noteId, new RequestNoteDeletionRequest { Reason = "Synthetic reason." }, _cts.Token);
+
+        _mediator.Request.Should().Be(new RequestNoteDeletionCommand(RecordId, noteId, "Synthetic reason.", Actor));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        var created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Be($"/api/procedures/note-deletion-requests/{note.DeletionRequestId}");
+        created.Value.Should().Be(note);
+    }
+
+    [Test]
+    public async Task DeleteProcedureNote_AdminsOnly_AndRequestNoteDeletion_AnyStaff()
+    {
+        const string delete = nameof(PatientProceduresController.DeleteProcedureNote);
+        const string request = nameof(PatientProceduresController.RequestNoteDeletion);
+
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(delete, SignedIn("Admin"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(delete, SignedIn("User"))).Should().BeFalse();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(request, SignedIn("User"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(request, SignedIn("Admin"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<PatientProceduresController>(request, SignedIn())).Should().BeFalse();
     }
 
     [Test]
