@@ -27,6 +27,12 @@ public sealed class PatientRecord
     /// </summary>
     public IReadOnlyList<PatientProcedureNoteVersion> NoteVersions { get; init; } = [];
 
+    /// <summary>
+    /// Requests from staff to delete notes on the patient's procedures, oldest first, with their reasons, including those
+    /// about procedures since deleted (they have no foreign keys).
+    /// </summary>
+    public IReadOnlyList<ProcedureNoteDeletionRequest> NoteDeletionRequests { get; init; } = [];
+
     /// <summary>The activity log entries about the patient, oldest first.</summary>
     public required IReadOnlyList<ActivityEntry> Activity { get; init; }
 

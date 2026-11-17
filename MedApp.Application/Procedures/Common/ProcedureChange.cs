@@ -26,6 +26,7 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
     private readonly List<AppointmentEvent> _appointmentEvents = [];
     private readonly List<PatientProcedureNote> _newNotes = [];
     private readonly List<PatientProcedureNoteVersion> _noteVersions = [];
+    private readonly List<PatientProcedureNote> _deletedNotes = [];
 
     public PatientProcedure Procedure => procedure;
 
@@ -47,6 +48,9 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
 
     /// <summary>The note versions the change wrote (one for each note added or edited), to add with it.</summary>
     public IReadOnlyList<PatientProcedureNoteVersion> NoteVersions => _noteVersions;
+
+    /// <summary>Notes the change deleted (soft: marked deleted, and kept).</summary>
+    public IReadOnlyList<PatientProcedureNote> DeletedNotes => _deletedNotes;
 
     /// <summary>Whether anything changed (every change is audited, or recorded in an appointment's history).</summary>
     public bool HasChanges => _auditEntries.Count > 0 || _appointmentEvents.Count > 0;
@@ -166,6 +170,22 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
         note.LastEditedAtUtc = nowUtc;
         AddVersion(note);
         Audit(Action.NoteEdited, new { noteId = note.Id, version = note.Version });
+    }
+
+    /// <summary>
+    /// Deletes a note, by an admin, with a reason: soft, so it's hidden from the procedure page but kept, with its
+    /// versions. A NoteDeleted audit entry records its ID and latest version, the reason, and the request it approves (if
+    /// any), never its text. Any request waiting for it is no longer waiting. Handlers check first that the actor is an
+    /// admin and the patient's record can change.
+    /// </summary>
+    public void DeleteNote(PatientProcedureNote note, string reason, Guid? requestId = null)
+    {
+        note.DeletedAtUtc = nowUtc;
+        note.DeletedByUserId = actor.UserId;
+        note.DeletionReason = reason;
+        note.PendingDeletionRequestId = null;
+        _deletedNotes.Add(note);
+        Audit(Action.NoteDeleted, new { noteId = note.Id, version = note.Version, reason, requestId });
     }
 
     /// <summary>Records that work on a stage has begun (once); the procedure becomes InProgress if it wasn't.</summary>

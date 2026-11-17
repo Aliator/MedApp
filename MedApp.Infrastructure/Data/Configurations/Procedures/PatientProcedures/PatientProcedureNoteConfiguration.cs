@@ -23,6 +23,10 @@ public sealed class PatientProcedureNoteConfiguration : IEntityTypeConfiguration
 
         builder.Property(x => x.RowVersion).IsRowVersion();
 
+        // Deleting is soft: the note stays, with who deleted it, when and why.
+        builder.Property(x => x.DeletionReason).HasMaxLength(PatientProcedureNote.MaxDeletionReasonLength);
+        builder.Ignore(x => x.IsDeleted);
+
         // A note goes with its procedure; its versions (no foreign key) and audit entries stay.
         builder.HasOne(x => x.PatientProcedure)
             .WithMany(x => x.Notes)

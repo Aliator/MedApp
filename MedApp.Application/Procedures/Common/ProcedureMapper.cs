@@ -19,13 +19,13 @@ public static class ProcedureMapper
         patient is null ? string.Empty : $"{patient.FirstName} {patient.LastName}";
 
     /// <summary>
-    /// Every user a procedure's full response names: assignees, assigners, who started and finished stages, and who
-    /// wrote its notes.
+    /// Every user a procedure's full response (or its patient's export) names: assignees, assigners, who started and
+    /// finished stages, who wrote its notes, and who deleted any.
     /// </summary>
     public static IEnumerable<Guid> UserIds(PatientProcedure procedure) =>
         procedure.Assignments.SelectMany(a => new[] { a.UserId, a.AssignedByUserId })
             .Concat(procedure.Stages.SelectMany(s => new[] { s.StartedByUserId, s.CompletedByUserId }).OfType<Guid>())
-            .Concat(procedure.Notes.Select(n => n.AuthorUserId).OfType<Guid>())
+            .Concat(procedure.Notes.SelectMany(n => new[] { n.AuthorUserId, n.DeletedByUserId }).OfType<Guid>())
             .Distinct();
 
     /// <summary>
@@ -132,7 +132,7 @@ public static class ProcedureMapper
                 .ToList(),
             Notes = ProcedureNoteMapper.FirstNoteText(procedure),
             NoteList = ProcedureNoteMapper.ToResponses(
-                procedure.Notes, usernames, viewerId, canChange && ProcedureWorkflow.CanChangeNotes(procedure))
+                procedure.Notes, usernames, viewerId, canChange && ProcedureWorkflow.CanChangeNotes(procedure), canChange)
         };
     }
 

@@ -99,6 +99,21 @@ public static class TimelineMapper
                 ];
                 break;
 
+            // A deleted note: staff see that it was deleted, by whom and when; admins also see the text it had (from the
+            // note versions) and the reason.
+            case NoteDeleted:
+                response.Changes =
+                [
+                    new PatientTimelineChangeResponse
+                    {
+                        Field = NoteField,
+                        From = isAdmin ? row.NoteText : null,
+                        To = null,
+                    }
+                ];
+                response.Reason = isAdmin ? Text(details, "reason") : null;
+                break;
+
             case DetailsUpdated when details.TryGetValue("changes", out var changes) && changes.ValueKind == JsonValueKind.Object:
                 response.Changes = changes.EnumerateObject()
                     .Select(c => Change(c.Name, ObjectOf(c.Value), isAdmin || PublicValueFields.Contains(c.Name)))

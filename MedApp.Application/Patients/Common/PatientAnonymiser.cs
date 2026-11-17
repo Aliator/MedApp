@@ -16,7 +16,9 @@ namespace MedApp.Application.Patients.Common;
 /// <list type="bullet">
 /// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
 /// <item>Procedure titles become the template's name; procedure notes (every version of each, those of deleted
-/// procedures too, and the old single notes field) and stage notes become <see cref="RemovedText"/>.</item>
+/// procedures too, and the old single notes field) and stage notes become <see cref="RemovedText"/>, and so do the
+/// reasons notes were deleted, and staff gave when asking for them to be. A request still waiting is closed, by whoever
+/// anonymises: the record can't change any more.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
 /// <item>Appointments' notes and cancellation reasons, and their history's procedure titles, notes and reasons, are replaced the same way.</item>
 /// <item>Notifications about the procedures take the new titles, except those whose title is fixed (the appointment
@@ -75,7 +77,12 @@ public static class PatientAnonymiser
             procedure.Title = string.IsNullOrWhiteSpace(procedure.TemplateName) ? ProcedureTitle : procedure.TemplateName;
             procedure.LegacyNotes = Removed(procedure.LegacyNotes);
             foreach (var note in procedure.Notes)
+            {
                 note.Text = Removed(note.Text);
+                if (note.DeletionReason is not null)
+                    note.DeletionReason = Removed(note.DeletionReason);
+                note.PendingDeletionRequestId = null;
+            }
             foreach (var stage in procedure.Stages)
                 stage.Notes = Removed(stage.Notes);
             titles[procedure.Id] = procedure.Title;
@@ -83,6 +90,13 @@ public static class PatientAnonymiser
 
         foreach (var version in record.NoteVersions)
             version.Text = Removed(version.Text);
+
+        foreach (var request in record.NoteDeletionRequests)
+        {
+            request.Reason = Removed(request.Reason);
+            if (request.IsPending)
+                request.Close(NoteDeletionRequestStatus.Closed, by?.UserId, by?.Username, nowUtc);
+        }
 
         foreach (var entry in record.ProcedureHistory)
         {

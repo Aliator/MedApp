@@ -20,6 +20,10 @@ public sealed class EditProcedureNoteHandler(
         var note = procedure.Notes.FirstOrDefault(n => n.Id == request.NoteId)
                    ?? throw new NotFoundException($"Note '{request.NoteId}' was not found on this procedure.");
 
+        // An admin deleted it: it's kept, but nobody can change it.
+        if (note.IsDeleted)
+            throw new ConflictException(ProcedureNotes.DeletedMessage);
+
         // Only the author, admins included: what someone wrote in the record stays theirs.
         if (note.AuthorUserId is null || note.AuthorUserId != request.Actor.UserId)
             throw new ForbiddenException(ProcedureNotes.OnlyTheAuthorMessage);

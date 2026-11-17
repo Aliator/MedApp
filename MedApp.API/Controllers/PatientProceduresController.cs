@@ -1,9 +1,11 @@
 using MedApp.API.Common.Authentication;
+using MedApp.Application.Procedures.NoteDeletionRequests.Commands.RequestNoteDeletion;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AddProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.DeleteProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
@@ -15,6 +17,7 @@ using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedur
 using MedApp.Application.Procedures.PatientProcedures.Queries.GetPatientProcedureLabels;
 using MedApp.Application.Procedures.PatientProcedures.Queries.SearchPatientProcedures;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Procedures.NoteDeletionRequests.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MediatR;
@@ -147,6 +150,42 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> EditProcedureNote(Guid id, Guid noteId, [FromBody] EditProcedureNoteRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new EditProcedureNoteCommand(id, noteId, request.Text, request.ExpectedVersion, User.ToProcedureActor()), ct));
+
+    /// <summary>
+    /// Deletes a note on a procedure (admins), with a reason: soft, so it's hidden from the procedure page but kept, with
+    /// its versions, and in the patient's export. In any status of the procedure, but not while the patient's record is
+    /// restricted or anonymised (409). A request to delete it that was waiting is approved, and its requester told.
+    /// Audited (NoteDeleted, with the note's ID and version and the reason).
+    /// </summary>
+    [HttpPost("{id:guid}/notes/{noteId:guid}/delete")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteProcedureNote(Guid id, Guid noteId, [FromBody] DeleteProcedureNoteRequest request, CancellationToken ct)
+    {
+        await mediator.Send(new DeleteProcedureNoteCommand(id, noteId, request.Reason, User.ToProcedureActor()), ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Asks an admin to delete a note on a procedure, with a reason: every admin but you is told, and one of them
+    /// decides. Any note, in any status of the procedure, but not while the patient's record is restricted or anonymised,
+    /// and one waiting request per note (409, naming who asked and when). Returns the note, showing the request. The 201's
+    /// Location is the request (which only admins can read).
+    /// </summary>
+    [HttpPost("{id:guid}/notes/{noteId:guid}/deletion-requests")]
+    [ProducesResponseType(typeof(PatientProcedureNoteResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    public async Task<IActionResult> RequestNoteDeletion(Guid id, Guid noteId, [FromBody] RequestNoteDeletionRequest request, CancellationToken ct)
+    {
+        var note = await mediator.Send(new RequestNoteDeletionCommand(id, noteId, request.Reason, User.ToProcedureActor()), ct);
+        return Created($"/api/procedures/note-deletion-requests/{note.DeletionRequestId}", note);
+    }
 
     /// <summary>Blocks, unblocks, cancels, completes or archives a procedure (see its allowedStatusChanges).</summary>
     [HttpPost("{id:guid}/status")]

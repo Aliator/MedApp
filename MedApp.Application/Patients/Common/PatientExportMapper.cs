@@ -73,7 +73,11 @@ public static class PatientExportMapper
                             Text = n.Text,
                             CreatedAtUtc = n.CreatedAtUtc,
                             LastEditedAtUtc = n.LastEditedAtUtc,
-                            Version = n.Version
+                            Version = n.Version,
+                            // A deleted note is hidden from the procedure page, but kept: the export says when, who and why.
+                            DeletedAtUtc = n.DeletedAtUtc,
+                            DeletedBy = n.DeletedByUserId is null ? null : Username(n.DeletedByUserId),
+                            DeletionReason = n.DeletionReason
                         })
                         .ToList(),
                     AssignedTo = p.Assignments.OrderBy(a => a.AssignedAtUtc).Select(a => Username(a.UserId)).ToList(),
@@ -115,6 +119,21 @@ public static class PatientExportMapper
                     Text = v.Text,
                     Username = v.UserId is null ? ProcedureNoteMapper.UnknownAuthor : v.Username,
                     AtUtc = v.AtUtc
+                })
+                .ToList(),
+            // Staff's requests to delete notes, by the usernames recorded at the time.
+            NoteDeletionRequests = record.NoteDeletionRequests
+                .Select(r => new ExportedNoteDeletionRequestResponse
+                {
+                    Id = r.Id,
+                    NoteId = r.NoteId,
+                    ProcedureId = r.PatientProcedureId,
+                    RequestedBy = r.RequestedByUsername,
+                    RequestedAtUtc = r.RequestedAtUtc,
+                    Reason = r.Reason,
+                    Status = r.Status.ToString(),
+                    DecidedBy = r.DecidedByUsername,
+                    DecidedAtUtc = r.DecidedAtUtc
                 })
                 .ToList(),
             Appointments = record.Appointments
