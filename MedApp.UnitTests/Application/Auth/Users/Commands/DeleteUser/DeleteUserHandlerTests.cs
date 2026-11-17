@@ -1,6 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Appointments.Repositories;
+using MedApp.Application.Calendar.Common;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Identity;
@@ -20,6 +22,7 @@ public sealed class DeleteUserHandlerTests
     private Mock<IIdentityReadService> _reader = null!;
     private Mock<IAppointmentRepository> _appointments = null!;
     private Mock<IMeetingRepository> _meetings = null!;
+    private PassThroughIdentityTransactions _transactions = null!;
     private DeleteUserHandler _handler = null!;
 
     [SetUp]
@@ -38,6 +41,8 @@ public sealed class DeleteUserHandlerTests
         _fixture.Inject(_appointments.Object);
         _fixture.Inject(_meetings.Object);
         _fixture.Inject<TimeProvider>(new FixedTimeProvider(AuthTestConstants.SessionStartedAtUtc));
+        _transactions = new PassThroughIdentityTransactions();
+        _fixture.Inject<IIdentityTransactions>(_transactions);
 
         _handler = _fixture.Create<DeleteUserHandler>();
 
@@ -224,6 +229,57 @@ public sealed class DeleteUserHandlerTests
             r => r.RemoveAttendeeFromUpcomingAsync(AuthTestConstants.SettingsUserId, AuthTestConstants.SessionStartedAtUtc, cts.Token),
             Times.Once);
         _meetings.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_Deleted_DeletesAndTakesThemOffMeetingsInOneTransaction()
+    {
+        GivenUpcomingAppointments(0);
+        using var cts = new CancellationTokenSource();
+        var inside = new List<string>();
+        _service.Setup(s => s.DeleteUserAsync(AuthTestConstants.Usernames[0], cts.Token))
+            .Callback(() => inside.Add($"delete {_transactions.IsRunning}"))
+            .ReturnsAsync(IdentityResult.Success);
+        _meetings.Setup(r => r.RemoveAttendeeFromUpcomingAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback(() => inside.Add($"meetings {_transactions.IsRunning}"))
+            .ReturnsAsync(1);
+
+        await _handler.Handle(Command(), cts.Token);
+
+        inside.Should().Equal("delete True", "meetings True");
+        _transactions.Runs.Should().Be(1);
+        _transactions.LastToken.Should().Be(cts.Token);
+    }
+
+    [Test]
+    public async Task Handle_MeetingsChangedMeanwhile_ThrowsFromInsideTheTransaction()
+    {
+        // Another admin saved one of the meetings at that moment: the 409 leaves the transaction, which rolls the
+        // deletion back.
+        GivenUpcomingAppointments(0);
+        _service.Setup(s => s.DeleteUserAsync(AuthTestConstants.Usernames[0], It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Success);
+        var conflict = new ConflictException(MeetingLimits.ChangedMeanwhile);
+        _meetings.Setup(r => r.RemoveAttendeeFromUpcomingAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _transactions.IsRunning.Should().BeTrue())
+            .ThrowsAsync(conflict);
+
+        var act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ConflictException>()).Which.Should().BeSameAs(conflict);
+        _transactions.Runs.Should().Be(1);
+    }
+
+    [Test]
+    public async Task Handle_WrongPassword_StartsNoTransaction()
+    {
+        _service
+            .Setup(s => s.VerifyPasswordAsync(AuthTestConstants.Usernames[1], AuthTestConstants.ValidPassword, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(IdentityResult.Failed(IdentityErrors.PasswordIncorrect));
+
+        await _handler.Handle(Command(), CancellationToken.None);
+
+        _transactions.Runs.Should().Be(0);
     }
 
     [Test]

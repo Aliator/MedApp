@@ -1,6 +1,8 @@
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Procedures.Common;
+using MedApp.Domain.Monitoring;
+using MedApp.Domain.Procedures.PatientProcedures;
 using Microsoft.Extensions.Logging;
 
 namespace MedApp.Application.Monitoring.Common;
@@ -50,21 +52,38 @@ public sealed class ProcedureMonitor(
         }
     }
 
-    private async Task<IReadOnlyList<MonitoringMatch>> FindMatchesAsync(ProcedureChange change, CancellationToken cancellationToken)
+    private Task<IReadOnlyList<MonitoringMatch>> FindMatchesAsync(ProcedureChange change, CancellationToken cancellationToken) =>
+        FindMatchesAsync(change.Procedure, change.AuditEntries, change.Actor.UserId, rules.GetEnabledAsync, rules.GetAdminsAsync,
+            cancellationToken);
+
+    /// <summary>
+    /// Whom a change's audit entries should be told about, and what: the activities read from the entries, the
+    /// switched-on rules for those events (from <paramref name="enabledRules"/>, not asked when the change did nothing a
+    /// rule can watch for), matched by <see cref="MonitoringRuleMatcher"/>, keeping only owners who are admins (from
+    /// <paramref name="admins"/>, not asked when nothing matched). Shared with medapp-dev's demo data, which answers the
+    /// two questions with the rules and admins as they were at a moment in its history.
+    /// </summary>
+    public static async Task<IReadOnlyList<MonitoringMatch>> FindMatchesAsync(
+        PatientProcedure procedure,
+        IReadOnlyList<PatientProcedureAuditEntry> entries,
+        Guid actorUserId,
+        Func<IReadOnlyCollection<MonitoringEvent>, CancellationToken, Task<IReadOnlyList<MonitoringRule>>> enabledRules,
+        Func<IReadOnlyCollection<Guid>, CancellationToken, Task<IReadOnlySet<Guid>>> admins,
+        CancellationToken cancellationToken)
     {
-        var activities = MonitoredActivity.From(change.Procedure, change.AuditEntries);
+        var activities = MonitoredActivity.From(procedure, entries);
         if (activities.Count == 0)
             return [];
 
         var events = activities.Select(a => a.Event).Distinct().ToList();
-        var enabled = await rules.GetEnabledAsync(events, cancellationToken);
-        var matches = MonitoringRuleMatcher.Match(enabled, activities, change.Procedure, change.Actor.UserId);
+        var enabled = await enabledRules(events, cancellationToken);
+        var matches = MonitoringRuleMatcher.Match(enabled, activities, procedure, actorUserId);
         if (matches.Count == 0)
             return [];
 
         // A rule only counts while its owner is an admin: someone whose Admin role was removed stops being told (their
         // rules stay, and count again if they're made an admin again).
-        var admins = await rules.GetAdminsAsync(matches.Select(m => m.OwnerUserId).ToList(), cancellationToken);
-        return matches.Where(m => admins.Contains(m.OwnerUserId)).ToList();
+        var adminIds = await admins(matches.Select(m => m.OwnerUserId).ToList(), cancellationToken);
+        return matches.Where(m => adminIds.Contains(m.OwnerUserId)).ToList();
     }
 }

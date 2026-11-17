@@ -566,21 +566,27 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     fireEvent.pointerMove(card, {pointerId: 1, clientX: 150, clientY: yOf(8)});
     fireEvent.pointerUp(card, {pointerId: 1});
     await expectAnnounced('Meeting moved');
-    // The same meeting at the new time: its title, notes and attendees kept.
+    // The same meeting at the new time: its title, notes and attendees kept, and the version the calendar showed, so
+    // the API can refuse it if someone has changed the meeting since.
     expect(await bodyOf(fetch, 'PUT', '/api/calendar/meetings/meeting-1')).toEqual({
       title: 'MDT',
       notes: 'Bring the rota',
       attendeeUserIds: [STAFF_ME.userId, STAFF_OTHER.userId],
       startUtc: '2026-11-24T10:00:00.000Z',
       endUtc: '2026-11-24T10:30:00.000Z',
+      expectedLastUpdated: meeting.lastUpdated,
     });
 
-    // A clash is the API's 409, in its words.
+    // A clash, or a change made meanwhile, is the API's 409, in its words; the calendar is loaded again, so a retry
+    // starts from the meeting as it is now.
     status = 409;
+    const calendarLoads = () => calls(fetch).filter((c) => c.startsWith('GET /api/calendar?')).length;
+    const loadsBefore = calendarLoads();
     fireEvent.pointerDown(card, {button: 0, pointerId: 2, clientX: 50, clientY: yOf(4)});
     fireEvent.pointerMove(card, {pointerId: 2, clientX: 150, clientY: yOf(8)});
     fireEvent.pointerUp(card, {pointerId: 2});
     expect(await screen.findByText('b.staff has Lunch, 10:00 to 11:00.')).toBeInTheDocument();
+    await waitFor(() => expect(calendarLoads()).toBeGreaterThan(loadsBefore));
   });
 
   it('offers admins a new meeting, with the person whose calendar it is', async () => {

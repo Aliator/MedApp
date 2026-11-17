@@ -78,7 +78,7 @@ public sealed class MeetingsControllerTests
     }
 
     [Test]
-    public async Task UpdateMeeting_SendsTheChangesAsTheAdmin()
+    public async Task UpdateMeeting_SendsTheChangesAndTheVersionSeenAsTheAdmin()
     {
         var request = _fixture.Create<MeetingRequest>();
         var meeting = _fixture.Create<MeetingResponse>();
@@ -87,7 +87,8 @@ public sealed class MeetingsControllerTests
         var result = await Controller(mediator).UpdateMeeting(RecordId, request, _cts.Token);
 
         mediator.Request.Should().Be(new UpdateMeetingCommand(
-            RecordId, request.Title, request.Notes, request.StartUtc, request.EndUtc, request.AttendeeUserIds, AdminActor));
+            RecordId, request.Title, request.Notes, request.StartUtc, request.EndUtc, request.AttendeeUserIds,
+            request.ExpectedLastUpdated, AdminActor));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(meeting);
     }

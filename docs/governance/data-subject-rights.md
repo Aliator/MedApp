@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft), 16 November 2026: the rights features of roadmap step 7; 0.3 (draft), the same day: appointments and staff calendars |
+| **Version** | 0.2 (draft), 16 November 2026: the rights features of roadmap step 7; 0.3 (draft), the same day: appointments and staff calendars; 0.4 (draft), 17 November 2026: meetings and personal calendar templates (review of #99) |
 | **Owner** | [DPO name], Data Protection Officer, [Company name] |
 | **Next review** | When the rest of roadmap step 7 ships (archiving, the clinician review step, contact preferences); at least every 12 months |
 
@@ -43,7 +43,7 @@ How requests from patients and staff to exercise their rights under UK GDPR (Art
 | **Automated decisions** (Articles 22A to 22D) | No: MedApp makes none | Not applicable | Must stay so ([roles-and-lawful-bases.md](roles-and-lawful-bases.md)) |
 | **To withdraw consent** | Only if a customer relies on consent, which the supplier advises against | Not applicable | |
 
-**Staff users** have the same rights for their own data (account, sessions, settings, notification choices, notifications, their calendar's blocks and default week, their appointments with patients, their actions in the audit trail and appointment history, including the files they uploaded, deleted or downloaded, and **admins' monitoring rules and notifications about them**). Their calendar is on screen to every staff user; a block can be corrected or removed by its owner or an admin, except on past days. Today a customer's admin can see a user's account and roles; the rest needs the manual procedure. No admin can see another admin's monitoring rules, so a staff member asking which rules name them is answered by the supplier, on the customer's instruction (section 4).
+**Staff users** have the same rights for their own data (account, sessions, settings, notification choices, notifications, their calendar's blocks and default week, their own day and week templates, the meetings they go to or arranged, their appointments with patients, their actions in the audit trail and appointment history, including the files they uploaded, deleted or downloaded, and **admins' monitoring rules and notifications about them**). Their calendar is on screen to every staff user, with their meetings (titles, notes and who else is going) and their templates; a block can be corrected or removed by its owner or an admin, except on past days, their templates by them or an admin, and a meeting by an admin. Today a customer's admin can see a user's account and roles; the rest needs the manual procedure. No admin can see another admin's monitoring rules, so a staff member asking which rules name them is answered by the supplier, on the customer's instruction (section 4).
 
 ### Health data points
 
@@ -68,7 +68,7 @@ For patients, the customer's admins now answer access, rectification, restrictio
    - notifications about their procedures and appointments
    - staff usernames for the IDs in all of these
 
-   For a **staff user**, the same for their account, roles, sessions, settings, notification choices (`NotificationPreferences`), notifications, calendar blocks, default week templates and day overrides, appointments booked with them, and audit and appointment history entries by `UserId`, and the `Attachment` rows they uploaded or deleted (without the files, which are about patients); and for monitoring:
+   For a **staff user**, the same for their account, roles, sessions, settings, notification choices (`NotificationPreferences`), notifications (meeting invitations, moves and cancellations among them), calendar blocks, default week templates and day overrides, their own day and week templates (`DayTemplates.OwnerUserId`, `WeekTemplates.OwnerUserId`, with their dated rows), the meetings they go to (`MeetingAttendees.StaffUserId`) or arranged (`Meetings.OrganiserUserId`), with each meeting's title, notes, time and the other attendees' usernames, appointments booked with them, and audit and appointment history entries by `UserId`, and the `Attachment` rows they uploaded or deleted (without the files, which are about patients); and for monitoring:
    - **rules that name them** (`MonitoringRules.SubjectUserId`), with the admin who owns each
    - **rules they own** (`MonitoringRules.OwnerUserId`), if they're an admin
    - **monitoring notifications about them:** these are stored under the admin told (`Notifications.UserId`), with the staff member only in the message text, so search the monitoring kinds (10 to 17) for their username in `Message`

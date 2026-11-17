@@ -96,6 +96,12 @@ The Job is deleted when it succeeds. A failed one stays, so you can read its log
 
 Because migrations run before the new API is up, a migration that removes or renames something the old API still uses breaks it during the rollout. Make such changes in two releases: first add the new thing, then remove the old.
 
+Changes that leave the old API partly working, until every pod runs the new one (the end of the rollout, or after a rollback, which doesn't roll the database back, the next deploy):
+- **Personal calendar templates and meetings** (`MadeCalendarTemplatesPersonal` and `AddedMeetings`, #99):
+  - **Old pods can't create day or week templates.** Their insert gives no owner, and the column has no default, so it fails (a 500) rather than making a template nobody owns.
+  - **Old pods list everyone's copies** as the organisation's templates, several with the same name, and an admin there could set someone's default week to another person's copy.
+  - **Old pods don't know meetings.** They don't show them, and can book appointments and block time over them.
+
 ## More than one copy of the API
 
 Set `api.replicas` above 1. Live notifications then go through the **backplane** (`backplane.enabled`, on by default).

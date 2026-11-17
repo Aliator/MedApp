@@ -15,4 +15,10 @@ public sealed class MeetingRequest
 
     /// <summary>Who's going: at least one member of staff (the organiser isn't added unless listed).</summary>
     public List<Guid> AttendeeUserIds { get; set; } = [];
+
+    /// <summary>
+    /// When changing a meeting (required then; ignored when adding one): its <c>LastUpdated</c> as the caller last read
+    /// it. If anyone has changed the meeting since, the change is refused (409), rather than undoing theirs.
+    /// </summary>
+    public DateTime? ExpectedLastUpdated { get; set; }
 }

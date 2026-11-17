@@ -331,6 +331,8 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     await user.click(await dialog().findByRole('button', {name: 'Change'}));
     expect(await screen.findByRole('heading', {name: 'Change Meeting'})).toBeInTheDocument();
     expect(dialog().getByRole('textbox', {name: /Title/})).toHaveValue('Team huddle');
+    // Everyone sees the title, notifications included, so it warns against patient details, as Notes does.
+    expect(dialog().getByRole('textbox', {name: /Title/})).toHaveAccessibleDescription(/Don't put patient details here\./);
     expect(dialog().getByRole('textbox', {name: /Notes/})).toHaveValue('Rota for December');
     expect(dialog().queryByRole('checkbox', {name: /I'm going too/})).not.toBeInTheDocument();
     expect(dialog().getByRole('combobox', {name: /Who/})).toHaveTextContent('k.ashford, Deleted user');
@@ -355,6 +357,8 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
       startUtc: '2026-11-19T09:00:00.000Z',
       endUtc: '2026-11-19T10:00:00.000Z',
       attendeeUserIds: [KAY.userId, GONE],
+      // The version it was changed from: the API refuses the change if anyone has changed the meeting since.
+      expectedLastUpdated: MEETING.lastUpdated,
     });
   });
 

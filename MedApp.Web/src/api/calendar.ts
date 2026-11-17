@@ -1,5 +1,6 @@
 import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
+import {ApiError} from './errors';
 
 /**
  * Staff calendars (docs/calendar-plan.md): an 08:00 to 18:00 working day, UK time, Monday to Friday, with blocked
@@ -287,6 +288,8 @@ export function useSaveWeekTemplate() {
 /**
  * Arranging, changing and cancelling meetings (admins). The API refuses a past day (409), a time outside the working
  * day (400) and a clash on any attendee's calendar (409, naming who and what: "k.ashford has Lunch, 12:00 to 13:00.").
+ * A change sends the meeting's `lastUpdated` from the copy it was made from (`expectedLastUpdated`), and the API refuses
+ * it (409) if anyone has changed the meeting since; the calendars are then refreshed, so a retry starts from theirs.
  */
 export function useMeetingActions() {
   const onSuccess = useRefreshCalendars();
@@ -299,6 +302,9 @@ export function useMeetingActions() {
       mutationFn: ({id, ...body}: MeetingInput & {id: string}) =>
         unwrap(api.PUT('/api/calendar/meetings/{id}', {params: {path: {id}}, body})),
       onSuccess,
+      onError: (error) => {
+        if (error instanceof ApiError && error.status === 409) void onSuccess();
+      },
     }),
     cancel: useMutation({
       mutationFn: (id: string) => unwrap(api.DELETE('/api/calendar/meetings/{id}', {params: {path: {id}}})),

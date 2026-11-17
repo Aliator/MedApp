@@ -1,10 +1,12 @@
 using AutoFixture;
+using FluentValidation;
 using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Meetings.Commands.UpdateMeeting;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Notifications;
+using MedApp.UnitTests.Common.Constants;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
 using static MedApp.UnitTests.Common.Constants.MeetingsTestConstants;
@@ -34,13 +36,20 @@ public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
         Meetings.Setup(r => r.GetForUpdateAsync(meeting.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_tracked);
     }
 
-    /// <summary>The admin changes the meeting: by default, nothing but the title, to <see cref="OtherTitle"/>.</summary>
+    /// <summary>An account that has gone: not among <see cref="CalendarTestConstants.Staff"/>.</summary>
+    private static readonly Guid GoneUserId = Guid.Parse("0000000d-0000-0000-0000-0000000000ee");
+
+    /// <summary>
+    /// The admin changes the meeting: by default, nothing but the title, to <see cref="OtherTitle"/>, from a copy read
+    /// when it was last updated (a day ago).
+    /// </summary>
     private static UpdateMeetingCommand Command(
         DateTime? startUtc = null,
         DateTime? endUtc = null,
         IReadOnlyList<Guid>? attendees = null,
         CalendarActor? actor = null,
-        string title = OtherTitle) =>
+        string title = OtherTitle,
+        DateTime? expectedLastUpdated = null) =>
         new(
             MeetingId,
             $" {title} ",
@@ -48,6 +57,7 @@ public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
             startUtc ?? At(NextMonday, 10),
             endUtc ?? At(NextMonday, 11),
             attendees ?? [StaffUserId, OtherStaffUserId],
+            expectedLastUpdated ?? Now.AddDays(-1),
             actor ?? AdminActor);
 
     [Test]
@@ -169,6 +179,97 @@ public sealed class UpdateMeetingHandlerTests : MeetingHandlerTestBase
 
         _tracked.Attendees.Select(a => a.StaffUserId).Should().Equal(StaffUserId, OtherStaffUserId);
         Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_ChangedSinceTheCallerReadIt_ThrowsConflictWithoutLockingOrSaving()
+    {
+        // Another admin saved a change an hour ago; this caller's screen is from before it.
+        var changed = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
+        changed.LastUpdated = Now.AddHours(-1);
+        GivenMeeting(changed);
+
+        var act = () => _handler.Handle(Command(At(NextMonday, 14), At(NextMonday, 15)), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(MeetingLimits.ChangedMeanwhile);
+        VerifyNotLocked();
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ChangedBetweenTheFirstReadAndTheLocks_ThrowsConflictWithoutSaving()
+    {
+        var saved = NewMeeting(At(NextMonday, 10), At(NextMonday, 11));
+        var changedMeanwhile = Copy(saved);
+        changedMeanwhile.LastUpdated = Now.AddSeconds(-1);
+        changedMeanwhile.Title = "Changed by another admin";
+        GivenMeeting(saved, changedMeanwhile);
+
+        var act = () => _handler.Handle(Command(), Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(MeetingLimits.ChangedMeanwhile);
+        _tracked.Title.Should().Be("Changed by another admin");
+        Meetings.Verify(r => r.SaveAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ExpectedTimeWithAnOffset_IsComparedAsTheSameMoment()
+    {
+        // 09:00 UTC a day ago, as a local time: the same moment, so it isn't a change.
+        var local = Now.AddDays(-1).ToLocalTime();
+
+        await _handler.Handle(Command(expectedLastUpdated: local), Token);
+
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_AnAttendeeWhoseAccountHasGone_IsDroppedWithoutAnErrorOrANotification()
+    {
+        // A training day that had started when a leaver's account went: they stayed on it (only meetings to come lose
+        // them), and the admin moves its end, keeping everyone the dialog showed.
+        GivenMeeting(NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId, GoneUserId]));
+
+        await _handler.Handle(Command(At(NextMonday, 10), At(NextMonday, 12), [StaffUserId, GoneUserId]), Token);
+
+        _tracked.Attendees.Select(a => a.StaffUserId).Should().Equal(StaffUserId);
+        Meetings.Verify(r => r.SaveAsync(Token), Times.Once);
+        Sent.Should().ContainSingle().Which.Notification.UserId.Should().Be(StaffUserId);
+    }
+
+    [Test]
+    public async Task Handle_AnAttendeeWhoseAccountHasGoneTakenOff_TellsNobody()
+    {
+        GivenMeeting(NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [StaffUserId, GoneUserId]));
+
+        await _handler.Handle(Command(attendees: [StaffUserId]), Token);
+
+        _tracked.Attendees.Select(a => a.StaffUserId).Should().Equal(StaffUserId);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_OnlyAttendeesWhoseAccountsHaveGoneLeft_ThrowsValidationWithoutLocking()
+    {
+        GivenMeeting(NewMeeting(At(NextMonday, 10), At(NextMonday, 11), [GoneUserId]));
+
+        var act = () => _handler.Handle(Command(attendees: [GoneUserId]), Token);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { PropertyName = "AttendeeUserIds", ErrorMessage = MeetingStaff.NobodyLeft });
+        VerifyNotLocked();
+    }
+
+    [Test]
+    public async Task Handle_AddingSomeoneWhoseAccountHasGone_ThrowsNotFound()
+    {
+        // Only those already going may have gone: anyone newly added must be staff.
+        var act = () => _handler.Handle(Command(attendees: [StaffUserId, GoneUserId]), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Staff member(s) not found: {GoneUserId}.");
+        VerifyNotLocked();
     }
 
     [Test]
