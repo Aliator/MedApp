@@ -9,6 +9,7 @@ import {Popover} from '@astryxdesign/core/Popover';
 import {SegmentedControl, SegmentedControlItem} from '@astryxdesign/core/SegmentedControl';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
+import {ToggleButton} from '@astryxdesign/core/ToggleButton';
 import type {ISODateString} from '@astryxdesign/core/Calendar';
 import {keepPreviousData, useQuery, type QueryClient} from '@tanstack/react-query';
 import {useEffect, useRef, useState, type CSSProperties, type RefObject} from 'react';
@@ -168,7 +169,8 @@ interface PendingMove {
  * only book on), in the team view for the person whose column it is; selecting in "Everyone free" offers New meeting
  * with them all at that time. New does the same without the grid, and admins can arrange a meeting from it. Opening an
  * item opens its dialog (an appointment, a block or a meeting); dragging one moves it (an appointment after a
- * confirmation naming the new time; a meeting by an admin, keeping its title, notes and attendees). The toolbar goes
+ * confirmation naming the new time; a meeting by an admin, keeping its title, notes and attendees; blocked time only
+ * while Edit blocks is on, decision 70, a template block within its own day). The toolbar goes
  * between days, weeks and the team, sets their default week from their week templates, and leads to their calendar
  * templates. Apply Template, beside New, applies one of their day templates (or none, or the default week's) to days of
  * the week shown (`ApplyTemplateDialog`, decision 69), in the day, week and compact week views, for whoever can change
@@ -242,6 +244,14 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const [move, setMove] = useState<PendingMove | null>(null);
   const [meeting, setMeeting] = useState<Pick<MeetingDialogProps, 'meeting' | 'initial'> | null>(null);
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
+  // Edit blocks: while it's on, blocked time can be dragged to another time (decision 70). Off each time the page
+  // opens, and only on one person's calendar that can be changed, never in the team view.
+  const [isEditMode, setIsEditMode] = useState(false);
+  const canEditBlocks = canEdit && !isTeam;
+  const isEditingBlocks = isEditMode && canEditBlocks;
+  // A block being saved at the time it was dropped at: shown there until the calendar is loaded again, or back where
+  // it was if the move is refused.
+  const [movingBlock, setMovingBlock] = useState<{key: string; date: string; startUtc: string; endUtc: string} | null>(null);
 
   // An appointment in the URL (from a notification, or opened here): shown in its dialog, on its day.
   const linked = useQuery({...appointmentQuery(search.appointment ?? ''), enabled: search.appointment !== undefined});
@@ -335,18 +345,44 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       );
       return;
     }
-    const block = blockOf(source, item);
-    const values = {activityTypeId: block.activityTypeId, startUtc: to.startUtc, endUtc: to.endUtc, note: block.note};
-    const options = {onSuccess: () => announce('Blocked time moved'), onError: (error: unknown) => setMessage(problemMessage(error, 'The blocked time could not be moved.'))};
-    if (block.isFromTemplate) {
-      calendarActions.changeTemplateBlock.mutate(
-        {userId: source.staffUserId ?? '', date: block.date ?? '', templateBlockId: block.templateBlockId ?? '', ...values},
-        options,
-      );
-    } else {
-      calendarActions.saveBlock.mutate({id: block.blockId ?? '', ...values}, options);
-    }
+    void moveBlock(source, blockOf(source, item), item.key, to);
   };
+
+  /**
+   * Saves a block dragged in Edit blocks mode, through the same calls as `BlockDialog`, so the API's rules apply as
+   * they do there (outside the working day or on a past day is a 400 or 409, a clash a 409). A stored block is saved
+   * at its new time, with its activity and note; a template block is changed for its own day only (an exception for
+   * the day and a stored block at the new time), which the grid keeps it to (`movesWithinDay`), as the API refuses a
+   * template block moved to another day. It shows where it was dropped while it saves; if the move is refused, it goes
+   * back, the API's words show in the page's message, and the calendar is loaded again.
+   *
+   * Dragging is never the only way (WCAG 2.5.7): opening a block (a click, or Enter) opens `BlockDialog`, which changes
+   * its day and times from lists.
+   */
+  async function moveBlock(source: Calendar, block: CalendarBlock, key: string, to: CalendarSelection) {
+    const values = {activityTypeId: block.activityTypeId, startUtc: to.startUtc, endUtc: to.endUtc, note: block.note};
+    setMovingBlock({key, date: to.date, startUtc: to.startUtc, endUtc: to.endUtc});
+    try {
+      if (block.isFromTemplate) {
+        await calendarActions.changeTemplateBlock.mutateAsync({
+          userId: source.staffUserId ?? '',
+          date: block.date ?? '',
+          templateBlockId: block.templateBlockId ?? '',
+          ...values,
+        });
+      } else {
+        await calendarActions.saveBlock.mutateAsync({id: block.blockId ?? '', ...values});
+      }
+      const day = to.date === block.date ? '' : `${formatCalendarDay(to.date)}, `;
+      announce(`${block.activityName ?? 'Blocked time'} moved to ${day}${formatTimeRange(to.startUtc, to.endUtc)}`);
+    } catch (error) {
+      setMessage(problemMessage(error, 'The blocked time could not be moved.'));
+      // A clash or a change made meanwhile: the calendar as it is now, so another try starts from there.
+      void calendar.refetch();
+    } finally {
+      setMovingBlock(null);
+    }
+  }
 
   const confirmMove = (move: PendingMove) => {
     // A move of the appointment as the calendar showed it (Booked): if someone else changed it since, it's a 409.
@@ -407,8 +443,18 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const shown = isTeam ? team : calendar;
   const teamDay = team.data?.day;
   const teamDate = team.data?.date ?? date;
+  // A block being saved shows at its new time; meanwhile no block can be picked up, so one move finishes before the next.
+  const shownPerson =
+    person && movingBlock
+      ? {
+          ...person,
+          blocks: person.blocks?.map((b) =>
+            blockKey(b) === movingBlock.key ? {...b, date: movingBlock.date, startUtc: movingBlock.startUtc, endUtc: movingBlock.endUtc} : b,
+          ),
+        }
+      : person;
   const columns: CalendarColumn[] = !isTeam
-    ? dayColumns(days, calendarItems(person), {weekdaysOnly: isCompactWeek})
+    ? dayColumns(days, calendarItems(shownPerson, {movableBlocks: isEditingBlocks && movingBlock === null}), {weekdaysOnly: isCompactWeek})
     : teamDay
       ? [
           {key: EVERYONE_FREE, label: 'Everyone free', date: teamDate, day: teamDay, items: [], freeTime: team.data?.everyoneFree ?? []},
@@ -514,7 +560,18 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const templatesButton = templatesLink && (
     <Button label={templatesLink.label} variant="secondary" href={templatesLink.href} icon={<Icon icon={AppIcon.CalendarTemplates} />} />
   );
-  // In a narrow toolbar: whose calendar, the row length, the default week and the templates, in one menu.
+  // Edit blocks: only on one person's calendar that can be changed (as Apply Template and New's Block time), never in
+  // the team view. A toggle (`aria-pressed`), so its state is said with its name.
+  const editBlocksToggle = canEditBlocks && (
+    <ToggleButton
+      label="Edit blocks"
+      tooltip="Drag blocked time to move it"
+      icon={<Icon icon={AppIcon.Edit} />}
+      isPressed={isEditMode}
+      onPressedChange={setIsEditMode}
+    />
+  );
+  // In a narrow toolbar: whose calendar, the row length, the default week, Edit blocks and the templates, in one menu.
   const viewOptionItems: DropdownMenuOption[] = [
     ...(!isTeam && staffChoices.length > 0
       ? [
@@ -530,6 +587,19 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       : []),
     {type: 'section' as const, title: `Rows: ${rowMinutes} min`, items: rowItems},
     ...(hasDefaultWeek ? [{label: defaultWeekLabel, items: weekItems}] : []),
+    // Named by its state, as Rows is, since a menu item can't say it's pressed; the change is announced too.
+    ...(canEditBlocks
+      ? [
+          {
+            label: `Edit blocks: ${isEditMode ? 'On' : 'Off'}`,
+            icon: <Icon icon={isEditMode ? AppIcon.Check : AppIcon.Edit} />,
+            onClick: () => {
+              setIsEditMode(!isEditMode);
+              announce(isEditMode ? 'Edit blocks off' : 'Edit blocks on: drag blocked time to move it');
+            },
+          },
+        ]
+      : []),
     ...(templatesLink ? [{label: templatesLink.label, href: templatesLink.href, icon: <Icon icon={AppIcon.CalendarTemplates} />}] : []),
   ];
   const viewOptions = (
@@ -718,6 +788,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               {isTeam ? whoPicker : staffPicker}
             </HStack>
             <HStack gap={2} vAlign="center" wrap="wrap">
+              {editBlocksToggle}
               {rowsMenu}
               {defaultWeekMenu}
               {templatesButton}
