@@ -1,7 +1,11 @@
 import {useMediaQuery} from '@astryxdesign/core/hooks';
+import {useQueryClient} from '@tanstack/react-query';
 import {createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode} from 'react';
-import type {Procedure} from '../../api/procedures';
+import {notepadQuery} from '../../api/notepad';
+import {procedureQuery, type Procedure} from '../../api/procedures';
 import {useHalfView} from '../pages/halfView';
+import {newWindowId, openNotepadChannel, postNotepadMessage, type NotepadMessage} from './notepadChannel';
+import {closeNotepadWindow} from './notepadWindow';
 
 /**
  * Whether the notepad is open is kept in this browser (it's a convenience, like the half view), under a `medapp.` key,
@@ -71,6 +75,14 @@ export interface NotepadState {
    * true once, for the pane that asks first.
    */
   takeFocus: () => boolean;
+  /** Whether this is the notepad's own window (`/notepad`), which closing closes. */
+  isWindow: boolean;
+  /** Tells MedApp's other windows the notepad was saved, at this version, so a notepad there with nothing typed catches up. */
+  shareSaved: (version: number) => void;
+  /** Calls `listener` with the version each time another window saves the notepad, until the function returned is called. */
+  onSavedElsewhere: (listener: (version: number) => void) => () => void;
+  /** Tells MedApp's other windows a note was added to this procedure, so a page showing it reads it afresh. */
+  shareNoteAdded: (procedureId: string) => void;
 }
 
 const NotepadContext = createContext<NotepadState | null>(null);
@@ -78,31 +90,161 @@ const NotepadContext = createContext<NotepadState | null>(null);
 /** The notepad, or null outside the signed-in layout (and in tests of one part). */
 export const useNotepad = () => useContext(NotepadContext);
 
+/** Each window's procedure pages, as the notepad's own window has been told them, by the window's ID. */
+type SharedProcedures = Record<string, OpenProcedure[]>;
+
+/** The procedure pages open, left before right. */
+const leftFirst = (procedures: OpenProcedure[]) =>
+  [...procedures].sort((a, b) => (a.side === 'right' ? 1 : 0) - (b.side === 'right' ? 1 : 0));
+
+/**
+ * The procedure pages open in MedApp's other windows, for the notepad's own window: each procedure once (it may be
+ * open in two), keyed by its window too, as keys are only unique within one.
+ */
+function sharedProcedures(shared: SharedProcedures): OpenProcedure[] {
+  const seen = new Set<string>();
+  const all: OpenProcedure[] = [];
+  for (const [windowId, procedures] of Object.entries(shared)) {
+    for (const open of procedures) {
+      const id = open.procedure.id ?? open.key;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      all.push({...open, key: `${windowId}:${open.key}`});
+    }
+  }
+  return all;
+}
+
+export interface NotepadProviderProps {
+  children: ReactNode;
+  /**
+   * The notepad's own window (`/notepad`): always open, closing it closes the window, nothing is kept in this browser,
+   * and Add Note to Procedure offers the procedure pages open in MedApp's other windows.
+   */
+  isWindow?: boolean;
+}
+
 /**
  * The notepad's state for the signed-in layout: whether it's open (remembered in this browser, read after mounting so
- * the server's render matches), and the procedure pages open, which its Add Note to Procedure can add to.
+ * the server's render matches), and the procedure pages open, which its Add Note to Procedure can add to. Or, with
+ * `isWindow`, for the notepad's own window.
+ *
+ * It keeps MedApp's windows in step (`notepadChannel`): it tells the others when the notepad is saved, and when a note
+ * is added to a procedure (a window showing that procedure then reads it afresh). The signed-in layout shares its
+ * procedure pages with the notepad's own window whenever they change and when asked, and none as its window goes.
  */
-export function NotepadProvider({children}: {children: ReactNode}) {
-  const [isOpen, setIsOpen] = useState(false);
+export function NotepadProvider({children, isWindow = false}: NotepadProviderProps) {
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(isWindow);
   const [offers, setOffers] = useState<OpenProcedure[]>([]);
+  // In the notepad's own window: the procedure pages open in MedApp's other windows.
+  const [shared, setShared] = useState<SharedProcedures>({});
   const closer = useRef<(() => Promise<void>) | null>(null);
-  // Opened by its user: the pane takes the focus, and closing it gives the focus back to what opened it.
-  const shouldFocus = useRef(false);
+  // Opened by its user: the pane takes the focus, and closing it gives the focus back to what opened it. The notepad's
+  // own window was opened to write in, so it takes the focus as it starts.
+  const shouldFocus = useRef(isWindow);
   const opener = useRef<HTMLElement | null>(null);
+  const channel = useRef<BroadcastChannel | null>(null);
+  const windowId = useRef<string | null>(null);
+  const savedListeners = useRef(new Set<(version: number) => void>());
 
   useEffect(() => {
     // Read from this browser once mounted: the server can't know it, and its render must match the first one here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (storedOpen()) setIsOpen(true);
+    if (!isWindow && storedOpen()) setIsOpen(true);
+  }, [isWindow]);
+
+  const openProcedures = useMemo(
+    () => leftFirst(isWindow ? [...offers, ...sharedProcedures(shared)] : offers),
+    [offers, shared, isWindow],
+  );
+  // The latest, for answering a window that asks (the channel's listener is set up once).
+  const latestProcedures = useRef(openProcedures);
+
+  // The channel to MedApp's other windows, where the browser has one.
+  useEffect(() => {
+    windowId.current ??= newWindowId();
+    const id = windowId.current;
+    const post = (message: NotepadMessage) => postNotepadMessage(channel.current, message);
+    channel.current = openNotepadChannel((message) => {
+      switch (message.type) {
+        case 'saved': {
+          // A copy kept here from before is out of date: it's read afresh when a notepad next opens here. A pane open
+          // now reads it afresh itself, if nothing's typed in it.
+          const cached = queryClient.getQueryData(notepadQuery().queryKey);
+          if (cached && (cached.version ?? 0) < message.version) {
+            void queryClient.invalidateQueries({queryKey: notepadQuery().queryKey, refetchType: 'none'});
+          }
+          savedListeners.current.forEach((listener) => listener(message.version));
+          break;
+        }
+        case 'note-added':
+          void queryClient.invalidateQueries({queryKey: procedureQuery(message.procedureId).queryKey});
+          break;
+        case 'ask-procedures':
+          if (!isWindow) post({type: 'procedures', windowId: id, procedures: latestProcedures.current});
+          break;
+        case 'procedures':
+          if (isWindow) {
+            setShared((current) => {
+              const others = Object.fromEntries(Object.entries(current).filter(([key]) => key !== message.windowId));
+              return message.procedures.length > 0 ? {...others, [message.windowId]: message.procedures} : others;
+            });
+          }
+          break;
+      }
+    });
+    if (isWindow) post({type: 'ask-procedures'});
+    return () => {
+      channel.current?.close();
+      channel.current = null;
+    };
+  }, [isWindow, queryClient]);
+
+  // The signed-in layout shares its procedure pages whenever they change (after the channel opens, above), none as its
+  // window goes, and them again if the browser brings the page back.
+  useEffect(() => {
+    latestProcedures.current = openProcedures;
+    if (!isWindow) postNotepadMessage(channel.current, {type: 'procedures', windowId: windowId.current!, procedures: openProcedures});
+  }, [openProcedures, isWindow]);
+  useEffect(() => {
+    if (isWindow) return;
+    const share = (procedures: OpenProcedure[]) =>
+      postNotepadMessage(channel.current, {type: 'procedures', windowId: windowId.current!, procedures});
+    const onHide = () => share([]);
+    const onShow = (event: PageTransitionEvent) => {
+      if (event.persisted) share(latestProcedures.current);
+    };
+    window.addEventListener('pagehide', onHide);
+    window.addEventListener('pageshow', onShow);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('pageshow', onShow);
+    };
+  }, [isWindow]);
+
+  const shareSaved = useCallback((version: number) => postNotepadMessage(channel.current, {type: 'saved', version}), []);
+  const onSavedElsewhere = useCallback((listener: (version: number) => void) => {
+    savedListeners.current.add(listener);
+    return () => void savedListeners.current.delete(listener);
   }, []);
+  const shareNoteAdded = useCallback(
+    (procedureId: string) => postNotepadMessage(channel.current, {type: 'note-added', procedureId}),
+    [],
+  );
 
   const open = useCallback(() => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     shouldFocus.current = true;
     setIsOpen(true);
-    storeOpen(true);
-  }, []);
+    if (!isWindow) storeOpen(true);
+  }, [isWindow]);
   const close = useCallback(() => {
+    // The notepad's own window: closing it closes the window.
+    if (isWindow) {
+      closeNotepadWindow();
+      return;
+    }
     setIsOpen(false);
     storeOpen(false);
     shouldFocus.current = false;
@@ -125,7 +267,7 @@ export function NotepadProvider({children}: {children: ReactNode}) {
     };
     setTimeout(restore);
     setTimeout(restore, FOCUS_AFTER_SHEET_MS);
-  }, []);
+  }, [isWindow]);
   const takeFocus = useCallback(() => {
     const should = shouldFocus.current;
     shouldFocus.current = false;
@@ -146,13 +288,22 @@ export function NotepadProvider({children}: {children: ReactNode}) {
     return () => setOffers((current) => current.filter((o) => o.key !== offered.key));
   }, []);
 
-  const openProcedures = useMemo(
-    () => [...offers].sort((a, b) => (a.side === 'right' ? 1 : 0) - (b.side === 'right' ? 1 : 0)),
-    [offers],
-  );
   const value = useMemo(
-    () => ({isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus}),
-    [isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus],
+    () => ({
+      isOpen,
+      open,
+      close,
+      requestClose,
+      registerCloser,
+      openProcedures,
+      offer,
+      takeFocus,
+      isWindow,
+      shareSaved,
+      onSavedElsewhere,
+      shareNoteAdded,
+    }),
+    [isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus, isWindow, shareSaved, onSavedElsewhere, shareNoteAdded],
   );
   return <NotepadContext.Provider value={value}>{children}</NotepadContext.Provider>;
 }

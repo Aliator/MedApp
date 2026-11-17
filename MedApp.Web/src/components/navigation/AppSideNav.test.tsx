@@ -1,6 +1,7 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
+import {NOTEPAD_WINDOW_BLOCKED} from '../notepad/notepadWindow';
 import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
@@ -553,5 +554,76 @@ describe('AppSideNav notepad', () => {
 
     await screen.findByRole('button', {name: 'Logout'});
     expect(screen.queryByRole('button', {name: 'Notepad'})).not.toBeInTheDocument();
+  });
+
+  const WINDOW_BUTTON = 'Open notepad in a new window';
+
+  /** The notepad's window, as `window.open` returns it: new (blank), so it's sent to the notepad. */
+  function stubOpen(popup: Partial<Window> | null = {focus: vi.fn(), location: {origin: window.location.origin, pathname: 'blank', replace: vi.fn()} as never}) {
+    return vi.spyOn(window, 'open').mockReturnValue(popup as Window | null);
+  }
+
+  function renderNav(collapsed = false) {
+    return renderWithApp(
+      <NotepadProvider>
+        <AppSideNav collapsible={collapsed ? {isCollapsed: true} : undefined} />
+        <NotepadShown />
+      </NotepadProvider>,
+      {user: staffUser},
+    );
+  }
+
+  it('opens the notepad in a window of its own from a button on its row, shown while the row is hovered or focused', async () => {
+    const open = stubOpen();
+    const {user} = renderNav();
+    const notepad = await screen.findByRole('button', {name: 'Notepad'});
+    expect(screen.queryByRole('button', {name: WINDOW_BUTTON})).not.toBeInTheDocument();
+
+    await user.hover(notepad);
+    await user.click(await screen.findByRole('button', {name: WINDOW_BUTTON}));
+
+    expect(open).toHaveBeenCalledWith('', 'medapp-notepad', 'popup,width=420,height=640');
+    // The docked notepad stays closed: the window has it.
+    expect(screen.getByText('notepad closed')).toBeInTheDocument();
+
+    // From the keyboard too.
+    await user.unhover(notepad);
+    act(() => (document.activeElement as HTMLElement | null)?.blur());
+    await waitFor(() => expect(screen.queryByRole('button', {name: WINDOW_BUTTON})).not.toBeInTheDocument());
+    await user.tab();
+    while (document.activeElement !== screen.getByRole('button', {name: 'Notepad'})) await user.tab();
+    expect(await screen.findByRole('button', {name: WINDOW_BUTTON})).toBeInTheDocument();
+  });
+
+  it('closes the docked notepad when it opens the window, so it is not open in two places', async () => {
+    stubOpen();
+    const {user} = renderNav();
+    await user.click(await screen.findByRole('button', {name: 'Notepad'}));
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
+
+    await user.hover(screen.getByRole('button', {name: 'Notepad', pressed: true}));
+    await user.click(await screen.findByRole('button', {name: WINDOW_BUTTON}));
+
+    expect(screen.getByText('notepad closed')).toBeInTheDocument();
+  });
+
+  it('says how to allow it when the browser blocks the window, and leaves the docked notepad open', async () => {
+    stubOpen(null);
+    const {user} = renderNav();
+    await user.click(await screen.findByRole('button', {name: 'Notepad'}));
+
+    await user.hover(screen.getByRole('button', {name: 'Notepad', pressed: true}));
+    await user.click(await screen.findByRole('button', {name: WINDOW_BUTTON}));
+
+    expect((await screen.findAllByText(NOTEPAD_WINDOW_BLOCKED)).length).toBeGreaterThan(0);
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
+  });
+
+  it("always shows the button in the folded nav's row", async () => {
+    const {user} = renderNav(true);
+
+    await user.hover((await screen.findAllByRole('button', {name: 'Notepad'}))[0]);
+
+    expect(await screen.findByRole('button', {name: WINDOW_BUTTON})).toBeInTheDocument();
   });
 });

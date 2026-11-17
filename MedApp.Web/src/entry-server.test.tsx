@@ -222,6 +222,33 @@ describe('server rendering', () => {
     expect(html).toContain('New Recovery Codes');
   });
 
+  it("renders the notepad's own window with the notepad, in the account's settings, and no side nav", async () => {
+    const requests = api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
+      '/api/me/notepad': {text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30},
+    });
+
+    const response = await page('/notepad', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
+    expect(html).toContain('aria-label="Notepad"');
+    expect(html).toContain('Saved 10:32');
+    expect(html).not.toContain('My Tasks');
+    expect(requests.map((r) => new URL(r.url).pathname)).toEqual(expect.arrayContaining(['/api/me/notepad', '/api/auth/me/settings']));
+  });
+
+  it('sends someone who must change their password from the notepad window to do that', async () => {
+    api({'/api/auth/whoami': {...signedIn, mustChangePassword: true}});
+
+    const response = await page('/notepad', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/change-password');
+  });
+
   it('renders Account Settings, Email Address with the address', async () => {
     api({
       '/api/auth/whoami': signedIn,

@@ -6,6 +6,7 @@ import {SideNav, SideNavHeading, SideNavItem, SideNavSection, type SideNavProps}
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Theme} from '@astryxdesign/core/theme';
+import {useToast} from '@astryxdesign/core/Toast';
 import {useQuery} from '@tanstack/react-query';
 import {useRouter, useRouterState} from '@tanstack/react-router';
 import {
@@ -34,6 +35,7 @@ import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {useNotepad} from '../notepad/NotepadContext';
+import {NOTEPAD_WINDOW_BLOCKED, openNotepadWindow} from '../notepad/notepadWindow';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -80,10 +82,11 @@ export function openProcedureId(pathname: string): string | null {
  */
 const ActiveRowsContext = createContext<(href: string) => boolean>(() => true);
 
-/** The address of the nav row an element is in (its link's), or null. */
+/** The address of the nav row an element is in (its link's, or for a row with no link, its `data-nav-row`), or null. */
 function rowHref(target: EventTarget | null): string | null {
   if (!(target instanceof Element)) return null;
-  return target.closest('.astryx-side-nav-item')?.querySelector('a[href]')?.getAttribute('href') ?? null;
+  const row = target.closest('.astryx-side-nav-item');
+  return row?.querySelector('a[href]')?.getAttribute('href') ?? row?.querySelector('[data-nav-row]')?.getAttribute('data-nav-row') ?? null;
 }
 
 /**
@@ -617,7 +620,9 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
               icon={notepad.isOpen ? AppIcon.NotesOpen : AppIcon.Notes}
               aria-pressed={notepad.isOpen}
               data-notepad-toggle=""
+              data-nav-row={NOTEPAD_ROW}
               onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
+              actions={<NotepadWindowButton />}
             />
           ),
         },
@@ -738,5 +743,36 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       </Theme>
     </ActiveRowsContext.Provider>
+  );
+}
+
+/** The Notepad row's key among the rows that show their buttons (it has no link to be known by). */
+const NOTEPAD_ROW = 'notepad';
+
+/**
+ * The Notepad row's button that opens the notepad in a small window of its own (`/notepad`), or brings that window
+ * forward. The notepad docked here (or the sheet) then closes, saving first, so it isn't open in two places. A browser
+ * that blocks the window gets a message saying how to allow it. Shown like the other rows' buttons.
+ */
+function NotepadWindowButton() {
+  const isActive = useContext(ActiveRowsContext)(NOTEPAD_ROW);
+  const notepad = useNotepad();
+  const toast = useToast();
+  const open = () => {
+    // At once, in the click, so the browser lets it open a window.
+    if (!openNotepadWindow()) {
+      toast({body: NOTEPAD_WINDOW_BLOCKED, type: 'error', uniqueID: 'notepad-window-blocked'});
+      return;
+    }
+    if (notepad?.isOpen) notepad.requestClose();
+  };
+  return (
+    <IconButton
+      label="Open notepad in a new window"
+      icon={<Icon icon={AppIcon.NotepadWindow} />}
+      variant="ghost"
+      onClick={open}
+      style={shownFor(isActive)}
+    />
   );
 }

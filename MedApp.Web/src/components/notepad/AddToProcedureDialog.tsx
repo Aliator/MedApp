@@ -36,8 +36,8 @@ export interface AddToProcedureDialogProps {
   note: NoteToAdd;
   /** The procedure pages open: one, or two in a half view (it then asks which). */
   procedures: OpenProcedure[];
-  /** Added; and whether to take it out of the notepad. */
-  onAdded: (removeFromNotepad: boolean) => void;
+  /** Added (to this procedure); and whether to take it out of the notepad. */
+  onAdded: (removeFromNotepad: boolean, procedureId: string) => void;
   onCancel: () => void;
 }
 
@@ -67,14 +67,15 @@ export function AddToProcedureDialog({note, procedures, onAdded, onCancel}: AddT
   const cantTakeNotes = procedure !== undefined && !(procedure.canAddNotes ?? false);
 
   const confirm = () => {
-    if (!procedure?.id) return;
+    const procedureId = procedure?.id;
+    if (!procedure || !procedureId) return;
     setProblem(null);
     add.mutate(
-      {procedureId: procedure.id, text: note.text},
+      {procedureId, text: note.text},
       {
         onSuccess: () => {
           announce(`Note added to ${procedure.title ?? 'the procedure'}`);
-          onAdded(remove);
+          onAdded(remove, procedureId);
         },
         onError: (e) => setProblem(problemMessage(e, 'The note could not be added.')),
       },

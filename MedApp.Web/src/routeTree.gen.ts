@@ -14,6 +14,7 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NotepadRouteImport } from './routes/notepad'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -77,6 +78,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotepadRoute = NotepadRouteImport.update({
+  id: '/notepad',
+  path: '/notepad',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/notepad': typeof NotepadRoute
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
@@ -337,6 +344,7 @@ export interface FileRoutesByTo {
   '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/notepad': typeof NotepadRoute
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
@@ -385,6 +393,7 @@ export interface FileRoutesById {
   '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/notepad': typeof NotepadRoute
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
@@ -434,6 +443,7 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/forgot-password'
     | '/login'
+    | '/notepad'
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
@@ -479,6 +489,7 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/forgot-password'
     | '/login'
+    | '/notepad'
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
@@ -526,6 +537,7 @@ export interface FileRouteTypes {
     | '/confirm-email'
     | '/forgot-password'
     | '/login'
+    | '/notepad'
     | '/reset-password'
     | '/set-up-two-factor'
     | '/_app/accessibility'
@@ -574,6 +586,7 @@ export interface RootRouteChildren {
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  NotepadRoute: typeof NotepadRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SetUpTwoFactorRoute: typeof SetUpTwoFactorRoute
 }
@@ -613,6 +626,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notepad': {
+      id: '/notepad'
+      path: '/notepad'
+      fullPath: '/notepad'
+      preLoaderRoute: typeof NotepadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -988,6 +1008,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmEmailRoute: ConfirmEmailRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  NotepadRoute: NotepadRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SetUpTwoFactorRoute: SetUpTwoFactorRoute,
 }

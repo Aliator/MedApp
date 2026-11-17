@@ -304,6 +304,16 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'notepad-window',
+    title: "The notepad's own window (/notepad, opened from the side nav's Notepad row), at the pop-up's size: the notepad filling it, no side nav",
+    path: '/notepad',
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 420, height: 640 });
+      await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
+      await settle(page);
+    },
+  },
+  {
     name: 'procedure-narrow',
     title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
     path: (d) => `/procedures/${d.procedureId}`,
