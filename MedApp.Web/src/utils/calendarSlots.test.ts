@@ -1,4 +1,4 @@
-import {calendarDay, testAppointment, testBlock, testCalendar, ukTime} from '../test/calendar';
+import {calendarDay, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../test/calendar';
 import {
   addDays,
   addMinutes,
@@ -94,6 +94,18 @@ describe('busyTimes', () => {
     expect(busyTimes(calendar)).toHaveLength(4);
     expect(busyTimes(calendar, 'a')).toHaveLength(3);
     expect(busyTimes({})).toEqual([]);
+  });
+
+  it('counts meetings as busy, so nothing is booked or blocked over one', () => {
+    const meeting = testMeeting({date: MONDAY, start: '09:00', end: '10:00'});
+    const calendar = testCalendar({from: MONDAY, dayCount: 1, today: MONDAY, meetings: [meeting, {...meeting, id: 'no-time', startUtc: undefined}]});
+
+    expect(busyTimes(calendar)).toEqual([intervalOf(meeting.startUtc!, meeting.endUtc!)]);
+    const times = freeStartsByDay(calendar, 30, EARLY)[MONDAY].map(formatTime);
+    expect(times).toContain('08:30');
+    expect(times).not.toContain('09:00');
+    expect(times).not.toContain('09:30');
+    expect(times).toContain('10:00');
   });
 });
 

@@ -53,7 +53,7 @@ All customers receive the same service, so the categories are the same for each.
 | A3.6 | **Support, on the customer's instruction** | Patients; staff users | Whatever the instruction needs, under [support-access-policy.md](support-access-policy.md) | Viewing, correcting, exporting, restoring |
 | A3.7 | **Data subject requests and exit, on instruction** | Patients; staff users | All the customer's data | Export, correction, erasure, return and deletion at the end of the contract |
 | A3.8 | **Appointments** | Patients; staff users | The patient, optionally the procedure and stage, the member of staff, the time, the status (requested, booked, attended, did not attend, cancelled), notes, a cancellation reason, who requested or booked it and who recorded the outcome | Storage, retrieval, display, change and cancellation, on the customer's staff's actions; a request made automatically when a stage that involves a visit becomes current. Every staff user can see every appointment |
-| A3.9 | **Staff calendars** | Staff users | Time blocked off (its activity, such as annual leave or training, and a short note); a person's default week template and one day's changes to it | Storage; display to every staff user; changes by the calendar's owner or an admin |
+| A3.9 | **Staff calendars** | Staff users | Time blocked off (its activity, such as annual leave or training, and a short note); a person's own day and week templates, their default week and one day's changes to it; meetings admins arrange (title, notes, time, organiser and attendees) and the notifications about them | Storage; display to every staff user; changes by the calendar's owner or an admin (meetings: admins only); admins' team view and suggested meeting times |
 
 **Special category data:** health data about patients (A3.1, A3.2, A3.4, A3.7, A3.8, and possibly A3.6). Staff calendars (A3.9) aren't meant to hold any, but a block's note could reveal a staff member's health ([dpia.md](dpia.md), risk 25).
 
@@ -115,3 +115,4 @@ Rows marked with brackets are to be filled in when the supplier picks those prov
 | 16 November 2026 | First draft | [Author] |
 | 16 November 2026 | File attachments: A3.1, A3.2 and A6 | [Author] |
 | 16 November 2026 | 0.2: appointments (A3.8) and staff calendars (A3.9); appointment history in the audit trail (A3.2); appointment notifications (A3.4) | AI coding agent, for review |
+| 17 November 2026 | Meetings and personal calendar templates in A3.9 (review of #99) | AI coding agent, for review |

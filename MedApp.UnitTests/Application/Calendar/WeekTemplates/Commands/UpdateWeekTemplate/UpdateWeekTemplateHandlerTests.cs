@@ -47,8 +47,9 @@ public sealed class UpdateWeekTemplateHandlerTests : CalendarSetupHandlerTestBas
             .Returns(Task.CompletedTask);
     }
 
-    private static UpdateWeekTemplateCommand Command(string name, Guid? monday, Guid? tuesday = null) =>
-        new(WeekTemplateId, name, monday, tuesday, null, null, null);
+    /// <summary>A change to <see cref="StaffUserId"/>'s standard week, by them unless another actor is given.</summary>
+    private static UpdateWeekTemplateCommand Command(string name, Guid? monday, Guid? tuesday = null, CalendarActor? actor = null) =>
+        new(WeekTemplateId, name, monday, tuesday, null, null, null, actor ?? StaffActor);
 
     [Test]
     public async Task Handle_SameDays_SavesWithNoChangeToTheDays()
@@ -103,7 +104,53 @@ public sealed class UpdateWeekTemplateHandlerTests : CalendarSetupHandlerTestBas
         await Handler.Handle(Command($" {OtherWeekTemplateName} ", DayTemplateId), Token);
 
         _template.Name.Should().Be(OtherWeekTemplateName);
-        Repository.Verify(r => r.WeekTemplateNameExistsAsync(OtherWeekTemplateName, WeekTemplateId, Token), Times.Once);
+        Repository.Verify(r => r.WeekTemplateNameExistsAsync(StaffUserId, OtherWeekTemplateName, WeekTemplateId, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_AdminChangesSomeoneElses_ChecksTheNameAmongTheOwnersTemplates()
+    {
+        await Handler.Handle(Command(OtherWeekTemplateName, OtherDayTemplateId, actor: AdminActor), Token);
+
+        _template.Name.Should().Be(OtherWeekTemplateName);
+        _saves.Should().Be(1);
+        Repository.Verify(r => r.WeekTemplateNameExistsAsync(StaffUserId, OtherWeekTemplateName, WeekTemplateId, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_AdminGivesItTheirOwnDayTemplate_ThrowsNotFoundAndSavesNothing()
+    {
+        // The admin's own day template isn't one of the week's owner's.
+        var adminsDay = BuildDayTemplate(id: Guid.NewGuid(), ownerUserId: AdminUserId);
+        GivenDayTemplates(adminsDay);
+
+        var act = () => Handler.Handle(Command(WeekTemplateName, adminsDay.Id, actor: AdminActor), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"*among this person's templates*{adminsDay.Id}*");
+        _saves.Should().Be(0);
+    }
+
+    [Test]
+    public async Task Handle_OtherStaffChangesSomeoneElses_ThrowsForbiddenAndSavesNothing()
+    {
+        var act = () => Handler.Handle(Command(OtherWeekTemplateName, OtherDayTemplateId, actor: OtherStaffActor), Token);
+
+        await act.Should().ThrowAsync<ForbiddenException>().WithMessage(CalendarActor.NotYourTemplates);
+        _template.Name.Should().Be(WeekTemplateName);
+        _saves.Should().Be(0);
+    }
+
+    [Test]
+    public async Task Handle_SomeoneElsesDayTemplate_ThrowsNotFoundAndSavesNothing()
+    {
+        var theirDay = BuildDayTemplate(id: Guid.NewGuid(), ownerUserId: OtherStaffUserId);
+        GivenDayTemplates(theirDay);
+
+        var act = () => Handler.Handle(Command(WeekTemplateName, DayTemplateId, theirDay.Id), Token);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"Day template(s) not found among this person's templates: {theirDay.Id}.");
+        _saves.Should().Be(0);
     }
 
     [Test]
@@ -111,13 +158,13 @@ public sealed class UpdateWeekTemplateHandlerTests : CalendarSetupHandlerTestBas
     {
         await Handler.Handle(Command(WeekTemplateName, DayTemplateId), Token);
 
-        Repository.Verify(r => r.WeekTemplateNameExistsAsync(It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
+        Repository.Verify(r => r.WeekTemplateNameExistsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
     public async Task Handle_NameTaken_ThrowsConflictAndSavesNothing()
     {
-        Repository.Setup(r => r.WeekTemplateNameExistsAsync(OtherWeekTemplateName, WeekTemplateId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        Repository.Setup(r => r.WeekTemplateNameExistsAsync(StaffUserId, OtherWeekTemplateName, WeekTemplateId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var act = () => Handler.Handle(Command(OtherWeekTemplateName, DayTemplateId), Token);
 
@@ -159,7 +206,7 @@ public sealed class UpdateWeekTemplateHandlerTests : CalendarSetupHandlerTestBas
     [Test]
     public async Task Handle_TemplateDoesNotExist_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new UpdateWeekTemplateCommand(Guid.NewGuid(), WeekTemplateName, null, null, null, null, null), Token);
+        var act = () => Handler.Handle(new UpdateWeekTemplateCommand(Guid.NewGuid(), WeekTemplateName, null, null, null, null, null, StaffActor), Token);
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage("Week template*was not found.");
     }
@@ -174,6 +221,8 @@ public sealed class UpdateWeekTemplateHandlerTests : CalendarSetupHandlerTestBas
         response.Id.Should().Be(WeekTemplateId);
         response.StaffCount.Should().Be(5);
         response.CanBeDeleted.Should().BeFalse();
+        response.OwnerUserId.Should().Be(StaffUserId);
+        response.CanEdit.Should().BeTrue();
         Repository.Verify(r => r.GetWeekTemplateAsync(WeekTemplateId, Today, Token), Times.Once);
         Repository.Verify(r => r.GetWeekTemplateUsageAsync(It.Is<IEnumerable<Guid>>(ids => ids.Single() == WeekTemplateId), Today, Token), Times.Once);
         Repository.Verify(r => r.GetDayTemplatesByIdAsync(It.IsAny<IEnumerable<Guid>>(), Token), Times.Once);

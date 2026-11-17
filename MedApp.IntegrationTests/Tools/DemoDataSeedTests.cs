@@ -13,6 +13,7 @@ using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Authentication;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.Infrastructure.Data;
@@ -26,7 +27,8 @@ namespace MedApp.IntegrationTests.Tools;
 /// <summary>
 /// medapp-dev's demo data set (<see cref="DemoDataSeeder"/>), run in full at a fixed moment on a fresh database of its
 /// own on the test SQL Server, with the test Azurite for files, then checked against the rules the app enforces:
-/// visits before finishing, no calendar clashes (appointments and stored blocks alike), bookings with whoever started
+/// visits before finishing, no calendar clashes (appointments, stored blocks and meetings alike), personal templates,
+/// meeting notifications without patient details, bookings with whoever started
 /// the stage, Insights that differ for every period and template, synthetic identifiers only, nothing seen before it
 /// existed or dated in the future, and the story's special cases.
 /// <para>
@@ -191,6 +193,86 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
             foreach (var block in blocks.Where(b => b.StaffUserId == person))
                 CalendarClashes.Find(On(block.StartUtc), block.StartUtc, block.EndUtc, ignoreBlockId: block.Id)
                     .Should().BeNull($"block {block.Id}, {UkTime.Describe(block.StartUtc)}");
+        }
+    }
+
+    /// <summary>
+    /// Every meeting checked as the app checks a new one (<see cref="CalendarClashes"/>, as <c>MeetingStaff</c> does):
+    /// inside the working day, and clear of everything on every attendee's calendar (appointments, stored and template
+    /// blocks, other meetings). Nobody deleted is still going to one that hasn't happened.
+    /// </summary>
+    [Test]
+    public async Task Meetings_FollowTheWorkingDayRules_AndOverlapNothingOnAnyAttendeesCalendar()
+    {
+        var meetings = await Query(db => db.Meetings.AsNoTracking().Include(m => m.Attendees).ToListAsync());
+        var users = await Query(db => db.Users.Select(u => u.Id).ToListAsync());
+        meetings.Should().HaveCountGreaterThan(150);
+        meetings.Should().Contain(m => m.EndUtc <= Now).And.Contain(m => m.StartUtc > Now);
+        meetings.Should().OnlyContain(m => m.Attendees.Count > 0 && users.Contains(m.OrganiserUserId));
+        meetings.Where(m => m.StartUtc > Now).SelectMany(m => m.Attendees)
+            .Should().OnlyContain(a => users.Contains(a.StaffUserId), "deleting an account takes it off meetings still to come");
+
+        var (from, to) = (UkTime.DateOf(meetings.Min(m => m.StartUtc)), UkTime.DateOf(meetings.Max(m => m.StartUtc)));
+        foreach (var person in meetings.SelectMany(m => m.Attendees).Select(a => a.StaffUserId).Distinct())
+        {
+            var data = await _services.Run(sp => sp.GetRequiredService<ICalendarRepository>()
+                .GetCalendarDataAsync(person, from, to, CancellationToken.None));
+            foreach (var meeting in meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == person)))
+            {
+                var on = data with { From = UkTime.DateOf(meeting.StartUtc), To = UkTime.DateOf(meeting.StartUtc) };
+                WorkingHours.WhyOutside(meeting.StartUtc, meeting.EndUtc).Should().BeNull($"meeting '{meeting.Title}'");
+                CalendarClashes.Find(on, meeting.StartUtc, meeting.EndUtc, ignoreMeetingId: meeting.Id)
+                    .Should().BeNull($"'{meeting.Title}' on {UkTime.Describe(meeting.StartUtc)} is clear on every attendee's calendar");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Templates are personal: each has an owner with a calendar, a week template uses only its owner's day templates,
+    /// and each person's default week and day overrides use only their own.
+    /// </summary>
+    [Test]
+    public async Task Templates_EveryOneHasAnOwner_AndUsesOnlyItsOwnersTemplates()
+    {
+        var days = await Query(db => db.DayTemplates.AsNoTracking().ToDictionaryAsync(d => d.Id));
+        var weeks = await Query(db => db.WeekTemplates.AsNoTracking().Include(w => w.Days).ToDictionaryAsync(w => w.Id));
+        var defaults = await Query(db => db.StaffWeekTemplates.AsNoTracking().ToListAsync());
+        var overrides = await Query(db => db.CalendarDayOverrides.AsNoTracking().Where(o => o.DayTemplateId != null).ToListAsync());
+        var owners = defaults.Select(d => d.StaffUserId).ToHashSet();
+
+        days.Should().HaveCountGreaterThan(20);
+        days.Values.Should().OnlyContain(d => d.OwnerUserId != Guid.Empty && owners.Contains(d.OwnerUserId), "every day template is someone's");
+        weeks.Values.Should().OnlyContain(w => w.OwnerUserId != Guid.Empty && owners.Contains(w.OwnerUserId), "every week template is someone's");
+        days.Values.Select(d => d.OwnerUserId).Distinct().Should().HaveCountGreaterThan(10, "everyone has their own");
+        foreach (var week in weeks.Values)
+            week.Days.Should().OnlyContain(d => days[d.DayTemplateId].OwnerUserId == week.OwnerUserId, $"week template '{week.Name}' uses only its owner's day templates");
+        defaults.Should().OnlyContain(d => weeks[d.WeekTemplateId].OwnerUserId == d.StaffUserId);
+        overrides.Should().OnlyContain(o => days[o.DayTemplateId!.Value].OwnerUserId == o.StaffUserId);
+    }
+
+    /// <summary>
+    /// Meeting notifications are the app's: fixed titles, linked to a calendar day (not a procedure or appointment),
+    /// and nothing about a patient in them, nor in the meetings themselves.
+    /// </summary>
+    [Test]
+    public async Task MeetingNotifications_HaveFixedTitles_AndNoPatientDetails()
+    {
+        var kinds = new[] { NotificationKind.MeetingInvited, NotificationKind.MeetingChanged, NotificationKind.MeetingCancelled };
+        var notifications = await Query(db => db.Notifications.AsNoTracking().Where(n => kinds.Contains(n.Kind)).ToListAsync());
+        var meetings = await Query(db => db.Meetings.AsNoTracking().ToListAsync());
+        var patients = await Query(db => db.Patients.AsNoTracking().ToListAsync());
+
+        notifications.Select(n => n.Kind).Distinct().Should().BeEquivalentTo(kinds, "invitations, moves and cancellations all happened");
+        notifications.Should().OnlyContain(n => Notification.HasFixedTitle(n.Kind) && n.Title == MeetingNotifications.TitleOf(n.Kind)
+                                                && n.CalendarDate != null && n.ProcedureId == null && n.AppointmentId == null);
+        notifications.Should().OnlyContain(n => n.CreatedAtUtc >= Now.AddDays(-30) && n.CreatedAtUtc <= Now);
+
+        var text = notifications.Select(n => n.Message).Concat(meetings.SelectMany(m => new[] { m.Title, m.Notes })).ToList();
+        foreach (var patient in patients.Where(p => p.AnonymisedAtUtc == null))
+        {
+            var name = $"{patient.FirstName} {patient.LastName}";
+            text.Should().NotContain(t => t.Contains(name) || (patient.NhsNumber != null && t.Contains(patient.NhsNumber)),
+                "meetings are about staff, never patients");
         }
     }
 

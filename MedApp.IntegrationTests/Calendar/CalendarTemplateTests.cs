@@ -123,7 +123,7 @@ public sealed class CalendarTemplateTests : IntegrationTest
     public async Task ApplyDayTemplate_ThenClear_UsesItForThatDayThenGoesBackToTheWeeks()
     {
         await GiveDefaultWeekAsync(_admin, _staff.UserId, TemplateBlock(12, 13));
-        var training = await CreateDayTemplateAsync(_admin, TemplateBlock(9, 10, TrainingActivityTypeId));
+        var training = await CreateDayTemplateAsync(_staff.Client, _staff.UserId, TemplateBlock(9, 10, TrainingActivityTypeId));
         var wednesday = MondayAWeekAhead().AddDays(2);
         // A block added by hand that day stays whatever its template.
         await CreateBlockAsync(_staff.Client, _staff.UserId, UkAt(wednesday, 16), UkAt(wednesday, 17));

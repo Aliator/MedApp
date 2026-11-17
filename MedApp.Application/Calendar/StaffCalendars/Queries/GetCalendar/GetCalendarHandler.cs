@@ -1,5 +1,4 @@
 using MedApp.Application.Activity.Common;
-using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Identity;
@@ -31,8 +30,7 @@ public sealed class GetCalendarHandler(
         var data = await repository.GetCalendarDataAsync(staffUserId, request.From, request.To, cancellationToken);
         await activityLog.RecordViewsAsync(ActivityAction.PatientListed, data.Appointments.Select(a => a.PatientId), cancellationToken);
         var defaultWeek = await repository.GetStaffWeekTemplateOnAsync(staffUserId, today, cancellationToken);
-        var usernames = await identityReadService.GetUsernamesByIdAsync(
-            data.Appointments.SelectMany(AppointmentMapper.UserIds).Distinct(), cancellationToken);
+        var usernames = await identityReadService.GetUsernamesByIdAsync(CalendarMapper.UserIds(data), cancellationToken);
 
         return CalendarMapper.ToResponse(
             data,
@@ -41,6 +39,7 @@ public sealed class GetCalendarHandler(
             request.Actor.CanChangeCalendarOf(staffUserId),
             today,
             usernames,
-            now);
+            now,
+            request.Actor.IsAdmin);
     }
 }

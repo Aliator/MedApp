@@ -18,6 +18,15 @@ public enum NotificationKind
     /// <summary>Someone cancelled one of the user's appointments, or moved it to someone else.</summary>
     AppointmentCancelled = 3,
 
+    /// <summary>An admin invited the user to a meeting, or added them to one.</summary>
+    MeetingInvited = 4,
+
+    /// <summary>An admin moved a meeting the user is going to another time.</summary>
+    MeetingChanged = 5,
+
+    /// <summary>An admin cancelled a meeting the user was going to, or took them off it.</summary>
+    MeetingCancelled = 6,
+
     /// <summary>Monitoring: someone created a procedure.</summary>
     MonitoredProcedureCreated = 10,
 

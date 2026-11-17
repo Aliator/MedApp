@@ -13,28 +13,31 @@ import {useAnnounce} from '../../app/announcements';
 import {useListSettings} from '../../app/listSettings';
 import {
   dayTemplatesQuery,
-  staffQuery,
+  staffWeekTemplateQuery,
   useCalendarActions,
   useCalendarSetupActions,
   weekTemplatesQuery,
   type DayTemplate,
-  type StaffMember,
   type WeekTemplate,
 } from '../../api/calendar';
 import {ActivityToken} from '../../components/calendar/CalendarTokens';
+import {StaffPicker} from '../../components/calendar/StaffPicker';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/procedures/SetupCells';
-import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
-import {TableActions} from '../../components/tables/TableActions';
+import {TableActions, type TableAction} from '../../components/tables/TableActions';
 import {TextCell} from '../../components/tables/TextCell';
-import type {CalendarTemplatesSearch, CalendarTemplatesTab, SetupListSearch} from '../listSearch';
+import {PanelCard} from '../../components/views/PanelCard';
+import {formatDate} from '../../utils/dates';
+import type {SetupListSearch} from '../listSearch';
 import {saveProblem, type SaveSubject} from '../saveProblem';
 import {blockLabel, count, weekSummary} from './calendarSetup';
+import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
+import {calendarTemplateEditorHref, type CalendarTemplatesSearch, type CalendarTemplatesTab} from './calendarTemplatesSearch';
 import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
 
 export interface CalendarTemplatesPageProps {
@@ -45,49 +48,84 @@ export interface CalendarTemplatesPageProps {
 const TABS: {value: CalendarTemplatesTab; label: string}[] = [
   {value: 'day', label: 'Day Templates'},
   {value: 'week', label: 'Week Templates'},
-  {value: 'staff', label: 'Staff Defaults'},
+  {value: 'default', label: 'Default Week'},
 ];
 
 const panelId = (tab: CalendarTemplatesTab) => `calendar-templates-${tab}`;
 
-/** Where the editors go back to: the list of the kind they edit. */
-export const calendarTemplatesHref = (tab: CalendarTemplatesTab) =>
-  tab === 'day' ? '/admin/calendar-templates' : `/admin/calendar-templates?tab=${tab}`;
+/** The queries a tab of `ownerId`'s templates reads, for the route's loader to preload. */
+export function calendarTemplatesPageQueries(tab: CalendarTemplatesTab, ownerId: string) {
+  if (tab === 'week') return [weekTemplatesQuery(ownerId)];
+  if (tab === 'default') return [staffWeekTemplateQuery(ownerId), weekTemplatesQuery(ownerId)];
+  return [dayTemplatesQuery(ownerId)];
+}
 
 /**
- * Calendar templates (admin, decisions 9 to 14 and 31), in three tabs kept in the URL: **Day templates** (named sets
- * of blocks, such as a standard day with lunch), **Week templates** (a day template for each weekday) and **Staff
- * defaults** (each person's default week, which fills their calendar). Templates are applied when a calendar is
- * read, so a change shows from today on every day it applies to; past days keep what they had. Templates in use are
- * archived, not deleted.
+ * A person's calendar templates (each person's own), yours unless the URL's `staff` says whose, in three tabs kept in
+ * the URL: **Day templates** (named sets of blocks, such as a standard day with lunch), **Week templates** (one of
+ * their day templates for each weekday) and their **Default week** (one of their week templates, which fills their
+ * calendar). Templates are applied when a calendar is read, so a change shows from today on every day it applies to;
+ * past days keep what they had. Templates in use are archived, not deleted.
+ *
+ * Their owner and admins change them; admins pick whose with the staff picker. Anyone else can open a link to
+ * someone's templates and read them, without the actions.
  */
 export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplatesPageProps) {
   const tab: CalendarTemplatesTab = search.tab ?? 'day';
+  const owner = useTemplatesOwner(search.staff);
   const [error, setError] = useState<string | null>(null);
-  // Each tab keeps its own search; switching starts the other on its default.
+  // Each tab keeps its own search; switching starts the other on its default, for the same person.
   const listSearch: SetupListSearch = {name: search.name, status: search.status, page: search.page};
-  const onListSearchChange = (next: SetupListSearch) => onSearchChange({...next, tab: search.tab});
-  const list = {search: listSearch, onSearchChange: onListSearchChange, onError: setError};
+  const onListSearchChange = (next: SetupListSearch) => onSearchChange({...next, tab: search.tab, staff: owner.staffParam});
+  const list = {owner, search: listSearch, onSearchChange: onListSearchChange, onError: setError};
+  const ownerFailed = owner.ownerId === undefined && owner.staff.isError;
+  const subtitle = useTabSubtitle(tab, listSearch, owner);
 
   return (
     <Page
-      title="Calendar Templates"
-      subtitle={useTabSubtitle(tab, listSearch)}
+      title={owner.title}
+      subtitle={subtitle}
       fill
-      message={error && <AlertMessage message={error} />}
+      message={
+        ownerFailed ? (
+          <AlertMessage message="The staff list could not be loaded, so the calendar templates can't be found. Please try again." />
+        ) : (
+          error && <AlertMessage message={error} />
+        )
+      }
       actions={
-        tab === 'day' ? (
-          <Button label="New Day Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/calendar-templates/day/new" />
-        ) : tab === 'week' ? (
-          <Button label="New Week Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/calendar-templates/week/new" />
-        ) : undefined
+        <HStack gap={2} vAlign="center" wrap="wrap">
+          {owner.isAdmin && (
+            <StaffPicker
+              label="Whose calendar templates"
+              staff={owner.staff.data}
+              myId={owner.myId}
+              ownLabel="My templates"
+              value={owner.ownerId ?? ''}
+              onChange={(staff) => {
+                setError(null);
+                onSearchChange({tab: search.tab, staff});
+              }}
+              isLoading={owner.staff.isLoading}
+              width={200}
+            />
+          )}
+          {owner.canEdit && tab !== 'default' && (
+            <Button
+              label={tab === 'day' ? 'New Day Template' : 'New Week Template'}
+              variant="primary"
+              icon={<Icon icon={AppIcon.Add} />}
+              href={calendarTemplateEditorHref(tab, 'new', owner.staffParam)}
+            />
+          )}
+        </HStack>
       }>
       <VStack gap={4} height="100%">
         <TabList
           value={tab}
           onChange={(next) => {
             setError(null);
-            onSearchChange(next === 'day' ? {} : {tab: next as CalendarTemplatesSearch['tab']});
+            onSearchChange({tab: next === 'day' ? undefined : (next as CalendarTemplatesSearch['tab']), staff: owner.staffParam});
           }}
           role="tablist"
           hasDivider>
@@ -97,7 +135,7 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
         </TabList>
         <StackItem size="fill">
           <VStack id={panelId(tab)} role="tabpanel" aria-label={TABS.find((t) => t.value === tab)?.label} height="100%">
-            {tab === 'day' ? <DayTemplatesList {...list} /> : tab === 'week' ? <WeekTemplatesList {...list} /> : <StaffDefaultsList {...list} />}
+            {tab === 'day' ? <DayTemplatesList {...list} /> : tab === 'week' ? <WeekTemplatesList {...list} /> : <DefaultWeek owner={owner} onError={setError} />}
           </VStack>
         </StackItem>
       </VStack>
@@ -105,21 +143,25 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
   );
 }
 
-/** What the page's subtitle says the tab's list shows, e.g. "3 active day templates", "12 people". */
-function useTabSubtitle(tab: CalendarTemplatesTab, search: SetupListSearch): string {
-  // The same queries the lists read, so they share what's loaded.
-  const day = useQuery({...dayTemplatesQuery, enabled: tab === 'day'});
-  const week = useQuery({...weekTemplatesQuery, enabled: tab === 'week'});
-  const staff = useQuery({...staffQuery, enabled: tab === 'staff'});
+/** One of the owner's queries, waiting until we know who they are (and, with `isWanted` false, not wanted yet). */
+function ofOwner<T extends object>(query: (ownerId: string) => T, owner: TemplatesOwner, isWanted = true) {
+  return {...query(owner.ownerId ?? ''), enabled: owner.ownerId !== undefined && isWanted};
+}
+
+/** What the page's subtitle says the tab shows, e.g. "3 active day templates", "Default week: Full time". */
+function useTabSubtitle(tab: CalendarTemplatesTab, search: SetupListSearch, owner: TemplatesOwner): string {
+  // The same queries the tabs read, so they share what's loaded.
+  const day = useQuery(ofOwner(dayTemplatesQuery, owner, tab === 'day'));
+  const week = useQuery(ofOwner(weekTemplatesQuery, owner, tab === 'week'));
+  const current = useQuery(ofOwner(staffWeekTemplateQuery, owner, tab === 'default'));
   if (tab === 'day') return day.data ? setupSubtitle(setupPage(day.data, search).total, search, 'day template', 'day templates') : 'Loading day templates...';
   if (tab === 'week')
     return week.data ? setupSubtitle(setupPage(week.data, search).total, search, 'week template', 'week templates') : 'Loading week templates...';
-  if (!staff.data) return 'Loading staff...';
-  const total = setupPage(staffRows(staff.data), {...search, status: 'any'}).total;
-  return `${total} ${search.name ? 'matching ' : ''}${total === 1 ? 'person' : 'people'}`;
+  return current.data ? `Default week: ${current.data.weekTemplateName ?? 'None'}` : 'Loading the default week...';
 }
 
 interface ListProps {
+  owner: TemplatesOwner;
   search: SetupListSearch;
   onSearchChange: (search: SetupListSearch) => void;
   /** Says why an action failed, in the page's header (null clears it). */
@@ -196,6 +238,37 @@ function useTemplateTargets<T>(kind: 'day-templates' | 'week-templates', subject
   return {actions, target, close, failed, open};
 }
 
+type Template = {id?: string; isArchived?: boolean; canEdit?: boolean; canBeDeleted?: boolean};
+
+/**
+ * A template's row actions: Edit, Archive or Restore, and Delete (or why it can't be deleted, `inUse`), for those who
+ * can change it (its `canEdit`); only View for anyone else.
+ */
+function templateActions<T extends Template>(
+  t: T,
+  kind: 'day' | 'week',
+  owner: TemplatesOwner,
+  {actions, failed, open}: ReturnType<typeof useTemplateTargets<T>>,
+  inUse: string,
+): TableAction[] {
+  const noun = `${kind} template`;
+  const href = calendarTemplateEditorHref(kind, t.id ?? '', owner.staffParam);
+  if (!t.canEdit) return [{label: `View ${noun}`, icon: AppIcon.View, href}];
+  return [
+    {label: `Edit ${noun}`, icon: AppIcon.Edit, href},
+    t.isArchived
+      ? {label: `Restore ${noun}`, icon: AppIcon.Restore, onClick: () => actions.restore.mutate(t.id ?? '', {onError: failed('restore')})}
+      : {label: `Archive ${noun}`, icon: AppIcon.Archive, onClick: () => open('archive', t)},
+    {
+      label: t.canBeDeleted ? `Delete ${noun}` : inUse,
+      icon: AppIcon.Delete,
+      isDestructive: true,
+      isDisabled: !t.canBeDeleted,
+      onClick: () => open('delete', t),
+    },
+  ];
+}
+
 /** A setup list's search bar and table, with the archived ones a search away. */
 function SetupTable<T extends Record<string, unknown>>({
   rows,
@@ -257,15 +330,35 @@ function SetupTable<T extends Record<string, unknown>>({
   );
 }
 
+/** A list with nothing in it yet: what the templates are for, and a button to make one for those who can. */
+function NoTemplates({owner, kind, description}: {owner: TemplatesOwner; kind: 'day' | 'week'; description: string}) {
+  const Kind = kind === 'day' ? 'Day' : 'Week';
+  return (
+    <EmptyState
+      title={`No ${kind} templates yet`}
+      description={description}
+      icon={<Icon icon={AppIcon.CalendarTemplates} size="lg" />}
+      actions={
+        owner.canEdit ? (
+          <Button
+            label={owner.isOwn ? `Create Your First ${Kind} Template` : `Create a ${Kind} Template`}
+            variant="primary"
+            href={calendarTemplateEditorHref(kind, 'new', owner.staffParam)}
+          />
+        ) : undefined
+      }
+    />
+  );
+}
 
 type DayRow = DayTemplate & Record<string, unknown>;
 
 /** Day templates: each with its blocks as activity tokens with their times, and how many week templates use it. */
-function DayTemplatesList({search, onSearchChange, onError}: ListProps) {
-  const {data = [], isPending, isError} = useQuery(dayTemplatesQuery);
+function DayTemplatesList({owner, search, onSearchChange, onError}: ListProps) {
+  const {data = [], isPending, isError} = useQuery(ofOwner(dayTemplatesQuery, owner));
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize);
-  const {actions, target, close, failed, open} = useTemplateTargets<DayTemplate>('day-templates', 'day template', onError);
+  const targets = useTemplateTargets<DayTemplate>('day-templates', 'day template', onError);
 
   const usedIn = (t: DayTemplate) =>
     t.weekTemplateCount ? count(t.weekTemplateCount, 'week template', 'week templates') : 'No week templates';
@@ -297,21 +390,7 @@ function DayTemplatesList({search, onSearchChange, onError}: ListProps) {
       align: 'end',
       width: pixel(124),
       renderCell: (t) => (
-        <TableActions
-          actions={[
-            {label: 'Edit day template', icon: AppIcon.Edit, href: `/admin/calendar-templates/day/${t.id}`},
-            t.isArchived
-              ? {label: 'Restore day template', icon: AppIcon.Restore, onClick: () => actions.restore.mutate(t.id ?? '', {onError: failed('restore')})}
-              : {label: 'Archive day template', icon: AppIcon.Archive, onClick: () => open('archive', t)},
-            {
-              label: t.canBeDeleted ? 'Delete day template' : 'Used by a week template or a day, so it can be archived but not deleted',
-              icon: AppIcon.Delete,
-              isDestructive: true,
-              isDisabled: !t.canBeDeleted,
-              onClick: () => open('delete', t),
-            },
-          ]}
-        />
+        <TableActions actions={templateActions(t, 'day', owner, targets, 'Used by a week template or a day, so it can be archived but not deleted')} />
       ),
     },
   ];
@@ -319,12 +398,7 @@ function DayTemplatesList({search, onSearchChange, onError}: ListProps) {
   if (isError) return <AlertMessage message="The day templates could not be loaded. Please try again." />;
   if (!isPending && data.length === 0)
     return (
-      <EmptyState
-        title="No day templates yet"
-        description="A day template is a day's usual blocks, such as lunch at 12:00. Week templates are made from them."
-        icon={<Icon icon={AppIcon.CalendarTemplates} size="lg" />}
-        actions={<Button label="Create Your First Day Template" variant="primary" href="/admin/calendar-templates/day/new" />}
-      />
+      <NoTemplates owner={owner} kind="day" description="A day template is a day's usual blocks, such as lunch at 12:00. Week templates are made from them." />
     );
 
   return (
@@ -341,21 +415,21 @@ function DayTemplatesList({search, onSearchChange, onError}: ListProps) {
         noun="day templates"
       />
       <ArchiveDeleteDialogs
-        target={target}
-        onClose={close}
+        target={targets.target}
+        onClose={targets.close}
         subject="day template"
         archiveMessage="It can't be chosen for week templates or days any more. Where it's already used, it keeps applying, and it can be restored."
         deleteMessage="No week template or day has used it. This action cannot be undone."
         summary={
-          target && (
+          targets.target && (
             <MetadataList>
-              <MetadataListItem label="Day template">{target.item.name}</MetadataListItem>
-              <MetadataListItem label="Blocks">{count(target.item.blocks?.length ?? 0, 'block', 'blocks')}</MetadataListItem>
+              <MetadataListItem label="Day template">{targets.target.item.name}</MetadataListItem>
+              <MetadataListItem label="Blocks">{count(targets.target.item.blocks?.length ?? 0, 'block', 'blocks')}</MetadataListItem>
             </MetadataList>
           )
         }
-        actions={actions}
-        onFailed={failed}
+        actions={targets.actions}
+        onFailed={targets.failed}
       />
     </>
   );
@@ -363,14 +437,12 @@ function DayTemplatesList({search, onSearchChange, onError}: ListProps) {
 
 type WeekRow = WeekTemplate & Record<string, unknown>;
 
-/** Week templates: each with its day templates, Monday to Friday, and how many staff have it as their default. */
-function WeekTemplatesList({search, onSearchChange, onError}: ListProps) {
-  const {data = [], isPending, isError} = useQuery(weekTemplatesQuery);
+/** Week templates: each with its day templates, Monday to Friday, and whether it's the default week now. */
+function WeekTemplatesList({owner, search, onSearchChange, onError}: ListProps) {
+  const {data = [], isPending, isError} = useQuery(ofOwner(weekTemplatesQuery, owner));
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize);
-  const {actions, target, close, failed, open} = useTemplateTargets<WeekTemplate>('week-templates', 'week template', onError);
-
-  const usedBy = (t: WeekTemplate) => (t.staffCount ? `Default for ${count(t.staffCount, 'person', 'people')}` : 'No one');
+  const targets = useTemplateTargets<WeekTemplate>('week-templates', 'week template', onError);
 
   const columns: DataTableColumn<WeekRow>[] = [
     {
@@ -379,7 +451,7 @@ function WeekTemplatesList({search, onSearchChange, onError}: ListProps) {
       width: proportional(3, {minWidth: 160}),
       renderCell: (t) => <SetupNameCell name={t.name ?? ''} secondary={weekSummary(t)} />,
     },
-    {key: 'used', header: 'Used by', width: pixel(160), renderCell: (t) => <TextCell text={usedBy(t)} />},
+    {key: 'default', header: 'Default week', width: pixel(130), renderCell: (t) => <TextCell text={t.staffCount ? 'Yes' : 'No'} />},
     {key: 'status', header: 'Status', width: pixel(100), renderCell: (t) => <SetupStatusToken isArchived={t.isArchived ?? false} />},
     {
       key: 'actions',
@@ -387,21 +459,7 @@ function WeekTemplatesList({search, onSearchChange, onError}: ListProps) {
       align: 'end',
       width: pixel(124),
       renderCell: (t) => (
-        <TableActions
-          actions={[
-            {label: 'Edit week template', icon: AppIcon.Edit, href: `/admin/calendar-templates/week/${t.id}`},
-            t.isArchived
-              ? {label: 'Restore week template', icon: AppIcon.Restore, onClick: () => actions.restore.mutate(t.id ?? '', {onError: failed('restore')})}
-              : {label: 'Archive week template', icon: AppIcon.Archive, onClick: () => open('archive', t)},
-            {
-              label: t.canBeDeleted ? 'Delete week template' : "Someone has had it as their default, so it can be archived but not deleted",
-              icon: AppIcon.Delete,
-              isDestructive: true,
-              isDisabled: !t.canBeDeleted,
-              onClick: () => open('delete', t),
-            },
-          ]}
-        />
+        <TableActions actions={templateActions(t, 'week', owner, targets, 'It has been the default week, so it can be archived but not deleted')} />
       ),
     },
   ];
@@ -409,11 +467,10 @@ function WeekTemplatesList({search, onSearchChange, onError}: ListProps) {
   if (isError) return <AlertMessage message="The week templates could not be loaded. Please try again." />;
   if (!isPending && data.length === 0)
     return (
-      <EmptyState
-        title="No week templates yet"
-        description="A week template gives each weekday a day template. Staff have one as their default week."
-        icon={<Icon icon={AppIcon.CalendarTemplates} size="lg" />}
-        actions={<Button label="Create Your First Week Template" variant="primary" href="/admin/calendar-templates/week/new" />}
+      <NoTemplates
+        owner={owner}
+        kind="week"
+        description="A week template gives each weekday a day template. One can be the default week, which fills the calendar."
       />
     );
 
@@ -431,119 +488,82 @@ function WeekTemplatesList({search, onSearchChange, onError}: ListProps) {
         noun="week templates"
       />
       <ArchiveDeleteDialogs
-        target={target}
-        onClose={close}
+        target={targets.target}
+        onClose={targets.close}
         subject="week template"
-        archiveMessage="It can't be chosen as anyone's default any more. Staff who have it keep it until it's changed, and it can be restored."
-        deleteMessage="No one has had it as their default. This action cannot be undone."
+        archiveMessage="It can't be chosen as the default week any more. If it's the default week now, it stays so until that's changed, and it can be restored."
+        deleteMessage="It has never been the default week. This action cannot be undone."
         summary={
-          target && (
+          targets.target && (
             <MetadataList>
-              <MetadataListItem label="Week template">{target.item.name}</MetadataListItem>
-              <MetadataListItem label="Days">{weekSummary(target.item)}</MetadataListItem>
+              <MetadataListItem label="Week template">{targets.target.item.name}</MetadataListItem>
+              <MetadataListItem label="Days">{weekSummary(targets.target.item)}</MetadataListItem>
             </MetadataList>
           )
         }
-        actions={actions}
-        onFailed={failed}
+        actions={targets.actions}
+        onFailed={targets.failed}
       />
     </>
   );
 }
 
-type StaffRow = StaffMember & {name: string} & Record<string, unknown>;
-
-/** Staff as a setup list's rows: named by their username. */
-const staffRows = (staff: readonly StaffMember[]) => staff.map((s) => ({...s, name: s.username ?? ''}));
-
 const NO_WEEK = 'none';
 
 /**
- * Each member of staff and their default week template, changed in place: it fills their calendar from today
- * (decision 10). Archived templates can't be chosen, but someone who has one keeps it until it's changed.
+ * The person's default week: one of their own week templates (or none), which fills their calendar from today
+ * (decision 10). An archived one can't be chosen, but if it's the default now it stays until it's changed.
  */
-function StaffDefaultsList({search, onSearchChange, onError}: ListProps) {
-  const staff = useQuery(staffQuery);
-  const weeks = useQuery(weekTemplatesQuery);
+function DefaultWeek({owner, onError}: {owner: TemplatesOwner; onError: (message: string | null) => void}) {
+  const current = useQuery(ofOwner(staffWeekTemplateQuery, owner));
+  const weeks = useQuery(ofOwner(weekTemplatesQuery, owner));
   const {setWeekTemplate} = useCalendarActions();
   const announce = useAnnounce();
-  const {pageSize} = useListSettings();
-  const [savingFor, setSavingFor] = useState<string | null>(null);
-  const {rows, page, total} = setupPage(staffRows(staff.data ?? []), {...search, status: 'any'}, pageSize);
-  const isPending = staff.isPending || weeks.isPending;
 
-  const choose = (person: StaffMember, value: string) => {
+  if (current.isError || weeks.isError) return <AlertMessage message="The default week could not be loaded. Please try again." />;
+
+  const currentId = current.data?.weekTemplateId ?? null;
+  const isLoading = current.isPending || weeks.isPending;
+  const options = [
+    {value: NO_WEEK, label: 'No default week'},
+    ...(weeks.data ?? [])
+      .filter((w) => !w.isArchived || w.id === currentId)
+      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+      .map((w) => ({value: w.id ?? '', label: w.isArchived ? `${w.name} (archived)` : (w.name ?? '')})),
+  ];
+  const whose = owner.isOwn ? 'your' : owner.ownerName ? `${owner.ownerName}'s` : 'their';
+
+  const choose = (value: string) => {
     const weekTemplateId = value === NO_WEEK ? null : value;
-    if (weekTemplateId === (person.weekTemplateId ?? null)) return;
+    if (weekTemplateId === currentId) return;
     onError(null);
-    setSavingFor(person.userId ?? null);
     setWeekTemplate.mutate(
-      {userId: person.userId ?? '', weekTemplateId},
+      {userId: owner.ownerId ?? '', weekTemplateId},
       {
-        onSuccess: () => announce(`Default week saved for ${person.username}`),
+        onSuccess: () => announce(weekTemplateId ? 'Default week saved' : 'Default week removed'),
         onError: (e) => onError(saveProblem(e, 'save', 'week template').message),
-        onSettled: () => setSavingFor(null),
       },
     );
   };
 
-  /** The active week templates, and the person's own if it's archived (so it still shows as theirs). */
-  const optionsFor = (person: StaffMember) => [
-    {value: NO_WEEK, label: 'No default week'},
-    ...(weeks.data ?? [])
-      .filter((w) => !w.isArchived || w.id === person.weekTemplateId)
-      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-      .map((w) => ({value: w.id ?? '', label: w.isArchived ? `${w.name} (archived)` : (w.name ?? '')})),
-  ];
-
-  const columns: DataTableColumn<StaffRow>[] = [
-    {key: 'name', header: 'Member of staff', width: proportional(2, {minWidth: 140}), renderCell: (s) => <SetupNameCell name={s.name} />},
-    {
-      key: 'week',
-      header: 'Default week',
-      width: proportional(3, {minWidth: 200}),
-      renderCell: (s) => (
-        <Selector
-          label={`Default week for ${s.name}`}
-          isLabelHidden
-          size="sm"
-          options={optionsFor(s)}
-          value={s.weekTemplateId ?? NO_WEEK}
-          isDisabled={savingFor === s.userId}
-          onChange={(value) => choose(s, value)}
-          // Level with the name beside it: it never shows an error, so it drops the line kept for one.
-          containerStyle={{width: '100%', maxWidth: 360, ...NO_STATUS_LINE}}
-        />
-      ),
-    },
-  ];
-
-  if (staff.isError || weeks.isError) return <AlertMessage message="The staff and their default weeks could not be loaded. Please try again." />;
-
   return (
-    <DataTable
-      data={rows as StaffRow[]}
-      columns={columns}
-      idKey="userId"
-      isLoading={isPending}
-      search={
-        <ListFilterBar
-          fields={[{kind: 'text', key: 'name', label: 'Username'}]}
-          values={{name: search.name}}
-          onChange={(values) => onSearchChange({name: typeof values.name === 'string' ? values.name : undefined})}
-          list="staffWeekTemplates"
-          label="Search staff"
-          placeholder="Search staff by username..."
-          textKey="name"
+    <PanelCard title="Default Week">
+      <VStack gap={2}>
+        <Selector
+          label="Default week"
+          description={`One of ${whose} week templates. It fills ${whose} calendar from today; past days keep what they had, and one day can use another day template on the Calendar.`}
+          options={options}
+          value={currentId ?? NO_WEEK}
+          onChange={choose}
+          isLoading={isLoading}
+          isDisabled={!owner.canEdit || isLoading || setWeekTemplate.isPending}
+          containerStyle={{maxWidth: 480}}
         />
-      }
-      pagination={{
-        page,
-        pageSize,
-        totalItems: total,
-        onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
-      }}
-      emptyState={<EmptyState title="No staff match your search" description="Search for another username." isCompact />}
-    />
+        {currentId && current.data?.since && (
+          <Text type="supporting" color="secondary">{`The default week since ${formatDate(current.data.since)}.`}</Text>
+        )}
+        {!owner.canEdit && <Text type="supporting" color="secondary">{`Only ${owner.ownerName || 'its owner'} or an admin can change it.`}</Text>}
+      </VStack>
+    </PanelCard>
   );
 }

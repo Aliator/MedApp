@@ -1,5 +1,5 @@
 import type {Appointment} from '../api/appointments';
-import type {Calendar, CalendarBlock, CalendarDay} from '../api/calendar';
+import type {Calendar, CalendarBlock, CalendarDay, Meeting} from '../api/calendar';
 import {addDays, isWeekday} from '../utils/calendarSlots';
 
 /** Synthetic calendars and appointments for tests, shaped like the API's responses. */
@@ -165,4 +165,27 @@ export function testRequested(overrides: Partial<Appointment> = {}): Appointment
     canReschedule: false,
     ...overrides,
   });
+}
+
+/** A meeting on a date, between two UK times, with the signed-in user and b.staff attending; admins can change it. */
+export function testMeeting(overrides: Partial<Meeting> & {date?: string; start?: string; end?: string} = {}): Meeting {
+  const {date = '2026-11-24', start = '09:00', end = '10:00', ...rest} = overrides;
+  return {
+    id: `meeting-${date}-${start}`,
+    title: 'Team huddle',
+    notes: null,
+    date,
+    startUtc: ukTime(date, start),
+    endUtc: ukTime(date, end),
+    organiserUserId: STAFF_ME.userId,
+    organiserUsername: STAFF_ME.username,
+    attendees: [
+      {userId: STAFF_ME.userId, username: STAFF_ME.username},
+      {userId: STAFF_OTHER.userId, username: STAFF_OTHER.username},
+    ],
+    canEdit: true,
+    createdAtUtc: '2026-11-10T10:00:00Z',
+    lastUpdated: '2026-11-10T10:00:00Z',
+    ...rest,
+  };
 }

@@ -19,7 +19,9 @@ public sealed class DayTemplateConfiguration : IEntityTypeConfiguration<DayTempl
         builder.Property(x => x.IsArchived)
             .HasDefaultValue(false);
 
-        builder.HasIndex(x => x.Name)
+        // Each member of staff has their own templates (no foreign key to the users table for OwnerUserId), and names
+        // are unique per owner.
+        builder.HasIndex(x => new { x.OwnerUserId, x.Name })
             .IsUnique();
 
         // A day template owns its blocks (every version of them).

@@ -11,14 +11,23 @@ import {
   pickFavourite,
   renderWithApp,
   searchBar,
+  staffUser,
   withAnnouncements,
 } from '../../test/render';
-import type {CalendarTemplatesSearch} from '../listSearch';
-import {calendarTemplatesHref, CalendarTemplatesPage} from './CalendarTemplatesPage';
+import {calendarKeys} from '../../api/calendar';
+import {calendarTemplatesPageQueries, CalendarTemplatesPage} from './CalendarTemplatesPage';
+import type {CalendarTemplatesSearch} from './calendarTemplatesSearch';
 
+const ADMIN = {userId: '00000000-0000-0000-0000-0000000000a9', username: 'test-admin'};
+const ME = {userId: '00000000-0000-0000-0000-0000000000a1', username: 'test-user'};
+const OTHER = {userId: '00000000-0000-0000-0000-0000000000b2', username: 'b.staff'};
+
+const STAFF = '/api/calendar/staff';
 const DAYS = '/api/calendar/day-templates';
 const WEEKS = '/api/calendar/week-templates';
-const STAFF = '/api/calendar/staff';
+const daysOf = (userId: string) => `${STAFF}/${userId}/day-templates`;
+const weeksOf = (userId: string) => `${STAFF}/${userId}/week-templates`;
+const defaultOf = (userId: string) => `${STAFF}/${userId}/week-template`;
 
 const dayTemplates = [
   {
@@ -27,36 +36,38 @@ const dayTemplates = [
     isArchived: false,
     weekTemplateCount: 2,
     canBeDeleted: false,
+    canEdit: true,
     blocks: [{id: 'b1', activityTypeId: 'a1', activityName: 'Lunch', colour: 'green', startTime: '12:00:00', endTime: '13:00:00'}],
   },
-  {id: 'dt2', name: 'Empty day', isArchived: false, weekTemplateCount: 0, canBeDeleted: true, blocks: []},
-  {id: 'dt3', name: 'Old day', isArchived: true, weekTemplateCount: 1, canBeDeleted: false, blocks: []},
+  {id: 'dt2', name: 'Empty day', isArchived: false, weekTemplateCount: 0, canBeDeleted: true, canEdit: true, blocks: []},
+  {id: 'dt3', name: 'Old day', isArchived: true, weekTemplateCount: 1, canBeDeleted: false, canEdit: true, blocks: []},
 ];
 
 const weekDays = (id: string | null, name: string | null) =>
   ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, dayTemplateId: id, dayTemplateName: name}));
 
 const weekTemplates = [
-  {id: 'wt1', name: 'Full time', isArchived: false, staffCount: 3, canBeDeleted: false, days: weekDays('dt1', 'Standard day')},
-  {id: 'wt2', name: 'Part time', isArchived: false, staffCount: 0, canBeDeleted: true, days: weekDays(null, null)},
-  {id: 'wt3', name: 'Old week', isArchived: true, staffCount: 1, canBeDeleted: false, days: weekDays(null, null)},
+  {id: 'wt1', name: 'Full time', isArchived: false, staffCount: 1, canBeDeleted: false, canEdit: true, days: weekDays('dt1', 'Standard day')},
+  {id: 'wt2', name: 'Part time', isArchived: false, staffCount: 0, canBeDeleted: true, canEdit: true, days: weekDays(null, null)},
+  {id: 'wt3', name: 'Old week', isArchived: true, staffCount: 0, canBeDeleted: false, canEdit: true, days: weekDays(null, null)},
 ];
 
-const staff = [
-  {userId: 'u1', username: 'test.doctor', weekTemplateId: 'wt1', weekTemplateName: 'Full time'},
-  {userId: 'u2', username: 'test.nurse', weekTemplateId: null, weekTemplateName: null},
-  {userId: 'u3', username: 'test.locum', weekTemplateId: 'wt3', weekTemplateName: 'Old week'},
-];
+const readOnly = <T extends object>(items: T[]) => items.map((t) => ({...t, canEdit: false}));
 
-function renderPage(search: CalendarTemplatesSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
+function renderPage(
+  search: CalendarTemplatesSearch = {},
+  extra: Parameters<typeof mockApi>[0] = {},
+  {user = adminUser, owner = ADMIN.userId} = {},
+) {
   const fetch = mockApi({
-    [`GET ${DAYS}`]: () => json(dayTemplates),
-    [`GET ${WEEKS}`]: () => json(weekTemplates),
-    [`GET ${STAFF}`]: () => json(staff),
+    [`GET ${STAFF}`]: () => json([ADMIN, ME, OTHER]),
+    [`GET ${daysOf(owner)}`]: () => json(dayTemplates),
+    [`GET ${weeksOf(owner)}`]: () => json(weekTemplates),
+    [`GET ${defaultOf(owner)}`]: () => json({staffUserId: owner, weekTemplateId: 'wt1', weekTemplateName: 'Full time', since: '2026-11-02'}),
     ...extra,
   });
   const onSearchChange = vi.fn();
-  return {fetch, onSearchChange, ...renderWithApp(<CalendarTemplatesPage search={search} onSearchChange={onSearchChange} />, {user: adminUser})};
+  return {fetch, onSearchChange, ...renderWithApp(<CalendarTemplatesPage search={search} onSearchChange={onSearchChange} />, {user})};
 }
 
 const rowOf = async (name: string) => (await screen.findByText(name)).closest('tr')!;
@@ -64,10 +75,11 @@ const sent = (fetch: ReturnType<typeof mockApi>, method: string) =>
   fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === method)!;
 
 describe('CalendarTemplatesPage', () => {
-  it('starts on the day templates: their blocks, what uses them, and a New button', async () => {
-    renderPage();
+  it('starts on your own day templates: their blocks, what uses them, and a New button', async () => {
+    const {fetch} = renderPage();
 
     const standard = within(await rowOf('Standard day'));
+    expect(screen.getByRole('heading', {name: 'My calendar templates'})).toBeInTheDocument();
     expect(standard.getByText('Lunch, 12:00–13:00')).toBeInTheDocument();
     expect(standard.getByText('2 week templates')).toBeInTheDocument();
     expect(within(await rowOf('Empty day')).getByText('No blocks')).toBeInTheDocument();
@@ -76,18 +88,73 @@ describe('CalendarTemplatesPage', () => {
     expect(screen.getByText('2 active day templates')).toBeInTheDocument();
     expect(screen.getByRole('tab', {name: 'Day Templates'})).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', {name: 'Day Templates'})).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'New Day Template'})).toHaveAttribute('href', '/admin/calendar-templates/day/new');
-    expect(standard.getByRole('link', {name: 'Edit day template'})).toHaveAttribute('href', '/admin/calendar-templates/day/dt1');
+    expect(screen.getByRole('link', {name: 'New Day Template'})).toHaveAttribute('href', '/calendar/templates/day/new');
+    expect(standard.getByRole('link', {name: 'Edit day template'})).toHaveAttribute('href', '/calendar/templates/day/dt1');
+    expect(calls(fetch)).toContain(`GET ${daysOf(ADMIN.userId)}?includeArchived=true`);
   });
 
-  it('keeps the tab in the URL, each starting on its own search', async () => {
-    const {user, onSearchChange} = renderPage({name: 'standard'});
+  it('keeps the tab and whose templates in the URL, each tab starting on its own search', async () => {
+    const {user, onSearchChange} = renderPage({name: 'standard', staff: OTHER.userId}, {}, {owner: OTHER.userId});
 
     await screen.findByText('Standard day');
     await user.click(screen.getByRole('tab', {name: 'Week Templates'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({tab: 'week'});
+    expect(onSearchChange).toHaveBeenLastCalledWith({tab: 'week', staff: OTHER.userId});
     await user.click(screen.getByRole('tab', {name: 'Day Templates'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({});
+    expect(onSearchChange).toHaveBeenLastCalledWith({staff: OTHER.userId});
+  });
+
+  it('lets an admin pick whose templates, from themselves first then everyone else', async () => {
+    const {user, onSearchChange} = renderPage({tab: 'week', name: 'full'});
+
+    const picker = await screen.findByRole('combobox', {name: 'Whose calendar templates'});
+    await waitFor(() => expect(picker).toHaveTextContent('My templates'));
+    await user.click(picker);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['My templates', 'b.staff', 'test-user']);
+    await user.click(screen.getByRole('option', {name: 'b.staff'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({tab: 'week', staff: OTHER.userId});
+  });
+
+  it("shows an admin someone else's templates to change, keeping whose in every link", async () => {
+    const {user, onSearchChange} = renderPage({staff: OTHER.userId}, {}, {owner: OTHER.userId});
+
+    const standard = within(await rowOf('Standard day'));
+    expect(screen.getByRole('heading', {name: "b.staff's calendar templates"})).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'New Day Template'})).toHaveAttribute('href', `/calendar/templates/day/new?staff=${OTHER.userId}`);
+    expect(standard.getByRole('link', {name: 'Edit day template'})).toHaveAttribute('href', `/calendar/templates/day/dt1?staff=${OTHER.userId}`);
+
+    await user.click(screen.getByRole('combobox', {name: 'Whose calendar templates'}));
+    await user.click(screen.getByRole('option', {name: 'My templates'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({tab: undefined, staff: undefined});
+  });
+
+  it("shows staff someone else's templates read-only, without the picker", async () => {
+    renderPage({staff: OTHER.userId}, {[`GET ${daysOf(OTHER.userId)}`]: () => json(readOnly(dayTemplates))}, {user: staffUser, owner: OTHER.userId});
+
+    const standard = within(await rowOf('Standard day'));
+    expect(screen.getByRole('heading', {name: "b.staff's calendar templates"})).toBeInTheDocument();
+    expect(standard.getByRole('link', {name: 'View day template'})).toHaveAttribute('href', `/calendar/templates/day/dt1?staff=${OTHER.userId}`);
+    expect(standard.queryByRole('button', {name: /Archive|Delete/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'New Day Template'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', {name: 'Whose calendar templates'})).not.toBeInTheDocument();
+  });
+
+  it('gives staff their own templates to change, without the picker', async () => {
+    renderPage({}, {}, {user: staffUser, owner: ME.userId});
+
+    expect(await screen.findByRole('link', {name: 'New Day Template'})).toHaveAttribute('href', '/calendar/templates/day/new');
+    expect(screen.getByRole('heading', {name: 'My calendar templates'})).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', {name: 'Whose calendar templates'})).not.toBeInTheDocument();
+  });
+
+  it("says so when the staff list can't be loaded, as it says whose your templates are", async () => {
+    renderPage({}, {[`GET ${STAFF}`]: () => json({title: 'Down'}, 500)});
+    expect(await findAlert("The staff list could not be loaded, so the calendar templates can't be found. Please try again.")).toBeInTheDocument();
+  });
+
+  it("names the page of someone who isn't in the staff list plainly", async () => {
+    const stranger = '00000000-0000-0000-0000-0000000000c3';
+    renderPage({staff: stranger}, {}, {owner: stranger});
+    expect(await screen.findByRole('heading', {name: 'Calendar templates'})).toBeInTheDocument();
   });
 
   it('archives, restores and deletes day templates, saying why one failed', async () => {
@@ -125,7 +192,7 @@ describe('CalendarTemplatesPage', () => {
     expect(openDialog()).toBeNull();
   });
 
-  it('lists the week templates: their days, and who has them as their default', async () => {
+  it('lists the week templates: their days, and which is the default week', async () => {
     const {user, fetch} = renderPage(
       {tab: 'week'},
       {[`POST ${WEEKS}/wt1/archive`]: () => json({}), [`DELETE ${WEEKS}/wt2`]: () => new Response(null, {status: 204})},
@@ -133,11 +200,12 @@ describe('CalendarTemplatesPage', () => {
 
     const full = within(await rowOf('Full time'));
     expect(full.getByText('Mon to Fri: Standard day')).toBeInTheDocument();
-    expect(full.getByText('Default for 3 people')).toBeInTheDocument();
-    expect(within(await rowOf('Part time')).getByText('No one')).toBeInTheDocument();
+    expect(full.getByText('Yes')).toBeInTheDocument();
+    expect(within(await rowOf('Part time')).getByText('No')).toBeInTheDocument();
     expect(screen.getByText('2 active week templates')).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'New Week Template'})).toHaveAttribute('href', '/admin/calendar-templates/week/new');
-    expect(full.getByRole('link', {name: 'Edit week template'})).toHaveAttribute('href', '/admin/calendar-templates/week/wt1');
+    expect(screen.getByRole('link', {name: 'New Week Template'})).toHaveAttribute('href', '/calendar/templates/week/new');
+    expect(full.getByRole('link', {name: 'Edit week template'})).toHaveAttribute('href', '/calendar/templates/week/wt1');
+    expect(isDisabled(full.getByRole('button', {name: /has been the default week/}))).toBe(true);
 
     await user.click(full.getByRole('button', {name: 'Archive week template'}));
     expect(within(openDialog()!).getByText('Mon to Fri: Standard day', {selector: 'dd *, dd'})).toBeInTheDocument();
@@ -157,57 +225,91 @@ describe('CalendarTemplatesPage', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${WEEKS}/wt3/restore`));
   });
 
-  it("changes a member of staff's default week in place, and announces it", async () => {
+  it('changes the default week from their own week templates, and announces it', async () => {
     withAnnouncements();
-    const {user, fetch} = renderPage({tab: 'staff'}, {[`PUT ${STAFF}/u2/week-template`]: () => json({staffUserId: 'u2', weekTemplateId: 'wt2'})});
+    const {user, fetch} = renderPage(
+      {tab: 'default'},
+      {[`PUT ${defaultOf(ADMIN.userId)}`]: () => json({staffUserId: ADMIN.userId, weekTemplateId: 'wt2'})},
+    );
 
-    expect(await screen.findByText('3 people')).toBeInTheDocument();
+    const field = await screen.findByRole('combobox', {name: /^Default week/});
+    await waitFor(() => expect(field).toHaveTextContent('Full time'));
+    expect(screen.getByText('Default week: Full time')).toBeInTheDocument();
+    expect(screen.getByText('The default week since 2 November 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /New/})).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox', {name: 'Default week for test.doctor'})).toHaveTextContent('Full time');
-    // An archived one stays theirs, labelled.
-    expect(screen.getByRole('combobox', {name: 'Default week for test.locum'})).toHaveTextContent('Old week (archived)');
 
-    await user.click(screen.getByRole('combobox', {name: 'Default week for test.nurse'}));
+    await user.click(field);
     expect(screen.queryByRole('option', {name: /Old week/})).not.toBeInTheDocument();
-    await user.click(screen.getByRole('option', {name: 'Part time'}));
-
-    await waitFor(() => expect(sent(fetch, 'PUT')).toBeDefined());
-    expect(await sent(fetch, 'PUT').json()).toEqual({weekTemplateId: 'wt2'});
-    await expectAnnounced('Default week saved for test.nurse');
-  });
-
-  it("removes someone's default week, does nothing for the same choice, and says why a change failed", async () => {
-    const {user, fetch} = renderPage({tab: 'staff'}, {[`PUT ${STAFF}/u1/week-template`]: () => json({title: 'Down'}, 500)});
-
-    await user.click(await screen.findByRole('combobox', {name: 'Default week for test.doctor'}));
+    // The same choice changes nothing.
     await user.click(screen.getByRole('option', {name: 'Full time'}));
     expect(sent(fetch, 'PUT')).toBeUndefined();
 
-    await user.click(screen.getByRole('combobox', {name: 'Default week for test.doctor'}));
-    await user.click(screen.getByRole('option', {name: 'No default week'}));
-
-    expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
-    expect(await sent(fetch, 'PUT').json()).toEqual({weekTemplateId: null});
+    await user.click(field);
+    await user.click(screen.getByRole('option', {name: 'Part time'}));
+    await waitFor(() => expect(sent(fetch, 'PUT')).toBeDefined());
+    expect(await sent(fetch, 'PUT').json()).toEqual({weekTemplateId: 'wt2'});
+    await expectAnnounced('Default week saved');
   });
 
-  it('searches the staff by username', async () => {
-    const {user, onSearchChange} = renderPage({tab: 'staff', name: 'nurse'});
+  it('removes the default week, showing an archived one while it is theirs, and says why a change failed', async () => {
+    withAnnouncements();
+    let fail = false;
+    const {user, fetch} = renderPage(
+      {tab: 'default'},
+      {
+        [`GET ${defaultOf(ADMIN.userId)}`]: () => json({staffUserId: ADMIN.userId, weekTemplateId: 'wt3', weekTemplateName: 'Old week', since: null}),
+        [`PUT ${defaultOf(ADMIN.userId)}`]: () => (fail ? json({title: 'Down'}, 500) : json({staffUserId: ADMIN.userId, weekTemplateId: null})),
+      },
+    );
 
-    expect(await screen.findByText('1 matching person')).toBeInTheDocument();
-    expect(screen.getByText('test.nurse')).toBeInTheDocument();
-    expect(screen.queryByText('test.doctor')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('tab', {name: 'Staff Defaults'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({tab: 'staff'});
+    const field = await screen.findByRole('combobox', {name: /^Default week/});
+    await waitFor(() => expect(field).toHaveTextContent('Old week (archived)'));
+    expect(screen.queryByText(/The default week since/)).not.toBeInTheDocument();
+    await user.click(field);
+    await user.click(screen.getByRole('option', {name: 'No default week'}));
+    await expectAnnounced('Default week removed');
+    expect(await sent(fetch, 'PUT').json()).toEqual({weekTemplateId: null});
+
+    fail = true;
+    await waitFor(() => expect(isDisabled(field)).toBe(false));
+    await user.click(field);
+    await user.click(screen.getByRole('option', {name: 'Part time'}));
+    expect(await findAlert('A server error occurred. Please try again later.')).toBeInTheDocument();
+  });
+
+  it("shows staff someone else's default week without letting them change it", async () => {
+    renderPage({tab: 'default', staff: OTHER.userId}, {}, {user: staffUser, owner: OTHER.userId});
+
+    const field = await screen.findByRole('combobox', {name: /^Default week/});
+    await waitFor(() => expect(field).toHaveTextContent('Full time'));
+    expect(isDisabled(field)).toBe(true);
+    expect(screen.getByText('Only b.staff or an admin can change it.')).toBeInTheDocument();
+  });
+
+  it('says when the default week could not be loaded', async () => {
+    renderPage({tab: 'default'}, {[`GET ${defaultOf(ADMIN.userId)}`]: () => json({title: 'Down'}, 500)});
+    expect(await findAlert('The default week could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('offers to create the first day template', async () => {
-    renderPage({}, {[`GET ${DAYS}`]: () => json([])});
-    expect(await screen.findByRole('link', {name: 'Create Your First Day Template'})).toHaveAttribute('href', '/admin/calendar-templates/day/new');
+    renderPage({}, {[`GET ${daysOf(ADMIN.userId)}`]: () => json([])});
+    expect(await screen.findByRole('link', {name: 'Create Your First Day Template'})).toHaveAttribute('href', '/calendar/templates/day/new');
   });
 
   it('offers to create the first week template', async () => {
-    renderPage({tab: 'week'}, {[`GET ${WEEKS}`]: () => json([])});
-    expect(await screen.findByRole('link', {name: 'Create Your First Week Template'})).toHaveAttribute('href', '/admin/calendar-templates/week/new');
+    renderPage({tab: 'week'}, {[`GET ${weeksOf(ADMIN.userId)}`]: () => json([])});
+    expect(await screen.findByRole('link', {name: 'Create Your First Week Template'})).toHaveAttribute('href', '/calendar/templates/week/new');
+  });
+
+  it("offers an admin to create someone else's first template", async () => {
+    renderPage({staff: OTHER.userId}, {[`GET ${daysOf(OTHER.userId)}`]: () => json([])}, {owner: OTHER.userId});
+    expect(await screen.findByRole('link', {name: 'Create a Day Template'})).toHaveAttribute('href', `/calendar/templates/day/new?staff=${OTHER.userId}`);
+  });
+
+  it("offers staff nothing to create on someone else's empty list", async () => {
+    renderPage({tab: 'week', staff: OTHER.userId}, {[`GET ${weeksOf(OTHER.userId)}`]: () => json([])}, {user: staffUser, owner: OTHER.userId});
+    expect(await screen.findByText('No week templates yet')).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /Create/})).not.toBeInTheDocument();
   });
 
   it('offers the archived ones when the search matches no active one', async () => {
@@ -215,27 +317,22 @@ describe('CalendarTemplatesPage', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Show Archived'}));
 
-    expect(onSearchChange).toHaveBeenCalledWith({name: 'old', page: undefined, status: 'any', tab: undefined});
+    expect(onSearchChange).toHaveBeenCalledWith({name: 'old', page: undefined, status: 'any', tab: undefined, staff: undefined});
   });
 
   it('says when a list could not be loaded', async () => {
-    renderPage({}, {[`GET ${DAYS}`]: () => json({title: 'Down'}, 500)});
+    renderPage({}, {[`GET ${daysOf(ADMIN.userId)}`]: () => json({title: 'Down'}, 500)});
     expect(await findAlert('The day templates could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('says when the week templates could not be loaded', async () => {
-    renderPage({tab: 'week'}, {[`GET ${WEEKS}`]: () => json({title: 'Down'}, 500)});
+    renderPage({tab: 'week'}, {[`GET ${weeksOf(ADMIN.userId)}`]: () => json({title: 'Down'}, 500)});
     expect(await findAlert('The week templates could not be loaded. Please try again.')).toBeInTheDocument();
-  });
-
-  it('says when the staff could not be loaded', async () => {
-    renderPage({tab: 'staff'}, {[`GET ${STAFF}`]: () => json({title: 'Down'}, 500)});
-    expect(await findAlert('The staff and their default weeks could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('filters each list from its favourites, and pages it, keeping the tab', async () => {
     const many = Array.from({length: 12}, (_, i) => ({...weekTemplates[1], id: `w${i}`, name: `Week ${String(i).padStart(2, '0')}`}));
-    const {user, onSearchChange} = renderPage({tab: 'week'}, {[`GET ${WEEKS}`]: () => json(many)});
+    const {user, onSearchChange} = renderPage({tab: 'week'}, {[`GET ${weeksOf(ADMIN.userId)}`]: () => json(many)});
 
     await user.click(await screen.findByRole('button', {name: 'Go to next page'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({page: 2, tab: 'week'});
@@ -243,49 +340,46 @@ describe('CalendarTemplatesPage', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({name: undefined, status: 'archived', page: undefined, tab: 'week'});
   });
 
-  it('pages the day templates', async () => {
+  it('pages the day templates, and clears their search', async () => {
     const many = Array.from({length: 12}, (_, i) => ({...dayTemplates[1], id: `d${i}`, name: `Day ${String(i).padStart(2, '0')}`}));
-    const {user, onSearchChange} = renderPage({}, {[`GET ${DAYS}`]: () => json(many)});
+    const {user, onSearchChange} = renderPage({name: 'day'}, {[`GET ${daysOf(ADMIN.userId)}`]: () => json(many)});
 
     await user.click(await screen.findByRole('button', {name: 'Go to next page'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({page: 2, tab: undefined});
-  });
-
-  it('clears the staff search, and pages the staff', async () => {
-    const many = Array.from({length: 12}, (_, i) => ({userId: `u${i}`, username: `test.staff${String(i).padStart(2, '0')}`, weekTemplateId: null}));
-    const {user, onSearchChange} = renderPage({tab: 'staff', name: 'staff'}, {[`GET ${STAFF}`]: () => json(many)});
-
-    await user.click(await screen.findByRole('button', {name: 'Go to next page'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({name: 'staff', page: 2, tab: 'staff'});
+    expect(onSearchChange).toHaveBeenLastCalledWith({name: 'day', page: 2});
     await user.click(within(searchBar()).getByRole('button', {name: 'Clear all'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({name: undefined, tab: 'staff'});
-  });
-
-  it('copes with templates and staff the API sends without their optional fields', async () => {
-    const {user} = renderPage(
-      {tab: 'staff'},
-      {
-        [`GET ${STAFF}`]: () => json([{userId: 'u9'}, {username: 'test.nobody'}]),
-        [`GET ${WEEKS}`]: () => json([{id: 'w9'}, {id: 'w8', name: 'Archived week', isArchived: true}, {}]),
-      },
-    );
-
-    expect(await screen.findByText('2 people')).toBeInTheDocument();
-    await user.click(screen.getAllByRole('combobox', {name: /^Default week for/})[0]);
-    expect(screen.getAllByRole('option')).toHaveLength(3);
+    // Clearing the bar clears Active too, so archived ones show.
+    expect(onSearchChange).toHaveBeenLastCalledWith({name: undefined, page: undefined, status: 'any'});
   });
 
   it('copes with day and week templates without their optional fields', async () => {
-    renderPage({status: 'any'}, {[`GET ${DAYS}`]: () => json([{id: 'd9', blocks: [{id: 'b9'}]}, {id: 'd8', name: 'Unnamed blocks'}])});
+    renderPage({status: 'any'}, {[`GET ${daysOf(ADMIN.userId)}`]: () => json([{id: 'd9', blocks: [{id: 'b9'}]}, {id: 'd8', name: 'Unnamed blocks'}])});
     expect(await screen.findByText(', –')).toBeInTheDocument();
     expect(screen.getByText('No blocks')).toBeInTheDocument();
 
-    renderPage({tab: 'week', status: 'any'}, {[`GET ${WEEKS}`]: () => json([{id: 'w9'}])});
+    renderPage({tab: 'week', status: 'any'}, {[`GET ${weeksOf(ADMIN.userId)}`]: () => json([{id: 'w9'}])});
     expect(await screen.findByText('Mon to Fri: No template')).toBeInTheDocument();
   });
 
-  it('links each editor back to its own tab', () => {
-    expect(calendarTemplatesHref('day')).toBe('/admin/calendar-templates');
-    expect(calendarTemplatesHref('week')).toBe('/admin/calendar-templates?tab=week');
+  it('copes with a default week and week templates without their optional fields', async () => {
+    const {user} = renderPage(
+      {tab: 'default'},
+      {
+        [`GET ${weeksOf(ADMIN.userId)}`]: () => json([{id: 'w9'}, {id: 'w8', name: 'Archived week', isArchived: true}, {}]),
+        [`GET ${defaultOf(ADMIN.userId)}`]: () => json({}),
+      },
+    );
+
+    expect(await screen.findByText('Default week: None')).toBeInTheDocument();
+    const field = screen.getByRole('combobox', {name: /^Default week/});
+    await waitFor(() => expect(isDisabled(field)).toBe(false));
+    await user.click(field);
+    expect(screen.getAllByRole('option')).toHaveLength(3);
+  });
+
+  it('preloads what each tab reads', () => {
+    const keys = (tab: Parameters<typeof calendarTemplatesPageQueries>[0]) => calendarTemplatesPageQueries(tab, OTHER.userId).map((q) => q.queryKey);
+    expect(keys('day')).toEqual([calendarKeys.dayTemplatesOf(OTHER.userId)]);
+    expect(keys('week')).toEqual([calendarKeys.weekTemplatesOf(OTHER.userId)]);
+    expect(keys('default')).toEqual([calendarKeys.weekTemplateOf(OTHER.userId), calendarKeys.weekTemplatesOf(OTHER.userId)]);
   });
 });

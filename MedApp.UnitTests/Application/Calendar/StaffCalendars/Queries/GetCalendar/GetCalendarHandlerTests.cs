@@ -7,6 +7,7 @@ using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Calendar;
+using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
@@ -77,6 +78,45 @@ public sealed class GetCalendarHandlerTests : StaffCalendarHandlerTestBase
         var appointment = response.Appointments.Single();
         appointment.StaffUsername.Should().Be(StaffUsername);
         appointment.BookedByUsername.Should().Be(ProcedureMapper.DeletedUser);
+    }
+
+    /// <summary>The calendar also has a meeting the admin arranged for its owner and the other member of staff.</summary>
+    private Meeting GivenAMeeting()
+    {
+        var meeting = MeetingsTestConstants.NewMeeting(At(NextMonday, 15), At(NextMonday, 16));
+        GivenCalendar(CreateData(NextMonday, NextFriday, appointments: [_appointment]) with { Meetings = [meeting] });
+        Identity
+            .Setup(i => i.GetUsernamesByIdAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Callback((IEnumerable<Guid> ids, CancellationToken _) => _lookedUp.AddRange(ids))
+            .ReturnsAsync(MeetingsTestConstants.Usernames);
+        return meeting;
+    }
+
+    [Test]
+    public async Task Handle_Meetings_AreReturnedWithTheirPeopleLookedUpOnce()
+    {
+        var meeting = GivenAMeeting();
+
+        var response = await _handler.Handle(new GetCalendarQuery(StaffUserId, NextMonday, NextFriday, StaffActor), Token);
+
+        _lookedUp.Should().BeEquivalentTo([StaffUserId, OtherStaffUserId, AdminUserId]);
+        var returned = response.Meetings.Should().ContainSingle().Subject;
+        returned.Id.Should().Be(meeting.Id);
+        returned.OrganiserUsername.Should().Be(AdminUsername);
+        returned.Attendees.Select(a => a.Username).Should().Equal(OtherStaffUsername, StaffUsername);
+    }
+
+    [TestCase(false, false)]
+    [TestCase(true, true)]
+    public async Task Handle_Meetings_OnlyAnAdminCanChangeThem(bool isAdmin, bool canEdit)
+    {
+        GivenAMeeting();
+
+        var response = await _handler.Handle(
+            new GetCalendarQuery(StaffUserId, NextMonday, NextFriday, StaffActor with { IsAdmin = isAdmin }), Token);
+
+        response.CanEdit.Should().BeTrue("it's their own calendar");
+        response.Meetings.Single().CanEdit.Should().Be(canEdit);
     }
 
     [Test]

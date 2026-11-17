@@ -98,6 +98,35 @@ public sealed class CalendarRepositoryExtensionsTests
     }
 
     [Test]
+    public async Task GetOwnDayTemplateOrThrowAsync_Theirs_ReturnsIt()
+    {
+        var template = CreateDayTemplate(ownerUserId: StaffUserId);
+        _repository.Setup(r => r.GetDayTemplateAsync(DayTemplateId, Today, Token)).ReturnsAsync(template);
+
+        (await _repository.Object.GetOwnDayTemplateOrThrowAsync(DayTemplateId, StaffUserId, Today, Token)).Should().BeSameAs(template);
+        _repository.Verify(r => r.GetDayTemplateAsync(DayTemplateId, Today, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task GetOwnDayTemplateOrThrowAsync_SomeoneElses_ThrowsNotFound()
+    {
+        _repository.Setup(r => r.GetDayTemplateAsync(DayTemplateId, Today, Token)).ReturnsAsync(CreateDayTemplate(ownerUserId: OtherStaffUserId));
+
+        var act = () => _repository.Object.GetOwnDayTemplateOrThrowAsync(DayTemplateId, StaffUserId, Today, Token);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"Day template '{DayTemplateId}' isn't one of this person's templates.");
+    }
+
+    [Test]
+    public async Task GetOwnDayTemplateOrThrowAsync_Missing_ThrowsNotFound()
+    {
+        var act = () => _repository.Object.GetOwnDayTemplateOrThrowAsync(DayTemplateId, StaffUserId, Today, Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Day template '{DayTemplateId}' was not found.");
+    }
+
+    [Test]
     public async Task GetDayTemplateForUpdateOrThrowAsync_Exists_ReturnsIt()
     {
         var template = CreateDayTemplate();
@@ -127,6 +156,35 @@ public sealed class CalendarRepositoryExtensionsTests
     public async Task GetWeekTemplateOrThrowAsync_Missing_ThrowsNotFound()
     {
         var act = () => _repository.Object.GetWeekTemplateOrThrowAsync(WeekTemplateId, Today, Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Week template '{WeekTemplateId}' was not found.");
+    }
+
+    [Test]
+    public async Task GetOwnWeekTemplateOrThrowAsync_Theirs_ReturnsIt()
+    {
+        var template = CreateWeekTemplate(ownerUserId: StaffUserId);
+        _repository.Setup(r => r.GetWeekTemplateAsync(WeekTemplateId, Today, Token)).ReturnsAsync(template);
+
+        (await _repository.Object.GetOwnWeekTemplateOrThrowAsync(WeekTemplateId, StaffUserId, Today, Token)).Should().BeSameAs(template);
+        _repository.Verify(r => r.GetWeekTemplateAsync(WeekTemplateId, Today, Token), Times.Once);
+    }
+
+    [Test]
+    public async Task GetOwnWeekTemplateOrThrowAsync_SomeoneElses_ThrowsNotFound()
+    {
+        _repository.Setup(r => r.GetWeekTemplateAsync(WeekTemplateId, Today, Token)).ReturnsAsync(CreateWeekTemplate(ownerUserId: OtherStaffUserId));
+
+        var act = () => _repository.Object.GetOwnWeekTemplateOrThrowAsync(WeekTemplateId, StaffUserId, Today, Token);
+
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"Week template '{WeekTemplateId}' isn't one of this person's templates.");
+    }
+
+    [Test]
+    public async Task GetOwnWeekTemplateOrThrowAsync_Missing_ThrowsNotFound()
+    {
+        var act = () => _repository.Object.GetOwnWeekTemplateOrThrowAsync(WeekTemplateId, StaffUserId, Today, Token);
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Week template '{WeekTemplateId}' was not found.");
     }

@@ -4,7 +4,10 @@ using MedApp.Domain.Calendar;
 
 namespace MedApp.Application.Calendar.Common;
 
-/// <summary>What admins set calendars up with: activity types, day templates and week templates, as the API returns them.</summary>
+/// <summary>
+/// What calendars are set up with, as the API returns them: activity types, and each person's day templates and week
+/// templates (<c>canEdit</c>: whether the signed-in user may change them, as their owner or an admin).
+/// </summary>
 public static class CalendarSetupMapper
 {
     /// <summary>The weekdays a week template has, in order.</summary>
@@ -36,10 +39,11 @@ public static class CalendarSetupMapper
         DayTemplate template,
         ICalendarSetupRepository repository,
         DateOnly today,
+        bool canEdit,
         CancellationToken ct)
     {
         var usage = await repository.GetDayTemplateUsageAsync([template.Id], today, ct);
-        return ToResponse(template, usage.GetValueOrDefault(template.Id, DayTemplateUsage.None), today);
+        return ToResponse(template, usage.GetValueOrDefault(template.Id, DayTemplateUsage.None), today, canEdit);
     }
 
     /// <summary>The response for one week template, looking up how much it's used.</summary>
@@ -47,16 +51,18 @@ public static class CalendarSetupMapper
         WeekTemplate template,
         ICalendarSetupRepository repository,
         DateOnly today,
+        bool canEdit,
         CancellationToken ct)
     {
         var usage = await repository.GetWeekTemplateUsageAsync([template.Id], today, ct);
-        return ToResponse(template, usage.GetValueOrDefault(template.Id, WeekTemplateUsage.None), today);
+        return ToResponse(template, usage.GetValueOrDefault(template.Id, WeekTemplateUsage.None), today, canEdit);
     }
 
     /// <summary>A day template with its blocks valid on <paramref name="today"/> (its current version), by start time.</summary>
-    public static DayTemplateResponse ToResponse(DayTemplate template, DayTemplateUsage usage, DateOnly today) => new()
+    public static DayTemplateResponse ToResponse(DayTemplate template, DayTemplateUsage usage, DateOnly today, bool canEdit) => new()
     {
         Id = template.Id,
+        OwnerUserId = template.OwnerUserId,
         Name = template.Name,
         IsArchived = template.IsArchived,
         Blocks = template.Blocks
@@ -66,7 +72,8 @@ public static class CalendarSetupMapper
             .Select(ToResponse)
             .ToList(),
         WeekTemplateCount = usage.WeekTemplateCount,
-        CanBeDeleted = !usage.HasBeenUsed
+        CanBeDeleted = !usage.HasBeenUsed,
+        CanEdit = canEdit
     };
 
     public static DayTemplateBlockResponse ToResponse(DayTemplateBlock block) => new()
@@ -81,9 +88,10 @@ public static class CalendarSetupMapper
     };
 
     /// <summary>A week template with its day template for each weekday valid on <paramref name="today"/>, Monday to Friday.</summary>
-    public static WeekTemplateResponse ToResponse(WeekTemplate template, WeekTemplateUsage usage, DateOnly today) => new()
+    public static WeekTemplateResponse ToResponse(WeekTemplate template, WeekTemplateUsage usage, DateOnly today, bool canEdit) => new()
     {
         Id = template.Id,
+        OwnerUserId = template.OwnerUserId,
         Name = template.Name,
         IsArchived = template.IsArchived,
         Days = Weekdays
@@ -101,6 +109,7 @@ public static class CalendarSetupMapper
             })
             .ToList(),
         StaffCount = usage.StaffCount,
-        CanBeDeleted = !usage.HasBeenUsed
+        CanBeDeleted = !usage.HasBeenUsed,
+        CanEdit = canEdit
     };
 }

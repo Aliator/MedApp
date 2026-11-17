@@ -4,6 +4,9 @@ public sealed class DayTemplateResponse
 {
     public Guid Id { get; set; }
 
+    /// <summary>The member of staff whose template it is.</summary>
+    public Guid OwnerUserId { get; set; }
+
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Archived day templates can't be chosen again, but keep applying where they already do.</summary>
@@ -17,6 +20,9 @@ public sealed class DayTemplateResponse
 
     /// <summary>Whether it can be deleted: true only if no week template or day override has ever used it.</summary>
     public bool CanBeDeleted { get; set; }
+
+    /// <summary>Whether the signed-in user can change it: its owner, or an admin.</summary>
+    public bool CanEdit { get; set; }
 }
 
 /// <summary>One block of a day template, at UK clock times.</summary>

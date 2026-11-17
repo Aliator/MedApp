@@ -4,6 +4,9 @@ public sealed class WeekTemplateResponse
 {
     public Guid Id { get; set; }
 
+    /// <summary>The member of staff whose template it is.</summary>
+    public Guid OwnerUserId { get; set; }
+
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Archived week templates can't be chosen again, but stay the default of whoever has them.</summary>
@@ -17,6 +20,9 @@ public sealed class WeekTemplateResponse
 
     /// <summary>Whether it can be deleted: true only if it has never been anyone's default.</summary>
     public bool CanBeDeleted { get; set; }
+
+    /// <summary>Whether the signed-in user can change it: its owner, or an admin.</summary>
+    public bool CanEdit { get; set; }
 }
 
 public sealed class WeekTemplateDayResponse

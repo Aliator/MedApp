@@ -1,5 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
-import {testAppointment, testBlock, testCalendar} from '../../test/calendar';
+import {testAppointment, testBlock, testCalendar, testMeeting} from '../../test/calendar';
 import {calls, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {DayCalendar} from './DayCalendar';
 
@@ -19,13 +19,14 @@ describe('DayCalendar', () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
   });
 
-  it("shows today's appointments and blocks; an appointment opens its procedure, or its patient", async () => {
+  it("shows today's appointments, blocks and meetings; an appointment opens its procedure, or its patient", async () => {
     mockDay({
       appointments: [
         testAppointment({id: 'a1', date: MONDAY, start: '09:00', end: '09:30'}),
         testAppointment({id: 'a2', date: MONDAY, start: '11:00', end: '11:30', procedureId: null, procedureTitle: null, patientId: 'patient-7'}),
       ],
       blocks: [testBlock(MONDAY, '12:00', '13:00')],
+      meetings: [testMeeting({date: MONDAY, start: '14:00', end: '15:00', title: 'MDT'})],
     });
     const {user, router} = renderWithApp(<DayCalendar />, {user: staffUser});
 
@@ -34,6 +35,10 @@ describe('DayCalendar', () => {
     // Blocked time is shown, but isn't a button.
     expect(await screen.findByText('Lunch, 12:00 to 13:00')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: /^Lunch/})).not.toBeInTheDocument();
+    // So is a meeting, with its icon.
+    expect(screen.getByText('MDT, meeting, 14:00 to 15:00, 2 attending')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^MDT/})).not.toBeInTheDocument();
+    expect(document.querySelector('[data-kind="meeting"] svg')).not.toBeNull();
     // The card's title dates the day, so the grid doesn't head its column again (it's still named for screen readers).
     expect(screen.queryByText('Monday')).not.toBeInTheDocument();
     expect(screen.getByRole('group', {name: 'Monday 23 November, today'})).toBeInTheDocument();

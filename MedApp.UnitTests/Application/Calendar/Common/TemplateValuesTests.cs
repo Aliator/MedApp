@@ -80,7 +80,7 @@ public sealed class TemplateValuesTests
     [Test]
     public void Days_TakesTheCommandsWeekdays()
     {
-        var command = new CreateWeekTemplateCommand(WeekTemplateName, null, OtherDayTemplateId, null, DayTemplateId, null);
+        var command = new CreateWeekTemplateCommand(StaffUserId, WeekTemplateName, null, OtherDayTemplateId, null, DayTemplateId, null, StaffActor);
 
         command.Days().Should().Equal(
             new WeekTemplateDayValue(DayOfWeek.Tuesday, OtherDayTemplateId),

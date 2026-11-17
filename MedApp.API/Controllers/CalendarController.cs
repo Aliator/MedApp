@@ -7,9 +7,11 @@ using MedApp.Application.Calendar.StaffCalendars.Commands.DeleteCalendarBlock;
 using MedApp.Application.Calendar.StaffCalendars.Commands.RemoveTemplateBlockForDay;
 using MedApp.Application.Calendar.StaffCalendars.Commands.SetStaffWeekTemplate;
 using MedApp.Application.Calendar.StaffCalendars.Commands.UpdateCalendarBlock;
+using MedApp.Application.Calendar.StaffCalendars.Queries.GetAvailability;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendar;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendarStaff;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetStaffWeekTemplate;
+using MedApp.Application.Calendar.StaffCalendars.Queries.GetTeamCalendar;
 using MedApp.Contracts.Calendar.Requests;
 using MedApp.Contracts.Calendar.Responses;
 using MediatR;
@@ -36,6 +38,35 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCalendar([FromQuery] GetCalendarRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new GetCalendarQuery(request.StaffUserId, request.From, request.To, User.ToCalendarActor()), ct));
+
+    /// <summary>
+    /// The team view (admins): one UK date of several people's calendars (everyone with a staff role when none are
+    /// named), and when they're all free.
+    /// </summary>
+    [HttpGet("team")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(TeamCalendarResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTeamCalendar([FromQuery] GetTeamCalendarRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetTeamCalendarQuery(request.Date, request.StaffUserIds ?? [], User.ToCalendarActor()), ct));
+
+    /// <summary>
+    /// When several people are all free (admins, for arranging a meeting): each working day's free time, suggested
+    /// times for a meeting of the length given, and each person's busy times. Names no patient.
+    /// </summary>
+    [HttpGet("availability")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(AvailabilityResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAvailability([FromQuery] GetAvailabilityRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetAvailabilityQuery(
+            request.StaffUserIds ?? [],
+            request.From,
+            request.To,
+            request.DurationMinutes,
+            request.ExceptMeetingId), ct));
 
     /// <summary>Everyone whose calendar can be shown (anyone with a role), with their default week template.</summary>
     [HttpGet("staff")]

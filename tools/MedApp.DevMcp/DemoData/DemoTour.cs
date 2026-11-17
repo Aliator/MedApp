@@ -2,6 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Calendar;
 using MedApp.Domain.Procedures.PatientProcedures;
 using AuditAction = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditAction;
 using Status = MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStatus;
@@ -50,6 +51,39 @@ public static class DemoTour
             leadsAppointmentsThatDay = world.Appointments
                 .Where(a => a.StaffUserId == lead.Id && a.StartUtc is { } s && UkTime.DateOf(s) == day && AppointmentWorkflow.IsOnCalendar(a.Status))
                 .OrderBy(a => a.StartUtc).Select(a => $"{UkTime.DescribeTime(a.StartUtc!.Value)} {names[a.PatientId]}"),
+            calendar = Calendar(world),
+        };
+    }
+
+    /// <summary>
+    /// Where to see meetings, the team view and personal templates: the diary day's meetings (open Calendar, Team, on
+    /// that day), the next few meetings, the ones moved or cancelled (their notifications are in the bell), and whose
+    /// templates differ from the usual.
+    /// </summary>
+    public static object Calendar(DemoWorld world)
+    {
+        var calendars = world.Calendars;
+        var plan = calendars.MeetingPlan;
+        var now = world.Timeline.NowUtc;
+        var day = world.Timeline.DiaryDay;
+        string Describe(Meeting m) => $"{UkTime.Describe(m.StartUtc)} to {UkTime.DescribeTime(m.EndUtc)}: {m.Title} ({m.Attendees.Count} going)";
+
+        return new
+        {
+            teamViewDay = day,
+            meetingsThatDay = calendars.Meetings.Where(m => UkTime.DateOf(m.StartUtc) == day).OrderBy(m => m.StartUtc).Select(Describe),
+            upcomingMeetings = calendars.Meetings.Where(m => m.StartUtc > now).OrderBy(m => m.StartUtc).Take(8).Select(Describe),
+            movedMeetings = new[] { plan.Replanned, plan.Moved, plan.MovedOneToOne }.OfType<MeetingStory>().Select(s => Describe(s.Meeting)),
+            cancelledMeeting = plan.Cancelled is { } cancelled ? Describe(cancelled.Meeting) : null,
+            personalTemplates = new[]
+            {
+                $"l.northcott: '{DemoTemplates.PartTimeWeek}' since {UkTime.DescribeDate(world.Timeline.ThisMonday.AddDays(-7 * 20))}, '{DemoTemplates.FullTimeWeek}' before",
+                $"{DemoTemplates.LateLunchUsername}: '{DemoTemplates.EndoscopyList}' lunch at 13:15 since {UkTime.DescribeDate(world.Timeline.ThisMonday.AddDays(-7 * 10))}, 12:45 before",
+                $"{DemoStaff.CoordinatorUsername}: a late lunch, 13:30, covering the desk",
+                $"d.ashworth: '{DemoTemplates.FridayList}' (theatre on Friday mornings)",
+                $"{DemoStaff.ManagerUsername}: '{DemoTemplates.OfficeEarlyFinish}' on Fridays",
+                $"{world.Lead.Username}: '{DemoTemplates.ClinicAndManagement}' on Wednesdays",
+            },
         };
     }
 }

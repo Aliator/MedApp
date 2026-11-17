@@ -1,6 +1,6 @@
 // @vitest-environment node
 import {render, type RouterManifest} from './entry-server';
-import {STAFF_ME, testAppointment, testCalendar} from './test/calendar';
+import {STAFF_ME, STAFF_OTHER, testAppointment, testCalendar, testMeeting} from './test/calendar';
 import {insights, templates} from './test/insights';
 
 /**
@@ -393,28 +393,92 @@ describe('server rendering', () => {
     expect(new URL(feed.url).search).toBe('?PageSize=20');
   });
 
-  it("renders an admin's calendar templates on the tab in the URL, with its data", async () => {
+  it("renders someone's calendar templates on the tab in the URL, with their data", async () => {
+    const owner = '0000000d-0000-0000-0000-0000000000b2';
     const requests = api({
-      '/api/auth/whoami': {...signedIn, roles: ['Admin', 'User']},
+      '/api/auth/whoami': signedInAdmin,
       '/api/auth/me/settings': {settings: null},
       '/api/notifications': {items: [], unreadCount: 0},
-      '/api/calendar/week-templates': [
+      '/api/calendar/staff': [{userId: '0000000d-0000-0000-0000-0000000000a9', username: 'test-admin'}, {userId: owner, username: 'b.staff'}],
+      [`/api/calendar/staff/${owner}/week-templates`]: [
         {
           id: '0000000d-0000-0000-0000-000000000010',
+          ownerUserId: owner,
           name: 'Full time',
           isArchived: false,
-          staffCount: 2,
+          staffCount: 1,
+          canEdit: true,
           days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, dayTemplateId: 'd', dayTemplateName: 'Standard day'})),
         },
       ],
     });
 
-    const html = await (await page('/admin/calendar-templates?tab=week', 'medapp_session=abc')).text();
+    const html = await (await page(`/calendar/templates?tab=week&staff=${owner}`, 'medapp_session=abc')).text();
 
+    expect(html).toContain("b.staff&#x27;s calendar templates");
     expect(html).toContain('Full time');
     expect(html).toContain('Mon to Fri: Standard day');
     expect(html).toContain('1 active week template');
-    expect(requests.some((r) => new URL(r.url).pathname === '/api/calendar/day-templates')).toBe(false);
+    expect(requests.some((r) => new URL(r.url).pathname.endsWith('/day-templates'))).toBe(false);
+  });
+
+  it('renders your own calendar templates, finding your ID in the staff list', async () => {
+    const me = '0000000d-0000-0000-0000-0000000000a1';
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar/staff': [{userId: me, username: 'test-user'}],
+      [`/api/calendar/staff/${me}/day-templates`]: [{id: '0000000d-0000-0000-0000-000000000011', ownerUserId: me, name: 'Clinic day', canEdit: true, blocks: []}],
+    });
+
+    const html = await (await page('/calendar/templates', 'medapp_session=abc')).text();
+
+    expect(html).toContain('My calendar templates');
+    expect(html).toContain('Clinic day');
+  });
+
+  it("renders a week template with its owner's day templates", async () => {
+    const owner = '0000000d-0000-0000-0000-0000000000b2';
+    const id = '0000000d-0000-0000-0000-000000000010';
+    const day = '0000000d-0000-0000-0000-000000000011';
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar/staff': [{userId: '0000000d-0000-0000-0000-0000000000a9', username: 'test-admin'}, {userId: owner, username: 'b.staff'}],
+      [`/api/calendar/week-templates/${id}`]: {
+        id,
+        ownerUserId: owner,
+        name: 'Full time',
+        canEdit: true,
+        days: [{dayOfWeek: 'Monday', dayTemplateId: day, dayTemplateName: 'Clinic day'}],
+      },
+      [`/api/calendar/staff/${owner}/day-templates`]: [
+        {id: day, ownerUserId: owner, name: 'Clinic day', blocks: [{id: 'b', activityName: 'Lunch', startTime: '12:00:00', endTime: '13:00:00'}]},
+      ],
+    });
+
+    const html = await (await page(`/calendar/templates/week/${id}`, 'medapp_session=abc')).text();
+
+    expect(html).toContain('Edit Week Template');
+    expect(html).toContain('Lunch 12:00 to 13:00');
+    expect(requests.some((r) => new URL(r.url).pathname === `/api/calendar/staff/${owner}/day-templates`)).toBe(true);
+  });
+
+  it('sends the old admin Calendar Templates page to calendar templates, on the same tab', async () => {
+    api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+    });
+
+    const response = await page('/admin/calendar-templates?tab=staff', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/calendar/templates?tab=default');
+    const plain = await page('/admin/calendar-templates', 'medapp_session=abc');
+    expect(plain.headers.get('location')).toBe('/calendar/templates');
   });
 
   it("renders the calendar's week with its appointments, and leaves the time now to the browser", async () => {
@@ -436,6 +500,34 @@ describe('server rendering', () => {
     expect(html).not.toContain('class="mc-now"');
     const calendar = requests.find((r) => new URL(r.url).pathname === '/api/calendar')!;
     expect(new URL(calendar.url).search).toBe('?From=2026-11-23&To=2026-11-29');
+  });
+
+  it("renders an admin's team view: everyone free first, then each person's day", async () => {
+    vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-23T07:00:00Z')});
+    const member = (staff: {userId: string; username: string}) =>
+      testCalendar({from: '2026-11-24', dayCount: 1, today: '2026-11-23', staff, meetings: [testMeeting({date: '2026-11-24'})]});
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/calendar/staff': [{userId: '0000000d-0000-0000-0000-0000000000a9', username: 'test-admin'}, STAFF_ME, STAFF_OTHER],
+      '/api/appointments/search': {items: [], totalCount: 0},
+      '/api/calendar/team': {
+        date: '2026-11-24',
+        day: member(STAFF_ME).days![0],
+        members: [member(STAFF_OTHER), member(STAFF_ME)],
+        everyoneFree: [{startUtc: '2026-11-24T10:00:00Z', endUtc: '2026-11-24T11:00:00Z'}],
+      },
+    });
+
+    const html = await (await page('/calendar?view=team&date=2026-11-24', 'medapp_session=abc')).text();
+
+    expect(html).toContain('Everyone free');
+    expect(html).toContain(STAFF_ME.username);
+    expect(html).toContain(STAFF_OTHER.username);
+    expect(html).toContain('Team huddle');
+    const team = requests.find((r) => new URL(r.url).pathname === '/api/calendar/team')!;
+    expect(new URL(team.url).searchParams.get('Date')).toBe('2026-11-24');
   });
 
   it("renders Home with the user's day", async () => {

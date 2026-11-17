@@ -23,7 +23,7 @@ public sealed class SetStaffWeekTemplateHandler(
 
         var today = UkTime.Today(timeProvider);
         var template = request.WeekTemplateId is { } weekTemplateId
-            ? await setupRepository.GetWeekTemplateOrThrowAsync(weekTemplateId, today, cancellationToken)
+            ? await setupRepository.GetOwnWeekTemplateOrThrowAsync(weekTemplateId, request.StaffUserId, today, cancellationToken)
             : null;
 
         // Under the calendar lock, so two changes at once can't both add a row from today.

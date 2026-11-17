@@ -2,17 +2,21 @@ using MedApp.Domain.Appointments;
 
 namespace MedApp.Application.Calendar.Common;
 
+/// <summary>Something on a person's calendar that a time could clash with, and what to call it ("Lunch").</summary>
+public sealed record CalendarClash(DateTime StartUtc, DateTime EndUtc, string What);
+
 /// <summary>
-/// No overlaps: a new or moved appointment or block may not overlap any appointment (Booked, Attended or Did not
-/// attend) or block (stored, or from a template) on that person's calendar. This finds what a time would overlap.
+/// No overlaps: a new or moved appointment, block or meeting may not overlap any appointment (Booked, Attended or Did
+/// not attend), block (stored, or from a template) or meeting on that person's calendar. This finds what a time would
+/// overlap, and lists what a calendar is busy with (for <see cref="Availability"/>).
 /// </summary>
 public static class CalendarClashes
 {
     /// <summary>
     /// A message naming the first thing, in time order, that <paramref name="startUtc"/> to <paramref name="endUtc"/>
     /// overlaps, or null if nothing does. It never names a patient. The thing being moved is left out: a stored block
-    /// (<paramref name="ignoreBlockId"/>), a template block on that date (<paramref name="ignoreTemplateBlockId"/>) or an
-    /// appointment (<paramref name="ignoreAppointmentId"/>).
+    /// (<paramref name="ignoreBlockId"/>), a template block on that date (<paramref name="ignoreTemplateBlockId"/>), an
+    /// appointment (<paramref name="ignoreAppointmentId"/>) or a meeting (<paramref name="ignoreMeetingId"/>).
     /// </summary>
     public static string? Find(
         CalendarData data,
@@ -20,41 +24,73 @@ public static class CalendarClashes
         DateTime endUtc,
         Guid? ignoreBlockId = null,
         Guid? ignoreTemplateBlockId = null,
-        Guid? ignoreAppointmentId = null)
+        Guid? ignoreAppointmentId = null,
+        Guid? ignoreMeetingId = null) =>
+        FindFirst(data, startUtc, endUtc, ignoreBlockId, ignoreTemplateBlockId, ignoreAppointmentId, ignoreMeetingId) is { } clash
+            ? $"That time overlaps {clash.What}, {UkTime.DescribeTime(clash.StartUtc)} to {UkTime.DescribeTime(clash.EndUtc)}."
+            : null;
+
+    /// <summary>The first thing, in time order, that a time overlaps on the calendar (see <see cref="Find"/>), or null.</summary>
+    public static CalendarClash? FindFirst(
+        CalendarData data,
+        DateTime startUtc,
+        DateTime endUtc,
+        Guid? ignoreBlockId = null,
+        Guid? ignoreTemplateBlockId = null,
+        Guid? ignoreAppointmentId = null,
+        Guid? ignoreMeetingId = null)
     {
         var start = UkTime.Utc(startUtc);
         var end = UkTime.Utc(endUtc);
         var date = UkTime.DateOf(start);
 
-        var appointments = data.Appointments
-            .Where(a => a.Id != ignoreAppointmentId
-                        && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend
-                        && a is { StartUtc: not null, EndUtc: not null })
-            .Select(a => new Clash(a.StartUtc!.Value, a.EndUtc!.Value, "another appointment"));
-
-        var blocks = data.Blocks
-            .Where(b => b.Id != ignoreBlockId)
-            .Select(b => new Clash(b.StartUtc, b.EndUtc, b.ActivityType?.Name ?? "a block"));
-
-        var templateBlocks = CalendarProjection.TemplateBlocks(data)
-            .Where(p => !(p.Source.Id == ignoreTemplateBlockId && p.Date == date))
-            .Select(p => new Clash(p.StartUtc, p.EndUtc, p.Source.ActivityType?.Name ?? "a block"));
-
-        var first = appointments.Concat(blocks).Concat(templateBlocks)
-            .Where(c => Overlaps(start, end, c.StartUtc, c.EndUtc))
-            .OrderBy(c => c.StartUtc)
-            .ThenBy(c => c.EndUtc)
-            .FirstOrDefault();
-
-        if (first is null)
-            return null;
-
-        return $"That time overlaps {first.What}, {UkTime.DescribeTime(first.StartUtc)} to {UkTime.DescribeTime(first.EndUtc)}.";
+        return BusyTimes(data, ignoreBlockId, ignoreAppointmentId, ignoreMeetingId, (ignoreTemplateBlockId, date))
+            .FirstOrDefault(c => Overlaps(start, end, c.StartUtc, c.EndUtc));
     }
+
+    /// <summary>
+    /// Everything that makes the person busy over the data's range, by start then end: appointments (Booked, Attended
+    /// and Did not attend), stored blocks, template blocks and meetings. A meeting being moved is left out
+    /// (<paramref name="ignoreMeetingId"/>).
+    /// </summary>
+    public static IReadOnlyList<CalendarClash> BusyTimes(CalendarData data, Guid? ignoreMeetingId = null) =>
+        BusyTimes(data, null, null, ignoreMeetingId, (null, default));
+
+    /// <summary>What a meeting is called in a clash or a busy time: "the meeting 'MDT'".</summary>
+    public static string Describe(Domain.Calendar.Meeting meeting) => $"the meeting '{meeting.Title}'";
 
     /// <summary>Whether two times overlap; touching (one ends as the other starts) doesn't.</summary>
     public static bool Overlaps(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) =>
         aStart < bEnd && bStart < aEnd;
 
-    private sealed record Clash(DateTime StartUtc, DateTime EndUtc, string What);
+    private static List<CalendarClash> BusyTimes(
+        CalendarData data,
+        Guid? ignoreBlockId,
+        Guid? ignoreAppointmentId,
+        Guid? ignoreMeetingId,
+        (Guid? Id, DateOnly Date) ignoreTemplateBlock)
+    {
+        var appointments = data.Appointments
+            .Where(a => a.Id != ignoreAppointmentId
+                        && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend
+                        && a is { StartUtc: not null, EndUtc: not null })
+            .Select(a => new CalendarClash(a.StartUtc!.Value, a.EndUtc!.Value, "another appointment"));
+
+        var blocks = data.Blocks
+            .Where(b => b.Id != ignoreBlockId)
+            .Select(b => new CalendarClash(b.StartUtc, b.EndUtc, b.ActivityType?.Name ?? "a block"));
+
+        var templateBlocks = CalendarProjection.TemplateBlocks(data)
+            .Where(p => !(p.Source.Id == ignoreTemplateBlock.Id && p.Date == ignoreTemplateBlock.Date))
+            .Select(p => new CalendarClash(p.StartUtc, p.EndUtc, p.Source.ActivityType?.Name ?? "a block"));
+
+        var meetings = data.Meetings
+            .Where(m => m.Id != ignoreMeetingId)
+            .Select(m => new CalendarClash(m.StartUtc, m.EndUtc, Describe(m)));
+
+        return appointments.Concat(blocks).Concat(templateBlocks).Concat(meetings)
+            .OrderBy(c => c.StartUtc)
+            .ThenBy(c => c.EndUtc)
+            .ToList();
+    }
 }

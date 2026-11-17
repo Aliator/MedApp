@@ -11,11 +11,12 @@ public static class CalendarMapper
 {
     /// <summary>
     /// A calendar: its days and template blocks worked out from <paramref name="data"/> (<see cref="CalendarProjection"/>),
-    /// its stored blocks and its appointments, by start time. Blocks can be changed when <paramref name="canEdit"/> and
+    /// its stored blocks, its appointments and its meetings, by start time. Blocks can be changed when <paramref name="canEdit"/> and
     /// they aren't on a past day.
     /// </summary>
     /// <param name="defaultWeek">The person's default week template row valid today, with its week template.</param>
-    /// <param name="usernames">The usernames the appointments name (<see cref="AppointmentMapper.UserIds"/>).</param>
+    /// <param name="usernames">The usernames the appointments and meetings name (<see cref="UserIds"/>).</param>
+    /// <param name="isAdmin">Whether the signed-in user is an admin, who can change meetings.</param>
     public static CalendarResponse ToResponse(
         CalendarData data,
         string staffUsername,
@@ -23,7 +24,8 @@ public static class CalendarMapper
         bool canEdit,
         DateOnly today,
         IReadOnlyDictionary<Guid, string> usernames,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        bool isAdmin = false)
     {
         var appointments = data.Appointments
             .Where(a => AppointmentWorkflow.IsOnCalendar(a.Status) && a.StartUtc is not null && a.EndUtc is not null)
@@ -49,9 +51,20 @@ public static class CalendarMapper
             DefaultWeekTemplateName = defaultWeek?.WeekTemplate?.Name,
             Days = CalendarProjection.Days(data, today).Select(ToResponse).ToList(),
             Blocks = stored.Concat(projected).OrderBy(b => b.StartUtc).ThenBy(b => b.EndUtc).ToList(),
-            Appointments = appointments.Select(a => AppointmentMapper.ToResponse(a, usernames, nowUtc)).ToList()
+            Appointments = appointments.Select(a => AppointmentMapper.ToResponse(a, usernames, nowUtc)).ToList(),
+            Meetings = data.Meetings
+                .OrderBy(m => m.StartUtc)
+                .ThenBy(m => m.Id)
+                .Select(m => MeetingMapper.ToResponse(m, usernames, isAdmin, today))
+                .ToList()
         };
     }
+
+    /// <summary>Every user a calendar's response names: its appointments' (<see cref="AppointmentMapper.UserIds"/>) and its meetings' people.</summary>
+    public static IEnumerable<Guid> UserIds(CalendarData data) =>
+        data.Appointments.SelectMany(AppointmentMapper.UserIds)
+            .Concat(data.Meetings.SelectMany(MeetingMapper.UserIds))
+            .Distinct();
 
     public static CalendarDayResponse ToResponse(CalendarDay day) => new()
     {

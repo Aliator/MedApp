@@ -86,6 +86,8 @@ public static class DemoDataSeeder
         DemoProcedures.Replay(world, plans);
         DemoProcedures.BookStandalone(world, patients.All);
         DemoProcedures.AddImported(world, imported);
+        // The meetings' invitations, moves and cancellations, as the app sent them, read or not like the rest.
+        world.Notifications.AddRange(calendars.MeetingPlan.RecentNotifications);
         DemoProcedures.MarkRead(world);
         Mark("replay");
         await DemoProcedures.SaveAsync(services, world, ct);
@@ -153,6 +155,11 @@ public static class DemoDataSeeder
                     blocks = calendars.Blocks,
                     blockExceptions = calendars.Exceptions,
                     dayOverrides = calendars.Overrides,
+                    meetings = calendars.Meetings.Count,
+                    meetingsPast = calendars.Meetings.Count(m => m.EndUtc <= timeline.NowUtc),
+                    meetingsChanged = calendars.MeetingPlan.Stories.Count(s => s.Changes > 0),
+                    meetingsCancelled = calendars.MeetingPlan.Stories.Count(s => s.IsCancelled),
+                    meetingNotifications = calendars.MeetingPlan.RecentNotifications.Count(),
                 },
                 monitoringRules = rules.Count,
                 activityEntries = activity,

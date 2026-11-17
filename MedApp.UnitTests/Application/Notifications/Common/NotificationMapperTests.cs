@@ -66,6 +66,37 @@ public sealed class NotificationMapperTests
         NotificationMapper.ToResponse(CreateNotification()).AppointmentId.Should().BeNull();
     }
 
+    [TestCase(NotificationKind.MeetingInvited, "MeetingInvited")]
+    [TestCase(NotificationKind.MeetingChanged, "MeetingChanged")]
+    [TestCase(NotificationKind.MeetingCancelled, "MeetingCancelled")]
+    public void ToResponse_MeetingNotification_CarriesItsCalendarDateAndKindByName(NotificationKind kind, string expected)
+    {
+        var date = new DateOnly(2026, 11, 23);
+        var notification = new Notification
+        {
+            Id = NotificationId,
+            UserId = UserId,
+            Kind = kind,
+            Title = "Meeting invitation",
+            Message = Message,
+            CalendarDate = date,
+            CreatedAtUtc = CreatedAtUtc,
+        };
+
+        var response = NotificationMapper.ToResponse(notification);
+
+        response.Kind.Should().Be(expected);
+        response.CalendarDate.Should().Be(date);
+        response.ProcedureId.Should().BeNull();
+        response.AppointmentId.Should().BeNull();
+    }
+
+    [Test]
+    public void ToResponse_ProcedureNotification_HasNoCalendarDate()
+    {
+        NotificationMapper.ToResponse(CreateNotification()).CalendarDate.Should().BeNull();
+    }
+
     [Test]
     public void ToResponse_MonitoringKind_GivesItsName()
     {

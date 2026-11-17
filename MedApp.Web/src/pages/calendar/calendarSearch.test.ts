@@ -12,6 +12,14 @@ describe('parseCalendarSearch', () => {
     });
   });
 
+  it('keeps the team view, and who it shows: valid IDs, once each', () => {
+    const other = '00000000-0000-0000-0000-0000000000B2';
+    expect(parseCalendarSearch({view: 'TEAM', who: [ID, other.toLowerCase(), other, 'nobody', 7]})).toEqual({view: 'team', who: [ID, other.toLowerCase()]});
+    expect(parseCalendarSearch({who: `${ID},${other}`})).toEqual({who: [ID, other.toLowerCase()]});
+    expect(parseCalendarSearch({who: ['nobody']})).toEqual({});
+    expect(parseCalendarSearch({who: {}})).toEqual({});
+  });
+
   it('drops what it cannot read, and the week view, which is the default', () => {
     expect(parseCalendarSearch({date: '2026-02-30', view: 'week', staff: 'someone', appointment: 42})).toEqual({});
     expect(parseCalendarSearch({date: 'tomorrow', view: 'month', staff: ' ', appointment: {}})).toEqual({});

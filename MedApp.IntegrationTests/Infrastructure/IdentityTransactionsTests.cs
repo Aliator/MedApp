@@ -76,6 +76,45 @@ public sealed class IdentityTransactionsTests : IntegrationTest
     }
 
     [Test]
+    public async Task RunAsync_InsideAnother_JoinsItAndCommitsWithIt()
+    {
+        var result = await RunInScopeAsync(services =>
+        {
+            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var transactions = services.GetRequiredService<IIdentityTransactions>();
+            return transactions.RunAsync(async () =>
+            {
+                (await transactions.RunAsync(() => roles.CreateAsync(new IdentityRole<Guid>(RoleA)), CancellationToken.None))
+                    .Succeeded.Should().BeTrue();
+                return await roles.CreateAsync(new IdentityRole<Guid>(RoleB));
+            }, CancellationToken.None);
+        });
+
+        result.Succeeded.Should().BeTrue();
+        (await RoleNamesAsync()).Should().BeEquivalentTo([RoleA, RoleB]);
+    }
+
+    [Test]
+    public async Task RunAsync_InsideAnotherThatFailsLater_IsRolledBackWithIt()
+    {
+        // As SetUserRolesHandler: the role service's own transaction succeeds inside the handler's, then the handler's
+        // next step fails, so the roles the inner part saved must go too.
+        var act = () => RunInScopeAsync(services =>
+        {
+            var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            var transactions = services.GetRequiredService<IIdentityTransactions>();
+            return transactions.RunAsync(async () =>
+            {
+                await transactions.RunAsync(() => roles.CreateAsync(new IdentityRole<Guid>(RoleA)), CancellationToken.None);
+                throw new InvalidOperationException("Synthetic failure after the inner part.");
+            }, CancellationToken.None);
+        });
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await RoleNamesAsync()).Should().BeEmpty();
+    }
+
+    [Test]
     public async Task FirstAdminSetup_PasswordRefused_LeavesNoRolesBehind()
     {
         // The roles are made first, in the same transaction, so a refused password must undo them too.

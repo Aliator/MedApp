@@ -1999,6 +1999,133 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calendar/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    Date?: string;
+                    StaffUserIds?: string[];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TeamCalendarResponse"];
+                        "application/json": components["schemas"]["TeamCalendarResponse"];
+                        "text/json": components["schemas"]["TeamCalendarResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calendar/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    StaffUserIds?: string[];
+                    From?: string;
+                    To?: string;
+                    DurationMinutes?: number;
+                    ExceptMeetingId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AvailabilityResponse"];
+                        "application/json": components["schemas"]["AvailabilityResponse"];
+                        "text/json": components["schemas"]["AvailabilityResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/calendar/staff": {
         parameters: {
             query?: never;
@@ -3016,7 +3143,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/calendar/day-templates": {
+    "/api/calendar/staff/{userId}/day-templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -3029,7 +3156,9 @@ export interface paths {
                     includeArchived?: boolean;
                 };
                 header?: never;
-                path?: never;
+                path: {
+                    userId: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -3045,6 +3174,17 @@ export interface paths {
                         "text/json": components["schemas"]["DayTemplateResponse"][];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         put?: never;
@@ -3052,7 +3192,9 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    userId: string;
+                };
                 cookie?: never;
             };
             requestBody?: {
@@ -3083,6 +3225,17 @@ export interface paths {
                         "text/plain": components["schemas"]["ValidationProblemDetails"];
                         "application/json": components["schemas"]["ValidationProblemDetails"];
                         "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -3196,6 +3349,303 @@ export interface paths {
                         "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calendar/day-templates/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DayTemplateResponse"];
+                        "application/json": components["schemas"]["DayTemplateResponse"];
+                        "text/json": components["schemas"]["DayTemplateResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calendar/day-templates/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DayTemplateResponse"];
+                        "application/json": components["schemas"]["DayTemplateResponse"];
+                        "text/json": components["schemas"]["DayTemplateResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calendar/meetings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MeetingResponse"];
+                        "application/json": components["schemas"]["MeetingResponse"];
+                        "text/json": components["schemas"]["MeetingResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MeetingRequest"];
+                    "text/json": components["schemas"]["MeetingRequest"];
+                    "application/*+json": components["schemas"]["MeetingRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MeetingResponse"];
+                        "application/json": components["schemas"]["MeetingResponse"];
+                        "text/json": components["schemas"]["MeetingResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -3268,7 +3718,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/calendar/day-templates/{id}/archive": {
+    "/api/calendar/meetings": {
         parameters: {
             query?: never;
             header?: never;
@@ -3281,26 +3731,52 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: never;
-                path: {
-                    id: string;
-                };
+                path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MeetingRequest"];
+                    "text/json": components["schemas"]["MeetingRequest"];
+                    "application/*+json": components["schemas"]["MeetingRequest"];
+                };
+            };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["DayTemplateResponse"];
-                        "application/json": components["schemas"]["DayTemplateResponse"];
-                        "text/json": components["schemas"]["DayTemplateResponse"];
+                        "text/plain": components["schemas"]["MeetingResponse"];
+                        "application/json": components["schemas"]["MeetingResponse"];
+                        "text/json": components["schemas"]["MeetingResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
                 /** @description Not Found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3318,57 +3794,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/calendar/day-templates/{id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["DayTemplateResponse"];
-                        "application/json": components["schemas"]["DayTemplateResponse"];
-                        "text/json": components["schemas"]["DayTemplateResponse"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/calendar/week-templates": {
+    "/api/calendar/staff/{userId}/week-templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -3381,7 +3807,9 @@ export interface paths {
                     includeArchived?: boolean;
                 };
                 header?: never;
-                path?: never;
+                path: {
+                    userId: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -3397,6 +3825,17 @@ export interface paths {
                         "text/json": components["schemas"]["WeekTemplateResponse"][];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         put?: never;
@@ -3404,7 +3843,9 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    userId: string;
+                };
                 cookie?: never;
             };
             requestBody?: {
@@ -3435,6 +3876,17 @@ export interface paths {
                         "text/plain": components["schemas"]["ValidationProblemDetails"];
                         "application/json": components["schemas"]["ValidationProblemDetails"];
                         "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -3548,6 +4000,17 @@ export interface paths {
                         "text/json": components["schemas"]["ValidationProblemDetails"];
                     };
                 };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -3590,6 +4053,17 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
                 };
                 /** @description Not Found */
                 404: {
@@ -3651,6 +4125,17 @@ export interface paths {
                         "text/json": components["schemas"]["WeekTemplateResponse"];
                     };
                 };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -3699,6 +4184,17 @@ export interface paths {
                         "text/plain": components["schemas"]["WeekTemplateResponse"];
                         "application/json": components["schemas"]["WeekTemplateResponse"];
                         "text/json": components["schemas"]["WeekTemplateResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Not Found */
@@ -7882,6 +8378,22 @@ export interface components {
             /** Format: int32 */
             qrCodeSize?: number;
         };
+        AvailabilityDayResponse: {
+            /** Format: date */
+            date?: string;
+            free?: components["schemas"]["TimeRangeResponse"][] | null;
+        };
+        AvailabilityResponse: {
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            /** Format: int32 */
+            durationMinutes?: number;
+            days?: components["schemas"]["AvailabilityDayResponse"][] | null;
+            suggestions?: components["schemas"]["TimeRangeResponse"][] | null;
+            busy?: components["schemas"]["BusyTimeResponse"][] | null;
+        };
         BookAppointmentRequest: {
             /** Format: uuid */
             staffUserId?: string;
@@ -7890,6 +8402,16 @@ export interface components {
             /** Format: date-time */
             endUtc?: string;
             expectedStatus?: string | null;
+        };
+        BusyTimeResponse: {
+            /** Format: uuid */
+            staffUserId?: string;
+            username?: string | null;
+            /** Format: date-time */
+            startUtc?: string;
+            /** Format: date-time */
+            endUtc?: string;
+            what?: string | null;
         };
         CalendarBlockResponse: {
             /** Format: uuid */
@@ -7947,6 +8469,7 @@ export interface components {
             days?: components["schemas"]["CalendarDayResponse"][] | null;
             blocks?: components["schemas"]["CalendarBlockResponse"][] | null;
             appointments?: components["schemas"]["AppointmentResponse"][] | null;
+            meetings?: components["schemas"]["MeetingResponse"][] | null;
         };
         CancelAppointmentRequest: {
             reason?: string | null;
@@ -8065,12 +8588,15 @@ export interface components {
         DayTemplateResponse: {
             /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            ownerUserId?: string;
             name?: string | null;
             isArchived?: boolean;
             blocks?: components["schemas"]["DayTemplateBlockResponse"][] | null;
             /** Format: int32 */
             weekTemplateCount?: number;
             canBeDeleted?: boolean;
+            canEdit?: boolean;
         };
         DeleteUserRequest: {
             password?: string | null;
@@ -8395,6 +8921,43 @@ export interface components {
         LookUpDemographicsRequest: {
             nhsNumber?: string | null;
         };
+        MeetingAttendeeResponse: {
+            /** Format: uuid */
+            userId?: string;
+            username?: string | null;
+        };
+        MeetingRequest: {
+            title?: string | null;
+            notes?: string | null;
+            /** Format: date-time */
+            startUtc?: string;
+            /** Format: date-time */
+            endUtc?: string;
+            attendeeUserIds?: string[] | null;
+            /** Format: date-time */
+            expectedLastUpdated?: string | null;
+        };
+        MeetingResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            notes?: string | null;
+            /** Format: date */
+            date?: string;
+            /** Format: date-time */
+            startUtc?: string;
+            /** Format: date-time */
+            endUtc?: string;
+            /** Format: uuid */
+            organiserUserId?: string;
+            organiserUsername?: string | null;
+            attendees?: components["schemas"]["MeetingAttendeeResponse"][] | null;
+            canEdit?: boolean;
+            /** Format: date-time */
+            createdAtUtc?: string;
+            /** Format: date-time */
+            lastUpdated?: string;
+        };
         MonitoringRuleResponse: {
             /** Format: uuid */
             id?: string;
@@ -8431,6 +8994,8 @@ export interface components {
             isRead?: boolean;
             /** Format: uuid */
             appointmentId?: string | null;
+            /** Format: date */
+            calendarDate?: string | null;
         };
         NotificationsResponse: {
             items?: components["schemas"]["NotificationResponse"][] | null;
@@ -8938,11 +9503,24 @@ export interface components {
             /** Format: double */
             averageWorkingHours?: number;
         };
+        TeamCalendarResponse: {
+            /** Format: date */
+            date?: string;
+            day?: components["schemas"]["CalendarDayResponse"];
+            members?: components["schemas"]["CalendarResponse"][] | null;
+            everyoneFree?: components["schemas"]["TimeRangeResponse"][] | null;
+        };
         TemplateStageTimesResponse: {
             /** Format: uuid */
             templateId?: string | null;
             templateName?: string | null;
             stages?: components["schemas"]["StageTimeResponse"][] | null;
+        };
+        TimeRangeResponse: {
+            /** Format: date-time */
+            startUtc?: string;
+            /** Format: date-time */
+            endUtc?: string;
         };
         TwoFactorChallengeResponse: {
             challenge?: string | null;
@@ -9072,12 +9650,15 @@ export interface components {
         WeekTemplateResponse: {
             /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            ownerUserId?: string;
             name?: string | null;
             isArchived?: boolean;
             days?: components["schemas"]["WeekTemplateDayResponse"][] | null;
             /** Format: int32 */
             staffCount?: number;
             canBeDeleted?: boolean;
+            canEdit?: boolean;
         };
         WeeklyThroughputResponse: {
             /** Format: date */

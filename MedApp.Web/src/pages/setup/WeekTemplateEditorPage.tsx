@@ -17,10 +17,9 @@ import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
-import {clockTime, count, WEEKDAYS, type WeekdayKey} from './calendarSetup';
-import {calendarTemplatesHref} from './CalendarTemplatesPage';
-
-const BACK = calendarTemplatesHref('week');
+import {clockTime, WEEKDAYS, type WeekdayKey} from './calendarSetup';
+import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
+import {calendarTemplatesHref} from './calendarTemplatesSearch';
 
 /** A weekday with no day template: no template blocks, so free for appointments all day. */
 const NONE = 'none';
@@ -28,32 +27,49 @@ const NONE = 'none';
 type Days = Record<WeekdayKey, string>;
 
 /**
- * A new week template (no `id`), or one to edit. This part loads it and the day templates; an unknown one goes back
- * to the list. The editor mounts once they're here, so it starts from the template.
+ * A new week template (no `id`) for `staff` (none: your own), or one to edit. This part loads it, whose it is and
+ * their day templates (a week template uses only its owner's); an unknown one goes back to the list. The editor
+ * mounts once they're here, so it starts from the template. Only its owner and admins can add or change one: anyone
+ * else sees it read-only, or is told they can't add one.
  */
-export function WeekTemplateEditorPage({id}: {id?: string}) {
+export function WeekTemplateEditorPage({id, staff}: {id?: string; staff?: string}) {
   const navigate = useNavigate();
   const template = useQuery({...weekTemplateQuery(id ?? ''), enabled: id !== undefined});
-  const days = useQuery(dayTemplatesQuery);
+  const owner = useTemplatesOwner(template.data?.ownerUserId ?? staff);
+  // The owner's day templates: for one being edited, once it says whose it is.
+  const isOwnerKnown = owner.ownerId !== undefined && (id === undefined || template.data !== undefined);
+  const days = useQuery({...dayTemplatesQuery(owner.ownerId ?? ''), enabled: isOwnerKnown});
+  const back = calendarTemplatesHref('week', owner.staffParam);
   const isMissing = template.error instanceof ApiError && template.error.status === 404;
 
   useEffect(() => {
-    if (isMissing) void navigate({to: BACK, replace: true});
-  }, [isMissing, navigate]);
+    if (isMissing) void navigate({to: back, replace: true});
+  }, [isMissing, navigate, back]);
 
-  const isLoading = days.isPending || (id !== undefined && template.isPending) || isMissing;
-  if (!isLoading && days.data && (id === undefined || template.data)) {
-    return <WeekTemplateEditor template={template.data ?? null} dayTemplates={days.data} />;
+  // The staff list too, which says whose it is and whether it's yours.
+  const isLoading = owner.staff.isPending || (id !== undefined && template.isPending) || isMissing || (isOwnerKnown && days.isPending);
+  const canAdd = id !== undefined || owner.canEdit;
+  if (!isLoading && days.data && owner.ownerId && canAdd && (id === undefined || template.data)) {
+    return <WeekTemplateEditor template={template.data ?? null} dayTemplates={days.data} owner={owner} ownerId={owner.ownerId} back={back} />;
   }
-  const failed = days.isError || (template.isError && !isMissing);
+  // Your own, but you're not in the staff list (or it couldn't be loaded).
+  const ownerFailed = !isLoading && owner.ownerId === undefined;
+  const failed = days.isError || (template.isError && !isMissing) || ownerFailed;
   return (
     <Page
       title={id ? 'Edit Week Template' : 'New Week Template'}
-      backHref={BACK}
+      subtitle={owner.isOwn ? undefined : owner.title}
+      backHref={back}
       backLabel="Back to week templates"
       isLoading={isLoading}
       loadingMessage="Loading week template..."
-      message={failed && <AlertMessage message="The week template could not be loaded. Please try again." />}
+      message={
+        failed ? (
+          <AlertMessage message="The week template could not be loaded. Please try again." />
+        ) : (
+          !canAdd && <AlertMessage status="info" message={`Only ${owner.ownerName || 'their owner'} or an admin can add to ${owner.title}.`} />
+        )
+      }
     />
   );
 }
@@ -70,9 +86,22 @@ function blocksSummary(template: DayTemplate | undefined): string {
  * The week template editor (decision 9): its name, and a day template (or none) for each weekday, Monday to Friday,
  * each with its blocks in words. "Same every day" copies Monday's to the rest of the week. Saturday and Sunday aren't
  * working days, so they're only shown. Saving changes asks first, saying they apply from today and past days keep
- * what they had.
+ * what they had. Its day templates are the owner's. Without `canEdit` (someone else's, for staff) it's read-only.
  */
-function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | null; dayTemplates: DayTemplate[]}) {
+function WeekTemplateEditor({
+  template,
+  dayTemplates,
+  owner,
+  ownerId,
+  back,
+}: {
+  template: WeekTemplate | null;
+  dayTemplates: DayTemplate[];
+  owner: TemplatesOwner;
+  /** Whose it is (or will be, for a new one). */
+  ownerId: string;
+  back: string;
+}) {
   const navigate = useNavigate();
   const save = useSaveWeekTemplate();
   const announce = useAnnounce();
@@ -87,8 +116,12 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
 
   const byId = useMemo(() => new Map(dayTemplates.map((d) => [d.id ?? '', d])), [dayTemplates]);
-  const backToList = () => void navigate({to: BACK});
+  const backToList = () => void navigate({to: back});
   const usedBy = template?.staffCount ?? 0;
+  const canEdit = template ? template.canEdit === true : owner.canEdit;
+  // Fields can't change while saving, or ever on a template the user can't change.
+  const isLocked = save.isPending || !canEdit;
+  const whose = owner.isOwn ? 'your' : owner.ownerName ? `${owner.ownerName}'s` : 'their';
   const nameOf = (id: string) => (id === NONE ? 'No template' : (byId.get(id)?.name ?? 'Unknown'));
 
   /** The active day templates, and the one the day has if it's archived (so it still shows). */
@@ -110,6 +143,7 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
     save.mutate(
       {
         id: template?.id,
+        ownerUserId: ownerId,
         name: name.trim(),
         ...Object.fromEntries(WEEKDAYS.map(({key}) => [key, days[key] === NONE ? null : days[key]])),
       },
@@ -134,16 +168,18 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
 
   return (
     <Page
-      title={template ? 'Edit Week Template' : 'New Week Template'}
-      subtitle={template?.name ?? undefined}
+      title={!canEdit ? 'Week Template' : template ? 'Edit Week Template' : 'New Week Template'}
+      subtitle={[template?.name, owner.isOwn ? undefined : owner.title].filter(Boolean).join(' · ') || undefined}
       onBack={backToList}
       backLabel="Back to week templates"
       fill
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={['name']} />
+        ) : problem.message ? (
+          <AlertMessage message={problem.message} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          !canEdit && <AlertMessage status="info" message={`Only ${owner.ownerName || 'its owner'} or an admin can change this week template.`} />
         )
       }
       dialogs={
@@ -151,7 +187,7 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
           isOpen={isConfirming}
           title="Save Week Template"
           message={`Changes apply from today; past days keep what they had.${
-            usedBy > 0 ? ` It's the default week for ${count(usedBy, 'person', 'people')}, so their calendars change too.` : ''
+            usedBy > 0 ? ` It's ${whose} default week, so ${whose} calendar changes too.` : ''
           }`}
           icon={AppIcon.Save}
           confirmText="Save"
@@ -168,32 +204,40 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
           </MetadataList>
         </ConfirmDialog>
       }>
-      <FormCard fill saveText={template ? 'Save' : 'Create Week Template'} onSave={onSave} onCancel={backToList} isProcessing={save.isPending}>
+      <FormCard
+        fill
+        saveText={template ? 'Save' : 'Create Week Template'}
+        onSave={canEdit ? onSave : undefined}
+        onCancel={backToList}
+        showFooter={canEdit}
+        isProcessing={save.isPending}>
         <FormSection title="Details" useGrid={false}>
           <TextInput
             label="Name"
-            description="What staff and admins choose as someone's default week."
+            description={`What's chosen as ${whose} default week.`}
             value={name}
             onChange={setName}
             placeholder="e.g. Full time"
             autoComplete="off"
             isRequired
-            isDisabled={save.isPending}
+            isDisabled={isLocked}
             status={fieldStatus(problem.validation, 'name')}
           />
         </FormSection>
         <FormSection title="Days" useGrid={false}>
           <VStack gap={2}>
             {/* Above the days, so every day's field is the same width. */}
-            <HStack hAlign="end">
-              <Button
-                label="Same Every Day"
-                tooltip="Use Monday's day template for Tuesday to Friday too"
-                variant="secondary"
-                isDisabled={save.isPending || isSameEveryDay}
-                onClick={sameEveryDay}
-              />
-            </HStack>
+            {canEdit && (
+              <HStack hAlign="end">
+                <Button
+                  label="Same Every Day"
+                  tooltip="Use Monday's day template for Tuesday to Friday too"
+                  variant="secondary"
+                  isDisabled={save.isPending || isSameEveryDay}
+                  onClick={sameEveryDay}
+                />
+              </HStack>
+            )}
             {WEEKDAYS.map(({key, name: dayName}) => (
               <Selector
                 key={key}
@@ -202,7 +246,7 @@ function WeekTemplateEditor({template, dayTemplates}: {template: WeekTemplate | 
                 options={optionsFor(days[key])}
                 value={days[key]}
                 onChange={(value) => setDays((current) => ({...current, [key]: value}))}
-                isDisabled={save.isPending}
+                isDisabled={isLocked}
               />
             ))}
             {['Saturday', 'Sunday'].map((dayName) => (

@@ -38,7 +38,6 @@ const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
   {label: 'Stages', icon: AppIcon.StageDefinitions, href: '/admin/stages'},
   {label: 'Templates', icon: AppIcon.Templates, href: '/admin/templates'},
-  {label: 'Calendar Templates', icon: AppIcon.CalendarTemplates, href: '/admin/calendar-templates'},
   {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types'},
   {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit'},
   {label: 'Insights', icon: AppIcon.Insights, href: '/admin/insights'},
