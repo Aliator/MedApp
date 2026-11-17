@@ -219,6 +219,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const patient = data.patient;
   const procedures = data.procedures ?? [];
   const history = data.procedureHistory ?? [];
+  // Every version of every note, those of deleted procedures too.
+  const noteHistory = data.noteHistory ?? [];
   const appointments = data.appointments ?? [];
   const appointmentHistory = data.appointmentHistory ?? [];
   const access = data.accessLog ?? [];
@@ -280,7 +282,14 @@ function ExportContent({data}: {data: PatientExport}) {
                     <MetadataListItem label="Last Changed">{when(procedure.lastUpdated)}</MetadataListItem>
                     <MetadataListItem label="Assigned To">{(procedure.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
                   </MetadataList>
-                  {procedure.notes && <RichText>{procedure.notes}</RichText>}
+                  {(procedure.notes ?? []).map((note) => (
+                    <VStack key={note.id} gap={1} hAlign="stretch">
+                      <Text type="supporting" color="secondary">
+                        {`Note by ${note.author}, ${when(note.createdAtUtc)}${note.lastEditedAtUtc ? `, edited ${when(note.lastEditedAtUtc)}` : ''}`}
+                      </Text>
+                      <RichText>{note.text ?? ''}</RichText>
+                    </VStack>
+                  ))}
                   <List hasDividers edge="bleed">
                     {(procedure.stages ?? []).map((stage) => (
                       <ListItem
@@ -369,6 +378,34 @@ function ExportContent({data}: {data: PatientExport}) {
                     <Text type="supporting" color="secondary">
                       {[entry.procedureTitle, entry.stageName, describeAuditDetails(entry)].filter(Boolean).join(' · ')}
                     </Text>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Note History (${noteHistory.length})`}>
+        {noteHistory.length === 0
+          ? nothing('No notes.')
+          : (
+            <List hasDividers edge="bleed">
+              {noteHistory.map((version, i) => (
+                <ListItem
+                  key={i}
+                  align="first-line"
+                  label={
+                    <Text type="body">
+                      {`${when(version.atUtc)}: ${version.version === 1 ? 'Note added' : `Note edited (version ${version.version})`} by ${version.username}`}
+                    </Text>
+                  }
+                  description={
+                    <VStack gap={1} hAlign="stretch">
+                      <Text type="supporting" color="secondary">
+                        {procedureTitles.get(version.procedureId) || 'A deleted procedure'}
+                      </Text>
+                      <RichText>{version.text ?? ''}</RichText>
+                    </VStack>
                   }
                 />
               ))}

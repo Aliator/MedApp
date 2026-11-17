@@ -24,6 +24,8 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
     private readonly List<PatientProcedureAuditEntry> _auditEntries = [];
     private readonly List<Appointment> _newAppointments = [];
     private readonly List<AppointmentEvent> _appointmentEvents = [];
+    private readonly List<PatientProcedureNote> _newNotes = [];
+    private readonly List<PatientProcedureNoteVersion> _noteVersions = [];
 
     public PatientProcedure Procedure => procedure;
 
@@ -39,6 +41,12 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
 
     /// <summary>History entries of the appointments the change asked for or cancelled, to add with it.</summary>
     public IReadOnlyList<AppointmentEvent> AppointmentEvents => _appointmentEvents;
+
+    /// <summary>Notes the change added, to add with it.</summary>
+    public IReadOnlyList<PatientProcedureNote> NewNotes => _newNotes;
+
+    /// <summary>The note versions the change wrote (one for each note added or edited), to add with it.</summary>
+    public IReadOnlyList<PatientProcedureNoteVersion> NoteVersions => _noteVersions;
 
     /// <summary>Whether anything changed (every change is audited, or recorded in an appointment's history).</summary>
     public bool HasChanges => _auditEntries.Count > 0 || _appointmentEvents.Count > 0;
@@ -119,6 +127,47 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
         FollowAssignments();
     }
 
+    /// <summary>
+    /// Adds a note to the procedure by the actor: version 1, written to the note versions too, and a NoteAdded audit entry
+    /// with the note's ID and version, never its text. Handlers check first that notes can change
+    /// (<see cref="ProcedureWorkflow.WhyNotesCantChange"/>).
+    /// </summary>
+    public PatientProcedureNote AddNote(string text)
+    {
+        var note = new PatientProcedureNote
+        {
+            Id = Guid.NewGuid(),
+            PatientProcedureId = procedure.Id,
+            AuthorUserId = actor.UserId,
+            Text = text,
+            CreatedAtUtc = nowUtc,
+            Version = 1
+        };
+
+        procedure.Notes.Add(note);
+        _newNotes.Add(note);
+        AddVersion(note);
+        Audit(Action.NoteAdded, new { noteId = note.Id, version = note.Version });
+        return note;
+    }
+
+    /// <summary>
+    /// Replaces a note's text: its next version, written to the note versions too, and a NoteEdited audit entry with the
+    /// note's ID and new version, never its text. Nothing happens if the text is unchanged. Handlers check first that
+    /// the actor wrote it and that notes can change.
+    /// </summary>
+    public void EditNote(PatientProcedureNote note, string text)
+    {
+        if (note.Text == text)
+            return;
+
+        note.Text = text;
+        note.Version++;
+        note.LastEditedAtUtc = nowUtc;
+        AddVersion(note);
+        Audit(Action.NoteEdited, new { noteId = note.Id, version = note.Version });
+    }
+
     /// <summary>Records that work on a stage has begun (once); the procedure becomes InProgress if it wasn't.</summary>
     public void StartStage(PatientProcedureStage stage)
     {
@@ -181,6 +230,19 @@ public sealed class ProcedureChange(PatientProcedure procedure, ProcedureActor a
         if (procedure.Status is InReview or Completed)
             SetStatus(InProgress, null, automatic: true);
     }
+
+    private void AddVersion(PatientProcedureNote note) => _noteVersions.Add(new PatientProcedureNoteVersion
+    {
+        Id = Guid.NewGuid(),
+        NoteId = note.Id,
+        Version = note.Version,
+        PatientProcedureId = procedure.Id,
+        PatientId = procedure.PatientId,
+        Text = note.Text,
+        UserId = actor.UserId,
+        Username = actor.Username,
+        AtUtc = nowUtc
+    });
 
     /// <summary>The time for the next entry this change writes: each a tick after the one before.</summary>
     private DateTime NextTime() => nowUtc.AddTicks(_auditEntries.Count + _appointmentEvents.Count);

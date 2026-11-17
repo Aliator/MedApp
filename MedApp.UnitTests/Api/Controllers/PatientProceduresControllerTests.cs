@@ -2,10 +2,12 @@
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Procedures.Common;
+using MedApp.Application.Procedures.PatientProcedures.Commands.AddProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.UnassignPatientProcedure;
@@ -70,7 +72,37 @@ public sealed class PatientProceduresControllerTests
 
     [Test]
     public async Task GetPatientProcedureById_ReturnsIt() =>
-        ExpectSentAndOk(new GetPatientProcedureByIdQuery(RecordId), await Controller.GetPatientProcedureById(RecordId, _cts.Token));
+        ExpectSentAndOk(new GetPatientProcedureByIdQuery(RecordId, UserId), await Controller.GetPatientProcedureById(RecordId, _cts.Token));
+
+    [Test]
+    public async Task AddProcedureNote_ReturnsTheNoteWithItsAddress()
+    {
+        var note = _fixture.Create<PatientProcedureNoteResponse>();
+        _mediator = new RecordingMediator(_ => note);
+        var request = _fixture.Create<AddProcedureNoteRequest>();
+
+        var result = await Controller.AddProcedureNote(RecordId, request, _cts.Token);
+
+        _mediator.Request.Should().Be(new AddProcedureNoteCommand(RecordId, request.Text, Actor));
+        _mediator.Tokens.Single().Should().Be(_cts.Token);
+        var created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Be($"/api/procedures/patient-procedures/{RecordId}/notes/{note.Id}");
+        created.Value.Should().Be(note);
+    }
+
+    [Test]
+    public async Task EditProcedureNote_SendsTheTextAndVersionAsTheUser()
+    {
+        var note = _fixture.Create<PatientProcedureNoteResponse>();
+        _mediator = new RecordingMediator(_ => note);
+        var request = _fixture.Create<EditProcedureNoteRequest>();
+        var noteId = Guid.NewGuid();
+
+        var result = await Controller.EditProcedureNote(RecordId, noteId, request, _cts.Token);
+
+        _mediator.Request.Should().Be(new EditProcedureNoteCommand(RecordId, noteId, request.Text, request.ExpectedVersion, Actor));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(note);
+    }
 
     [Test]
     public async Task SearchPatientProcedures_SendsEveryFilterForTheSignedInUser()
@@ -96,7 +128,7 @@ public sealed class PatientProceduresControllerTests
 
         var result = await Controller.UpdatePatientProcedure(RecordId, request, _cts.Token);
 
-        ExpectSentAndOk(new UpdatePatientProcedureCommand(RecordId, request.Title, request.Notes, request.DueDate, request.Priority, Actor), result);
+        ExpectSentAndOk(new UpdatePatientProcedureCommand(RecordId, request.Title, request.DueDate, request.Priority, Actor), result);
     }
 
     [Test]

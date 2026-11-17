@@ -18,7 +18,7 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     [Test]
     public async Task Handle_ProcedureDoesNotExist_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new UpdatePatientProcedureCommand(Guid.NewGuid(), "x", null, null, null, Staff), CancellationToken.None);
+        var act = () => Handler.Handle(new UpdatePatientProcedureCommand(Guid.NewGuid(), "x", null, null, Staff), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -29,7 +29,7 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     {
         var procedure = GivenProcedure(CreateProcedure(status));
 
-        var act = () => Handler.Handle(new UpdatePatientProcedureCommand(procedure.Id, "x", null, null, null, Staff), CancellationToken.None);
+        var act = () => Handler.Handle(new UpdatePatientProcedureCommand(procedure.Id, "x", null, null, Staff), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -38,7 +38,7 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     public async Task Handle_FieldsChanged_UpdatesThemAndAuditsWhatChanged()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
-        var command = new UpdatePatientProcedureCommand(procedure.Id, " New title ", null, Today.AddDays(20), "Urgent", Staff);
+        var command = new UpdatePatientProcedureCommand(procedure.Id, " New title ", Today.AddDays(20), "Urgent", Staff);
 
         var response = await Handler.Handle(command, CancellationToken.None);
 
@@ -53,29 +53,10 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     }
 
     [Test]
-    public async Task Handle_NotesChangedOnly_UpdatesThemAndAuditsJustTheNotes()
-    {
-        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
-        var command = new UpdatePatientProcedureCommand(procedure.Id, null, "Bring previous scans.", null, null, Staff);
-
-        var response = await Handler.Handle(command, CancellationToken.None);
-
-        procedure.Notes.Should().Be("Bring previous scans.");
-        procedure.Title.Should().Be(ProcedureTitle);
-        procedure.LastUpdated.Should().Be(Now);
-        response.Notes.Should().Be("Bring previous scans.");
-        var entry = SavedAudit.Should().ContainSingle().Subject;
-        entry.Action.Should().Be(PatientProcedureAuditAction.DetailsUpdated);
-        entry.Details.Should().Contain("\"notes\":{\"from\":\"\",\"to\":\"Bring previous scans.\"}")
-            .And.NotContain("\"title\"");
-        VerifySavedOnce();
-    }
-
-    [Test]
     public async Task Handle_SameTitleWithSpaces_ChangesNothingAndDoesNotSave()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.Assigned));
-        var command = new UpdatePatientProcedureCommand(procedure.Id, $"  {ProcedureTitle}  ", null, null, null, Staff);
+        var command = new UpdatePatientProcedureCommand(procedure.Id, $"  {ProcedureTitle}  ", null, null, Staff);
 
         await Handler.Handle(command, CancellationToken.None);
 
@@ -89,11 +70,25 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
     public async Task Handle_NothingChanged_DoesNotSave()
     {
         var procedure = GivenProcedure(CreateProcedure(Status.Assigned));
-        var command = new UpdatePatientProcedureCommand(procedure.Id, ProcedureTitle, string.Empty, null, "medium", Staff);
+        var command = new UpdatePatientProcedureCommand(procedure.Id, ProcedureTitle, null, "medium", Staff);
 
         await Handler.Handle(command, CancellationToken.None);
 
         VerifyNotSaved();
+    }
+
+    [Test]
+    public async Task Handle_Edited_ResponseNotesCanBeEditedOnlyByTheirAuthor()
+    {
+        var procedure = GivenProcedure(CreateProcedure(Status.InProgress));
+        var own = procedure.AddNote(Staff.UserId);
+        procedure.AddNote(OtherUserId, createdAt: Now.AddDays(-3));
+
+        var response = await Handler.Handle(new UpdatePatientProcedureCommand(procedure.Id, "Renamed", null, null, Staff), CancellationToken.None);
+
+        response.Notes.Should().HaveCount(2);
+        response.Notes.Single(n => n.CanEdit).Id.Should().Be(own.Id);
+        response.Notes.Single(n => !n.CanEdit).AuthorUsername.Should().Be(OtherUsername);
     }
 
     [Test]
@@ -102,7 +97,7 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
         var procedure = GivenProcedure(CreateProcedure(Status.Assigned));
         using var cts = new CancellationTokenSource();
 
-        await Handler.Handle(new UpdatePatientProcedureCommand(procedure.Id, "Renamed", null, null, null, Staff), cts.Token);
+        await Handler.Handle(new UpdatePatientProcedureCommand(procedure.Id, "Renamed", null, null, Staff), cts.Token);
 
         Repository.Verify(r => r.GetForUpdateAsync(procedure.Id, cts.Token), Times.Once);
         VerifySavedOnce(cts.Token);

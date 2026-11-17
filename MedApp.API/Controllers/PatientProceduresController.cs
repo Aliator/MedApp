@@ -1,8 +1,10 @@
 using MedApp.API.Common.Authentication;
+using MedApp.Application.Procedures.PatientProcedures.Commands.AddProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.UnassignPatientProcedure;
@@ -56,7 +58,7 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Authorize(Policy = AuthPolicies.Staff)]
     public async Task<IActionResult> GetPatientProcedureById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientProcedureByIdQuery(id), ct));
+        Ok(await mediator.Send(new GetPatientProcedureByIdQuery(id, User.GetUserId()), ct));
 
     /// <summary>
     /// Procedures' titles and patients' names only, for the side nav's pins (at most 20). Not recorded in the activity
@@ -109,10 +111,39 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
         Ok(await mediator.Send(new UpdatePatientProcedureCommand(
             id,
             request.Title,
-            request.Notes,
             request.DueDate,
             request.Priority,
             User.ToProcedureActor()), ct));
+
+    /// <summary>
+    /// Adds a note to a procedure, by the signed-in user: whenever its details can be edited, so also once it's
+    /// Completed, but not when Cancelled or Archived (409). Audited (NoteAdded, with the note's ID and version only).
+    /// </summary>
+    [HttpPost("{id:guid}/notes")]
+    [ProducesResponseType(typeof(PatientProcedureNoteResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    public async Task<IActionResult> AddProcedureNote(Guid id, [FromBody] AddProcedureNoteRequest request, CancellationToken ct)
+    {
+        var note = await mediator.Send(new AddProcedureNoteCommand(id, request.Text, User.ToProcedureActor()), ct);
+        return Created($"/api/procedures/patient-procedures/{id}/notes/{note.Id}", note);
+    }
+
+    /// <summary>
+    /// Edits one of your own notes on a procedure (anyone else's is a 403, admins' too), from the version you saw: if it
+    /// has changed since, a 409. Audited (NoteEdited, with the note's ID and new version only).
+    /// </summary>
+    [HttpPut("{id:guid}/notes/{noteId:guid}")]
+    [ProducesResponseType(typeof(PatientProcedureNoteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    public async Task<IActionResult> EditProcedureNote(Guid id, Guid noteId, [FromBody] EditProcedureNoteRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new EditProcedureNoteCommand(id, noteId, request.Text, request.ExpectedVersion, User.ToProcedureActor()), ct));
 
     /// <summary>Blocks, unblocks, cancels, completes or archives a procedure (see its allowedStatusChanges).</summary>
     [HttpPost("{id:guid}/status")]

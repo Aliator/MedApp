@@ -23,6 +23,9 @@ public static class TimelineMapper
     /// <summary>What an appointment entry's action starts with, before its history action (e.g. AppointmentBooked).</summary>
     public const string AppointmentAction = "Appointment";
 
+    /// <summary>The field a procedure note's entry names in its change.</summary>
+    public const string NoteField = "note";
+
     /// <summary>Fields whose values everyone sees in a change; the others (free text) only admins.</summary>
     private static readonly HashSet<string> PublicValueFields = ["dueDate", "priority"];
 
@@ -81,6 +84,19 @@ public static class TimelineMapper
 
             case StageNotesUpdated:
                 response.Changes = [Change("stageNotes", details, isAdmin)];
+                break;
+
+            // The entry holds only the note's ID and version; its text, from the note versions, is for admins only.
+            case NoteAdded or NoteEdited:
+                response.Changes =
+                [
+                    new PatientTimelineChangeResponse
+                    {
+                        Field = NoteField,
+                        From = isAdmin ? row.PreviousNoteText : null,
+                        To = isAdmin ? row.NoteText : null,
+                    }
+                ];
                 break;
 
             case DetailsUpdated when details.TryGetValue("changes", out var changes) && changes.ValueKind == JsonValueKind.Object:

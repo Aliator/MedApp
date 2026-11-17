@@ -31,6 +31,7 @@ public sealed class ProcedureReplay
     private readonly List<PatientProcedureStage> _stages;
 
     private readonly List<PatientProcedureAuditEntry> _audit = [];
+    private readonly List<PatientProcedureNoteVersion> _noteVersions = [];
     private readonly List<Appointment> _appointments = [];
     private readonly List<AppointmentEvent> _events = [];
     private readonly List<Notification> _notifications = [];
@@ -69,8 +70,7 @@ public sealed class ProcedureReplay
         _templateName = template.Name;
         _dueDate = DueDates.ToUkDate(plan.CreatedUtc).AddDays(7 * (plan.Urgent ? plan.Spec.UrgentDueWeeks : plan.Spec.DueWeeks));
         // A copy of the template's stages, made as CreatePatientProcedureHandler makes it.
-        _procedure = ProcedureCreation.FromTemplate(
-            template, plan.Patient.Id, plan.Kind.Title, NoteBuilder.ProcedureNote(plan.NoteContext(), _random), _dueDate, plan.Priority, plan.CreatedUtc);
+        _procedure = ProcedureCreation.FromTemplate(template, plan.Patient.Id, plan.Kind.Title, _dueDate, plan.Priority, plan.CreatedUtc);
         _stages = _procedure.Stages.OrderBy(s => s.StageOrder).ToList();
     }
 
@@ -96,6 +96,7 @@ public sealed class ProcedureReplay
         _plan.ProcedureId = _procedure.Id;
         _world.Procedures.Add(_procedure);
         _world.Audit.AddRange(_audit);
+        _world.NoteVersions.AddRange(_noteVersions);
         _world.Appointments.AddRange(_appointments);
         _world.AppointmentEvents.AddRange(_events);
         _world.Notifications.AddRange(_notifications);
@@ -111,8 +112,10 @@ public sealed class ProcedureReplay
         _floor = created;
         var creator = Creator();
 
-        // Its Created audit entry, and the first stage's visit if it involves one, as CreatePatientProcedureHandler records them.
-        Change(creator, created, change => ProcedureCreation.Record(change, _templateName, _dueDate));
+        // Its Created audit entry, its first note (often none), and the first stage's visit if it involves one, as
+        // CreatePatientProcedureHandler records them.
+        var firstNote = NoteBuilder.ProcedureNote(_plan.NoteContext(), _random);
+        Change(creator, created, change => ProcedureCreation.Record(change, _templateName, _dueDate, firstNote));
 
         // An admin assigns it, usually within a day or so; the newest are sometimes still waiting.
         var assignAt = Working(created.AddDays(0.02 + _random.NextDouble() * 1.5));
@@ -217,8 +220,10 @@ public sealed class ProcedureReplay
         var worker = bypass ? _world.Lead : WorkerFor(spec);
         Change(worker, startAt, change => change.StartStage(stage));
 
+        // The procedure's first note brought up to date by whoever wrote it (only a note's author can edit it), or, when
+        // there's none, a note from the person starting this stage.
         if (_plan.EditNotes && index == 1)
-            EditDetails(worker, startAt.AddMinutes(_random.Next(2, 30)), notes: NoteBuilder.ProcedureNoteUpdate(_procedure.Notes, _random));
+            UpdateFirstNote(worker, startAt.AddMinutes(_random.Next(2, 30)));
         // A due date moved: at scheduling for surgery (the theatre date is known), otherwise part-way through.
         if (_plan.EditDueDate && (_plan.Pathway == Pathway.Surgical ? spec.Definition == "Scheduling" : index == 2))
         {
@@ -265,6 +270,7 @@ public sealed class ProcedureReplay
         Change(worker, notesAt, change => change.UpdateStageNotes(stage, note));
         Finish(stage, worker, finishedAt, bypass ? NoteBuilder.BypassReason(_random) : null);
         reached = finishedAt;
+        MaybeProcedureNote(spec, stage, worker, finishedAt);
 
         // A diagnostic referral upgraded at triage: urgent, and due sooner.
         if (_plan.RaisePriority && spec.Definition == "Triage")
@@ -445,6 +451,7 @@ public sealed class ProcedureReplay
         var change = new ProcedureChange(_procedure, who.Actor, at);
         apply(change);
         _audit.AddRange(change.AuditEntries);
+        _noteVersions.AddRange(change.NoteVersions);
         _appointments.AddRange(change.NewAppointments);
         _events.AddRange(change.AppointmentEvents);
         Touch(who, at);
@@ -474,14 +481,56 @@ public sealed class ProcedureReplay
     }
 
     /// <summary>A details edit, as UpdatePatientProcedureHandler makes and records it (<see cref="ProcedureDetails"/>).</summary>
-    private void EditDetails(StaffMember who, DateTime at, string? notes = null, DateOnly? due = null, Priority? priority = null)
+    private void EditDetails(StaffMember who, DateTime at, DateOnly? due = null, Priority? priority = null)
     {
         if (at >= _now || !ProcedureWorkflow.CanEditDetails(_procedure))
             return;
 
-        var changes = ProcedureDetails.Apply(_procedure, null, notes, due, priority);
+        var changes = ProcedureDetails.Apply(_procedure, null, due, priority);
         if (changes.Count > 0)
             Change(who, at, change => ProcedureDetails.Record(change, changes));
+    }
+
+    /// <summary>
+    /// The procedure's first note updated by its author (as EditProcedureNoteHandler does: only the author can), now and
+    /// then corrected again the same day, so it has several versions; with no first note, one added by
+    /// <paramref name="worker"/>.
+    /// </summary>
+    private void UpdateFirstNote(StaffMember worker, DateTime at)
+    {
+        if (at >= _now || !ProcedureWorkflow.CanChangeNotes(_procedure))
+            return;
+
+        var first = _procedure.Notes.OrderBy(n => n.CreatedAtUtc).FirstOrDefault();
+        var author = first?.AuthorUserId is { } authorId ? _world.Staff.FirstOrDefault(s => s.Id == authorId) : null;
+        if (first is null || author is null)
+        {
+            Change(worker, at, change => change.AddNote(NoteBuilder.ProcedureNoteUpdate(string.Empty, _random)));
+            return;
+        }
+
+        Change(author, at, change => change.EditNote(first, NoteBuilder.ProcedureNoteUpdate(first.Text, _random)));
+        var again = at.AddMinutes(_random.Next(20, 240));
+        if (again < _now && _random.NextDouble() < 0.3)
+            Change(author, again, change => change.EditNote(first, NoteBuilder.ProcedureNoteUpdate(first.Text, _random)));
+    }
+
+    /// <summary>
+    /// Now and then, after finishing a stage, its worker adds a note to the procedure about what comes next (as
+    /// AddProcedureNoteHandler does), and sometimes fixes it a little later: their own, so they can.
+    /// </summary>
+    private void MaybeProcedureNote(StageSpec spec, PatientProcedureStage stage, StaffMember worker, DateTime finishedAt)
+    {
+        var at = finishedAt.AddMinutes(_random.Next(2, 45));
+        if (at >= _now || _random.NextDouble() >= 0.22 || !ProcedureWorkflow.CanChangeNotes(_procedure))
+            return;
+
+        PatientProcedureNote? added = null;
+        Change(worker, at, change => added = change.AddNote(NoteBuilder.ProcedureFollowUpNote(stage.Name, spec.Role, _random)));
+
+        var fixAt = at.AddMinutes(_random.Next(5, 120));
+        if (added is not null && fixAt < _now && _random.NextDouble() < 0.15)
+            Change(worker, fixAt, change => change.EditNote(added, NoteBuilder.ProcedureNoteFix(added.Text, _random)));
     }
 
     private void MaybeProgressNote(PatientProcedureStage stage, StaffMember worker, DateTime startedAt, NoteContext context)

@@ -36,6 +36,7 @@ import {TwoColumns} from '../../components/pages/TwoColumns';
 import {AppointmentList} from '../../components/procedures/AppointmentList';
 import {AssigneeList} from '../../components/procedures/AssigneeList';
 import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../components/procedures/ProcedureCells';
+import {ProcedureNotes} from '../../components/procedures/ProcedureNotes';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/procedures/StageList';
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/procedures/StageVisit';
@@ -48,7 +49,6 @@ import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCa
 import {PanelCard} from '../../components/views/PanelCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {formatDateTime} from '../../utils/dates';
-import {RichText} from '../../components/shared/RichText';
 
 /** The dialog the page has open, if any. */
 type Dialog =
@@ -132,6 +132,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   // folded, and in a narrow window Assigned staff and Files folded too. Stages in the list open only when clicked.
   const [open, setOpen] = useState(() => ({
     details: true,
+    notes: true,
     currentStage: true,
     files: !isNarrow,
     stages: false,
@@ -509,7 +510,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     </Page>
   );
 
-  /** Status and progress, then two parts that fold: Patient info (the details and notes) and Assigned staff. */
+  /** Status and progress, then parts that fold: Patient info, Appointments and Assigned staff. */
   function details(procedure: Procedure) {
     return (
       <>
@@ -545,13 +546,6 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
             <MetadataListItem label="Created">{formatDateTime(procedure.createdAt ?? '')}</MetadataListItem>
             <MetadataListItem label="Last updated">{formatDateTime(procedure.lastUpdated ?? '')}</MetadataListItem>
           </ViewSection>
-          {procedure.notes?.trim() && (
-            <ViewSection useGrid={false}>
-              <MetadataListItem label="Procedure notes">
-                <RichText>{procedure.notes}</RichText>
-              </MetadataListItem>
-            </ViewSection>
-          )}
         </DetailPart>
         <DetailPart title="Appointments" isOpen={open.appointments} onToggle={() => toggle('appointments')}>
           {/* Booking sits with the appointments, not in the footer, which has no room for another button. */}
@@ -709,6 +703,21 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
     return {key: 'details', title: 'Details', isOpen: open.details, onToggle: () => toggle('details'), children: details(procedure)};
   }
 
+  /** The procedure's notes: Add Note, and every note, newest first (your own can be edited). */
+  function notesSection(procedure: Procedure): FoldingSection {
+    return {
+      key: 'notes',
+      title: 'Notes',
+      isOpen: open.notes,
+      onToggle: () => toggle('notes'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <ProcedureNotes procedure={procedure} />
+        </Section>
+      ),
+    };
+  }
+
   function currentStageSection(procedure: Procedure): FoldingSection {
     return {
       key: 'currentStage',
@@ -743,15 +752,15 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   }
 
   /**
-   * Two cards side by side: Details, the Current stage and Files, each folding and sharing the left card, and all
-   * the stages on the right.
+   * Two cards side by side: Details, Notes, the Current stage and Files, each folding and sharing the left card, and
+   * all the stages on the right.
    */
   function wideLayout(procedure: Procedure) {
     return (
       <TwoColumns
         start={
           <FoldingCard
-            sections={[detailsSection(procedure), currentStageSection(procedure), filesSection(procedure)]}
+            sections={[detailsSection(procedure), notesSection(procedure), currentStageSection(procedure), filesSection(procedure)]}
             footerActions={footer(procedure)}
           />
         }
@@ -765,8 +774,8 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
   }
 
   /**
-   * One card of four folding sections: Details, Current stage, Files and Stages, scrolling together; the page never
-   * does. View Patient stays in the footer.
+   * One card of five folding sections: Details, Notes, Current stage, Files and Stages, scrolling together; the page
+   * never does. View Patient stays in the footer.
    */
   function narrowLayout(procedure: Procedure) {
     return (
@@ -774,6 +783,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
         footerActions={footer(procedure)}
         sections={[
           detailsSection(procedure),
+          notesSection(procedure),
           currentStageSection(procedure),
           filesSection(procedure),
           {key: 'stages', title: 'Stages', isOpen: open.stages, onToggle: () => toggle('stages'), children: stageList(procedure)},

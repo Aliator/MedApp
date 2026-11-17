@@ -64,6 +64,19 @@ public static partial class ProcedureWorkflow
 
     public static bool CanEditDetails(PatientProcedure procedure) => procedure.Status is not (Cancelled or Archived);
 
+    /// <summary>
+    /// Whether notes can be added to the procedure, and their authors edit them: whenever its details can be edited, so
+    /// also while it's Blocked or Completed (a note after completion, a result or a follow-up call, is normal), but not
+    /// once it's Cancelled or Archived, when the record is closed.
+    /// </summary>
+    public static bool CanChangeNotes(PatientProcedure procedure) => WhyNotesCantChange(procedure) is null;
+
+    /// <summary>Why notes can't be added or edited on the procedure now, or null if they can.</summary>
+    public static string? WhyNotesCantChange(PatientProcedure procedure) =>
+        CanEditDetails(procedure)
+            ? null
+            : $"Notes can't be added or edited while the procedure is {Describe(procedure.Status)}.";
+
     public static bool CanChangeAssignments(PatientProcedure procedure) => !IsClosed(procedure.Status);
 
     /// <summary>Only Cancelled and Archived procedures can be deleted, by an admin.</summary>

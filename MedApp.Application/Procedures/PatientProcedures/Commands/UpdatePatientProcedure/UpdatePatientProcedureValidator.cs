@@ -16,10 +16,6 @@ public sealed class UpdatePatientProcedureValidator : AbstractValidator<UpdatePa
             .MaximumLength(200)
             .WithMessage("Title must not exceed 200 characters.");
 
-        RuleFor(x => x.Notes)
-            .MaximumLength(4000)
-            .WithMessage("Notes must not exceed 4000 characters.");
-
         RuleFor(x => x.Priority)
             .Must(ProcedureEnums.IsPriority)
             .When(x => x.Priority is not null)

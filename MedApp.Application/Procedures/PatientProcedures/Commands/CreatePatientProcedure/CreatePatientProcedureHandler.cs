@@ -39,17 +39,18 @@ public sealed class CreatePatientProcedureHandler(
             template,
             patient.Id,
             request.Title,
-            request.Notes,
             request.DueDate,
             ProcedureEnums.Parse<PatientProcedurePriority>(request.Priority),
             now);
 
         var change = new ProcedureChange(procedure, request.Actor, now);
-        ProcedureCreation.Record(change, template.Name, request.DueDate);
+        ProcedureCreation.Record(change, template.Name, request.DueDate, request.Notes);
 
         await repository.AddAsync(change, cancellationToken);
         await procedureMonitor.NotifyAsync(change, cancellationToken);
 
-        return ProcedureMapper.ToResponse(procedure, new Dictionary<Guid, string>(), now, patient: patient);
+        // The creator's own note, if any, is the only one, so the actor is the only username it names.
+        var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
+        return ProcedureMapper.ToResponse(procedure, usernames, now, patient: patient, viewerId: request.Actor.UserId);
     }
 }

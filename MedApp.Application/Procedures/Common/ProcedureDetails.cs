@@ -3,7 +3,7 @@ using MedApp.Domain.Procedures.PatientProcedures;
 namespace MedApp.Application.Procedures.Common;
 
 /// <summary>
-/// Edits a procedure's details (title, notes, due date, priority) and records what changed, from and to: shared by
+/// Edits a procedure's details (title, due date, priority) and records what changed, from and to: shared by
 /// <c>UpdatePatientProcedureHandler</c> and medapp-dev's demo data, so both write the same audit entry. The handler
 /// checks first that the details can be edited.
 /// </summary>
@@ -11,13 +11,13 @@ public static class ProcedureDetails
 {
     /// <summary>
     /// Applies each value given (null leaves it as it is) that differs from the procedure's, and returns what changed,
-    /// by field: <c>title</c>, <c>notes</c>, <c>dueDate</c> and <c>priority</c>, each with <c>from</c> and <c>to</c>.
-    /// Empty when nothing changed. The title is compared as given, so trim it first.
+    /// by field: <c>title</c>, <c>dueDate</c> and <c>priority</c>, each with <c>from</c> and <c>to</c>. Empty when nothing
+    /// changed. The title is compared as given, so trim it first. Notes aren't details: they're added and edited one at
+    /// a time (<see cref="ProcedureChange.AddNote"/>); entries written before that may still hold a <c>notes</c> change.
     /// </summary>
     public static Dictionary<string, object> Apply(
         PatientProcedure procedure,
         string? title,
-        string? notes,
         DateOnly? dueDate,
         PatientProcedurePriority? priority)
     {
@@ -27,12 +27,6 @@ public static class ProcedureDetails
         {
             changes["title"] = new { from = procedure.Title, to = newTitle };
             procedure.Title = newTitle;
-        }
-
-        if (notes is { } newNotes && newNotes != procedure.Notes)
-        {
-            changes["notes"] = new { from = procedure.Notes, to = newNotes };
-            procedure.Notes = newNotes;
         }
 
         if (dueDate is { } newDueDate && newDueDate != DueDates.ToUkDate(procedure.DueDateUtc))

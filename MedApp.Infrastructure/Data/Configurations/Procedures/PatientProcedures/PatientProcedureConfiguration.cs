@@ -16,7 +16,10 @@ public sealed class PatientProcedureConfiguration : IEntityTypeConfiguration<Pat
             .IsRequired()
             .HasMaxLength(200);
 
-        builder.Property(x => x.Notes)
+        // The old single notes field, moved to PatientProcedureNotes. Kept, unused, for API copies from before the move
+        // during a rollout; dropped in a later release.
+        builder.Property(x => x.LegacyNotes)
+            .HasColumnName("Notes")
             .IsRequired()
             .HasMaxLength(4000);
 

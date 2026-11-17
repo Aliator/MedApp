@@ -115,6 +115,7 @@ const FIELD_NAMES: Record<string, string> = {
   priority: 'priority',
   stageNotes: 'notes',
   appointmentNotes: 'notes',
+  note: 'note',
 };
 
 /**
@@ -173,6 +174,11 @@ export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
       return {title: `Unlocked ${stage}`, detail: ''};
     case 'StageNotesUpdated':
       return {title: `Saved notes on ${stage}`, detail: changes.filter(hasValues).map(describeChange).join('; ')};
+    // Staff are told that a note was added or edited, and by whom; only admins get its text.
+    case 'NoteAdded':
+      return {title: 'Note added', detail: changes.filter(hasValues).map((c) => c.to?.trim() ?? '').join('; ')};
+    case 'NoteEdited':
+      return {title: 'Note edited', detail: changes.filter(hasValues).map((c) => (c.to?.trim() ? `Now: ${c.to.trim()}` : '')).join('; ')};
     case 'Assigned':
       return {title: `Assigned ${entry.assigneeUsername ?? 'someone'}`, detail: ''};
     case 'Unassigned':

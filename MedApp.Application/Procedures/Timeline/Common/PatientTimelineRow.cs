@@ -8,6 +8,15 @@ namespace MedApp.Application.Procedures.Timeline.Common;
 /// </summary>
 public sealed record PatientTimelineRow(PatientProcedureAuditEntry Entry, string? CurrentProcedureTitle)
 {
+    /// <summary>
+    /// For a note added or edited (only for admins), the note's text in this version, from the note versions: the audit
+    /// entry itself holds only the note's ID and version.
+    /// </summary>
+    public string? NoteText { get; init; }
+
+    /// <summary>For a note edited (only for admins), the note's text in the version before.</summary>
+    public string? PreviousNoteText { get; init; }
+
     /// <summary>About a file attached to the patient themselves, not to one of their procedures.</summary>
     public bool IsAboutPatient => Entry.PatientProcedureId == PatientProcedureAuditEntry.NoProcedure;
 }

@@ -980,10 +980,11 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Notes")
+                    b.Property<string>("LegacyNotes")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnName("Notes");
 
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
@@ -1094,6 +1095,87 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasIndex("PatientProcedureId", "AtUtc");
 
                     b.ToTable("PatientProcedureAuditEntries", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastEditedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PatientProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientProcedureId", "CreatedAtUtc");
+
+                    b.ToTable("PatientProcedureNotes", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureNoteVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientProcedureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("NoteId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("PatientProcedureNoteVersions", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
@@ -1663,6 +1745,17 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("PatientProcedure");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureNote", b =>
+                {
+                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
+                        .WithMany("Notes")
+                        .HasForeignKey("PatientProcedureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PatientProcedure");
+                });
+
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
                 {
                     b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
@@ -1770,6 +1863,8 @@ namespace MedApp.Infrastructure.Migrations
             modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
                 {
                     b.Navigation("Assignments");
+
+                    b.Navigation("Notes");
 
                     b.Navigation("Stages");
                 });

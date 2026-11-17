@@ -2,7 +2,6 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE} from './ProcedurePage';
 import {EditProcedurePage} from './EditProcedurePage';
-import {richText} from '../../test/richText';
 
 const id = 'proc-1';
 const PATH = `/api/procedures/patient-procedures/${id}`;
@@ -12,7 +11,7 @@ const procedure = (overrides: Record<string, unknown> = {}) => ({
   patientId: 'patient-1',
   patientName: 'Test Patient',
   title: 'Colonoscopy',
-  notes: 'Pack posted.',
+  notes: [{id: 'n1', authorUsername: 'test-user', text: 'Pack posted.', createdAtUtc: '2026-11-01T10:00:00Z', version: 1, canEdit: true}],
   dueDate: '2099-12-01',
   priority: 'High',
   status: 'InProgress',
@@ -46,7 +45,8 @@ describe('EditProcedurePage', () => {
     renderEdit();
 
     expect(await screen.findByRole('textbox', {name: /Title/})).toHaveValue('Colonoscopy');
-    expect(richText(screen.getByRole('textbox', {name: 'Notes'}))).toBe('Pack posted.');
+    // Notes are added and edited on the procedure's page, not here.
+    expect(screen.queryByRole('textbox', {name: 'Notes'})).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', {name: /Priority/})).toHaveTextContent('High');
     expect(screen.getByText('For Test Patient')).toBeInTheDocument();
   });
@@ -67,7 +67,7 @@ describe('EditProcedurePage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/procedures/${id}`));
     const patch = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PATCH')!;
-    expect(await patch.json()).toEqual({title: 'Colonoscopy (repeat)', notes: 'Pack posted.', dueDate: '2099-12-01', priority: 'Urgent'});
+    expect(await patch.json()).toEqual({title: 'Colonoscopy (repeat)', dueDate: '2099-12-01', priority: 'Urgent'});
     await expectAnnounced('Procedure saved');
   });
 

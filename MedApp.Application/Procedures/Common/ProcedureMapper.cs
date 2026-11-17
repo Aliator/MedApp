@@ -18,22 +18,30 @@ public static class ProcedureMapper
     public static string PatientName(Patient? patient) =>
         patient is null ? string.Empty : $"{patient.FirstName} {patient.LastName}";
 
-    /// <summary>Every user a procedure's full response names: assignees, assigners, and who started and finished stages.</summary>
+    /// <summary>
+    /// Every user a procedure's full response names: assignees, assigners, who started and finished stages, and who
+    /// wrote its notes.
+    /// </summary>
     public static IEnumerable<Guid> UserIds(PatientProcedure procedure) =>
         procedure.Assignments.SelectMany(a => new[] { a.UserId, a.AssignedByUserId })
             .Concat(procedure.Stages.SelectMany(s => new[] { s.StartedByUserId, s.CompletedByUserId }).OfType<Guid>())
+            .Concat(procedure.Notes.Select(n => n.AuthorUserId).OfType<Guid>())
             .Distinct();
 
-    /// <summary>A procedure's full response, looking up the usernames it shows.</summary>
+    /// <summary>
+    /// A procedure's full response, looking up the usernames it shows. <paramref name="viewerId"/> is who it's for: their
+    /// own notes are the ones they can edit.
+    /// </summary>
     public static async Task<PatientProcedureResponse> ToResponseAsync(
         PatientProcedure procedure,
         IIdentityReadService identity,
         DateTime nowUtc,
         CancellationToken ct,
-        string? patientName = null)
+        string? patientName = null,
+        Guid? viewerId = null)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(procedure), ct);
-        return ToResponse(procedure, usernames, nowUtc, patientName);
+        return ToResponse(procedure, usernames, nowUtc, patientName, viewerId: viewerId);
     }
 
     public static PatientProcedureResponse ToResponse(
@@ -41,7 +49,8 @@ public static class ProcedureMapper
         IReadOnlyDictionary<Guid, string> usernames,
         DateTime nowUtc,
         string? patientName = null,
-        Patient? patient = null)
+        Patient? patient = null,
+        Guid? viewerId = null)
     {
         // The patient comes with the procedure when it was loaded with them, or separately for one just created.
         patient ??= procedure.Patient;
@@ -61,7 +70,6 @@ public static class ProcedureMapper
             TemplateId = procedure.TemplateId,
             TemplateName = procedure.TemplateName,
             Title = procedure.Title,
-            Notes = procedure.Notes,
             DueDate = DueDates.ToUkDate(procedure.DueDateUtc),
             DueDateUtc = procedure.DueDateUtc,
             Priority = procedure.Priority.ToString(),
@@ -79,6 +87,7 @@ public static class ProcedureMapper
                 .ToList(),
             CanWorkOnStages = canChange && ProcedureWorkflow.CanWorkOnStages(procedure),
             CanEditDetails = canChange && ProcedureWorkflow.CanEditDetails(procedure),
+            CanAddNotes = canChange && ProcedureWorkflow.CanChangeNotes(procedure),
             CanChangeAssignments = canChange && ProcedureWorkflow.CanChangeAssignments(procedure),
             CanBeDeleted = canChange && ProcedureWorkflow.CanBeDeleted(procedure),
             ReadOnlyReason = readOnlyReason,
@@ -120,7 +129,9 @@ public static class ProcedureMapper
                     AssignedByUsername = Username(usernames, a.AssignedByUserId),
                     AssignedAtUtc = a.AssignedAtUtc
                 })
-                .ToList()
+                .ToList(),
+            Notes = ProcedureNoteMapper.ToResponses(
+                procedure.Notes, usernames, viewerId, canChange && ProcedureWorkflow.CanChangeNotes(procedure))
         };
     }
 

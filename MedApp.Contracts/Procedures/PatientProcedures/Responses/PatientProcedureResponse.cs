@@ -15,7 +15,6 @@ public sealed class PatientProcedureResponse
     public Guid? TemplateId { get; set; }
     public string TemplateName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
-    public string Notes { get; set; } = string.Empty;
 
     /// <summary>The day it's due by (UK time).</summary>
     public DateOnly DueDate { get; set; }
@@ -42,8 +41,14 @@ public sealed class PatientProcedureResponse
     /// <summary>Whether stages can be worked on in the current status.</summary>
     public bool CanWorkOnStages { get; set; }
 
-    /// <summary>Whether the title, notes, due date and priority can be edited (not when Cancelled or Archived).</summary>
+    /// <summary>Whether the title, due date and priority can be edited (not when Cancelled or Archived).</summary>
     public bool CanEditDetails { get; set; }
+
+    /// <summary>
+    /// Whether notes can be added (and your own edited): as for the details, so also once Completed, but not when
+    /// Cancelled or Archived.
+    /// </summary>
+    public bool CanAddNotes { get; set; }
 
     /// <summary>Whether an admin can assign or unassign staff (not when Completed, Cancelled or Archived).</summary>
     public bool CanChangeAssignments { get; set; }
@@ -63,4 +68,7 @@ public sealed class PatientProcedureResponse
 
     public List<PatientProcedureStageResponse> Stages { get; set; } = [];
     public List<PatientProcedureAssignmentResponse> Assignments { get; set; } = [];
+
+    /// <summary>Its notes, newest first.</summary>
+    public List<PatientProcedureNoteResponse> Notes { get; set; } = [];
 }

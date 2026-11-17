@@ -32,6 +32,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PatientProcedureStageTemplate> PatientProcedureStageTemplates => Set<PatientProcedureStageTemplate>();
     public DbSet<PatientProcedureStageTemplateMap> PatientProcedureStageTemplateItems => Set<PatientProcedureStageTemplateMap>();
     public DbSet<PatientProcedureAuditEntry> PatientProcedureAuditEntries => Set<PatientProcedureAuditEntry>();
+    public DbSet<PatientProcedureNote> PatientProcedureNotes => Set<PatientProcedureNote>();
+    public DbSet<PatientProcedureNoteVersion> PatientProcedureNoteVersions => Set<PatientProcedureNoteVersion>();
     public DbSet<CalendarActivityType> CalendarActivityTypes => Set<CalendarActivityType>();
     public DbSet<CalendarBlock> CalendarBlocks => Set<CalendarBlock>();
     public DbSet<CalendarBlockException> CalendarBlockExceptions => Set<CalendarBlockException>();

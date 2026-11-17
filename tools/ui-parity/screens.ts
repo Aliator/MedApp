@@ -265,6 +265,16 @@ export const screens: Screen[] = [
   },
   { name: 'procedure-view', title: 'Procedure page: details, current stage and files beside the stages', path: (d) => `/procedures/${d.procedureId}` },
   {
+    name: 'procedure-notes',
+    title: "Procedure page with its Notes: Add Note, then the notes newest first, each with who and when (Details folded to show them)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Hide details' }).click();
+      await page.getByRole('button', { name: 'Add Note' }).waitFor({ state: 'visible' });
+      await settle(page);
+    },
+  },
+  {
     name: 'procedure-narrow',
     title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
     path: (d) => `/procedures/${d.procedureId}`,

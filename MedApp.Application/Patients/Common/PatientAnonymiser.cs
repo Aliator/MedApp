@@ -15,7 +15,8 @@ namespace MedApp.Application.Patients.Common;
 /// statistics (procedures, templates, statuses, dates, who did what and when) and its audit trail survive.
 /// <list type="bullet">
 /// <item>Name and email become placeholders; the NHS number is removed; the date of birth keeps only its year (1 January), for age statistics.</item>
-/// <item>Procedure titles become the template's name; procedure and stage notes become <see cref="RemovedText"/>.</item>
+/// <item>Procedure titles become the template's name; procedure notes (every version of each, those of deleted
+/// procedures too, and the old single notes field) and stage notes become <see cref="RemovedText"/>.</item>
 /// <item>The procedure audit's titles, notes, reasons and changed text, and the activity log's reasons, are replaced the same way.</item>
 /// <item>Appointments' notes and cancellation reasons, and their history's procedure titles, notes and reasons, are replaced the same way.</item>
 /// <item>Notifications about the procedures take the new titles, except those whose title is fixed (the appointment
@@ -72,11 +73,16 @@ public static class PatientAnonymiser
         foreach (var procedure in record.Procedures)
         {
             procedure.Title = string.IsNullOrWhiteSpace(procedure.TemplateName) ? ProcedureTitle : procedure.TemplateName;
-            procedure.Notes = Removed(procedure.Notes);
+            procedure.LegacyNotes = Removed(procedure.LegacyNotes);
+            foreach (var note in procedure.Notes)
+                note.Text = Removed(note.Text);
             foreach (var stage in procedure.Stages)
                 stage.Notes = Removed(stage.Notes);
             titles[procedure.Id] = procedure.Title;
         }
+
+        foreach (var version in record.NoteVersions)
+            version.Text = Removed(version.Text);
 
         foreach (var entry in record.ProcedureHistory)
         {

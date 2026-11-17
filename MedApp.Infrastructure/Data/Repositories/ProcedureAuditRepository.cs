@@ -30,6 +30,15 @@ public sealed class ProcedureAuditRepository(MedAppDbContext context) : IProcedu
             .Page(context.PatientProcedureAuditEntries.AsNoTracking(), context.PatientProcedures.AsNoTracking(), query)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<PatientProcedureNoteVersion>> GetNoteVersionsAsync(IReadOnlyCollection<Guid> noteIds, CancellationToken ct)
+    {
+        var ids = noteIds.ToList();
+        return await context.PatientProcedureNoteVersions
+            .AsNoTracking()
+            .Where(v => ids.Contains(v.NoteId))
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<PatientProcedureAuditEntry>> GetDeletionsAsync(Guid patientId, CancellationToken ct) =>
         await context.PatientProcedureAuditEntries
             .AsNoTracking()

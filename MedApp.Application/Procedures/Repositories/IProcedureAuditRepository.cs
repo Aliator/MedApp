@@ -18,6 +18,12 @@ public interface IProcedureAuditRepository
     /// </summary>
     Task<IReadOnlyList<PatientTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct);
 
+    /// <summary>
+    /// The versions of these procedure notes (any version), read-only: the text of the notes the admin's timeline shows.
+    /// Versions outlive their procedure, so a deleted procedure's notes are found too.
+    /// </summary>
+    Task<IReadOnlyList<PatientProcedureNoteVersion>> GetNoteVersionsAsync(IReadOnlyCollection<Guid> noteIds, CancellationToken ct);
+
     /// <summary>The entries recording the deletion of a patient's procedures.</summary>
     Task<IReadOnlyList<PatientProcedureAuditEntry>> GetDeletionsAsync(Guid patientId, CancellationToken ct);
 }

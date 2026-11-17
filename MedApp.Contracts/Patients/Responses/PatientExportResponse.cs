@@ -24,6 +24,12 @@ public sealed class PatientExportResponse
     /// <summary>Every change to the patient's procedures, oldest first, including procedures since deleted.</summary>
     public List<ExportedHistoryEntryResponse> ProcedureHistory { get; set; } = [];
 
+    /// <summary>
+    /// Every version of every note on the patient's procedures (as added, then after each edit), oldest first, including
+    /// those of procedures since deleted.
+    /// </summary>
+    public List<ExportedNoteVersionResponse> NoteHistory { get; set; } = [];
+
     /// <summary>The patient's appointments, in any status, oldest first.</summary>
     public List<ExportedAppointmentResponse> Appointments { get; set; } = [];
 
@@ -80,12 +86,47 @@ public sealed class ExportedProcedureResponse
 
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
-    public string Notes { get; set; } = string.Empty;
+
+    /// <summary>Its notes as they are now, oldest first (<see cref="PatientExportResponse.NoteHistory"/> has every version).</summary>
+    public List<ExportedProcedureNoteResponse> Notes { get; set; } = [];
 
     /// <summary>The usernames of the staff assigned to it.</summary>
     public List<string> AssignedTo { get; set; } = [];
 
     public List<ExportedStageResponse> Stages { get; set; } = [];
+}
+
+/// <summary>One note on a procedure as it is now, as the export gives it.</summary>
+public sealed class ExportedProcedureNoteResponse
+{
+    public Guid Id { get; set; }
+
+    /// <summary>Who wrote it, by username ("Deleted user" once gone, "Unknown" when not recorded).</summary>
+    public string Author { get; set; } = string.Empty;
+
+    public string Text { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime? LastEditedAtUtc { get; set; }
+
+    /// <summary>Its latest version: 1 if it was never edited.</summary>
+    public int Version { get; set; }
+}
+
+/// <summary>One version of one note on a procedure, as the export gives it.</summary>
+public sealed class ExportedNoteVersionResponse
+{
+    public Guid NoteId { get; set; }
+    public Guid ProcedureId { get; set; }
+
+    /// <summary>1 for the note as added, one more for each edit.</summary>
+    public int Version { get; set; }
+
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>Who wrote this version, by the username recorded at the time ("Unknown" when not recorded).</summary>
+    public string Username { get; set; } = string.Empty;
+
+    public DateTime AtUtc { get; set; }
 }
 
 /// <summary>One stage of a procedure, as the export gives it.</summary>

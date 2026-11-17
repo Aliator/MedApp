@@ -3,10 +3,12 @@ using FluentAssertions;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Procedures.Common;
+using MedApp.Application.Procedures.PatientProcedures.Commands.AddProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.AssignPatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.ChangePatientProcedureStatus;
 using MedApp.Application.Procedures.PatientProcedures.Commands.CreatePatientProcedure;
 using MedApp.Application.Procedures.PatientProcedures.Commands.DeletePatientProcedure;
+using MedApp.Application.Procedures.PatientProcedures.Commands.EditProcedureNote;
 using MedApp.Application.Procedures.PatientProcedures.Commands.FinishProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.StartProcedureStage;
 using MedApp.Application.Procedures.PatientProcedures.Commands.UnassignPatientProcedure;
@@ -101,7 +103,12 @@ public sealed class ProcedureCommandsMonitoringTests : ProcedureHandlerTestBase
             t.Fixture.Create<UnlockProcedureStageHandler>().Handle(new UnlockProcedureStageCommand(p.Id, p.StageAt(1).Id, Admin), t.Token));
         yield return Case<UpdatePatientProcedureHandler>(Status.InProgress, 0, (t, p) =>
             t.Fixture.Create<UpdatePatientProcedureHandler>().Handle(
-                new UpdatePatientProcedureCommand(p.Id, null, null, Today.AddDays(30), null, Staff), t.Token));
+                new UpdatePatientProcedureCommand(p.Id, null, Today.AddDays(30), null, Staff), t.Token));
+        yield return Case<AddProcedureNoteHandler>(Status.InProgress, 0, (t, p) =>
+            t.Fixture.Create<AddProcedureNoteHandler>().Handle(new AddProcedureNoteCommand(p.Id, NoteText, Staff), t.Token));
+        yield return Case<EditProcedureNoteHandler>(Status.InProgress, 0, (t, p) =>
+            t.Fixture.Create<EditProcedureNoteHandler>().Handle(
+                new EditProcedureNoteCommand(p.Id, p.AddNote().Id, "Synthetic note, edited.", 1, Staff), t.Token));
         yield return Case<UpdateProcedureStageNotesHandler>(Status.InProgress, 0, (t, p) =>
             t.Fixture.Create<UpdateProcedureStageNotesHandler>().Handle(
                 new UpdateProcedureStageNotesCommand(p.Id, p.StageAt(1).Id, "Synthetic notes.", Staff), t.Token));

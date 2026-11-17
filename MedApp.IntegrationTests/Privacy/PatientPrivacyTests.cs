@@ -13,6 +13,9 @@ using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
 using MedApp.IntegrationTests.Common;
+using MedApp.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Mvc;
 using static MedApp.IntegrationTests.Common.Constants.IntegrationTestConstants;
 
@@ -184,11 +187,17 @@ public sealed class PatientPrivacyTests : IntegrationTest
         (await _admin.PatchAsJsonAsync(ProcedureUrl(procedure.Id), new UpdatePatientProcedureRequest
             {
                 Title = $"Procedure for {Canary}",
-                Notes = $"More about {Canary}",
                 DueDate = UkToday.AddDays(7),
                 Priority = "High",
             }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
+        // A note about the canary, edited, so two versions hold it; and the old single notes field, kept for a rollout.
+        var note = await (await _admin.PostAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes", new AddProcedureNoteRequest { Text = $"More about {Canary}" }))
+            .ReadAsAsync<PatientProcedureNoteResponse>(HttpStatusCode.Created);
+        (await _admin.PutAsJsonAsync($"{ProcedureUrl(procedure.Id)}/notes/{note.Id}",
+                new EditProcedureNoteRequest { Text = $"Even more about {Canary}", ExpectedVersion = 1 }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        await ExecuteSqlAsync($"UPDATE PatientProcedures SET Notes = {"Legacy notes about " + Canary} WHERE Id = {procedure.Id}");
         // Another admin watching cancellations, so they have a monitoring notification about this procedure too.
         var watcher = await CreateStaffAsync(AdminRole, UserRole);
         (await watcher.Client.PostAsJsonAsync("/api/monitoring/rules", new SaveMonitoringRuleRequest { Event = "ProcedureCancelled" }))
@@ -264,6 +273,17 @@ public sealed class PatientPrivacyTests : IntegrationTest
             var body = await (await client.GetAsync(url)).ShouldHaveStatusAsync(HttpStatusCode.OK);
             (await body.Content.ReadAsStringAsync()).Should().NotContainEquivalentOf(Canary, url);
         }
+
+        // The note's versions and the old notes field are scrubbed in the database too (no endpoint reads them all).
+        var stored = await RunInScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<MedAppDbContext>();
+            var versions = await db.PatientProcedureNoteVersions.AsNoTracking().Where(v => v.PatientId == patient.Id).Select(v => v.Text).ToListAsync();
+            var legacy = await db.PatientProcedures.AsNoTracking().Where(p => p.Id == procedure.Id).Select(p => p.LegacyNotes).SingleAsync();
+            return (versions, legacy);
+        });
+        stored.versions.Should().HaveCount(2).And.AllBe(PatientAnonymiser.RemovedText);
+        stored.legacy.Should().Be(PatientAnonymiser.RemovedText);
 
         // Every file is deleted (its bytes wait for the purge), renamed, and can't be downloaded.
         var listed = await (await _admin.GetAsync($"/api/attachments?patientId={patient.Id}&includeDeleted=true"))
