@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 0.2 (draft template), 16 November 2026: adds staff calendars and appointments, merged with the email address and two-factor authentication bullets (#86, added without a version of their own); 0.3 (draft template), 17 November 2026: adds meetings and personal calendar templates (review of #99) |
+| **Version** | 0.2 (draft template), 16 November 2026: adds staff calendars and appointments, merged with the email address and two-factor authentication bullets (#86, added without a version of their own); 0.3 (draft template), 17 November 2026: adds meetings and personal calendar templates (review of #99); 0.4 (draft template), the same day: adds requests to delete procedure notes (`feature/note-deletion`) |
 | **For** | Customers, to give to their staff who use MedApp, or to add to their staff privacy notice |
 | **Prepared by** | [Company name], the supplier of MedApp |
 
@@ -25,7 +25,7 @@
 > - **Two-factor authentication, if you turn it on:** the key your authenticator app shares with MedApp, and your one-time recovery codes.
 > - **Your settings:** your display preferences, accessibility settings and saved searches. They're stored with your account so they follow you between computers, and in your browser.
 > - **Your notepad:** what you write in it, with when you last changed it. Only you can see it. It's kept with your account, never in your browser, and cleared once you've gone 30 days without changing it at all (while you use it, everything in it stays), or when you clear it or your account is deleted. It's for jottings: anything about a patient belongs in their record (use Add note to procedure), not in the notepad, where it isn't part of their record.
-> - **Your notifications:** for example when someone assigns you a procedure (you can turn that one off in Account Settings), books, moves or cancels one of your appointments, or invites you to a meeting, moves it or cancels it (these quote the meeting's title).
+> - **Your notifications:** for example when someone assigns you a procedure (you can turn that one off in Account Settings), books, moves or cancels one of your appointments, or invites you to a meeting, moves it or cancels it (these quote the meeting's title). If you ask for a note to be deleted, every admin is told that you asked (not your reason), and you're told whether it was deleted or kept; your request, with your name and reason, is kept with the patient's record and is in their copy of it if they ask for one.
 > - **If you're an admin, your monitoring rules:** what you've asked to be told about, and about whom.
 >
 > **Why.** To give you secure access to the records you need for your work; to book patients' appointments around your time; to keep an accurate, accountable record of patients' care; to protect patients' information by detecting and investigating misuse; and to keep the system secure.
