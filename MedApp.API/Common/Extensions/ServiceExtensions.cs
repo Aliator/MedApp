@@ -64,7 +64,11 @@ public static class ServiceExtensions
         services.AddScoped<IActivityContext, HttpActivityContext>();
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
         services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
-        services.AddOptions<NotepadOptions>().BindConfiguration(NotepadOptions.Section);
+        // Zero or less would clear every notepad as it's read, and refuse every save: stop at startup instead.
+        services.AddOptions<NotepadOptions>()
+            .BindConfiguration(NotepadOptions.Section)
+            .Validate(options => options.IsValid, NotepadOptions.InvalidKeepDays)
+            .ValidateOnStart();
 
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.
         services.AddOptions<SecurityHeadersOptions>().BindConfiguration(SecurityHeadersOptions.Section);

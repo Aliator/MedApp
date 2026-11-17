@@ -81,6 +81,39 @@ public sealed class ProcedureNoteMapperTests
     }
 
     [Test]
+    public void FirstNoteText_IsTheOldestNotesText()
+    {
+        var procedure = CreateProcedure();
+        procedure.LegacyNotes = "Synthetic old field.";
+        procedure.AddNote(text: "Synthetic newer note.", createdAt: Now.AddHours(-1));
+        procedure.AddNote(text: "Synthetic first note.", createdAt: Now.AddDays(-3));
+
+        ProcedureNoteMapper.FirstNoteText(procedure).Should().Be("Synthetic first note.");
+    }
+
+    [Test]
+    public void FirstNoteText_NoNotes_IsTheOldField()
+    {
+        var procedure = CreateProcedure();
+        procedure.LegacyNotes = "Synthetic text an older copy of the API wrote.";
+
+        ProcedureNoteMapper.FirstNoteText(procedure).Should().Be(procedure.LegacyNotes);
+    }
+
+    [Test]
+    public void ProcedureMapper_ToResponse_KeepsTheOldNotesStringForOldPages()
+    {
+        var procedure = CreateProcedure();
+        procedure.AddNote(text: "Synthetic first note.", createdAt: Now.AddDays(-3));
+        procedure.AddNote(text: "Synthetic newer note.", createdAt: Now.AddHours(-1));
+
+        var response = ProcedureMapper.ToResponse(procedure, Usernames, Now, viewerId: Staff.UserId);
+
+        response.Notes.Should().Be("Synthetic first note.");
+        response.NoteList.Should().HaveCount(2);
+    }
+
+    [Test]
     public void ProcedureMapper_ToResponse_CarriesTheNotesForTheViewer()
     {
         var procedure = CreateProcedure(Status.Completed, finishedStages: 3);
@@ -90,8 +123,8 @@ public sealed class ProcedureNoteMapperTests
         var response = ProcedureMapper.ToResponse(procedure, Usernames, Now, viewerId: Staff.UserId);
 
         response.CanAddNotes.Should().BeTrue("notes can be added after completion");
-        response.Notes.Should().HaveCount(2);
-        response.Notes.Single(n => n.CanEdit).Id.Should().Be(own.Id);
+        response.NoteList.Should().HaveCount(2);
+        response.NoteList.Single(n => n.CanEdit).Id.Should().Be(own.Id);
         ProcedureMapper.UserIds(procedure).Should().Contain(OtherUserId);
     }
 
@@ -105,7 +138,7 @@ public sealed class ProcedureNoteMapperTests
         var response = ProcedureMapper.ToResponse(procedure, Usernames, Now, viewerId: Staff.UserId);
 
         response.CanAddNotes.Should().BeFalse();
-        response.Notes.Should().ContainSingle().Which.CanEdit.Should().BeFalse();
+        response.NoteList.Should().ContainSingle().Which.CanEdit.Should().BeFalse();
     }
 
     [Test]
@@ -120,6 +153,6 @@ public sealed class ProcedureNoteMapperTests
 
         response.ReadOnlyReason.Should().Be(PatientRules.WhyCantChange(patient));
         response.CanAddNotes.Should().BeFalse();
-        response.Notes.Single().CanEdit.Should().BeFalse();
+        response.NoteList.Single().CanEdit.Should().BeFalse();
     }
 }

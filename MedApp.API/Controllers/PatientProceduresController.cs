@@ -113,11 +113,13 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
             request.Title,
             request.DueDate,
             request.Priority,
-            User.ToProcedureActor()), ct));
+            User.ToProcedureActor(),
+            request.Notes), ct));
 
     /// <summary>
     /// Adds a note to a procedure, by the signed-in user: whenever its details can be edited, so also once it's
     /// Completed, but not when Cancelled or Archived (409). Audited (NoteAdded, with the note's ID and version only).
+    /// The 201's Location is the procedure, which the note is read with.
     /// </summary>
     [HttpPost("{id:guid}/notes")]
     [ProducesResponseType(typeof(PatientProcedureNoteResponse), StatusCodes.Status201Created)]
@@ -128,7 +130,8 @@ public sealed class PatientProceduresController(IMediator mediator) : Controller
     public async Task<IActionResult> AddProcedureNote(Guid id, [FromBody] AddProcedureNoteRequest request, CancellationToken ct)
     {
         var note = await mediator.Send(new AddProcedureNoteCommand(id, request.Text, User.ToProcedureActor()), ct);
-        return Created($"/api/procedures/patient-procedures/{id}/notes/{note.Id}", note);
+        // A note has no address of its own: it's read with its procedure.
+        return Created($"/api/procedures/patient-procedures/{id}", note);
     }
 
     /// <summary>

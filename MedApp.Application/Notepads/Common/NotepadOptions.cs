@@ -11,4 +11,10 @@ public sealed class NotepadOptions
     /// anything about a patient belongs in their record.
     /// </summary>
     public int KeepDays { get; set; } = 30;
+
+    /// <summary>Said when <see cref="KeepDays"/> isn't at least a day, which stops the API at startup.</summary>
+    public const string InvalidKeepDays = "Notepad:KeepDays must be at least 1.";
+
+    /// <summary>Whether the settings can be used: a notepad is kept for at least a day.</summary>
+    public bool IsValid => KeepDays >= 1;
 }

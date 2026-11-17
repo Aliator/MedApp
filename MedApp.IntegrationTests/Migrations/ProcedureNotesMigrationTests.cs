@@ -8,7 +8,8 @@ namespace MedApp.IntegrationTests.Migrations;
 
 /// <summary>
 /// <c>AddedProcedureNotes</c> against a real SQL Server: each procedure's old single notes field, if it has any text,
-/// becomes its first note, by whoever created it (its Created audit entry) or nobody, with version 1; the old column
+/// becomes its first note, by whoever created it (its Created audit entry) or nobody, or nobody when someone else edited
+/// it, marked as edited at the last edit, with version 1; the old column
 /// stays as it was, for API copies from before; and down and up again work. The rows are synthetic, inserted with SQL
 /// at the migration before.
 /// </summary>
@@ -91,6 +92,41 @@ public sealed class ProcedureNotesMigrationTests
     }
 
     [Test]
+    public async Task Up_NotesEditedByOthers_HaveNoAuthor_AndAreMarkedEditedAtTheLastEdit()
+    {
+        // The creator wrote the notes, then another member of staff added to them.
+        var mixed = await InsertProcedureAsync("Synthetic notes by two people.", Creator, "synthetic.creator");
+        await InsertDetailsEditAsync(mixed, Creator, "synthetic.creator", CreatedAt.AddDays(1), notes: true);
+        await InsertDetailsEditAsync(mixed, LaterCreator, "synthetic.colleague", CreatedAt.AddDays(3), notes: true);
+        // Only the creator edited them.
+        var ownEdits = await InsertProcedureAsync("Synthetic notes by their creator only.", Creator, "synthetic.creator");
+        await InsertDetailsEditAsync(ownEdits, Creator, "synthetic.creator", CreatedAt.AddDays(2), notes: true);
+        // Someone else edited the title, not the notes.
+        var titleOnly = await InsertProcedureAsync("Synthetic notes nobody else touched.", Creator, "synthetic.creator");
+        await InsertDetailsEditAsync(titleOnly, LaterCreator, "synthetic.colleague", CreatedAt.AddDays(4), notes: false);
+        // No creator recorded, and edited.
+        var noCreator = await InsertProcedureAsync("Synthetic imported notes, edited.", null, null);
+        await InsertDetailsEditAsync(noCreator, Creator, "synthetic.creator", CreatedAt.AddDays(5), notes: true);
+
+        await _context.GetService<IMigrator>().MigrateAsync(Migration);
+
+        var notes = await _context.PatientProcedureNotes.AsNoTracking().ToDictionaryAsync(n => n.PatientProcedureId);
+        var versions = await _context.PatientProcedureNoteVersions.AsNoTracking().ToDictionaryAsync(v => v.PatientProcedureId);
+
+        notes[mixed].Should().BeEquivalentTo(new { AuthorUserId = (Guid?)null, LastEditedAtUtc = (DateTime?)CreatedAt.AddDays(3), CreatedAtUtc = CreatedAt });
+        versions[mixed].Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty, AtUtc = CreatedAt.AddDays(3), Version = 1 });
+
+        notes[ownEdits].Should().BeEquivalentTo(new { AuthorUserId = (Guid?)Creator, LastEditedAtUtc = (DateTime?)CreatedAt.AddDays(2) });
+        versions[ownEdits].Should().BeEquivalentTo(new { UserId = (Guid?)Creator, Username = "synthetic.creator", AtUtc = CreatedAt.AddDays(2) });
+
+        notes[titleOnly].Should().BeEquivalentTo(new { AuthorUserId = (Guid?)Creator, LastEditedAtUtc = (DateTime?)null });
+        versions[titleOnly].AtUtc.Should().Be(CreatedAt);
+
+        notes[noCreator].Should().BeEquivalentTo(new { AuthorUserId = (Guid?)null, LastEditedAtUtc = (DateTime?)CreatedAt.AddDays(5) });
+        versions[noCreator].Should().BeEquivalentTo(new { UserId = (Guid?)null, Username = string.Empty });
+    }
+
+    [Test]
     public async Task Down_AfterUp_DropsTheNotesAndKeepsTheOldColumn_AndUpAgainWorks()
     {
         var procedure = await InsertProcedureAsync("Synthetic notes.", Creator, "synthetic.creator");
@@ -121,6 +157,18 @@ public sealed class ProcedureNotesMigrationTests
         if (creator is { } userId)
             await InsertCreatedEntryAsync(id, userId, creatorName!, CreatedAt);
         return id;
+    }
+
+    /// <summary>A DetailsUpdated audit entry (Action 1) changing the notes, or only the title, as the old edit wrote it.</summary>
+    private Task InsertDetailsEditAsync(Guid procedureId, Guid userId, string username, DateTime atUtc, bool notes)
+    {
+        var details = notes
+            ? """{"changes":{"notes":{"from":"Synthetic before","to":"Synthetic after"}}}"""
+            : """{"changes":{"title":{"from":"Synthetic procedure","to":"Synthetic renamed"}}}""";
+        return _context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO PatientProcedureAuditEntries (Id, PatientProcedureId, ProcedureTitle, PatientId, Action, UserId, Username, AtUtc, Details)
+            VALUES ({Guid.NewGuid()}, {procedureId}, N'Synthetic procedure', {_patientId}, 1, {userId}, {username}, {atUtc}, {details})
+            """);
     }
 
     private Task InsertCreatedEntryAsync(Guid procedureId, Guid userId, string username, DateTime atUtc) =>

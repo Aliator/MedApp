@@ -75,7 +75,7 @@ public sealed class PatientProceduresControllerTests
         ExpectSentAndOk(new GetPatientProcedureByIdQuery(RecordId, UserId), await Controller.GetPatientProcedureById(RecordId, _cts.Token));
 
     [Test]
-    public async Task AddProcedureNote_ReturnsTheNoteWithItsAddress()
+    public async Task AddProcedureNote_ReturnsTheNoteWithItsProceduresAddress()
     {
         var note = _fixture.Create<PatientProcedureNoteResponse>();
         _mediator = new RecordingMediator(_ => note);
@@ -86,7 +86,7 @@ public sealed class PatientProceduresControllerTests
         _mediator.Request.Should().Be(new AddProcedureNoteCommand(RecordId, request.Text, Actor));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
-        created.Location.Should().Be($"/api/procedures/patient-procedures/{RecordId}/notes/{note.Id}");
+        created.Location.Should().Be($"/api/procedures/patient-procedures/{RecordId}");
         created.Value.Should().Be(note);
     }
 
@@ -128,7 +128,7 @@ public sealed class PatientProceduresControllerTests
 
         var result = await Controller.UpdatePatientProcedure(RecordId, request, _cts.Token);
 
-        ExpectSentAndOk(new UpdatePatientProcedureCommand(RecordId, request.Title, request.DueDate, request.Priority, Actor), result);
+        ExpectSentAndOk(new UpdatePatientProcedureCommand(RecordId, request.Title, request.DueDate, request.Priority, Actor, request.Notes), result);
     }
 
     [Test]

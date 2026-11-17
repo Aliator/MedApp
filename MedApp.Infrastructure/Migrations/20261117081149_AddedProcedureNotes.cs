@@ -81,8 +81,8 @@ namespace MedApp.Infrastructure.Migrations
                 column: "PatientId");
 
             // Each procedure's old notes, if any text, as its first note. The author is the user of its Created audit
-            // entry (Action 0), the first if there were ever two; without one, nobody. Blank notes (spaces, tabs or line
-            // breaks only) are left out.
+            // entry (Action 0), the first if there were ever two; without one, nobody (and see the edits below). Blank
+            // notes (spaces, tabs or line breaks only) are left out.
             migrationBuilder.Sql("""
                 INSERT INTO PatientProcedureNotes (Id, PatientProcedureId, AuthorUserId, Text, CreatedAtUtc, LastEditedAtUtc, Version)
                 SELECT NEWID(), p.Id, created.UserId, p.Notes, p.CreatedAt, NULL, 1
@@ -96,10 +96,38 @@ namespace MedApp.Infrastructure.Migrations
                 WHERE TRIM(CHAR(9) + CHAR(10) + CHAR(13) + CHAR(32) FROM p.Notes) <> N'';
                 """);
 
-            // And its first version, with the username the Created entry recorded (empty when unknown).
+            // The old field could be edited by anyone, so its text may not all be the creator's. Each edit of it is a
+            // DetailsUpdated audit entry (Action 1) with changes.notes. When anyone but the creator edited it, its author
+            // is unknown (null: shown as "Unknown", and nobody can edit it), rather than crediting the creator with
+            // someone else's words. Either way, an edited note is marked as edited, at the last edit.
+            migrationBuilder.Sql("""
+                WITH NotesEdits AS (
+                    SELECT a.PatientProcedureId, a.UserId, a.AtUtc
+                    FROM PatientProcedureAuditEntries a
+                    WHERE a.Action = 1
+                      AND CASE WHEN ISJSON(a.Details) = 1 THEN JSON_QUERY(a.Details, '$.changes.notes') END IS NOT NULL
+                )
+                UPDATE n
+                SET LastEditedAtUtc = (SELECT MAX(e.AtUtc) FROM NotesEdits e WHERE e.PatientProcedureId = n.PatientProcedureId),
+                    AuthorUserId = CASE
+                        WHEN EXISTS (
+                            SELECT 1 FROM NotesEdits e
+                            WHERE e.PatientProcedureId = n.PatientProcedureId
+                              AND (n.AuthorUserId IS NULL OR e.UserId <> n.AuthorUserId))
+                        THEN NULL
+                        ELSE n.AuthorUserId
+                    END
+                FROM PatientProcedureNotes n
+                WHERE EXISTS (SELECT 1 FROM NotesEdits e WHERE e.PatientProcedureId = n.PatientProcedureId);
+                """);
+
+            // And its first version: by its author, with the username the Created entry recorded (empty when the author
+            // is unknown), at the last edit of the old field, or its creation if it was never edited.
             migrationBuilder.Sql("""
                 INSERT INTO PatientProcedureNoteVersions (Id, NoteId, Version, PatientProcedureId, PatientId, Text, UserId, Username, AtUtc)
-                SELECT NEWID(), n.Id, 1, n.PatientProcedureId, p.PatientId, n.Text, n.AuthorUserId, COALESCE(created.Username, N''), n.CreatedAtUtc
+                SELECT NEWID(), n.Id, 1, n.PatientProcedureId, p.PatientId, n.Text, n.AuthorUserId,
+                       CASE WHEN n.AuthorUserId IS NULL THEN N'' ELSE COALESCE(created.Username, N'') END,
+                       COALESCE(n.LastEditedAtUtc, n.CreatedAtUtc)
                 FROM PatientProcedureNotes n
                 JOIN PatientProcedures p ON p.Id = n.PatientProcedureId
                 OUTER APPLY (

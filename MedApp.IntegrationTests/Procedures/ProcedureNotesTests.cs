@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using MedApp.Application.Procedures.Common;
+using MedApp.Application.Procedures.PatientProcedures.Commands.UpdatePatientProcedure;
 using MedApp.Contracts.Patients.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Requests;
 using MedApp.Contracts.Procedures.PatientProcedures.Responses;
@@ -61,9 +62,9 @@ public sealed class ProcedureNotesTests : IntegrationTest
         first.LastEditedAtUtc.Should().BeNull();
         var asStaff = await GetAsync(_staff.Client, procedure.Id);
         asStaff.CanAddNotes.Should().BeTrue();
-        asStaff.Notes.Select(n => (n.Id, n.CanEdit)).Should().Equal((second.Id, false), (first.Id, true));
-        asStaff.Notes[0].AuthorUsername.Should().Be(AdminUsername);
-        (await GetAsync(_admin, procedure.Id)).Notes.Select(n => n.CanEdit).Should().Equal(true, false);
+        asStaff.NoteList.Select(n => (n.Id, n.CanEdit)).Should().Equal((second.Id, false), (first.Id, true));
+        asStaff.NoteList[0].AuthorUsername.Should().Be(AdminUsername);
+        (await GetAsync(_admin, procedure.Id)).NoteList.Select(n => n.CanEdit).Should().Equal(true, false);
     }
 
     [Test]
@@ -104,7 +105,7 @@ public sealed class ProcedureNotesTests : IntegrationTest
             }))
             .ReadAsAsync<PatientProcedureResponse>(HttpStatusCode.Created);
 
-        procedure.Notes.Should().ContainSingle().Which.Should().BeEquivalentTo(new { Text = FirstText, AuthorUsername = _staff.Username, CanEdit = true });
+        procedure.NoteList.Should().ContainSingle().Which.Should().BeEquivalentTo(new { Text = FirstText, AuthorUsername = _staff.Username, CanEdit = true });
     }
 
     [Test]
@@ -134,7 +135,7 @@ public sealed class ProcedureNotesTests : IntegrationTest
             .Title.Should().Be(ProcedureNotes.OnlyTheAuthorMessage);
         await (await EditAsync(_admin, procedure.Id, staffNote.Id, EditedText, 1)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
 
-        (await GetAsync(_admin, procedure.Id)).Notes.Should().AllSatisfy(n => n.Text.Should().Be(FirstText));
+        (await GetAsync(_admin, procedure.Id)).NoteList.Should().AllSatisfy(n => n.Text.Should().Be(FirstText));
     }
 
     [Test]
@@ -148,7 +149,50 @@ public sealed class ProcedureNotesTests : IntegrationTest
         var stale = await (await EditAsync(_staff.Client, procedure.Id, note.Id, "Synthetic stale edit.", 1)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict);
 
         stale.Title.Should().Be(ProcedureNotes.ChangedMeanwhileMessage);
-        (await GetAsync(_staff.Client, procedure.Id)).Notes.Single().Should().BeEquivalentTo(new { Text = EditedText, Version = 2 });
+        (await GetAsync(_staff.Client, procedure.Id)).NoteList.Single().Should().BeEquivalentTo(new { Text = EditedText, Version = 2 });
+    }
+
+    [Test]
+    public async Task Add_Is201WithTheProcedureAsItsLocation()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin);
+
+        var response = await AddAsync(_staff.Client, procedure.Id, FirstText);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location!.OriginalString.Should().Be(ProcedureUrl(procedure.Id));
+        (await _staff.Client.GetAsync(response.Headers.Location)).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Get_KeepsTheOldNotesStringBesideTheList_ForPagesLoadedBeforeTheChange()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin);
+        await (await AddAsync(_staff.Client, procedure.Id, FirstText)).ShouldHaveStatusAsync(HttpStatusCode.Created);
+        Clock.Advance(TimeSpan.FromMinutes(5));
+        await (await AddAsync(_admin, procedure.Id, EditedText)).ShouldHaveStatusAsync(HttpStatusCode.Created);
+
+        var json = await (await _staff.Client.GetAsync(ProcedureUrl(procedure.Id))).Content.ReadAsStringAsync();
+        var read = await GetAsync(_staff.Client, procedure.Id);
+
+        json.Should().Contain("\"notes\":\"").And.Contain("\"noteList\":[");
+        read.Notes.Should().Be(FirstText, "it's the first note's text, as a string");
+        read.NoteList.Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task Update_StillSendingTheOldNotesField_Is400AndChangesNothing()
+    {
+        var procedure = await CreatePatientWithProcedureAsync(_admin);
+
+        var refused = await (await _staff.Client.PatchAsJsonAsync(ProcedureUrl(procedure.Id),
+                new UpdatePatientProcedureRequest { Title = "Synthetic renamed", Notes = "Synthetic notes from an old page." }))
+            .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+
+        refused.Errors.Should().ContainKey("Notes").WhoseValue.Should().Equal(UpdatePatientProcedureValidator.NotesMovedMessage);
+        var reloaded = await GetAsync(_staff.Client, procedure.Id);
+        reloaded.Title.Should().Be(procedure.Title);
+        reloaded.NoteList.Should().BeEmpty();
     }
 
     [Test]
@@ -190,7 +234,7 @@ public sealed class ProcedureNotesTests : IntegrationTest
         await (await EditAsync(_staff.Client, procedure.Id, note.Id, EditedText, 1)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         var reloaded = await GetAsync(_staff.Client, procedure.Id);
         reloaded.CanAddNotes.Should().BeFalse();
-        reloaded.Notes.Single().CanEdit.Should().BeFalse();
+        reloaded.NoteList.Single().CanEdit.Should().BeFalse();
     }
 
     [Test]

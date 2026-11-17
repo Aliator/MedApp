@@ -86,9 +86,9 @@ public sealed class UpdatePatientProcedureHandlerTests : ProcedureHandlerTestBas
 
         var response = await Handler.Handle(new UpdatePatientProcedureCommand(procedure.Id, "Renamed", null, null, Staff), CancellationToken.None);
 
-        response.Notes.Should().HaveCount(2);
-        response.Notes.Single(n => n.CanEdit).Id.Should().Be(own.Id);
-        response.Notes.Single(n => !n.CanEdit).AuthorUsername.Should().Be(OtherUsername);
+        response.NoteList.Should().HaveCount(2);
+        response.NoteList.Single(n => n.CanEdit).Id.Should().Be(own.Id);
+        response.NoteList.Single(n => !n.CanEdit).AuthorUsername.Should().Be(OtherUsername);
     }
 
     [Test]

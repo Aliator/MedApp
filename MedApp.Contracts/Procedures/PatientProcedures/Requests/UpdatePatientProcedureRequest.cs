@@ -13,4 +13,10 @@ public sealed class UpdatePatientProcedureRequest
 
     /// <summary>Low, Medium, High or Urgent.</summary>
     public string? Priority { get; set; }
+
+    /// <summary>
+    /// No longer accepted: anything but null is a 400 saying notes are now added on the procedure's page. It's kept, for
+    /// one release, so a page loaded before notes became a list is told, rather than having its change silently dropped.
+    /// </summary>
+    public string? Notes { get; set; }
 }

@@ -3,6 +3,7 @@ using FluentAssertions;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Procedures.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Application.Procedures.Timeline.Common;
 using MedApp.Application.Procedures.Timeline.Queries.GetPatientTimeline;
@@ -307,7 +308,7 @@ public sealed class GetPatientTimelineHandlerTests
         var edited = CreateEntry(Action.NoteEdited, Now.AddHours(-1), $$"""{"noteId":"{{noteId}}","version":2}""");
         GivenRows(new(edited, CurrentTitle), new(added, CurrentTitle));
         _audit
-            .Setup(r => r.GetNoteVersionsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetNoteVersionsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<NoteVersionKey>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([NoteVersion(noteId, 1, "Synthetic first."), NoteVersion(noteId, 2, "Synthetic second.")]);
 
         var result = await _handler.Handle(CreateTimelineQuery(isAdmin: true), CancellationToken.None);
@@ -316,7 +317,9 @@ public sealed class GetPatientTimelineHandlerTests
             ("NoteEdited", "Synthetic first.", "Synthetic second."),
             ("NoteAdded", null, "Synthetic first."));
         _audit.Verify(r => r.GetNoteVersionsAsync(
-            It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { noteId })), It.IsAny<CancellationToken>()), Times.Once);
+            CreateTimelineQuery(isAdmin: true).PatientId,
+            It.Is<IReadOnlyCollection<NoteVersionKey>>(keys => keys.SequenceEqual(new[] { new NoteVersionKey(noteId, 2), new NoteVersionKey(noteId, 1) })),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -330,7 +333,7 @@ public sealed class GetPatientTimelineHandlerTests
         var change = result.Items.Should().ContainSingle().Which.Changes.Should().ContainSingle().Subject;
         change.Field.Should().Be(TimelineMapper.NoteField);
         change.To.Should().BeNull();
-        _audit.Verify(r => r.GetNoteVersionsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _audit.Verify(r => r.GetNoteVersionsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<NoteVersionKey>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -340,7 +343,7 @@ public sealed class GetPatientTimelineHandlerTests
 
         await _handler.Handle(CreateTimelineQuery(isAdmin: true), CancellationToken.None);
 
-        _audit.Verify(r => r.GetNoteVersionsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _audit.Verify(r => r.GetNoteVersionsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<NoteVersionKey>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static PatientProcedureNoteVersion NoteVersion(Guid noteId, int version, string text) => new()

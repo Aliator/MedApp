@@ -69,6 +69,13 @@ public sealed class PatientProcedureResponse
     public List<PatientProcedureStageResponse> Stages { get; set; } = [];
     public List<PatientProcedureAssignmentResponse> Assignments { get; set; } = [];
 
+    /// <summary>
+    /// Deprecated: the procedure's first note's text (or, with none, the old single notes field), as a string, as it was
+    /// before notes became a list. It's kept for one release, so a page loaded before that change doesn't fail on a list
+    /// here. Read <see cref="NoteList"/>. Remove it with the old column (<c>docs/todo.md</c>).
+    /// </summary>
+    public string Notes { get; set; } = string.Empty;
+
     /// <summary>Its notes, newest first.</summary>
-    public List<PatientProcedureNoteResponse> Notes { get; set; } = [];
+    public List<PatientProcedureNoteResponse> NoteList { get; set; } = [];
 }

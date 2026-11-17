@@ -130,7 +130,8 @@ public static class ProcedureMapper
                     AssignedAtUtc = a.AssignedAtUtc
                 })
                 .ToList(),
-            Notes = ProcedureNoteMapper.ToResponses(
+            Notes = ProcedureNoteMapper.FirstNoteText(procedure),
+            NoteList = ProcedureNoteMapper.ToResponses(
                 procedure.Notes, usernames, viewerId, canChange && ProcedureWorkflow.CanChangeNotes(procedure))
         };
     }

@@ -26,4 +26,13 @@ public sealed class UpdatePatientProcedureValidatorTests
     {
         _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, "Soon", Staff)).IsValid.Should().BeFalse();
     }
+
+    [TestCase("")]
+    [TestCase("Synthetic notes from a page loaded before the change.")]
+    public void Validate_OldNotesField_FailsSayingWhereNotesGoNow(string notes)
+    {
+        var result = _validator.Validate(new UpdatePatientProcedureCommand(Guid.NewGuid(), null, null, null, Staff, notes));
+
+        result.Errors.Should().ContainSingle().Which.ErrorMessage.Should().Be(UpdatePatientProcedureValidator.NotesMovedMessage);
+    }
 }

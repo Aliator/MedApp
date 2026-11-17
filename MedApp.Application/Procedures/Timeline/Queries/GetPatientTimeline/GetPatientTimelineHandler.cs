@@ -53,7 +53,7 @@ public sealed class GetPatientTimelineHandler(
 
         // Admins see the text of the notes added and edited, from the note versions (the audit holds none).
         if (request.IsAdmin)
-            page = await WithNoteTextAsync(page, cancellationToken);
+            page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
 
         return new PatientTimelinePageResponse
         {
@@ -72,7 +72,7 @@ public sealed class GetPatientTimelineHandler(
     }
 
     /// <summary>The page with each note entry's text, and for an edit the text before, from the note versions.</summary>
-    private async Task<List<Entry>> WithNoteTextAsync(List<Entry> page, CancellationToken ct)
+    private async Task<List<Entry>> WithNoteTextAsync(Guid patientId, List<Entry> page, CancellationToken ct)
     {
         var keys = page
             .Select(e => e.Audit is { } audit ? ProcedureNotes.VersionOf(audit.Entry) : null)
@@ -81,7 +81,7 @@ public sealed class GetPatientTimelineHandler(
         if (keys.Count == 0)
             return page;
 
-        var versions = (await auditRepository.GetNoteVersionsAsync(keys.Select(k => k.NoteId).Distinct().ToList(), ct))
+        var versions = (await auditRepository.GetNoteVersionsAsync(patientId, keys.Distinct().ToList(), ct))
             .ToDictionary(v => new NoteVersionKey(v.NoteId, v.Version), v => v.Text);
 
         return page
