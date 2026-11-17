@@ -108,7 +108,7 @@ export interface CalendarGridProps {
   isCompact?: boolean;
   /**
    * How long each row is: 15 minutes (the default), or 5, when the rows stay as tall, so the day is three times taller
-   * and scrolls inside the grid, with lighter quarter-hour times down the side. Selecting, the keyboard and dragging
+   * and scrolls inside the grid, with smaller quarter-hour times down the side. Selecting, the keyboard and dragging
    * all go a row at a time. Switching keeps the same time at the top.
    */
   rowMinutes?: CalendarRowMinutes;
@@ -631,7 +631,8 @@ export function CalendarGrid({
     onItemOpen?.(item, column);
   };
 
-  // The hours down the side, and with 5-minute rows the quarter hours between them, lighter.
+  // The hours down the side, and with 5-minute rows the quarter hours between them, smaller. Both are in the full
+  // secondary text colour: anything fainter falls under 4.5:1 (WCAG 1.4.3).
   const hourLabels = useMemo(() => {
     const first = layouts.find((l) => l.day.isWorkingDay) ?? layouts[0];
     if (!first) return [];
@@ -1089,8 +1090,7 @@ const GRID_CSS = `
 .medapp-calendar .mc-slot[data-line="half"] { border-block-start-style: solid; }
 .medapp-calendar .mc-slot[data-line="minor"] { border-block-start-color: color-mix(in srgb, var(--color-border) 50%, transparent); }
 .medapp-calendar[data-row-minutes="5"] .mc-slot[data-line="quarter"] { border-block-start-style: solid; }
-.medapp-calendar .mc-hour[data-quarter] { opacity: 0.7; }
-.medapp-calendar .mc-hour[data-quarter] .astryx-text { font-size: var(--font-size-xs); }
+.medapp-calendar .mc-hour[data-quarter] .astryx-text { font-size: calc((var(--font-size-xs) + var(--font-size-sm)) / 2); }
 .medapp-calendar .mc-slot[data-line="hour"] { border-block-start: 1px solid var(--color-border-emphasized); }
 .medapp-calendar .mc-slot[data-past], .medapp-calendar .mc-slot[data-unavailable], .medapp-calendar .mc-col[data-past] .mc-slot { background: var(--color-background-muted); }
 .medapp-calendar button.mc-slot { cursor: pointer; transition: background-color var(--duration-fast); }

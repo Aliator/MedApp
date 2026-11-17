@@ -645,7 +645,7 @@ describe('CalendarGrid', () => {
       });
     }
 
-    it('has three times the rows, with lighter quarter hours down the side, and selects 5 minutes at a time', async () => {
+    it('has three times the rows, with smaller quarter hours down the side, and selects 5 minutes at a time', async () => {
       atMondayMorning();
       const {user, onSelectRange} = renderGrid({rowMinutes: 5});
 
@@ -654,6 +654,10 @@ describe('CalendarGrid', () => {
       expect(screen.getAllByRole('button', {name: /, free$/})).toHaveLength(600);
       expect(screen.getByText('08:15').closest('.mc-hour')).toHaveAttribute('data-quarter');
       expect(screen.getByText('09:00').closest('.mc-hour')).not.toHaveAttribute('data-quarter');
+      // Smaller, but never fainter: the secondary text colour at full strength is what passes 4.5:1.
+      const css = document.querySelector('.medapp-calendar style')!.textContent!;
+      expect(css).toMatch(/\.mc-hour\[data-quarter\] \.astryx-text \{ font-size: /);
+      expect(css).not.toMatch(/data-quarter\][^{]*\{[^}]*opacity/);
       expect(document.querySelector('[data-slot="0-1"]')).toHaveAttribute('data-line', 'minor');
       expect(document.querySelector('[data-slot="0-3"]')).toHaveAttribute('data-line', 'quarter');
 
