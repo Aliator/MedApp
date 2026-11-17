@@ -40,6 +40,9 @@ export interface OpenProcedure {
  */
 export const NOTEPAD_SHEET_QUERY = '(max-width: 1023px)';
 
+/** How long the sheet takes to close (its animation), after which the focus is checked again. */
+const FOCUS_AFTER_SHEET_MS = 600;
+
 /** The docked notepad's width. */
 export const NOTEPAD_WIDTH = '24rem';
 
@@ -103,13 +106,25 @@ export function NotepadProvider({children}: {children: ReactNode}) {
     setIsOpen(false);
     storeOpen(false);
     shouldFocus.current = false;
-    // Focus that was in the pane is lost as it goes: give it back to what opened it, or to the side nav's Notepad.
-    setTimeout(() => {
+    // Focus that was in the pane is lost as it goes: give it back to what opened it, or the side nav's Notepad, if
+    // either is still shown; otherwise (a phone, whose nav drawer has closed) to the page's title. Again once the
+    // sheet's closing animation is over, as its own focus return can't find the nav drawer's item either.
+    const restore = () => {
       const active = document.activeElement;
-      if (active && active !== document.body && active.isConnected) return;
-      const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[data-notepad-toggle]');
-      back?.focus();
-    });
+      const isLost = !active || active === document.body || !active.isConnected || active.closest('[role="region"][aria-label="Notepad"]');
+      if (!isLost) return;
+      const title = document.querySelector<HTMLElement>('main h1, [role="main"] h1');
+      // The first that takes the focus (one that isn't shown can't).
+      for (const place of [opener.current, document.querySelector<HTMLElement>('[data-notepad-toggle]'), title]) {
+        if (!place?.isConnected) continue;
+        // A title takes the focus only from code, and stays out of the tab order.
+        if (place === title && !title.hasAttribute('tabindex')) title.setAttribute('tabindex', '-1');
+        place.focus();
+        if (document.activeElement === place) return;
+      }
+    };
+    setTimeout(restore);
+    setTimeout(restore, FOCUS_AFTER_SHEET_MS);
   }, []);
   const takeFocus = useCallback(() => {
     const should = shouldFocus.current;

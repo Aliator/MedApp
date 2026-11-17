@@ -276,11 +276,11 @@ export const screens: Screen[] = [
   },
   {
     name: 'notepad-open',
-    title: "The notepad docked on the right of a procedure's page (opened from the side nav), the page in its narrow layout beside it",
+    title: "The notepad docked on the right of a procedure's page (opened from the side nav), the page beside it (narrow below 1,784 px)",
     path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
       await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
-      await page.getByRole('complementary', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
+      await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
       await settle(page);
     },
   },
@@ -290,7 +290,7 @@ export const screens: Screen[] = [
     path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
       await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
-      const notepad = page.getByRole('complementary', { name: 'Notepad' });
+      const notepad = page.getByRole('region', { name: 'Notepad' });
       const box = notepad.getByRole('textbox', { name: 'Notepad' });
       await box.waitFor({ state: 'visible' });
       // Whatever the account's notepad holds is what would be added; type a line if it's empty, so there's something to show.

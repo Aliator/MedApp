@@ -1,5 +1,5 @@
 import {act, render, renderHook, screen, waitFor} from '@testing-library/react';
-import type {ReactNode} from 'react';
+import {useState, type ReactNode} from 'react';
 import type {Procedure} from '../../api/procedures';
 import {HalfViewContext} from '../pages/halfView';
 import {NOTEPAD_OPEN_KEY, NotepadProvider, useNotepad, useNotepadDocked, useOfferToNotepad} from './NotepadContext';
@@ -70,6 +70,50 @@ describe('NotepadProvider', () => {
     act(() => unregister());
     act(() => result.current.requestClose());
     expect(result.current.isOpen).toBe(false);
+  });
+
+  it('takes the focus once when its user opens it, never when it reopens as a page loads', () => {
+    localStorage.setItem(NOTEPAD_OPEN_KEY, 'true');
+    const {result} = renderHook(() => useNotepad()!, {wrapper});
+    expect(result.current.takeFocus()).toBe(false);
+
+    act(() => result.current.open());
+    expect(result.current.takeFocus()).toBe(true);
+    expect(result.current.takeFocus()).toBe(false);
+  });
+
+  it("gives the focus back to what opened it, or, when that's gone (a phone's closed nav drawer), the page's title", async () => {
+    function Harness() {
+      const notepad = useNotepad()!;
+      const [hasOpener, setHasOpener] = useState(true);
+      return (
+        <>
+          {hasOpener && <button onClick={notepad.open}>Opener</button>}
+          <button onClick={() => setHasOpener(false)}>Hide opener</button>
+          <button onClick={notepad.close}>Close it</button>
+          <main>
+            <h1>Synthetic page</h1>
+          </main>
+        </>
+      );
+    }
+    render(<Harness />, {wrapper});
+
+    act(() => screen.getByRole('button', {name: 'Opener'}).focus());
+    act(() => screen.getByRole('button', {name: 'Opener'}).click());
+    act(() => (document.activeElement as HTMLElement).blur());
+    act(() => screen.getByRole('button', {name: 'Close it'}).click());
+    act(() => (document.activeElement as HTMLElement).blur());
+    await waitFor(() => expect(screen.getByRole('button', {name: 'Opener'})).toHaveFocus());
+
+    // The opener goes (the nav drawer closed): the page's title takes it, from code only.
+    act(() => screen.getByRole('button', {name: 'Opener'}).click());
+    act(() => screen.getByRole('button', {name: 'Hide opener'}).click());
+    act(() => screen.getByRole('button', {name: 'Close it'}).click());
+    act(() => (document.activeElement as HTMLElement).blur());
+    const title = screen.getByRole('heading', {name: 'Synthetic page'});
+    await waitFor(() => expect(title).toHaveFocus());
+    expect(title).toHaveAttribute('tabindex', '-1');
   });
 
   it('lists the procedure pages open, the left half before the right, and forgets one when it closes', () => {
