@@ -131,7 +131,9 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await heading('Patients');
     await user.click(await halfViewItem(user, 'Audit Log'));
     await heading('Audit Log');
-    const patientsHeader = screen.getByRole('heading', {name: 'Patients', level: 1}).parentElement!.parentElement!;
+    // The Patients page's header: the nearest box round its title that holds a close button.
+    let patientsHeader = screen.getByRole('heading', {name: 'Patients', level: 1}).parentElement!;
+    while (!within(patientsHeader).queryByRole('button', {name: 'Close half view'})) patientsHeader = patientsHeader.parentElement!;
     await user.click(within(patientsHeader).getByRole('button', {name: 'Close half view'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/audit'));

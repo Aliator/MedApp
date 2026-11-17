@@ -28,8 +28,16 @@ export interface PageHeaderProps {
 }
 
 /**
+ * A page's message, beside the title: it starts from no width and takes what the title and the actions leave, but no
+ * less than this, so a long one wraps its own words rather than taking a line of its own and pushing the actions under
+ * it. Only where even this much doesn't fit (a phone, a half view) does it go under the title.
+ */
+const MESSAGE_MIN_INLINE = '12rem';
+
+/**
  * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end and
- * any page message in the middle. Where they don't all fit on one line, the actions wrap under the title. In a half view, it ends with the button that closes that half.
+ * any page message in the middle. Where they don't all fit on one line, the message and then the actions wrap under the
+ * title. In a half view, it ends with the button that closes that half, which stays on the title's line, top right.
  * The line holds the Back link (on pages you drill into) and/or the subtitle, and is the same height either way,
  * so the title and the content below sit in exactly the same place on every page.
  */
@@ -41,7 +49,7 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
     <IconButton label="Close half view" tooltip="Close half view" icon={<Icon icon={AppIcon.Cancel} />} variant="ghost" onClick={onClose} />
   );
 
-  return (
+  const header = (
     // Wraps when the title and the actions don't fit side by side (a phone, a half view): the actions go under the
     // title, and wrap among themselves, rather than running off the side of the page.
     <HStack gap={4} vAlign="center" wrap="wrap">
@@ -71,19 +79,28 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
           </HStack>
         )}
       </VStack>
-      <StackItem size="fill">
+      {/* Fills the line between the title and the actions, so the actions sit at the end. */}
+      <StackItem size="fill" style={message ? {flexBasis: 0, minInlineSize: MESSAGE_MIN_INLINE} : undefined}>
         {message && (
           <HStack hAlign="center" vAlign="center">
             {message}
           </HStack>
         )}
       </StackItem>
-      {(actions || close) && (
+      {actions && (
         <HStack gap={2} vAlign="center" wrap="wrap">
           {actions}
-          {close}
         </HStack>
       )}
+    </HStack>
+  );
+
+  if (!close) return header;
+  // The close button outside the part that wraps, so it never moves under the title.
+  return (
+    <HStack gap={2} vAlign="start">
+      <StackItem size="fill">{header}</StackItem>
+      {close}
     </HStack>
   );
 }

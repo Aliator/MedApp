@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import { ALERT, DIALOG, field, rowAction, settle, waitVisible, type AppName, type ParityData } from './shared';
 
 export interface Screen {
@@ -320,6 +320,28 @@ export const screens: Screen[] = [
     path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Appointments' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-restricted',
+    title: "A restricted patient's procedure at 1366px: the long restricted banner beside the title, the actions on the same line",
+    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      await page.setViewportSize({ width: 1366, height: 768 });
+      await settle(page);
+    },
+  },
+  {
+    name: 'procedure-restricted-half',
+    title: "A restricted patient's procedure in a half view: the banner under the title, Close half view kept top right",
+    path: (d) => `/procedures/${d.restrictedProcedureId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.restrictedProcedureId, 'No restricted patient with a procedure (reset_demo_data makes some).');
+      await page.setViewportSize({ width: 1366, height: 768 });
+      await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/admin/audit'));
+      await page.reload();
       await settle(page);
     },
   },
