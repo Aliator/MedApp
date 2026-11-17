@@ -92,7 +92,7 @@ In development, the confirm email and reset password pages said "This link isn't
   - **Tried in a probe:** one request (none when it was already cached), with and without StrictMode, and gone after the page closes.
   - **The test** "drops the export from the cache when the page closes" (`PatientExportPage.test.tsx:275`) then has to wait for the microtask (`await waitFor(...)`).
   - **Add a test** with `strict: true` that counts one request.
-- **What happened to it:** open, for the author to fix here or record in `docs/todo.md`.
+- **What happened to it:** fixed in the PR. The export is dropped from the cache in a microtask, and only when nothing observes it (`getObserversCount() === 0`), so StrictMode's second run keeps it. A new StrictMode test checks it's asked for once (it fails without the fix), and the existing test waits for the removal.
 
 ### 2. A link pasted into the same tab isn't read, and its token stays in the address (from before this PR)
 
@@ -111,7 +111,7 @@ In development, the confirm email and reset password pages said "This link isn't
   - When the address holds a whole link, reload: `if (parseEmailLink(window.location.hash)) window.location.reload();`. The new page reads and clears it as usual, and nothing from the old link survives (the reset page would otherwise keep showing the old link's "expired" message from `reset.error`).
   - **The finer version:** take the new link into the state, overriding the first read, clear the fragment, and have each page reset its request (`reset.reset()`, or a `key` on the token).
   - **A test:** read one link, push a second, fire `hashchange`, and expect the reload (or the second token) and an empty fragment.
-- **What happened to it:** open.
+- **What happened to it:** left as a to-do in `docs/todo.md` (Privacy): listen for `hashchange` and reload when a whole link arrives.
 
 ### 3. Most tests still run without StrictMode, and the rule isn't written down
 
@@ -125,7 +125,7 @@ In development, the confirm email and reset password pages said "This link isn't
   - **Use Testing Library's own option:** `render(app, {reactStrictMode: strict})`. Give `renderApp` the same option.
   - **Write it down:** add to the Tests bullet in `MedApp.Web/AGENTS.md` that an effect must cope with running twice (StrictMode, in development), and to test one that reads or clears something with `strict: true`.
   - **Later, try the whole suite in StrictMode:** `configure({reactStrictMode: true})` in `src/test/setup.ts`, then fix what fails (finding 1 at least). Tests that count requests may need a look. Not tried here: it means running the full suite.
-- **What happened to it:** open.
+- **What happened to it:** documented, and left as a to-do. `MedApp.Web/AGENTS.md` (Tests) now says effects must survive running twice and how to test it; `docs/todo.md` (Testing) has running more of the suite under StrictMode.
 
 ## Remaining risks
 
