@@ -6,9 +6,58 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
+  # Whether this push changed anything outside docs/. A push of only docs/ (a review document, say) on top of a commit
+  # whose run of this workflow passed needs no new build or tests: its code is exactly the code that passed, and no
+  # build or test reads docs/ (the image's build leaves it out too). The jobs that build and test are then skipped, and
+  # GitHub counts a job skipped by its `if` as passing a required check. Anything else runs them all: a new or reopened
+  # pull request, a force push, a previous run that failed, was cancelled or hasn't finished yet, a change outside docs/
+  # (a file moved out of or into docs/ counts by both its names), a push of 300 files or more (the comparison lists
+  # only that many), or this job failing. It compares this push only, not the whole pull request, which is why
+  # paths-ignore can't do it.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read    # the previous commit's runs of this workflow
+      contents: read   # compare the two commits
+    outputs:
+      code: ${{ steps.check.outputs.code }}
+    steps:
+      - name: Check whether this push changed only docs/ after a passing run
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ACTION: ${{ github.event.action }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.pull_request.head.sha }}
+        run: |
+          code=true
+          reason='not a push to an open pull request'
+          if [ "$ACTION" = synchronize ] && [ -n "$BEFORE" ] && [ -n "$AFTER" ]; then
+            # "ahead": the new commit has the previous one in its history. Then how many files changed, and how many of
+            # their names (old and new) are outside docs/.
+            compared=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" \
+              --jq '(.files // []) as $f | "\(.status) \($f | length) \([$f[] | .filename, (.previous_filename // empty) | select(startswith("docs/") | not)] | length)"') \
+              || compared='unknown'
+            passed=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?head_sha=$BEFORE&event=pull_request&status=success" \
+              --jq '.total_count') || passed=0
+            read -r status files outside <<< "$compared"
+            if [ "$status" = ahead ] && [ "${files:-300}" -lt 300 ] && [ "$outside" = 0 ] && [ "${passed:-0}" -gt 0 ]; then
+              code=false
+              reason="only docs/ changed since $BEFORE, whose run passed"
+            else
+              reason="compared with $BEFORE: ${compared}; its passing runs: ${passed:-0}"
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Build and test: $code ($reason)" >> "$GITHUB_STEP_SUMMARY"
+
   # MedApp.Web (React): lint, type check, theme drift, unit tests with coverage, and a production build.
   # Its coverage summary goes into the sticky PR comment, after the .NET coverage (coverage-comment job).
   web:
+    needs: changes
+    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,6 +109,9 @@ jobs:
   # The built image is then scanned with Trivy: what it finds goes to code scanning, and a critical vulnerability that
   # has a fix fails the pull request.
   image:
+    needs: changes
+    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read          # check out the code
@@ -144,6 +196,9 @@ jobs:
   # is relaxed for CI. SQL Server's password and the first admin's are random for the run and masked in the log, and
   # SQL Server listens on the runner's loopback only.
   e2e:
+    needs: changes
+    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # It builds and runs the pull request's own code: it needs no more than to read the repository.
@@ -304,6 +359,9 @@ jobs:
   # The Helm chart (deploy/helm/medapp): lint it and render it in the configurations it's used in, so a broken
   # template fails here rather than on a deploy. Helm comes with the runner image.
   helm:
+    needs: changes
+    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -445,6 +503,9 @@ jobs:
   # 2022 in Docker (Testcontainers), which the runner has. The migrations are applied at the start and the data reset
   # between tests. Each run pulls the SQL Server image (about 1.6 GB) first.
   integration-tests:
+    needs: changes
+    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # It runs the pull request's own code: it needs no more than to read the repository.
@@ -461,6 +522,9 @@ jobs:
         run: dotnet test MedApp.IntegrationTests --configuration Release --logger "console;verbosity=normal"
 
   unit-tests:
+    needs: changes
+    # Skipped only when `changes` says this push is docs/ alone after a passing run; it runs if `changes` failed.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

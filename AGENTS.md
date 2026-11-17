@@ -535,7 +535,15 @@ It only runs against a local database: by default the AppHost's SQL container, u
 
 ## CI
 
-`.github/workflows/main.yml` runs on PRs to `main`, with eight jobs:
+`.github/workflows/main.yml` runs on PRs to `main`, with nine jobs:
+- `changes` decides whether this push needs the build and tests. A push that changes only `docs/` (a review document with no fixes, say), on top of a commit whose run passed, has exactly the code that passed, and nothing that builds or tests reads `docs/`. So `web`, `image`, `e2e`, `helm`, `integration-tests` and `unit-tests` are skipped (a job skipped by its `if` counts as passing a required check), and the run takes under a minute. Everything else runs them all:
+  - a new or reopened PR, or a force push
+  - a previous run that failed, was cancelled or hasn't finished
+  - any change outside `docs/`, a merge from `main` among them (a file moved in or out of `docs/` counts by both names)
+  - a push of 300 files or more (the comparison lists only that many)
+  - `changes` failing, since the jobs run unless it says `false`
+
+  It compares the push (the commit before it and after it), not the whole PR, which `paths-ignore` can't do. The run's summary says what it decided and why. A new file under `docs/` that a build or test reads would break this: put such a file elsewhere.
 - `web` checks `MedApp.Web`: `npm ci`, `npm audit --audit-level=high` (a high or critical advisory fails it), lint, type check, a check that the built theme is up to date, Vitest with coverage, and the full production build (`npm run build`: the client, the server rendering bundle and the page server).
 - `image` builds the API's image from `MedApp.API/Dockerfile`, as Publish does, without pushing it, so a broken Dockerfile or bundle fails on the PR. It shares the GitHub Actions build cache with Publish. Then Trivy scans it: every finding with a fix goes to code scanning (SARIF), and a critical vulnerability with a fix fails the job. Trivy runs from its own image, pinned by digest (`TRIVY_IMAGE`), never from `aquasecurity/trivy-action`, whose tags were hijacked in March 2026. `web`, `helm`, `unit-tests`, `image`, `integration-tests` and `e2e` are all required checks on `main`.
 - `dependency-review` fails a PR that adds or updates a dependency (npm, NuGet, actions) with a known high or critical advisory, and comments on the PR when it does.
@@ -577,7 +585,8 @@ After you open a PR, or push to the branch of one you opened, check its CI resul
 
 **Don't block the user while CI runs.** Hand steps 1–3 to a background subagent (in Claude Code, the `Agent` tool; it notifies you when it's done). Tell the user it's watching CI, and carry on with whatever they ask next. Give the subagent the branch, the pushed commit SHA and this section to follow. Rules for the subagent:
 - **Read-only:** no edits, commits or pushes. Its job is to report, not to fix.
-- **Waiting:** poll about every 30 seconds using the harness's wait mechanism (a background command or monitor; foreground `sleep` may be blocked). The workflow usually takes 2–3 minutes. Give up after 15 minutes and report the run as still pending, with its URL.
+- **Waiting:** poll about every 30 seconds using the harness's wait mechanism (a background command or monitor; foreground `sleep` may be blocked). The workflow usually takes about 7 minutes, and under one for a push of only `docs/` after a passing run. Give up after 15 minutes and report the run as still pending, with its URL.
+- **One PR each:** a watcher waits for one PR's run, never several, so a PR that's ready isn't held up by another's CI.
 - **Report:** return the run URL, the result, and for a failure the failing step, the error, the cause, whether it's already broken on `main`, and a proposed fix as an exact diff.
 
 When the subagent reports back, do step 4 yourself, and don't interrupt the user's current task to do it. Mention the result at the next natural break, or right away if it failed.
@@ -609,7 +618,11 @@ The user wants each change made in three stages, each at its own reasoning effor
 | **Implementation:** writing the code, tests and docs to the plan | **high** | A subagent with `effort: "high"`, given the plan, the files and the conventions. The main session checks its work (a build, the tests for what changed, a read of the diff) before calling it done. |
 | **Review:** a fresh, adversarial look at the whole PR | **xhigh** | A subagent with `effort: "xhigh"` that wasn't told the author's conclusions, as part of every merge (below). |
 
-Small, mechanical edits (a typo, a one-line config change) can be done directly in the main session; the stages are for real changes.
+**Small changes are lighter:**
+- **What counts:** a fix or tweak in a few files, with no new endpoint, table, migration or dependency, and nothing that touches sign-in, security, privacy rules, patient data, clinical safety, CI or deploying. When unsure, it isn't small.
+- **Implementation:** the main session makes it itself. A subagent's cold start (reading this file and the code afresh) costs more than a change this size.
+- **Review:** at **high** (`effort: "high"`), not xhigh. Measured on recent small changes, the xhigh review was the longest stage, at a quarter to a third of the time from asking to deployed.
+- Small, mechanical edits (a typo, a one-line config change) need no stages at all until they're shipped.
 
 ### "Merge it" or "ship it": the full merge flow
 
@@ -620,7 +633,7 @@ Small, mechanical edits (a typo, a one-line config change) can be done directly 
 When the user says to merge, do every step, in order, without stopping to ask again:
 1. **Commit** any outstanding changes on the feature branch (branch from `main` first if you're on it), and push. New scripts need their executable bit set in git (`git update-index --chmod=+x`), since this checkout doesn't track file modes.
 2. **Open a PR** to `main` if there isn't one already. If there is one, reuse it.
-3. **Review the PR at xhigh**, with a subagent (`effort: "xhigh"`), and write it up as a review document:
+3. **Review the PR at xhigh** (high for a small change: see [Effort](#effort-for-each-stage-of-a-change)), with a subagent (`effort: "xhigh"`, or `"high"`), and write it up as a review document:
    - **What to review:** the PR's whole diff against `main` (`git diff main...HEAD`), its description, and the code around the changes. Give the reviewer the PR and the files, not your own conclusions, so its view isn't anchored on yours.
    - **What to look for:** correctness, security, data loss, operational and deploy risks, judgement (was this the right design?), consistency between docs and code, whether the governance documents in `docs/governance/` are still true (a change to what personal data is held, who can see it, where it goes or how long it's kept must update them in the same PR), and whether the tests really test the change. Every finding needs file:line evidence, a concrete failure scenario, a severity (critical, high, medium, low), a confidence, and a suggested fix.
    - **How the reviewer checks:**
@@ -629,7 +642,7 @@ When the user says to merge, do every step, in order, without stopping to ask ag
      - it starts no Docker, AppHost, kind cluster or browser, and runs no full suite: CI does that, and step 4 waits for it
    - **The document:** `docs/reviews/pr-<number>-<short-name>.md`. Commit it to the branch and push, so it's merged with the PR. Write it in the format below (see [Review document format](#review-document-format)).
    - **If it finds anything high or critical, stop.** Don't merge. Check those findings yourself against the code, then report them to the user with the fixes you propose, and wait. Medium and low findings are recorded in the document and don't block. Mention them when you report the merge.
-4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (the one with the review document) to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on.
+4. **Wait for the workflow** run whose `head_sha` is the last pushed commit (the one with the review document) to complete (see [Checking CI](#checking-ci-on-prs-you-opened-or-pushed-to)). In this flow, waiting is the point, so wait for it rather than moving on. When that push is only the review document, after a passing run, it skips the build and tests (the `changes` job) and finishes in under a minute; fixes from the review, or a merge from `main`, run everything again.
    - **If it fails, stop.** Don't merge. Report it and propose a fix, as in step 4 of the CI section.
 5. **Merge** the PR with a merge commit (`gh pr merge <n> --merge`), matching the existing "Merge pull request #N" history. If the local checkout has uncommitted changes, stash them first, or the merge's local step fails after the merge on GitHub has already happened.
 6. **Delete the branch**, both on GitHub and locally (`--delete-branch` handles both).
