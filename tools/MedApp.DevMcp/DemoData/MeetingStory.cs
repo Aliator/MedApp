@@ -70,7 +70,7 @@ public sealed class MeetingStory
         var meeting = Meeting;
         var actor = ActorAt(by, atUtc);
         UpdateValidator.ValidateAndThrow(new UpdateMeetingCommand(
-            meeting.Id, meeting.Title, meeting.Notes, startUtc, endUtc, attendees.ToList(), actor));
+            meeting.Id, meeting.Title, meeting.Notes, startUtc, endUtc, attendees.ToList(), meeting.LastUpdated, actor));
         var today = UkTime.DateOf(atUtc);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(meeting.StartUtc), today);
         CalendarGuards.EnsureNotPast(UkTime.DateOf(startUtc), today);
