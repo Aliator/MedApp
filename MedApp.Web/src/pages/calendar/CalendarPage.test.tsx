@@ -783,6 +783,17 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('button', {name: 'Next day'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'team', date: '2026-11-24'});
   });
+
+  it("keeps the menu for the selected time to its buttons' width, not the selection's", async () => {
+    renderPage({isNarrow: true});
+    await screen.findByRole('group', {name: /^My calendar,/});
+
+    select('Monday 23 November, 10:00, free');
+    const menu = (await screen.findByRole('button', {name: 'Book appointment'})).closest('[data-layer-root], [data-astryx-layer-root]') as HTMLElement;
+    // Astryx sets the surface's width from the prop (`width: var(--x-width)`): left to its default, the surface would
+    // stretch to the selection, a whole column wide.
+    expect(menu.style.getPropertyValue('--x-width')).toBe('max-content');
+  });
 });
 
 describe('the Calendar page outside React', () => {

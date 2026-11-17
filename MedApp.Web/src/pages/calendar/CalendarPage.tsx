@@ -467,6 +467,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           <Popover
             anchorRef={selectionRef}
             isOpen={held !== null}
+            // As wide as its buttons: left to its default, it stretches to the selection it's anchored to, a whole
+            // column wide (a day in a narrow window, or "Everyone free"), past the grid's edge.
+            width="max-content"
             onOpenChange={(open) => {
               if (!open) releaseSelection();
             }}
