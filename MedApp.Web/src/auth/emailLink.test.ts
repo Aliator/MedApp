@@ -1,4 +1,5 @@
 import {renderHook, waitFor} from '@testing-library/react';
+import {StrictMode} from 'react';
 import {linkFragment, parseEmailLink, PENDING_CONFIRMATION_KEY, pendingEmailConfirmation, useEmailLink} from './emailLink';
 
 const USER = '0000000e-0000-0000-0000-000000000001';
@@ -65,6 +66,38 @@ describe('useEmailLink', () => {
       window.history.replaceState(null, '', '/confirm-email');
 
       const {result} = renderHook(() => useEmailLink(pendingEmailConfirmation.read));
+
+      await waitFor(() => expect(result.current).toEqual({status: 'missing'}));
+    });
+  });
+
+  describe("under StrictMode, which runs the app's effects twice in development", () => {
+    afterEach(() => sessionStorage.clear());
+
+    it('keeps the link it read, though the second run finds the address without it', async () => {
+      window.history.replaceState(null, '', `/confirm-email#user=${USER}&token=abc`);
+
+      const {result} = renderHook(() => useEmailLink(pendingEmailConfirmation.read), {wrapper: StrictMode});
+
+      await waitFor(() => expect(result.current.status).not.toBe('reading'));
+      expect(result.current).toEqual({status: 'found', userId: USER, token: 'abc'});
+      expect(window.location.hash).toBe('');
+    });
+
+    it("keeps the address's link, not a kept one the second run would find", async () => {
+      window.history.replaceState(null, '', `/confirm-email#user=${USER}&token=fresh`);
+      pendingEmailConfirmation.save({userId: USER, token: 'kept'});
+
+      const {result} = renderHook(() => useEmailLink(pendingEmailConfirmation.read), {wrapper: StrictMode});
+
+      await waitFor(() => expect(result.current.status).not.toBe('reading'));
+      expect(result.current).toEqual({status: 'found', userId: USER, token: 'fresh'});
+    });
+
+    it('still says when there is no link', async () => {
+      window.history.replaceState(null, '', '/reset-password');
+
+      const {result} = renderHook(() => useEmailLink(), {wrapper: StrictMode});
 
       await waitFor(() => expect(result.current).toEqual({status: 'missing'}));
     });
