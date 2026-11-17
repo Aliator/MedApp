@@ -1,9 +1,10 @@
 import {AppShell} from '@astryxdesign/core/AppShell';
 import {Divider} from '@astryxdesign/core/Divider';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
+import {useSideNavRenderMode} from '@astryxdesign/core/SideNav';
 import {Theme} from '@astryxdesign/core/theme';
 import {Outlet, useRouter} from '@tanstack/react-router';
-import {useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {LiveNotifications} from '../../app/LiveNotifications';
 import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
@@ -146,7 +147,7 @@ function MainLayout() {
         <AppShell
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
-            <Theme theme={themes[defaultThemeSlug]} mode="dark">
+            <SideNavTheme>
               <AppSideNav
                 collapsible={{
                   isCollapsed: isNavCollapsed,
@@ -154,7 +155,7 @@ function MainLayout() {
                   hasButton: half !== null,
                 }}
               />
-            </Theme>
+            </SideNavTheme>
           }
           // In a half view, each half's page frame insets it instead (see below).
           contentPadding={half ? 0 : 6}>
@@ -182,5 +183,19 @@ function MainLayout() {
         </AppShell>
       </HalfViewsContext.Provider>
     </SaveShortcutProvider>
+  );
+}
+
+/**
+ * The side nav's theme: always dark, in its column and its drawer, whatever the app's mode. Except on a phone's top bar
+ * (Astryx renders the side nav's heading there), which sits on the page's own background: there it takes the app's
+ * mode, or its name and bell would be white on a light bar.
+ */
+export function SideNavTheme({children}: {children: ReactNode}) {
+  if (useSideNavRenderMode() === 'topbar') return <>{children}</>;
+  return (
+    <Theme theme={themes[defaultThemeSlug]} mode="dark">
+      {children}
+    </Theme>
   );
 }
