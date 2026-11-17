@@ -17,8 +17,8 @@ describe('CalendarTokens', () => {
       </>,
     );
 
-    expect(await screen.findByText('Needs booking')).toBeInTheDocument();
-    expect(tokenColour('Needs booking')).toBe('yellow');
+    expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
+    expect(tokenColour('Requires appointment')).toBe('yellow');
     expect(tokenColour('Booked')).toBe('blue');
     expect(tokenColour('Attended')).toBe('green');
     expect(tokenColour('Did not attend')).toBe('red');

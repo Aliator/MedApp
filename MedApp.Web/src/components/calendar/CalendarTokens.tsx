@@ -7,7 +7,7 @@ import {AppIcon} from '../shared/icons';
 
 /**
  * Tokens for the calendar and appointments: an appointment's status, an activity type, and whether a stage involves
- * a visit. Use them wherever these show (the calendar, Needs booking, the procedure and patient pages, the setup
+ * a visit. Use them wherever these show (the calendar, Requires Appointment, the procedure and patient pages, the setup
  * pages), so they look the same everywhere. Like `StatusToken`, they add an icon when "Icons on statuses" is on.
  */
 
@@ -21,7 +21,7 @@ export const APPOINTMENT_STATUS_COLOURS: Record<string, TokenColor> = {
 };
 
 const APPOINTMENT_STATUS_ICONS: Record<string, IconType> = {
-  Requested: AppIcon.NeedsBooking,
+  Requested: AppIcon.RequiresAppointment,
   Booked: AppIcon.AppointmentBooked,
   Attended: AppIcon.Success,
   DidNotAttend: AppIcon.AppointmentDidNotAttend,
@@ -34,7 +34,7 @@ function useStatusIcon(icon: IconType | undefined) {
   return flags.statusIcons && icon ? <Icon icon={icon} /> : undefined;
 }
 
-/** An appointment's status: Needs booking (yellow), Booked (blue), Attended (green), Did not attend (red), Cancelled (gray). */
+/** An appointment's status: Requires appointment (yellow), Booked (blue), Attended (green), Did not attend (red), Cancelled (gray). */
 export function AppointmentStatusToken({status}: {status: string}) {
   const icon = useStatusIcon(APPOINTMENT_STATUS_ICONS[status]);
   return (

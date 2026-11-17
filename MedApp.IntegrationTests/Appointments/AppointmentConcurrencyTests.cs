@@ -153,7 +153,7 @@ public sealed class AppointmentConcurrencyTests : IntegrationTest
 
             responses.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.Created, HttpStatusCode.Conflict]);
             var loser = await responses.Single(r => r.StatusCode == HttpStatusCode.Conflict).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict);
-            loser.Title.Should().Be("This stage already has a visit in Needs booking. Book that one instead.");
+            loser.Title.Should().Be("This stage already has a visit in Requires Appointment. Book that one instead.");
         }
 
         var open = await SearchAppointmentsAsync(_admin, $"procedureId={procedure.Id}");

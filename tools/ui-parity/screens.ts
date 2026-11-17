@@ -179,7 +179,7 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'needs-booking', title: 'Needs Booking: appointments asked for but not yet booked, soonest due first', path: '/calendar/needs-booking' },
+  { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',

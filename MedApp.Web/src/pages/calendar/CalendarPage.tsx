@@ -113,8 +113,8 @@ export function teamPageQuery(search: CalendarSearch, today: string = ukToday())
   return teamCalendarQuery({date: search.date ?? today, staffUserIds: search.who ?? []});
 }
 
-/** The Calendar page's search, Requested appointments counted: the Needs booking link's number. */
-export const needsBookingCountQuery = appointmentsQuery({Statuses: ['Requested'], PageSize: 1});
+/** The Calendar page's search, Requested appointments counted: the Requires Appointment link's number. */
+export const requiresAppointmentCountQuery = appointmentsQuery({Statuses: ['Requested'], PageSize: 1});
 
 /**
  * What the Calendar page reads, for its route's loader: the team view's day (admins), or the person's calendar and
@@ -123,7 +123,7 @@ export const needsBookingCountQuery = appointmentsQuery({Statuses: ['Requested']
  * shows them, and the page reads them after mount when it offers that.
  */
 export async function preloadCalendarPage(queryClient: QueryClient, search: CalendarSearch, isAdmin: boolean, today: string = ukToday()) {
-  const shared = [staffQuery, needsBookingCountQuery];
+  const shared = [staffQuery, requiresAppointmentCountQuery];
   if (shownView(search, isAdmin) === 'team') return preload(queryClient, teamPageQuery(search, today), ...shared);
   const query = calendarPageQuery(search, today);
   await preload(queryClient, query, ...shared);
@@ -209,7 +209,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const team = useQuery({...teamCalendarQuery({date, staffUserIds: search.who ?? []}), placeholderData: keepPreviousData, enabled: isTeam});
   // The one person's calendar shown (none in the team view).
   const person = isTeam ? undefined : calendar.data;
-  const needsBooking = useQuery(needsBookingCountQuery);
+  const requiresAppointment = useQuery(requiresAppointmentCountQuery);
   const calendarActions = useCalendarActions();
   const appointmentActions = useAppointmentActions();
   const meetingActions = useMeetingActions();
@@ -428,7 +428,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     {value: 'week', label: 'Week'},
     ...(me.isAdmin ? [{value: 'team' as const, label: 'Team'}] : []),
   ];
-  const requestedCount = needsBooking.data?.totalCount ?? 0;
+  const requestedCount = requiresAppointment.data?.totalCount ?? 0;
 
   const chooseRows = (minutes: CalendarRowMinutes) => {
     setCalendarRows(minutes);
@@ -437,7 +437,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     go({rows: minutes === 5 ? 5 : undefined}, {replace: true});
   };
   const rowItems: DropdownMenuItemData[] = ROW_CHOICES.map((minutes) => ({
-    label: `${minutes}-minute rows`,
+    label: `${minutes} minutes`,
     icon: minutes === rowMinutes ? <Icon icon={AppIcon.Check} /> : undefined,
     onClick: () => chooseRows(minutes),
   }));
@@ -556,10 +556,10 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       actions={
         <>
           <Button
-            label={requestedCount > 0 ? `Needs Booking (${requestedCount})` : 'Needs Booking'}
+            label={requestedCount > 0 ? `Requires Appointment (${requestedCount})` : 'Requires Appointment'}
             variant="secondary"
-            href="/calendar/needs-booking"
-            icon={<Icon icon={AppIcon.NeedsBooking} />}
+            href="/calendar/requires-appointment"
+            icon={<Icon icon={AppIcon.RequiresAppointment} />}
           />
           {/* One person's calendar they can change (never the team view): their day templates on days of this week. */}
           {canEdit && (

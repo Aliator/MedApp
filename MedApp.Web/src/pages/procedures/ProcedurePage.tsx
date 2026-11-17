@@ -415,7 +415,7 @@ export function ProcedureView({id, isNarrow}: ProcedureViewProps) {
                   {`Its visit, ${appointmentWhen(withoutVisitState.appointment)}, stays booked: cancel it on the calendar if it's no longer needed.`}
                 </Text>
               )}
-              {withoutVisitState?.status === 'Requested' && <Text type="body">Its visit comes off Needs booking.</Text>}
+              {withoutVisitState?.status === 'Requested' && <Text type="body">Its visit comes off Requires Appointment.</Text>}
               {withoutVisit?.visitRequirement === 'Required' && (
                 <TextArea
                   label="Reason"

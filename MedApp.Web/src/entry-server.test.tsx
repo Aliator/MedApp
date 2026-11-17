@@ -496,7 +496,7 @@ describe('server rendering', () => {
 
     expect(html).toContain('My calendar · 23 to 29 November 2026');
     expect(html).toContain('Test Patient, Knee review: Assessment, 09:00 to 09:30, Booked');
-    expect(html).toContain('Needs Booking (2)');
+    expect(html).toContain('Requires Appointment (2)');
     // Apply Template, on a calendar they can change; its day templates are read only in the browser.
     expect(html).toMatch(/<button(?:(?!<\/button>).)*Apply Template/);
     expect(requests.some((r) => new URL(r.url).pathname.endsWith('/day-templates'))).toBe(false);

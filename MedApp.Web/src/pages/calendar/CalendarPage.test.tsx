@@ -172,7 +172,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('heading', {name: 'Calendar', level: 1})).toBeInTheDocument();
     expect(screen.getByText('My calendar · 23 to 29 November 2026')).toBeInTheDocument();
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toBeInTheDocument();
-    expect(await screen.findByRole('link', {name: 'Needs Booking (3)'})).toHaveAttribute('href', '/calendar/needs-booking');
+    expect(await screen.findByRole('link', {name: 'Requires Appointment (3)'})).toHaveAttribute('href', '/calendar/requires-appointment');
     expect(screen.getByRole('button', {name: 'Default week: None'})).toBeInTheDocument();
     expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29');
   });
@@ -879,7 +879,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     // Named by what it shows, so it isn't read as an appointment's length.
     await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
-    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5 minutes'}));
     // Replacing the address: the row length is a preference, not a step Back goes through.
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: 5}, {replace: true});
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5');
@@ -898,7 +898,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await waitFor(() => expect(openDialog()).toBeNull());
 
     await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
-    await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+    await user.click(await screen.findByRole('menuitem', {name: '15 minutes'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined}, {replace: true});
   });
 
@@ -917,7 +917,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   it('remembers the row length last chosen, for an address that names none', async () => {
     const {user, unmount} = renderPage();
     await user.click(await screen.findByRole('button', {name: 'Rows: 15 min'}));
-    await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+    await user.click(await screen.findByRole('menuitem', {name: '5 minutes'}));
     expect(localStorage.getItem('medapp.calendarRows')).toBe('5');
     unmount();
 
@@ -958,7 +958,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(await screen.findByRole('menuitem', {name: 'Whose calendar: My calendar'})).toBeInTheDocument();
     expect(screen.getByRole('menuitem', {name: /Default week: None/})).toBeInTheDocument();
     expect(screen.getByRole('menuitem', {name: 'My calendar templates'})).toHaveAttribute('href', '/calendar/templates');
-    await user.click(screen.getByRole('menuitem', {name: '5-minute rows'}));
+    await user.click(screen.getByRole('menuitem', {name: '5 minutes'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'week', rows: 5}, {replace: true});
 
     await user.click(screen.getByRole('button', {name: 'View options'}));
@@ -1001,7 +1001,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
       scroller.scrollTop = 220;
       fireEvent.scroll(scroller);
       await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
-      await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+      await user.click(await screen.findByRole('menuitem', {name: '5 minutes'}));
       await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5'));
       // Past the router's own work after the navigation, which once put back the old 220px (09:00 at the top).
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1011,7 +1011,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
       expect(router.history.length).toBe(1);
 
       await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
-      await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+      await user.click(await screen.findByRole('menuitem', {name: '15 minutes'}));
       await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '15'));
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(scroller.scrollTop).toBe(220);
