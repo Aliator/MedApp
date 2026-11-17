@@ -27,7 +27,6 @@ public sealed class UpdatePatientProcedureHandler(
         var changes = ProcedureDetails.Apply(
             procedure,
             request.Title?.Trim(),
-            request.Notes,
             request.DueDate,
             request.Priority is null ? null : ProcedureEnums.Parse<PatientProcedurePriority>(request.Priority));
 
@@ -41,6 +40,6 @@ public sealed class UpdatePatientProcedureHandler(
             await procedureMonitor.NotifyAsync(change, cancellationToken);
         }
 
-        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
+        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId);
     }
 }

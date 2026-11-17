@@ -24,6 +24,7 @@
 > - **Your email address, if you give one:** used only to confirm it, to send you a link when you forget your password, and to tell you when how you sign in changes (your password, your address or two-factor authentication). Emails never contain patient information or passwords.
 > - **Two-factor authentication, if you turn it on:** the key your authenticator app shares with MedApp, and your one-time recovery codes.
 > - **Your settings:** your display preferences, accessibility settings and saved searches. They're stored with your account so they follow you between computers, and in your browser.
+> - **Your notepad:** what you write in it, with when you last changed it. Only you can see it. It's kept with your account, never in your browser, and cleared once you've gone 30 days without changing it at all (while you use it, everything in it stays), or when you clear it or your account is deleted. It's for jottings: anything about a patient belongs in their record (use Add note to procedure), not in the notepad, where it isn't part of their record.
 > - **Your notifications:** for example when someone assigns you a procedure (you can turn that one off in Account Settings), books, moves or cancels one of your appointments, or invites you to a meeting, moves it or cancels it (these quote the meeting's title).
 > - **If you're an admin, your monitoring rules:** what you've asked to be told about, and about whom.
 >

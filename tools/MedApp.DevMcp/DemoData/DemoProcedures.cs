@@ -226,6 +226,31 @@ public static class DemoProcedures
                     };
                 }).ToList();
 
+                // Its note came across with it, from before MedApp recorded who wrote what: no author ("Unknown"), as the
+                // migration from the single notes field leaves a procedure with no Created entry.
+                const string importedNote = "Imported from the previous system.";
+                var note = new PatientProcedureNote
+                {
+                    Id = Guid.NewGuid(),
+                    PatientProcedureId = id,
+                    AuthorUserId = null,
+                    Text = importedNote,
+                    CreatedAtUtc = created,
+                    Version = 1,
+                };
+                world.NoteVersions.Add(new PatientProcedureNoteVersion
+                {
+                    Id = Guid.NewGuid(),
+                    NoteId = note.Id,
+                    Version = 1,
+                    PatientProcedureId = id,
+                    PatientId = patient.Id,
+                    Text = importedNote,
+                    UserId = null,
+                    Username = string.Empty,
+                    AtUtc = created,
+                });
+
                 world.Procedures.Add(new PatientProcedure
                 {
                     Id = id,
@@ -233,7 +258,7 @@ public static class DemoProcedures
                     TemplateId = null,
                     TemplateName = i == 0 ? "Imported record: day surgery" : "Imported record: diagnostics",
                     Title = kind.Title,
-                    Notes = "Imported from the previous system.",
+                    Notes = [note],
                     DueDateUtc = DueDates.EndOfDayUtc(DueDates.ToUkDate(created).AddDays(42)),
                     Priority = PatientProcedurePriority.Medium,
                     Status = random.NextDouble() < 0.7 ? Status.Archived : Status.Completed,
@@ -270,6 +295,7 @@ public static class DemoProcedures
         await Batch(world.Appointments, (db, items) => db.Appointments.AddRange(items), 2000);
         await Batch(world.AppointmentEvents, (db, items) => db.AppointmentEvents.AddRange(items), 4000);
         await Batch(world.Audit, (db, items) => db.PatientProcedureAuditEntries.AddRange(items), 4000);
+        await Batch(world.NoteVersions, (db, items) => db.PatientProcedureNoteVersions.AddRange(items), 4000);
         await Batch(world.Notifications, (db, items) => db.Notifications.AddRange(items), 4000);
 
         async Task Batch<T>(IReadOnlyList<T> all, Action<MedAppDbContext, IEnumerable<T>> add, int size)
@@ -302,6 +328,13 @@ public static class DemoProcedures
             deleted = world.Deletions.Count,
             stageBypasses = world.Bypasses,
             auditEntries = world.Audit.Count,
+            notes = new
+            {
+                total = procedures.Sum(p => p.Notes.Count),
+                edited = procedures.Sum(p => p.Notes.Count(n => n.Version > 1)),
+                versions = world.NoteVersions.Count,
+                proceduresWithSeveral = procedures.Count(p => p.Notes.Count > 1),
+            },
             appointments = new
             {
                 total = world.Appointments.Count,

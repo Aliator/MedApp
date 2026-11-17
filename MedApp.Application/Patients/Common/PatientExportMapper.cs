@@ -25,7 +25,7 @@ public static class PatientExportMapper
         record.Notifications.Where(n => !Notification.IsMonitoring(n.Kind));
 
     /// <summary>
-    /// Every user the export names: on procedures (assignees, assigners, stage workers), on appointments (who they're
+    /// Every user the export names: on procedures (assignees, assigners, stage workers, note authors), on appointments (who they're
     /// with, who asked for, booked and recorded them) and as notification recipients.
     /// </summary>
     public static IEnumerable<Guid> UserIds(PatientRecord record) =>
@@ -64,7 +64,18 @@ public static class PatientExportMapper
                     DueDate = DueDates.ToUkDate(p.DueDateUtc),
                     CreatedAt = p.CreatedAt,
                     LastUpdated = p.LastUpdated,
-                    Notes = p.Notes,
+                    Notes = p.Notes
+                        .OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id)
+                        .Select(n => new ExportedProcedureNoteResponse
+                        {
+                            Id = n.Id,
+                            Author = ProcedureNoteMapper.AuthorName(n.AuthorUserId, usernames),
+                            Text = n.Text,
+                            CreatedAtUtc = n.CreatedAtUtc,
+                            LastEditedAtUtc = n.LastEditedAtUtc,
+                            Version = n.Version
+                        })
+                        .ToList(),
                     AssignedTo = p.Assignments.OrderBy(a => a.AssignedAtUtc).Select(a => Username(a.UserId)).ToList(),
                     Stages = p.Stages
                         .OrderBy(s => s.StageOrder)
@@ -92,6 +103,18 @@ public static class PatientExportMapper
                     ProcedureTitle = e.ProcedureTitle,
                     StageName = e.StageName,
                     Details = WithoutStaffIds(e.Details)
+                })
+                .ToList(),
+            // Every version of every note, by the username recorded at the time (none when it wasn't recorded).
+            NoteHistory = record.NoteVersions
+                .Select(v => new ExportedNoteVersionResponse
+                {
+                    NoteId = v.NoteId,
+                    ProcedureId = v.PatientProcedureId,
+                    Version = v.Version,
+                    Text = v.Text,
+                    Username = v.UserId is null ? ProcedureNoteMapper.UnknownAuthor : v.Username,
+                    AtUtc = v.AtUtc
                 })
                 .ToList(),
             Appointments = record.Appointments

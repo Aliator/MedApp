@@ -24,6 +24,8 @@ export const AUDIT_ACTIONS = [
   'AttachmentAdded',
   'AttachmentDeleted',
   'AttachmentDownloaded',
+  'NoteAdded',
+  'NoteEdited',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -41,6 +43,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   AttachmentAdded: 'File attached',
   AttachmentDeleted: 'File deleted',
   AttachmentDownloaded: 'File downloaded',
+  NoteAdded: 'Note added',
+  NoteEdited: 'Note edited',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -146,6 +150,10 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     case 'AttachmentDeleted':
     case 'AttachmentDownloaded':
       return describeAttachment(d);
+    // The log names the note and its version, never its text (that's in the note's versions).
+    case 'NoteAdded':
+    case 'NoteEdited':
+      return typeof d.version === 'number' ? `Version ${d.version}` : '';
     default:
       return '';
   }

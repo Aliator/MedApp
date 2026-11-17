@@ -7,7 +7,7 @@ import {useState, type ReactNode} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {fieldStatus} from '../../api/errors';
 import {patientQuery} from '../../api/patients';
-import {procedureTemplatesQuery, useCreateProcedure, type ProcedureDetailsInput, type ProcedureTemplate} from '../../api/procedures';
+import {procedureTemplatesQuery, useCreateProcedure, type NewProcedureDetailsInput, type ProcedureTemplate} from '../../api/procedures';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
@@ -34,7 +34,7 @@ export interface NewProcedurePageProps {
 /**
  * New procedure (decision 8): for one patient, from a template. Picking a template shows its stages, which the
  * procedure copies, and fills the title with the template's name until the title is changed. Then the due date,
- * priority and notes; a confirmation; and on to the new procedure's page.
+ * priority and notes (its first note); a confirmation; and on to the new procedure's page.
  *
  * It fits the window: the template and its stages beside the details, or in a narrow window one form card; either
  * way the cards scroll, not the page.
@@ -47,7 +47,7 @@ export function NewProcedurePage({patientId}: NewProcedurePageProps) {
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const templates = useQuery(procedureTemplatesQuery());
   const [templateId, setTemplateId] = useState('');
-  const [details, setDetails] = useState<ProcedureDetailsInput>(EMPTY_PROCEDURE_DETAILS);
+  const [details, setDetails] = useState<NewProcedureDetailsInput>(EMPTY_PROCEDURE_DETAILS);
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
 

@@ -36,6 +36,20 @@ public static class PrivacyTestConstants
     /// A patient's record holding one of each kind of thing about them, with the procedures given. With a procedure, it
     /// has one appointment, for the first procedure's first stage, with notes, cancelled with a reason, and its history.
     /// </summary>
+    /// <summary>The record with these note versions.</summary>
+    public static PatientRecord WithNoteVersions(PatientRecord record, params PatientProcedureNoteVersion[] versions) => new()
+    {
+        Patient = record.Patient,
+        Procedures = record.Procedures,
+        ProcedureHistory = record.ProcedureHistory,
+        NoteVersions = versions,
+        Activity = record.Activity,
+        Appointments = record.Appointments,
+        AppointmentHistory = record.AppointmentHistory,
+        Notifications = record.Notifications,
+        Attachments = record.Attachments
+    };
+
     public static PatientRecord CreateRecord(Patient? patient = null, params PatientProcedure[] procedures)
     {
         patient ??= PatientsTestConstants.CreateValidPatient();

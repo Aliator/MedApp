@@ -83,6 +83,7 @@ import {
   RiSortAsc,
   RiSortDesc,
   RiStarLine,
+  RiStickyNoteFill,
   RiStickyNoteLine,
   RiSubtractLine,
   RiTableLine,
@@ -202,6 +203,8 @@ export const AppIcon = {
   NoChange: remix(RiSubtractLine),
   // A patient's timeline: what each entry is about
   Notes: remix(RiStickyNoteLine),
+  /** The side nav's Notepad item while the notepad is open. */
+  NotesOpen: remix(RiStickyNoteFill),
   Unlock: remix(RiLockUnlockLine),
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),

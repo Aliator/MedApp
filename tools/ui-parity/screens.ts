@@ -265,6 +265,45 @@ export const screens: Screen[] = [
   },
   { name: 'procedure-view', title: 'Procedure page: details, current stage and files beside the stages', path: (d) => `/procedures/${d.procedureId}` },
   {
+    name: 'procedure-notes',
+    title: "Procedure page with its Notes: Add Note, then the notes newest first, each with who and when (Details folded to show them)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Hide details' }).click();
+      await page.getByRole('button', { name: 'Add Note' }).waitFor({ state: 'visible' });
+      await settle(page);
+    },
+  },
+  {
+    name: 'notepad-open',
+    title: "The notepad docked on the right of a procedure's page (opened from the side nav), the page beside it (narrow below 1,784 px)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
+      await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
+      await settle(page);
+    },
+  },
+  {
+    name: 'notepad-add-note',
+    title: "The notepad's Add Note to Procedure confirmation: the patient as the banner shows them, the procedure, the text, and Remove it from the notepad (only opened, never confirmed)",
+    path: (d) => `/procedures/${d.procedureId}`,
+    prepare: async (page) => {
+      await page.getByRole('navigation', { name: 'Side navigation' }).first().getByRole('button', { name: 'Notepad' }).click();
+      const notepad = page.getByRole('region', { name: 'Notepad' });
+      const box = notepad.getByRole('textbox', { name: 'Notepad' });
+      await box.waitFor({ state: 'visible' });
+      // Whatever the account's notepad holds is what would be added; type a line if it's empty, so there's something to show.
+      if (!(await box.innerText()).trim()) {
+        await box.click();
+        await page.keyboard.type('Synthetic jotting for the parity screenshot.');
+      }
+      await notepad.getByRole('button', { name: 'Add Note to Procedure' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
     name: 'procedure-narrow',
     title: 'Procedure page on a narrow window: one card, Details and Current stage open, Stages folded',
     path: (d) => `/procedures/${d.procedureId}`,

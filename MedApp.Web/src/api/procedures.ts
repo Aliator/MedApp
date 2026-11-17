@@ -4,6 +4,8 @@ import {api, unwrap, type Schemas} from './client';
 export type ProcedureSummary = Schemas['PatientProcedureSummaryResponse'];
 export type Procedure = Schemas['PatientProcedureResponse'];
 export type ProcedureStage = Schemas['PatientProcedureStageResponse'];
+/** One of a procedure's notes: its author, times, version and whether you can edit it (only your own). */
+export type ProcedureNote = Schemas['PatientProcedureNoteResponse'];
 
 /**
  * Every procedure query is keyed under ['procedures'], so a change to any procedure refreshes them all.
@@ -141,13 +143,17 @@ export type ProcedureTemplate = Schemas['PatientProcedureStageTemplateResponse']
 /** What New procedure sends: the patient, the template it's built from, and its details. */
 export type NewProcedureInput = Schemas['CreatePatientProcedureRequest'];
 
-/** A procedure's editable details: title, notes, due date and priority. */
+/** A procedure's editable details: title, due date and priority. Notes are added one at a time (`useProcedureNoteActions`). */
 export interface ProcedureDetailsInput {
   title: string;
-  notes: string;
   /** A date, `YYYY-MM-DD`; due by the end of that day, UK time. */
   dueDate: string;
   priority: string;
+}
+
+/** A new procedure's details: its notes, if any, become its first note, by whoever creates it. */
+export interface NewProcedureDetailsInput extends ProcedureDetailsInput {
+  notes: string;
 }
 
 /** The templates staff can create a procedure from (archived ones are left out). */
@@ -184,6 +190,63 @@ export function useUpdateProcedure(id: string) {
       await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
     },
   });
+}
+
+/**
+ * Adding a note to a procedure, and editing one of your own (from the version you saw: someone, or another tab, saving
+ * it first is a 409, whose message says to reload). Each returns the note, which goes into the cached procedure at
+ * once (newest first), so it shows straight away wherever the procedure is open; the procedure (its last updated
+ * time), lists and timelines then refresh.
+ */
+export function useProcedureNoteActions(id: string) {
+  const show = useShowNote();
+  return {
+    add: useMutation({
+      mutationFn: (text: string) => unwrap(api.POST(`${PROCEDURE}/notes`, {params: {path: {id}}, body: {text}})),
+      onSuccess: (note) => show(id, note),
+    }),
+    edit: useMutation({
+      mutationFn: ({noteId, text, expectedVersion}: {noteId: string; text: string; expectedVersion: number}) =>
+        unwrap(api.PUT(`${PROCEDURE}/notes/{noteId}`, {params: {path: {id, noteId}}, body: {text, expectedVersion}})),
+      onSuccess: (note) => show(id, note),
+    }),
+  };
+}
+
+/**
+ * Adding a note to whichever procedure is given (the notepad's Add Note to Procedure, which can choose between two
+ * open ones). Like `useProcedureNoteActions`' `add`, the note shows on that procedure's page at once.
+ */
+export function useAddProcedureNote() {
+  const show = useShowNote();
+  return useMutation({
+    mutationFn: ({procedureId, text}: {procedureId: string; text: string}) =>
+      unwrap(api.POST(`${PROCEDURE}/notes`, {params: {path: {id: procedureId}}, body: {text}})),
+    onSuccess: (note, {procedureId}) => show(procedureId, note),
+  });
+}
+
+/** Puts a saved note into its cached procedure (newest first), then refreshes the procedure, lists and timelines. */
+function useShowNote() {
+  const queryClient = useQueryClient();
+  return async (procedureId: string, note: ProcedureNote) => {
+    queryClient.setQueryData(procedureQuery(procedureId).queryKey, (procedure) =>
+      procedure && {...procedure, noteList: [note, ...(procedure.noteList ?? []).filter((n) => n.id !== note.id)].sort(newestFirst)},
+    );
+    await queryClient.invalidateQueries({queryKey: procedureQuery(procedureId).queryKey});
+    await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});
+    await queryClient.invalidateQueries({queryKey: procedureKeys.timelines});
+  };
+}
+
+/** Notes newest first, as the API sends them. */
+const newestFirst = (a: ProcedureNote, b: ProcedureNote) => (b.createdAtUtc ?? '').localeCompare(a.createdAtUtc ?? '');
+
+/** Reads the procedure afresh: after a note was changed somewhere else (a 409), to show it as it is now. */
+export function useReloadProcedure(id: string) {
+  const queryClient = useQueryClient();
+  // Read again even where nothing shows it now (a note's conflict can be seen from the notepad, too).
+  return () => queryClient.invalidateQueries({queryKey: procedureQuery(id).queryKey, refetchType: 'all'});
 }
 
 /** Deletes a procedure (admins, and only once it's cancelled or archived). */

@@ -29,16 +29,18 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
     {
         context.PatientProcedures.Add(change.Procedure);
         AddChange(change);
-        await SaveChangesAsync(ct);
+        await SaveChangesAsync(ct, ConflictMessage(change));
     }
 
     public async Task<PatientProcedure?> GetByIdAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.PatientProcedures.AsNoTracking())
+            .Include(x => x.Notes)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task<PatientProcedure?> GetForUpdateAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.PatientProcedures)
+            .Include(x => x.Notes)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
@@ -57,8 +59,17 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
     public async Task SaveAsync(ProcedureChange change, CancellationToken ct)
     {
         AddChange(change);
-        await SaveChangesAsync(ct);
+        await SaveChangesAsync(ct, ConflictMessage(change));
     }
+
+    /// <summary>
+    /// What a concurrency conflict means for this change: a note's row version changed since it was loaded (it was edited
+    /// meanwhile), or otherwise one of the procedure's appointments.
+    /// </summary>
+    private static string ConflictMessage(ProcedureChange change) =>
+        change.NoteVersions.Count > 0
+            ? ProcedureNotes.ChangedMeanwhileMessage
+            : AppointmentWorkflow.ProcedureAppointmentChangedMeanwhileMessage;
 
     public async Task DeleteAsync(PatientProcedure procedure, IEnumerable<PatientProcedureAuditEntry> audit, CancellationToken ct)
     {
@@ -107,12 +118,17 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
             .ToListAsync(ct);
     }
 
-    /// <summary>Adds a change's audit entries, the appointments it asked for and the history entries it wrote.</summary>
+    /// <summary>
+    /// Adds a change's audit entries, the appointments it asked for, the history entries it wrote, and the notes it added
+    /// with their versions (and the versions of those it edited).
+    /// </summary>
     private void AddChange(ProcedureChange change)
     {
         context.PatientProcedureAuditEntries.AddRange(change.AuditEntries);
         context.Appointments.AddRange(change.NewAppointments);
         context.AppointmentEvents.AddRange(change.AppointmentEvents);
+        context.PatientProcedureNotes.AddRange(change.NewNotes);
+        context.PatientProcedureNoteVersions.AddRange(change.NoteVersions);
     }
 
     /// <summary>
@@ -121,11 +137,12 @@ public sealed class PatientProcedureRepository(MedAppDbContext context) : IPatie
     /// the stage its open visit first (the one-open-per-stage index), nothing is saved and it's a 409. Trying again
     /// starts from the appointments as they now are.
     /// </summary>
-    private async Task SaveChangesAsync(CancellationToken ct)
+    private async Task SaveChangesAsync(CancellationToken ct, string? conflictMessage = null)
     {
         try
         {
-            await context.SaveChangesOrConflictAsync(AppointmentWorkflow.ProcedureAppointmentChangedMeanwhileMessage, ct);
+            await context.SaveChangesOrConflictAsync(
+                conflictMessage ?? AppointmentWorkflow.ProcedureAppointmentChangedMeanwhileMessage, ct);
         }
         catch (DbUpdateException e) when (e.IsViolationOf(AppointmentConfiguration.OpenPerStageIndex))
         {

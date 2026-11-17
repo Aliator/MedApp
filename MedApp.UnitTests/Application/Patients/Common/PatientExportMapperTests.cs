@@ -36,7 +36,26 @@ public sealed class PatientExportMapperTests
             CreatedAt = later.CreatedAt.AddDays(-1),
             LastUpdated = Now
         };
-        var record = PrivacyTestConstants.CreateRecord(null, later, earlier);
+        // A note by someone whose account is gone, and one moved from the old notes field with no known author.
+        var gone = later.AddNote(author: OtherUserId, text: "Synthetic note, edited.", createdAt: Now.AddDays(-3), version: 2);
+        var unknown = new PatientProcedureNote
+        {
+            Id = Guid.NewGuid(), PatientProcedureId = later.Id, AuthorUserId = null, Text = "Synthetic imported note.",
+            CreatedAtUtc = Now.AddDays(-5), Version = 1
+        };
+        later.Notes.Add(unknown);
+        var record = PrivacyTestConstants.WithNoteVersions(
+            PrivacyTestConstants.CreateRecord(null, later, earlier),
+            new PatientProcedureNoteVersion
+            {
+                Id = Guid.NewGuid(), NoteId = gone.Id, Version = 1, PatientProcedureId = later.Id, Text = "Synthetic note.",
+                UserId = OtherUserId, Username = OtherUsername, AtUtc = Now.AddDays(-3)
+            },
+            new PatientProcedureNoteVersion
+            {
+                Id = Guid.NewGuid(), NoteId = unknown.Id, Version = 1, PatientProcedureId = later.Id, Text = unknown.Text,
+                UserId = null, Username = string.Empty, AtUtc = Now.AddDays(-5)
+            });
         record.Notifications[1].ReadAtUtc = Now;
         var usernames = new Dictionary<Guid, string> { [Admin.UserId] = Admin.Username };
 
@@ -52,7 +71,14 @@ public sealed class PatientExportMapperTests
         exported.Status.Should().Be("Completed");
         exported.Priority.Should().Be(later.Priority.ToString());
         exported.DueDate.Should().Be(DueDates.ToUkDate(later.DueDateUtc));
-        exported.Notes.Should().Be(later.Notes);
+        exported.Notes.Select(n => (n.Id, n.Author, n.Text, n.Version)).Should().Equal(
+            (unknown.Id, ProcedureNoteMapper.UnknownAuthor, unknown.Text, 1),
+            (gone.Id, ProcedureMapper.DeletedUser, gone.Text, 2));
+        exported.Notes[1].LastEditedAtUtc.Should().Be(gone.LastEditedAtUtc);
+        export.NoteHistory.Select(v => (v.NoteId, v.ProcedureId, v.Version, v.Username)).Should().Equal(
+            (gone.Id, later.Id, 1, OtherUsername),
+            (unknown.Id, later.Id, 1, ProcedureNoteMapper.UnknownAuthor));
+        export.NoteHistory[0].Text.Should().Be("Synthetic note.");
         exported.AssignedTo.Should().Equal(ProcedureMapper.DeletedUser);
         exported.Stages.Select(s => s.Order).Should().Equal(1, 2, 3);
         exported.Stages[0].Name.Should().Be(later.Stages[0].Name);

@@ -13,7 +13,7 @@ public enum PatientTimelineKind
     /// <summary>A stage was started, finished or unlocked.</summary>
     Stages,
 
-    /// <summary>A stage's notes were saved.</summary>
+    /// <summary>A stage's notes were saved, or a note was added to a procedure or edited.</summary>
     Notes,
 
     /// <summary>Someone was assigned or unassigned.</summary>
@@ -28,7 +28,10 @@ public enum PatientTimelineKind
     /// <summary>The details were edited, including the due date.</summary>
     DueDates,
 
-    /// <summary>The details were edited, not including the due date (title, notes, priority).</summary>
+    /// <summary>
+    /// The details were edited, not including the due date (title, priority, and before procedures held several notes,
+    /// their one notes field).
+    /// </summary>
     Details,
 
     /// <summary>A procedure was deleted.</summary>

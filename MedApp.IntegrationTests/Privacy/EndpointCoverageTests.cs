@@ -63,6 +63,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         // The user's own data and accounts: no patient data.
         ["api/notifications"] = Nothing("the user's own notifications"),
         ["api/notifications/preferences"] = Nothing("the user's own notification choices"),
+        ["api/me/notepad"] = Nothing("the user's own notepad: not linked to a patient, so no patient's read to record"),
         ["api/monitoring/rules"] = Nothing("the admin's own monitoring rules: staff, not patients"),
         ["api/auth/session"] = Nothing("the user's own session"),
         ["api/auth/whoami"] = Nothing("the user's own identity"),

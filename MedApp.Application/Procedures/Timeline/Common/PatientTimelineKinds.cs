@@ -41,7 +41,7 @@ public static class PatientTimelineKinds
     {
         Created => PatientTimelineKind.Created,
         StageStarted or StageFinished or StageUnlocked => PatientTimelineKind.Stages,
-        StageNotesUpdated => PatientTimelineKind.Notes,
+        StageNotesUpdated or NoteAdded or NoteEdited => PatientTimelineKind.Notes,
         Assigned or Unassigned => PatientTimelineKind.Assignments,
         StatusChanged => IsBlockChange(entry.Details) ? PatientTimelineKind.Blocks : PatientTimelineKind.Status,
         DetailsUpdated => entry.Details.Contains(DueDateChange) ? PatientTimelineKind.DueDates : PatientTimelineKind.Details,
@@ -73,7 +73,7 @@ public static class PatientTimelineKinds
         return entries.Where(e =>
             (created && e.Action == Created)
             || (stages && (e.Action == StageStarted || e.Action == StageFinished || e.Action == StageUnlocked))
-            || (notes && e.Action == StageNotesUpdated)
+            || (notes && (e.Action == StageNotesUpdated || e.Action == NoteAdded || e.Action == NoteEdited))
             || (assignments && (e.Action == Assigned || e.Action == Unassigned))
             || (blocks && e.Action == StatusChanged
                 && (e.Details.Contains(ToBlocked) || (e.Details.Contains(FromBlocked) && !e.Details.Contains(ToCancelled))))

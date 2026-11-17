@@ -18,7 +18,8 @@ namespace MedApp.UnitTests.Application.Procedures.Timeline.Common;
 /// A canary for the timeline's rule that staff never get free text from the audit log: every action is recorded the
 /// way handlers record it, with one unique string as every piece of free text (stage notes, procedure notes, titles,
 /// reasons and file names). The whole staff response, serialised as the API sends it, must never hold it, whatever fields are
-/// added later; an admin's must.
+/// added later; an admin's must. A procedure note's text isn't in the audit at all: the handler reads it from the note
+/// versions for admins (<see cref="PatientTimelineRow.NoteText"/>), so its rows carry the canary there.
 /// </summary>
 [TestFixture]
 public sealed class TimelineStaffCanaryTests
@@ -30,8 +31,19 @@ public sealed class TimelineStaffCanaryTests
     [Test]
     public void ToResponse_Staff_NeverCarriesFreeTextFromTheLog()
     {
-        foreach (var entry in EntriesHoldingTheCanary())
-            Serialised(entry, isAdmin: false).Should().NotContain(Canary, entry.Action.ToString());
+        foreach (var row in RowsHoldingTheCanary())
+            Serialised(row, isAdmin: false).Should().NotContain(Canary, row.Entry.Action.ToString());
+    }
+
+    [Test]
+    public void NoteEntries_NeverHoldTheNotesText()
+    {
+        // DPIA risk 4: the audit log holds a note's ID and version, never its text.
+        var notes = EntriesHoldingTheCanary().Where(e => e.Action is Action.NoteAdded or Action.NoteEdited).ToList();
+
+        notes.Select(e => e.Action).Should().Equal(Action.NoteAdded, Action.NoteEdited);
+        notes.Should().AllSatisfy(e => e.Details.Should().NotContain(Canary));
+        notes.Should().AllSatisfy(e => ProcedureNotes.VersionOf(e).Should().NotBeNull());
     }
 
     [Test]
@@ -40,16 +52,44 @@ public sealed class TimelineStaffCanaryTests
         // The entries whose details hold free text: the notes saved, the stage finished without its visit (the
         // admin's reason), the details edited, each status change made with a reason (the automatic ones have none),
         // and every entry about a file (its name).
-        var withText = EntriesHoldingTheCanary().Where(e => e.Details.Contains(Canary)).ToList();
+        // And the notes added and edited, whose text comes from the note versions.
+        var withText = RowsHoldingTheCanary().Where(r => r.Entry.Details.Contains(Canary) || r.NoteText is not null).ToList();
 
-        withText.Select(e => e.Action).Should().BeEquivalentTo(
+        withText.Select(r => r.Entry.Action).Should().BeEquivalentTo(
             [
                 Action.StageNotesUpdated, Action.StageFinished, Action.StatusChanged, Action.StatusChanged, Action.StatusChanged,
                 Action.DetailsUpdated, Action.AttachmentAdded, Action.AttachmentAdded, Action.AttachmentAdded,
-                Action.AttachmentDeleted, Action.AttachmentDownloaded,
+                Action.AttachmentDeleted, Action.AttachmentDownloaded, Action.NoteAdded, Action.NoteEdited,
             ]);
-        foreach (var entry in withText)
-            Serialised(entry, isAdmin: true).Should().Contain(Canary, entry.Action.ToString());
+        foreach (var row in withText)
+            Serialised(row, isAdmin: true).Should().Contain(Canary, row.Entry.Action.ToString());
+    }
+
+    [Test]
+    public void ToResponse_AdminNoteEdited_HasTheTextBeforeAndAfter()
+    {
+        var edited = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.NoteEdited);
+
+        var response = TimelineMapper.ToResponse(edited, isAdmin: true);
+
+        response.Kind.Should().Be(nameof(PatientTimelineKind.Notes));
+        response.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new { Field = TimelineMapper.NoteField, From = Canary, To = $"{Canary} (edited)" });
+    }
+
+    [Test]
+    public void ToResponse_StaffNoteAdded_SaysWhoAndWhenButNotTheText()
+    {
+        var added = RowsHoldingTheCanary().Single(r => r.Entry.Action == Action.NoteAdded);
+
+        var response = TimelineMapper.ToResponse(added, isAdmin: false);
+
+        response.Kind.Should().Be(nameof(PatientTimelineKind.Notes));
+        response.Action.Should().Be(nameof(Action.NoteAdded));
+        response.Username.Should().Be(Staff.Username);
+        response.AtUtc.Should().Be(added.Entry.AtUtc);
+        response.Changes.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new { Field = TimelineMapper.NoteField, From = (string?)null, To = (string?)null });
     }
 
     [Test]
@@ -59,19 +99,35 @@ public sealed class TimelineStaffCanaryTests
     }
 
     /// <summary>As the API sends it, for a procedure that still exists (staff never get any other).</summary>
-    private static string Serialised(PatientProcedureAuditEntry entry, bool isAdmin) =>
-        JsonSerializer.Serialize(TimelineMapper.ToResponse(new PatientTimelineRow(entry, CurrentTitle), isAdmin), Json);
+    private static string Serialised(PatientTimelineRow row, bool isAdmin) =>
+        JsonSerializer.Serialize(TimelineMapper.ToResponse(row, isAdmin), Json);
+
+    /// <summary>
+    /// Every entry as the timeline's handler gives it to the mapper: a note's text (and, for an edit, the text before)
+    /// from the note versions, the canary each time, as it does for admins.
+    /// </summary>
+    private static List<PatientTimelineRow> RowsHoldingTheCanary() =>
+        EntriesHoldingTheCanary()
+            .Select(e => e.Action switch
+            {
+                Action.NoteAdded => new PatientTimelineRow(e, CurrentTitle) { NoteText = Canary },
+                Action.NoteEdited => new PatientTimelineRow(e, CurrentTitle) { NoteText = $"{Canary} (edited)", PreviousNoteText = Canary },
+                _ => new PatientTimelineRow(e, CurrentTitle),
+            })
+            .ToList();
 
     /// <summary>Every action, recorded through <see cref="ProcedureChange"/> with the canary as all its free text.</summary>
     private static List<PatientProcedureAuditEntry> EntriesHoldingTheCanary()
     {
         var procedure = CreateProcedure(Status.Assigned, title: Canary);
-        procedure.Notes = Canary;
         procedure.StageAt(1).Notes = Canary;
         var change = new ProcedureChange(procedure, Staff, Now);
 
         // As CreatePatientProcedureHandler, UpdatePatientProcedureHandler and DeletePatientProcedureHandler audit.
         change.Audit(Action.Created, new { template = TemplateName, dueDate = Today, priority = "High", stageCount = 3 });
+        // As AddProcedureNoteHandler and EditProcedureNoteHandler: the canary as the note's text, which the audit never copies.
+        var note = change.AddNote(Canary);
+        change.EditNote(note, $"{Canary} (edited)");
         change.UpdateStageNotes(procedure.StageAt(1), $"{Canary} (edited)");
         // As FinishProcedureStageHandler records an admin finishing a Required stage without its visit.
         change.FinishStage(procedure.StageAt(1), new FinishedWithoutVisit(VisitRequirement.Required, Canary));

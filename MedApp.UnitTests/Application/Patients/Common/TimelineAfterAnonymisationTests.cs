@@ -106,7 +106,7 @@ public sealed class TimelineAfterAnonymisationTests
     /// <summary>Every action, recorded through <see cref="ProcedureChange"/> with the canary as all its free text.</summary>
     private static List<PatientProcedureAuditEntry> Entries(PatientProcedure procedure)
     {
-        procedure.Notes = Canary;
+        procedure.LegacyNotes = Canary;
         procedure.StageAt(1).Notes = Canary;
         var change = new ProcedureChange(procedure, Staff, Now);
 

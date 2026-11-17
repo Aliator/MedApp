@@ -5,7 +5,7 @@ import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
-import {Text} from '@astryxdesign/core/Text';
+import {Heading, Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useEffect, type ReactNode} from 'react';
@@ -219,6 +219,8 @@ function ExportContent({data}: {data: PatientExport}) {
   const patient = data.patient;
   const procedures = data.procedures ?? [];
   const history = data.procedureHistory ?? [];
+  // Every version of every note, those of deleted procedures too.
+  const noteHistory = data.noteHistory ?? [];
   const appointments = data.appointments ?? [];
   const appointmentHistory = data.appointmentHistory ?? [];
   const access = data.accessLog ?? [];
@@ -268,9 +270,7 @@ function ExportContent({data}: {data: PatientExport}) {
             <VStack gap={6} hAlign="stretch">
               {procedures.map((procedure) => (
                 <VStack key={procedure.id} gap={3} hAlign="stretch">
-                  <Text type="body" weight="semibold">
-                    {procedure.title}
-                  </Text>
+                  <Heading level={3}>{procedure.title}</Heading>
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Template">{procedure.templateName || '—'}</MetadataListItem>
                     <MetadataListItem label="Status">{statusLabel(procedure.status ?? '')}</MetadataListItem>
@@ -280,7 +280,15 @@ function ExportContent({data}: {data: PatientExport}) {
                     <MetadataListItem label="Last Changed">{when(procedure.lastUpdated)}</MetadataListItem>
                     <MetadataListItem label="Assigned To">{(procedure.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
                   </MetadataList>
-                  {procedure.notes && <RichText>{procedure.notes}</RichText>}
+                  {(procedure.notes ?? []).length > 0 && <Heading level={4}>{`Notes (${(procedure.notes ?? []).length})`}</Heading>}
+                  {(procedure.notes ?? []).map((note) => (
+                    <VStack key={note.id} gap={1} hAlign="stretch">
+                      <Text type="supporting" color="secondary">
+                        {`Note by ${note.author}, ${when(note.createdAtUtc)}${note.lastEditedAtUtc ? `, edited ${when(note.lastEditedAtUtc)}` : ''}`}
+                      </Text>
+                      <RichText>{note.text ?? ''}</RichText>
+                    </VStack>
+                  ))}
                   <List hasDividers edge="bleed">
                     {(procedure.stages ?? []).map((stage) => (
                       <ListItem
@@ -369,6 +377,34 @@ function ExportContent({data}: {data: PatientExport}) {
                     <Text type="supporting" color="secondary">
                       {[entry.procedureTitle, entry.stageName, describeAuditDetails(entry)].filter(Boolean).join(' · ')}
                     </Text>
+                  }
+                />
+              ))}
+            </List>
+          )}
+      </ExportSection>
+
+      <ExportSection title={`Note History (${noteHistory.length})`}>
+        {noteHistory.length === 0
+          ? nothing('No notes.')
+          : (
+            <List hasDividers edge="bleed">
+              {noteHistory.map((version, i) => (
+                <ListItem
+                  key={i}
+                  align="first-line"
+                  label={
+                    <Text type="body">
+                      {`${when(version.atUtc)}: ${version.version === 1 ? 'Note added' : `Note edited (version ${version.version})`} by ${version.username}`}
+                    </Text>
+                  }
+                  description={
+                    <VStack gap={1} hAlign="stretch">
+                      <Text type="supporting" color="secondary">
+                        {procedureTitles.get(version.procedureId) || 'A deleted procedure'}
+                      </Text>
+                      <RichText>{version.text ?? ''}</RichText>
+                    </VStack>
                   }
                 />
               ))}

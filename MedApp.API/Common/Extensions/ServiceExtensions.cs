@@ -6,6 +6,7 @@ using MedApp.API.Middleware;
 using MedApp.API.Notifications;
 using MedApp.API.ServerRendering;
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Notepads.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using Microsoft.AspNetCore.Authentication;
@@ -63,6 +64,11 @@ public static class ServiceExtensions
         services.AddScoped<IActivityContext, HttpActivityContext>();
         services.AddOptions<ActivityOptions>().BindConfiguration(ActivityOptions.Section);
         services.AddOptions<RetentionOptions>().BindConfiguration(RetentionOptions.Section);
+        // Zero or less would clear every notepad as it's read, and refuse every save: stop at startup instead.
+        services.AddOptions<NotepadOptions>()
+            .BindConfiguration(NotepadOptions.Section)
+            .Validate(options => options.IsValid, NotepadOptions.InvalidKeepDays)
+            .ValidateOnStart();
 
         // The browser security headers and Content Security Policies (SecurityHeaders), and sign-in throttling.
         services.AddOptions<SecurityHeadersOptions>().BindConfiguration(SecurityHeadersOptions.Section);

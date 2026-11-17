@@ -19,7 +19,6 @@ import {NOT_ASSIGNED_MESSAGE} from './ProcedurePage';
 
 const toInput = (p: Procedure): ProcedureDetailsInput => ({
   title: p.title ?? '',
-  notes: p.notes ?? '',
   dueDate: p.dueDate ?? '',
   priority: p.priority ?? 'Medium',
 });
@@ -30,7 +29,8 @@ const pageProps = {
 } as const;
 
 /**
- * Edit a procedure's details: title, due date, priority and notes (not its stages, which come from its template).
+ * Edit a procedure's details: title, due date and priority (not its stages, which come from its template, nor its
+ * notes, which are added and edited one at a time on its page).
  * This part loads the procedure; an unknown one goes back to the list. The form mounts once it's here, so it
  * starts from the procedure's details.
  */

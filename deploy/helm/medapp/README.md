@@ -101,6 +101,10 @@ Changes that leave the old API partly working, until every pod runs the new one 
   - **Old pods can't create day or week templates.** Their insert gives no owner, and the column has no default, so it fails (a 500) rather than making a template nobody owns.
   - **Old pods list everyone's copies** as the organisation's templates, several with the same name, and an admin there could set someone's default week to another person's copy.
   - **Old pods don't know meetings.** They don't show them, and can book appointments and block time over them.
+- **Several notes per procedure** (`AddedProcedureNotes`, #110): the migration copies each procedure's single notes field into its first note, and keeps the old column (`PatientProcedures.Notes`) for old pods.
+  - **Old pods read and write only the old column.** A procedure created on one with notes, or an Edit Procedure save there that changes them, writes only that column: the new pods don't show it as a note (only in the deprecated `notes` string of the procedure's response, for a procedure with no notes). The migration has already run, so a later deploy doesn't copy it again.
+  - **After a rollback** (a revert on `main`, which leaves the database as it is), staff see each procedure's notes as they were before the move, none added since, and their edits go into the old column. Before rolling forward again, or dropping the column, copy any old-column text that differs from the first note into a note (`docs/todo.md`).
+  - **Pages loaded before the deploy** keep working: the response still has `notes` as a string (the first note's text), beside the new `noteList`, and an old Edit Procedure page that still sends `notes` gets a 400 saying notes are now added on the procedure's page, rather than having the change silently dropped.
 
 ## More than one copy of the API
 

@@ -473,6 +473,58 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         (await Query(db => db.Notifications.CountAsync(n => n.CreatedAtUtc > Now))).Should().Be(0);
     }
 
+    /// <summary>
+    /// Procedures hold several notes, as the app writes them: each by a member of staff (or, for the imported ones, by
+    /// nobody, as the migration left notes with no known author), with a version for each add and edit, each edit a
+    /// NoteEdited audit entry by the note's own author, and the audit never holding the text.
+    /// </summary>
+    [Test]
+    public async Task Notes_AreSeveralPerProcedure_EditedOnlyByTheirAuthors_WithEveryVersionKept()
+    {
+        var notes = await Query(db => db.PatientProcedureNotes.AsNoTracking().ToListAsync());
+        var versions = await Query(db => db.PatientProcedureNoteVersions.AsNoTracking().ToListAsync());
+        var staff = await Query(db => db.Users.AsNoTracking().Select(u => u.Id).ToListAsync());
+        var noteAudit = await Query(db => db.PatientProcedureAuditEntries.AsNoTracking()
+            .Where(e => e.Action == PatientProcedureAuditAction.NoteAdded || e.Action == PatientProcedureAuditAction.NoteEdited)
+            .ToListAsync());
+
+        notes.Should().HaveCountGreaterThan(100);
+        notes.GroupBy(n => n.PatientProcedureId).Count(g => g.Count() > 1).Should().BeGreaterThan(20, "many procedures have several notes");
+        notes.Count(n => n.Version > 1).Should().BeGreaterThan(5, "a few notes were edited");
+        // Each note by someone has its NoteAdded entry by them (some have left since: their notes show "Deleted user").
+        var added = noteAudit.Where(e => e.Action == PatientProcedureAuditAction.NoteAdded)
+            .Select(e => (ProcedureNotes.VersionOf(e)?.NoteId, e.UserId)).ToHashSet();
+        notes.Where(n => n.AuthorUserId is { } id && !added.Contains((n.Id, id))).Should().BeEmpty("each note is added by its author");
+        notes.Count(n => n.AuthorUserId is { } id && staff.Contains(id)).Should().BeGreaterThan(notes.Count / 2, "most authors still work here");
+        notes.Where(n => n.AuthorUserId is null).Should().NotBeEmpty("the imported records' notes have no known author");
+
+        var byNote = versions.GroupBy(v => v.NoteId).ToDictionary(g => g.Key, g => g.OrderBy(v => v.Version).ToList());
+        notes.Should().AllSatisfy(n =>
+        {
+            byNote.Should().ContainKey(n.Id);
+            byNote[n.Id].Select(v => v.Version).Should().Equal(Enumerable.Range(1, n.Version));
+            byNote[n.Id][^1].Text.Should().Be(n.Text);
+            byNote[n.Id].Should().OnlyContain(v => v.UserId == n.AuthorUserId, "only a note's author edits it");
+            (n.LastEditedAtUtc is not null).Should().Be(n.Version > 1);
+        });
+        versions.Should().OnlyContain(v => v.AtUtc <= Now);
+
+        var key = notes.ToDictionary(n => n.Id);
+        foreach (var entry in noteAudit)
+        {
+            var named = ProcedureNotes.VersionOf(entry);
+            named.Should().NotBeNull();
+            if (key.TryGetValue(named!.NoteId, out var note))
+            {
+                entry.UserId.Should().Be(note.AuthorUserId!.Value);
+                entry.Details.Should().NotContain(note.Text);
+            }
+        }
+
+        noteAudit.Count(e => e.Action == PatientProcedureAuditAction.NoteEdited)
+            .Should().Be(versions.Count(v => v.Version > 1), "every edit is audited once");
+    }
+
     [Test]
     public async Task Wipe_PutsTheAdminsSignInRulesBackToTheDefaults() =>
         (await Query(db => db.SecuritySettings.AnyAsync())).Should().BeFalse("a new database has no rules row, so every rule is off");

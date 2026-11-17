@@ -115,6 +115,38 @@ public static class NoteBuilder
         return string.IsNullOrEmpty(current) ? update : $"{current} {update}";
     }
 
+    /// <summary>
+    /// A note added to a procedure after a stage, by whoever finished it: what happens next, for the rest of the team.
+    /// Synthetic, and about "the patient", never a name.
+    /// </summary>
+    public static string ProcedureFollowUpNote(string stage, StageRole role, Random random) => role switch
+    {
+        StageRole.Coordinator => Pick(random,
+            $"{stage} done. Letter sent to the patient with the next steps.",
+            $"{stage} done. Patient called to confirm; prefers contact by phone after 10:00.",
+            "Patient asked for a copy of the clinic letter: posted today."),
+        StageRole.PreAssessment => Pick(random,
+            "Pre-op bloods normal. **Stop apixaban 48 hours before** the procedure; patient aware.",
+            $"Fit for day surgery. BMI {random.Next(22, 33)}; no anaesthetic concerns raised.",
+            "Patient anxious about the anaesthetic: anaesthetist to see on the day."),
+        StageRole.Ward => Pick(random,
+            "Discharged home with an escort. Wound care leaflet given.",
+            $"Pain controlled on paracetamol. Eating and drinking; observations stable (NEWS2 {random.Next(0, 2)}).",
+            "District nurse referral sent for wound checks."),
+        StageRole.FollowUp => Pick(random,
+            "Spoke to the patient: recovering well, back to normal activities.",
+            "Results discussed with the patient by phone; letter to the GP to follow.",
+            "Patient to self-refer if symptoms return within six months."),
+        _ => Pick(random,
+            $"{stage} done. Plan discussed with the patient, who is happy to go ahead.",
+            "Discussed at the weekly MDT: plan unchanged.",
+            "GP letter dictated."),
+    };
+
+    /// <summary>A small fix to a note, by its author: a word corrected or a line added.</summary>
+    public static string ProcedureNoteFix(string current, Random random) =>
+        $"{current} {Pick(random, "(Edited: date confirmed with the patient.)", "(Edited: GP informed.)", "(Edited: typo corrected.)")}";
+
     public static string BlockReason(Random random) => Pick(random,
         "Waiting for the GP to confirm the anticoagulation plan.",
         "Patient unwell with a chest infection; on hold until recovered.",

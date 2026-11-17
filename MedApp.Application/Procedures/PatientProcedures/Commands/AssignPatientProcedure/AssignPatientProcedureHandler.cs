@@ -44,6 +44,6 @@ public sealed class AssignPatientProcedureHandler(
         // Then the admins watching, after the person it's about.
         await procedureMonitor.NotifyAsync(change, cancellationToken);
 
-        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken);
+        return await ProcedureMapper.ToResponseAsync(procedure, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId);
     }
 }
