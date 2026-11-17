@@ -2,10 +2,10 @@ import {CheckboxList, CheckboxListItem} from '@astryxdesign/core/CheckboxList';
 import {Selector, type SelectorOptionType} from '@astryxdesign/core/Selector';
 import {Skeleton} from '@astryxdesign/core/Skeleton';
 import {VStack} from '@astryxdesign/core/Stack';
-import {useQuery} from '@tanstack/react-query';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useState} from 'react';
-import {calendarQuery, dayTemplatesQuery, useCalendarActions, type CalendarDay} from '../../api/calendar';
-import {problemMessage} from '../../api/errors';
+import {calendarDaysQuery, dayTemplatesQuery, useCalendarActions, type CalendarDay} from '../../api/calendar';
+import {ApiError, problemMessage} from '../../api/errors';
 import {useAnnounce} from '../../app/announcements';
 import {addDays, formatShortDay, weekStart} from '../../utils/calendarSlots';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
@@ -21,14 +21,14 @@ export interface ApplyTemplateDialogProps {
   isOpen: boolean;
   /** Whose calendar it is (their user ID), for the changes and their day templates. */
   staffUserId: string;
-  /**
-   * The calendar's `staffUserId` as the page asks for it (none for your own), so the week's days come from the same
-   * query as the page's week.
-   */
+  /** The calendar's `staffUserId` as the page asks for it (none for your own). */
   calendarStaff?: string;
   /** A date in the week to change. */
   date: string;
-  /** The day ticked when it opens, if it's in that week and can still change: the day shown, or today. */
+  /**
+   * The day ticked when it opens, if it's in that week and can still change: the day shown, or in a week the date the
+   * address names. None ticks nothing.
+   */
   startDate?: string;
   onClose: () => void;
 }
@@ -39,6 +39,10 @@ export interface ApplyTemplateDialogProps {
  * what applies now, and past days are shown but can't be ticked, as the API refuses them (409). There's no batch
  * endpoint, so each day is its own call, all at once; days that fail are named with the API's reason and stay ticked,
  * and the dialog stays open, while those that worked stay applied.
+ *
+ * It reads the week's days afresh each time it opens, without their appointments (`calendarDaysQuery`), so it names no
+ * patients and records no reads of them. "The default week's" asks for every ticked day's own template to go, whatever
+ * its copy says (one already gone is done), then reads the days again and names any that still has one.
  *
  * Use it from the Calendar page, for a calendar the viewer can change (its owner, or an admin).
  */
@@ -72,9 +76,11 @@ interface Failure {
 function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate, onClose}: ApplyTemplateDialogProps) {
   const announce = useAnnounce();
   const actions = useCalendarActions();
+  const queryClient = useQueryClient();
   const from = weekStart(date);
-  // The same query as the page's week (so it's already here there); in the day view, the week is read on opening.
-  const week = useQuery({...calendarQuery({staffUserId: calendarStaff, from, to: addDays(from, 6)}), enabled: isOpen});
+  // The week's days, read again each time it opens (the form is new each time), so what each day says is current.
+  const daysQuery = calendarDaysQuery({staffUserId: calendarStaff, from, to: addDays(from, 6)});
+  const week = useQuery({...daysQuery, enabled: isOpen, refetchOnMount: 'always'});
   const templates = useQuery({...dayTemplatesQuery(staffUserId), enabled: isOpen && staffUserId !== ''});
 
   const days = (week.data?.days ?? []).filter((d) => d.isWorkingDay);
@@ -110,22 +116,33 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
     if (!choice || selected.length === 0) return;
     // In week order, whatever order they were ticked in.
     const dates = days.map((d) => d.date ?? '').filter((d) => selected.includes(d));
-    // "The default week's" only changes a day that has an override; the others already follow the week.
-    const toChange =
-      choice === WEEK_TEMPLATE ? dates.filter((d) => days.find((day) => day.date === d)?.isDayTemplateOverridden) : dates;
+    const isWeek = choice === WEEK_TEMPLATE;
     setFailures([]);
     setIsApplying(true);
+    // "The default week's" asks for every ticked day, not only those this copy says have a template of their own:
+    // someone may have added or removed one since. One with none already follows the week (the API's 404): done.
     const results = await Promise.allSettled(
-      toChange.map((d) =>
-        choice === WEEK_TEMPLATE
-          ? actions.clearDayTemplate.mutateAsync({userId: staffUserId, date: d})
+      dates.map((d) =>
+        isWeek
+          ? actions.clearDayTemplate.mutateAsync({userId: staffUserId, date: d}).catch((error: unknown) => {
+              if (!(error instanceof ApiError && error.status === 404)) throw error;
+            })
           : actions.applyDayTemplate.mutateAsync({userId: staffUserId, date: d, dayTemplateId: choice === NO_TEMPLATE ? null : choice}),
       ),
     );
-    setIsApplying(false);
     const failed: Failure[] = results.flatMap((result, i) =>
-      result.status === 'rejected' ? [{date: toChange[i], message: problemMessage(result.reason, 'The day could not be changed.')}] : [],
+      result.status === 'rejected' ? [{date: dates[i], message: problemMessage(result.reason, 'The day could not be changed.')}] : [],
     );
+    if (isWeek) {
+      // Read the days again: one that still has a template of its own (given one meanwhile) didn't go back to the week.
+      const fresh = await queryClient.fetchQuery({...daysQuery, staleTime: 0}).catch(() => undefined);
+      for (const d of fresh?.days ?? []) {
+        if (d.date && d.isDayTemplateOverridden && dates.includes(d.date) && !failed.some((f) => f.date === d.date)) {
+          failed.push({date: d.date, message: 'It still has a day template of its own, perhaps given it meanwhile. Please try again.'});
+        }
+      }
+    }
+    setIsApplying(false);
     const worked = dates.filter((d) => !failed.some((f) => f.date === d));
     if (worked.length > 0) announce(doneMessage(worked));
     if (failed.length === 0) {
@@ -144,7 +161,8 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
       icon={AppIcon.ApplyTemplate}
       message="A template applied to a day replaces the default week's on that day only."
       confirmText="Apply"
-      confirmDisabled={!choice || selected.length === 0}
+      // Not until the week's days are current, as they decide what each day says.
+      confirmDisabled={!choice || selected.length === 0 || week.isFetching}
       isProcessing={isApplying}
       onConfirm={() => void apply()}
       onCancel={onClose}

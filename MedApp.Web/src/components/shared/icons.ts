@@ -37,6 +37,7 @@ import {
   RiDownload2Line,
   RiFileCopyLine,
   RiDeleteBinLine,
+  RiEqualizerLine,
   RiErrorWarningLine,
   RiEyeLine,
   RiFileImageLine,
@@ -219,6 +220,8 @@ export const AppIcon = {
   ApplyTemplate: remix(RiPaintBrushLine),
   /** A meeting on a calendar (beside its colour, so it never relies on colour alone), and New Meeting. */
   Meeting: remix(RiGroupLine),
+  /** The Calendar page's View options, in a narrow card: whose calendar, the row length, the default week, templates. */
+  ViewOptions: remix(RiEqualizerLine),
   /** The Calendar page's team view (admins): a column per member of staff. */
   TeamView: remix(RiLayoutColumnLine),
   /** Suggested meeting times. */

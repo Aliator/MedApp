@@ -1,4 +1,5 @@
-import {screen, waitFor, within} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {useState} from 'react';
 import {STAFF_ME, STAFF_OTHER, testCalendar} from '../../test/calendar';
 import {calls, expectAnnounced, isDisabled, json, mockApi, openDialog, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {ApplyTemplateDialog, type ApplyTemplateDialogProps} from './ApplyTemplateDialog';
@@ -12,20 +13,28 @@ const DAY_TEMPLATES = [
   {id: 'day-old', name: 'Old day', isArchived: true},
 ];
 
-/** The week: Monday on Clinic day from the week, Thursday changed to Short day, Friday changed to no template. */
-function week() {
+/**
+ * The week: Monday on Clinic day from the week, Thursday changed to Short day, Friday changed to no template (unless
+ * `cleared` names them: back to the week's).
+ */
+function week(cleared: string[] = []) {
   const calendar = testCalendar({from: MONDAY, today: WEDNESDAY});
   calendar.days = calendar.days!.map((d) =>
-    d.date === MONDAY
-      ? {...d, dayTemplateId: 'day-clinic', dayTemplateName: 'Clinic day'}
-      : d.date === '2026-11-26'
-        ? {...d, dayTemplateId: 'day-short', dayTemplateName: 'Short day', isDayTemplateOverridden: true}
-        : d.date === '2026-11-27'
-          ? {...d, isDayTemplateOverridden: true}
-          : d,
+    cleared.includes(d.date ?? '')
+      ? d
+      : d.date === MONDAY
+        ? {...d, dayTemplateId: 'day-clinic', dayTemplateName: 'Clinic day'}
+        : d.date === '2026-11-26'
+          ? {...d, dayTemplateId: 'day-short', dayTemplateName: 'Short day', isDayTemplateOverridden: true}
+          : d.date === '2026-11-27'
+            ? {...d, isDayTemplateOverridden: true}
+            : d,
   );
   return calendar;
 }
+
+/** The API's 404 for clearing a day that has no day template of its own. */
+const NOTHING_TO_CLEAR = () => json({title: 'This day has no day template of its own.'}, 404);
 
 const DAY = (date: string) => `/api/calendar/staff/${STAFF_ME.userId}/days/${date}/day-template`;
 
@@ -80,8 +89,35 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     expect(day(/^Tue 24/)).not.toBeChecked();
     // Apply waits for a template.
     expect(isDisabled(dialog().getByRole('button', {name: 'Apply'}))).toBe(true);
-    // The week is read as the page reads it (your own: no staff named).
-    expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29');
+    // Your own week (no staff named), without its appointments, so it names no patients and records no reads.
+    expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29&WithoutAppointments=true');
+  });
+
+  it('reads the week again each time it opens', async () => {
+    const fetch = mockApi({
+      'GET /api/calendar': () => json(week()),
+      [`GET /api/calendar/staff/${STAFF_ME.userId}/day-templates`]: () => json(DAY_TEMPLATES),
+    });
+    function Toggled() {
+      const [isOpen, setIsOpen] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setIsOpen((open) => !open)}>
+            Toggle
+          </button>
+          <ApplyTemplateDialog isOpen={isOpen} staffUserId={STAFF_ME.userId} date={WEDNESDAY} startDate={WEDNESDAY} onClose={() => setIsOpen(false)} />
+        </>
+      );
+    }
+    renderWithApp(<Toggled />, {user: staffUser});
+    await dialog().findByRole('group', {name: /Days/});
+    const weekReads = () => calls(fetch).filter((c) => c.startsWith('GET /api/calendar?')).length;
+    expect(weekReads()).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', {name: 'Toggle', hidden: true}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    fireEvent.click(screen.getByRole('button', {name: 'Toggle'}));
+    await waitFor(() => expect(weekReads()).toBe(2));
   });
 
   it('applies one template to two days, a call for each, and announces it', async () => {
@@ -118,11 +154,22 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     expect(await bodyOf(fetch, 'PUT', DAY('2026-11-25'))).toEqual({dayTemplateId: null});
   });
 
-  it("goes back to the default week's only on the days changed for themselves", async () => {
+  it("goes back to the default week's on every day ticked, a day with nothing of its own already done", async () => {
     withAnnouncements();
+    const cleared: string[] = [];
+    const clear = (date: string) => () => {
+      cleared.push(date);
+      return new Response(null, {status: 204});
+    };
     const {user, fetch, onClose} = renderDialog(
       {},
-      {[`DELETE ${DAY('2026-11-26')}`]: () => new Response(null, {status: 204}), [`DELETE ${DAY('2026-11-27')}`]: () => new Response(null, {status: 204})},
+      {
+        'GET /api/calendar': () => json(week(cleared)),
+        // Wednesday follows the week already (or someone put it back meanwhile): the API's 404 means it's as wanted.
+        [`DELETE ${DAY('2026-11-25')}`]: NOTHING_TO_CLEAR,
+        [`DELETE ${DAY('2026-11-26')}`]: clear('2026-11-26'),
+        [`DELETE ${DAY('2026-11-27')}`]: clear('2026-11-27'),
+      },
     );
 
     await dialog().findByRole('group', {name: /Days/});
@@ -133,9 +180,36 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
 
     await expectAnnounced("Back to the default week's template on Wed 25, Thu 26 and Fri 27");
     expect(onClose).toHaveBeenCalled();
-    // Wednesday already follows the week, so it isn't changed.
-    expect(calls(fetch).filter((c) => c.startsWith('DELETE'))).toEqual([`DELETE ${DAY('2026-11-26')}`, `DELETE ${DAY('2026-11-27')}`]);
+    // Every day ticked is asked, whatever the dialog's copy said, and the week read again to check.
+    expect(calls(fetch).filter((c) => c.startsWith('DELETE'))).toEqual([`DELETE ${DAY('2026-11-25')}`, `DELETE ${DAY('2026-11-26')}`, `DELETE ${DAY('2026-11-27')}`]);
+    const made = calls(fetch);
+    expect(made.findLastIndex((c) => c.startsWith('GET /api/calendar?'))).toBeGreaterThan(made.findLastIndex((c) => c.startsWith('DELETE')));
     expect(calls(fetch).some((c) => c.startsWith('PUT'))).toBe(false);
+  });
+
+  it("names a day still with a template of its own after going back to the default week's", async () => {
+    withAnnouncements();
+    const {user, onClose} = renderDialog(
+      {},
+      {
+        // Wednesday's copy says it follows the week; it was given a template meanwhile, which is still there after.
+        'GET /api/calendar': () => {
+          const calendar = week();
+          calendar.days = calendar.days!.map((d) => (d.date === WEDNESDAY ? {...d, isDayTemplateOverridden: true} : d));
+          return json(calendar);
+        },
+        [`DELETE ${DAY('2026-11-25')}`]: () => new Response(null, {status: 204}),
+      },
+    );
+
+    await dialog().findByRole('group', {name: /Days/});
+    await choose(user, "The default week's");
+    await user.click(dialog().getByRole('button', {name: 'Apply'}));
+
+    expect(await dialog().findByText("One day couldn't be changed")).toBeInTheDocument();
+    expect(dialog().getByText(/^Wed 25: It still has a day template of its own/)).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(day(/^Wed 25/)).toBeChecked();
   });
 
   it('keeps the dialog open and names the days that failed, leaving only those ticked', async () => {
@@ -183,7 +257,7 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     await waitFor(() =>
       expect(calls(fetch)).toEqual(
         expect.arrayContaining([
-          `GET /api/calendar?StaffUserId=${STAFF_OTHER.userId}&From=2026-11-23&To=2026-11-29`,
+          `GET /api/calendar?StaffUserId=${STAFF_OTHER.userId}&From=2026-11-23&To=2026-11-29&WithoutAppointments=true`,
           `GET /api/calendar/staff/${STAFF_OTHER.userId}/day-templates?includeArchived=true`,
         ]),
       ),

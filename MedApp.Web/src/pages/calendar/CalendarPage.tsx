@@ -1,7 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Card} from '@astryxdesign/core/Card';
 import {DateInput} from '@astryxdesign/core/DateInput';
-import {DropdownMenu, type DropdownMenuOption} from '@astryxdesign/core/DropdownMenu';
+import {DropdownMenu, type DropdownMenuItemData, type DropdownMenuOption} from '@astryxdesign/core/DropdownMenu';
 import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {MultiSelector} from '@astryxdesign/core/MultiSelector';
@@ -43,7 +43,7 @@ import {
 } from '../../components/calendar/CalendarGrid';
 import {appointmentKey, blockKey, calendarItems, meetingKey, type CalendarGridItem} from '../../components/calendar/calendarItems';
 import {MeetingDialog, type MeetingDialogProps} from '../../components/calendar/MeetingDialog';
-import {StaffPicker} from '../../components/calendar/StaffPicker';
+import {StaffPicker, staffPickerOptions} from '../../components/calendar/StaffPicker';
 import {NO_FIELD_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
@@ -56,6 +56,16 @@ import type {CalendarSearch, CalendarView} from './calendarSearch';
 
 /** The toolbar's date and whose-calendar fields: enough for "Mon, 16 Nov 2026" and a username. */
 const TOOLBAR_FIELD_WIDTH = 175;
+
+/** The date field in a narrow toolbar, without its weekday: Astryx's own minimum for a date field. */
+const NARROW_DATE_WIDTH = 180;
+
+/**
+ * The narrowest (rem) the toolbar shows every control, on two lines at most: the day buttons, date, view and whose
+ * calendar on one, the row length, default week and templates on the other. Narrower, those and whose calendar go under
+ * View options.
+ */
+const FULL_TOOLBAR_MIN_REM = 44;
 
 /** Text in the secondary colour shown in the primary one instead (the View control's unselected choices). */
 const PRIMARY_TEXT = {'--color-text-secondary': 'var(--color-text-primary)'} as CSSProperties;
@@ -135,7 +145,11 @@ export function formatRange(from: string, to: string): string {
 
 export interface CalendarPageProps {
   search: CalendarSearch;
-  onSearchChange: (next: CalendarSearch) => void;
+  /**
+   * Changes the address. With `replace`, it replaces the address in the history rather than adding one, for a
+   * preference (the row length) that Back shouldn't step through.
+   */
+  onSearchChange: (next: CalendarSearch, options?: {replace?: boolean}) => void;
 }
 
 /** What's being moved by a drag, waiting for its confirmation (appointments only), and whose calendar it's on. */
@@ -180,6 +194,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   // Measured, so it's the full week on the server and at first, and the window's width doesn't matter. A rem over the
   // full week's own minimum leaves room for the grid's scrollbar.
   const [cardRef, isCardNarrow] = useNarrowerThan(FULL_WEEK_MIN_REM + 1);
+  // A toolbar too narrow for all its controls on two lines: the secondary ones go under View options.
+  const [toolbarRef, isToolbarNarrow] = useNarrowerThan(FULL_TOOLBAR_MIN_REM);
   const isCompactWeek = isCardNarrow && view === 'week';
   // The row length: the URL's, or the one this person chose last (a setting, so it follows them to the Calendar from
   // anywhere, and the server renders it too).
@@ -244,10 +260,10 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedStart]);
 
-  const go = (next: Partial<CalendarSearch>) => {
+  const go = (next: Partial<CalendarSearch>, options?: {replace?: boolean}) => {
     setHeld(null);
     setMessage(null);
-    onSearchChange({...search, ...next});
+    onSearchChange({...search, ...next}, options);
   };
   const step = (direction: 1 | -1) => go({date: view === 'week' ? addDays(date, 7 * direction) : nextWeekday(date, direction)});
 
@@ -349,7 +365,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     );
   };
 
-  const weekItems: DropdownMenuOption[] = [
+  const weekItems: DropdownMenuItemData[] = [
     ...(weekTemplates.data ?? [])
       .filter((t) => !t.isArchived || t.id === person?.defaultWeekTemplateId)
       .map((t) => ({
@@ -414,6 +430,118 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   ];
   const requestedCount = needsBooking.data?.totalCount ?? 0;
 
+  const chooseRows = (minutes: CalendarRowMinutes) => {
+    setCalendarRows(minutes);
+    // A preference, not a step in the history: Back goes to where the person was before, not to the other row length
+    // (which the saved default would overrule anyway).
+    go({rows: minutes === 5 ? 5 : undefined}, {replace: true});
+  };
+  const rowItems: DropdownMenuItemData[] = ROW_CHOICES.map((minutes) => ({
+    label: `${minutes}-minute rows`,
+    icon: minutes === rowMinutes ? <Icon icon={AppIcon.Check} /> : undefined,
+    onClick: () => chooseRows(minutes),
+  }));
+  const hasDefaultWeek = canSetDefaultWeek && person !== undefined;
+  const defaultWeekLabel = `Default week: ${person?.defaultWeekTemplateName ?? 'None'}`;
+  const staffChoices = staffPickerOptions(staff.data, myId, 'My calendar');
+
+  // The toolbar's parts: laid out in full, or in a narrow card with the secondary ones under View options.
+  // In a narrow toolbar, its controls are the small size, so getting about fits two lines on a phone.
+  const size = isToolbarNarrow ? 'sm' : 'md';
+  const dayButtons = (
+    <HStack gap={1} vAlign="center">
+      <IconButton label={view === 'week' ? 'Previous week' : 'Previous day'} tooltip={view === 'week' ? 'Previous week' : 'Previous day'} icon={<Icon icon={AppIcon.ChevronLeft} />} variant="secondary" size={size} onClick={() => step(-1)} />
+      <Button label="Today" variant="secondary" size={size} isDisabled={date === today && search.date === undefined} onClick={() => go({date: undefined})} />
+      <IconButton label={view === 'week' ? 'Next week' : 'Next day'} tooltip={view === 'week' ? 'Next week' : 'Next day'} icon={<Icon icon={AppIcon.ChevronRight} />} variant="secondary" size={size} onClick={() => step(1)} />
+    </HStack>
+  );
+  // Without its weekday in a narrow toolbar, so it shares a line with the buttons before it (the subtitle has the day).
+  const dateInput = (
+    <DateInput
+      label="Go to date"
+      isLabelHidden
+      value={date as ISODateString}
+      onChange={(value) => value && go({date: value === today ? undefined : value})}
+      weekStartsOn={WEEK_STARTS_ON}
+      format={isToolbarNarrow ? 'date' : 'date_weekday'}
+      size={size}
+      width={isToolbarNarrow ? NARROW_DATE_WIDTH : TOOLBAR_FIELD_WIDTH}
+    />
+  );
+  // Its unselected choices use the primary text colour: the secondary one is under 4.5:1 on its track. The choice is
+  // named in the URL, the week too, so a week chosen in a wide window stays a week when the window narrows or a half
+  // view opens (where a URL without a view opens on a day).
+  const viewSwitch = (
+    <SegmentedControl label="View" value={view} onChange={(value) => go({view: value as CalendarView})} size={size} style={PRIMARY_TEXT}>
+      {viewChoices.map((choice) => (
+        <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
+      ))}
+    </SegmentedControl>
+  );
+  const whoPicker = (
+    <MultiSelector
+      label="Who"
+      isLabelHidden
+      value={search.who ?? []}
+      onChange={(value) => go({who: value.length ? value : undefined})}
+      options={whoOptions}
+      placeholder="Everyone"
+      triggerDisplay="labels"
+      hasSearch={whoOptions.length > 8}
+      hasSelectAll
+      hasClear
+      isLoading={staff.isLoading}
+      startIcon={AppIcon.Users}
+      width={TOOLBAR_FIELD_WIDTH}
+    />
+  );
+  const staffPicker = (
+    <StaffPicker
+      label="Whose calendar"
+      staff={staff.data}
+      myId={myId}
+      ownLabel="My calendar"
+      value={staffUserId}
+      onChange={(next) => go({staff: next, appointment: undefined})}
+      isLoading={staff.isLoading}
+      width={TOOLBAR_FIELD_WIDTH}
+    />
+  );
+  // How long each row of the grid is: 5-minute rows are as tall, so the day scrolls. In the URL as rows=5. A menu named
+  // by what it shows ("Rows: 15 min"), so it's never read as an appointment's length.
+  const rowsMenu = <DropdownMenu button={{label: `Rows: ${rowMinutes} min`, variant: 'secondary'}} items={rowItems} />;
+  const defaultWeekMenu = hasDefaultWeek && <DropdownMenu button={{label: defaultWeekLabel, variant: 'secondary'}} items={weekItems} />;
+  const templatesButton = templatesLink && (
+    <Button label={templatesLink.label} variant="secondary" href={templatesLink.href} icon={<Icon icon={AppIcon.CalendarTemplates} />} />
+  );
+  // In a narrow toolbar: whose calendar, the row length, the default week and the templates, in one menu.
+  const viewOptionItems: DropdownMenuOption[] = [
+    ...(!isTeam && staffChoices.length > 0
+      ? [
+          {
+            label: `Whose calendar: ${staffChoices.find((c) => c.value === staffUserId)?.label ?? 'My calendar'}`,
+            items: staffChoices.map((choice) => ({
+              label: choice.label,
+              icon: choice.value === staffUserId ? <Icon icon={AppIcon.Check} /> : undefined,
+              onClick: () => go({staff: choice.value === myId ? undefined : choice.value, appointment: undefined}),
+            })),
+          },
+        ]
+      : []),
+    {type: 'section' as const, title: `Rows: ${rowMinutes} min`, items: rowItems},
+    ...(hasDefaultWeek ? [{label: defaultWeekLabel, items: weekItems}] : []),
+    ...(templatesLink ? [{label: templatesLink.label, href: templatesLink.href, icon: <Icon icon={AppIcon.CalendarTemplates} />}] : []),
+  ];
+  const viewOptions = (
+    <DropdownMenu
+      items={viewOptionItems}
+      alignment="end"
+      renderTrigger={(trigger) => (
+        <IconButton {...trigger} label="View options" tooltip="View options" icon={<Icon icon={AppIcon.ViewOptions} />} variant="secondary" size="sm" />
+      )}
+    />
+  );
+
   return (
     <Page
       title="Calendar"
@@ -424,8 +552,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           <AlertMessage message={message ?? "That appointment couldn't be found. It may have been deleted."} />
         ) : undefined
       }
+      // A fragment, not a group of its own, so the header can wrap the buttons among themselves on a phone.
       actions={
-        <HStack gap={2} vAlign="center">
+        <>
           <Button
             label={requestedCount > 0 ? `Needs Booking (${requestedCount})` : 'Needs Booking'}
             variant="secondary"
@@ -460,7 +589,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
                 : []),
             ]}
           />
-        </HStack>
+        </>
       }
       dialogs={
         <>
@@ -491,8 +620,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               staffUserId={staffUserId}
               calendarStaff={search.staff}
               date={date}
-              // The day shown, or in a week, today (ticked only when it's in that week).
-              startDate={view === 'day' ? date : today}
+              // The day shown, or in a week, the date the address names (ticked only when it's in that week and can
+              // change); with none, nothing is ticked.
+              startDate={view === 'day' ? date : search.date}
               onClose={() => setIsApplyingTemplate(false)}
             />
           )}
@@ -565,93 +695,35 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
         </>
       }>
       <VStack gap={4} height="100%">
-        {/* Two groups that wrap as wholes: getting about (left), and this calendar's templates (right). Its fields
-            never show an error, so they drop the line kept for one, and line up with the buttons. */}
-        <HStack gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
-          <HStack gap={2} vAlign="center" wrap="wrap">
-            <HStack gap={1} vAlign="center">
-              <IconButton label={view === 'week' ? 'Previous week' : 'Previous day'} tooltip={view === 'week' ? 'Previous week' : 'Previous day'} icon={<Icon icon={AppIcon.ChevronLeft} />} variant="secondary" onClick={() => step(-1)} />
-              <Button label="Today" variant="secondary" isDisabled={date === today && search.date === undefined} onClick={() => go({date: undefined})} />
-              <IconButton label={view === 'week' ? 'Next week' : 'Next day'} tooltip={view === 'week' ? 'Next week' : 'Next day'} icon={<Icon icon={AppIcon.ChevronRight} />} variant="secondary" onClick={() => step(1)} />
+        {isToolbarNarrow ? (
+          // A narrow card (a phone, a half view): getting about stays in view, the rest is under View options, so the
+          // toolbar takes a line or two and the grid keeps its room. On a phone the day buttons and the view share the
+          // first line, and the date (Astryx's are at least 180px) and View options the second.
+          <HStack ref={toolbarRef} gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
+            {dayButtons}
+            {viewSwitch}
+            {dateInput}
+            {isTeam && whoPicker}
+            {viewOptions}
+          </HStack>
+        ) : (
+          // Two groups that wrap as wholes: getting about (left), and this calendar's templates (right, or under the
+          // first and lined up with it when there's no room beside it). Its fields never show an error, so they drop
+          // the line kept for one, and line up with the buttons.
+          <HStack ref={toolbarRef} gap={2} vAlign="center" wrap="wrap" justify="between" style={NO_FIELD_STATUS_LINE}>
+            <HStack gap={2} vAlign="center" wrap="wrap">
+              {dayButtons}
+              {dateInput}
+              {viewSwitch}
+              {isTeam ? whoPicker : staffPicker}
             </HStack>
-            <DateInput
-              label="Go to date"
-              isLabelHidden
-              value={date as ISODateString}
-              onChange={(value) => value && go({date: value === today ? undefined : value})}
-              weekStartsOn={WEEK_STARTS_ON}
-              format="date_weekday"
-              width={TOOLBAR_FIELD_WIDTH}
-            />
-            {/* Its unselected choices use the primary text colour: the secondary one is under 4.5:1 on its track. The
-                choice is named in the URL, the week too, so a week chosen in a wide window stays a week when the
-                window narrows or a half view opens (where a URL without a view opens on a day). */}
-            <SegmentedControl
-              label="View"
-              value={view}
-              onChange={(value) => go({view: value as CalendarView})}
-              style={PRIMARY_TEXT}>
-              {viewChoices.map((choice) => (
-                <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
-              ))}
-            </SegmentedControl>
-            {isTeam ? (
-              <MultiSelector
-                label="Who"
-                isLabelHidden
-                value={search.who ?? []}
-                onChange={(value) => go({who: value.length ? value : undefined})}
-                options={whoOptions}
-                placeholder="Everyone"
-                triggerDisplay="labels"
-                hasSearch={whoOptions.length > 8}
-                hasSelectAll
-                hasClear
-                isLoading={staff.isLoading}
-                startIcon={AppIcon.Users}
-                width={TOOLBAR_FIELD_WIDTH}
-              />
-            ) : (
-              <StaffPicker
-                label="Whose calendar"
-                staff={staff.data}
-                myId={myId}
-                ownLabel="My calendar"
-                value={staffUserId}
-                onChange={(next) => go({staff: next, appointment: undefined})}
-                isLoading={staff.isLoading}
-                width={TOOLBAR_FIELD_WIDTH}
-              />
-            )}
+            <HStack gap={2} vAlign="center" wrap="wrap">
+              {rowsMenu}
+              {defaultWeekMenu}
+              {templatesButton}
+            </HStack>
           </HStack>
-          <StackItem size="fill" />
-          <HStack gap={2} vAlign="center" wrap="wrap">
-            {/* How long each row of the grid is: 5-minute rows are as tall, so the day scrolls. In the URL as rows=5. A
-                menu named by what it shows ("Rows: 15 min"), so it's never read as an appointment's length, and small
-                enough to share a line with what's beside it in a narrow window. */}
-            <DropdownMenu
-              button={{label: `Rows: ${rowMinutes} min`, variant: 'secondary'}}
-              items={ROW_CHOICES.map((minutes) => ({
-                label: `${minutes}-minute rows`,
-                icon: minutes === rowMinutes ? <Icon icon={AppIcon.Check} /> : undefined,
-                onClick: () => {
-                  setCalendarRows(minutes);
-                  go({rows: minutes === 5 ? 5 : undefined});
-                },
-              }))}
-            />
-            {canSetDefaultWeek && person && (
-              <DropdownMenu
-                button={{
-                  label: `Default week: ${person.defaultWeekTemplateName ?? 'None'}`,
-                  variant: 'secondary',
-                }}
-                items={weekItems}
-              />
-            )}
-            {templatesLink && <Button label={templatesLink.label} variant="secondary" href={templatesLink.href} icon={<Icon icon={AppIcon.CalendarTemplates} />} />}
-          </HStack>
-        </HStack>
+        )}
         <StackItem size="fill">
           <Card ref={cardRef} padding={0} width="100%" height="100%">
             {shown.isError ? (
