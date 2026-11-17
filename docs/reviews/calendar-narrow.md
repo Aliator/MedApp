@@ -4,6 +4,8 @@
 
 **Reviewed:** 17 November 2026, independently of the author's conclusions. Each claim below was checked against the code, a test run, or a temporary test. **No finding is high or critical:** 3 are medium and 7 are low.
 
+**Fixes:** every finding is fixed on `feature/calendar-apply-template` (after `492f8f9`, Apply Template), with the browser check's findings too; each finding says where. See Browser check below.
+
 ## Summary
 
 The Calendar now works in narrow windows and half views: Week is offered there too, shown as a compact Monday-to-Friday week. Anyone can switch the grid between 15-minute and 5-minute rows; 5-minute rows are as tall as 15-minute ones, so the day gets three times taller and scrolls. The Book or Block menu is now only as wide as its buttons.
@@ -88,7 +90,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
   - **Keep its own length:** the ghost's end is its start plus the item's real length, not `lengthRows(item) * SLOT`.
   - **Move it by whole rows from where it is:** start = the item's start + (target row − its row) × row length. Then 10:05 dragged one row down lands at 10:20, and a drop on its own row is "where it was".
   - **Test it:** in 15-minute rows, a 10:05 to 10:25 item dragged one row down lands at 10:20 to 10:40, and a 6 px wobble moves nothing.
-- **What happened to it:** not fixed yet. Proposed for this branch.
+- **What happened to it:** fixed in `cecdeed`. A dragged item now keeps its own start and exact length, and moves a row for each row the pointer moves from where it was picked up (`CalendarGrid.tsx`, `Drag.offset`, `pickRow`, `length`). A press that never takes it anywhere else is a click (`hasLeft`), so a wobble opens it; a drag away and back moves nothing and opens nothing. Tested: a 10:05 to 10:25 block in 15-minute rows, nudged 6 px (opens, no move), a row down (10:20 to 10:40), to Tuesday (10:05 to 10:25), and away and back.
 
 ### 2. The compact week turns on in every window under 1400 px, where the full week fits
 
@@ -103,7 +105,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
   - **Go compact by the grid's own width:** a `ResizeObserver` on the card, or a CSS container query, comparing it with the full week's minimum (`--mc-min-inline` for seven columns). It would still apply after mount, as now, so the server's render still matches.
   - **Keep `useIsNarrow()` for the default view only.** Consider opening on the week wherever it fits.
   - **Optionally, always write `view=week`** when someone chooses Week, so their choice outlives a half view.
-- **What happened to it:** not fixed yet. Proposed.
+- **What happened to it:** fixed in `e051199`. The page measures the grid's card (`useNarrowerThan`, a `ResizeObserver`, false until measured, so the server's full week matches the first render) and goes compact only when it's under the full week's minimum (`FULL_WEEK_MIN_REM`, 38rem, plus 1rem for a scrollbar). The window's width no longer matters: a 1366 px laptop gets the full week, a half view of a wide screen too. Choosing Week now always writes `view=week`, so a week chosen in a wide window stays a week. `useIsNarrow()` still picks the default view (a day) when the URL names none.
 
 ### 3. The quarter-hour times fail text contrast
 
@@ -118,7 +120,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
   - **Custom colours** can make it worse: the colour check warns about secondary text at full strength (`src/app/colours.tsx`), not at 70%.
 - **Evidence:** `MedApp.Web/src/components/calendar/CalendarGrid.tsx:1000-1001`; `MedApp.Web/src/themes/medapp/medapp.css:206, 230`.
 - **Fix:** drop the opacity. The smaller size alone marks the quarters, at full secondary colour. If the hours need to stand out more, make their labels semibold.
-- **What happened to it:** not fixed yet. Proposed.
+- **What happened to it:** fixed in `54af5e8`. No opacity: the quarter-hour times are in the full secondary colour (5.30:1 light, 6.62:1 dark), at 10 px (between `--font-size-xs` and `-sm`) rather than 9. A test checks the CSS has no opacity on them.
 
 ### 4. After switching row length, the keyboard's place jumps to another time
 
@@ -126,7 +128,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
 - **What could go wrong:** a keyboard user moves to Tuesday 10:00, tabs to Row length and picks 5 min. Tabbing back into the grid lands on **08:40**. The grid remembers its place as a row number (row 8), and row 8 is 10:00 in 15-minute rows but 08:40 in 5-minute ones. A screen reader user hears a different time and has lost their place.
 - **Evidence:** `CalendarGrid.tsx:365, 372, 376-379`.
 - **Fix:** in the effect that runs on a row-length change (`:343-349`), convert the place (row × old length ÷ new length), or remember it as a time, not a row.
-- **What happened to it:** not fixed yet.
+- **What happened to it:** fixed in `0c25568`. The tab stop is kept as minutes from the column's start, not as a row, so it stays on 10:00 when the rows change (10:10 in 5-minute rows becomes 10:00, the row it's in). Tested both ways.
 
 ### 5. Switching to 5-minute rows doesn't show the time now if the 15-minute day fitted without scrolling
 
@@ -138,7 +140,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
 - **Why:** the remembered position (`topShare`) only changes when the grid scrolls (`:337-341`), and the open-on-now step runs once per mount.
 - **Evidence:** `CalendarGrid.tsx:319-349`.
 - **Fix:** when the old view didn't scroll and today is shown during the working day, run the open-on-now step after the switch instead. Share its code.
-- **What happened to it:** not fixed yet.
+- **What happened to it:** fixed in `0c25568`. On a switch, the grid works out whether the old day scrolled at all (rows keep their height, so its old height is known); if it didn't, and today is under way, it goes to the time now, sharing the opening code (`scrollToNow`). Tested with a 1,000 px tall view at 15:00. The browser check found the real cause of the scroll problem too: the router's scroll restoration put back the old pixel position after the grid had set the new one (see Browser check, 1).
 
 ### 6. With 5-minute rows, the booking dialog lists every 5 minutes, and a single click books 5 minutes
 
@@ -149,7 +151,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
   - **Not consistent:** Reschedule, from an appointment opened on the same page, still offers 15-minute steps (`AppointmentDialog.tsx:275-279` passes no `stepMinutes`).
 - **Evidence:** `CalendarPage.tsx:443`; `BookAppointmentDialog.tsx:159, 202-205, 216, 297-299`; `AppointmentDialog.tsx:275-279`.
 - **Fix:** keep 15-minute steps and add the selection's own start to the list, as the block dialog does with `keep` (`BlockDialog.tsx:141-146`). Consider suggesting at least 15 minutes from a single click. If 5-minute steps stay, pass them to the reschedule dialog too.
-- **What happened to it:** not fixed yet. Decision 68 names the longer list as a trade-off.
+- **What happened to it:** fixed in `aeda60f`. A click, or Enter on a slot with nothing extended, selects 15 minutes whatever the row length (as far as the time is free); Shift with the arrows, or a drag, still goes a row at a time. The booking dialog lists times every 15 minutes as before and, with a 5-minute step, adds the 5-minute times within a quarter of an hour of the chosen one (`shownStarts`): a 10:05 selection shows 09:55, 10:00, 10:05, 10:10 and 10:15 among the quarters, and choosing 11:30 moves the finer times there. Each day still counts its quarter hours. Chosen over a fixed list plus the selection's own start because it lets someone nudge a time by 5 minutes either way without the calendar. Reschedule and Book Another from an appointment opened on the page take the same step (`AppointmentDialog`'s `stepMinutes`).
 
 ### 7. The row length is forgotten whenever someone comes to the Calendar from elsewhere
 
@@ -158,7 +160,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
 - **The precedent:** lists keep a saved default that the address can override: "Whether the procedure lists start on 'Assigned to me' (their URL can still say otherwise)" (`src/app/listSettings.tsx:23`).
 - **Evidence:** `calendarSearch.ts:69`; `CalendarPage.tsx:151`; decision 68's last sentence.
 - **Fix:** a saved "calendar rows" setting (remember the last choice, or a choice in Account Settings) as the default, with `rows` in the address overriding it. It must apply the same way on the server, or after mount like the narrow switch. Or accept it, as decision 68 does knowingly.
-- **What happened to it:** documented as a trade-off.
+- **What happened to it:** fixed in `d9a8863`. The last row length chosen is the person's default (`useListSettings().calendarRows`, a `defineSetting` kept with the account, as where the procedure lists start is), and the URL overrides it: `rows=5`, or `rows=15`, which the parser now keeps. Only 5 is stored (15 is the default). The server renders it from the account's settings, as the lists do.
 
 ### 8. A drag re-renders the whole grid on every pointer move, and 5-minute rows triple what that costs
 
@@ -168,7 +170,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
   - **5-minute rows triple the work:** a 20-person team view has 2,400 rows instead of 800. In jsdom a move took about 28 ms instead of 13. A browser is faster, but on an older PC with 30 or more people the drag could stutter.
 - **Evidence:** `CalendarGrid.tsx:532-548, 715-749`.
 - **Fix:** skip `setDrag` when `isMoving` and `to` haven't changed. Memoise each column's rows, so a drag redraws only the ghost.
-- **What happened to it:** not fixed yet.
+- **What happened to it:** fixed in `1dbff42`. A pointer move that doesn't change where the item would go no longer sets state, and the free slots are a memoised component (`SlotRows`) with stable handlers, so a drag redraws the items and the ghost, not every slot.
 
 ### 9. Docs and comments that disagree with the code
 
@@ -179,7 +181,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
   - **"15-minute slots":** decision 3 (`docs/calendar-plan.md:14`) says the browser steps through 15-minute slots.
   - **In `CalendarGrid.tsx`:** `:81` ("a click on an empty slot (15 minutes)"), `:86` ("in 15-minute steps") and `:835-836` (`itemFit` counts "rows (15 minutes each)").
 - **Fix:** update them, and point decision 33 and `architecture.md` at decision 67.
-- **What happened to it:** not fixed yet.
+- **What happened to it:** fixed in `892f7b7`: decisions 1, 3, 33, 67, 68 and 69, `docs/architecture.md`, both `AGENTS.md` files (including the root's "Apply a day template to this day", now Apply Template, and its 15-minute rows), and the comments in `CalendarGrid.tsx` (`onSelectRange`, `onItemMove`, `isCompact`, `itemFit`, `GridItem`).
 
 ### 10. "15 min" and "5 min" have no visible label
 
@@ -187,7 +189,19 @@ The Calendar now works in narrow windows and half views: Week is offered there t
 - **What could go wrong:** Astryx's `SegmentedControl` `label` is only spoken, "never rendered visually". So sighted users see "15 min | 5 min" beside a New button that books appointments by length, and could read it as the appointment length. Screen reader users hear "Row length", which is clear.
 - **Evidence:** `CalendarPage.tsx:559-562`; `node_modules/@astryxdesign/core/dist/SegmentedControl/SegmentedControl.d.ts:29`.
 - **Fix:** name the choices "15-min rows" and "5-min rows", or add a tooltip.
-- **What happened to it:** not fixed yet.
+- **What happened to it:** fixed in `01fa01e`. The control is now a small menu named by what it shows, "Rows: 15 min", with "15-minute rows" and "5-minute rows" (a check on the current one), in the toolbar's right-hand group, where it shares a line with the default week in a narrow window (the browser check's point 6).
+
+## Browser check
+
+A later check ran the first three commits in Chromium at 1920, 1366, 960 and 390 px. Its findings, and what happened to each:
+
+1. **(medium) Switching the row length kept the pixel position, not the time.** The cause: the grid set the right scroll position, then TanStack Router's scroll restoration put back the one it had saved for the old address. Fixed in `0c25568`: the Calendar route navigates with `resetScroll: false`, so the grid keeps its own place. A page test goes through the real router with scroll restoration on, and fails without the fix.
+2. **(serious in axe) The quarter-hour times failed contrast.** Finding 3: fixed in `54af5e8`.
+3. **(low to medium) The compact week at 390 px was barely readable.** Fixed in `848477e`: each day is headed by its weekday over its date ("Tue" over "17"), so Tue and Thu differ; an item, a selection or a dragged item in a card under 4.5rem wide shows its start time instead of a few letters (CSS container queries on each card's width).
+4. **(low) Compact items stayed on one line when tall, and 10-minute ones were smaller.** Fixed in `848477e`: compact items wrap to the lines their height allows, and short ones use the supporting text size, as the rest do.
+5. **(low) In the day view the Book or Block menu sat far from the selection,** flipped to the far side over the side nav. Fixed in `60fd47c`: a selection over 320 px wide gets its menu below it (`selectionMenuPlacement`); narrower ones keep it beside.
+6. **(low) The Row length control added a toolbar row on narrow windows.** Fixed in `01fa01e` (finding 10): a small Rows menu in the right-hand group, beside the default week.
+7. **The page header overflowed at 390 px, and the phone top bar's "MedApp" was white on a light bar.** Fixed in `16e5ca7`: `PageHeader` wraps its actions under the title, and among themselves, when they don't fit (every page). Fixed in `bd6fa7a`: the side nav's dark theme no longer applies on the phone's top bar (`SideNavTheme`, by Astryx's `useSideNavRenderMode()`), which sits on the page's own background, so its name and bell take the app's colours there.
 
 ## Remaining risks
 
@@ -198,6 +212,7 @@ The Calendar now works in narrow windows and half views: Week is offered there t
 - **Server pages grow:** a 5-minute week renders 600 slot buttons, roughly 100 KB of HTML before compression. A big team view is several times that.
 - **Tooltips on touch:** compact items show their full words in a tooltip, which touch screens don't show. A tap opens the item, which says everything.
 - **A visible jump after loading:** a narrow window gets the full week from the server, then the compact one after mount. Decision 67 says so.
+- **After the fixes:** the compact switch is measured, so a change of text size alone is noticed at the next resize. The 5-minute times in the booking dialog are offered only around the chosen one. None of the fixes has been seen in a browser yet.
 
 ## Say it like this
 
