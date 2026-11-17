@@ -84,6 +84,8 @@ The first part is built: the activity log and access report, the subject access 
 - **Contact preferences** and a National Data Opt-out flag.
 - **Always Encrypted for the NHS number** (deterministic, so lookups by exact value still work), which step 7 planned once the number existed. It exists now (branch `feature/nhs-integrations`), protected only by TDE like the rest. Its partial-match search (the list's NHS number filter, which matches numbers containing the digits typed) would have to become an exact match.
 
+- **An emailed link pasted into a tab that's already on its page isn't read.** The browser changes only the fragment and doesn't reload, so `useEmailLink` keeps saying "This link isn't complete" and the token stays in the address bar and history. Listen for `hashchange` and reload when a whole link arrives (review of #109, finding 2).
+
 ## Patient identity and interoperability (the rest of roadmap step 9's first part)
 
 Built on branch `feature/nhs-integrations` (`AGENTS.md`, NHS number, FHIR and SNOMED CT): an optional, validated, unique NHS number; the patient banner; a read-only FHIR R4 Patient API in the UK Core shape; SNOMED CT codes on stage definitions; and a demographics lookup with only an offline stub. Still to do:
@@ -141,6 +143,8 @@ What that branch left, so the app would work exactly as before (`docs/security/a
 
 - **Reloading with a half view open re-renders the page.** The half view's page is kept in the browser tab (`sessionStorage`), which the server can't read, so its render has no half view, the browser's first render has one, and every reload logs "Hydration failed" and rebuilds the page in the browser (`AppLayout`, `useState(() => storedPath())`). Start without the half view and open it after mounting, or keep the half view's page somewhere the server can read (the address), so the first renders match (review of #95).
 - **Run the patient timeline's query on SQL Server,** once `MedApp.IntegrationTests` has a database (#65): page through entries that share a time (SQL Server orders `uniqueidentifier`s its own way, and the cursor must agree), and filter by kind (its `LIKE` markers ignore case there). Today it's only proven to translate (`PatientTimelineTranslationTests`) and run in memory (PR #64 review, finding 6).
+
+- **Run more of the web tests under StrictMode.** Only the tests that pass `strict` to `renderWithApp` run effects twice as development does, and `renderApp` has no such option. Use Testing Library's own `reactStrictMode` option, give `renderApp` it too, then try `configure({reactStrictMode: true})` across the suite to find other effects that break when run twice (review of #109, finding 3).
 
 ## Long term
 

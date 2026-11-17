@@ -144,8 +144,16 @@ const nothing = (text: string) => (
 export function PatientExportPage({id}: {id: string}) {
   const {data, error, isPending} = useQuery(patientExportQuery(id));
   const queryClient = useQueryClient();
-  // The export holds the whole clinical record: it's dropped from the cache as soon as the page closes.
-  useEffect(() => () => queryClient.removeQueries({queryKey: patientExportQuery(id).queryKey}), [queryClient, id]);
+  // The export holds the whole clinical record: it's dropped from the cache as soon as the page closes. Only once
+  // nothing shows it, a moment later: in development StrictMode runs this clean-up and the page's effects again at
+  // once, and dropping it then would fetch it (and record the export in the activity log) a second time.
+  useEffect(
+    () => () => {
+      const {queryKey} = patientExportQuery(id);
+      queueMicrotask(() => queryClient.removeQueries({queryKey, predicate: (query) => query.getObserversCount() === 0}));
+    },
+    [queryClient, id],
+  );
   const isMissing = error instanceof ApiError && error.status === 404;
 
   return (
