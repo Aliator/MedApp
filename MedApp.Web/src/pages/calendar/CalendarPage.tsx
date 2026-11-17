@@ -33,7 +33,14 @@ import {AppointmentDialog, appointmentWhen} from '../../components/calendar/Appo
 import {ApplyTemplateDialog} from '../../components/calendar/ApplyTemplateDialog';
 import {BlockDialog} from '../../components/calendar/BlockDialog';
 import {BookAppointmentDialog} from '../../components/calendar/BookAppointmentDialog';
-import {CalendarGrid, dayColumns, type CalendarColumn, type CalendarRowMinutes, type CalendarSelection} from '../../components/calendar/CalendarGrid';
+import {
+  CalendarGrid,
+  dayColumns,
+  FULL_WEEK_MIN_REM,
+  type CalendarColumn,
+  type CalendarRowMinutes,
+  type CalendarSelection,
+} from '../../components/calendar/CalendarGrid';
 import {appointmentKey, blockKey, calendarItems, meetingKey, type CalendarGridItem} from '../../components/calendar/calendarItems';
 import {MeetingDialog, type MeetingDialogProps} from '../../components/calendar/MeetingDialog';
 import {StaffPicker} from '../../components/calendar/StaffPicker';
@@ -42,6 +49,7 @@ import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {useNarrowerThan} from '../../components/views/useNarrowerThan';
 import {addDays, formatCalendarDay, formatTimeRange, nextWeekday, ukToday, weekStart} from '../../utils/calendarSlots';
 import {formatDate, formatDayHeading, ukDay, WEEK_STARTS_ON} from '../../utils/dates';
 import type {CalendarSearch, CalendarView} from './calendarSearch';
@@ -65,8 +73,8 @@ export function calendarRange(date: string, view: CalendarView): {from: string; 
 
 /**
  * The view shown for a search: the one it names (the team view only for admins), or by default the week, and in a
- * narrow window or a half view the day. A week asked for there is kept, in its compact form (Monday to Friday, items on
- * one line); the team view works there too, scrolling sideways.
+ * narrow window or a half view the day. A week asked for there is kept (compact if its card is too narrow for the
+ * full one); the team view works there too, scrolling sideways.
  */
 export function shownView(search: CalendarSearch, isAdmin: boolean, isNarrow = false): CalendarView {
   const view = search.view === 'team' && !isAdmin ? undefined : search.view;
@@ -141,10 +149,12 @@ interface PendingMove {
  * the calendar.
  *
  * Its state is in the URL (`calendarSearch.ts`): the day, the view, whose calendar, an open appointment (which
- * notifications link to), and who the team view shows. In a narrow window or a half view it opens on a day rather than
- * the week, and a week is compact: Monday to Friday, a narrower hour gutter and items on one line (decision 67). The
- * team view still works there, scrolling sideways. Both apply after mount, as the server renders the wide page. Rows
- * shows 15 or 5 minute rows (`rows=5`, decision 68), and the dialogs opened from here offer times in those steps.
+ * notifications link to), who the team view shows, and the row length. In a narrow window or a half view a URL without
+ * a view opens on a day rather than the week. A week is compact (Monday to Friday, a narrower hour gutter, items kept
+ * short) whenever its card is too narrow for the full week, whatever the window (decision 67). The team view scrolls
+ * sideways instead. Both apply after mount, as the server renders the wide page. Rows shows 15 or 5 minute rows
+ * (`rows`, or the person's last choice, decision 68); a click selects 15 minutes either way, and the dialogs opened
+ * from here offer 5-minute steps around the chosen time.
  */
 export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const me = useCurrentUser();
@@ -154,8 +164,11 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const date = search.date ?? today;
   const view = shownView(search, me.isAdmin, isNarrow);
   const isTeam = view === 'team';
-  // A week in a narrow window or a half view: Monday to Friday, squeezed in.
-  const isCompactWeek = isNarrow && view === 'week';
+  // A week in a card too narrow for the full one (a narrow window, a half view, a phone): Monday to Friday, squeezed in.
+  // Measured, so it's the full week on the server and at first, and the window's width doesn't matter. A rem over the
+  // full week's own minimum leaves room for the grid's scrollbar.
+  const [cardRef, isCardNarrow] = useNarrowerThan(FULL_WEEK_MIN_REM + 1);
+  const isCompactWeek = isCardNarrow && view === 'week';
   // The row length: the URL's, or the one this person chose last (a setting, so it follows them to the Calendar from
   // anywhere, and the server renders it too).
   const {calendarRows, setCalendarRows} = useListSettings();
@@ -547,12 +560,12 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
               width={TOOLBAR_FIELD_WIDTH}
             />
             {/* Its unselected choices use the primary text colour: the secondary one is under 4.5:1 on its track. The
-                week is left out of the URL where it's the default (a wide window), and named in a narrow one, where
-                the day is the default, so it stays a week. */}
+                choice is named in the URL, the week too, so a week chosen in a wide window stays a week when the
+                window narrows or a half view opens (where a URL without a view opens on a day). */}
             <SegmentedControl
               label="View"
               value={view}
-              onChange={(value) => go({view: value === 'day' || value === 'team' ? value : isNarrow ? 'week' : undefined})}
+              onChange={(value) => go({view: value as CalendarView})}
               style={PRIMARY_TEXT}>
               {viewChoices.map((choice) => (
                 <SegmentedControlItem key={choice.value} value={choice.value} label={choice.label} />
@@ -616,7 +629,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           </HStack>
         </HStack>
         <StackItem size="fill">
-          <Card padding={0} width="100%" height="100%">
+          <Card ref={cardRef} padding={0} width="100%" height="100%">
             {shown.isError ? (
               <VStack padding={4}>
                 <AlertMessage message="The calendar could not be loaded. Please try again." />

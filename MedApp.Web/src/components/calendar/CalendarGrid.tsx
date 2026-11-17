@@ -13,6 +13,12 @@ import {formatTime, parseUtc} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 import type {CalendarGridItem} from './calendarItems';
 
+/**
+ * The narrowest a full week fits, in rem (the grid's own CSS: a 3rem hour gutter, five days of at least 6rem and two
+ * 2.5rem weekends). Narrower than this, a week is better shown compact (`isCompact`) than scrolled sideways.
+ */
+export const FULL_WEEK_MIN_REM = 3 + 5 * 6 + 2 * 2.5;
+
 /** How long each row of the grid is, in minutes: 15 (the default) or 5. */
 export type CalendarRowMinutes = 15 | 5;
 

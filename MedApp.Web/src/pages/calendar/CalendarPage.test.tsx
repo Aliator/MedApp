@@ -8,6 +8,7 @@ import {calendarDay, STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCale
 import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderApp, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
 import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, shownView} from './CalendarPage';
+import {givenWidth} from '../../test/layout';
 import type {CalendarSearch} from './calendarSearch';
 
 // The meeting dialog has tests of its own: here, a stand-in that shows what it was opened with.
@@ -93,7 +94,17 @@ function renderPage({
   handlers = {},
   user = staffUser,
   isNarrow = false,
-}: {search?: CalendarSearch; calendar?: Partial<Calendar>; handlers?: Parameters<typeof mockApi>[0]; user?: CurrentUser; isNarrow?: boolean} = {}) {
+  cardWidth,
+}: {
+  search?: CalendarSearch;
+  calendar?: Partial<Calendar>;
+  handlers?: Parameters<typeof mockApi>[0];
+  user?: CurrentUser;
+  isNarrow?: boolean;
+  /** The calendar's card, measured this wide (jsdom lays out nothing, so it's never measured otherwise). */
+  cardWidth?: number;
+} = {}) {
+  if (cardWidth !== undefined) givenWidth(cardWidth);
   const onSearchChange = vi.fn();
   const fetch = answerCalendarApi(calendar, handlers);
   function Harness() {
@@ -182,8 +193,9 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('button', {name: 'Today'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({date: undefined, view: 'day'});
 
+    // Named in the address, so the week stays a week if the window narrows or a half view opens.
     await user.click(screen.getByRole('radio', {name: 'Week'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({date: undefined, view: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith({date: undefined, view: 'week'});
   });
 
   it("shows someone else's calendar, chosen by name", async () => {
@@ -386,7 +398,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(screen.queryByRole('button', {name: /^This day/})).not.toBeInTheDocument();
     day.unmount();
 
-    const compact = renderPage({isNarrow: true, search: {view: 'week'}});
+    const compact = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week'}});
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
     expect(screen.getByRole('button', {name: 'Apply Template'})).toBeInTheDocument();
     compact.unmount();
@@ -802,7 +814,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   });
 
   it('offers the week in a narrow window, and keeps it, in a compact form: Monday to Friday, headed short', async () => {
-    const {user, onSearchChange, fetch} = renderPage({isNarrow: true});
+    const {user, onSearchChange, fetch} = renderPage({isNarrow: true, cardWidth: 500});
     expect(await screen.findByText('My calendar · Monday 23 November 2026')).toBeInTheDocument();
     expect(await screen.findByRole('group', {name: 'My calendar, Monday 23 November 2026'})).not.toHaveAttribute('data-compact');
 
@@ -830,7 +842,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   });
 
   it('opens the week named in the address in a narrow window, and offers to book or block time selected on it', async () => {
-    const {user} = renderPage({isNarrow: true, search: {view: 'week'}});
+    const {user} = renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week'}});
 
     expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
     select('Tuesday 24 November, 10:00, free');
@@ -872,6 +884,18 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({rows: undefined});
   });
 
+  it("shows the week compact by its card's width, not the window's", async () => {
+    // A wide window whose card has only 500px (under the full week's 608px and a scrollbar): compact.
+    const narrowCard = renderPage({cardWidth: 500});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-compact');
+    narrowCard.unmount();
+
+    // A half view with room for the whole week: the full week, weekends and all.
+    renderPage({isNarrow: true, cardWidth: 1000, search: {view: 'week'}});
+    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).not.toHaveAttribute('data-compact');
+    expect(document.querySelectorAll('.mc-col')).toHaveLength(7);
+  });
+
   it('remembers the row length last chosen, for an address that names none', async () => {
     const {user, unmount} = renderPage();
     await user.click(await screen.findByRole('button', {name: 'Rows: 15 min'}));
@@ -891,7 +915,7 @@ describe('CalendarPage', {timeout: 30_000}, () => {
   });
 
   it('opens with the row length the address names', async () => {
-    renderPage({isNarrow: true, search: {view: 'week', rows: 5}});
+    renderPage({isNarrow: true, cardWidth: 500, search: {view: 'week', rows: 5}});
     const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'});
     expect(grid).toHaveAttribute('data-row-minutes', '5');
     expect(grid).toHaveAttribute('data-compact');
