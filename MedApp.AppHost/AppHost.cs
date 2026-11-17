@@ -35,11 +35,13 @@ var api = builder.AddProject<Projects.MedApp_API>("api", launchProfileName: "htt
 // Attached files' bytes: Azure Blob Storage, emulated by Azurite in Docker, kept in a volume and running between
 // AppHost runs, like SQL Server. The API gets its connection string as ConnectionStrings__Attachments and creates the
 // container itself. Only when running: deployments set up storage with the Helm chart (Azurite on kind, a storage
-// account on Azure), not from here.
+// account on Azure), not from here. The blob endpoint has a fixed host port (bound to 127.0.0.1, like SQL Server's
+// 14330), so medapp-dev's reset_demo_data can attach files, with Azurite's well-known development account.
 if (builder.ExecutionContext.IsRunMode)
 {
     var attachments = builder.AddAzureStorage("storage")
         .RunAsEmulator(azurite => azurite
+            .WithBlobPort(14331)
             .WithDataVolume("medapp-azurite-data")
             .WithLifetime(ContainerLifetime.Persistent))
         .AddBlobs("attachments");

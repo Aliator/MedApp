@@ -34,6 +34,12 @@ if (builder.Configuration.GetConnectionString("DefaultConnection") is null
     builder.Configuration.AddInMemoryCollection([new("ConnectionStrings:DefaultConnection", csb.ConnectionString)]);
 }
 
+// Attached files: the AppHost's Azurite on its fixed host port, with Azurite's well-known development account (its key is
+// published, not a secret). Only reset_demo_data uses it, and only if it answers; a connection string given explicitly wins.
+if (builder.Configuration.GetConnectionString("Attachments") is null
+    && builder.Configuration["DevMcp:Azurite:ConnectionString"] is { Length: > 0 } azurite)
+    builder.Configuration.AddInMemoryCollection([new("ConnectionStrings:Attachments", azurite)]);
+
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
