@@ -29,7 +29,7 @@ public sealed class DataProtectionKeyCheckTests
         await check.StartAsync(CancellationToken.None);
         await check.StopAsync(CancellationToken.None);
 
-        return logger.Invocations.Count(i => i.Method.Name == nameof(ILogger.Log) && (LogLevel)i.Arguments[0] == LogLevel.Warning);
+        return logger.Invocations.Count(i => i.Method.Name == nameof(ILogger.Log) && (LogLevel)i.Arguments[0]! == LogLevel.Warning);
     }
 
     [Test]
