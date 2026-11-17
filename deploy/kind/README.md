@@ -76,7 +76,7 @@ If your cluster was made before https://localhost:8443 was added, the script say
 
 The first admin step then sees the demo accounts and changes nothing.
 
-Save a snapshot from the dev database by asking for medapp-dev's `save_snapshot` with the name `kind-demo`. `reset_demo_data` fills the dev database with the standard synthetic data and the `admin` login. The snapshot lands in `tools/MedApp.DevMcp/.backups/kind-demo.bak`, which is git-ignored. A path to any other `.bak` file works too.
+Save a snapshot from the dev database by asking for medapp-dev's `save_snapshot` with the name `kind-demo`. `reset_demo_data` fills the dev database with the standard synthetic data and the `admin` login. The snapshot holds only the database: the demo's attached files' bytes stay in the AppHost's Azurite, so on kind their thumbnails and downloads are missing (`docs/demo-data.md`). The snapshot lands in `tools/MedApp.DevMcp/.backups/kind-demo.bak`, which is git-ignored. A path to any other `.bak` file works too.
 
 ## What's in it
 
