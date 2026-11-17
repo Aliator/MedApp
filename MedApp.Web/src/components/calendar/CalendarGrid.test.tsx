@@ -742,6 +742,86 @@ describe('CalendarGrid', () => {
         Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
       }
     });
+
+    it("keeps the keyboard's place on the same time when the row length changes", async () => {
+      atMondayMorning();
+      function Switchable() {
+        const [rowMinutes, setRowMinutes] = useState<CalendarRowMinutes>(15);
+        return (
+          <>
+            <button type="button" onClick={() => setRowMinutes(rowMinutes === 15 ? 5 : 15)}>
+              Switch
+            </button>
+            <CalendarGrid label="test-user's calendar" columns={dayColumns(week(), [])} rowMinutes={rowMinutes} onSelectRange={() => {}} />
+          </>
+        );
+      }
+      const {user} = renderWithApp(<Switchable />);
+      (await screen.findByRole('button', {name: 'Tuesday 24 November, 10:00, free'})).focus();
+
+      await user.click(screen.getByRole('button', {name: 'Switch'}));
+      expect(slot('Tuesday 24 November, 10:00, free')).toHaveAttribute('tabindex', '0');
+
+      // In 5-minute rows, to 10:10; back in 15-minute rows, the row it's in: 10:00.
+      slot('Tuesday 24 November, 10:00, free').focus();
+      await user.keyboard('{ArrowDown}{ArrowDown}');
+      expect(slot('Tuesday 24 November, 10:10, free')).toHaveFocus();
+      await user.click(screen.getByRole('button', {name: 'Switch'}));
+      expect(slot('Tuesday 24 November, 10:00, free')).toHaveAttribute('tabindex', '0');
+      expect(slot('Monday 23 November, 08:00, free')).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('goes to the time now on switching, when the whole day was in view and today is under way', async () => {
+      // A tall window: the 15-minute day (40px of headings and 880px of rows) fits its 1,000px, so nothing scrolled.
+      const descriptors = Object.fromEntries(
+        (['offsetHeight', 'clientHeight', 'scrollHeight'] as const).map((name) => [name, Object.getOwnPropertyDescriptor(HTMLElement.prototype, name)]),
+      );
+      const rowsTall = (element: HTMLElement) => (element.closest<HTMLElement>('.medapp-calendar')!.dataset.rowMinutes === '5' ? 2640 : 880);
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-col') ? rowsTall(this) : 0;
+        },
+      });
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-scroll') ? 1000 : 0;
+        },
+      });
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('mc-scroll') ? 40 + rowsTall(this) : 0;
+        },
+      });
+      try {
+        atMondayMorning('2026-11-23T15:00:00Z');
+        function Switchable() {
+          const [rowMinutes, setRowMinutes] = useState<CalendarRowMinutes>(15);
+          return (
+            <>
+              <button type="button" onClick={() => setRowMinutes(rowMinutes === 15 ? 5 : 15)}>
+                Switch
+              </button>
+              <CalendarGrid label="test-user's calendar" columns={dayColumns(week(), [])} rowMinutes={rowMinutes} />
+            </>
+          );
+        }
+        const {user} = renderWithApp(<Switchable />);
+        await screen.findByRole('group', {name: 'Monday 23 November, today'});
+        const scroller = document.querySelector<HTMLElement>('.mc-scroll')!;
+        // 15:00 is 7 hours into the 10-hour day: 1,848px down 2,640, less the hour before it (264px) kept above.
+        await user.click(screen.getByRole('button', {name: 'Switch'}));
+        expect(scroller.scrollTop).toBeCloseTo(1584);
+      } finally {
+        // clientHeight and scrollHeight are Element's, not HTMLElement's: removing these brings them back.
+        for (const [name, descriptor] of Object.entries(descriptors)) {
+          if (descriptor) Object.defineProperty(HTMLElement.prototype, name, descriptor);
+          else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
+        }
+      }
+    });
   });
 
   it('opens at the start of the working day once it has ended', async () => {

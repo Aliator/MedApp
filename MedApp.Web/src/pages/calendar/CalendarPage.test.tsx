@@ -5,7 +5,7 @@ import type {TeamCalendar} from '../../api/calendar';
 import type {MeetingDialogProps} from '../../components/calendar/MeetingDialog';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {calendarDay, STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../../test/calendar';
-import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderApp, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
 import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, shownView} from './CalendarPage';
 import type {CalendarSearch} from './calendarSearch';
@@ -65,15 +65,9 @@ function teamDay(date: string, members: Partial<Calendar>[] = []): TeamCalendar 
   };
 }
 
-function renderPage({
-  search: initial = {},
-  calendar = {},
-  handlers = {},
-  user = staffUser,
-  isNarrow = false,
-}: {search?: CalendarSearch; calendar?: Partial<Calendar>; handlers?: Parameters<typeof mockApi>[0]; user?: CurrentUser; isNarrow?: boolean} = {}) {
-  const onSearchChange = vi.fn();
-  const fetch = mockApi({
+/** Answers the API as the Calendar page asks it: the staff, their templates, the team view and calendars. */
+function answerCalendarApi(calendar: Partial<Calendar> = {}, handlers: Parameters<typeof mockApi>[0] = {}) {
+  return mockApi({
     'GET /api/calendar/staff': () => json(STAFF),
     // Each person's own templates.
     'GET /api/calendar/staff/*': (request) => json(new URL(request.url).pathname.endsWith('/day-templates') ? DAY_TEMPLATES : WEEK_TEMPLATES),
@@ -91,6 +85,17 @@ function renderPage({
     },
     ...handlers,
   });
+}
+
+function renderPage({
+  search: initial = {},
+  calendar = {},
+  handlers = {},
+  user = staffUser,
+  isNarrow = false,
+}: {search?: CalendarSearch; calendar?: Partial<Calendar>; handlers?: Parameters<typeof mockApi>[0]; user?: CurrentUser; isNarrow?: boolean} = {}) {
+  const onSearchChange = vi.fn();
+  const fetch = answerCalendarApi(calendar, handlers);
   function Harness() {
     const [search, setSearch] = useState<CalendarSearch>(initial);
     return (
@@ -883,6 +888,45 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     // Astryx sets the surface's width from the prop (`width: var(--x-width)`): left to its default, the surface would
     // stretch to the selection, a whole column wide.
     expect(menu.style.getPropertyValue('--x-width')).toBe('max-content');
+  });
+
+  it('keeps the same time at the top when the row length changes through the address, as the real router has it', async () => {
+    // Columns as tall as their rows, 22px each (jsdom lays out nothing).
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('mc-col') ? (this.closest<HTMLElement>('.medapp-calendar')!.dataset.rowMinutes === '5' ? 2640 : 880) : 0;
+      },
+    });
+    try {
+      answerCalendarApi({}, {
+        'GET /api/notifications': () => json({items: [], unreadCount: 0}),
+        'GET /api/auth/me/settings': () => json({settings: null}),
+      });
+      // The router restores the scroll positions it saved for an address, on every navigation that resets scroll.
+      const {user} = renderApp({path: '/calendar', user: staffUser, scrollRestoration: true});
+      const grid = await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'}, {timeout: 15_000});
+      const scroller = grid.querySelector<HTMLElement>('.mc-scroll')!;
+
+      // 10:30 at the top: a quarter of the way through the working day.
+      scroller.scrollTop = 220;
+      fireEvent.scroll(scroller);
+      await user.click(screen.getByRole('button', {name: 'Rows: 15 min'}));
+      await user.click(await screen.findByRole('menuitem', {name: '5-minute rows'}));
+      await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '5'));
+      // Past the router's own work after the navigation, which once put back the old 220px (09:00 at the top).
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(scroller.scrollTop).toBe(660);
+
+      await user.click(screen.getByRole('button', {name: 'Rows: 5 min'}));
+      await user.click(await screen.findByRole('menuitem', {name: '15-minute rows'}));
+      await waitFor(() => expect(screen.getByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toHaveAttribute('data-row-minutes', '15'));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(scroller.scrollTop).toBe(220);
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
+    }
   });
 });
 

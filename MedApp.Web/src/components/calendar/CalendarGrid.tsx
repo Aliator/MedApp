@@ -336,23 +336,34 @@ export function CalendarGrid({
 
   const nowMs = now ?? undefined;
 
-  // Opens on the part of today that matters: once the time is known (after mount), with today shown and the working
-  // day under way, it scrolls so the time now is in view, an hour before it at the top (or less, in a short window).
-  // Otherwise it stays at the start of the working day. Only the first time; moving through days leaves it alone.
+  /**
+   * With today shown and its working day under way, scrolls so the time now is in view, an hour before it at the top
+   * (or less, in a short window), and says it did; otherwise leaves the view alone.
+   */
+  const scrollToNow = (): boolean => {
+    const index = layouts.findIndex((l) => l.day.isToday);
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
+    const column = columnRefs.current[index];
+    if (nowMs === undefined || index < 0 || !scroller || !column) return false;
+    const today = layouts[index];
+    if (nowMs < today.start || nowMs >= today.start + today.span) return false;
+    const height = column.offsetHeight;
+    const lead = (SCROLL_LEAD / today.span) * height;
+    const top = ((nowMs - today.start) / today.span) * height - (scroller.clientHeight > 0 ? Math.min(lead, scroller.clientHeight / 3) : lead);
+    scroller.scrollTop = Math.max(0, top);
+    return true;
+  };
+
+  // Opens on the part of today that matters, once the time is known (after mount): the time now, while today's
+  // working day is under way, otherwise the start of the working day. Only the first time; moving through days leaves
+  // it alone.
   const hasScrolledToNow = useRef(false);
   useEffect(() => {
     if (hasScrolledToNow.current || nowMs === undefined) return;
     hasScrolledToNow.current = true;
-    const index = layouts.findIndex((l) => l.day.isToday);
-    const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
-    const column = columnRefs.current[index];
-    if (index < 0 || !scroller || !column) return;
-    const today = layouts[index];
-    if (nowMs < today.start || nowMs >= today.start + today.span) return;
-    const height = column.offsetHeight;
-    const lead = (SCROLL_LEAD / today.span) * height;
-    const top = ((nowMs - today.start) / today.span) * height - (scroller.clientHeight > 0 ? Math.min(lead, scroller.clientHeight / 3) : lead);
-    if (top > 0) scroller.scrollTop = top;
+    scrollToNow();
+    // Only once the time is known: scrollToNow reads the rest as it is then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowMs, layouts]);
 
   // Where the view is, as a share of the day, so a change of row length keeps the same time at the top.
@@ -364,11 +375,20 @@ export function CalendarGrid({
   };
   const shownRowMinutes = useRef(rowMinutes);
   useLayoutEffect(() => {
-    if (shownRowMinutes.current === rowMinutes) return;
+    const before = shownRowMinutes.current;
+    if (before === rowMinutes) return;
     shownRowMinutes.current = rowMinutes;
     const scroller = rootRef.current?.querySelector<HTMLElement>('.mc-scroll');
     const height = columnRefs.current[0]?.offsetHeight ?? 0;
-    if (scroller && height > 0) scroller.scrollTop = topShare.current * height;
+    if (!scroller || height <= 0) return;
+    // Rows keep their height, so the day was this tall before. If all of it was in view (nothing scrolled, so there
+    // was no "time at the top" to keep), it goes to the time now, as opening does; otherwise it keeps that time.
+    const contentBefore = scroller.scrollHeight - height + (height * rowMinutes) / before;
+    const couldScroll = scroller.clientHeight === 0 || contentBefore > scroller.clientHeight + 1;
+    if (!couldScroll && scrollToNow()) return;
+    scroller.scrollTop = topShare.current * height;
+    // Only on a change of row length.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowMinutes]);
 
   const isFree = (col: number, row: number) => isFreeRow(layouts[col], row, nowMs);
@@ -380,7 +400,11 @@ export function CalendarGrid({
     return null;
   };
 
-  const [active, setActive] = useState<Slot | null>(null);
+  // The slot last moved to, as a time in its column (minutes from its start), so a change of row length keeps the
+  // keyboard's place on the same time rather than the same row.
+  const [activeAt, setActiveAt] = useState<{col: number; minute: number} | null>(null);
+  const active: Slot | null = activeAt ? {col: activeAt.col, row: Math.floor(activeAt.minute / rowMinutes)} : null;
+  const setActive = (slot: Slot) => setActiveAt({col: slot.col, minute: slot.row * rowMinutes});
   const [pending, setPending] = useState<Pending | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const isSelecting = useRef(false);

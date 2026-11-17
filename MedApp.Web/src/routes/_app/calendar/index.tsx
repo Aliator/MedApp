@@ -17,5 +17,7 @@ export const Route = createFileRoute('/_app/calendar/')({
 function CalendarRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  return <CalendarPage search={search} onSearchChange={(next) => void navigate({search: next})} />;
+  // The grid keeps its own place as the address changes (the time at the top when the row length changes), so the
+  // router mustn't put back the scroll position it saved for the address before.
+  return <CalendarPage search={search} onSearchChange={(next) => void navigate({search: next, resetScroll: false})} />;
 }
