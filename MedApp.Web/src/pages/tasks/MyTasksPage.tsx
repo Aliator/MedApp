@@ -246,7 +246,6 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
             placeholder="Search my tasks by procedure, or filter by progress, patient, priority, due date..."
             textKey="title"
             favourites={FAVOURITES}
-            namesQuickFilters={false}
           />
         }
         sort={{column: sortColumn, ascending}}

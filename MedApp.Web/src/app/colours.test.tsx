@@ -2,7 +2,7 @@ import {act, render, renderHook, screen} from '@testing-library/react';
 import {useEffect} from 'react';
 import {medappTheme} from '../themes/medapp/medapp';
 import {MIN_TEXT_CONTRAST} from '../utils/contrast';
-import {COLOUR_THEMES, ColoursProvider, DEFAULT_COLOURS, headerBarColour, readabilityWarning, SCROLLBARS, TEXT_COLOURS, textContrast, themeOf, useColours} from './colours';
+import {COLOUR_THEMES, ColoursProvider, DEFAULT_COLOURS, headerBarColour, readabilityWarning, TEXT_COLOURS, textContrast, themeOf, useColours} from './colours';
 
 let api: ReturnType<typeof useColours>;
 /** Hands the colours API to the test (after rendering, as effects run). */
@@ -18,17 +18,6 @@ const wrapperStyle = () => screen.getByRole('status').parentElement!.style;
 
 describe('colours', () => {
   beforeEach(() => localStorage.clear());
-
-  it("styles every scrollbar from its own theme's tokens, on a clear track", () => {
-    render(
-      <ColoursProvider mode="dark">
-        <p>Page</p>
-      </ColoursProvider>,
-    );
-    const rule = document.querySelector('style[data-medapp-scrollbars]')?.textContent;
-    expect(rule).toBe(SCROLLBARS);
-    expect(rule).toMatch(/^\* \{ scrollbar-color: var\(--color-border-emphasized\) transparent; \}$/);
-  });
 
   it('starts from the Standard theme', () => {
     render(

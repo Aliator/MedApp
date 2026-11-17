@@ -165,14 +165,6 @@ const ColoursContext = createContext<ColoursContextValue | null>(null);
  *
  * `mode` is the app's mode, for the side nav's colour (see below).
  */
-/**
- * Scrollbars follow the theme and the chosen colours: a thumb in the theme's emphasised border colour (a field's
- * outline, which keeps at least 3:1 against the page and cards) on a clear track, so the page, card or side nav colour
- * shows through. Set on every element rather than inherited, so each takes its own theme's colour (the side nav's dark
- * one inside its dark theme). Outside Astryx's cascade layers, like the other rules the app adds, so it wins.
- */
-export const SCROLLBARS = '* { scrollbar-color: var(--color-border-emphasized) transparent; }';
-
 export function ColoursProvider({mode, children}: {mode: ColorMode; children: ReactNode}) {
   const [stored, store] = useAppSetting(STORAGE_KEY);
   const colours = useMemo(() => parseColours(stored), [stored]);
@@ -215,10 +207,7 @@ export function ColoursProvider({mode, children}: {mode: ColorMode; children: Re
     <ColoursContext.Provider value={value}>
       {/* No Astryx component sets CSS variables, so a plain element carries them; `display: contents` keeps it
           out of the layout. */}
-      <div style={tokens}>
-        <style data-medapp-scrollbars="">{SCROLLBARS}</style>
-        {children}
-      </div>
+      <div style={tokens}>{children}</div>
     </ColoursContext.Provider>
   );
 }

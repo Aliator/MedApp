@@ -286,7 +286,6 @@ export function ActivityTypesPage({search, onSearchChange}: ActivityTypesPagePro
               placeholder="Search activity types by name, or filter by status..."
               textKey="name"
               favourites={SETUP_FAVOURITES}
-              namesQuickFilters={false}
             />
           }
           pagination={{
