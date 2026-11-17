@@ -33,6 +33,18 @@ describe('ResetPasswordPage', () => {
     expect(document.title).toBe('Choose a new password - MedApp');
   });
 
+  it('reads the link as the app runs in development (StrictMode, which runs effects twice), and resets with it', async () => {
+    window.history.replaceState(null, '', LINK);
+    const fetch = mockApi({'POST /api/auth/password/reset': () => new Response(null, {status: 204})});
+    const {user} = renderWithApp(<ResetPasswordPage />, {path: '/reset-password', user: staffUser, strict: true});
+
+    await choose(user);
+
+    expect(await screen.findByText(PASSWORD_RESET)).toBeInTheDocument();
+    expect(screen.queryByText(BROKEN_LINK)).not.toBeInTheDocument();
+    expect(await (fetch.mock.calls[0][0] as Request).json()).toMatchObject({userId: USER, token: 'synthetic+token'});
+  });
+
   it("changes the password with the link's token, then says they're signed out everywhere and offers to sign in", async () => {
     withAnnouncements();
     const {user, fetch, queryClient} = renderPage();

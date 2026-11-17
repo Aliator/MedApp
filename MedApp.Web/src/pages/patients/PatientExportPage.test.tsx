@@ -1,4 +1,4 @@
-import {screen} from '@testing-library/react';
+import {screen, waitFor} from '@testing-library/react';
 import type {PatientExport} from '../../api/patients';
 import {adminUser, calls, findAlert, json, mockApi, renderWithApp} from '../../test/render';
 import {appointmentChangeLabel, describeAppointmentChange, describeExportedAppointment, exportFileName, PatientExportPage} from './PatientExportPage';
@@ -118,9 +118,9 @@ const data: PatientExport = {
   ],
 };
 
-function renderExport(body: unknown = data, status = 200) {
+function renderExport(body: unknown = data, status = 200, strict = false) {
   const fetch = mockApi({[`GET ${EXPORT}`]: () => json(body, status)});
-  return {fetch, ...renderWithApp(<PatientExportPage id={id} />, {user: adminUser})};
+  return {fetch, ...renderWithApp(<PatientExportPage id={id} />, {user: adminUser, strict})};
 }
 
 describe('PatientExportPage', () => {
@@ -279,8 +279,21 @@ describe('PatientExportPage', () => {
     expect(queryClient.getQueryData(['patient-export', id])).toEqual(data);
     unmount();
 
-    expect(queryClient.getQueryData(['patient-export', id])).toBeUndefined();
+    await waitFor(() => expect(queryClient.getQueryData(['patient-export', id])).toBeUndefined());
     expect(calls(fetch)).toEqual([`GET ${EXPORT}`]);
+  });
+
+  it('asks for the export once in development too, where StrictMode runs its effects twice', async () => {
+    // Each request records the export in the activity log, so a second one would log a second export.
+    const {fetch, queryClient, unmount} = renderExport(data, 200, true);
+
+    await screen.findByText('Oriel Penhallow');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(calls(fetch)).toEqual([`GET ${EXPORT}`]);
+    expect(queryClient.getQueryData(['patient-export', id])).toEqual(data);
+
+    unmount();
+    await waitFor(() => expect(queryClient.getQueryData(['patient-export', id])).toBeUndefined());
   });
 
   it('names the file even without an ID or date', () => {

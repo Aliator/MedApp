@@ -2,7 +2,7 @@ import {QueryClient} from '@tanstack/react-query';
 import {createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider} from '@tanstack/react-router';
 import {render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type {ReactNode} from 'react';
+import {StrictMode, type ReactNode} from 'react';
 import {AppProviders} from '../app/AppProviders';
 import {whoamiQuery, type CurrentUser} from '../auth/auth';
 import {routeTree} from '../routeTree.gen';
@@ -45,8 +45,10 @@ function testQueryClient(user?: CurrentUser) {
 /**
  * Renders one component with the app's providers, inside a router that shows it at any path, so components
  * that link or navigate work. `user` pre-fills the whoami cache as the signed-in layout's guard would.
+ * `strict` renders it all inside StrictMode, as the app starts (`entry-client`), so effects run twice as they do in
+ * development. It has to be outermost: a StrictMode mounted inside the router doesn't run the effects again.
  */
-export function renderWithApp(ui: ReactNode, {path = '/', user}: {path?: string; user?: CurrentUser} = {}) {
+export function renderWithApp(ui: ReactNode, {path = '/', user, strict = false}: {path?: string; user?: CurrentUser; strict?: boolean} = {}) {
   const queryClient = testQueryClient(user);
   const rootRoute = createRootRoute({component: Outlet});
   const page = () => <>{ui}</>;
@@ -55,11 +57,12 @@ export function renderWithApp(ui: ReactNode, {path = '/', user}: {path?: string;
     createRoute({getParentRoute: () => rootRoute, path: '$', component: page}),
   ]);
   const router = createRouter({routeTree: routes, history: createMemoryHistory({initialEntries: [path]})});
-  const result = render(
+  const app = (
     <AppProviders queryClient={queryClient}>
       <RouterProvider router={router as never} />
-    </AppProviders>,
+    </AppProviders>
   );
+  const result = render(strict ? <StrictMode>{app}</StrictMode> : app);
   return {...result, router, queryClient, user: userEvent.setup()};
 }
 

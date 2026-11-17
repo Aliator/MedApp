@@ -97,6 +97,7 @@ Guidance for AI coding agents working in `MedApp.Web`, the React app replacing t
   - Fields side by side line up: Astryx puts a description between the label and the input, so when one field in a row has a description, give the others `BLANK_DESCRIPTION` (`src/components/forms/fieldSpace.ts`). Do the same for a description that comes and goes, so the input doesn't jump.
   - Nothing moves when an error shows: the theme gives every field a reserved, empty line under its input that its error message fills. A field that never shows an error can drop it with `containerStyle={NO_STATUS_LINE}`.
 - **Tests:** every component and page gets a Vitest test next to it (`X.test.tsx`). Use `renderWithApp` / `renderApp` and `mockFetch` from `src/test/render.tsx`. Synthetic data only, and NHS numbers only from the 999 range, which is never issued to real people.
+  - **Effects must survive running twice.** In development the app starts inside `<StrictMode>` (`entry-client.tsx`), which runs every effect, cleans it up and runs it again at once. An effect that reads and clears something (the address's fragment), or cleans up a cache, must keep the first result and not lose or fetch it again. Test such an effect with `renderWithApp(..., {strict: true})`; the production build, which CI's E2E tests, runs effects once and won't catch it (review of #109).
 - **Before calling a change done,** check only what you changed, as CI runs everything (root `AGENTS.md`, Testing a change):
   - the changed files' tests (`npx vitest run <files>`)
   - `npm run typecheck`

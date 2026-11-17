@@ -62,17 +62,20 @@ export const pendingEmailConfirmation = {
  * The emailed link this page was opened with (`/reset-password`, `/confirm-email`), read from the address's fragment
  * after the page has mounted: the server never sees the fragment, so the server's render (and the first in the
  * browser, which must match it) shows `reading`. Once read, the fragment is taken off the address, so the token
- * doesn't stay on screen or in the browser's history; the page keeps it. Without one in the address, `fallback`
- * may give one kept from before (`pendingEmailConfirmation.read`, after signing in).
+ * doesn't stay on screen or in the browser's history; the page keeps it, even when the effect runs again (StrictMode,
+ * in development). Without one in the address, `fallback` may give one kept from before (`pendingEmailConfirmation.read`,
+ * after signing in).
  */
 export function useEmailLink(fallback?: () => EmailLinkToken | null): EmailLinkState {
   const [state, setState] = useState<EmailLinkState>({status: 'reading'});
   useEffect(() => {
     const link = parseEmailLink(window.location.hash) ?? fallback?.() ?? null;
-    // Read from the browser's address once mounted: the server can't know it.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState(link ? {status: 'found', ...link} : {status: 'missing'});
     if (window.location.hash) linkFragment.clear();
+    // Read from the browser's address once mounted: the server can't know it. Only the first read counts: in
+    // development, StrictMode runs this again at once, when the fragment is already gone, and that run would replace
+    // the link with "missing" (or a kept one), so it leaves what's been read alone.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((current) => (current.status !== 'reading' ? current : link ? {status: 'found', ...link} : {status: 'missing'}));
     // Once, as it mounts: the fallback is read then or not at all.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
