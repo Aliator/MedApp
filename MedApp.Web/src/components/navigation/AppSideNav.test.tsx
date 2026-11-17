@@ -526,7 +526,7 @@ describe('AppSideNav notepad', () => {
     return <p>{useNotepad()!.isOpen ? 'notepad open' : 'notepad closed'}</p>;
   }
 
-  it('opens and closes the notepad from the account footer, marking it while open', async () => {
+  it('opens and closes the notepad from the account footer, as a toggle pressed while open', async () => {
     const {user} = renderWithApp(
       <NotepadProvider>
         <AppSideNav />
@@ -536,11 +536,16 @@ describe('AppSideNav notepad', () => {
     );
 
     const notepad = await screen.findByRole('button', {name: 'Notepad'});
+    expect(notepad).toHaveAttribute('aria-pressed', 'false');
     await user.click(notepad);
     expect(screen.getByText('notepad open')).toBeInTheDocument();
+    const pressed = screen.getByRole('button', {name: 'Notepad', pressed: true});
+    // A toggle, never the current page.
+    expect(pressed).not.toHaveAttribute('aria-current');
 
-    await user.click(screen.getByRole('button', {name: 'Notepad'}));
+    await user.click(pressed);
     expect(screen.getByText('notepad closed')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Notepad'})).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('has no notepad outside the signed-in layout', async () => {

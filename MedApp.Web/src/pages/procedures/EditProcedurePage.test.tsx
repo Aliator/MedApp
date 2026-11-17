@@ -11,7 +11,7 @@ const procedure = (overrides: Record<string, unknown> = {}) => ({
   patientId: 'patient-1',
   patientName: 'Test Patient',
   title: 'Colonoscopy',
-  notes: [{id: 'n1', authorUsername: 'test-user', text: 'Pack posted.', createdAtUtc: '2026-11-01T10:00:00Z', version: 1, canEdit: true}],
+  noteList: [{id: 'n1', authorUsername: 'test-user', text: 'Pack posted.', createdAtUtc: '2026-11-01T10:00:00Z', version: 1, canEdit: true}],
   dueDate: '2099-12-01',
   priority: 'High',
   status: 'InProgress',
@@ -46,7 +46,7 @@ describe('EditProcedurePage', () => {
 
     expect(await screen.findByRole('textbox', {name: /Title/})).toHaveValue('Colonoscopy');
     // Notes are added and edited on the procedure's page, not here.
-    expect(screen.queryByRole('textbox', {name: 'Notes'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', {name: /note/i})).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', {name: /Priority/})).toHaveTextContent('High');
     expect(screen.getByText('For Test Patient')).toBeInTheDocument();
   });

@@ -9442,7 +9442,8 @@ export interface components {
             patientFlags?: components["schemas"]["PatientFlagsResponse"];
             stages?: components["schemas"]["PatientProcedureStageResponse"][] | null;
             assignments?: components["schemas"]["PatientProcedureAssignmentResponse"][] | null;
-            notes?: components["schemas"]["PatientProcedureNoteResponse"][] | null;
+            notes?: string | null;
+            noteList?: components["schemas"]["PatientProcedureNoteResponse"][] | null;
         };
         PatientProcedureStageDefinitionResponse: {
             /** Format: uuid */
@@ -9879,6 +9880,7 @@ export interface components {
             /** Format: date */
             dueDate?: string | null;
             priority?: string | null;
+            notes?: string | null;
         };
         UpdatePatientProcedureStageDefinitionRequest: {
             name?: string | null;

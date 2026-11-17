@@ -26,7 +26,7 @@ public sealed class NotepadTests : E2ETest
         await OpenAsync($"/procedures/{procedure.Id}");
         await Page.GetByRole(AriaRole.Navigation, new() { Name = "Side navigation" }).First
             .GetByRole(AriaRole.Button, new() { Name = "Notepad" }).ClickAsync();
-        var notepad = Page.GetByRole(AriaRole.Complementary, new() { Name = "Notepad" });
+        var notepad = Page.GetByRole(AriaRole.Region, new() { Name = "Notepad" });
         await Expect(notepad).ToBeVisibleAsync();
 
         // It saves by itself after a pause.
@@ -45,12 +45,13 @@ public sealed class NotepadTests : E2ETest
         await confirm.GetByRole(AriaRole.Button, new() { Name = "Add Note" }).ClickAsync();
         await Expect(confirm).ToBeHiddenAsync();
 
-        // It shows on the procedure page at once, and has left the notepad.
-        await Expect(Main).ToContainTextAsync(jotting);
+        // It shows on the procedure page at once (in its Notes list, not the notepad, which sits in the main area too),
+        // and has left the notepad.
+        await Expect(Main.GetByRole(AriaRole.List, new() { Name = "Notes" })).ToContainTextAsync(jotting);
         await Expect(notepad.GetByRole(AriaRole.Textbox, new() { Name = "Notepad" })).Not.ToContainTextAsync(jotting);
 
         var saved = await Api.FindProcedureAsync(procedure.Id);
-        Assert.That(saved!.Notes.Select(n => n.Text), Has.Some.Contains(jotting));
+        Assert.That(saved!.NoteList.Select(n => n.Text), Has.Some.Contains(jotting));
         // Taken out of the saved notepad too (saved straight after the note was added).
         var notepadText = (await Api.NotepadAsync()).Text;
         for (var tries = 0; notepadText.Contains(jotting) && tries < 20; tries++)

@@ -27,7 +27,7 @@ const procedure = {
   patientName: 'Freya Ahmed',
   patient,
   title: 'Knee review',
-  notes: [],
+  noteList: [],
   dueDate: '2099-12-01',
   dueDateUtc: '2099-12-01T23:59:59Z',
   priority: 'Medium',

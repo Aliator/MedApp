@@ -43,6 +43,13 @@ export const NOTEPAD_SHEET_QUERY = '(max-width: 1023px)';
 /** The docked notepad's width. */
 export const NOTEPAD_WIDTH = '24rem';
 
+/**
+ * Pages beside the docked notepad take their narrow layout only when the room left is narrow: the window less the
+ * notepad's 24rem (384px) under the narrow window's 1,400px (`NARROW_WINDOW_QUERY`). So a 1,920px window keeps wide
+ * layouts beside it.
+ */
+export const NARROW_BESIDE_NOTEPAD_QUERY = '(max-width: 1783px)';
+
 export interface NotepadState {
   isOpen: boolean;
   open: () => void;
@@ -56,6 +63,11 @@ export interface NotepadState {
   openProcedures: OpenProcedure[];
   /** Offers a procedure page to the notepad, until the function returned is called. */
   offer: (open: OpenProcedure) => () => void;
+  /**
+   * Whether the notepad was just opened by its user (not reopened as a page loads), so the pane should take the focus:
+   * true once, for the pane that asks first.
+   */
+  takeFocus: () => boolean;
 }
 
 const NotepadContext = createContext<NotepadState | null>(null);
@@ -71,6 +83,9 @@ export function NotepadProvider({children}: {children: ReactNode}) {
   const [isOpen, setIsOpen] = useState(false);
   const [offers, setOffers] = useState<OpenProcedure[]>([]);
   const closer = useRef<(() => Promise<void>) | null>(null);
+  // Opened by its user: the pane takes the focus, and closing it gives the focus back to what opened it.
+  const shouldFocus = useRef(false);
+  const opener = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     // Read from this browser once mounted: the server can't know it, and its render must match the first one here.
@@ -79,12 +94,27 @@ export function NotepadProvider({children}: {children: ReactNode}) {
   }, []);
 
   const open = useCallback(() => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    shouldFocus.current = true;
     setIsOpen(true);
     storeOpen(true);
   }, []);
   const close = useCallback(() => {
     setIsOpen(false);
     storeOpen(false);
+    shouldFocus.current = false;
+    // Focus that was in the pane is lost as it goes: give it back to what opened it, or to the side nav's Notepad.
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (active && active !== document.body && active.isConnected) return;
+      const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[data-notepad-toggle]');
+      back?.focus();
+    });
+  }, []);
+  const takeFocus = useCallback(() => {
+    const should = shouldFocus.current;
+    shouldFocus.current = false;
+    return should;
   }, []);
   const requestClose = useCallback(() => {
     if (closer.current) void closer.current();
@@ -106,8 +136,8 @@ export function NotepadProvider({children}: {children: ReactNode}) {
     [offers],
   );
   const value = useMemo(
-    () => ({isOpen, open, close, requestClose, registerCloser, openProcedures, offer}),
-    [isOpen, open, close, requestClose, registerCloser, openProcedures, offer],
+    () => ({isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus}),
+    [isOpen, open, close, requestClose, registerCloser, openProcedures, offer, takeFocus],
   );
   return <NotepadContext.Provider value={value}>{children}</NotepadContext.Provider>;
 }
@@ -131,11 +161,18 @@ export function useOfferToNotepad(procedure: Procedure | undefined) {
 /** Whether a narrow window shows the notepad as a full-screen sheet rather than docked. */
 export const useNotepadIsSheet = () => useMediaQuery(NOTEPAD_SHEET_QUERY, false);
 
-/**
- * Whether the notepad is open and docked beside the page: pages then take their narrow layout, as in a half view
- * (`useIsNarrow`), since they have less room.
- */
+/** Whether the notepad is open and docked beside the page. */
 export function useNotepadDocked(): boolean {
   const isSheet = useNotepadIsSheet();
   return (useNotepad()?.isOpen ?? false) && !isSheet;
+}
+
+/**
+ * Whether the docked notepad leaves pages too little room for their wide layout (`NARROW_BESIDE_NOTEPAD_QUERY`): they
+ * then take their narrow one, as in a half view (`useIsNarrow`).
+ */
+export function useNarrowBesideNotepad(): boolean {
+  const isDocked = useNotepadDocked();
+  const isNarrow = useMediaQuery(NARROW_BESIDE_NOTEPAD_QUERY, false);
+  return isDocked && isNarrow;
 }

@@ -193,6 +193,8 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/Synthetic legal hold$/)).toBeInTheDocument();
     // Procedures, with their stages and notes.
     expect(screen.getByText('Procedures (1)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Synthetic knee review', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Notes (1)', level: 4})).toBeInTheDocument();
     expect(screen.getByText('Synthetic procedure note')).toBeInTheDocument();
     expect(screen.getByText(/^Note by k\.ashford, .*, edited /)).toBeInTheDocument();
     expect(screen.getByText('Note History (2)')).toBeInTheDocument();

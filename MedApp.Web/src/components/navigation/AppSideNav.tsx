@@ -607,13 +607,16 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         {
           key: 'notepad',
           label: 'Notepad',
-          icon: AppIcon.Notes,
-          isSelected: notepad.isOpen,
+          icon: notepad.isOpen ? AppIcon.NotesOpen : AppIcon.Notes,
+          // A toggle, not a page: announced as pressed while it's open (never as the current page), and filled.
+          isSelected: false,
+          isPressed: notepad.isOpen,
           row: (
             <SideNavItem
               label="Notepad"
-              icon={AppIcon.Notes}
-              isSelected={notepad.isOpen}
+              icon={notepad.isOpen ? AppIcon.NotesOpen : AppIcon.Notes}
+              aria-pressed={notepad.isOpen}
+              data-notepad-toggle=""
               onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
             />
           ),

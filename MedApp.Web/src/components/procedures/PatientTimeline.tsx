@@ -33,6 +33,7 @@ import {
 } from '../../api/timeline';
 import {formatDayHeading, formatShortDate, formatTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
+import {RichText} from '../shared/RichText';
 import {AppIcon} from '../shared/icons';
 import {OverdueToken, StatusToken} from './ProcedureCells';
 
@@ -342,7 +343,7 @@ const entryAnchor = (id: string) => `timeline-entry-${id}`;
 
 /** One entry: its icon, what happened, then which procedure (an appointment may have none), when and who. */
 function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
-  const {title, detail} = describeTimelineEntry(entry);
+  const {title, detail, noteText} = describeTimelineEntry(entry);
   return (
     <ListItem
       align="first-line"
@@ -362,6 +363,8 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
               {detail}
             </Text>
           )}
+          {/* A note's text (admins only), formatted as it is on the procedure's page. */}
+          {noteText && <RichText>{noteText}</RichText>}
           <HStack gap={2} vAlign="center" wrap="wrap">
             {/* No procedure to link to: an appointment not for one, or a patient's own file (its detail says "To the patient"). */}
             {!entry.procedureId || isPatientEntry(entry) ? null : entry.isProcedureDeleted ? (

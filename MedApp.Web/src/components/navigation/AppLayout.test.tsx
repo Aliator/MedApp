@@ -243,17 +243,17 @@ describe('AppLayout notepad', {timeout: 20_000}, () => {
     const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
     await user.click(nav.getByRole('button', {name: 'Notepad'}));
 
-    expect(await screen.findByRole('complementary', {name: 'Notepad'})).toBeInTheDocument();
+    expect(await screen.findByRole('region', {name: 'Notepad'})).toBeInTheDocument();
     expect(document.querySelector('[data-notepad-docked]')).not.toBeNull();
     expect(localStorage.getItem('medapp.notepadOpen')).toBe('true');
 
     await user.click(nav.getAllByRole('link', {name: 'Procedures'})[0]);
     await heading('Procedures');
-    expect(screen.getByRole('complementary', {name: 'Notepad'})).toBeInTheDocument();
+    expect(screen.getByRole('region', {name: 'Notepad'})).toBeInTheDocument();
 
     // The same button closes it.
     await user.click(nav.getByRole('button', {name: 'Notepad'}));
-    await waitFor(() => expect(screen.queryByRole('complementary', {name: 'Notepad'})).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('region', {name: 'Notepad'})).not.toBeInTheDocument());
     expect(localStorage.getItem('medapp.notepadOpen')).toBeNull();
   });
 
@@ -263,8 +263,69 @@ describe('AppLayout notepad', {timeout: 20_000}, () => {
     renderApp({path: '/patients', user: adminUser});
 
     await heading('Patients');
-    expect(await screen.findByRole('complementary', {name: 'Notepad'})).toBeInTheDocument();
+    expect(await screen.findByRole('region', {name: 'Notepad'})).toBeInTheDocument();
     // The page scrolls on its own beside it, so the main area keeps no scrollbar room of its own.
     expect(getComputedStyle(document.querySelector('[role="main"]')!).scrollbarGutter).toBe('auto');
+  });
+
+  it('keeps the page as it is (the same elements, and so anything typed) when the notepad opens and closes', async () => {
+    emptyApi();
+    const {user} = renderApp({path: '/patients', user: adminUser});
+    const page = await heading('Patients');
+
+    const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
+    await user.click(nav.getByRole('button', {name: 'Notepad'}));
+    await screen.findByRole('region', {name: 'Notepad'});
+    expect(page.isConnected).toBe(true);
+    expect(screen.getByRole('heading', {name: 'Patients', level: 1})).toBe(page);
+
+    await user.click(nav.getByRole('button', {name: 'Notepad', pressed: true}));
+    await waitFor(() => expect(screen.queryByRole('region', {name: 'Notepad'})).not.toBeInTheDocument());
+    expect(page.isConnected).toBe(true);
+    expect(screen.getByRole('heading', {name: 'Patients', level: 1})).toBe(page);
+  });
+
+  it('keeps both halves of a half view, the right one on the page it has got to, when the notepad opens and closes', async () => {
+    emptyApi();
+    sessionStorage.setItem('medapp.halfView', '/patients');
+    const {user} = renderApp({path: '/admin/audit', user: adminUser});
+    const left = await heading('Audit Log');
+    await heading('Patients');
+
+    // Move on in the right half, from the patients list to adding one.
+    await user.click(screen.getByRole('link', {name: 'Add Patient'}));
+    const right = await heading('Add New Patient');
+    await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/patients/add'));
+
+    // The nav is folded to its icons: the icon brings its row out, and the row's button opens the notepad.
+    const toggleNotepad = async () => {
+      const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
+      await user.click(nav.getAllByRole('button', {name: 'Notepad'})[0]);
+      await waitFor(() => expect(screen.getAllByRole('button', {name: 'Notepad'}).length).toBeGreaterThan(1));
+      const buttons = screen.getAllByRole('button', {name: 'Notepad'});
+      await user.click(buttons[buttons.length - 1]);
+    };
+    await toggleNotepad();
+    await screen.findByRole('region', {name: 'Notepad'});
+    expect(left.isConnected && right.isConnected).toBe(true);
+
+    await toggleNotepad();
+    await waitFor(() => expect(screen.queryByRole('region', {name: 'Notepad'})).not.toBeInTheDocument());
+    expect(left.isConnected && right.isConnected).toBe(true);
+    expect(screen.getByRole('heading', {name: 'Add New Patient', level: 1})).toBe(right);
+  });
+
+  it('gives the focus to the notepad as it opens, and back to the side nav when its own Close closes it', async () => {
+    emptyApi();
+    const {user} = renderApp({path: '/patients', user: adminUser});
+    await heading('Patients');
+
+    const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
+    await user.click(nav.getByRole('button', {name: 'Notepad'}));
+    await waitFor(() => expect(screen.getByRole('textbox', {name: 'Notepad'})).toHaveFocus());
+
+    await user.click(screen.getByRole('button', {name: 'Close notepad'}));
+    await waitFor(() => expect(screen.queryByRole('region', {name: 'Notepad'})).not.toBeInTheDocument());
+    await waitFor(() => expect(nav.getByRole('button', {name: 'Notepad'})).toHaveFocus());
   });
 });

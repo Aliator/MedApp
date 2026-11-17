@@ -25,6 +25,15 @@ const STORAGE_KEY = 'medapp.halfView';
  */
 const HALF = {overflowX: 'hidden', scrollbarGutter: 'stable both-edges'} as const;
 
+/** A wrapper that takes no part in the layout: its children are laid out as if it weren't there. */
+const CONTENTS = {display: 'contents'} as const;
+
+/** The half view's two pages beside the docked notepad: they take the room left, and each half scrolls on its own. */
+const FILL = {minInlineSize: 0} as const;
+
+/** The docked notepad's column, the full height beside the page. */
+const NOTEPAD_COLUMN = {inlineSize: NOTEPAD_WIDTH, flexShrink: 0, blockSize: '100%'} as const;
+
 /** The line between the two halves of a half view, inset from the top and bottom like the pages. */
 const DIVIDER = {marginBlock: 'var(--spacing-6)', blockSize: 'auto', alignSelf: 'stretch'} as const;
 
@@ -160,7 +169,8 @@ function MainLayout() {
       <Divider orientation="vertical" style={DIVIDER} />
       <StackItem size="fill" isScrollable aria-label="Right half" style={HALF}>
         <HalfViewContext.Provider value={otherHalf}>
-          <HalfPane key={half.key} path={half.path} onPathChange={trackHalf} />
+          {/* Should it ever be built again, it opens where it had got to, not where it started. */}
+          <HalfPane key={half.key} path={halfPath ?? half.path} onPathChange={trackHalf} />
         </HalfViewContext.Provider>
       </StackItem>
     </HStack>
@@ -196,25 +206,29 @@ function MainLayout() {
           }
           // In a half view, or beside the docked notepad, each page's frame insets it instead (see below).
           contentPadding={half || isNotepadDocked ? 0 : 6}>
-          {isNotepadDocked ? (
-            // The notepad docked on the right, the page (or the half view's two) in the rest: the page scrolls on its
-            // own, as a half does, and the notepad stays put.
-            <HStack gap={0} height="100%" data-notepad-docked="">
-              {half ? (
-                <StackItem size="fill">{pages}</StackItem>
-              ) : (
-                <StackItem size="fill" isScrollable aria-label="Page" style={HALF}>
-                  {pages}
+          {/*
+            The page always sits in the same two wrappers, whether or not the notepad is docked beside it, so opening
+            or closing the notepad never moves the page in the tree: React would otherwise rebuild it from scratch,
+            losing anything typed on it. Without the notepad the wrappers take no part in the layout (display:
+            contents); docked, they're a row, the page scrolling on its own (as a half does) beside the notepad.
+          */}
+          <HStack
+            gap={0}
+            height="100%"
+            data-notepad-docked={isNotepadDocked ? '' : undefined}
+            style={isNotepadDocked ? undefined : CONTENTS}>
+            <StackItem size="fill" isScrollable aria-label="Page" style={!isNotepadDocked ? CONTENTS : half ? FILL : HALF}>
+              {pages}
+            </StackItem>
+            {isNotepadDocked && (
+              <>
+                <Divider orientation="vertical" />
+                <StackItem style={NOTEPAD_COLUMN}>
+                  <NotepadPane />
                 </StackItem>
-              )}
-              <Divider orientation="vertical" />
-              <StackItem style={{inlineSize: NOTEPAD_WIDTH, flexShrink: 0, blockSize: '100%'}}>
-                <NotepadPane />
-              </StackItem>
-            </HStack>
-          ) : (
-            pages
-          )}
+              </>
+            )}
+          </HStack>
         </AppShell>
         {/* On a narrow window, the notepad is a full-screen sheet instead. */}
         <NotepadSheet />

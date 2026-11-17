@@ -1,9 +1,9 @@
-import {fireEvent, screen, waitFor, within} from '@testing-library/react';
+import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {procedureQuery, type Procedure, type ProcedureNote} from '../../api/procedures';
 import {isDisabled, mockFetch, renderWithApp, staffUser} from '../../test/render';
 import {richText, setRichText} from '../../test/richText';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
-import {NOTE_CONFLICT_FALLBACK, ProcedureNotes} from './ProcedureNotes';
+import {NOTE_CONFLICT_FALLBACK, ProcedureNotes, whyNoNotes} from './ProcedureNotes';
 
 const note = (overrides: Partial<ProcedureNote> = {}): ProcedureNote => ({
   id: 'n1',
@@ -22,7 +22,7 @@ const procedure = (overrides: Partial<Procedure> = {}): Procedure => ({
   patientId: 'pat1',
   title: 'Synthetic knee review',
   canAddNotes: true,
-  notes: [note(), note({id: 'n2', authorUserId: 'u2', authorUsername: 'k.ashford', text: 'Synthetic older note.', createdAtUtc: '2026-11-01T09:00:00Z', canEdit: false, lastEditedAtUtc: '2026-11-02T09:15:00Z', version: 2})],
+  noteList: [note(), note({id: 'n2', authorUserId: 'u2', authorUsername: 'k.ashford', text: 'Synthetic older note.', createdAtUtc: '2026-11-01T09:00:00Z', canEdit: false, lastEditedAtUtc: '2026-11-02T09:15:00Z', version: 2})],
   ...overrides,
 });
 
@@ -59,24 +59,34 @@ describe('ProcedureNotes', () => {
   });
 
   it('says when there are none', async () => {
-    renderNotes(procedure({notes: []}));
+    renderNotes(procedure({noteList: []}));
     expect(await screen.findByText('No notes yet.')).toBeInTheDocument();
   });
 
   it('offers no adding or editing when the procedure takes no notes', async () => {
-    renderNotes(procedure({canAddNotes: false, notes: [note({canEdit: false})]}));
+    renderNotes(procedure({canAddNotes: false, status: 'Cancelled', noteList: [note({canEdit: false})]}));
 
     expect(await screen.findByText('mornings')).toBeInTheDocument();
     expect(screen.queryByRole('textbox', {name: 'New note'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Add Note'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Edit'})).not.toBeInTheDocument();
+    // It says why, as the stage section does.
+    expect(screen.getByText("Notes can't be added or edited while the procedure is cancelled.")).toBeInTheDocument();
+  });
+
+  it("says why notes can't be added: the record's restriction first, then the status", () => {
+    expect(whyNoNotes(procedure({readOnlyReason: 'Synthetic: the record is restricted.', status: 'InProgress'}))).toBe(
+      'Synthetic: the record is restricted.',
+    );
+    expect(whyNoNotes(procedure({status: 'Archived'}))).toBe("Notes can't be added or edited while the procedure is archived.");
+    expect(whyNoNotes(procedure({status: 'InProgress'}))).toBe("Notes can't be added or edited now.");
   });
 
   it('adds a note, which shows at once, and empties the box', async () => {
     const added = note({id: 'n3', text: 'Synthetic new note.', createdAtUtc: '2026-11-04T08:00:00Z'});
     const fetch = mockFetch(async (request) => {
       if (request.method === 'POST') return json(added, 201);
-      return json(procedure({notes: [added, ...(procedure().notes ?? [])]}));
+      return json(procedure({noteList: [added, ...(procedure().noteList ?? [])]}));
     });
     const {user, queryClient} = renderNotes();
     const button = await screen.findByRole('button', {name: 'Add Note'});
@@ -86,11 +96,13 @@ describe('ProcedureNotes', () => {
     await setRichText(box, 'Synthetic new note.');
     await user.click(button);
 
-    await waitFor(() => expect(queryClient.getQueryData<Procedure>(['procedures', 'p1'])?.notes?.[0]?.id).toBe('n3'));
+    await waitFor(() => expect(queryClient.getQueryData<Procedure>(['procedures', 'p1'])?.noteList?.[0]?.id).toBe('n3'));
     const post = fetch.mock.calls.map(([input]) => input as Request).find((r) => r.method === 'POST')!;
     expect(new URL(post.url).pathname).toBe('/api/procedures/patient-procedures/p1/notes');
     expect(await post.json()).toEqual({text: 'Synthetic new note.'});
     await waitFor(() => expect(richText(screen.getByRole('textbox', {name: 'New note'}))).toBe(''));
+    // The cursor goes back into the empty box, rather than being lost with the old one.
+    await waitFor(() => expect(screen.getByRole('textbox', {name: 'New note'})).toHaveFocus());
   });
 
   it('adds a note on Ctrl+S in the box', async () => {
@@ -109,7 +121,7 @@ describe('ProcedureNotes', () => {
 
   it('edits your own note from the version you saw', async () => {
     const edited = note({text: 'Synthetic note, edited.', version: 2, lastEditedAtUtc: '2026-11-04T09:00:00Z'});
-    const fetch = mockFetch(async (request) => (request.method === 'PUT' ? json(edited) : json(procedure({notes: [edited]}))));
+    const fetch = mockFetch(async (request) => (request.method === 'PUT' ? json(edited) : json(procedure({noteList: [edited]}))));
     const {user} = renderNotes();
 
     await user.click(await screen.findByRole('button', {name: 'Edit'}));
@@ -122,6 +134,28 @@ describe('ProcedureNotes', () => {
     expect(new URL(put.url).pathname).toBe('/api/procedures/patient-procedures/p1/notes/n1');
     expect(await put.json()).toEqual({text: 'Synthetic note, edited.', expectedVersion: 1});
     await waitFor(() => expect(screen.queryByRole('textbox', {name: 'Note'})).not.toBeInTheDocument());
+  });
+
+  it('sends the version the edit started from, even if the note has been saved elsewhere since', async () => {
+    const fetch = mockFetch(async (request) =>
+      request.method === 'PUT' ? json({title: 'This note was changed somewhere else.'}, 409) : json(procedure()),
+    );
+    const {user, queryClient} = renderNotes();
+    await user.click(await screen.findByRole('button', {name: 'Edit'}));
+    await setRichText(await screen.findByRole('textbox', {name: 'Note'}), 'Synthetic edit from the left half.');
+
+    // Meanwhile the right half saved the same note: the cache now has version 2.
+    act(() => {
+      queryClient.setQueryData(procedureQuery('p1').queryKey, procedure({noteList: [note({text: 'Synthetic right half.', version: 2})]}));
+    });
+    await user.click(screen.getByRole('button', {name: 'Save Note'}));
+
+    const put = await waitFor(() => fetch.mock.calls.map(([input]) => input as Request).find((r) => r.method === 'PUT')!);
+    expect(await put.json()).toEqual({text: 'Synthetic edit from the left half.', expectedVersion: 1});
+    // The conflict shows beside the note being edited.
+    const editing = screen.getByRole('textbox', {name: 'Note'}).closest('li')!;
+    expect(await within(editing).findByText('This note was changed somewhere else.')).toBeInTheDocument();
+    expect(within(editing).getByRole('button', {name: 'Reload'})).toBeInTheDocument();
   });
 
   it('cancels an edit without saving', async () => {
@@ -177,9 +211,15 @@ describe('ProcedureNotes', () => {
     expect(screen.queryByRole('button', {name: 'Reload'})).not.toBeInTheDocument();
   });
 
-  it('warns when a note is too long', async () => {
+  it("warns when a note is too long, and won't send it", async () => {
+    const fetch = mockFetch(() => json(procedure()));
     renderNotes();
-    await setRichText(await screen.findByRole('textbox', {name: 'New note'}), 'a'.repeat(4001));
+    const box = await screen.findByRole('textbox', {name: 'New note'});
+    await setRichText(box, 'a'.repeat(4001));
+
     expect(screen.getByText('Too long: at most 4000 characters.')).toBeInTheDocument();
+    expect(isDisabled(screen.getByRole('button', {name: 'Add Note'}))).toBe(true);
+    fireEvent.keyDown(box, {key: 's', ctrlKey: true});
+    expect(fetch.mock.calls.some(([input]) => (input as Request).method === 'POST')).toBe(false);
   });
 });

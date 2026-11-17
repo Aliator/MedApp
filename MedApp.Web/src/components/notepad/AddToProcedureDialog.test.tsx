@@ -1,7 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import type {Procedure} from '../../api/procedures';
 import {isDisabled, json, mockApi, openDialog, renderWithApp, staffUser} from '../../test/render';
-import {AddToProcedureDialog} from './AddToProcedureDialog';
+import {AddToProcedureDialog, CANT_REMOVE_SELECTION, type NoteToAdd} from './AddToProcedureDialog';
 
 /** The dialog, once it's open. */
 const dialogShown = () =>
@@ -20,11 +20,16 @@ const procedure = (overrides: Partial<Procedure> = {}): Procedure => ({
   ...overrides,
 });
 
-function renderDialog(text: string, procedures = [{key: 'a', procedure: procedure()}]) {
+function renderDialog(text: string, procedures = [{key: 'a', procedure: procedure()}], note: Partial<NoteToAdd> = {}) {
   const onAdded = vi.fn();
   const onCancel = vi.fn();
   const result = renderWithApp(
-    <AddToProcedureDialog note={{text, isSelection: false}} procedures={procedures} onAdded={onAdded} onCancel={onCancel} />,
+    <AddToProcedureDialog
+      note={{text, isSelection: false, remove: () => '', ...note}}
+      procedures={procedures}
+      onAdded={onAdded}
+      onCancel={onCancel}
+    />,
     {user: staffUser},
   );
   return {...result, onAdded, onCancel};
@@ -66,6 +71,20 @@ describe('AddToProcedureDialog', () => {
     const dialog = within(await dialogShown());
     expect(dialog.getByText(/Too long for a note/)).toBeInTheDocument();
     expect(isDisabled(dialog.getByRole('button', {name: 'Add Note'}))).toBe(true);
+  });
+
+  it("leaves a selection in the notepad, and says why, when it can't be taken out exactly", async () => {
+    mockApi({'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', version: 1}, 201)});
+    const {user, onAdded} = renderDialog('Synthetic selected text.', undefined, {isSelection: true, remove: undefined});
+
+    const dialog = within(await dialogShown());
+    const checkbox = dialog.getByRole('checkbox', {name: 'Remove it from the notepad'});
+    expect(checkbox).not.toBeChecked();
+    expect(isDisabled(checkbox)).toBe(true);
+    expect(dialog.getByText(CANT_REMOVE_SELECTION)).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Add Note'}));
+
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(false));
   });
 
   it('cancels', async () => {

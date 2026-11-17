@@ -17,10 +17,20 @@ import type {OpenProcedure} from './NotepadContext';
 
 /** What the notepad would add: the text selected in it, or all of it. */
 export interface NoteToAdd {
+  /** As Markdown, with its formatting. */
   text: string;
-  /** Only the part selected (plain text), not the whole notepad. */
+  /** Only the part selected, not the whole notepad. */
   isSelection: boolean;
+  /**
+   * Takes exactly this text out of the notepad, returning what's left (null if it can't now). Missing when it can't be
+   * done exactly at all: "Remove it from the notepad" is then off, and says why.
+   */
+  remove?: () => string | null;
 }
+
+/** Why "Remove it from the notepad" is off, for a selection the notepad couldn't pin down exactly. */
+export const CANT_REMOVE_SELECTION =
+  "The selected text can't be taken out of the notepad exactly, so it won't be: remove it yourself after adding it.";
 
 export interface AddToProcedureDialogProps {
   note: NoteToAdd;
@@ -40,13 +50,16 @@ const where = (open: OpenProcedure) =>
  * is a clinical hazard (H-37 in `docs/clinical-safety/hazard-log.md`), so it asks first, showing who the patient is as
  * the patient banner does (name, date of birth, NHS number), the procedure's title and the text. With two procedures
  * open (a half view), it asks which, and nothing is chosen until you choose. "Remove it from the notepad" starts
- * ticked, so patient details don't linger there.
+ * ticked, so patient details don't linger there, when the text can be taken out exactly; otherwise it's off and says
+ * why.
  */
 export function AddToProcedureDialog({note, procedures, onAdded, onCancel}: AddToProcedureDialogProps) {
   const add = useAddProcedureNote();
   const announce = useAnnounce();
   const [chosenKey, setChosenKey] = useState(procedures.length === 1 ? procedures[0].key : '');
-  const [remove, setRemove] = useState(true);
+  // Taken out of the notepad by default, so patient details don't linger there; but only when that can be done exactly.
+  const canRemove = note.remove !== undefined;
+  const [remove, setRemove] = useState(canRemove);
   const [problem, setProblem] = useState<string | null>(null);
   const chosen = procedures.find((p) => p.key === chosenKey);
   const procedure = chosen?.procedure;
@@ -119,7 +132,13 @@ export function AddToProcedureDialog({note, procedures, onAdded, onCancel}: AddT
           </Card>
           {isTooLong && <AlertMessage message={`Too long for a note: at most ${MAX_NOTE_LENGTH} characters. Select a part of it.`} />}
         </VStack>
-        <CheckboxInput label="Remove it from the notepad" value={remove} onChange={setRemove} isDisabled={add.isPending} />
+        <CheckboxInput
+          label="Remove it from the notepad"
+          value={remove}
+          onChange={setRemove}
+          isDisabled={add.isPending || !canRemove}
+          description={canRemove ? undefined : CANT_REMOVE_SELECTION}
+        />
         {problem && <AlertMessage message={problem} />}
       </VStack>
     </ConfirmDialog>

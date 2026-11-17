@@ -83,9 +83,9 @@ export function ProcedureDetailsFields<T extends DetailsValue>({
       </FormSection>
       {value.notes !== undefined && (
         <FormSection title="Notes" useGrid={false}>
+          {/* Labelled, so its hint shows: a hidden label hides the description with it. */}
           <RichTextField
-            label="Notes"
-            isLabelHidden
+            label="First note"
             description="Becomes the procedure's first note, by you. More can be added on its page."
             value={value.notes}
             onChange={(v) => set('notes', v as T['notes'])}

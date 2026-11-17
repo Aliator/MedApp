@@ -231,7 +231,7 @@ function useShowNote() {
   const queryClient = useQueryClient();
   return async (procedureId: string, note: ProcedureNote) => {
     queryClient.setQueryData(procedureQuery(procedureId).queryKey, (procedure) =>
-      procedure && {...procedure, notes: [note, ...(procedure.notes ?? []).filter((n) => n.id !== note.id)].sort(newestFirst)},
+      procedure && {...procedure, noteList: [note, ...(procedure.noteList ?? []).filter((n) => n.id !== note.id)].sort(newestFirst)},
     );
     await queryClient.invalidateQueries({queryKey: procedureQuery(procedureId).queryKey});
     await queryClient.invalidateQueries({queryKey: ['procedures', 'search']});

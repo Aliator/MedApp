@@ -14,7 +14,7 @@ const procedure = {
   templateName: 'Diagnostic procedure',
   title: 'Colonoscopy',
   canAddNotes: true,
-  notes: [{id: 'n1', authorUserId: 'u1', authorUsername: 'a.user', text: 'Bowel preparation pack posted.', createdAtUtc: '2026-11-01T10:30:00Z', version: 1, canEdit: false}],
+  noteList: [{id: 'n1', authorUserId: 'u1', authorUsername: 'a.user', text: 'Bowel preparation pack posted.', createdAtUtc: '2026-11-01T10:30:00Z', version: 1, canEdit: false}],
   dueDate: '2026-12-01',
   dueDateUtc: '2026-12-01T23:59:59Z',
   priority: 'High',
