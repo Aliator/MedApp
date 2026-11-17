@@ -311,6 +311,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
       <TextInput
         label="Title"
         isRequired
+        description="All staff can see it, and it's in attendees' notifications. Don't put patient details here."
         value={title}
         onChange={setTitle}
         autoComplete="off"
