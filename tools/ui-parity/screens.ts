@@ -304,11 +304,12 @@ export const screens: Screen[] = [
     },
   },
   {
-    name: 'notepad-window',
-    title: "The notepad's own window (/notepad, opened from the side nav's Notepad row), at the pop-up's size: the notepad filling it, no side nav",
-    path: '/notepad',
+    name: 'notepad-half',
+    title: "The notepad in a half view (the side nav's Notepad row's menu), beside a procedure: the notepad filling the right half",
+    path: (d) => `/procedures/${d.procedureId}`,
     prepare: async (page) => {
-      await page.setViewportSize({ width: 420, height: 640 });
+      await page.evaluate(() => sessionStorage.setItem('medapp.halfView', '/notepad'));
+      await page.reload();
       await page.getByRole('region', { name: 'Notepad' }).getByRole('textbox', { name: 'Notepad' }).waitFor({ state: 'visible' });
       await settle(page);
     },

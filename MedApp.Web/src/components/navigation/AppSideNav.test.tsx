@@ -1,7 +1,6 @@
 import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
-import {NOTEPAD_WINDOW_BLOCKED} from '../notepad/notepadWindow';
 import {adminUser, calls, isDisabled, json, mockApi, mockFetch, openDialog, renderWithApp, rowMenuItem, staffUser} from '../../test/render';
 import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openProcedureId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
@@ -405,7 +404,7 @@ describe('AppSideNav folded, and its menus', () => {
   });
 
   it("opens a row's menu with a press of its button, and a second press leaves it open", async () => {
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -435,7 +434,7 @@ describe('AppSideNav folded, and its menus', () => {
       if (this.matches('[popover], [role="menu"]')) return new DOMRect(300, 90, 200, 120);
       return new DOMRect();
     });
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -460,7 +459,7 @@ describe('AppSideNav folded, and its menus', () => {
       if (this.matches('[popover], [role="menu"], .astryx-popover')) return new DOMRect(300, 100, 200, 120);
       return new DOMRect();
     });
-    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -500,7 +499,7 @@ describe('AppSideNav with a half view open', () => {
       'GET /api/patients/labels': patientLabels({[patientId]: 'Test Patient'}),
       'GET /api/procedures/patient-procedures/labels': procedureLabels({[procedureId]: {title: 'Test procedure', patientName: 'Test Patient'}}),
     });
-    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
     const result = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <AppSideNav />
@@ -594,80 +593,42 @@ describe('AppSideNav notepad', () => {
     expect(screen.queryByRole('button', {name: 'Notepad'})).not.toBeInTheDocument();
   });
 
-  const WINDOW_BUTTON = 'Open notepad in a new window';
-
-  /** The notepad's window, as `window.open` returns it: new (blank), so it's sent to the notepad. */
-  function stubOpen(popup: Partial<Window> | null = {focus: vi.fn(), location: {origin: window.location.origin, pathname: 'blank', replace: vi.fn()} as never}) {
-    return vi.spyOn(window, 'open').mockReturnValue(popup as Window | null);
-  }
-
-  function renderNav(collapsed = false) {
-    return renderWithApp(
-      <NotepadProvider>
-        <AppSideNav collapsible={collapsed ? {isCollapsed: true} : undefined} />
-        <NotepadShown />
-      </NotepadProvider>,
+  /** The nav, its notepad, and a half view showing `openPath`. */
+  function renderWithHalfView(openPath: string) {
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
+    const result = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <NotepadProvider>
+          <AppSideNav />
+          <NotepadShown />
+        </NotepadProvider>
+      </HalfViewsContext.Provider>,
       {user: staffUser},
     );
+    return {...result, halfViews};
   }
 
-  it('opens the notepad in a window of its own from a button on its row, shown while the row is hovered or focused', async () => {
-    const open = stubOpen();
-    const {user} = renderNav();
-    const notepad = await screen.findByRole('button', {name: 'Notepad'});
-    expect(screen.queryByRole('button', {name: WINDOW_BUTTON})).not.toBeInTheDocument();
+  it('closes the half view showing the notepad before it docks the notepad, so it is not open twice side by side', async () => {
+    const {user, halfViews} = renderWithHalfView('/notepad');
 
-    await user.hover(notepad);
-    await user.click(await screen.findByRole('button', {name: WINDOW_BUTTON}));
-
-    expect(open).toHaveBeenCalledWith('', 'medapp-notepad', 'popup,width=420,height=640');
-    // The docked notepad stays closed: the window has it.
-    expect(screen.getByText('notepad closed')).toBeInTheDocument();
-
-    // From the keyboard too.
-    await user.unhover(notepad);
-    act(() => (document.activeElement as HTMLElement | null)?.blur());
-    await waitFor(() => expect(screen.queryByRole('button', {name: WINDOW_BUTTON})).not.toBeInTheDocument());
-    await user.tab();
-    while (document.activeElement !== screen.getByRole('button', {name: 'Notepad'})) await user.tab();
-    expect(await screen.findByRole('button', {name: WINDOW_BUTTON})).toBeInTheDocument();
-  });
-
-  it('closes the docked notepad when it opens the window, so it is not open in two places', async () => {
-    stubOpen();
-    const {user} = renderNav();
-    await user.click(await screen.findByRole('button', {name: 'Notepad'}));
-    expect(screen.getByText('notepad open')).toBeInTheDocument();
-
-    await user.hover(screen.getByRole('button', {name: 'Notepad', pressed: true}));
-    await user.click(await screen.findByRole('button', {name: WINDOW_BUTTON}));
-
-    expect(screen.getByText('notepad closed')).toBeInTheDocument();
-  });
-
-  it('says how to allow it when the browser blocks the window, and leaves the docked notepad open', async () => {
-    stubOpen(null);
-    const {user} = renderNav();
     await user.click(await screen.findByRole('button', {name: 'Notepad'}));
 
-    await user.hover(screen.getByRole('button', {name: 'Notepad', pressed: true}));
-    await user.click(await screen.findByRole('button', {name: WINDOW_BUTTON}));
-
-    expect((await screen.findAllByText(NOTEPAD_WINDOW_BLOCKED)).length).toBeGreaterThan(0);
+    expect(halfViews.close).toHaveBeenCalledTimes(1);
     expect(screen.getByText('notepad open')).toBeInTheDocument();
   });
 
-  it("always shows the button in the folded nav's row", async () => {
-    const {user} = renderNav(true);
+  it('leaves a half view showing another page open as it docks the notepad', async () => {
+    const {user, halfViews} = renderWithHalfView('/tasks');
 
-    await user.hover((await screen.findAllByRole('button', {name: 'Notepad'}))[0]);
+    await user.click(await screen.findByRole('button', {name: 'Notepad'}));
 
-    expect(await screen.findByRole('button', {name: WINDOW_BUTTON})).toBeInTheDocument();
+    expect(halfViews.close).not.toHaveBeenCalled();
+    expect(screen.getByText('notepad open')).toBeInTheDocument();
   });
 
   /** The Notepad row's menu, opened from its button (the row is a button, not a link), and its items. */
   async function notepadMenuItems(openPath: string | null) {
-    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn()};
+    const halfViews = {open: vi.fn(), openPath, openFull: vi.fn(), close: vi.fn()};
     const {user} = renderWithApp(
       <HalfViewsContext.Provider value={halfViews}>
         <NotepadProvider>

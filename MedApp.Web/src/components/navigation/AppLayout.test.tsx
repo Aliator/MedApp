@@ -163,6 +163,30 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
+  it("docking the notepad from the side nav closes the half view showing it, so it isn't open twice side by side", async () => {
+    mockFetch((request) => {
+      const {pathname} = new URL(request.url);
+      if (pathname === '/api/me/notepad') return json({text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30});
+      return json(/\/(templates|definitions|roles)$/.test(pathname) ? [] : pageOf([]));
+    });
+    sessionStorage.setItem('medapp.halfView', '/notepad');
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+
+    await heading('Patients');
+    expect(await within(screen.getByLabelText('Right half')).findByRole('region', {name: 'Notepad'}, {timeout: 15000})).toBeInTheDocument();
+    // The folded nav's Notepad icon brings its row out; the row is the toggle.
+    const nav = within(screen.getAllByRole('navigation', {name: 'Side navigation'})[0]);
+    await user.click(nav.getByRole('button', {name: 'Notepad'}));
+    await waitFor(() => expect(nav.getAllByRole('button', {name: 'Notepad'})).toHaveLength(2), {timeout: 3000});
+    await user.click(nav.getAllByRole('button', {name: 'Notepad'})[1]);
+
+    await waitFor(() => expect(screen.queryByLabelText('Right half')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/patients');
+    expect(await screen.findAllByRole('region', {name: 'Notepad'})).toHaveLength(1);
+    expect(localStorage.getItem('medapp.notepadOpen')).toBe('true');
+    expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
+  });
+
   it('closes the half view when the main view goes to the same page', async () => {
     emptyApi();
     sessionStorage.setItem('medapp.halfView', '/admin/audit');

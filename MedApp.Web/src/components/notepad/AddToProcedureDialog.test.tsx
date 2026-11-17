@@ -49,7 +49,7 @@ describe('AddToProcedureDialog', () => {
     expect(dialog.getByText('Synthetic note to add.')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Add Note'}));
 
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(true, 'p1'));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(true));
   });
 
   it("says why when the API refuses, and stays open", async () => {
@@ -84,7 +84,7 @@ describe('AddToProcedureDialog', () => {
     expect(dialog.getByText(CANT_REMOVE_SELECTION)).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Add Note'}));
 
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(false, 'p1'));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(false));
   });
 
   it('cancels', async () => {

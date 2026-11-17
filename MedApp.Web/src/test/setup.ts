@@ -2,7 +2,6 @@ import '@testing-library/jest-dom/vitest';
 import {cleanup, configure} from '@testing-library/react';
 import {afterEach, vi} from 'vitest';
 import {appSettings} from '../app/settingsStore';
-import {FakeBroadcastChannel} from './broadcastChannel';
 import {liveHub} from './signalr';
 
 // No live connections to a server in tests: a stand-in that tests can push messages through (`liveHub`).
@@ -20,10 +19,6 @@ if (typeof Range !== 'undefined' && !Range.prototype.getBoundingClientRect) {
   Range.prototype.getBoundingClientRect = () => new DOMRect();
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 }
-
-// The notepad keeps MedApp's windows in step on a BroadcastChannel: a stand-in in this test's memory, as Node's own
-// reaches other test workers (`FakeBroadcastChannel`). Not stubbed with vi.stubGlobal, which each test undoes.
-if (typeof window !== 'undefined') globalThis.BroadcastChannel = FakeBroadcastChannel as unknown as typeof BroadcastChannel;
 
 // jsdom has <dialog> but not its methods, which Astryx's Dialog calls. Opening sets `open`; closing clears it
 // and fires `close`, as browsers do.
@@ -47,5 +42,4 @@ afterEach(() => {
   if (typeof window !== 'undefined') localStorage.clear();
   appSettings.reset();
   liveHub.reset();
-  FakeBroadcastChannel.reset();
 });

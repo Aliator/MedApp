@@ -9,8 +9,7 @@ import {LiveNotifications} from '../../app/LiveNotifications';
 import {SettingsSync} from '../../app/SettingsSync';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
-import {NOTEPAD_WIDTH, NotepadProvider, useNotepad, useNotepadDocked} from '../notepad/NotepadContext';
-import {NOTEPAD_WINDOW_PATH} from '../notepad/notepadWindow';
+import {NOTEPAD_PATH, NOTEPAD_WIDTH, NotepadProvider, useNotepad, useNotepadDocked} from '../notepad/NotepadContext';
 import {NotepadPane} from '../notepad/NotepadPane';
 import {NotepadSheet} from '../notepad/NotepadSheet';
 import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
@@ -126,9 +125,10 @@ function MainLayout() {
     () => ({
       open,
       openFull,
+      close: closeHalf,
       openPath: half && halfPath ? halfPath.split('?')[0] : null,
     }),
-    [open, openFull, half, halfPath],
+    [open, openFull, closeHalf, half, halfPath],
   );
 
   const notepad = useNotepad();
@@ -136,8 +136,8 @@ function MainLayout() {
     const path = halfPath;
     closeHalf();
     if (!showHalfPage || !path) return;
-    // The notepad's page has no side nav, so it isn't opened full size: it's docked beside the page instead.
-    if (path.split(/[?#]/)[0] === NOTEPAD_WINDOW_PATH) notepad?.open();
+    // The notepad's page is only for a half view, so it isn't opened full size: it's docked beside the page instead.
+    if (path.split(/[?#]/)[0] === NOTEPAD_PATH) notepad?.open();
     else void router.navigate({href: path});
   };
 

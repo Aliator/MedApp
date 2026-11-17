@@ -6,7 +6,6 @@ import {SideNav, SideNavHeading, SideNavItem, SideNavSection, type SideNavProps}
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Theme} from '@astryxdesign/core/theme';
-import {useToast} from '@astryxdesign/core/Toast';
 import {useQuery} from '@tanstack/react-query';
 import {useRouter, useRouterState} from '@tanstack/react-router';
 import {
@@ -35,8 +34,7 @@ import {NavRail, type NavRailEntry} from './NavRail';
 import {procedureNavLabel} from './navLabels';
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
-import {useNotepad} from '../notepad/NotepadContext';
-import {NOTEPAD_WINDOW_BLOCKED, NOTEPAD_WINDOW_PATH, openNotepadWindow} from '../notepad/notepadWindow';
+import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 
 const ADMIN_PAGES = [
   {label: 'Users', icon: AppIcon.Users, href: '/admin/users'},
@@ -187,7 +185,7 @@ function RowMenu({
   label: string;
   href: string;
   items?: DropdownMenuItemData[];
-  /** Offers only the half view (the right), never the main view: the notepad's page has no side nav. */
+  /** Offers only the half view (the right), never the main view: the notepad's page is only ever shown in a half view. */
   isRightOnly?: boolean;
 }) {
   const isActive = useContext(ActiveRowsContext)(href);
@@ -651,6 +649,16 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     : [];
   // The notepad opens beside every page (or over it, on a phone), and stays open while moving around.
   const notepad = useNotepad();
+  const toggleNotepad = () => {
+    if (!notepad) return;
+    if (notepad.isOpen) {
+      notepad.requestClose();
+      return;
+    }
+    // Shown in the half view, it closes there first (its box saves as it goes), so it isn't open twice side by side.
+    if (halfPath === NOTEPAD_PATH) halfViews?.close();
+    notepad.open();
+  };
   const notepadEntry: NavRailEntry[] = notepad
     ? [
         {
@@ -667,14 +675,9 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
               aria-pressed={notepad.isOpen}
               data-notepad-toggle=""
               data-nav-row={NOTEPAD_ROW}
-              onClick={() => (notepad.isOpen ? notepad.requestClose() : notepad.open())}
-              actions={
-                <>
-                  <NotepadWindowButton />
-                  {/* Beside the page, in the half view; never on the left, which would leave the app for it. */}
-                  <RowMenu label="Notepad" href={NOTEPAD_ROW} isRightOnly />
-                </>
-              }
+              onClick={toggleNotepad}
+              // Beside the page, in the half view; never on the left, as its page isn't one of its own.
+              actions={<RowMenu label="Notepad" href={NOTEPAD_ROW} isRightOnly />}
             />
           ),
         },
@@ -799,36 +802,5 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   );
 }
 
-/**
- * The Notepad row's key among the rows that show their buttons (it has no link to be known by): the address of the
- * notepad's own page, which its window and a half view show.
- */
-const NOTEPAD_ROW = NOTEPAD_WINDOW_PATH;
-
-/**
- * The Notepad row's button that opens the notepad in a small window of its own (`/notepad`), or brings that window
- * forward. The notepad docked here (or the sheet) then closes, saving first, so it isn't open in two places. A browser
- * that blocks the window gets a message saying how to allow it. Shown like the other rows' buttons.
- */
-function NotepadWindowButton() {
-  const isActive = useContext(ActiveRowsContext)(NOTEPAD_ROW);
-  const notepad = useNotepad();
-  const toast = useToast();
-  const open = () => {
-    // At once, in the click, so the browser lets it open a window.
-    if (!openNotepadWindow()) {
-      toast({body: NOTEPAD_WINDOW_BLOCKED, type: 'error', uniqueID: 'notepad-window-blocked'});
-      return;
-    }
-    if (notepad?.isOpen) notepad.requestClose();
-  };
-  return (
-    <IconButton
-      label="Open notepad in a new window"
-      icon={<Icon icon={AppIcon.NotepadWindow} />}
-      variant="ghost"
-      onClick={open}
-      style={shownFor(isActive)}
-    />
-  );
-}
+/** The Notepad row's key among the rows that show their buttons (it has no link to be known by): its page's address. */
+const NOTEPAD_ROW = NOTEPAD_PATH;

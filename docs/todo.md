@@ -154,7 +154,6 @@ What that branch left, so the app would work exactly as before (`docs/security/a
 - **Run the patient timeline's query on SQL Server,** once `MedApp.IntegrationTests` has a database (#65): page through entries that share a time (SQL Server orders `uniqueidentifier`s its own way, and the cursor must agree), and filter by kind (its `LIKE` markers ignore case there). Today it's only proven to translate (`PatientTimelineTranslationTests`) and run in memory (PR #64 review, finding 6).
 
 - **Run more of the web tests under StrictMode.** Only the tests that pass `strict` to `renderWithApp` run effects twice as development does, and `renderApp` has no such option. Use Testing Library's own `reactStrictMode` option, give `renderApp` it too, then try `configure({reactStrictMode: true})` across the suite to find other effects that break when run twice (review of #109, finding 3).
-- **Reloading with a half view open mismatches the server's render** (found 17 November 2026, on `main` since half views were kept across reloads). The server can't read the half view kept in `sessionStorage` (`medapp.halfView`), so it renders one page with the side nav open, and the browser's first render has the half view with the nav folded: React logs a hydration error in development and re-renders the layout from scratch. Read the kept half view after mounting (as the notepad's open state is), or keep it in a cookie the server can read.
 
 ## Long term
 

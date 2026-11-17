@@ -39,7 +39,6 @@ import {
   RiDeleteBinLine,
   RiEqualizerLine,
   RiErrorWarningLine,
-  RiExternalLinkLine,
   RiEyeLine,
   RiFileImageLine,
   RiFileLine,
@@ -206,8 +205,6 @@ export const AppIcon = {
   Notes: remix(RiStickyNoteLine),
   /** The side nav's Notepad item while the notepad is open. */
   NotesOpen: remix(RiStickyNoteFill),
-  /** Opens the notepad in a small window of its own (the side nav's Notepad row). */
-  NotepadWindow: remix(RiExternalLinkLine),
   Unlock: remix(RiLockUnlockLine),
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),

@@ -99,16 +99,13 @@ interface NotepadEditorProps {
  * The notepad's box, saving by itself a moment after typing stops (`AUTOSAVE_MS`), on Ctrl+S, before it closes, before
  * signing out, and as it goes (the window crossing between docked and sheet). Each save sends the version it started
  * from, so another tab's save in between is a 409, which stops saving until it's reloaded. With nothing typed, it reads
- * the notepad afresh when the tab is shown again, or when another of MedApp's windows saves it, so a change made there
- * shows here before anything's typed over it. In the notepad's own window, the browser warns before the window is
- * closed with something unsaved.
+ * the notepad afresh when the tab is shown again, so another tab's change shows here before anything's typed over it.
  */
 function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
   const context = useNotepad();
   const announce = useAnnounce();
   const save = useSaveNotepad();
   const queryClient = useQueryClient();
-  const shareSaved = context?.shareSaved;
 
   // The text the box started from, and a key that starts it again when the text is replaced (cleared, or a note taken out).
   const [start, setStart] = useState({text: notepad.text ?? '', key: 0});
@@ -163,8 +160,6 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
           saved.current = {text, version: result.version ?? 0};
           setState({kind: 'saved', at: result.lastUpdatedUtc ?? new Date().toISOString()});
           setIsDirty(draft.current !== text);
-          // MedApp's other windows catch up, if nothing's typed in their notepads.
-          shareSaved?.(saved.current.version);
           return true;
         },
         (e: unknown) => {
@@ -182,7 +177,7 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
     // Typed on while it saved: save that too, after the usual pause.
     if (ok && draft.current !== saved.current.text) schedule();
     return ok;
-  }, [save, announce, setState, schedule, shareSaved]);
+  }, [save, announce, setState, schedule]);
 
   useEffect(() => {
     saveLater.current = saveNow;
@@ -223,16 +218,11 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [notepad, setState]);
 
-  // Nothing typed, no save on its way and no conflict: the box can take a newer copy.
-  const isIdle = useCallback(
-    () => draft.current === saved.current.text && !inFlight.current && stateRef.current.kind !== 'conflict',
-    [],
-  );
-
   // Back to this tab with nothing typed: read the notepad afresh, in case another tab changed it.
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState !== 'visible' || !isIdle()) return;
+      if (document.visibilityState !== 'visible') return;
+      if (draft.current !== saved.current.text || inFlight.current || stateRef.current.kind === 'conflict') return;
       onRefresh();
     };
     document.addEventListener('visibilitychange', refresh);
@@ -241,32 +231,7 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
     };
-  }, [onRefresh, isIdle]);
-
-  // Saved in another of MedApp's windows, at a newer version than this box's, with nothing typed here: read it afresh
-  // (the newer copy then replaces the box's, above). So a window opened while another's save was on its way catches up.
-  const onSavedElsewhere = context?.onSavedElsewhere;
-  useEffect(
-    () =>
-      onSavedElsewhere?.((version) => {
-        if (version > saved.current.version && isIdle()) onRefresh();
-      }),
-    [onSavedElsewhere, onRefresh, isIdle],
-  );
-
-  // The notepad's own window: the browser asks before it's closed with something unsaved, or a save on its way.
-  const isWindow = context?.isWindow ?? false;
-  useEffect(() => {
-    if (!isWindow) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      if (draft.current === saved.current.text && !inFlight.current) return;
-      event.preventDefault();
-      // Older browsers ask only when this is set.
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [isWindow]);
+  }, [onRefresh]);
 
   // Opened by its user: the cursor goes in the box, so they can write at once.
   useEffect(() => {
@@ -363,13 +328,9 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
     if (text) setToAdd({text, isSelection: false, remove: () => ''});
   };
 
-  /**
-   * After a note was added: MedApp's other windows showing the procedure read it afresh (the notepad's own window adds
-   * to their pages); then take it out of the notepad if asked, exactly as selected, or say it couldn't be.
-   */
-  const added = (note: NoteToAdd, removeFromNotepad: boolean, procedureId: string) => {
+  /** After a note was added: take it out of the notepad if asked, exactly as selected, or say it couldn't be. */
+  const added = (note: NoteToAdd, removeFromNotepad: boolean) => {
     setToAdd(null);
-    context?.shareNoteAdded(procedureId);
     if (!removeFromNotepad) return;
     if (!note.isSelection) {
       replace('');
@@ -440,7 +401,7 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
         onCancel={() => setIsConfirmingClear(false)}
       />
       {toAdd && (
-        <AddToProcedureDialog note={toAdd} procedures={procedures} onAdded={(remove, procedureId) => added(toAdd, remove, procedureId)} onCancel={() => setToAdd(null)} />
+        <AddToProcedureDialog note={toAdd} procedures={procedures} onAdded={(remove) => added(toAdd, remove)} onCancel={() => setToAdd(null)} />
       )}
     </>
   );

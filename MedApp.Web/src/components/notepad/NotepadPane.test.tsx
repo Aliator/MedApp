@@ -9,7 +9,6 @@ import {richText, selectRichText, setRichText, typeRichText} from '../../test/ri
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {NotepadProvider, useNotepad, type OpenProcedure} from './NotepadContext';
 import {CANT_REMOVE_SELECTION} from './AddToProcedureDialog';
-import {otherWindow} from '../../test/broadcastChannel';
 import {AUTOSAVE_MS, NOT_REMOVED, NotepadPane} from './NotepadPane';
 
 const NOTEPAD = '/api/me/notepad';
@@ -492,121 +491,5 @@ describe('NotepadPane', () => {
     const dialog = within(openDialog()!);
     expect(dialog.getByText(/can't take notes now/)).toBeInTheDocument();
     expect(isDisabled(dialog.getByRole('button', {name: 'Add Note'}))).toBe(true);
-  });
-});
-
-describe("NotepadPane, with MedApp's other windows", () => {
-  afterEach(() => localStorage.clear());
-
-  const messages = (received: unknown[], type: string) => received.filter((m) => (m as {type: string}).type === type);
-
-  it('tells the other windows when it saves, with the new version', async () => {
-    mockApi({
-      [`GET ${NOTEPAD}`]: () => json(notepad()),
-      [`PUT ${NOTEPAD}`]: () => json(notepad({text: 'Synthetic, saved here.', version: 4})),
-    });
-    const other = otherWindow();
-    renderPane();
-    const box = await screen.findByRole('textbox', {name: 'Notepad'});
-
-    await setRichText(box, 'Synthetic, saved here.');
-    fireEvent.keyDown(box, {key: 's', ctrlKey: true});
-
-    await waitFor(() => expect(messages(other.received, 'saved')).toEqual([{type: 'saved', version: 4}]));
-  });
-
-  it("reads the notepad afresh when another window saves a newer version, and shows that window's text", async () => {
-    let reads = 0;
-    mockApi({
-      [`GET ${NOTEPAD}`]: () => json(reads++ === 0 ? notepad() : notepad({text: 'Synthetic: from the other window.', version: 4})),
-    });
-    const other = otherWindow();
-    renderPane();
-    await screen.findByRole('textbox', {name: 'Notepad'});
-
-    other.post({type: 'saved', version: 4});
-
-    await waitFor(() => expect(richText(screen.getByRole('textbox', {name: 'Notepad'}))).toBe('Synthetic: from the other window.'));
-  });
-
-  it('reads nothing afresh for a version it has, or over something typed', async () => {
-    const fetch = mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
-    const other = otherWindow();
-    renderPane();
-    const box = await screen.findByRole('textbox', {name: 'Notepad'});
-    const reads = () => fetch.mock.calls.filter(([r]) => (r as Request).method === 'GET').length;
-
-    other.post({type: 'saved', version: 3});
-    await setRichText(box, 'Synthetic, not saved yet.');
-    other.post({type: 'saved', version: 4});
-
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
-    expect(reads()).toBe(1);
-  });
-
-  it('tells the other windows which procedure a note was added to, so pages showing it read it afresh', async () => {
-    mockApi({
-      [`GET ${NOTEPAD}`]: () => json(notepad()),
-      [`PUT ${NOTEPAD}`]: () => json(notepad({text: '', version: 4})),
-      'POST /api/procedures/patient-procedures/p1/notes': () => json({id: 'n1', text: 'x', version: 1}, 201),
-    });
-    const other = otherWindow();
-    const {user} = renderPane([{key: 'a', procedure: procedure('p1', 'Synthetic knee review')}]);
-    await screen.findByRole('textbox', {name: 'Notepad'});
-
-    await user.click(screen.getByRole('button', {name: 'Add Note to Procedure'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Note'}));
-
-    await waitFor(() => expect(messages(other.received, 'note-added')).toEqual([{type: 'note-added', procedureId: 'p1'}]));
-  });
-});
-
-describe("NotepadPane, in the notepad's own window", () => {
-  const beforeUnload = () => {
-    const event = new Event('beforeunload', {cancelable: true});
-    window.dispatchEvent(event);
-    return event.defaultPrevented;
-  };
-
-  function renderWindow() {
-    return renderWithApp(
-      <NotepadProvider isWindow>
-        <NotepadPane />
-      </NotepadProvider>,
-      {user: staffUser},
-    );
-  }
-
-  it('asks the browser to warn before the window closes with something unsaved, and not once it is saved', async () => {
-    mockApi({
-      [`GET ${NOTEPAD}`]: () => json(notepad()),
-      [`PUT ${NOTEPAD}`]: () => json(notepad({text: 'Synthetic, typed in the window.', version: 4})),
-    });
-    renderWindow();
-    const box = await screen.findByRole('textbox', {name: 'Notepad'});
-    expect(beforeUnload()).toBe(false);
-
-    await setRichText(box, 'Synthetic, typed in the window.');
-    expect(beforeUnload()).toBe(true);
-
-    fireEvent.keyDown(box, {key: 's', ctrlKey: true});
-    await screen.findByText(/^Saved /);
-    expect(beforeUnload()).toBe(false);
-  });
-
-  it('takes the focus as the window opens', async () => {
-    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
-    renderWindow();
-
-    const box = await screen.findByRole('textbox', {name: 'Notepad'});
-    await waitFor(() => expect(box).toHaveFocus());
-  });
-
-  it('never warns before unloading the signed-in layout (where the notepad saves as it goes)', async () => {
-    mockApi({[`GET ${NOTEPAD}`]: () => json(notepad())});
-    renderPane();
-    await setRichText(await screen.findByRole('textbox', {name: 'Notepad'}), 'Synthetic, not saved yet.');
-
-    expect(beforeUnload()).toBe(false);
   });
 });

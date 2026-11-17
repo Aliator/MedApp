@@ -222,25 +222,25 @@ describe('server rendering', () => {
     expect(html).toContain('New Recovery Codes');
   });
 
-  it("renders the notepad's own window with the notepad, in the account's settings, and no side nav", async () => {
+  it("renders the notepad's address on its own as just a spinner, in the account's settings, without reading the notepad", async () => {
     const requests = api({
       '/api/auth/whoami': signedIn,
       '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
-      '/api/me/notepad': {text: 'Synthetic jotting.', lastUpdatedUtc: '2026-11-17T10:32:00Z', version: 3, keepDays: 30},
     });
 
     const response = await page('/notepad', 'medapp_session=abc');
     const html = await response.text();
 
+    // The browser then goes to the start page with the notepad docked (it can't be known here).
     expect(response.status).toBe(200);
     expect(html).toMatch(/^<!DOCTYPE html><html lang="en-GB" data-theme="light"/);
-    expect(html).toContain('aria-label="Notepad"');
-    expect(html).toContain('Saved 10:32');
+    expect(html).toContain('Opening the notepad...');
+    expect(html).not.toContain('aria-label="Notepad"');
     expect(html).not.toContain('My Tasks');
-    expect(requests.map((r) => new URL(r.url).pathname)).toEqual(expect.arrayContaining(['/api/me/notepad', '/api/auth/me/settings']));
+    expect(requests.map((r) => new URL(r.url).pathname)).not.toContain('/api/me/notepad');
   });
 
-  it('sends someone who must change their password from the notepad window to do that', async () => {
+  it("sends someone who must change their password from the notepad's address to do that", async () => {
     api({'/api/auth/whoami': {...signedIn, mustChangePassword: true}});
 
     const response = await page('/notepad', 'medapp_session=abc');
@@ -506,6 +506,19 @@ describe('server rendering', () => {
     expect(response.headers.get('location')).toBe('/calendar/templates?tab=default');
     const plain = await page('/admin/calendar-templates', 'medapp_session=abc');
     expect(plain.headers.get('location')).toBe('/calendar/templates');
+  });
+
+  it("sends Requires Appointment's old address on to its new one, keeping its search", async () => {
+    api({
+      '/api/auth/whoami': signedIn,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+    });
+
+    const response = await page('/calendar/needs-booking?page=2&patient=Synthetic', 'medapp_session=abc');
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('/calendar/requires-appointment?page=2&patient=Synthetic');
   });
 
   it("renders the calendar's week with its appointments, and leaves the time now to the browser", async () => {
