@@ -714,6 +714,7 @@ export function CalendarGrid({
               const weekend = !l.day.isWorkingDay;
               // A single day is dated by the page around it (its subtitle, or a card's title), so it's headed by its weekday.
               const name = l.column.label ?? (isOneDay ? formatWeekday(l.date) : formatShortDay(l.date));
+              const headingName = `${name}${l.day.isToday ? ', today' : ''}: show ${isCompact ? formatCalendarDay(l.date) : 'the day'}`;
               return (
                 <div
                   key={l.column.key}
@@ -723,13 +724,19 @@ export function CalendarGrid({
                   data-today={(l.day.isToday && !l.column.label) || undefined}>
                   {onDayOpen && !weekend && !isOneDay && !l.column.label ? (
                     <Button
-                      label={name}
+                      // Compact, its content is its own (below), and Astryx names it by its label.
+                      label={isCompact ? headingName : name}
                       // Starts with the text people see (WCAG 2.5.3, label in name), so speech input finds it.
-                      aria-label={`${name}${l.day.isToday ? ', today' : ''}: show ${isCompact ? formatCalendarDay(l.date) : 'the day'}`}
+                      aria-label={headingName}
                       variant="ghost"
                       size="sm"
                       onClick={() => onDayOpen(l.date)}
-                    />
+                      // Compact: the weekday over the date, so even a phone's 50px column tells Tue from Thu.
+                      style={isCompact ? COMPACT_HEADING_BUTTON : undefined}>
+                      {isCompact ? <CompactHeading date={l.date} /> : undefined}
+                    </Button>
+                  ) : isCompact && !l.isNarrow && !l.column.label ? (
+                    <CompactHeading date={l.date} isToday={l.day.isToday} />
                   ) : (
                     <Text
                       type={l.isNarrow ? 'supporting' : 'body'}
@@ -823,9 +830,7 @@ export function CalendarGrid({
                   (pending ? (
                     // Being dragged out: just the highlight.
                     <span className="mc-selection" style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
-                      <Text type="supporting" weight="semibold" maxLines={1}>
-                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
-                      </Text>
+                      <RangeText startUtc={shownSelection.startUtc} endUtc={shownSelection.endUtc} />
                     </span>
                   ) : (
                     // Held: a button, as a menu opened from it (the Calendar page's Book or Block) is anchored to a button,
@@ -837,9 +842,7 @@ export function CalendarGrid({
                       className="mc-selection"
                       aria-label={`Selected time, ${formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}`}
                       style={rangeStyle(l, shownSelection.startUtc, shownSelection.endUtc)}>
-                      <Text type="supporting" weight="semibold" maxLines={1}>
-                        {formatTimeRange(shownSelection.startUtc, shownSelection.endUtc)}
-                      </Text>
+                      <RangeText startUtc={shownSelection.startUtc} endUtc={shownSelection.endUtc} />
                     </button>
                   ))}
                 {/* The time now: a line behind the items (before them, and under them in the CSS), so it never runs through their
@@ -865,9 +868,7 @@ export function CalendarGrid({
                 ))}
                 {ghost && ghost.col === col && (
                   <span className="mc-ghost" style={rangeStyle(l, ghost.range.startUtc, ghost.range.endUtc)} aria-hidden>
-                    <Text type="supporting" weight="semibold" maxLines={1}>
-                      {formatTimeRange(ghost.range.startUtc, ghost.range.endUtc)}
-                    </Text>
+                    <RangeText startUtc={ghost.range.startUtc} endUtc={ghost.range.endUtc} />
                   </span>
                 )}
               </div>
@@ -953,6 +954,45 @@ const SlotRows = memo(function SlotRows({
   );
 });
 
+/** A compact column heading's button: as tall as its two lines, and no wider than the column. */
+const COMPACT_HEADING_BUTTON = {blockSize: 'auto', minInlineSize: 0, maxInlineSize: '100%', paddingBlock: 'var(--spacing-0-5)', paddingInline: 'var(--spacing-1)'};
+
+/** A day's heading in a compact week: its weekday ("Tue") over its date ("17"). */
+function CompactHeading({date, isToday = false}: {date: string; isToday?: boolean}) {
+  const [weekday, day] = formatShortDay(date).split(' ');
+  return (
+    <VStack gap={0} hAlign="center">
+      <Text type="supporting" color={isToday ? 'accent' : 'secondary'} maxLines={1}>
+        {weekday}
+      </Text>{' '}
+      <Text type="body" weight="semibold" color={isToday ? 'accent' : 'primary'} maxLines={1}>
+        {day}
+      </Text>
+    </VStack>
+  );
+}
+
+/**
+ * A selection's or a dragged item's times: "10:30 to 10:45", or where that won't fit (a phone's compact week) just
+ * "10:30" (the grid's CSS chooses, by the width it has).
+ */
+function RangeText({startUtc, endUtc}: {startUtc: string; endUtc: string}) {
+  return (
+    <>
+      <span className="mc-full">
+        <Text type="supporting" weight="semibold" maxLines={1}>
+          {formatTimeRange(startUtc, endUtc)}
+        </Text>
+      </span>
+      <span className="mc-short">
+        <Text type="supporting" weight="semibold" maxLines={1}>
+          {formatTime(startUtc)}
+        </Text>
+      </span>
+    </>
+  );
+}
+
 /** A stretch of a day as a position in its column. */
 function rangeStyle(l: ColumnLayout, startUtc: string, endUtc: string) {
   const {span} = l;
@@ -1012,6 +1052,8 @@ function GridItem({
     insetInlineStart: `calc(${(column / columns) * 100}% + var(--spacing-0-5))`,
     inlineSize: `calc(${100 / columns}% - var(--spacing-1))`,
     zIndex: isTinted ? 2 : 1,
+    // What its text shows depends on its own width (the grid's CSS: its start time alone when it's very narrow).
+    containerType: 'inline-size' as const,
     padding: isCompact ? '0 var(--spacing-1)' : '0 var(--spacing-1-5)',
     overflow: 'hidden',
     borderInlineStart: `var(--spacing-1) solid var(--color-border-${item.colour})`,
@@ -1046,14 +1088,34 @@ function GridItem({
     </HStack>
   );
   const content =
-    fit === 'tiny' ? null : fit === 'short' ? (
+    fit === 'tiny' ? null : isCompact ? (
+      // Compact: its words wrap to the lines its height allows; too narrow for any (a phone), its start time alone.
+      <VStack gap={0} hAlign="stretch" className={fit === 'short' ? 'mc-item-short' : undefined}>
+        <span className="mc-full">
+          <HStack gap={1} vAlign="start">
+            {marks}
+            <Text type={fit === 'short' ? 'inherit' : 'supporting'} color="primary" maxLines={fit === 'short' ? 1 : lines}>
+              <Text type="inherit" weight="semibold">
+                {item.label}
+              </Text>
+              {item.sublabel ? `, ${item.sublabel}` : `, ${time}`}
+            </Text>
+          </HStack>
+        </span>
+        <span className="mc-short">
+          <Text type={fit === 'short' ? 'inherit' : 'supporting'} color="primary" weight="semibold" maxLines={1}>
+            {formatTime(item.startUtc)}
+          </Text>
+        </span>
+      </VStack>
+    ) : fit === 'short' ? (
       // Too short for a line of supporting text: a smaller one, set tight.
       <VStack gap={0} hAlign="stretch" className="mc-item-short">
         {oneLine('inherit')}
       </VStack>
     ) : (
       <VStack gap={0} hAlign="stretch">
-        {lines === 1 || isCompact ? (
+        {lines === 1 ? (
           oneLine('supporting')
         ) : (
           <>
@@ -1142,6 +1204,11 @@ const GRID_CSS = `
 .medapp-calendar button.mc-selection { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; margin: 0; padding-block: 0; font: inherit; color: inherit; text-align: start; appearance: none; }
 .medapp-calendar .mc-ghost { background: var(--color-background-popover); border: 2px dashed var(--color-accent); box-shadow: var(--shadow-med, none); }
 .medapp-calendar .mc-item-short { font-size: var(--font-size-xs); line-height: 1; padding-block-start: var(--spacing-0-5); }
+.medapp-calendar[data-compact] .mc-item-short { font-size: var(--text-supporting-size, var(--font-size-sm)); }
+.medapp-calendar .mc-selection, .medapp-calendar .mc-ghost { container-type: inline-size; }
+.medapp-calendar .mc-full { display: block; min-inline-size: 0; }
+.medapp-calendar .mc-short { display: none; }
+@container (max-width: 4.5rem) { .medapp-calendar .mc-full { display: none; } .medapp-calendar .mc-short { display: block; } }
 .medapp-calendar .mc-now { position: absolute; inset-inline: 0; z-index: 0; block-size: 2px; background: var(--color-icon-error); pointer-events: none; }
 .medapp-calendar .mc-now-dot { position: absolute; inset-inline-start: calc(-1 * var(--spacing-1)); z-index: 4; margin-block-start: calc(-1 * var(--spacing-1) + 1px); inline-size: var(--spacing-2); block-size: var(--spacing-2); border-radius: var(--radius-full); background: var(--color-icon-error); pointer-events: none; }
 `;

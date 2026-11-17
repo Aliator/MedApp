@@ -607,6 +607,8 @@ describe('CalendarGrid', () => {
       expect(grid).toHaveAttribute('data-compact');
       expect(document.querySelectorAll('.mc-col')).toHaveLength(5);
       expect(document.querySelector('.mc-head')).toHaveTextContent('Mon 23Tue 24Wed 25Thu 26Fri 27');
+      // The weekday over the date, so a narrow column tells Tue from Thu.
+      expect(screen.getByRole('button', {name: 'Thu 26: show Thursday 26 November'}).querySelectorAll('.astryx-text')).toHaveLength(2);
       expect(column('Tuesday 24 November')).toBeInTheDocument();
       await user.click(screen.getByRole('button', {name: 'Mon 23, today: show Monday 23 November'}));
       expect(onDayOpen).toHaveBeenCalledWith(MONDAY);
@@ -617,16 +619,27 @@ describe('CalendarGrid', () => {
       await waitFor(() => expect(onSelectRange).toHaveBeenCalledWith(expect.objectContaining({date: '2026-11-24', column: '2026-11-24'}), expect.anything()));
     });
 
-    it('shows every item on one line, in its colour, with its words in full in its tooltip and name', async () => {
+    it('shows each item in its colour, its words wrapping to the lines it has room for, in full in its tooltip and name', async () => {
       atMondayMorning();
       const hour = appointmentItem(testAppointment({id: 'hour', date: MONDAY, start: '10:00', end: '11:00'}));
       const block = blockItem(testBlock(MONDAY, '12:00', '13:00', {note: 'Team lunch'}));
-      const {user, onItemOpen} = renderGrid({columns: dayColumns(week(), [hour, block], {weekdaysOnly: true}), isCompact: true});
+      const short = blockItem(testBlock(MONDAY, '14:00', '14:10', {blockId: 'short'}));
+      const {user, onItemOpen} = renderGrid({columns: dayColumns(week(), [hour, block, short], {weekdaysOnly: true}), isCompact: true});
 
       const name = 'Test Patient, Knee review: Assessment, 10:00 to 11:00, Booked';
       const card = await screen.findByRole('button', {name});
-      const lines = Array.from(card.closest('[data-kind]')!.querySelectorAll('.astryx-text')).filter((t) => !t.parentElement?.closest('.astryx-text'));
-      expect(lines.map((t) => t.textContent)).toEqual(['Test Patient, Knee review: Assessment']);
+      const box = card.closest('[data-kind]')!;
+      // Its words, wrapping to the four lines an hour has room for; and its start time alone, which the grid's CSS
+      // shows instead when the card is too narrow for words (a phone).
+      const full = box.querySelector('.mc-full .astryx-text')!;
+      expect(full).toHaveTextContent('Test Patient, Knee review: Assessment');
+      expect(box.querySelector('.mc-short')).toHaveTextContent('10:00');
+      expect(box.getAttribute('style')).toContain('container-type: inline-size');
+      const css = document.querySelector('.medapp-calendar style')!.textContent!;
+      expect(css).toContain('@container (max-width: 4.5rem) { .medapp-calendar .mc-full { display: none; } .medapp-calendar .mc-short { display: block; } }');
+      // A 10-minute item's text is the same size as the rest in a compact week.
+      expect(screen.getByRole('button', {name: /^Lunch, 14:00 to 14:10/}).closest('[data-kind]')!.querySelector('.mc-item-short')).not.toBeNull();
+      expect(css).toContain('.medapp-calendar[data-compact] .mc-item-short { font-size: var(--text-supporting-size');
       expect(card.closest('[data-kind]')!.getAttribute('style')).toContain(`var(--color-border-${hour.colour})`);
       await user.hover(card);
       expect(await screen.findByRole('tooltip')).toHaveTextContent(name);
