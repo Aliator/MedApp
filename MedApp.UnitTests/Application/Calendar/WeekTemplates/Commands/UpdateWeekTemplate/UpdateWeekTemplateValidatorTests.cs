@@ -14,21 +14,21 @@ public sealed class UpdateWeekTemplateValidatorTests
     [Test]
     public void Validate_TemplateAndName_Passes()
     {
-        _validator.Validate(new UpdateWeekTemplateCommand(WeekTemplateId, WeekTemplateName, DayTemplateId, null, null, null, null))
+        _validator.Validate(new UpdateWeekTemplateCommand(WeekTemplateId, WeekTemplateName, DayTemplateId, null, null, null, null, StaffActor))
             .IsValid.Should().BeTrue();
     }
 
     [Test]
     public void Validate_NoTemplate_Fails()
     {
-        _validator.Validate(new UpdateWeekTemplateCommand(Guid.Empty, WeekTemplateName, null, null, null, null, null))
+        _validator.Validate(new UpdateWeekTemplateCommand(Guid.Empty, WeekTemplateName, null, null, null, null, null, StaffActor))
             .Errors.Should().ContainSingle(e => e.PropertyName == "WeekTemplateId" && e.ErrorMessage == "Week template id is required.");
     }
 
     [Test]
     public void Validate_BlankName_Fails()
     {
-        _validator.Validate(new UpdateWeekTemplateCommand(WeekTemplateId, " ", null, null, null, null, null))
+        _validator.Validate(new UpdateWeekTemplateCommand(WeekTemplateId, " ", null, null, null, null, null, StaffActor))
             .Errors.Should().ContainSingle(e => e.PropertyName == "Name");
     }
 }

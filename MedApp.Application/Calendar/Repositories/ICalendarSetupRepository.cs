@@ -20,8 +20,9 @@ public sealed record WeekTemplateUsage(int StaffCount, bool HasBeenUsed)
 }
 
 /// <summary>
-/// What admins set calendars up with: activity types, day templates and week templates. Templates' dated rows change
-/// through <see cref="TemplateHistory"/>; "now" means the rows valid on the UK date given as today.
+/// What calendars are set up with: activity types (organisation-wide) and each member of staff's own day templates and
+/// week templates. Templates' dated rows change through <see cref="TemplateHistory"/>; "now" means the rows valid on the
+/// UK date given as today.
 /// </summary>
 public interface ICalendarSetupRepository
 {
@@ -43,8 +44,11 @@ public interface ICalendarSetupRepository
     Task UpdateActivityTypeAsync(CalendarActivityType activityType, CancellationToken ct);
     Task DeleteActivityTypeAsync(Guid id, CancellationToken ct);
 
-    /// <summary>Day templates sorted by name, each with its blocks valid on <paramref name="today"/>; archived ones only if asked.</summary>
-    Task<IReadOnlyList<DayTemplate>> GetDayTemplatesAsync(bool includeArchived, DateOnly today, CancellationToken ct);
+    /// <summary>
+    /// One person's day templates sorted by name, each with its blocks valid on <paramref name="today"/>; archived ones
+    /// only if asked.
+    /// </summary>
+    Task<IReadOnlyList<DayTemplate>> GetDayTemplatesAsync(Guid ownerUserId, bool includeArchived, DateOnly today, CancellationToken ct);
 
     /// <summary>A day template with its blocks valid on <paramref name="today"/> (each with its activity type), read-only.</summary>
     Task<DayTemplate?> GetDayTemplateAsync(Guid id, DateOnly today, CancellationToken ct);
@@ -58,8 +62,8 @@ public interface ICalendarSetupRepository
     /// <summary>The day templates with these IDs (each once), archived or not, without their blocks.</summary>
     Task<IReadOnlyList<DayTemplate>> GetDayTemplatesByIdAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
-    /// <summary>Whether another day template has this name, ignoring case.</summary>
-    Task<bool> DayTemplateNameExistsAsync(string name, Guid? exceptId, CancellationToken ct);
+    /// <summary>Whether another of this person's day templates has this name, ignoring case.</summary>
+    Task<bool> DayTemplateNameExistsAsync(Guid ownerUserId, string name, Guid? exceptId, CancellationToken ct);
 
     /// <summary>How much each of these day templates is used; one never used has no entry.</summary>
     Task<IReadOnlyDictionary<Guid, DayTemplateUsage>> GetDayTemplateUsageAsync(IEnumerable<Guid> ids, DateOnly today, CancellationToken ct);
@@ -73,8 +77,11 @@ public interface ICalendarSetupRepository
     /// <summary>Deletes a day template with its blocks (and any exceptions to them).</summary>
     Task DeleteDayTemplateAsync(Guid id, CancellationToken ct);
 
-    /// <summary>Week templates sorted by name, each with its days valid on <paramref name="today"/>; archived ones only if asked.</summary>
-    Task<IReadOnlyList<WeekTemplate>> GetWeekTemplatesAsync(bool includeArchived, DateOnly today, CancellationToken ct);
+    /// <summary>
+    /// One person's week templates sorted by name, each with its days valid on <paramref name="today"/>; archived ones
+    /// only if asked.
+    /// </summary>
+    Task<IReadOnlyList<WeekTemplate>> GetWeekTemplatesAsync(Guid ownerUserId, bool includeArchived, DateOnly today, CancellationToken ct);
 
     /// <summary>A week template with its days valid on <paramref name="today"/> (each with its day template), read-only.</summary>
     Task<WeekTemplate?> GetWeekTemplateAsync(Guid id, DateOnly today, CancellationToken ct);
@@ -85,8 +92,8 @@ public interface ICalendarSetupRepository
     /// </summary>
     Task<WeekTemplate?> GetWeekTemplateForUpdateAsync(Guid id, DateOnly today, CancellationToken ct);
 
-    /// <summary>Whether another week template has this name, ignoring case.</summary>
-    Task<bool> WeekTemplateNameExistsAsync(string name, Guid? exceptId, CancellationToken ct);
+    /// <summary>Whether another of this person's week templates has this name, ignoring case.</summary>
+    Task<bool> WeekTemplateNameExistsAsync(Guid ownerUserId, string name, Guid? exceptId, CancellationToken ct);
 
     /// <summary>How much each of these week templates is used; one never used has no entry.</summary>
     Task<IReadOnlyDictionary<Guid, WeekTemplateUsage>> GetWeekTemplateUsageAsync(IEnumerable<Guid> ids, DateOnly today, CancellationToken ct);

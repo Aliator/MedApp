@@ -6,7 +6,7 @@ namespace MedApp.Contracts.Calendar.Requests;
 /// </summary>
 public sealed class WeekTemplateRequest
 {
-    /// <summary>At most 100 characters, unique.</summary>
+    /// <summary>At most 100 characters, unique among the owner's templates.</summary>
     public string Name { get; set; } = string.Empty;
 
     public Guid? Monday { get; set; }

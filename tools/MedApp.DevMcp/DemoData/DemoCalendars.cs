@@ -1,4 +1,7 @@
+using FluentValidation;
 using MedApp.Application.Calendar.Common;
+using MedApp.Application.Calendar.DayTemplates.Commands.CreateDayTemplate;
+using MedApp.Application.Calendar.WeekTemplates.Commands.CreateWeekTemplate;
 using MedApp.Domain.Calendar;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Configurations.Calendar;
@@ -7,27 +10,32 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// Everyone's calendars: the activity types the clinic added to the seeded ones, day templates, week templates by
-/// role, each person's default week (dated from before the clinic started, so past weeks show their blocks), and
-/// the exceptions: leave, a training day, a moved lunch, a removed block, a day using another template, and the
-/// lead's MDT meeting today. The schedule allocator is built from the same rows through the app's
-/// <see cref="CalendarProjection"/>, so appointments never land on a block.
+/// Everyone's calendars: the activity types the clinic added to the seeded ones, each person's own day and week
+/// templates (<see cref="DemoTemplates"/>: templates are personal) and default week (dated from before the clinic
+/// started, so past weeks show their blocks, with a part-time change and a moved lunch partway through), the
+/// exceptions (leave, a training day, a moved lunch, a removed block, a day using another template) and the clinic's
+/// meetings (<see cref="DemoMeetings"/>). The schedule allocator is built from the same rows through the app's
+/// <see cref="CalendarProjection"/>, so appointments never land on a block or a meeting.
 /// <para>
-/// Every stored block obeys the app's no-overlap rule (<see cref="CalendarClashes"/>), checked as the app checks a new
-/// block: a day of leave or training first sets that day to no day template (a day override with none, as "This
-/// day's template: none" saves), as the app needs before a whole-day block can go on it; a moved lunch goes only
-/// into free time.
+/// Every stored block and meeting obeys the app's no-overlap rule (<see cref="CalendarClashes"/>), checked as the app
+/// checks a new one: a day of leave or training first sets that day to no day template (a day override with none, as
+/// "This day's template: none" saves), as the app needs before a whole-day block can go on it; a moved lunch goes
+/// only into free time; a meeting goes only to those free then.
 /// </para>
 /// </summary>
 public sealed class DemoCalendars
 {
+    private static readonly CreateDayTemplateValidator DayValidator = new();
+    private static readonly CreateWeekTemplateValidator WeekValidator = new();
+
     private readonly Dictionary<string, CalendarActivityType> _types = [];
-    private readonly Dictionary<string, DayTemplate> _days = [];
-    private readonly Dictionary<string, WeekTemplate> _weeks = [];
+    private readonly Dictionary<(Guid Owner, string Name), DayTemplate> _days = [];
+    private readonly Dictionary<(Guid Owner, string Name), WeekTemplate> _weeks = [];
     private readonly List<StaffWeekTemplate> _staffWeeks = [];
     private readonly List<CalendarBlock> _blocks = [];
     private readonly List<CalendarBlockException> _exceptions = [];
     private readonly List<CalendarDayOverride> _overrides = [];
+    private readonly List<Meeting> _meetings = [];
 
     private DemoCalendars()
     {
@@ -45,7 +53,20 @@ public sealed class DemoCalendars
     public int Exceptions => _exceptions.Count;
     public int Overrides => _overrides.Count;
 
-    /// <summary>The stored blocks (leave, training, meetings, the moved lunch), as saved.</summary>
+    /// <summary>The clinic's meetings, with their histories and notifications.</summary>
+    public DemoMeetings MeetingPlan { get; private set; } = null!;
+
+    /// <summary>The meetings as saved (cancelled ones are deleted), each with its attendees.</summary>
+    public IReadOnlyList<Meeting> Meetings => _meetings;
+
+    /// <summary>Everyone's day templates and week templates, as saved.</summary>
+    public IReadOnlyList<DayTemplate> DayTemplateRows => _days.Values.ToList();
+    public IReadOnlyList<WeekTemplate> WeekTemplateRows => _weeks.Values.ToList();
+
+    /// <summary>Everyone's default week rows, as saved.</summary>
+    public IReadOnlyList<StaffWeekTemplate> DefaultWeeks => _staffWeeks;
+
+    /// <summary>The stored blocks (leave, training, teaching, the moved lunch), as saved.</summary>
     public IReadOnlyList<CalendarBlock> StoredBlocks => _blocks;
 
     /// <summary>The dates using a day template of their own (or none), as saved.</summary>
@@ -58,14 +79,20 @@ public sealed class DemoCalendars
                          && (b.ActivityTypeId == _types["Annual leave"].Id || b.ActivityTypeId == _types["Training"].Id)
                          && (b.EndUtc - b.StartUtc).TotalHours >= 9);
 
-    /// <summary>Which day templates suit a kind of visit.</summary>
-    public Func<Guid?, bool>? Prefers(DayKind kind) => kind switch
+    /// <summary>Which day templates suit a kind of visit: everyone's own of the right names (<see cref="DemoTemplates.ForDayKind"/>).</summary>
+    public Func<Guid?, bool>? Prefers(DayKind kind)
     {
-        DayKind.Clinic => id => id == _days["Clinic day"].Id || id == _days["Half day (morning)"].Id,
-        DayKind.Theatre => id => id == _days["Theatre day"].Id,
-        DayKind.Endoscopy => id => id == _days["Endoscopy list"].Id,
-        _ => null,
-    };
+        if (!DemoTemplates.ForDayKind.TryGetValue(kind, out var names))
+            return null;
+        var ids = _days.Values.Where(d => names.Contains(d.Name)).Select(d => d.Id).ToHashSet();
+        return id => id is { } dayTemplateId && ids.Contains(dayTemplateId);
+    }
+
+    /// <summary>Puts a meeting on its attendees' calendars (<see cref="DemoMeetings"/>), so later plans avoid it.</summary>
+    public void AddMeeting(Meeting meeting) => _meetings.Add(meeting);
+
+    /// <summary>Takes a cancelled meeting off (the app deletes it).</summary>
+    public void RemoveMeeting(Meeting meeting) => _meetings.Remove(meeting);
 
     /// <summary>Plans everyone's calendars in memory (nothing saved), and builds the schedule allocator from them.</summary>
     public static DemoCalendars Plan(IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random)
@@ -92,6 +119,7 @@ public sealed class DemoCalendars
             db.CalendarBlocks.AddRange(calendars._blocks);
             db.CalendarBlockExceptions.AddRange(calendars._exceptions);
             db.CalendarDayOverrides.AddRange(calendars._overrides);
+            db.Meetings.AddRange(calendars._meetings);
             await db.SaveChangesAsync(ct);
         });
 
@@ -100,18 +128,29 @@ public sealed class DemoCalendars
 
     /// <summary>
     /// Everything on someone's calendar over some dates but appointments, from the rows planned so far, as the app's
-    /// repository would load it (<c>ICalendarRepository.GetCalendarDataAsync</c>).
+    /// repository would load it (<c>ICalendarRepository.GetCalendarDataAsync</c>): their own templates, and the
+    /// meetings they're going to.
     /// </summary>
-    public CalendarData DataFor(Guid staffUserId, DateOnly from, DateOnly to) => new(
-        staffUserId, from, to,
-        _staffWeeks.Where(s => s.StaffUserId == staffUserId).ToList(),
-        _weeks.Values.SelectMany(w => w.Days).ToList(),
-        _days.Values.SelectMany(d => d.Blocks).ToList(),
-        _overrides.Where(o => o.StaffUserId == staffUserId).ToList(),
-        _exceptions.Where(e => e.StaffUserId == staffUserId).ToList(),
-        _blocks.Where(b => b.StaffUserId == staffUserId).ToList(),
-        [],
-        _days.Values.ToDictionary(d => d.Id, d => d.Name));
+    public CalendarData DataFor(Guid staffUserId, DateOnly from, DateOnly to)
+    {
+        var (fromUtc, toUtc) = (WorkingHours.DayStartUtc(from), WorkingHours.DayEndUtc(to));
+        var days = _days.Values.Where(d => d.OwnerUserId == staffUserId).ToList();
+        return new CalendarData(
+            staffUserId, from, to,
+            _staffWeeks.Where(s => s.StaffUserId == staffUserId).ToList(),
+            _weeks.Values.Where(w => w.OwnerUserId == staffUserId).SelectMany(w => w.Days).ToList(),
+            days.SelectMany(d => d.Blocks).ToList(),
+            _overrides.Where(o => o.StaffUserId == staffUserId).ToList(),
+            _exceptions.Where(e => e.StaffUserId == staffUserId).ToList(),
+            _blocks.Where(b => b.StaffUserId == staffUserId).ToList(),
+            [],
+            days.ToDictionary(d => d.Id, d => d.Name))
+        {
+            Meetings = _meetings
+                .Where(m => m.StartUtc < toUtc && m.EndUtc > fromUtc && m.Attendees.Any(a => a.StaffUserId == staffUserId))
+                .ToList(),
+        };
+    }
 
     private void Build(IReadOnlyList<StaffMember> staff, DemoTimeline timeline, Random random)
     {
@@ -119,31 +158,22 @@ public sealed class DemoCalendars
             _types[seeded.Name] = new CalendarActivityType { Id = seeded.Id, Name = seeded.Name, Colour = seeded.Colour };
         foreach (var (name, colour) in new[]
                  {
-                     ("MDT meeting", "cyan"), ("Ward round", "yellow"), ("Teaching", "pink"), ("Supervision", "red"), ("Off duty", "gray"),
+                     ("Ward round", "yellow"), ("Teaching", "pink"), ("Supervision", "red"), ("Off duty", "gray"),
                  })
             _types[name] = new CalendarActivityType { Id = Guid.NewGuid(), Name = name, Colour = colour };
 
         // Rows from before the clinic started, so every past week shows its blocks.
         var from = UkTime.DateOf(timeline.AppStartUtc).AddDays(-60);
 
-        Day("Clinic day", from, ("Lunch", 12, 30, 13, 15, ""), ("Admin time", 17, 0, 18, 0, "Letters and results"));
-        Day("Theatre day", from, ("Ward round", 8, 0, 8, 30, ""), ("Lunch", 13, 0, 13, 30, ""), ("Admin time", 17, 30, 18, 0, "Operation notes"));
-        Day("Endoscopy list", from, ("Admin time", 8, 0, 8, 30, "List preparation"), ("Lunch", 12, 45, 13, 30, ""), ("Supervision", 17, 0, 17, 30, "Trainee supervision"));
-        Day("Admin day", from, ("Admin time", 8, 30, 12, 0, ""), ("Lunch", 12, 0, 12, 45, ""), ("MDT meeting", 13, 0, 14, 0, "Weekly MDT"), ("Admin time", 14, 0, 16, 30, ""));
-        Day("Half day (morning)", from, ("Lunch", 12, 30, 13, 0, ""), ("Off duty", 13, 0, 18, 0, "Part-time: mornings only"));
-        Day("Day off", from, ("Off duty", 8, 0, 18, 0, "Not a working day"));
-
-        Week("Clinical lead", from, "Clinic day", "Clinic day", "Clinic day", "Theatre day", "Clinic day");
-        Week("Surgeon", from, "Clinic day", "Theatre day", "Clinic day", "Theatre day", "Admin day");
-        Week("Endoscopy", from, "Endoscopy list", "Clinic day", "Endoscopy list", "Clinic day", "Admin day");
-        Week("Nursing", from, "Clinic day", "Clinic day", "Theatre day", "Clinic day", "Clinic day");
-        Week("Part-time (mornings)", from, "Half day (morning)", "Half day (morning)", "Half day (morning)", "Half day (morning)", "Day off");
-        Week("Physiotherapy", from, "Clinic day", "Clinic day", "Clinic day", "Clinic day", "Clinic day");
-        Week("Office", from, "Admin day", "Admin day", "Admin day", "Admin day", "Admin day");
-
-        var lead = staff.Single(s => s.Kind == StaffKind.ClinicalLead);
+        // Everyone's own templates (templates are personal), and their default week from when they started.
         foreach (var member in staff)
         {
+            var templates = DemoTemplates.For(member.Seed);
+            foreach (var day in templates.Days)
+                Day(member, day, from);
+            foreach (var week in templates.Weeks)
+                Week(member, week, from);
+
             var start = UkTime.DateOf(member.StartedUtc);
             var end = member.LeftUtc is { } left ? UkTime.DateOf(left) : (DateOnly?)null;
 
@@ -151,14 +181,18 @@ public sealed class DemoCalendars
             if (member.Kind == StaffKind.PartTimeNurse)
             {
                 var changed = timeline.ThisMonday.AddDays(-7 * 20);
-                DefaultWeek(member, "Nursing", start, changed.AddDays(-1));
-                DefaultWeek(member, member.Seed.WeekTemplate, changed, null);
+                DefaultWeek(member, DemoTemplates.FullTimeWeek, start, changed.AddDays(-1));
+                DefaultWeek(member, templates.DefaultWeek, changed, null);
             }
             else
             {
-                DefaultWeek(member, member.Seed.WeekTemplate, start, end);
+                DefaultWeek(member, templates.DefaultWeek, start, end);
             }
         }
+
+        // The endoscopist moved their list days' lunch later 10 weeks ago: an edit to the day template, kept as the app
+        // keeps one (TemplateHistory), so earlier list days still show the earlier lunch.
+        LaterLunch(DemoStaff.Get(staff, DemoTemplates.LateLunchUsername), timeline.ThisMonday.AddDays(-7 * 10));
 
         // Leave in the past: two weeks each for clinicians, at random, as people take it.
         foreach (var member in staff.Where(s => s.Kind is not (StaffKind.NewStarter or StaffKind.BookingCoordinator or StaffKind.ServiceManager)))
@@ -179,6 +213,7 @@ public sealed class DemoCalendars
         var surgeon = staff.Single(s => s.Username == "d.ashworth");
         var otherSurgeon = staff.Single(s => s.Username == "r.calloway");
         var minorNurse = staff.Single(s => s.Kind == StaffKind.MinorProceduresNurse);
+        var lead = staff.Single(s => s.Kind == StaffKind.ClinicalLead);
         var created = timeline.NowUtc.AddDays(-20);
 
         // A week's annual leave next month.
@@ -200,6 +235,13 @@ public sealed class DemoCalendars
         foreach (var weeks in new[] { 1, 2 })
             Block(otherSurgeon, nextMonday.AddDays(7 * (weeks - 1) + 3), 16, 0, 17, 0, "Teaching", "Junior doctor teaching", otherSurgeon, created);
 
+        // A day using another of their day templates: the nurse covering recovery on a theatre day next week.
+        if (!IsOnLeave(nurse.Id, nextMonday.AddDays(1)))
+            SetDayTemplate(nurse, nextMonday.AddDays(1), _days[(nurse.Id, DemoTemplates.TheatreDay)].Id);
+
+        // The meetings, round everything above, as each was arranged.
+        MeetingPlan = DemoMeetings.Plan(this, staff, timeline);
+
         // Lunch moved for one day: the template's lunch is left off that date, and a stored block put in its place, in
         // the first free 45 minutes after the department meeting (13:45 if free), else the last free before it. If
         // nothing is free, the lunch stays where it was.
@@ -215,7 +257,8 @@ public sealed class DemoCalendars
                 _exceptions.Remove(moved);
         }
 
-        // A template block removed for a day (the nurse's admin time), and an appointment booked in its place.
+        // A template block removed for a day (the nurse's admin time), and an appointment booked in its place. No meeting
+        // is there: the block was, when they were arranged.
         var freedDay = PreviousWorkingDay(timeline.DiaryDay);
         if (TemplateBlockOn(minorNurse, freedDay, "Admin time") is { } admin)
         {
@@ -223,13 +266,6 @@ public sealed class DemoCalendars
             var start = UkTime.ToUtc(freedDay, admin.StartTime);
             FreedSlot = (minorNurse.Id, start, start.AddMinutes(30));
         }
-
-        // A day using another day template: the nurse covering recovery on a theatre day next week.
-        if (!IsOnLeave(nurse.Id, nextMonday.AddDays(1)))
-            SetDayTemplate(nurse, nextMonday.AddDays(1), _days["Theatre day"].Id);
-
-        // The lead's MDT meeting on the diary day.
-        Block(lead, timeline.DiaryDay, 13, 30, 14, 30, "MDT meeting", "Weekly MDT", lead, timeline.NowUtc.AddDays(-14));
     }
 
     private void BuildAllocator(IReadOnlyList<StaffMember> staff, DemoTimeline timeline)
@@ -245,47 +281,70 @@ public sealed class DemoCalendars
                 Allocator.AddBlock(member.Id, block.StartUtc, block.EndUtc);
             foreach (var block in data.Blocks)
                 Allocator.AddBlock(member.Id, block.StartUtc, block.EndUtc);
+            foreach (var meeting in data.Meetings)
+                Allocator.AddBlock(member.Id, meeting.StartUtc, meeting.EndUtc);
             for (var date = from; date <= to; date = date.AddDays(1))
                 if (CalendarProjection.DayTemplateOn(data, date).DayTemplateId is { } dayTemplateId)
                     Allocator.SetDayTemplate(member.Id, date, dayTemplateId);
         }
     }
 
-    private void Day(string name, DateOnly from, params (string Type, int FromHour, int FromMinute, int ToHour, int ToMinute, string Note)[] blocks)
+    /// <summary>
+    /// One of someone's own day templates, its blocks valid from <paramref name="from"/>, checked by the create
+    /// command's validator (working hours, 5-minute boundaries, no overlaps).
+    /// </summary>
+    private void Day(StaffMember owner, DayTemplateSpec spec, DateOnly from)
     {
-        var day = new DayTemplate { Id = Guid.NewGuid(), Name = name };
-        day.Blocks = blocks.Select(b => new DayTemplateBlock
-        {
-            Id = Guid.NewGuid(),
-            DayTemplateId = day.Id,
-            ActivityTypeId = _types[b.Type].Id,
-            StartTime = new TimeOnly(b.FromHour, b.FromMinute),
-            EndTime = new TimeOnly(b.ToHour, b.ToMinute),
-            Note = b.Note,
-            ValidFrom = from,
-        }).ToList();
-        _days[name] = day;
+        var values = spec.Blocks.Select(b => ValueOf(b).Normalised).ToList();
+        DayValidator.ValidateAndThrow(new CreateDayTemplateCommand(owner.Id, spec.Name, values, OwnerActor(owner)));
+
+        var day = new DayTemplate { Id = Guid.NewGuid(), OwnerUserId = owner.Id, Name = spec.Name };
+        day.Blocks = values.Select(v => v.ToBlock(day.Id, from)).ToList();
+        _days[(owner.Id, spec.Name)] = day;
     }
 
-    private void Week(string name, DateOnly from, params string[] mondayToFriday)
+    private static CalendarActor OwnerActor(StaffMember owner) => new(owner.Id, owner.Username, IsAdmin: false);
+
+    private DayTemplateBlockValue ValueOf(BlockSpec block) => new(_types[block.Type].Id, block.From, block.To, block.Note);
+
+    /// <summary>One of someone's own week templates: only their own day templates, as the app allows.</summary>
+    private void Week(StaffMember owner, WeekTemplateSpec spec, DateOnly from)
     {
-        var week = new WeekTemplate { Id = Guid.NewGuid(), Name = name };
-        week.Days = mondayToFriday.Select((day, i) => new WeekTemplateDay
-        {
-            Id = Guid.NewGuid(),
-            WeekTemplateId = week.Id,
-            DayOfWeek = DayOfWeek.Monday + i,
-            DayTemplateId = _days[day].Id,
-            ValidFrom = from,
-        }).ToList();
-        _weeks[name] = week;
+        Guid? Own(int weekday) => spec.MondayToFriday[weekday] is { } name ? _days[(owner.Id, name)].Id : null;
+        var command = new CreateWeekTemplateCommand(owner.Id, spec.Name, Own(0), Own(1), Own(2), Own(3), Own(4), OwnerActor(owner));
+        WeekValidator.ValidateAndThrow(command);
+
+        var week = new WeekTemplate { Id = Guid.NewGuid(), OwnerUserId = owner.Id, Name = spec.Name };
+        week.Days = command.Days().Select(d => d.ToDay(week.Id, from)).ToList();
+        _weeks[(owner.Id, spec.Name)] = week;
     }
 
     private void DefaultWeek(StaffMember member, string week, DateOnly from, DateOnly? to) =>
         _staffWeeks.Add(new StaffWeekTemplate
         {
-            Id = Guid.NewGuid(), StaffUserId = member.Id, WeekTemplateId = _weeks[week].Id, ValidFrom = from, ValidTo = to,
+            Id = Guid.NewGuid(), StaffUserId = member.Id, WeekTemplateId = _weeks[(member.Id, week)].Id, ValidFrom = from, ValidTo = to,
         });
+
+    /// <summary>
+    /// The endoscopist's list-day lunch moved later from <paramref name="changedOn"/>, as editing the day template that
+    /// day saves it (<see cref="TemplateHistory.Replace{TRow,TValue}"/>): the old lunch's row ends the day before, and a
+    /// new one starts that day; the other blocks' rows are kept.
+    /// </summary>
+    private void LaterLunch(StaffMember member, DateOnly changedOn)
+    {
+        var template = _days[(member.Id, DemoTemplates.EndoscopyList)];
+        var before = ValueOf(DemoTemplates.EndoscopyLunchBefore).Normalised;
+        var wanted = template.Blocks.Select(b => DayTemplateBlockValue.Of(b).Normalised)
+            .Select(v => v == before ? ValueOf(DemoTemplates.EndoscopyLunchAfter).Normalised : v)
+            .ToList();
+
+        var change = TemplateHistory.Replace(template.Blocks, wanted, changedOn, DayTemplateBlockValue.Of,
+            (value, validFrom) => value.ToBlock(template.Id, validFrom));
+        foreach (var row in change.Close)
+            row.ValidTo = change.ClosedValidTo;
+        template.Blocks.RemoveAll(change.Delete.Contains);
+        template.Blocks.AddRange(change.Add);
+    }
 
     /// <summary>
     /// Whole working days blocked (leave, training), one block a day, as the app lets someone record them: the day is

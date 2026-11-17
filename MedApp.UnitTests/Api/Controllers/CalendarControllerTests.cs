@@ -10,9 +10,11 @@ using MedApp.Application.Calendar.StaffCalendars.Commands.DeleteCalendarBlock;
 using MedApp.Application.Calendar.StaffCalendars.Commands.RemoveTemplateBlockForDay;
 using MedApp.Application.Calendar.StaffCalendars.Commands.SetStaffWeekTemplate;
 using MedApp.Application.Calendar.StaffCalendars.Commands.UpdateCalendarBlock;
+using MedApp.Application.Calendar.StaffCalendars.Queries.GetAvailability;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendar;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendarStaff;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetStaffWeekTemplate;
+using MedApp.Application.Calendar.StaffCalendars.Queries.GetTeamCalendar;
 using MedApp.Contracts.Calendar.Requests;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.UnitTests.Common.Fixtures;
@@ -185,14 +187,75 @@ public sealed class CalendarControllerTests
             c => c.SetWeekTemplate(OtherId, new SetStaffWeekTemplateRequest { WeekTemplateId = template }, _cts.Token));
     }
 
+    [Test]
+    public async Task GetTeamCalendar_SendsTheDatePeopleAndWhoIsAsking()
+    {
+        var request = _fixture.Create<GetTeamCalendarRequest>();
+
+        await ExpectOk(_fixture.Create<TeamCalendarResponse>(),
+            new GetTeamCalendarQuery(request.Date, request.StaffUserIds!, AdminActor),
+            c => c.GetTeamCalendar(request, _cts.Token), "Admin");
+    }
+
+    [Test]
+    public async Task GetTeamCalendar_NobodyNamed_AsksForEveryone()
+    {
+        var mediator = new RecordingMediator(_ => _fixture.Create<TeamCalendarResponse>());
+        var date = new DateOnly(2026, 11, 23);
+
+        await Controller(mediator, "Admin").GetTeamCalendar(new GetTeamCalendarRequest { Date = date, StaffUserIds = null }, _cts.Token);
+
+        var query = mediator.Request.Should().BeOfType<GetTeamCalendarQuery>().Subject;
+        query.Date.Should().Be(date);
+        query.StaffUserIds.Should().BeEmpty();
+        query.Actor.Should().Be(AdminActor);
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+    }
+
+    [Test]
+    public async Task GetAvailability_SendsThePeopleRangeLengthAndMeetingBeingMoved()
+    {
+        var request = _fixture.Create<GetAvailabilityRequest>();
+
+        await ExpectOk(_fixture.Create<AvailabilityResponse>(),
+            new GetAvailabilityQuery(request.StaffUserIds, request.From, request.To, request.DurationMinutes, request.ExceptMeetingId),
+            c => c.GetAvailability(request, _cts.Token), "Admin");
+    }
+
+    [Test]
+    public async Task GetAvailability_NobodySent_SendsNobody()
+    {
+        var request = _fixture.Create<GetAvailabilityRequest>();
+        request.StaffUserIds = null!;
+        var mediator = new RecordingMediator(_ => _fixture.Create<AvailabilityResponse>());
+
+        await Controller(mediator, "Admin").GetAvailability(request, _cts.Token);
+
+        mediator.Request.Should().BeOfType<GetAvailabilityQuery>().Which.StaffUserIds.Should().BeEmpty();
+    }
+
+    private static readonly string[] AdminOnlyActions =
+        [nameof(CalendarController.GetTeamCalendar), nameof(CalendarController.GetAvailability)];
+
     [TestCase("User", true)]
     [TestCase("Admin", true)]
     [TestCase(null, false)]
-    public async Task EveryAction_StaffOnly(string? role, bool allowed)
+    public async Task EveryOtherAction_StaffOnly(string? role, bool allowed)
     {
         var user = role is null ? SignedIn() : SignedIn(role);
 
-        foreach (var action in ControllerAuthorisation.Actions<CalendarController>())
+        foreach (var action in ControllerAuthorisation.Actions<CalendarController>().Except(AdminOnlyActions))
+            (await ControllerAuthorisation.MayCallAsync<CalendarController>(action, user)).Should().Be(allowed, action);
+    }
+
+    [TestCase("User", false)]
+    [TestCase("Admin", true)]
+    [TestCase(null, false)]
+    public async Task TeamViewAndSuggestedTimes_AdminsOnly(string? role, bool allowed)
+    {
+        var user = role is null ? SignedIn() : SignedIn(role);
+
+        foreach (var action in AdminOnlyActions)
             (await ControllerAuthorisation.MayCallAsync<CalendarController>(action, user)).Should().Be(allowed, action);
     }
 }

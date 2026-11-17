@@ -27,9 +27,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// What calendars are set up with: activity types (the preset list for blocked time), day templates and week
-/// templates. Admins manage them; staff read them. One that has been used can't be deleted, only archived (it can't
-/// be chosen again) and restored. Editing a template applies from today; past days keep what they had.
+/// What calendars are set up with: activity types (the preset list for blocked time, organisation-wide: admins manage
+/// them, staff read them), and each member of staff's own day templates and week templates (their owner or an admin
+/// changes them, 403 otherwise; anyone reads them). One that has been used can't be deleted, only archived (it can't be
+/// chosen again) and restored. Editing a template applies from today; past days keep what they had.
 /// </summary>
 [ApiController]
 [Route("api/calendar")]
@@ -104,29 +105,33 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("day-templates")]
+    /// <summary>A member of staff's day templates (anyone's can be read).</summary>
+    [HttpGet("staff/{userId:guid}/day-templates")]
     [ProducesResponseType(typeof(IReadOnlyList<DayTemplateResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Tags(DayTemplatesTag)]
-    public async Task<IActionResult> GetDayTemplates([FromQuery] bool includeArchived, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetDayTemplatesQuery(includeArchived), ct));
+    public async Task<IActionResult> GetDayTemplates(Guid userId, [FromQuery] bool includeArchived, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetDayTemplatesQuery(userId, User.ToCalendarActor(), includeArchived), ct));
 
     [HttpGet("day-templates/{id:guid}")]
     [ProducesResponseType(typeof(DayTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Tags(DayTemplatesTag)]
     public async Task<IActionResult> GetDayTemplate(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetDayTemplateByIdQuery(id), ct));
+        Ok(await mediator.Send(new GetDayTemplateByIdQuery(id, User.ToCalendarActor()), ct));
 
-    [HttpPost("day-templates")]
+    /// <summary>Adds a day template to a member of staff's own: their own, or anyone's for an admin.</summary>
+    [HttpPost("staff/{userId:guid}/day-templates")]
     [ProducesResponseType(typeof(DayTemplateResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags(DayTemplatesTag)]
-    public async Task<IActionResult> CreateDayTemplate([FromBody] DayTemplateRequest request, CancellationToken ct)
+    public async Task<IActionResult> CreateDayTemplate(Guid userId, [FromBody] DayTemplateRequest request, CancellationToken ct)
     {
-        var template = await mediator.Send(new CreateDayTemplateCommand(request.Name, Blocks(request)), ct);
+        var template = await mediator.Send(
+            new CreateDayTemplateCommand(userId, request.Name, Blocks(request), User.ToCalendarActor()), ct);
         return Created($"/api/calendar/day-templates/{template.Id}", template);
     }
 
@@ -134,71 +139,76 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
     [HttpPut("day-templates/{id:guid}")]
     [ProducesResponseType(typeof(DayTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags(DayTemplatesTag)]
     public async Task<IActionResult> UpdateDayTemplate(Guid id, [FromBody] DayTemplateRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new UpdateDayTemplateCommand(id, request.Name, Blocks(request)), ct));
+        Ok(await mediator.Send(new UpdateDayTemplateCommand(id, request.Name, Blocks(request), User.ToCalendarActor()), ct));
 
     [HttpPost("day-templates/{id:guid}/archive")]
     [ProducesResponseType(typeof(DayTemplateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags(DayTemplatesTag)]
     public async Task<IActionResult> ArchiveDayTemplate(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetDayTemplateArchivedCommand(id, true), ct));
+        Ok(await mediator.Send(new SetDayTemplateArchivedCommand(id, true, User.ToCalendarActor()), ct));
 
     [HttpPost("day-templates/{id:guid}/restore")]
     [ProducesResponseType(typeof(DayTemplateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags(DayTemplatesTag)]
     public async Task<IActionResult> RestoreDayTemplate(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetDayTemplateArchivedCommand(id, false), ct));
+        Ok(await mediator.Send(new SetDayTemplateArchivedCommand(id, false, User.ToCalendarActor()), ct));
 
     /// <summary>Deletes a day template no week template or day has used; a used one is a 409 (archive it instead).</summary>
     [HttpDelete("day-templates/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags(DayTemplatesTag)]
     public async Task<IActionResult> DeleteDayTemplate(Guid id, CancellationToken ct)
     {
-        await mediator.Send(new DeleteDayTemplateCommand(id), ct);
+        await mediator.Send(new DeleteDayTemplateCommand(id, User.ToCalendarActor()), ct);
         return NoContent();
     }
 
-    [HttpGet("week-templates")]
+    /// <summary>A member of staff's week templates (anyone's can be read).</summary>
+    [HttpGet("staff/{userId:guid}/week-templates")]
     [ProducesResponseType(typeof(IReadOnlyList<WeekTemplateResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Tags(WeekTemplatesTag)]
-    public async Task<IActionResult> GetWeekTemplates([FromQuery] bool includeArchived, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetWeekTemplatesQuery(includeArchived), ct));
+    public async Task<IActionResult> GetWeekTemplates(Guid userId, [FromQuery] bool includeArchived, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetWeekTemplatesQuery(userId, User.ToCalendarActor(), includeArchived), ct));
 
     [HttpGet("week-templates/{id:guid}")]
     [ProducesResponseType(typeof(WeekTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [Tags(WeekTemplatesTag)]
     public async Task<IActionResult> GetWeekTemplate(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetWeekTemplateByIdQuery(id), ct));
+        Ok(await mediator.Send(new GetWeekTemplateByIdQuery(id, User.ToCalendarActor()), ct));
 
-    [HttpPost("week-templates")]
+    /// <summary>Adds a week template to a member of staff's own, using only their day templates.</summary>
+    [HttpPost("staff/{userId:guid}/week-templates")]
     [ProducesResponseType(typeof(WeekTemplateResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags(WeekTemplatesTag)]
-    public async Task<IActionResult> CreateWeekTemplate([FromBody] WeekTemplateRequest request, CancellationToken ct)
+    public async Task<IActionResult> CreateWeekTemplate(Guid userId, [FromBody] WeekTemplateRequest request, CancellationToken ct)
     {
         var template = await mediator.Send(new CreateWeekTemplateCommand(
+            userId,
             request.Name,
             request.Monday,
             request.Tuesday,
             request.Wednesday,
             request.Thursday,
-            request.Friday), ct);
+            request.Friday,
+            User.ToCalendarActor()), ct);
 
         return Created($"/api/calendar/week-templates/{template.Id}", template);
     }
@@ -207,9 +217,9 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
     [HttpPut("week-templates/{id:guid}")]
     [ProducesResponseType(typeof(WeekTemplateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags(WeekTemplatesTag)]
     public async Task<IActionResult> UpdateWeekTemplate(Guid id, [FromBody] WeekTemplateRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new UpdateWeekTemplateCommand(
@@ -219,34 +229,35 @@ public sealed class CalendarSetupController(IMediator mediator) : ControllerBase
             request.Tuesday,
             request.Wednesday,
             request.Thursday,
-            request.Friday), ct));
+            request.Friday,
+            User.ToCalendarActor()), ct));
 
     [HttpPost("week-templates/{id:guid}/archive")]
     [ProducesResponseType(typeof(WeekTemplateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags(WeekTemplatesTag)]
     public async Task<IActionResult> ArchiveWeekTemplate(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetWeekTemplateArchivedCommand(id, true), ct));
+        Ok(await mediator.Send(new SetWeekTemplateArchivedCommand(id, true, User.ToCalendarActor()), ct));
 
     [HttpPost("week-templates/{id:guid}/restore")]
     [ProducesResponseType(typeof(WeekTemplateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Authorize(Roles = "Admin")]
     [Tags(WeekTemplatesTag)]
     public async Task<IActionResult> RestoreWeekTemplate(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetWeekTemplateArchivedCommand(id, false), ct));
+        Ok(await mediator.Send(new SetWeekTemplateArchivedCommand(id, false, User.ToCalendarActor()), ct));
 
     /// <summary>Deletes a week template that has never been anyone's default; a used one is a 409 (archive it instead).</summary>
     [HttpDelete("week-templates/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Authorize(Roles = "Admin")]
     [Tags(WeekTemplatesTag)]
     public async Task<IActionResult> DeleteWeekTemplate(Guid id, CancellationToken ct)
     {
-        await mediator.Send(new DeleteWeekTemplateCommand(id), ct);
+        await mediator.Send(new DeleteWeekTemplateCommand(id, User.ToCalendarActor()), ct);
         return NoContent();
     }
 

@@ -3,8 +3,8 @@ using MedApp.Contracts.Appointments.Responses;
 namespace MedApp.Contracts.Calendar.Responses;
 
 /// <summary>
-/// One person's calendar over a range of UK dates: each day, the blocks on it (stored, and from templates) and their
-/// appointments (Booked, Attended and Did not attend). Times are UTC; each day gives its working day in UTC, so the
+/// One person's calendar over a range of UK dates: each day, the blocks on it (stored, and from templates), their
+/// appointments (Booked, Attended and Did not attend) and the meetings they're going to. Times are UTC; each day gives its working day in UTC, so the
 /// grid steps through slots without time zone arithmetic.
 /// </summary>
 public sealed class CalendarResponse
@@ -41,4 +41,7 @@ public sealed class CalendarResponse
 
     /// <summary>By start time.</summary>
     public List<AppointmentResponse> Appointments { get; set; } = [];
+
+    /// <summary>The meetings the person is going to, by start time.</summary>
+    public List<MeetingResponse> Meetings { get; set; } = [];
 }

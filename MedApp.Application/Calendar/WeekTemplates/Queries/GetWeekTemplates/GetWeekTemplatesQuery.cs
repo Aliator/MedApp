@@ -1,7 +1,12 @@
+using MedApp.Application.Calendar.Common;
 using MedApp.Contracts.Calendar.Responses;
 using MediatR;
 
 namespace MedApp.Application.Calendar.WeekTemplates.Queries.GetWeekTemplates;
 
-/// <summary>Every week template, sorted by name, with its days now; archived ones only when asked for.</summary>
-public sealed record GetWeekTemplatesQuery(bool IncludeArchived = false) : IRequest<IReadOnlyList<WeekTemplateResponse>>;
+/// <summary>
+/// One member of staff's week templates, sorted by name, with their days now; archived ones only when asked for. Any
+/// member of staff can read anyone's.
+/// </summary>
+public sealed record GetWeekTemplatesQuery(Guid OwnerUserId, CalendarActor Actor, bool IncludeArchived = false)
+    : IRequest<IReadOnlyList<WeekTemplateResponse>>;

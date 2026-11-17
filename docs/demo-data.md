@@ -11,7 +11,7 @@ Everything is invented: names, `@example.com` patient emails, `@clinic.example` 
 3. Ask for `reset_demo_data` with `confirm: true` and `keepUsers: ["dev-parity"]`. It saves a `pre-reset-<timestamp>` snapshot first, and takes 30 seconds to a minute.
 4. **Keep its summary.** It holds:
    - the generated passwords (`accounts`), and the two-factor account's key and recovery codes (`twoFactor`)
-   - `tour`: the records named in this page (blocked procedures, the unlocked stage, the diary), which depend on the day it runs
+   - `tour`: the records named in this page (blocked procedures, the unlocked stage, the diary, and in `tour.calendar` the meetings, the team view's day and the personal templates), which depend on the day it runs
    - `privacy`: the restricted, disputed, kept and due records
    - `today`: who signed in today, and the locked account
    - the counts
@@ -47,7 +47,7 @@ Everything is invented: names, `@example.com` patient emails, `@clinic.example` 
 ### Home and My Tasks (as `admin`)
 
 - **Assigned work:** the lead leads about a third of the surgical procedures, some day-case ones and a few skin lesions.
-- **Notifications:** a dozen or so unread from the last few days: assignments by the service manager, bookings made by the coordinator, and monitoring alerts.
+- **Notifications:** a dozen or so unread from the last few days: assignments by the service manager, bookings made by the coordinator, monitoring alerts, and meetings the service manager arranged, moved or cancelled.
 - **The side nav's pins:** two patients and one procedure, from the lead's saved settings.
 
 ### The procedures list
@@ -93,19 +93,37 @@ On a dozen procedures and patients: referral letters, pre-op bloods reports, ECG
 
 ### The calendar
 
-- **The lead's diary day** (`tour.leadsAppointmentsThatDay`): five appointments, lunch, an MDT meeting at 13:30, and free time to book into by clicking.
-- **Week templates by role:** clinical lead, surgeon (clinic and theatre days), endoscopy, nursing, part-time mornings, physiotherapy and office. Past weeks show their blocks too.
-- **Day templates:** clinic day, theatre day, endoscopy list, admin day, half day (morning) and day off, each with lunch and blocks for the role.
-- **Activity types** the clinic added: MDT meeting, ward round, teaching, supervision and off duty.
+- **The lead's diary day** (`tour.leadsAppointmentsThatDay`): five appointments, lunch, theatre list planning (a meeting, usually in the afternoon), any of the day's regular meetings, and free time to book into by clicking.
+- **Personal templates** (Calendar, then Calendar templates; admins choose whose with the staff picker): everyone has their own day templates, week templates and default week. Most follow their role (clinic, theatre, endoscopy, office), with the differences listed in `tour.calendar.personalTemplates`:
+  - `l.northcott` worked full time until 20 weeks ago, then mornings only (two dated default-week rows: past weeks still show full days)
+  - `m.fairbanks` moved the Endoscopy list's lunch later 10 weeks ago (an edit to the template, so earlier list days keep the earlier lunch)
+  - `h.marsh` has a late lunch (13:30), covering the desk
+  - `d.ashworth` operates on Friday mornings (a "Friday list"), where `r.calloway` has an admin day
+  - `j.whitlock` finishes early on Fridays, and `admin` has a management afternoon on Wednesdays
+- **Day templates** have lunch and blocks for the role: clinic day, theatre day, endoscopy list, admin day, half day (morning), day off and office day. They leave the regular meeting times free.
+- **Activity types** the clinic added: ward round, teaching, supervision and off duty.
 - **Exceptions:**
   - **Leave and training days** have no day template (as "This day's template: none" saves), then one block for the day: the app refuses a whole-day block over a template's lunch
-  - `k.ellison` has a week's annual leave next month, and next Tuesday uses the theatre day template (covering recovery)
+  - `k.ellison` has a week's annual leave next month, and next Tuesday uses her theatre day template (covering recovery)
   - `a.pemberton` has a day's leave this week
   - `d.ashworth` has a training day next Wednesday
-  - `r.calloway`'s lunch is moved on the day after the diary day, into free time (13:45 if it's free)
+  - `r.calloway`'s lunch is moved on the day after the diary day, round the meetings, into free time
   - `s.brightwell`'s admin time was removed on the day before, and an appointment booked in its place
 - **Needs booking:** visits recently asked for, and a few asked for long ago and never booked.
 - **Appointment history:** booked, moved (rescheduled), cancelled by the patient or because the clinician couldn't make it, did not attend, notes added and edited.
+
+### Meetings and the team view (as `admin` or `j.whitlock`)
+
+- **Regular meetings** across the whole 18 months and the coming weeks, each arranged by an admin some weeks ahead:
+  - **Monday huddle**, 08:30 to 08:45: everyone working that morning
+  - **MDT**, Friday 13:30 to 14:30: the lead, the surgeons, the endoscopist and two nurses
+  - **Clinical governance**, the second Wednesday of the month, 16:00 to 17:00
+  - **Mandatory training** every six weeks (Basic life support update, Fire safety, Safeguarding update and others), for the nurses, the healthcare assistant and the physiotherapist, at a time they're all free
+  - **1:1 catch-ups** each month: `j.whitlock` with `h.marsh` and `c.dunmore`, the lead with `k.ellison` and `s.brightwell`
+  - **Welcome and induction** for the new starter, and **theatre list planning** on the diary day
+- **Who goes:** only people free at the time, as the app requires. The part-time nurse misses afternoon meetings; someone on leave isn't invited; someone who booked leave after a meeting was arranged was taken off it first ("took you off" in their notifications); newcomers were added to meetings already arranged.
+- **Changes** (`tour.calendar.movedMeetings` and `tour.calendar.cancelledMeeting`): theatre list planning moved three days ago, with `h.marsh` added; the next governance meeting and a 1:1 moved when there was time to; away day planning was cancelled four days ago. Their notifications ("Meeting invitation", "Meeting moved", "Meeting cancelled") are in the bells of everyone told, never the admin who made the change.
+- **The team view** (Calendar, Team, admins only): open it on `tour.calendar.teamViewDay` to see everyone's day side by side, with the day's meetings (`tour.calendar.meetingsThatDay`) across several columns and the **Everyone free** column. Select free time there to arrange a **New meeting**; its suggested times come from the same calendars. `tour.calendar.upcomingMeetings` lists what's next.
 
 ### Notifications and monitoring (as `admin`)
 
@@ -170,5 +188,7 @@ The plan left these open; this is what the seed does.
 - **An "Off duty" activity type and a "Day off" day template** were added, so part-time afternoons and days off can't be booked.
 - **At a weekend** the diary day is the next Monday, since nothing can be booked on a weekend.
 - **Leave** is stored as the app would let someone record it: the day set to no day template, then the leave as one block.
+- **Templates are personal:** each person has their own copies of the day templates their work needs, named the same way, as the app keeps them, rather than one set the clinic shares.
+- **Meetings** are arranged one at a time, as the app has no repeating meetings: the regular ones in batches of eight weeks, four weeks ahead; governance three weeks ahead; training four; 1:1s two. Everyone invited is free then, so a meeting never overlaps anything on an attendee's calendar, and visits are booked round them. Their notifications, like the rest, are made for the last 30 days only.
 - **Patients' names** are unique, so the summary can name a record by name alone. Real clinics have namesakes; a demo can't afford to open the wrong one.
 - **History respects when each patient existed:** nobody views, lists, books or changes a patient before they were registered, and nobody sees the anonymised record afterwards.

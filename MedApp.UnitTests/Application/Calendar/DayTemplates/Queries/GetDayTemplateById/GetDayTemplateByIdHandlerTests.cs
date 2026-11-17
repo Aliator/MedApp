@@ -1,5 +1,6 @@
 using AutoFixture;
 using FluentAssertions;
+using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.DayTemplates.Queries.GetDayTemplateById;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
@@ -25,8 +26,9 @@ public sealed class GetDayTemplateByIdHandlerTests : CalendarSetupHandlerTestBas
             .ReturnsAsync(BuildDayTemplate([closed, current]));
         GivenDayTemplateUsage(DayTemplateId, new DayTemplateUsage(1, true));
 
-        var response = await Handler.Handle(new GetDayTemplateByIdQuery(DayTemplateId), Token);
+        var response = await Handler.Handle(new GetDayTemplateByIdQuery(DayTemplateId, StaffActor), Token);
 
+        response.OwnerUserId.Should().Be(StaffUserId);
         response.Name.Should().Be(DayTemplateName);
         response.Blocks.Select(b => b.Id).Should().Equal(current.Id);
         response.WeekTemplateCount.Should().Be(1);
@@ -35,10 +37,30 @@ public sealed class GetDayTemplateByIdHandlerTests : CalendarSetupHandlerTestBas
         Repository.Verify(r => r.GetDayTemplateUsageAsync(It.IsAny<IEnumerable<Guid>>(), Today, Token), Times.Once);
     }
 
+    private static IEnumerable<TestCaseData> CanEditCases()
+    {
+        yield return new TestCaseData(StaffActor, true).SetName("Handle_ReadByItsOwner_CanEdit");
+        yield return new TestCaseData(AdminActor, true).SetName("Handle_ReadByAnAdmin_CanEdit");
+        yield return new TestCaseData(OtherStaffActor, false).SetName("Handle_ReadByOtherStaff_CannotEdit");
+    }
+
+    [TestCaseSource(nameof(CanEditCases))]
+    public async Task Handle_ReadBySomeone_SaysWhetherTheyCanEditIt(CalendarActor actor, bool canEdit)
+    {
+        Repository
+            .Setup(r => r.GetDayTemplateAsync(DayTemplateId, Today, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildDayTemplate());
+
+        var response = await Handler.Handle(new GetDayTemplateByIdQuery(DayTemplateId, actor), Token);
+
+        response.OwnerUserId.Should().Be(StaffUserId);
+        response.CanEdit.Should().Be(canEdit);
+    }
+
     [Test]
     public async Task Handle_DoesNotExist_ThrowsNotFound()
     {
-        var act = () => Handler.Handle(new GetDayTemplateByIdQuery(Guid.NewGuid()), Token);
+        var act = () => Handler.Handle(new GetDayTemplateByIdQuery(Guid.NewGuid(), StaffActor), Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }

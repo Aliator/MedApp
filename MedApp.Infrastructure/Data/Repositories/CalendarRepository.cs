@@ -13,8 +13,15 @@ namespace MedApp.Infrastructure.Data.Repositories;
 /// </summary>
 public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepository
 {
-    public async Task<CalendarData> GetCalendarDataAsync(Guid staffUserId, DateOnly from, DateOnly to, CancellationToken ct)
+    public async Task<CalendarData> GetCalendarDataAsync(Guid staffUserId, DateOnly from, DateOnly to, CancellationToken ct) =>
+        (await GetCalendarsAsync([staffUserId], from, to, ct))[0];
+
+    public async Task<IReadOnlyList<CalendarData>> GetCalendarsAsync(
+        IReadOnlyCollection<Guid> staffUserIds, DateOnly from, DateOnly to, CancellationToken ct)
     {
+        var ids = staffUserIds.Distinct().ToList();
+        var nullableIds = ids.Select(id => (Guid?)id).ToList();
+
         // The range's UK days as UTC moments: from the start of the first to the start of the day after the last.
         var fromUtc = DueDates.StartOfDayUtc(from);
         var beforeUtc = DueDates.StartOfDayUtc(to.AddDays(1));
@@ -22,7 +29,7 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
         var staffWeeks = await context.StaffWeekTemplates
             .AsNoTracking()
             .Include(s => s.WeekTemplate)
-            .Where(s => s.StaffUserId == staffUserId && s.ValidFrom <= to && (s.ValidTo == null || s.ValidTo >= from))
+            .Where(s => ids.Contains(s.StaffUserId) && s.ValidFrom <= to && (s.ValidTo == null || s.ValidTo >= from))
             .ToListAsync(ct);
 
         var weekTemplateIds = staffWeeks.Select(s => s.WeekTemplateId).Distinct().ToList();
@@ -33,7 +40,7 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
 
         var overrides = await context.CalendarDayOverrides
             .AsNoTracking()
-            .Where(o => o.StaffUserId == staffUserId && o.Date >= from && o.Date <= to)
+            .Where(o => ids.Contains(o.StaffUserId) && o.Date >= from && o.Date <= to)
             .ToListAsync(ct);
 
         var dayTemplateIds = weekDays.Select(d => d.DayTemplateId)
@@ -54,13 +61,13 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
 
         var exceptions = await context.CalendarBlockExceptions
             .AsNoTracking()
-            .Where(e => e.StaffUserId == staffUserId && e.Date >= from && e.Date <= to)
+            .Where(e => ids.Contains(e.StaffUserId) && e.Date >= from && e.Date <= to)
             .ToListAsync(ct);
 
         var blocks = await context.CalendarBlocks
             .AsNoTracking()
             .Include(b => b.ActivityType)
-            .Where(b => b.StaffUserId == staffUserId && b.StartUtc < beforeUtc && b.EndUtc > fromUtc)
+            .Where(b => ids.Contains(b.StaffUserId) && b.StartUtc < beforeUtc && b.EndUtc > fromUtc)
             .ToListAsync(ct);
 
         var appointments = await context.Appointments
@@ -68,7 +75,7 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
             .Include(a => a.Patient)
             .Include(a => a.Procedure)
             .Include(a => a.Stage)
-            .Where(a => a.StaffUserId == staffUserId
+            .Where(a => nullableIds.Contains(a.StaffUserId)
                         && (a.Status == AppointmentStatus.Booked
                             || a.Status == AppointmentStatus.Attended
                             || a.Status == AppointmentStatus.DidNotAttend)
@@ -77,18 +84,40 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
             .AsSplitQuery()
             .ToListAsync(ct);
 
-        return new CalendarData(
-            staffUserId,
-            from,
-            to,
-            staffWeeks,
-            weekDays,
-            dayTemplateBlocks,
-            overrides,
-            exceptions,
-            blocks,
-            appointments,
-            dayTemplateNames);
+        var meetings = await context.Meetings
+            .AsNoTracking()
+            .Include(m => m.Attendees)
+            .Where(m => m.Attendees.Any(a => ids.Contains(a.StaffUserId)) && m.StartUtc < beforeUtc && m.EndUtc > fromUtc)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        // Each person's own share of what was loaded for them all.
+        return ids.Select(staffUserId =>
+        {
+            var theirWeeks = staffWeeks.Where(s => s.StaffUserId == staffUserId).ToList();
+            var theirWeekIds = theirWeeks.Select(s => s.WeekTemplateId).ToHashSet();
+            var theirDays = weekDays.Where(d => theirWeekIds.Contains(d.WeekTemplateId)).ToList();
+            var theirOverrides = overrides.Where(o => o.StaffUserId == staffUserId).ToList();
+            var theirDayTemplateIds = theirDays.Select(d => d.DayTemplateId)
+                .Concat(theirOverrides.Where(o => o.DayTemplateId != null).Select(o => o.DayTemplateId!.Value))
+                .ToHashSet();
+
+            return new CalendarData(
+                staffUserId,
+                from,
+                to,
+                theirWeeks,
+                theirDays,
+                dayTemplateBlocks.Where(b => theirDayTemplateIds.Contains(b.DayTemplateId)).ToList(),
+                theirOverrides,
+                exceptions.Where(e => e.StaffUserId == staffUserId).ToList(),
+                blocks.Where(b => b.StaffUserId == staffUserId).ToList(),
+                appointments.Where(a => a.StaffUserId == staffUserId).ToList(),
+                dayTemplateNames.Where(n => theirDayTemplateIds.Contains(n.Key)).ToDictionary(n => n.Key, n => n.Value))
+            {
+                Meetings = meetings.Where(m => m.Attendees.Any(a => a.StaffUserId == staffUserId)).ToList()
+            };
+        }).ToList();
     }
 
     public async Task<IReadOnlyList<StaffWeekTemplate>> GetStaffWeekTemplatesOnAsync(DateOnly date, CancellationToken ct) =>

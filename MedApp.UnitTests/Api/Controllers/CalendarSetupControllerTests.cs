@@ -31,14 +31,14 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class CalendarSetupControllerTests
 {
-    private static readonly string[] Reads =
+    /// <summary>Activity types are organisation-wide, so only admins change them.</summary>
+    private static readonly string[] AdminOnly =
     [
-        nameof(CalendarSetupController.GetActivityTypes),
-        nameof(CalendarSetupController.GetActivityType),
-        nameof(CalendarSetupController.GetDayTemplates),
-        nameof(CalendarSetupController.GetDayTemplate),
-        nameof(CalendarSetupController.GetWeekTemplates),
-        nameof(CalendarSetupController.GetWeekTemplate),
+        nameof(CalendarSetupController.CreateActivityType),
+        nameof(CalendarSetupController.UpdateActivityType),
+        nameof(CalendarSetupController.ArchiveActivityType),
+        nameof(CalendarSetupController.RestoreActivityType),
+        nameof(CalendarSetupController.DeleteActivityType),
     ];
 
     private IFixture _fixture = null!;
@@ -54,25 +54,29 @@ public sealed class CalendarSetupControllerTests
     [TearDown]
     public void TearDown() => _cts.Dispose();
 
-    private static CalendarSetupController Controller(RecordingMediator mediator) =>
-        new CalendarSetupController(mediator).WithRequest(SignedIn("Admin"));
+    private static CalendarSetupController Controller(RecordingMediator mediator, string role = "Admin") =>
+        new CalendarSetupController(mediator).WithRequest(SignedIn(role));
 
-    private async Task ExpectOk(object response, object request, Func<CalendarSetupController, Task<IActionResult>> act)
+    /// <summary>The signed-in user as the controller passes them on, an admin or not.</summary>
+    private static CalendarActor Actor(string role) => new(UserId, Username, IsAdmin: role == "Admin");
+
+    private async Task ExpectOk(
+        object response, object request, Func<CalendarSetupController, Task<IActionResult>> act, string role = "Admin")
     {
         var mediator = new RecordingMediator(_ => response);
 
-        var result = await act(Controller(mediator));
+        var result = await act(Controller(mediator, role));
 
         mediator.Request.Should().Be(request);
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }
 
-    private async Task ExpectNoContent(object request, Func<CalendarSetupController, Task<IActionResult>> act)
+    private async Task ExpectNoContent(object request, Func<CalendarSetupController, Task<IActionResult>> act, string role = "Admin")
     {
         var mediator = new RecordingMediator();
 
-        var result = await act(Controller(mediator));
+        var result = await act(Controller(mediator, role));
 
         mediator.Request.Should().Be(request);
         mediator.Tokens.Single().Should().Be(_cts.Token);
@@ -129,30 +133,40 @@ public sealed class CalendarSetupControllerTests
 
     // Day templates
 
-    [TestCase(true)]
-    [TestCase(false)]
-    public async Task GetDayTemplates_AsksForArchivedOnesOrNot(bool includeArchived)
+    [TestCase(true, "Admin")]
+    [TestCase(false, "User")]
+    public async Task GetDayTemplates_AsksForTheirsArchivedOrNotAsTheSignedInUser(bool includeArchived, string role)
     {
         IReadOnlyList<DayTemplateResponse> templates = [];
-        await ExpectOk(templates, new GetDayTemplatesQuery(includeArchived), c => c.GetDayTemplates(includeArchived, _cts.Token));
+        await ExpectOk(templates,
+            new GetDayTemplatesQuery(OtherId, Actor(role), includeArchived),
+            c => c.GetDayTemplates(OtherId, includeArchived, _cts.Token),
+            role);
     }
 
-    [Test]
-    public async Task GetDayTemplate_ReturnsIt() =>
-        await ExpectOk(_fixture.Create<DayTemplateResponse>(), new GetDayTemplateByIdQuery(RecordId), c => c.GetDayTemplate(RecordId, _cts.Token));
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task GetDayTemplate_ReturnsItForTheSignedInUser(string role) =>
+        await ExpectOk(_fixture.Create<DayTemplateResponse>(),
+            new GetDayTemplateByIdQuery(RecordId, Actor(role)),
+            c => c.GetDayTemplate(RecordId, _cts.Token),
+            role);
 
-    [Test]
-    public async Task CreateDayTemplate_SendsItsBlocksAndReturnsItWithItsAddress()
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task CreateDayTemplate_SendsTheOwnerItsBlocksAndTheSignedInUserAndReturnsItWithItsAddress(string role)
     {
         var request = DayTemplate();
         var template = _fixture.Create<DayTemplateResponse>();
         var mediator = new RecordingMediator(_ => template);
 
-        var result = await Controller(mediator).CreateDayTemplate(request, _cts.Token);
+        var result = await Controller(mediator, role).CreateDayTemplate(OtherId, request, _cts.Token);
 
         var command = mediator.Request.Should().BeOfType<CreateDayTemplateCommand>().Subject;
+        command.OwnerUserId.Should().Be(OtherId);
         command.Name.Should().Be(request.Name);
         command.Blocks.Should().Equal(ExpectedBlocks);
+        command.Actor.Should().Be(Actor(role));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/calendar/day-templates/{template.Id}");
@@ -165,24 +179,26 @@ public sealed class CalendarSetupControllerTests
         var request = new DayTemplateRequest { Name = "Synthetic day", Blocks = null! };
         var mediator = new RecordingMediator(_ => _fixture.Create<DayTemplateResponse>());
 
-        await Controller(mediator).CreateDayTemplate(request, _cts.Token);
+        await Controller(mediator).CreateDayTemplate(OtherId, request, _cts.Token);
 
         mediator.Request.Should().BeOfType<CreateDayTemplateCommand>().Which.Blocks.Should().BeEmpty();
     }
 
-    [Test]
-    public async Task UpdateDayTemplate_SendsTheNameAndBlocks()
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task UpdateDayTemplate_SendsTheNameBlocksAndSignedInUser(string role)
     {
         var request = DayTemplate();
         var template = _fixture.Create<DayTemplateResponse>();
         var mediator = new RecordingMediator(_ => template);
 
-        var result = await Controller(mediator).UpdateDayTemplate(RecordId, request, _cts.Token);
+        var result = await Controller(mediator, role).UpdateDayTemplate(RecordId, request, _cts.Token);
 
         var command = mediator.Request.Should().BeOfType<UpdateDayTemplateCommand>().Subject;
         command.DayTemplateId.Should().Be(RecordId);
         command.Name.Should().Be(request.Name);
         command.Blocks.Should().Equal(ExpectedBlocks);
+        command.Actor.Should().Be(Actor(role));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(template);
     }
@@ -198,91 +214,106 @@ public sealed class CalendarSetupControllerTests
         mediator.Request.Should().BeOfType<UpdateDayTemplateCommand>().Which.Blocks.Should().BeEmpty();
     }
 
-    [Test]
-    public async Task ArchiveAndRestoreDayTemplate_SetItsArchivedFlag()
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task ArchiveAndRestoreDayTemplate_SetItsArchivedFlagAsTheSignedInUser(string role)
     {
         var template = _fixture.Create<DayTemplateResponse>();
-        await ExpectOk(template, new SetDayTemplateArchivedCommand(RecordId, true), c => c.ArchiveDayTemplate(RecordId, _cts.Token));
-        await ExpectOk(template, new SetDayTemplateArchivedCommand(RecordId, false), c => c.RestoreDayTemplate(RecordId, _cts.Token));
+        await ExpectOk(template, new SetDayTemplateArchivedCommand(RecordId, true, Actor(role)), c => c.ArchiveDayTemplate(RecordId, _cts.Token), role);
+        await ExpectOk(template, new SetDayTemplateArchivedCommand(RecordId, false, Actor(role)), c => c.RestoreDayTemplate(RecordId, _cts.Token), role);
     }
 
-    [Test]
-    public async Task DeleteDayTemplate_ReturnsNoContent() =>
-        await ExpectNoContent(new DeleteDayTemplateCommand(RecordId), c => c.DeleteDayTemplate(RecordId, _cts.Token));
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task DeleteDayTemplate_ReturnsNoContent(string role) =>
+        await ExpectNoContent(new DeleteDayTemplateCommand(RecordId, Actor(role)), c => c.DeleteDayTemplate(RecordId, _cts.Token), role);
 
     // Week templates
 
-    [TestCase(true)]
-    [TestCase(false)]
-    public async Task GetWeekTemplates_AsksForArchivedOnesOrNot(bool includeArchived)
+    [TestCase(true, "Admin")]
+    [TestCase(false, "User")]
+    public async Task GetWeekTemplates_AsksForTheirsArchivedOrNotAsTheSignedInUser(bool includeArchived, string role)
     {
         IReadOnlyList<WeekTemplateResponse> templates = [];
-        await ExpectOk(templates, new GetWeekTemplatesQuery(includeArchived), c => c.GetWeekTemplates(includeArchived, _cts.Token));
+        await ExpectOk(templates,
+            new GetWeekTemplatesQuery(OtherId, Actor(role), includeArchived),
+            c => c.GetWeekTemplates(OtherId, includeArchived, _cts.Token),
+            role);
     }
 
-    [Test]
-    public async Task GetWeekTemplate_ReturnsIt() =>
-        await ExpectOk(_fixture.Create<WeekTemplateResponse>(), new GetWeekTemplateByIdQuery(RecordId), c => c.GetWeekTemplate(RecordId, _cts.Token));
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task GetWeekTemplate_ReturnsItForTheSignedInUser(string role) =>
+        await ExpectOk(_fixture.Create<WeekTemplateResponse>(),
+            new GetWeekTemplateByIdQuery(RecordId, Actor(role)),
+            c => c.GetWeekTemplate(RecordId, _cts.Token),
+            role);
 
-    [Test]
-    public async Task CreateWeekTemplate_SendsEachDayAndReturnsItWithItsAddress()
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task CreateWeekTemplate_SendsTheOwnerEachDayAndTheSignedInUserAndReturnsItWithItsAddress(string role)
     {
         var request = WeekTemplate();
         var template = _fixture.Create<WeekTemplateResponse>();
         var mediator = new RecordingMediator(_ => template);
 
-        var result = await Controller(mediator).CreateWeekTemplate(request, _cts.Token);
+        var result = await Controller(mediator, role).CreateWeekTemplate(OtherId, request, _cts.Token);
 
-        mediator.Request.Should().Be(new CreateWeekTemplateCommand(request.Name, RecordId, null, OtherId, null, RecordId));
+        mediator.Request.Should().Be(new CreateWeekTemplateCommand(OtherId, request.Name, RecordId, null, OtherId, null, RecordId, Actor(role)));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/calendar/week-templates/{template.Id}");
         created.Value.Should().Be(template);
     }
 
-    [Test]
-    public async Task UpdateWeekTemplate_SendsTheNameAndEachDay()
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task UpdateWeekTemplate_SendsTheNameEachDayAndTheSignedInUser(string role)
     {
         var request = WeekTemplate();
         await ExpectOk(_fixture.Create<WeekTemplateResponse>(),
-            new UpdateWeekTemplateCommand(OtherId, request.Name, RecordId, null, OtherId, null, RecordId),
-            c => c.UpdateWeekTemplate(OtherId, request, _cts.Token));
+            new UpdateWeekTemplateCommand(OtherId, request.Name, RecordId, null, OtherId, null, RecordId, Actor(role)),
+            c => c.UpdateWeekTemplate(OtherId, request, _cts.Token),
+            role);
     }
 
-    [Test]
-    public async Task ArchiveAndRestoreWeekTemplate_SetItsArchivedFlag()
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task ArchiveAndRestoreWeekTemplate_SetItsArchivedFlagAsTheSignedInUser(string role)
     {
         var template = _fixture.Create<WeekTemplateResponse>();
-        await ExpectOk(template, new SetWeekTemplateArchivedCommand(RecordId, true), c => c.ArchiveWeekTemplate(RecordId, _cts.Token));
-        await ExpectOk(template, new SetWeekTemplateArchivedCommand(RecordId, false), c => c.RestoreWeekTemplate(RecordId, _cts.Token));
+        await ExpectOk(template, new SetWeekTemplateArchivedCommand(RecordId, true, Actor(role)), c => c.ArchiveWeekTemplate(RecordId, _cts.Token), role);
+        await ExpectOk(template, new SetWeekTemplateArchivedCommand(RecordId, false, Actor(role)), c => c.RestoreWeekTemplate(RecordId, _cts.Token), role);
     }
 
-    [Test]
-    public async Task DeleteWeekTemplate_ReturnsNoContent() =>
-        await ExpectNoContent(new DeleteWeekTemplateCommand(RecordId), c => c.DeleteWeekTemplate(RecordId, _cts.Token));
+    [TestCase("Admin")]
+    [TestCase("User")]
+    public async Task DeleteWeekTemplate_ReturnsNoContent(string role) =>
+        await ExpectNoContent(new DeleteWeekTemplateCommand(RecordId, Actor(role)), c => c.DeleteWeekTemplate(RecordId, _cts.Token), role);
 
     // Who may call what
 
     [Test]
-    public async Task Reads_AnyStaff()
+    public async Task ActivityTypeWrites_AdminsOnly()
     {
-        foreach (var action in Reads)
+        foreach (var action in AdminOnly)
         {
-            (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn("User"))).Should().BeTrue(action);
+            (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn("User"))).Should().BeFalse(action);
             (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn("Admin"))).Should().BeTrue(action);
             (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn())).Should().BeFalse(action);
         }
     }
 
     [Test]
-    public async Task Writes_AdminsOnly()
+    public async Task EverythingElse_AnyStaff()
     {
-        var writes = ControllerAuthorisation.Actions<CalendarSetupController>().Except(Reads).ToList();
-        writes.Should().HaveCount(15);
+        // Reading anything, and changing day and week templates: the handlers check whose templates they are.
+        var anyStaff = ControllerAuthorisation.Actions<CalendarSetupController>().Except(AdminOnly).ToList();
+        anyStaff.Should().HaveCount(16);
 
-        foreach (var action in writes)
+        foreach (var action in anyStaff)
         {
-            (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn("User"))).Should().BeFalse(action);
+            (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn("User"))).Should().BeTrue(action);
             (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn("Admin"))).Should().BeTrue(action);
             (await ControllerAuthorisation.MayCallAsync<CalendarSetupController>(action, SignedIn())).Should().BeFalse(action);
         }

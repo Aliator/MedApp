@@ -12,6 +12,7 @@ public sealed class DeleteDayTemplateHandler(ICalendarSetupRepository repository
     {
         var today = UkTime.Today(timeProvider);
         var template = await repository.GetDayTemplateOrThrowAsync(request.DayTemplateId, today, cancellationToken);
+        request.Actor.EnsureCanChangeTemplatesOf(template.OwnerUserId);
 
         var usage = (await repository.GetDayTemplateUsageAsync([template.Id], today, cancellationToken))
             .GetValueOrDefault(template.Id, DayTemplateUsage.None);

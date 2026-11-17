@@ -90,16 +90,17 @@ export const intervalOf = (startUtc: string, endUtc: string): Interval => ({
 const TAKES_TIME = new Set(['Booked', 'Attended', 'DidNotAttend']);
 
 /**
- * What's taken on a calendar: its blocks (stored and from templates) and its Booked, Attended and Did not attend
- * appointments, leaving out `ignoreAppointmentId` (the appointment being rescheduled, which may move into its own
- * time).
+ * What's taken on a calendar: its blocks (stored and from templates), its meetings, and its Booked, Attended and Did
+ * not attend appointments, leaving out `ignoreAppointmentId` (the appointment being rescheduled, which may move into
+ * its own time).
  */
-export function busyTimes(calendar: Pick<Calendar, 'blocks' | 'appointments'>, ignoreAppointmentId?: string): Interval[] {
+export function busyTimes(calendar: Pick<Calendar, 'blocks' | 'appointments' | 'meetings'>, ignoreAppointmentId?: string): Interval[] {
   const blocks = (calendar.blocks ?? []).filter((b) => b.startUtc && b.endUtc).map((b) => intervalOf(b.startUtc!, b.endUtc!));
+  const meetings = (calendar.meetings ?? []).filter((m) => m.startUtc && m.endUtc).map((m) => intervalOf(m.startUtc!, m.endUtc!));
   const appointments = (calendar.appointments ?? [])
     .filter((a) => a.id !== ignoreAppointmentId && TAKES_TIME.has(a.status ?? '') && a.startUtc && a.endUtc)
     .map((a) => intervalOf(a.startUtc!, a.endUtc!));
-  return [...blocks, ...appointments];
+  return [...blocks, ...meetings, ...appointments];
 }
 
 /**
@@ -120,7 +121,7 @@ export function freeStarts(day: CalendarDay, busy: Interval[], lengthMinutes: nu
 
 /** Each day's free start times (`freeStarts`) on a calendar, by date. */
 export function freeStartsByDay(
-  calendar: Pick<Calendar, 'days' | 'blocks' | 'appointments'>,
+  calendar: Pick<Calendar, 'days' | 'blocks' | 'appointments' | 'meetings'>,
   lengthMinutes: number,
   now: Date,
   ignoreAppointmentId?: string,

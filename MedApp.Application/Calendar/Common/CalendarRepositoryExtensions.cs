@@ -38,6 +38,32 @@ public static class CalendarRepositoryExtensions
         await repository.GetDayTemplateForUpdateAsync(id, today, ct)
         ?? throw new NotFoundException($"Day template '{id}' was not found.");
 
+    /// <summary>
+    /// One of this person's own day templates (a day override can only use theirs), read-only, or a 404, which is also
+    /// what someone else's gets.
+    /// </summary>
+    public static async Task<DayTemplate> GetOwnDayTemplateOrThrowAsync(
+        this ICalendarSetupRepository repository, Guid id, Guid ownerUserId, DateOnly today, CancellationToken ct)
+    {
+        var template = await repository.GetDayTemplateOrThrowAsync(id, today, ct);
+        return template.OwnerUserId == ownerUserId
+            ? template
+            : throw new NotFoundException($"Day template '{id}' isn't one of this person's templates.");
+    }
+
+    /// <summary>
+    /// One of this person's own week templates (their default week can only be theirs), read-only, or a 404, which is
+    /// also what someone else's gets.
+    /// </summary>
+    public static async Task<WeekTemplate> GetOwnWeekTemplateOrThrowAsync(
+        this ICalendarSetupRepository repository, Guid id, Guid ownerUserId, DateOnly today, CancellationToken ct)
+    {
+        var template = await repository.GetWeekTemplateOrThrowAsync(id, today, ct);
+        return template.OwnerUserId == ownerUserId
+            ? template
+            : throw new NotFoundException($"Week template '{id}' isn't one of this person's templates.");
+    }
+
     /// <summary>The week template with its days valid today, read-only, or a 404.</summary>
     public static async Task<WeekTemplate> GetWeekTemplateOrThrowAsync(
         this ICalendarSetupRepository repository, Guid id, DateOnly today, CancellationToken ct) =>

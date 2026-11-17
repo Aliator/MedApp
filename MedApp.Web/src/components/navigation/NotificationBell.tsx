@@ -14,13 +14,18 @@ import {notificationsQuery, useMarkNotificationsRead, type AppNotification} from
 import {timeAgo} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 
-/** Where a notification leads: an appointment opens on the calendar, a procedure on its page. */
+/**
+ * Where a notification leads: an appointment opens on the calendar, a procedure on its page, and anything else about a
+ * day on the calendar (a meeting) opens that day there.
+ */
 const hrefOf = (notification: AppNotification) =>
   notification.appointmentId
     ? `/calendar?appointment=${notification.appointmentId}`
     : notification.procedureId
       ? `/procedures/${notification.procedureId}`
-      : undefined;
+      : notification.calendarDate
+        ? `/calendar?date=${notification.calendarDate}&view=day`
+        : undefined;
 
 /** Each kind's icon, beside its title, so what happened shows at a glance. */
 const KIND_ICONS: Record<string, IconType> = {
@@ -28,6 +33,9 @@ const KIND_ICONS: Record<string, IconType> = {
   AppointmentBooked: AppIcon.AppointmentBooked,
   AppointmentRescheduled: AppIcon.Book,
   AppointmentCancelled: AppIcon.StatusCancelled,
+  MeetingInvited: AppIcon.Meeting,
+  MeetingChanged: AppIcon.Meeting,
+  MeetingCancelled: AppIcon.Meeting,
 };
 
 /** The bell's label: what it is, and how many are unread. */
@@ -35,8 +43,8 @@ const bellLabel = (unread: number) => (unread === 0 ? 'Notifications' : `Notific
 
 /**
  * The bell beside the MedApp heading: the signed-in user's notifications, with a count of the unread ones. It
- * opens a list of the newest (a procedure's opens it, an appointment's opens it on the calendar, and either marks it
- * read), and Mark all read. New ones arrive live
+ * opens a list of the newest (a procedure's opens it, an appointment's opens it on the calendar, a meeting's opens its
+ * day on the calendar, and each marks it read), and Mark all read. New ones arrive live
  * (`LiveNotifications`), so the count and list change without a reload.
  */
 export function NotificationBell() {
@@ -98,7 +106,7 @@ export function NotificationBell() {
       {items.length === 0 ? (
         <VStack padding={3} paddingBlockStart={0}>
           <Text type="body" color="secondary">
-            Nothing yet. You’ll see it here when someone assigns you to a procedure, or books, moves or cancels an appointment with you.
+            Nothing yet. You’ll see it here when someone assigns you to a procedure, books, moves or cancels an appointment with you, or invites you to a meeting.
           </Text>
         </VStack>
       ) : (

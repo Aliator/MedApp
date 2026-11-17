@@ -2,6 +2,7 @@ using FluentAssertions;
 using MedApp.Application.Calendar.Common;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Procedures.PatientProcedures;
+using MedApp.UnitTests.Common.Constants;
 using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
 
 namespace MedApp.UnitTests.Tools.DemoData;
@@ -14,43 +15,7 @@ namespace MedApp.UnitTests.Tools.DemoData;
 [TestFixture]
 public sealed class DemoCalendarsTests
 {
-    /// <summary>
-    /// Moments that change the calendars' shape (UK time): each weekday (the diary day and the days either side), a
-    /// weekend, late on a Sunday and just after midnight, both 2026 clock changes, and a new year.
-    /// </summary>
-    private static IEnumerable<TestCaseData> Moments() =>
-        new (string Name, DateTime Uk)[]
-        {
-            ("Monday afternoon", new(2026, 11, 16, 14, 0, 0)),
-            ("Tuesday morning", new(2026, 11, 17, 10, 0, 0)),
-            ("Wednesday morning", new(2026, 11, 18, 10, 0, 0)),
-            ("Thursday morning (the lunch moves to a Friday admin day)", new(2026, 11, 19, 10, 0, 0)),
-            ("Friday afternoon", new(2026, 11, 20, 16, 30, 0)),
-            ("Saturday morning", new(2026, 11, 14, 11, 0, 0)),
-            ("Sunday night", new(2026, 11, 15, 23, 30, 0)),
-            ("Monday just after midnight", new(2026, 11, 16, 0, 20, 0)),
-            ("Sunday of the autumn clock change", new(2026, 10, 25, 10, 0, 0)),
-            ("Monday after the autumn clock change", new(2026, 10, 26, 7, 30, 0)),
-            ("Monday after the spring clock change", new(2026, 3, 30, 8, 10, 0)),
-            ("New year", new(2027, 1, 4, 9, 0, 0)),
-        }.Select(m => new TestCaseData(UkTime.ToUtc(DateOnly.FromDateTime(m.Uk), TimeOnly.FromDateTime(m.Uk))).SetArgDisplayNames(m.Name));
-
-    /// <summary>The clinic's staff as the seed makes them, with when each started and left, but no accounts.</summary>
-    private static List<StaffMember> Staff(DemoTimeline timeline) =>
-        DemoStaff.Roster
-            .Select(seed => new StaffMember(seed, Guid.NewGuid())
-            {
-                StartedUtc = timeline.AccountCreatedUtc(seed.Kind),
-                LeftUtc = seed.Kind == StaffKind.Leaver ? timeline.LeaverLeftUtc : null,
-            })
-            .Prepend(new StaffMember(DemoStaff.Lead, Guid.NewGuid())
-            {
-                StartedUtc = timeline.AppStartUtc.AddDays(-30),
-                AdminFromUtc = DateTime.MinValue,
-            })
-            .ToList();
-
-    [TestCaseSource(nameof(Moments))]
+    [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
     public void Plan_EveryStoredBlock_OverlapsNothingElseOnThatPersonsCalendar(DateTime nowUtc)
     {
         var timeline = new DemoTimeline(nowUtc);
@@ -65,7 +30,7 @@ public sealed class DemoCalendarsTests
         }
     }
 
-    [TestCaseSource(nameof(Moments))]
+    [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
     public void Plan_EveryDayOfLeaveOrTraining_HasNoDayTemplate_AndOneOverridePerDay(DateTime nowUtc)
     {
         var timeline = new DemoTimeline(nowUtc);
@@ -80,6 +45,53 @@ public sealed class DemoCalendarsTests
         calendars.DayOverrides.GroupBy(o => (o.StaffUserId, o.Date)).Should().OnlyContain(g => g.Count() == 1);
     }
 
+    [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
+    public void Plan_EveryTemplateHasAnOwner_WhoseWeeksAndDefaultUseOnlyTheirOwn(DateTime nowUtc)
+    {
+        var timeline = new DemoTimeline(nowUtc);
+        var staff = Staff(timeline);
+        var calendars = DemoCalendars.Plan(staff, timeline, new Random(Seed));
+        var days = calendars.DayTemplateRows.ToDictionary(d => d.Id);
+        var weeks = calendars.WeekTemplateRows.ToDictionary(w => w.Id);
+
+        days.Values.Should().OnlyContain(d => staff.Any(s => s.Id == d.OwnerUserId));
+        weeks.Values.Should().OnlyContain(w => staff.Any(s => s.Id == w.OwnerUserId));
+        days.Values.GroupBy(d => (d.OwnerUserId, d.Name)).Should().OnlyContain(g => g.Count() == 1, "names are unique per owner");
+        foreach (var week in weeks.Values)
+            week.Days.Should().OnlyContain(d => days[d.DayTemplateId].OwnerUserId == week.OwnerUserId, $"week template '{week.Name}' uses only its owner's day templates");
+        calendars.DefaultWeeks.Should().OnlyContain(d => weeks[d.WeekTemplateId].OwnerUserId == d.StaffUserId);
+        calendars.DayOverrides.Where(o => o.DayTemplateId != null)
+            .Should().OnlyContain(o => days[o.DayTemplateId!.Value].OwnerUserId == o.StaffUserId);
+        staff.Should().OnlyContain(s => calendars.DefaultWeeks.Any(d => d.StaffUserId == s.Id), "everyone has a default week");
+    }
+
+    [Test]
+    public void Plan_HistoryChangesPartWay_ThePartTimeWeekAndTheEndoscopistsLaterLunch()
+    {
+        var timeline = new DemoTimeline(Now);
+        var staff = Staff(timeline);
+        var calendars = DemoCalendars.Plan(staff, timeline, new Random(Seed));
+        var partTime = staff.Single(s => s.Kind == StaffKind.PartTimeNurse);
+        var endoscopist = DemoStaff.Get(staff, DemoTemplates.LateLunchUsername);
+        var changed = timeline.ThisMonday.AddDays(-7 * 20);
+
+        calendars.DefaultWeeks.Where(d => d.StaffUserId == partTime.Id).OrderBy(d => d.ValidFrom).Select(d => (d.ValidTo, d.ValidFrom))
+            .Should().HaveCount(2).And.Satisfy(d => d.ValidTo == changed.AddDays(-1), d => d.ValidFrom == changed && d.ValidTo == null);
+
+        // Monday list days (not on leave) before the change, and after it: the lunch moved later.
+        var mondays = Enumerable.Range(1, 20).Select(w => timeline.ThisMonday.AddDays(-7 * w)).Where(d => !calendars.IsOnLeave(endoscopist.Id, d)).ToList();
+        LunchOn(mondays.First(d => d < timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(12, 45));
+        LunchOn(mondays.First(d => d >= timeline.ThisMonday.AddDays(-7 * 10))).Should().Be(new TimeOnly(13, 15));
+
+        TimeOnly? LunchOn(DateOnly monday)
+        {
+            var data = calendars.DataFor(endoscopist.Id, monday, monday);
+            return CalendarProjection.TemplateBlocks(data)
+                .Where(b => b.Source.Note != "List preparation" && b.Source.Note != "Trainee supervision")
+                .Select(b => (TimeOnly?)UkTime.TimeOf(b.StartUtc)).SingleOrDefault();
+        }
+    }
+
     [Test]
     public void Plan_DiaryDayIsAThursday_MovesTheSurgeonsFridayLunchIntoFreeTime()
     {
@@ -91,12 +103,12 @@ public sealed class DemoCalendarsTests
 
         var moved = calendars.StoredBlocks.Should().ContainSingle(b => b.StaffUserId == surgeon.Id && UkTime.DateOf(b.StartUtc) == friday).Subject;
         CalendarClashes.Find(calendars.DataFor(surgeon.Id, friday, friday), moved.StartUtc, moved.EndUtc, ignoreBlockId: moved.Id)
-            .Should().BeNull("the Friday's admin day has its MDT meeting and admin time, and the lunch goes round them");
+            .Should().BeNull("the Friday's admin day has its admin time and the MDT meeting, and the lunch goes round them");
         CalendarProjection.TemplateBlocks(calendars.DataFor(surgeon.Id, friday, friday))
             .Should().NotContain(p => p.StartUtc == UkTime.ToUtc(friday, new TimeOnly(12, 0)), "the template's lunch is left off that day");
     }
 
-    [TestCaseSource(nameof(Moments))]
+    [TestCaseSource(typeof(DemoDataTestConstants), nameof(CalendarMoments))]
     public void BookFreedSlot_BooksTheNursesFreedTime_AndReservesIt(DateTime nowUtc)
     {
         var timeline = new DemoTimeline(nowUtc);
