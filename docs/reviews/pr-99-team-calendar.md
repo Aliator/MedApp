@@ -4,6 +4,8 @@
 
 **Reviewed:** 17 November 2026, independently of the PR description's conclusions. Each claim below was checked against the code, the PR's CI run, or the failed end-to-end test's trace. **One finding is high:** the required `e2e` check fails, because the new meeting journey reads the API before its own save has finished (finding 1). Five are medium and five are low. None is critical.
 
+**Fixes:** every finding but 5 was fixed or documented on `feature/team-calendar-fixes`, and 5 is a to-do; each finding's **Status** says what was done. The API change: a meeting change now needs `expectedLastUpdated` (finding 2).
+
 **Out of scope:** `main` has since gained #97 (a rebuilt demo data set in `tools/MedApp.DevMcp/DemoData/`). Merging it in, and seeding meetings and personal templates, gets its own check (Remaining risks says what CI already shows about it).
 
 ## Summary
@@ -95,7 +97,10 @@ Day and week templates become each member of staff's own, with a migration that 
   - **Wait for the save itself:** wrap the click in `Page.RunAndWaitForResponseAsync(…)` for the POST to `/api/calendar/meetings`, check it's a 201, and take the meeting's ID from its body.
   - **Register the clean-up straight away** from that ID, before any step that can fail.
   - **Optionally,** note in `MedApp.E2ETests/README.md` that a saving dialog is an `alertdialog`, so `ToBeHiddenAsync` on a `Dialog` passes at once and must be followed by something that waits.
-- **Status:** open at `7ef0cac`.
+- **Status:** fixed on `feature/team-calendar-fixes`.
+  - `MeetingTests` wraps Add Meeting in `Page.RunAndWaitForResponseAsync` for the `POST`, checks it's a 201, takes the meeting from its body and registers the clean-up at once (30 seconds allowed for a fresh API's first save). Cancelling waits for the `DELETE` (204) the same way.
+  - **The other journeys** were checked: each follows "hidden" with an assertion that waits on the page (Astryx uses native `showModal()` and sets no `aria-hidden` behind it, so a wait on something in `Main` is a real wait), so none reads the API early.
+  - **`MedApp.E2ETests/README.md`** explains the trap ("Waiting for a save"). The journey hasn't been run locally; CI runs it.
 
 ### 2. A meeting change made from an out-of-date screen silently undoes someone else's change
 
@@ -111,7 +116,11 @@ Day and week templates become each member of staff's own, with a migration that 
   - **Send what the client saw:** add the meeting's `lastUpdated` (or its row version) to the update request. Compare it inside the lock, and refuse a mismatch with the existing `MeetingLimits.ChangedMeanwhile` 409.
   - **Make a drag change only the time:** a `PUT api/calendar/meetings/{id}/time`, or have the drag send the expected version too.
   - **Test it:** an integration test that saves a stale copy after another admin's change and expects a 409.
-- **Status:** open.
+- **Status:** fixed.
+  - **The request:** `MeetingRequest.ExpectedLastUpdated` (the meeting's `lastUpdated` as the caller read it), required on a change (`UpdateMeetingValidator`, a 400 without it) and ignored when adding.
+  - **The check:** `UpdateMeetingHandler` compares it with the meeting read first (a 409 without taking any lock) and again with the copy read under the locks, and refuses a mismatch with `MeetingLimits.ChangedMeanwhile` (now "Someone else has changed this meeting since it was loaded. Reload it and try again."). `lastUpdated` was chosen over the row version because the client already has it and every save to a meeting (the clean-up of leavers included) sets it.
+  - **The web app** sends it from Change Meeting and from a drag, and refreshes the calendars after a 409 so a retry starts from the newer copy.
+  - **Tests:** unit tests (stale, changed between the read and the locks, an offset time), Vitest (what the dialog and the drag send, the refresh), and an integration test where a stale drag after another admin's change is a 409 and their change stays.
 
 ### 3. A meeting's free-text title is copied into notifications, clash messages and busy times, and outlives the meeting
 
@@ -129,7 +138,10 @@ Day and week templates become each member of staff's own, with a migration that 
   - **Leave the title out of the message:** "admin invited you to a meeting, Tuesday 17 November, 09:00 to 10:00." The link opens that day, where the meeting shows with its title to everyone allowed to see it.
   - **Add the warning to the Title field,** as for notes.
   - **If the title stays in messages:** change the rule in `AGENTS.md`, add meeting notifications to the inventory's `Notification` row, and say in DPIA risk 25 that copies outlive the meeting.
-- **Status:** open.
+- **Status:** documented, by the product owner's decision: the title stays in messages, treated as an admin-written name (only admins arrange and change meetings).
+  - **The Title field** now says "All staff can see it, and it's in attendees' notifications. Don't put patient details here." (`MeetingDialog.tsx`, with a Vitest check).
+  - **`AGENTS.md`'s notification rule** lists meeting titles with the other admin-written names, and says the copies outlive the meeting, out of reach of a patient's export and anonymisation.
+  - **The data inventory** (`Notification` and Valkey rows, version 0.8) describes meeting notifications, and **DPIA risk 25** (version 0.8) has the warning and the copies, accepted, as measures.
 
 ### 4. The staff rights procedure and the staff privacy notice don't cover meetings or personal templates
 
@@ -141,7 +153,7 @@ Day and week templates become each member of staff's own, with a migration that 
   - `AGENTS.md` (feature slices, step 8) asks for "any other document it makes untrue" to be updated in the same PR.
 - **Evidence:** `docs/governance/data-subject-rights.md:46, 71`; `docs/governance/privacy-notice-staff-template.md:23, 38`.
 - **Fix:** add meetings (as attendee and organiser) and personal templates to both lists in `data-subject-rights.md`, and a sentence on meetings and templates to the staff notice template, with a version line in each.
-- **Status:** open.
+- **Status:** fixed (documented). `data-subject-rights.md` (0.4) lists a staff member's own templates and the meetings they go to or arranged, in the rights summary and the subject access search; the staff privacy notice template (0.3) says admins arrange meetings everyone can see, with their titles and notes, that templates are visible to all, and that admins see several calendars at once. The README's check found four more documents that listed staff calendar data without them, now updated: `ropa.md` (A3.9), `ropa-customer-template.md`, `dpa-template.md` (Schedule 1) and `roles-and-lawful-bases.md`.
 
 ### 5. Personal templates have no way to share or copy a template, so a team's pattern becomes many copies to keep in step
 
@@ -156,7 +168,7 @@ Day and week templates become each member of staff's own, with a migration that 
 - **Fix:**
   - **A "Copy to…" action** for admins: copy a day template, or a week template with its day templates, into chosen people's sets (new rows from today, names kept).
   - **At least,** add it to `docs/todo.md`, and a line in decision 50 on what personal templates cost.
-- **Status:** open.
+- **Status:** left as a to-do, by the product owner's decision. `docs/todo.md` (Calendar follow-ups, "Sharing or copying calendar templates") records the costs above and the "Copy to..." action.
 
 ### 6. The old API, during the rollout or after a rollback, makes templates nobody owns
 
@@ -171,7 +183,10 @@ Day and week templates become each member of staff's own, with a migration that 
 - **Fix:**
   - **Drop the default constraint at the end of `Up`,** so an insert without an owner fails loudly instead of making an orphan.
   - **Say in the plan and the PR** that a rollback keeps templates personal and hides meetings, and how to give any template owned by nobody to an admin (a one-line SQL `UPDATE`, or a `medapp-dev` tool).
-- **Status:** open.
+- **Status:** fixed.
+  - **No default:** `MadeCalendarTemplatesPersonal` (never applied to a lasting database, so edited in place) now adds `OwnerUserId` nullable, fills it, deletes what's left without an owner, then makes it required with `AlterColumn`. The scripted SQL has no default constraint, and the model and snapshot never had one (`has-pending-model-changes`: none). So an insert from the old API fails rather than making an orphan; `TemplateOwnershipMigrationTests` checks it.
+  - **The rollout window** is in `deploy/helm/medapp/README.md` (Migrations): until every pod runs the new API, old pods can't create templates, list everyone's copies, and don't know meetings (they can book over them). The plan's decision 51 says so too.
+  - **Not done:** a tool to give an ownerless template to an admin, since none can be made now.
 
 ### 7. The team view shows everyone by default, with no limit
 
@@ -181,7 +196,7 @@ Day and week templates become each member of staff's own, with a migration that 
   - `docs/todo.md:24` says it draws "a column for each person (100 at most)", which isn't so.
 - **Evidence:** as above.
 - **Fix:** with no IDs, show the first 100 by name and say "Showing 100 of 400: choose who in Who", or ask for a choice above 100. Correct the to-do.
-- **Status:** open.
+- **Status:** documented. No limit was added to "everyone"; `docs/todo.md` now says the default has no limit (only a list given is at most 100), with its cost and the fix, and the plan's decision 58 says the same.
 
 ### 8. Removing a leaver from meetings runs after the account change, and its failure skips the activity log
 
@@ -191,7 +206,10 @@ Day and week templates become each member of staff's own, with a migration that 
   - **The result:** the account is deleted (or its roles changed), but the admin sees an error and the activity log has no entry for it. A retry gets "user not found".
 - **Evidence:** `MedApp.Application/Authentication/Users/Commands/DeleteUser/DeleteUserHandler.cs:37-50`; `…/SetUserRoles/SetUserRolesHandler.cs:44-56`; `MedApp.Infrastructure/Data/Repositories/MeetingRepository.cs:32-48`.
 - **Fix:** record the activity entry first. Make the meeting clean-up best effort: catch, log, carry on (a stale attendee is harmless and shows as "Deleted user").
-- **Status:** open.
+- **Status:** fixed, in the same transaction rather than best effort.
+  - **`DeleteUserHandler` and `SetUserRolesHandler`** now run the account change, `RemoveAttendeeFromUpcomingAsync` and the activity log entry in one `IIdentityTransactions.RunAsync`: a 409 from the meetings rolls the deletion or role change back, so the admin's retry starts from where they were, and the log entry is written exactly when the change is.
+  - **`IdentityTransactions`** joins a transaction already running (it can't open a second on the connection), so `IdentityRoleService.SetRolesAsync`'s own transaction sits inside the handler's.
+  - **Tests:** unit tests (all three steps inside the transaction, a 409 from the meetings leaves it, nothing logged), and integration tests that a nested `RunAsync` commits with the outer one and is rolled back with it.
 
 ### 9. A meeting with a deleted attendee can't be changed or moved
 
@@ -201,7 +219,7 @@ Day and week templates become each member of staff's own, with a migration that 
   - Dragging it fails the same way, every time (`CalendarPage.tsx:259-261`).
 - **Evidence:** as above.
 - **Fix:** check only the attendees being added, as monitoring rules check only what an edit newly names (`AGENTS.md`, Monitoring). Keep the ones already going.
-- **Status:** open.
+- **Status:** fixed. Only attendees a change newly adds must be staff (`MeetingStaff.ChooseOrThrow`); anyone already going whose account has gone, or who lost every staff role, is **dropped** on save, not kept, and isn't told (they can't go, and a leaver is taken off meetings to come anyway). A 400 if that leaves nobody. Unit tests, and an integration test of the training day above.
 
 ### 10. Templates used only by leavers end up out of everyone's reach
 
@@ -212,7 +230,9 @@ Day and week templates become each member of staff's own, with a migration that 
   - **The retention schedule** says personal templates are kept "while the owner's account exists" (`retention-schedule.md:90`), but deleting an account removes none of them.
 - **Evidence:** as above.
 - **Fix:** in the migration, give templates whose only users have no staff role to the admin, as for unused ones. Delete, or give to an admin, a person's templates when their account goes, or correct the retention row.
-- **Status:** open.
+- **Status:** fixed.
+  - **The migration** makes owners only of members of staff (the Admin or User role): a template only leavers used goes to the longest-standing admin, as unused ones do, or, with no admin, is deleted with the leavers' default-week rows and overrides that point at it. A leaver's rows keep pointing at the original. `TemplateOwnershipMigrationTests` now seeds A and B as real staff accounts and a leaver, and checks both cases and the leaver's projection.
+  - **The retention schedule** (0.5) now says templates stay until their owner or an admin deletes them, and that deleting an account doesn't remove them yet; `docs/todo.md` has "Tidy up templates with accounts".
 
 ### 11. Some docs still say templates are admin-only
 
@@ -222,7 +242,7 @@ Day and week templates become each member of staff's own, with a migration that 
   - `docs/architecture.md:50` says "Admins write day and week templates", and `:652` still lists the `/admin/calendar-templates` page as Admin.
 - **Evidence:** as above.
 - **Fix:** update the three lines.
-- **Status:** open.
+- **Status:** fixed. `AGENTS.md`'s Auth section lists each person's own templates for staff and meetings, the team view and suggested times as admin-only; `docs/architecture.md` describes personal templates and meetings, and its page list has `/calendar/templates`. No other doc said templates were admin-only.
 
 ## Remaining risks
 
