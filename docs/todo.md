@@ -243,6 +243,7 @@ What the security baseline left, so the app would work exactly as before (`docs/
 
 - **Split `MedApp.Web/AGENTS.md` like the root one.** It's over 50,000 characters, loaded whenever an agent works in `MedApp.Web`. Keep its core rules there and move long component and page detail to `docs/agents/web-*.md`, with a Read before you change table, as the root `AGENTS.md` does.
 - **The seeding script's rough edges** (review of #142): snapshot before applying migrations, not after (`tools/seed-demo-data.sh`, `DemoDataReset`); validate `--save-snapshot`'s name before the wipe, or print the summary first; build the connection string with the password escaped.
+- **Referrals, from the review of #154:** re-check the patient's restriction inside the save when registering a referral (as other create paths would need too), and record `PatientsSearched` with the filter names (never the term) for referral search.
 
 ## Long term
 
