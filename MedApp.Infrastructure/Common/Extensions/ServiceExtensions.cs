@@ -17,6 +17,7 @@ using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
 using MedApp.Infrastructure.Common.Authentication;
@@ -183,6 +184,7 @@ public static class ServiceExtensions
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
         
         return services;
     }

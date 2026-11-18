@@ -70,6 +70,12 @@ A referral-led outpatient centre: GPs refer, a clinician triages, the patient is
 
 **Signing in as someone:** use the password from the summary. For `j.whitlock`, type the summary's `authenticatorKey` into an authenticator app, or use one of the `recoveryCodes`. The passwords are new each run, so they're not written here.
 
+### Specialties
+
+Five, as the centre's services, added by the clinical lead before it opened (Administration, then Specialties): **Dermatology** (the three skin templates, the archived one too), **Gynaecology**, **Urology**, **Diabetes** and **Biomechanics**. General, which every database starts with, is there too, with nothing in it.
+
+**Who belongs to which** (Users, then a person's Specialties; your own in Account Settings): `n.thornbury`, `t.hallworth` and `b.sandiford` Dermatology; `f.linton` Gynaecology; `o.penhale` Urology; `m.carrow` Diabetes; `s.winterburn` Biomechanics; `d.quince` Dermatology, Urology and Diabetes; `admin` every one. The manager, the booking coordinator, the lab and the healthcare assistant are in none. Each change is in the activity log (`StaffSpecialtiesChanged`).
+
 ### The pathway templates
 
 Seven, one archived. Each is an ordered list of stages from the stage library.

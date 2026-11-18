@@ -18,8 +18,11 @@ using MedApp.Application.Authentication.Sessions.Commands.SignOutEverywhere;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
+using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Common.Authentication;
@@ -27,6 +30,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Specialties.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -361,6 +365,29 @@ public sealed class AuthController(
         return BadRequest(result.Errors);
     }
 
+    /// <summary>The specialties a member of staff belongs to, sorted by name.</summary>
+    [HttpGet("users/{username}/specialties")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Specialties")]
+    [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetUserSpecialties(string username, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetUserSpecialtiesQuery(username), ct));
+
+    /// <summary>
+    /// Sets the specialties a member of staff belongs to, exactly: any others are removed. An unknown specialty is a
+    /// 404; an archived one can be kept but not newly given (409). Returns them as they are now.
+    /// </summary>
+    [HttpPut("users/{username}/specialties")]
+    [Authorize(Roles = "Admin")]
+    [Tags("Specialties")]
+    [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetUserSpecialties(string username, SetUserSpecialtiesRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetUserSpecialtiesCommand(username, request.SpecialtyIds ?? []), ct));
+
     [HttpPost("roles/revoke")]
     [Authorize(Roles = "Admin")]
     [Tags("Roles")]
@@ -408,6 +435,14 @@ public sealed class AuthController(
         await mediator.Send(new SaveMySettingsCommand(User.GetUserId(), request.Settings ?? string.Empty), ct);
         return NoContent();
     }
+
+    /// <summary>The specialties the signed-in user belongs to (admins set them on the Users page).</summary>
+    [HttpGet("me/specialties")]
+    [Authorize(Policy = AuthPolicies.Staff)]
+    [Tags("Specialties")]
+    [ProducesResponseType(typeof(IReadOnlyList<StaffSpecialtyResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMySpecialties(CancellationToken ct) =>
+        Ok(await mediator.Send(new GetMySpecialtiesQuery(User.GetUserId()), ct));
 
     [HttpGet("whoami")]
     [Tags("Login")]

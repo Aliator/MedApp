@@ -4,6 +4,7 @@ using FluentAssertions;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Requests;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
+using MedApp.Domain.Specialties;
 using MedApp.IntegrationTests.Common;
 using Microsoft.AspNetCore.Mvc;
 
@@ -61,6 +62,7 @@ public sealed class ArchivingTests : IntegrationTest
         var refused = await _admin.PostAsJsonAsync(Templates, new CreatePathwayTemplateRequest
         {
             Name = UniqueName("Template"),
+            SpecialtyId = Specialty.GeneralId,
             StageDefinitionIdsInOrder = [definition.Id],
         });
         await refused.ShouldHaveStatusAsync(HttpStatusCode.Conflict);

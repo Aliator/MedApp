@@ -9654,6 +9654,530 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/users/{username}/specialties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    username: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StaffSpecialtyResponse"][];
+                        "application/json": components["schemas"]["StaffSpecialtyResponse"][];
+                        "text/json": components["schemas"]["StaffSpecialtyResponse"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    username: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SetUserSpecialtiesRequest"];
+                    "text/json": components["schemas"]["SetUserSpecialtiesRequest"];
+                    "application/*+json": components["schemas"]["SetUserSpecialtiesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StaffSpecialtyResponse"][];
+                        "application/json": components["schemas"]["StaffSpecialtyResponse"][];
+                        "text/json": components["schemas"]["StaffSpecialtyResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me/specialties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StaffSpecialtyResponse"][];
+                        "application/json": components["schemas"]["StaffSpecialtyResponse"][];
+                        "text/json": components["schemas"]["StaffSpecialtyResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/specialties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    includeArchived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecialtyResponse"][];
+                        "application/json": components["schemas"]["SpecialtyResponse"][];
+                        "text/json": components["schemas"]["SpecialtyResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateSpecialtyRequest"];
+                    "text/json": components["schemas"]["CreateSpecialtyRequest"];
+                    "application/*+json": components["schemas"]["CreateSpecialtyRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecialtyResponse"];
+                        "application/json": components["schemas"]["SpecialtyResponse"];
+                        "text/json": components["schemas"]["SpecialtyResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/specialties/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecialtyResponse"];
+                        "application/json": components["schemas"]["SpecialtyResponse"];
+                        "text/json": components["schemas"]["SpecialtyResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateSpecialtyRequest"];
+                    "text/json": components["schemas"]["UpdateSpecialtyRequest"];
+                    "application/*+json": components["schemas"]["UpdateSpecialtyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecialtyResponse"];
+                        "application/json": components["schemas"]["SpecialtyResponse"];
+                        "text/json": components["schemas"]["SpecialtyResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/specialties/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SpecialtyVersionRequest"];
+                    "text/json": components["schemas"]["SpecialtyVersionRequest"];
+                    "application/*+json": components["schemas"]["SpecialtyVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecialtyResponse"];
+                        "application/json": components["schemas"]["SpecialtyResponse"];
+                        "text/json": components["schemas"]["SpecialtyResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/specialties/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SpecialtyVersionRequest"];
+                    "text/json": components["schemas"]["SpecialtyVersionRequest"];
+                    "application/*+json": components["schemas"]["SpecialtyVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SpecialtyResponse"];
+                        "application/json": components["schemas"]["SpecialtyResponse"];
+                        "text/json": components["schemas"]["SpecialtyResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -9984,6 +10508,8 @@ export interface components {
         };
         CreatePathwayTemplateRequest: {
             name?: string | null;
+            /** Format: uuid */
+            specialtyId?: string;
             stageDefinitionIdsInOrder?: string[] | null;
         };
         CreatePatientPathwayRequest: {
@@ -10014,6 +10540,9 @@ export interface components {
             nhsNumber?: string | null;
         };
         CreateRoleRequest: {
+            name?: string | null;
+        };
+        CreateSpecialtyRequest: {
             name?: string | null;
         };
         CreateUserRequest: {
@@ -10688,6 +11217,9 @@ export interface components {
             id?: string;
             name?: string | null;
             isArchived?: boolean;
+            /** Format: uuid */
+            specialtyId?: string;
+            specialtyName?: string | null;
             /** Format: int32 */
             pathwayCount?: number;
             stages?: components["schemas"]["PathwayTemplateStageResponse"][] | null;
@@ -10813,6 +11345,8 @@ export interface components {
             /** Format: uuid */
             templateId?: string | null;
             templateName?: string | null;
+            /** Format: uuid */
+            specialtyId?: string;
             title?: string | null;
             /** Format: date */
             dueDate?: string;
@@ -11168,11 +11702,37 @@ export interface components {
         SetUserRolesRequest: {
             roles?: string[] | null;
         };
+        SetUserSpecialtiesRequest: {
+            specialtyIds?: string[] | null;
+        };
         SkippedBankHolidayResponse: {
             /** Format: date */
             date?: string;
             name?: string | null;
             reason?: string | null;
+        };
+        SpecialtyResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            isArchived?: boolean;
+            /** Format: int32 */
+            version?: number;
+            /** Format: int32 */
+            templateCount?: number;
+            /** Format: int32 */
+            pathwayCount?: number;
+            /** Format: int32 */
+            memberCount?: number;
+            canBeDeleted?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUpdated?: string;
+        };
+        SpecialtyVersionRequest: {
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         StaffMemberResponse: {
             /** Format: uuid */
@@ -11181,6 +11741,12 @@ export interface components {
             /** Format: uuid */
             weekTemplateId?: string | null;
             weekTemplateName?: string | null;
+        };
+        StaffSpecialtyResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            isArchived?: boolean;
         };
         StaffWeekTemplateResponse: {
             /** Format: uuid */
@@ -11266,6 +11832,8 @@ export interface components {
         };
         UpdatePathwayTemplateRequest: {
             name?: string | null;
+            /** Format: uuid */
+            specialtyId?: string | null;
             stageDefinitionIdsInOrder?: string[] | null;
         };
         UpdatePatientPathwayRequest: {
@@ -11290,6 +11858,11 @@ export interface components {
             dateOfBirth?: string;
             email?: string | null;
             nhsNumber?: string | null;
+        };
+        UpdateSpecialtyRequest: {
+            name?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
         };
         UpdateUserPasswordRequest: {
             oldPassword?: string | null;

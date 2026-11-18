@@ -23,8 +23,11 @@ using MedApp.Application.Authentication.Settings.Queries.GetMySettings;
 using MedApp.Application.Authentication.Users.Commands.CreateUser;
 using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
+using MedApp.Application.Authentication.Users.Commands.SetUserSpecialties;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
+using MedApp.Application.Authentication.Users.Queries.GetMySpecialties;
+using MedApp.Application.Authentication.Users.Queries.GetUserSpecialties;
 using MedApp.Application.Authentication.Users.Queries.GetUserByUsername;
 using MedApp.Application.Authentication.Users.Queries.SearchUsers;
 using MedApp.Application.Common.Authentication;
@@ -32,6 +35,7 @@ using MedApp.Application.Common.Identity;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Specialties.Responses;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -599,6 +603,64 @@ public sealed class AuthControllerTests
         mediator.Request.Should().Be(new DeleteRoleCommand("Auditor"));
         deleted.Should().BeOfType<NoContentResult>();
         missing.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task GetUserSpecialties_ReturnsThem()
+    {
+        IReadOnlyList<StaffSpecialtyResponse> specialties = [new StaffSpecialtyResponse { Id = RecordId, Name = "Synthetic dermatology" }];
+        var mediator = new RecordingMediator(_ => specialties);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).GetUserSpecialties(OtherUsername, cts.Token);
+
+        mediator.Request.Should().Be(new GetUserSpecialtiesQuery(OtherUsername));
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(specialties);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task SetUserSpecialties_SendsTheSpecialtiesOrNoneAndReturnsThem(bool given)
+    {
+        IReadOnlyList<StaffSpecialtyResponse> specialties = [];
+        var mediator = new RecordingMediator(_ => specialties);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).SetUserSpecialties(
+            OtherUsername, new SetUserSpecialtiesRequest(given ? [RecordId, OtherId] : null), cts.Token);
+
+        var sent = mediator.Request.Should().BeOfType<SetUserSpecialtiesCommand>().Subject;
+        sent.Username.Should().Be(OtherUsername);
+        sent.SpecialtyIds.Should().Equal(given ? [RecordId, OtherId] : []);
+        mediator.Tokens.Single().Should().Be(cts.Token);
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(specialties);
+    }
+
+    [Test]
+    public async Task GetMySpecialties_ReturnsTheSignedInUsers()
+    {
+        IReadOnlyList<StaffSpecialtyResponse> specialties = [];
+        var mediator = new RecordingMediator(_ => specialties);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator).GetMySpecialties(cts.Token);
+
+        mediator.Request.Should().Be(new GetMySpecialtiesQuery(UserId));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(specialties);
+    }
+
+    [Test]
+    public async Task SpecialtyMemberships_AdminsSetThemAndAnyoneReadsTheirOwn()
+    {
+        foreach (var action in new[] { nameof(AuthController.GetUserSpecialties), nameof(AuthController.SetUserSpecialties) })
+        {
+            (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn("User"))).Should().BeFalse(action);
+            (await ControllerAuthorisation.MayCallAsync<AuthController>(action, SignedIn("Admin"))).Should().BeTrue(action);
+        }
+
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn("User"))).Should().BeTrue();
+        (await ControllerAuthorisation.MayCallAsync<AuthController>(nameof(AuthController.GetMySpecialties), SignedIn())).Should().BeFalse();
     }
 
     [Test]
