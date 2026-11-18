@@ -14,3 +14,6 @@ tools/MedApp.DevMcp/.backups/
 
 # The built React app, copied into the API on publish (plan Q4); never committed
 MedApp.API/wwwroot/
+
+# The demo data seeder's summary (tools/seed-demo-data.sh --out): it holds local accounts' passwords.
+/demo-summary.json
