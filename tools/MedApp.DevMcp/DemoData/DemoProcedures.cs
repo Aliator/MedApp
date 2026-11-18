@@ -19,6 +19,9 @@ public static class DemoProcedures
     /// <summary>How many appointments the lead has on the diary day: a full clinic, with time left to book into.</summary>
     public const int LeadAppointmentsToday = 5;
 
+    /// <summary>How much slower the archived pathway's last few go, so they're still finishing months after it was replaced.</summary>
+    private const double StragglerScale = 6.0;
+
     public static void Replay(DemoWorld world, IReadOnlyList<ProcedurePlan> plans)
     {
         var leaver = world.Staff.Single(s => s.Kind == StaffKind.Leaver);
@@ -28,7 +31,7 @@ public static class DemoProcedures
         foreach (var plan in plans)
         {
             var lead = ChooseLead(world, plan, allowLeaver: true);
-            var scale = plan.Straggler ? 3.0 : 1.0;
+            var scale = plan.Straggler ? StragglerScale : 1.0;
 
             for (var attempt = 0; ; attempt++)
             {
@@ -40,7 +43,7 @@ public static class DemoProcedures
                 var leaverProblem = replay.Lead.Id == leaver.Id
                                     && (!ProcedureWorkflow.IsClosed(replay.Procedure.Status) || replay.Involves(leaver, leftUtc));
                 // The archived pathway's procedures finished well before the last four weeks, but for the stragglers.
-                var oldPathwayProblem = plan.Pathway == Pathway.DayCase2024 && !plan.Straggler
+                var oldPathwayProblem = plan.Pathway == Pathway.SkinLesion2024 && !plan.Straggler
                                         && (!ProcedureWorkflow.IsClosed(replay.Procedure.Status) || replay.LastActivityUtc > oldPathwayDoneBy);
 
                 if ((!leaverProblem && !oldPathwayProblem) || attempt >= 4)
@@ -58,41 +61,42 @@ public static class DemoProcedures
         }
     }
 
-    /// <summary>Who leads a procedure: the right clinician for the pathway; the leaver only for work long before they left.</summary>
+    /// <summary>Who leads a pathway: the right clinician for it; the leaver only for work long before they left.</summary>
     private static StaffMember ChooseLead(DemoWorld world, ProcedurePlan plan, bool allowLeaver)
     {
         var created = plan.CreatedUtc;
         var leaver = world.Staff.Single(s => s.Kind == StaffKind.Leaver);
         var leaverWeight = allowLeaver && leaver.WorksAt(created) && created < leaver.LeftUtc!.Value.AddDays(-7 * 12) ? 30 : 0;
 
+        var dermatologist = world.Member(DemoStaff.DermatologistUsername);
+        var skinGp = world.Member(DemoStaff.SkinGpUsername);
         (StaffMember, int)[] candidates = plan.Pathway switch
         {
-            Pathway.DayCase or Pathway.DayCase2024 =>
-                [(world.Member("r.calloway"), 45), (world.Member("d.ashworth"), 45), (world.Lead, 12), (leaver, leaverWeight)],
-            Pathway.Surgical =>
-                [(world.Lead, 35), (world.Member("r.calloway"), 33), (world.Member("d.ashworth"), 32), (leaver, leaverWeight)],
-            Pathway.Diagnostic => [(world.Member("m.fairbanks"), 1)],
-            Pathway.Minor => [(world.Member("s.brightwell"), 88), (world.Lead, 12)],
-            _ => [(world.Member("a.pemberton"), 1)],
+            Pathway.SkinLesion or Pathway.SkinLesion2024 => [(dermatologist, 50), (skinGp, 50), (leaver, leaverWeight)],
+            Pathway.InflammatorySkin => [(skinGp, 65), (dermatologist, 35), (leaver, leaverWeight)],
+            Pathway.PostMenopausalBleeding => [(world.Member(DemoStaff.GynaecologistUsername), 1)],
+            Pathway.Prostate => [(world.Member(DemoStaff.UrologistUsername), 1)],
+            Pathway.Diabetes => [(world.Member(DemoStaff.DiabetesNurseUsername), 60), (world.Lead, 40)],
+            _ => [(world.Member(DemoStaff.PodiatristUsername), 1)],
         };
 
         return ProcedurePlans.Weighted(world.Random, candidates.Where(c => c.Item2 > 0).ToArray());
     }
 
     /// <summary>
-    /// Appointments that aren't for a procedure: telephone reviews and new patient clinics, booked by the coordinator
-    /// as CreateAppointmentHandler books them. One fills a nurse's removed admin time; it's booked (and so reserved)
-    /// before the procedures are replayed, so nothing else takes that time.
+    /// Appointments that aren't for a pathway: telephone reviews and advice clinics, booked by the coordinator as
+    /// CreateAppointmentHandler books them. One fills the pharmacist's removed admin time; it's booked (and so
+    /// reserved) before the pathways are replayed, so nothing else takes that time.
     /// </summary>
     public static void BookFreedSlot(DemoWorld world, IReadOnlyList<PatientSeed> patients)
     {
         if (world.Calendars.FreedSlot is not { } freed)
             return;
 
-        var nurse = world.Staff.Single(s => s.Id == freed.StaffUserId);
+        var pharmacist = world.Staff.Single(s => s.Id == freed.StaffUserId);
         var bookedAt = freed.StartUtc.AddDays(-3).AddHours(-2);
-        Standalone(world, Pick(world, patients, bookedAt), nurse, freed.StartUtc, freed.EndUtc, world.Coordinator, bookedAt,
-            "Telephone review: wound healing query from the patient.");
+        Standalone(world, Pick(world, patients, bookedAt), pharmacist, freed.StartUtc, freed.EndUtc, world.Coordinator, bookedAt,
+            "Telephone review: the patient has a question about a new medicine.");
     }
 
     /// <summary>A few standalone appointments over the last eight weeks and the next three, and the lead's day topped up to a full clinic.</summary>
@@ -102,13 +106,18 @@ public static class DemoProcedures
         var now = world.Timeline.NowUtc;
         string[] notes =
         [
-            "New patient clinic: GP referral letter attached to the record.",
+            "Advice clinic: the GP's letter is on the record.",
             "Telephone review of symptoms.",
-            "Telephone review: results discussed.",
-            "New patient clinic.",
-            "Review requested by the GP.",
+            "Telephone review: results gone through.",
+            "Dressing clinic.",
+            "Review asked for by the GP.",
         ];
-        var clinicians = new[] { world.Lead, world.Member("r.calloway"), world.Member("d.ashworth"), world.Member("m.fairbanks"), world.Member("k.ellison"), world.Member("s.brightwell") };
+        var clinicians = new[]
+        {
+            world.Lead, world.Member(DemoStaff.DermatologistUsername), world.Member(DemoStaff.SkinGpUsername),
+            world.Member(DemoStaff.SkinCancerNurseUsername), world.Member(DemoStaff.DiabetesNurseUsername),
+            world.Member(DemoStaff.PharmacistUsername), world.Member(DemoStaff.PodiatristUsername),
+        };
 
         for (var i = 0; i < 18; i++)
         {
@@ -121,7 +130,7 @@ public static class DemoProcedures
             Standalone(world, Pick(world, patients, bookedAt), staff, slot.StartUtc, slot.EndUtc, world.Coordinator, bookedAt, notes[random.Next(notes.Length)]);
         }
 
-        // The lead's diary day: a full clinic of five, around lunch and the MDT, with free time left.
+        // The lead's diary day: a full clinic of five, around lunch and the day's meetings, with free time left.
         var day = world.Timeline.DiaryDay;
         var lead = world.Lead;
         var have = world.Appointments.Count(a => a.StaffUserId == lead.Id && a.StartUtc is { } s && UkTime.DateOf(s) == day
@@ -141,14 +150,14 @@ public static class DemoProcedures
     }
 
     /// <summary>
-    /// One walk-in (decision 74): a patient seen without a booking by s.brightwell on the last working day before today,
-    /// recorded after the event, the next working morning, by the booking coordinator, through
-    /// <see cref="AppointmentChange.RecordAfterEvent"/>. It's on the calendar flagged "Recorded after the event", and
-    /// s.brightwell has the "Appointment recorded" notification.
+    /// One walk-in (decision 74): a patient seen without a booking by the skin cancer nurse specialist on the last
+    /// working day before today, recorded after the event, the next working morning, by the booking coordinator,
+    /// through <see cref="AppointmentChange.RecordAfterEvent"/>. It's on the calendar flagged "Recorded after the
+    /// event", and the nurse has the "Appointment recorded" notification.
     /// </summary>
     private static void WalkIn(DemoWorld world, IReadOnlyList<PatientSeed> patients)
     {
-        var nurse = world.Member("s.brightwell");
+        var nurse = world.Member(DemoStaff.SkinCancerNurseUsername);
         var day = world.Timeline.Today.AddDays(-1);
         while (!DemoClosedDays.IsWorkingDay(day))
             day = day.AddDays(-1);
@@ -172,7 +181,7 @@ public static class DemoProcedures
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
             Status = AppointmentStatus.Requested,
-            Notes = "Walked in with a dressing query; dressing changed.",
+            Notes = "Walked in worried about a biopsy dressing; dressing changed.",
             IsAutomatic = false,
             CreatedAtUtc = recordedAt,
             CreatedByUserId = by.Id,
@@ -245,7 +254,9 @@ public static class DemoProcedures
             var count = random.NextDouble() < 0.3 ? 2 : 1;
             for (var i = 0; i < count; i++)
             {
-                var spec = DemoPathways.For(i == 0 ? Pathway.DayCase2024 : Pathway.Diagnostic);
+                // The skin clinic's old records: a lesion seen and sampled (for a child, a skin review), sometimes a review later.
+                var lesion = i == 0 && !patient.IsChildAt(patient.LastUpdatedUtc);
+                var spec = DemoPathways.For(lesion ? Pathway.SkinLesion2024 : Pathway.InflammatorySkin);
                 var kinds = ProcedureKinds.For(spec.Pathway);
                 var kind = kinds[random.Next(kinds.Count)];
                 var finished = patient.LastUpdatedUtc.AddDays(-random.Next(0, 40) - 60 * i);
@@ -305,7 +316,7 @@ public static class DemoProcedures
                     Id = id,
                     PatientId = patient.Id,
                     TemplateId = null,
-                    TemplateName = i == 0 ? "Imported record: day surgery" : "Imported record: diagnostics",
+                    TemplateName = lesion ? "Imported record: skin lesion clinic" : "Imported record: skin review clinic",
                     Title = kind.Title,
                     Notes = [note],
                     DueDateUtc = DueDates.EndOfDayUtc(DueDates.ToUkDate(created).AddDays(42)),

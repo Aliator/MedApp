@@ -10,15 +10,19 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// The admins' monitoring rules, made through the app's commands when each admin set them up: the lead's (about the
-/// new starter, a surgeon's high-priority stages, blocked work, due date changes, and one switched off since), and the
-/// service manager's once they became an admin.
+/// new starter, the dermatologist's treatment on high-priority work, the lab's reports on urgent work, blocked work,
+/// due date changes, and one switched off since), and the service manager's once they became an admin.
 /// </summary>
 public static class DemoMonitoring
 {
+    /// <summary>A rule to make: whom it watches (or anyone), the event, and its optional conditions.</summary>
+    private sealed record Rule(Guid? Subject, MonitoringEvent Event, string? MinimumPriority = null, Guid? Template = null, Guid? Stage = null);
+
     public static async Task<List<RuleState>> CreateAsync(
         SeedServices services,
         IReadOnlyList<StaffMember> staff,
         IReadOnlyDictionary<Pathway, Guid> templates,
+        IReadOnlyDictionary<string, Guid> stageDefinitions,
         DemoTimeline timeline,
         CancellationToken ct)
     {
@@ -26,23 +30,25 @@ public static class DemoMonitoring
         var manager = DemoStaff.Get(staff, DemoStaff.ManagerUsername);
         Guid Id(string username) => DemoStaff.Get(staff, username).Id;
 
-        var leadRules = new (Guid? Subject, MonitoringEvent Event, string? MinimumPriority, Guid? Template)[]
+        var leadRules = new Rule[]
         {
-            (Id(DemoStaff.NewStarterUsername), MonitoringEvent.ProcedureCreated, null, null),
-            (Id("r.calloway"), MonitoringEvent.StageFinished, "High", null),
-            (Id("r.calloway"), MonitoringEvent.ProcedureBlocked, null, null),
-            (Id("d.ashworth"), MonitoringEvent.ProcedureBlocked, null, null),
-            (null, MonitoringEvent.ProcedureBlocked, null, templates[Pathway.Diagnostic]),
-            (null, MonitoringEvent.DueDateChanged, null, null),
+            new(Id(DemoStaff.NewStarterUsername), MonitoringEvent.ProcedureCreated),
+            // Two rules that name a stage: the dermatologist's treatment on high-priority work, and the lab's reports on urgent work.
+            new(Id(DemoStaff.DermatologistUsername), MonitoringEvent.StageFinished, "High", Stage: stageDefinitions[DemoPathways.Treatment]),
+            new(null, MonitoringEvent.StageFinished, "Urgent", Stage: stageDefinitions[DemoPathways.Histology]),
+            new(Id(DemoStaff.DermatologistUsername), MonitoringEvent.ProcedureBlocked),
+            new(Id(DemoStaff.SkinGpUsername), MonitoringEvent.ProcedureBlocked),
+            new(null, MonitoringEvent.ProcedureBlocked, Template: templates[Pathway.PostMenopausalBleeding]),
+            new(null, MonitoringEvent.DueDateChanged),
             // Switched off later: the lead stopped wanting every unlock by the service manager.
-            (manager.Id, MonitoringEvent.StageUnlocked, null, null),
+            new(manager.Id, MonitoringEvent.StageUnlocked),
         };
-        var managerRules = new (Guid? Subject, MonitoringEvent Event, string? MinimumPriority, Guid? Template)[]
+        var managerRules = new Rule[]
         {
-            (null, MonitoringEvent.ProcedureCreated, "Urgent", templates[Pathway.Diagnostic]),
-            (null, MonitoringEvent.ProcedureCancelled, null, null),
-            (null, MonitoringEvent.ProcedureCompleted, null, templates[Pathway.DayCase]),
-            (lead.Id, MonitoringEvent.ProcedureAssigned, null, null),
+            new(null, MonitoringEvent.ProcedureCreated, "Urgent", templates[Pathway.PostMenopausalBleeding]),
+            new(null, MonitoringEvent.ProcedureCancelled),
+            new(null, MonitoringEvent.ProcedureCompleted, Template: templates[Pathway.Biomechanics]),
+            new(lead.Id, MonitoringEvent.ProcedureAssigned),
         };
 
         var created = new List<(Guid Id, DateTime At)>();
@@ -61,14 +67,14 @@ public static class DemoMonitoring
             .Select(c => new RuleState(rules.Single(r => r.Id == c.Id), c.At, c.Id == switchedOff.Id ? offAt : null))
             .ToList();
 
-        async Task Add(StaffMember owner, DateTime at, (Guid? Subject, MonitoringEvent Event, string? MinimumPriority, Guid? Template)[] wanted)
+        async Task Add(StaffMember owner, DateTime at, Rule[] wanted)
         {
             foreach (var (rule, i) in wanted.Select((r, i) => (r, i)))
             {
                 var when = at.AddMinutes(3 * i);
                 services.At(when, owner.ActivityActor);
                 var response = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(
-                    new CreateMonitoringRuleCommand(owner.Id, rule.Subject, rule.Event.ToString(), rule.MinimumPriority, rule.Template, null, true), ct)));
+                    new CreateMonitoringRuleCommand(owner.Id, rule.Subject, rule.Event.ToString(), rule.MinimumPriority, rule.Template, rule.Stage, true), ct)));
                 created.Add((response.Id, when));
             }
         }

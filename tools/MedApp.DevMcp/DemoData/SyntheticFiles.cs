@@ -6,7 +6,7 @@ namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
 /// Small, clearly synthetic files for the demo's attachments, made here with no new dependency: one-page PDFs written
-/// by hand, abstract PNG images drawn with SkiaSharp (which the app already uses for thumbnails), and plain text. Each
+/// by hand, abstract PNG images (a flow trace, a body map with a site marked, a programme's steps) drawn with SkiaSharp (which the app already uses for thumbnails), and plain text. Each
 /// says it's synthetic demo data. Nothing in them is a real person, place or record.
 /// </summary>
 public static class SyntheticFiles
@@ -59,15 +59,18 @@ public static class SyntheticFiles
             new string(text.Select(c => c < 128 ? c : '?').ToArray()).Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
     }
 
-    /// <summary>An ECG-like trace on a grid: abstract, labelled synthetic, with a heart rate drawn from the seed.</summary>
-    public static byte[] TracePng(int heartRate, Random random)
+    /// <summary>
+    /// A urine flow test's trace on a grid: a rise to a peak and a slower fall, abstract, labelled synthetic, with the
+    /// peak flow drawn from the seed.
+    /// </summary>
+    public static byte[] FlowTracePng(int peakFlow, Random random)
     {
         const int width = 640, height = 240;
         using var surface = SKSurface.Create(new SKImageInfo(width, height));
         var canvas = surface.Canvas;
-        canvas.Clear(new SKColor(255, 248, 248));
+        canvas.Clear(new SKColor(248, 251, 255));
 
-        using var grid = new SKPaint { Color = new SKColor(240, 190, 190), StrokeWidth = 1, IsAntialias = false };
+        using var grid = new SKPaint { Color = new SKColor(200, 215, 235), StrokeWidth = 1, IsAntialias = false };
         for (var x = 0; x < width; x += 16)
             canvas.DrawLine(x, 0, x, height, grid);
         for (var y = 0; y < height; y += 16)
@@ -75,31 +78,68 @@ public static class SyntheticFiles
 
         using var trace = new SKPaint { Color = new SKColor(30, 30, 60), StrokeWidth = 2, IsAntialias = true, Style = SKPaintStyle.Stroke };
         using var path = new SKPath();
-        var beat = Math.Max(60, 60 * 160 / Math.Max(40, heartRate));
-        var baseline = height * 0.6f;
-        path.MoveTo(0, baseline);
-        for (var start = 10; start < width; start += beat)
+        const float baseline = 210, left = 40, right = 600;
+        var top = baseline - Math.Clamp(peakFlow, 4, 30) * 6f;
+        var peakAt = left + (right - left) * (0.25f + (float)random.NextDouble() * 0.15f);
+        path.MoveTo(left, baseline);
+        for (var x = left; x <= right; x += 8)
         {
-            var jitter = (float)(random.NextDouble() * 4 - 2);
-            path.LineTo(start, baseline);
-            path.LineTo(start + 8, baseline - 10 + jitter);
-            path.LineTo(start + 16, baseline);
-            path.LineTo(start + 24, baseline + 12);
-            path.LineTo(start + 30, baseline - 90 + jitter * 3);
-            path.LineTo(start + 36, baseline + 25);
-            path.LineTo(start + 44, baseline);
-            path.LineTo(start + 70, baseline - 18 + jitter);
-            path.LineTo(start + 90, baseline);
+            // A quick rise to the peak, then a slower fall, with a little unevenness.
+            var along = x <= peakAt ? (x - left) / (peakAt - left) : 1 - (x - peakAt) / (right - peakAt);
+            var jitter = (float)(random.NextDouble() * 6 - 3);
+            path.LineTo(x, baseline - (baseline - top) * MathF.Sin(along * MathF.PI / 2) + jitter);
         }
 
-        path.LineTo(width, baseline);
+        path.LineTo(right, baseline);
         canvas.DrawPath(path, trace);
-        Label(canvas, $"Synthetic trace (demo) - rate {heartRate}", 12, 20);
+        Label(canvas, $"Synthetic flow trace (demo) - peak {peakFlow} ml/s", 12, 20);
         return Encode(surface);
     }
 
-    /// <summary>A simple diagram of an exercise progression: circles joined by arrows, labelled synthetic.</summary>
-    public static byte[] DiagramPng(IReadOnlyList<string> steps)
+    /// <summary>
+    /// A body map with one site marked, as a clinician might sketch where a lesion is: a plain figure and a cross,
+    /// labelled synthetic. No photograph, and nothing of a real person.
+    /// </summary>
+    public static byte[] SiteMapPng(string site)
+    {
+        const int width = 640, height = 260;
+        using var surface = SKSurface.Create(new SKImageInfo(width, height));
+        var canvas = surface.Canvas;
+        canvas.Clear(new SKColor(250, 250, 246));
+
+        using var line = new SKPaint { Color = new SKColor(90, 90, 90), StrokeWidth = 4, IsAntialias = true, Style = SKPaintStyle.Stroke };
+        canvas.DrawCircle(320, 62, 24, line);     // head
+        canvas.DrawLine(320, 86, 320, 170, line); // trunk
+        canvas.DrawLine(250, 112, 390, 112, line); // arms
+        canvas.DrawLine(320, 170, 285, 240, line); // legs
+        canvas.DrawLine(320, 170, 355, 240, line);
+
+        // The figure faces us, so its left is on our right.
+        var onItsLeft = site.Contains("left", StringComparison.OrdinalIgnoreCase);
+        float side = site.Contains("left", StringComparison.OrdinalIgnoreCase) || site.Contains("right", StringComparison.OrdinalIgnoreCase)
+            ? onItsLeft ? 1 : -1
+            : 0;
+        var (x, y) = site switch
+        {
+            _ when Has("scalp") => (320f, 40f),
+            _ when Has("temple") || Has("cheek") => (320 + side * 16, 62f),
+            _ when Has("shoulder") => (320 + side * 30, 110f),
+            _ when Has("forearm") || Has("arm") => (320 + side * 58, 112f),
+            _ when Has("shin") || Has("calf") || Has("leg") => (320 + side * 25, 215f),
+            _ => (320f, 128f), // the trunk: back, chest
+        };
+
+        using var mark = new SKPaint { Color = new SKColor(200, 40, 40), StrokeWidth = 4, IsAntialias = true };
+        canvas.DrawLine(x - 8, y - 8, x + 8, y + 8, mark);
+        canvas.DrawLine(x - 8, y + 8, x + 8, y - 8, mark);
+        Label(canvas, $"Site marked: {site} (synthetic demo)", 12, 24);
+        return Encode(surface);
+
+        bool Has(string word) => site.Contains(word, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>A simple diagram of a programme's steps: circles joined by lines, under a title, labelled synthetic.</summary>
+    public static byte[] DiagramPng(string title, IReadOnlyList<string> steps)
     {
         const int width = 640, height = 220;
         using var surface = SKSurface.Create(new SKImageInfo(width, height));
@@ -118,7 +158,7 @@ public static class SyntheticFiles
             Label(canvas, steps[i], x - 40, 165);
         }
 
-        Label(canvas, "Exercise progression (synthetic demo)", 12, 24);
+        Label(canvas, $"{title} (synthetic demo)", 12, 24);
         return Encode(surface);
     }
 

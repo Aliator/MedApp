@@ -86,7 +86,7 @@ Every place MedApp stores or sends personal data, field by field, from the code.
 | **The Azurite volume** (kind cluster) | The files, on a persistent volume in the cluster | Files' contents (synthetic only on kind) | Until the volume is deleted |
 | **Kubernetes Secrets and Key Vault** | Connection strings (the database, the backplane, and the storage account's, which carries its account key) and the first admin's password | The first admin's credentials | While deployed |
 | **GitHub** | Source code, CI logs, container images, documentation | **No customer personal data.** Commit author names and emails of the supplier's developers. Test data is synthetic only (`AGENTS.md`). | For the life of the repository |
-| **Developers' machines** | The local development database | **Synthetic data only**, from `medapp-dev`'s `reset_demo_data` (invented names, `@example.com` addresses) | Until reset |
+| **Developers' machines** | The local development database | **Synthetic data only**, from `tools/seed-demo-data.sh` (invented names, `@example.com` addresses, NHS numbers from the 999 test range) | Until reset |
 
 ## 3. Data flows
 

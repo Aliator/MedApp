@@ -24,7 +24,7 @@ From the repo root:
 
 ```bash
 deploy/kind/up.sh                         # an empty database, with a first admin
-deploy/kind/up.sh --demo-data kind-demo   # or the demo data (save a kind-demo snapshot with medapp-dev first, below)
+deploy/kind/up.sh --demo-data kind-demo   # or the demo data (save a kind-demo snapshot first, below)
 ```
 
 Then open **http://localhost:8080**, or **https://localhost:8443**, where the browser warns about the self-signed certificate.
@@ -88,7 +88,7 @@ If your cluster was made before https://localhost:8443 was added, the script say
 
 The first admin step then sees the demo accounts and changes nothing.
 
-Save a snapshot from the dev database by asking for medapp-dev's `save_snapshot` with the name `kind-demo`. `reset_demo_data` fills the dev database with the standard synthetic data and the `admin` login. The snapshot holds only the database: the demo's attached files' bytes stay in the AppHost's Azurite, so on kind their thumbnails and downloads are missing (`docs/demo-data.md`). The snapshot lands in `tools/MedApp.DevMcp/.backups/kind-demo.bak`, which is git-ignored. A path to any other `.bak` file works too.
+The demo data gets into a snapshot one way: `tools/seed-demo-data.sh --confirm --keep-users dev-parity --save-snapshot kind-demo` loads the dev database with the standard synthetic data and the `admin` login (`docs/demo-data.md`), then saves it as `kind-demo`. (medapp-dev's `save_snapshot` saves a database the script has already loaded.) Never fill the cluster's database by hand. The snapshot holds only the database: the demo's attached files' bytes stay in the AppHost's Azurite, so on kind their thumbnails and downloads are missing (`docs/demo-data.md`). The snapshot lands in `tools/MedApp.DevMcp/.backups/kind-demo.bak`, which is git-ignored. A path to any other `.bak` file works too.
 
 ## What's in it
 

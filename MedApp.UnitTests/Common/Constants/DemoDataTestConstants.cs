@@ -3,7 +3,7 @@ using MedApp.DevMcp.DemoData;
 
 namespace MedApp.UnitTests.Common.Constants;
 
-/// <summary>Synthetic values for the demo data set's helpers (medapp-dev's reset_demo_data).</summary>
+/// <summary>Synthetic values for the demo data set's helpers (tools/seed-demo-data.sh, and medapp-dev's reset_demo_data).</summary>
 public static class DemoDataTestConstants
 {
     /// <summary>"Now": 09:00 on Monday 16 November 2026, UTC and UK time alike (GMT).</summary>
@@ -19,10 +19,11 @@ public static class DemoDataTestConstants
     public static readonly Guid OtherStaffId = Guid.Parse("5eed0000-0000-0000-0000-000000000002");
     public static readonly Guid TheatreDayId = Guid.Parse("5eed0000-0000-0000-0000-0000000000d1");
 
-    /// <summary>A kind of procedure with a side, for the note builder.</summary>
-    public static ProcedureKind Knee => ProcedureKinds.KneeReplacement;
+    /// <summary>A kind of referral with a site on the body (a skin lesion), for the note builder.</summary>
+    public static ProcedureKind KindWithASite => ProcedureKinds.NonHealingLesion;
 
-    public static ProcedureKind Colonoscopy => ProcedureKinds.Colonoscopy;
+    /// <summary>A kind of referral without one (a diabetes review).</summary>
+    public static ProcedureKind KindWithoutASite => ProcedureKinds.Type2Diabetes;
 
     /// <summary>How many notes to build when checking they vary.</summary>
     public const int Samples = 40;
@@ -49,7 +50,7 @@ public static class DemoDataTestConstants
         }.Select(m => new TestCaseData(UkTime.ToUtc(DateOnly.FromDateTime(m.Uk), TimeOnly.FromDateTime(m.Uk))).SetArgDisplayNames(m.Name));
 
     /// <summary>
-    /// The clinic's staff as the seed makes them, with when each started and left and when the service manager became
+    /// The centre's staff as the seed makes them, with when each started and left and when the service manager became
     /// an admin, but no accounts.
     /// </summary>
     public static List<StaffMember> Staff(DemoTimeline timeline) =>

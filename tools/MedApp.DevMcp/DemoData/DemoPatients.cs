@@ -39,6 +39,9 @@ public sealed class PatientSeed
     public DateTime LastUpdatedUtc { get; set; }
     public PatientRole Role { get; init; }
     public Guid Id { get; set; }
+
+    /// <summary>Whether the invented first name is a woman's: two pathways see only women, or only men.</summary>
+    public bool Female { get; init; }
     public int Procedures { get; set; }
     public bool Restricted { get; set; }
 
@@ -60,16 +63,21 @@ public sealed class PatientSeed
     }
 }
 
-/// <summary>The clinic's patients: invented people, created through the app's own command.</summary>
+/// <summary>The centre's patients: invented people, created through the app's own command.</summary>
 public sealed class DemoPatients(DemoTimeline timeline, Random random)
 {
-    private static readonly string[] FirstNames =
+    private static readonly string[] WomensNames =
     [
         "Olivia", "Amelia", "Isla", "Ava", "Mia", "Grace", "Sophia", "Freya", "Evie", "Ruby", "Ella", "Chloe", "Priya",
         "Aisha", "Zara", "Maryam", "Niamh", "Siobhan", "Margaret", "Patricia", "Susan", "Janet", "Eileen", "Joan",
+        "Hazel", "Iris", "Maureen", "Sheila", "Barbara", "Lorna", "Wendy", "Carol",
+    ];
+
+    private static readonly string[] MensNames =
+    [
         "Oliver", "George", "Harry", "Noah", "Jack", "Leo", "Arthur", "Oscar", "Muhammad", "Ibrahim", "Arjun", "Rohan",
         "Kwame", "Tomasz", "Callum", "Rhys", "Ewan", "David", "Michael", "Peter", "Brian", "Kenneth", "Graham", "Derek",
-        "Hazel", "Iris", "Maureen", "Sheila", "Barbara", "Lorna", "Yusuf", "Bilal", "Stanley", "Roy", "Wendy", "Carol",
+        "Yusuf", "Bilal", "Stanley", "Roy", "Walter", "Frank", "Desmond", "Alan",
     ];
 
     private static readonly string[] LastNames =
@@ -87,31 +95,42 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
 
     public List<PatientSeed> All { get; } = [];
 
-    /// <summary>A new patient registered just before <paramref name="referredUtc"/>; a child only if <paramref name="mayBeChild"/>.</summary>
-    public PatientSeed NewPatient(DateTime referredUtc, bool mayBeChild, PatientRole role = PatientRole.Active)
+    /// <summary>
+    /// A new patient registered just before <paramref name="referredUtc"/>: mostly older adults, as a specialist centre
+    /// sees; a child only if <paramref name="mayBeChild"/>; a woman or a man, and no younger than
+    /// <paramref name="minimumAge"/>, where the pathway needs it.
+    /// </summary>
+    public PatientSeed NewPatient(DateTime referredUtc, bool mayBeChild, PatientRole role = PatientRole.Active, bool? female = null, int minimumAge = 0)
     {
-        var age = mayBeChild && random.NextDouble() < 0.12
-            ? random.Next(5, 17)
-            : random.NextDouble() switch
-            {
-                < 0.25 => random.Next(18, 45),
-                < 0.62 => random.Next(45, 70),
-                _ => random.Next(70, 94),
-            };
+        int age;
+        do
+        {
+            age = mayBeChild && random.NextDouble() < 0.07
+                ? random.Next(5, 17)
+                : random.NextDouble() switch
+                {
+                    < 0.15 => random.Next(18, 45),
+                    < 0.5 => random.Next(45, 70),
+                    _ => random.Next(70, 94),
+                };
+        }
+        while (age < minimumAge);
+
         var created = DemoTimeline.InWorkingHours(referredUtc.AddDays(-random.Next(0, 22)).AddMinutes(-random.Next(0, 400)), random);
         if (created > referredUtc)
             created = referredUtc.AddMinutes(-random.Next(10, 60));
         var dob = DateOnly.FromDateTime(referredUtc).AddYears(-age).AddDays(-random.Next(1, 360));
-        return Add(dob, created, role);
+        return Add(dob, created, role, female ?? random.NextDouble() < 0.5);
     }
 
-    private PatientSeed Add(DateOnly dateOfBirth, DateTime createdUtc, PatientRole role)
+    private PatientSeed Add(DateOnly dateOfBirth, DateTime createdUtc, PatientRole role, bool female)
     {
         // Every name is used once, so the summary and the tour can name a record and the patient search finds just it.
+        var firstNames = female ? WomensNames : MensNames;
         string first, last;
         do
         {
-            first = FirstNames[random.Next(FirstNames.Length)];
+            first = firstNames[random.Next(firstNames.Length)];
             last = LastNames[random.Next(LastNames.Length)];
         }
         while (!_names.Add($"{first} {last}"));
@@ -133,33 +152,38 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
             CreatedUtc = createdUtc,
             LastUpdatedUtc = createdUtc,
             Role = role,
+            Female = female,
         };
         All.Add(patient);
         return patient;
     }
 
     /// <summary>
-    /// For each procedure in time order, its patient: often someone already registered (a second referral, a
-    /// diagnostic test then an operation), otherwise someone new. Children only on the pathways that see them.
+    /// For each referral in time order, its patient: often someone already registered (a second referral: a skin lesion
+    /// one year, a diabetes review the next), otherwise someone new. Children only on the pathways that see them; women
+    /// only, or men only, and old enough, on the two pathways that need it.
     /// </summary>
     public void AssignPatients(IReadOnlyList<ProcedurePlan> plans)
     {
         foreach (var plan in plans.OrderBy(p => p.CreatedUtc))
         {
             var mayBeChild = ProcedureKinds.SeesChildren(plan.Pathway);
+            var (female, minimumAge) = ProcedureKinds.Sees(plan.Pathway);
             PatientSeed? patient = null;
-            if (random.NextDouble() < 0.62)
+            if (random.NextDouble() < 0.64)
             {
                 var eligible = All.Where(p => p.Role == PatientRole.Active
                                               && p.CreatedUtc < plan.CreatedUtc.AddDays(-1)
                                               && p.Procedures < 4
+                                              && (female is null || p.Female == female)
+                                              && p.AgeAt(plan.CreatedUtc) >= minimumAge
                                               && (mayBeChild || !p.IsChildAt(plan.CreatedUtc))).ToList();
                 // Someone with one procedure is likelier to come back than someone with three.
                 if (eligible.Count > 0)
                     patient = ProcedurePlans.Weighted(random, eligible.Select(p => (p, p.Procedures switch { 1 => 6, 2 => 3, _ => 1 })).ToArray());
             }
 
-            patient ??= NewPatient(plan.CreatedUtc, mayBeChild);
+            patient ??= NewPatient(plan.CreatedUtc, mayBeChild, female: female, minimumAge: minimumAge);
             patient.Procedures++;
             plan.Patient = patient;
         }
@@ -170,7 +194,7 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
     }
 
     /// <summary>
-    /// Patients imported from the older system when the clinic started using MedApp, with old closed records: some due
+    /// Patients imported from the older system when the centre started using MedApp, with old closed records: some due
     /// for the retention review now (adults 8 years after their last treatment; a child at 25), some not yet.
     /// </summary>
     public List<PatientSeed> AddImported()
@@ -195,7 +219,7 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
         {
             var dob = lastTreated.AddYears(-adultAge).AddDays(-random.Next(1, 360));
             var registered = UkDate(lastTreated.AddYears(-random.Next(1, 4)));
-            var patient = Add(dob, registered, role);
+            var patient = Add(dob, registered, role, random.NextDouble() < 0.5);
             patient.LastUpdatedUtc = UkDate(lastTreated).AddHours(random.Next(1, 7));
             return patient;
         }
@@ -216,7 +240,7 @@ public sealed class DemoPatients(DemoTimeline timeline, Random random)
         foreach (var patient in All)
         {
             var imported = patient.Role is PatientRole.ImportedDue or PatientRole.ImportedNotDue;
-            // Imported records were brought over by the service manager when the clinic started; the rest registered
+            // Imported records were brought over by the service manager when the centre started; the rest registered
             // by the booking coordinator as referrals came in.
             services.At(imported ? timeline.AppStartUtc.AddDays(-2) : patient.CreatedUtc, imported ? manager.ActivityActor : coordinator.ActivityActor);
             var created = await services.Run(sp => Guards.Validated(() => sp.GetRequiredService<IMediator>().Send(

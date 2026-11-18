@@ -3,7 +3,7 @@ using Priority = MedApp.Domain.Procedures.PatientProcedures.PatientProcedurePrio
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>How a procedure's story ends, beyond running its course.</summary>
+/// <summary>How a referral's story ends, beyond running its course.</summary>
 public enum Fate
 {
     Normal,
@@ -24,14 +24,18 @@ public enum Fate
     Deleted,
 }
 
-/// <summary>One procedure to replay: when it was referred, what for, and the twists its story takes.</summary>
+/// <summary>One referral to replay: when it came in, what for, and the twists its story takes.</summary>
 public sealed class ProcedurePlan
 {
     public required PathwaySpec Spec { get; init; }
     public Pathway Pathway => Spec.Pathway;
     public required DateTime CreatedUtc { get; init; }
     public required ProcedureKind Kind { get; init; }
+    /// <summary>Where on the body, for a kind with a site: chosen once, so every note names the same place.</summary>
     public string? Side { get; init; }
+
+    /// <summary>Which of the kind's outcomes this one has: chosen once, so its notes agree from stage to stage.</summary>
+    public int Outcome { get; init; }
     public required Priority Priority { get; init; }
     public bool Urgent => Priority == Priority.Urgent;
     public PatientSeed Patient { get; set; } = null!;
@@ -62,10 +66,10 @@ public sealed class ProcedurePlan
     /// <summary>The procedure replayed from this plan (set once its replay is kept).</summary>
     public Guid ProcedureId { get; set; }
 
-    public NoteContext NoteContext(int occurrence = 1, int occurrences = 1) => new(Kind, Side, Urgent, occurrence, occurrences);
+    public NoteContext NoteContext(int occurrence = 1, int occurrences = 1) => new(Kind, Side, Urgent, occurrence, occurrences, Outcome);
 }
 
-/// <summary>Plans every procedure: when each pathway's were referred (<see cref="VolumeCurves"/>), and their twists.</summary>
+/// <summary>Plans every referral: when each pathway's came in (<see cref="VolumeCurves"/>), and their twists.</summary>
 public static class ProcedurePlans
 {
     public static List<ProcedurePlan> Create(DemoTimeline timeline, Random random)
@@ -82,7 +86,8 @@ public static class ProcedurePlans
                     Spec = spec,
                     CreatedUtc = created,
                     Kind = kind,
-                    Side = kind.Side ? (random.NextDouble() < 0.5 ? "left" : "right") : null,
+                    Side = kind.Sites.Length > 0 ? kind.Sites[random.Next(kind.Sites.Length)] : null,
+                    Outcome = random.Next(kind.Outcomes.Length),
                     Priority = Weighted(random, spec.Priorities),
                 });
             }
@@ -100,14 +105,14 @@ public static class ProcedurePlans
             p.CreatedUtc >= now.AddDays(-fromDaysAgo) && p.CreatedUtc <= now.AddDays(-toDaysAgo);
         bool Free(ProcedurePlan p) => p.Fate == Fate.Normal && !p.Straggler;
 
-        // The old day-case pathway's last few, still finishing.
-        foreach (var plan in plans.Where(p => p.Pathway == Pathway.DayCase2024).TakeLast(3))
+        // The old skin lesion pathway's last few, still finishing.
+        foreach (var plan in plans.Where(p => p.Pathway == Pathway.SkinLesion2024).TakeLast(3))
             plan.Straggler = true;
 
-        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 70, 7) && p.Pathway is Pathway.Surgical or Pathway.Diagnostic or Pathway.DayCase or Pathway.Minor, 6))
+        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 70, 7) && p.Pathway is Pathway.Prostate or Pathway.PostMenopausalBleeding or Pathway.SkinLesion or Pathway.InflammatorySkin, 6))
             (plan.Fate, plan.FateStage) = (Fate.Blocked, random.Next(1, Math.Min(4, plan.Spec.Stages.Length)));
 
-        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 150, 80) && p.Pathway is Pathway.Surgical or Pathway.Diagnostic, 2))
+        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 150, 80) && p.Pathway is Pathway.Prostate or Pathway.PostMenopausalBleeding, 2))
             (plan.Fate, plan.FateStage) = (Fate.Unblocked, random.Next(1, 4));
 
         foreach (var plan in Choose(plans, p => Free(p) && p.CreatedUtc < now.AddDays(-10), 12))
@@ -119,23 +124,26 @@ public static class ProcedurePlans
         foreach (var plan in Choose(plans, p => Free(p) && Between(p, 200, 70), 2))
             (plan.Fate, plan.FateStage) = (Fate.Deleted, random.Next(0, 3));
 
-        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 90, 40) && p.Pathway is Pathway.Surgical or Pathway.Diagnostic, 4))
+        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 90, 40) && p.Pathway is Pathway.Prostate or Pathway.PostMenopausalBleeding, 4))
             plan.NeverBookStage = FirstVisitStage(plan, from: 1);
 
-        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 180, 60) && p.Pathway is Pathway.Surgical or Pathway.DayCase2024, 2))
-            plan.BypassStage = Array.FindIndex(plan.Spec.Stages, s => s.Definition == "Pre-assessment");
+        // The bloods and the sample were taken elsewhere, so an admin finished that stage without its visit.
+        foreach (var plan in Choose(plans, p => Free(p) && Between(p, 180, 60) && p.Pathway is Pathway.Prostate or Pathway.Diabetes, 2))
+            plan.BypassStage = Array.FindIndex(plan.Spec.Stages, s => s.Definition == DemoPathways.BloodAndUrineTests);
 
         foreach (var plan in Choose(plans, p => Free(p) && Between(p, 180, 21) && p.Spec.Stages.Length >= 4, 6))
             plan.UnlockStage = random.Next(1, Math.Min(4, plan.Spec.Stages.Length - 1));
 
         foreach (var plan in plans)
         {
-            var surgical = plan.Pathway is Pathway.Surgical or Pathway.DayCase or Pathway.DayCase2024;
-            plan.SecondAssignee = surgical && random.NextDouble() < 0.25;
-            if (surgical && Free(plan) && random.NextDouble() < 0.05)
+            // A nurse specialist (or the pharmacist) works alongside the lead on some skin lesion and diabetes pathways;
+            // now and then a skin lesion changes hands between the two skin clinicians.
+            var skinLesion = plan.Pathway is Pathway.SkinLesion or Pathway.SkinLesion2024;
+            plan.SecondAssignee = (skinLesion || plan.Pathway == Pathway.Diabetes) && random.NextDouble() < 0.25;
+            if (skinLesion && Free(plan) && random.NextDouble() < 0.05)
                 plan.ReassignStage = random.Next(2, Math.Min(5, plan.Spec.Stages.Length));
-            plan.EditDueDate = random.NextDouble() < (plan.Pathway == Pathway.Surgical ? 0.15 : 0.04);
-            plan.RaisePriority = plan.Pathway == Pathway.Diagnostic && !plan.Urgent && random.NextDouble() < 0.08;
+            plan.EditDueDate = random.NextDouble() < (plan.Pathway == Pathway.Prostate ? 0.3 : 0.06);
+            plan.RaisePriority = plan.Pathway == Pathway.PostMenopausalBleeding && !plan.Urgent && random.NextDouble() < 0.12;
             plan.EditNotes = random.NextDouble() < 0.07;
         }
 

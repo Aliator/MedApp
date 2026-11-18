@@ -158,7 +158,7 @@ None of the following has been assessed, and nothing in the repository claims co
 ### 2.4 Conventions
 
 The conventions are part of the architecture, because the code relies on them being followed:
-- `AGENTS.md`: backend feature slices, validation and errors, lists and paging, mapping, data access, procedures, notifications, migrations, auth, testing, CI and the git workflow.
+- `AGENTS.md`: the core every change needs (backend feature slices, validation and errors, lists and paging, mapping, data access, migrations, testing, CI and the git workflow), with a table of which area guide in `docs/agents/` (procedures, calendar, privacy, auth and the rest) to read before changing each area.
 - `MedApp.Web/AGENTS.md`: Astryx only, shared composites, routes and pages, server rendering rules, list pages, colours, forms, tests and accessibility.
 - `MedApp.Web/README.md`, `deploy/*/README.md` and `tools/*/README.md`: how each part is run.
 
@@ -693,7 +693,7 @@ It answers only GET and HEAD (others get 405). It builds the page's URL from `X-
 | Tool | Where | What it does |
 |---|---|---|
 | **Aspire AppHost** | `MedApp.AppHost/AppHost.cs` | Runs the dev stack with one command: SQL Server 2022 in a persistent container on `127.0.0.1:14330` with the `medapp-sql-data` volume; the API on its `https` profile (port 7038), waiting for the database; the React dev server on a fixed http://localhost:5173. Shows logs, traces and health on the Aspire dashboard. On publish, it builds the API from `MedApp.API/Dockerfile` and leaves the Vite server out. |
-| **`medapp-dev` MCP server** | `tools/MedApp.DevMcp` | Lets an AI agent manage local state through the app's own commands: accounts, roles, passwords, lockout, sessions, synthetic patients, migration status, whole-database snapshots, and `reset_demo_data` (6 staff accounts with generated passwords, 60 patients, 11 stage definitions and 4 templates with one of each archived, and about 80 procedures with a full audit trail). It refuses anything but a local database, protects `admin`, and needs `confirm: true` for destructive tools. It also creates the local `admin` / `admin` login, bypassing the password rules. |
+| **`medapp-dev` MCP server** | `tools/MedApp.DevMcp` | Lets an AI agent manage local state through the app's own commands: accounts, roles, passwords, lockout, sessions, synthetic patients, migration status, whole-database snapshots, and `reset_demo_data` (the demo data: a synthetic community specialist centre's 18 months, `docs/demo-data.md`). The same seeder runs from a terminal, with no agent: `tools/seed-demo-data.sh` (and `.ps1`) applies migrations, then loads the demo data, and is the only way demo data gets in. It refuses anything but a local database, protects `admin`, and needs `confirm: true` for destructive tools. It also creates the local `admin` / `admin` login, bypassing the password rules. |
 | **UI parity screenshots** | `tools/ui-parity` | Playwright captures of 46 screens, compared by eye. It compared Blazor and React during the migration; now it captures React. Signs in as a dedicated synthetic `dev-parity` admin. |
 | **Accessibility audit** | `tools/ui-parity`, `npm run a11y` | axe over every screen in dark, light and a colour theme, against WCAG 2.2 A and AA. About ten minutes. Not in CI. |
 | **End-to-end tests** | `MedApp.E2ETests`, `.github/workflows/e2e.yml` | Playwright for .NET journeys, run against the production image on `main` after every merge and on a pull request labelled `ci:full` (CI's `e2e` job), and by hand against a deployed URL (`e2e.yml`). Locally, against the AppHost. |
@@ -856,7 +856,7 @@ The app seeds no users, and never runs migrations at startup. A new database get
    The bundle unpacks into `/tmp`, because the root filesystem is read-only.
 3. **`create-first-admin`** (`FirstAdminSetup`) adds the `Admin` and `User` roles if they're missing. If there are **no accounts at all**, it creates the admin (username `admin` from the store, with its password) with both roles, in one transaction. If anyone exists, it changes nothing and never resets a password, so it's safe on every deploy.
 4. **Signing in.** On kind: `kubectl --context kind-medapp -n medapp-vault get secret medapp-first-admin -o jsonpath='{.data.password}' | base64 -d`. On Azure: the `MEDAPP_FIRST_ADMIN_PASSWORD` chosen at deploy time.
-5. **In development** there's no Job. Migrations are applied by hand with `dotnet ef database update`, and `medapp-dev`'s `reset_demo_data` loads the demo data with the `admin` / `admin` test login, which exists only in local databases.
+5. **In development** there's no Job. `tools/seed-demo-data.sh` applies the migrations (`dotnet ef database update`), then loads the demo data with the `admin` / `admin` test login, which exists only in local databases.
 
 ---
 
@@ -874,7 +874,7 @@ The app seeds no users, and never runs migrations at startup. A new database get
 | **Backplane** | None (one copy) | Valkey | Valkey |
 | **Secrets** | Aspire's generated `sa` password in the AppHost's user secrets | External Secrets from a stand-in store (`medapp-vault`) | External Secrets from Key Vault |
 | **TLS** | None on 5173; the dev certificate on 7038 | cert-manager, self-signed | cert-manager, Let's Encrypt |
-| **Data** | Synthetic demo data (`reset_demo_data`) | Empty with a first admin, or a demo snapshot | Empty with a first admin |
+| **Data** | Synthetic demo data (`tools/seed-demo-data.sh`) | Empty with a first admin, or a demo snapshot | Empty with a first admin |
 
 ### 7.2 Local development
 
@@ -1042,7 +1042,8 @@ On a new, empty database, apply the migrations, then load the demo data:
 PW=$(dotnet user-secrets list --project MedApp.AppHost | sed -n 's/^Parameters:sql-password = //p')
 dotnet ef database update --project MedApp.Infrastructure --startup-project MedApp.API \
   --connection "Server=127.0.0.1,14330;Database=MedApp;User ID=sa;Password=$PW;TrustServerCertificate=True"
-dotnet build tools/MedApp.DevMcp      # then ask the agent for medapp-dev's reset_demo_data
+tools/seed-demo-data.sh --confirm     # or let it do both: migrations, then the demo data (docs/demo-data.md)
+dotnet build tools/MedApp.DevMcp      # the medapp-dev MCP server, for the agent's local chores
 ```
 
 Sign in as `admin` / `admin`. Before calling a change done, check what it touched, in Release (CI runs everything):
@@ -1056,7 +1057,7 @@ cd MedApp.Web && npx vitest run <changed tests> && npm run typecheck && npx esli
 
 ```bash
 deploy/kind/up.sh                         # an empty database with a first admin
-deploy/kind/up.sh --demo-data kind-demo   # or a medapp-dev snapshot called kind-demo
+deploy/kind/up.sh --demo-data kind-demo   # or a snapshot of the demo data called kind-demo (tools/seed-demo-data.sh --save-snapshot kind-demo)
 deploy/kind/up.sh --argocd                # or have Argo CD follow env/kind
 deploy/kind/down.sh                       # delete the cluster
 ```

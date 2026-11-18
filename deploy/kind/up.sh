@@ -8,7 +8,8 @@
 # that exists.
 #
 #   deploy/kind/up.sh                        # an empty database, with a first admin (see README.md)
-#   deploy/kind/up.sh --demo-data kind-demo  # replace the database with a medapp-dev snapshot (tools/MedApp.DevMcp/.backups)
+#   deploy/kind/up.sh --demo-data kind-demo  # replace the database with a snapshot of the demo data, which
+#                                            # tools/seed-demo-data.sh --save-snapshot kind-demo makes (tools/MedApp.DevMcp/.backups)
 #   deploy/kind/up.sh --argocd               # GitOps instead: Argo CD deploys what's in git (deploy/argocd/README.md)
 #   deploy/kind/up.sh --argocd --revision feature/x   # ... with the chart and values from a branch
 #

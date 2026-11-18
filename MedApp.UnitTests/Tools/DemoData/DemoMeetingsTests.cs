@@ -62,7 +62,7 @@ public sealed class DemoMeetingsTests
         var (timeline, _, calendars) = Plan(nowUtc);
         var titles = calendars.Meetings.Select(m => m.Title).ToHashSet();
 
-        titles.Should().Contain([DemoMeetings.Huddle, DemoMeetings.Mdt, DemoMeetings.Governance, DemoMeetings.OneToOne, DemoMeetings.TheatrePlanning]);
+        titles.Should().Contain([DemoMeetings.Huddle, DemoMeetings.SkinCancerTeam, DemoMeetings.Governance, DemoMeetings.OneToOne, DemoMeetings.ListPlanning]);
         titles.Intersect(MeetingSchedule.TrainingTitles).Should().HaveCountGreaterThan(3, "training runs every six weeks");
         calendars.Meetings.Should().Contain(m => m.EndUtc <= timeline.NowUtc).And.Contain(m => m.StartUtc > timeline.NowUtc.AddDays(14));
         calendars.Meetings.Count(m => m.Title == DemoMeetings.Huddle).Should().BeGreaterThan(VolumeCurves.HistoryWeeks - 2, "one each Monday");
@@ -75,7 +75,7 @@ public sealed class DemoMeetingsTests
         var plan = calendars.MeetingPlan;
         var recent = plan.RecentNotifications.ToList();
 
-        plan.Replanned.Should().NotBeNull("theatre list planning moved, with the coordinator added");
+        plan.Replanned.Should().NotBeNull("minor surgery list planning moved, with the coordinator added");
         plan.Cancelled.Should().NotBeNull("the away day planning meeting was cancelled");
         calendars.Meetings.Should().NotContain(plan.Cancelled!.Meeting, "a cancelled meeting is deleted");
         plan.Stories.Count(s => s.Changes > 0).Should().BeGreaterThan(5, "leave booked later took people off, and newcomers were added");
@@ -99,7 +99,7 @@ public sealed class DemoMeetingsTests
             notification.ProcedureId.Should().BeNull();
             notification.AppointmentId.Should().BeNull();
 
-            // "admin invited you to 'MDT', ...": by an admin, never to themselves, about a meeting by its title.
+            // "admin invited you to 'Skin cancer team meeting', ...": by an admin, never to themselves, about a meeting by its title.
             var by = staff.Single(s => notification.Message.StartsWith($"{s.Username} "));
             notification.UserId.Should().NotBe(by.Id, "nobody is told about their own change");
             titles.Should().Contain(t => notification.Message.Contains($"'{t}'"));

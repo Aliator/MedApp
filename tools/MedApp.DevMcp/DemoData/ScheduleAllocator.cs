@@ -61,7 +61,7 @@ public sealed class ScheduleAllocator
     /// <summary>
     /// The first day from <paramref name="earliestUtc"/> with a free time of <paramref name="minutes"/> for this person,
     /// and a time on it chosen at random from the free ones. Days whose day template <paramref name="preferDay"/>
-    /// accepts are tried first (theatre days for operations, say), within <paramref name="searchDays"/>; then any day;
+    /// accepts are tried first (minor surgery lists for biopsies, say), within <paramref name="searchDays"/>; then any day;
     /// then further ahead. Now and then (<paramref name="skipChance"/>) a day with room is passed over, as when a
     /// patient can't come on the first date offered. Null if nothing is free within a year.
     /// </summary>

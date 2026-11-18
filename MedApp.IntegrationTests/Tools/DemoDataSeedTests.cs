@@ -26,7 +26,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MedApp.IntegrationTests.Tools;
 
 /// <summary>
-/// medapp-dev's demo data set (<see cref="DemoDataSeeder"/>), run in full at a fixed moment on a fresh database of its
+/// The demo data set (<see cref="DemoDataSeeder"/>, which tools/seed-demo-data.sh and medapp-dev both run), run in full at a fixed moment on a fresh database of its
 /// own on the test SQL Server, with the test Azurite for files, then checked against the rules the app enforces:
 /// visits before finishing, no calendar clashes (appointments, stored blocks and meetings alike), personal templates,
 /// meeting notifications without patient details, bookings with whoever started
@@ -202,7 +202,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     }
 
     /// <summary>
-    /// The clinic's closed days are England and Wales bank holidays, for every year the story covers and the next, and
+    /// The centre's closed days are England and Wales bank holidays, for every year the story covers and the next, and
     /// the calendars know them.
     /// </summary>
     [Test]
@@ -338,7 +338,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
     public async Task Insights_DifferForEveryPeriodAndTemplate()
     {
         var templates = await Query(db => db.PatientProcedureStageTemplates.AsNoTracking().Select(t => (Guid?)t.Id).ToListAsync());
-        templates.Should().HaveCount(6);
+        templates.Should().HaveCount(7, "six pathways the centre runs, and the archived one");
 
         var results = new Dictionary<(int Weeks, Guid? Template), ProcedureInsightsResponse>();
         foreach (var weeks in Periods)
@@ -390,7 +390,8 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         patients.Should().HaveCountGreaterThan(200);
         patients.Where(p => p.NhsNumber != null).Should().OnlyContain(p => p.NhsNumber!.StartsWith("999") && NhsNumbers.IsValid(p.NhsNumber));
         patients.Where(p => p.AnonymisedAtUtc == null).Should().OnlyContain(p => p.Email.EndsWith("@example.com"));
-        users.SelectMany(u => new[] { u.Email, u.PendingEmail }).OfType<string>().Should().OnlyContain(e => e.EndsWith("@clinic.example"));
+        users.SelectMany(u => new[] { u.Email, u.PendingEmail }).OfType<string>().Should().OnlyContain(e => e.EndsWith("@" + DemoStaff.EmailDomain));
+        DemoStaff.EmailDomain.Should().EndWith(".example", "a reserved name, so no address is anyone's");
 
         patients.Where(p => p.AnonymisedAtUtc == null).Select(p => $"{p.FirstName} {p.LastName}")
             .Should().OnlyHaveUniqueItems("the summary and the tour name records, so a name must find one record");

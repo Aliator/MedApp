@@ -41,6 +41,45 @@ public sealed class DemoReferenceDataTests
             stage.VisitMinutes.Should().BePositive($"{stage.Definition} needs a visit, so the seed books one");
     }
 
+    /// <summary>Every definition is used by a pathway, but the retired one; and the archived pathway is the only archived one.</summary>
+    [Test]
+    public void Pathways_UseEveryLiveDefinition_AndOneIsArchived()
+    {
+        var used = DemoPathways.Pathways.SelectMany(p => p.Stages).Select(s => s.Definition).ToHashSet();
+
+        DemoPathways.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).Should().BeEquivalentTo(used);
+        DemoPathways.Definitions.Should().ContainSingle(d => d.IsArchived);
+        DemoPathways.Pathways.Should().ContainSingle(p => p.IsArchived).Which.Pathway.Should().Be(Pathway.SkinLesion2024);
+        DemoPathways.Pathways.Select(p => p.TemplateName).Should().OnlyHaveUniqueItems();
+    }
+
+    /// <summary>
+    /// Visits are needed where the patient must be seen, suggested where a call often does, and never for the lab's work
+    /// or a letter.
+    /// </summary>
+    [Test]
+    public void Definitions_VisitRequirements_FitTheWork()
+    {
+        var visits = DemoPathways.Definitions.ToDictionary(d => d.Name, d => d.Visit);
+
+        new[] { DemoPathways.FirstClinicVisit, DemoPathways.BiopsyOrSample, DemoPathways.Treatment, DemoPathways.BloodAndUrineTests, DemoPathways.ClinicReview, DemoPathways.BiomechanicsSession }
+            .Should().OnlyContain(name => visits[name] == VisitRequirement.Required);
+        new[] { DemoPathways.FollowUp, DemoPathways.ResultsAndTeamReview, DemoPathways.MedicinesReview }
+            .Should().OnlyContain(name => visits[name] == VisitRequirement.Suggested);
+        new[] { DemoPathways.ReferralReceived, DemoPathways.Triage, DemoPathways.Histology, DemoPathways.LabTests, DemoPathways.DischargeLetter }
+            .Should().OnlyContain(name => visits[name] == VisitRequirement.None);
+    }
+
+    /// <summary>The two pathways that see only women, or only men, see only adults old enough; children only where the story says.</summary>
+    [Test]
+    public void Sees_TheTwoSingleSexPathways_SeeOnlyOlderAdults()
+    {
+        ProcedureKinds.Sees(Pathway.PostMenopausalBleeding).Should().Be((true, 50));
+        ProcedureKinds.Sees(Pathway.Prostate).Should().Be((false, 50));
+        ProcedureKinds.Sees(Pathway.Diabetes).Should().Be(((bool?)null, 0));
+        Enum.GetValues<Pathway>().Where(ProcedureKinds.SeesChildren).Should().BeEquivalentTo([Pathway.InflammatorySkin, Pathway.Biomechanics]);
+    }
+
     [Test]
     public void SyntheticNhsNumber_IsValidAndInThe999TestRange()
     {
@@ -56,8 +95,10 @@ public sealed class DemoReferenceDataTests
         var random = new Random(Seed);
 
         Sniff(SyntheticFiles.Pdf("Report", ["Line one", "Line (two)"]), "Report.pdf").Should().Be(AttachmentFileTypes.Pdf);
-        Sniff(SyntheticFiles.TracePng(72, random), "ECG.png").Should().Be(AttachmentFileTypes.Png);
-        Sniff(SyntheticFiles.DiagramPng(["Range", "Strength"]), "Plan.png").Should().Be(AttachmentFileTypes.Png);
+        Sniff(SyntheticFiles.FlowTracePng(12, random), "Flow test.png").Should().Be(AttachmentFileTypes.Png);
+        Sniff(SyntheticFiles.DiagramPng("Home programme", ["Stretch", "Strength"]), "Home programme.png").Should().Be(AttachmentFileTypes.Png);
+        foreach (var site in DemoPathways.Pathways.SelectMany(p => ProcedureKinds.For(p.Pathway)).SelectMany(k => k.Sites).Distinct())
+            Sniff(SyntheticFiles.SiteMapPng(site), "Lesion site map.png").Should().Be(AttachmentFileTypes.Png, site);
         Sniff(SyntheticFiles.Text("Note", ["Called the patient."]), "Note.txt").ContentType.Should().StartWith("text/plain");
 
         static AttachmentFileType Sniff(byte[] bytes, string name) => FileTypeSniffer.Identify(new MemoryStream(bytes), name);

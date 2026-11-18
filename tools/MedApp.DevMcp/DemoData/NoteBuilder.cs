@@ -1,73 +1,77 @@
-using System.Globalization;
 using System.Text;
 
 namespace MedApp.DevMcp.DemoData;
 
-/// <summary>What a stage note is about, beyond the stage: the procedure, which side, and where it is in a course.</summary>
-/// <param name="Kind">The kind of procedure.</param>
-/// <param name="Side">"left" or "right" for a procedure with a side, else null.</param>
-/// <param name="Urgent">An urgent (two-week-wait) referral.</param>
-/// <param name="Occurrence">Which time this stage comes round in the procedure (1 for the first), e.g. the second consultation.</param>
-/// <param name="Occurrences">How many times this stage comes round in the procedure.</param>
-public sealed record NoteContext(ProcedureKind Kind, string? Side, bool Urgent, int Occurrence = 1, int Occurrences = 1);
+/// <summary>What a stage note is about, beyond the stage: the referral, its site, and where it is in a course.</summary>
+/// <param name="Kind">The kind of referral.</param>
+/// <param name="Side">Where on the body ("left forearm"), for a kind with a site, else null.</param>
+/// <param name="Urgent">An urgent referral.</param>
+/// <param name="Occurrence">Which time this stage comes round in the pathway (1 for the first), e.g. the second session.</param>
+/// <param name="Occurrences">How many times this stage comes round in the pathway.</param>
+/// <param name="Outcome">Which of the kind's outcomes this referral has, so its notes agree from stage to stage.</param>
+public sealed record NoteContext(ProcedureKind Kind, string? Side, bool Urgent, int Occurrence = 1, int Occurrences = 1, int Outcome = 0)
+{
+    /// <summary>How this referral turns out: what was found, what the lab said and the plan.</summary>
+    public KindOutcome Result => Kind.Outcomes[Outcome % Kind.Outcomes.Length];
+}
 
 /// <summary>
-/// Builds the free text staff write, from parts: stage notes that depend on the stage and the kind of procedure, with
-/// synthetic observations, measurements, results in words, medicine changes and safety-netting; and the reasons and
-/// notes around them (blocking, cancelling, appointments, corrections). Each note is put together from several
-/// choices and numbers, so two procedures of the same kind don't read the same. Notes say "the patient", never a
-/// name, and mention no real people, places, organisations or brands (only generic medicines).
+/// Builds the free text staff write, from parts: stage notes that depend on the stage and the kind of referral, with
+/// synthetic lesion descriptions, biopsy sites, measurements, results in words, plans and safety-netting; and the
+/// reasons and notes around them (blocking, cancelling, appointments, corrections). Each note is put together from
+/// several choices and numbers, so two referrals of the same kind don't read the same, while one referral's notes
+/// agree with each other (its site and its outcome are chosen once). Notes say "the patient", never a name, and
+/// mention no real people, places, organisations or brands (only generic medicines).
 /// </summary>
 public static class NoteBuilder
 {
-    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
-
     /// <summary>A finished stage's notes: a sentence to a short paragraph, sometimes with a list or a bold point.</summary>
     public static string StageNote(string stage, NoteContext context, Random random)
     {
         var parts = stage switch
         {
-            "Referral received" => Referral(context, random),
-            "Triage" => Triage(context, random),
-            "Consultation" => context.Occurrence > 1 ? SecondConsultation(context, random) : Consultation(context, random),
-            "Pre-assessment" => PreAssessment(context, random),
-            "Consent" => Consent(context, random),
-            "Scheduling" => Scheduling(context, random),
-            "Procedure" => Procedure(context, random),
-            "Recovery" => Recovery(context, random),
-            "Wound check" => WoundCheck(context, random),
-            "Post-procedure review" => PostProcedureReview(context, random),
-            "Results review" => ResultsReview(context, random),
-            "Follow-up" => FollowUp(context, random),
-            "Physiotherapy session" => PhysioSession(context, random),
-            "Discharge" => Discharge(context, random),
-            _ => [$"Completed. Nothing further to add."],
+            DemoPathways.ReferralReceived => Referral(context, random),
+            DemoPathways.Triage => Triage(context, random),
+            DemoPathways.FirstClinicVisit => FirstClinicVisit(context, random),
+            DemoPathways.BiopsyOrSample => BiopsyOrSample(context, random),
+            DemoPathways.Histology => Histology(context, random),
+            DemoPathways.ResultsAndTeamReview => ResultsAndTeamReview(context, random),
+            DemoPathways.Treatment => Treatment(context, random),
+            DemoPathways.FollowUp => FollowUp(context, random),
+            DemoPathways.DischargeLetter => DischargeLetter(context, random),
+            DemoPathways.BloodAndUrineTests => BloodAndUrineTests(context, random),
+            DemoPathways.LabTests => LabTests(context, random),
+            DemoPathways.ClinicReview => ClinicReview(context, random),
+            DemoPathways.MedicinesReview => MedicinesReview(context, random),
+            DemoPathways.BiomechanicsSession => BiomechanicsSession(context, random),
+            _ => ["Completed. Nothing further to add."],
         };
 
-        return Compose(parts, random);
+        return Compose(parts);
     }
 
     /// <summary>A note started on a stage still under way: what's been done so far, or what it's waiting for.</summary>
     public static string ProgressNote(string stage, NoteContext context, Random random) => stage switch
     {
-        "Pre-assessment" => Pick(random,
-            "Questionnaire returned. Bloods requested; awaiting results before the face-to-face assessment.",
-            $"Started by phone: medication list taken. {MedicineChange(random)}",
-            "Awaiting the GP summary before the assessment."),
-        "Scheduling" => Pick(random,
-            "Waiting for a theatre slot; patient happy to take a short-notice date.",
-            "Two dates offered by phone; patient to call back.",
-            "On the list for the next available slot. Preparation pack ready to post."),
-        "Consultation" => Pick(random,
+        DemoPathways.Triage => "Referral read; waiting for the GP's medication list before choosing the clinic.",
+        DemoPathways.FirstClinicVisit => Pick(random,
             $"Referral reviewed ahead of clinic: {Pick(random, context.Kind.Indications)}.",
-            "GP letter and previous results reviewed before the appointment."),
-        "Consent" => "Information leaflet sent; consent to be confirmed at the next visit.",
-        "Results review" => Pick(random,
-            "Awaiting histology.",
-            "Histology reported; to discuss with the patient by phone.",
-            "Results back; call booked with the patient."),
-        "Physiotherapy session" => $"Home exercise sheet sent ahead of session {context.Occurrence}.",
-        "Triage" => "Referral reviewed; awaiting the GP's blood results before deciding the route.",
+            "GP letter and earlier results reviewed before the visit."),
+        DemoPathways.BiopsyOrSample => "Information leaflet sent; consent to be confirmed on the day.",
+        DemoPathways.Histology => Pick(random,
+            "Specimen booked in; processing.",
+            "In processing: slides due tomorrow.",
+            "Waiting for extra levels before reporting."),
+        DemoPathways.ResultsAndTeamReview => Pick(random,
+            "On the list for the next team meeting.",
+            "Report back; call booked with the patient.",
+            "Waiting for the report."),
+        DemoPathways.Treatment => "Listed for the next minor surgery list; aftercare leaflet sent.",
+        DemoPathways.BloodAndUrineTests => "Request forms printed; patient asked to bring a urine sample.",
+        DemoPathways.LabTests => "Samples booked in; on the afternoon run.",
+        DemoPathways.ClinicReview => "Results back; to go through them at the visit.",
+        DemoPathways.MedicinesReview => "Medication list asked for from the GP surgery.",
+        DemoPathways.BiomechanicsSession => $"Home programme sheet sent ahead of session {context.Occurrence}.",
         _ => Pick(random, "Started; notes to follow.", "In progress.", "Working on this today."),
     };
 
@@ -75,16 +79,16 @@ public static class NoteBuilder
     public static string Correction(string original, NoteContext context, Random random)
     {
         var fix = Pick(random,
-            $"Allergy status updated: penicillin allergy (rash) was missed in the first entry.",
+            "Allergy status updated: penicillin allergy (rash) was missed in the first entry.",
             $"Weight corrected to {random.Next(62, 96)} kg (typed in error); BMI recalculated as {random.Next(22, 33)}.",
-            $"Medication list updated: also takes amlodipine 5 mg once daily.",
-            context.Side is { } side
-                ? $"Side corrected: this is the {side} side, as on the consent form."
-                : "Date of the previous procedure corrected from the GP letter.");
+            "Medication list updated: also takes amlodipine 5 mg once a day.",
+            context.Side is { } site
+                ? $"Site corrected: this is the {site}, as on the referral and the request form."
+                : "Date of the earlier clinic letter corrected from the GP's copy.");
         return $"{original}\n\n**Correction:** {fix}";
     }
 
-    /// <summary>A procedure's own notes, when it's created (often empty).</summary>
+    /// <summary>A pathway record's own first note, when it's created (often empty).</summary>
     public static string ProcedureNote(NoteContext context, Random random)
     {
         if (random.NextDouble() < 0.35)
@@ -93,31 +97,31 @@ public static class NoteBuilder
         return Pick(random,
             "Patient prefers a morning appointment.",
             $"Interpreter needed ({Pick(random, "Polish", "Urdu", "Romanian", "Portuguese", "Arabic")}).",
-            "Lives alone: confirm an escort and someone at home for the first night.",
-            "Takes apixaban: anticoagulation plan needed before the procedure.",
-            "Takes warfarin: INR check and bridging plan to agree with the GP.",
-            "Previous difficult cannulation noted.",
-            "Type 2 diabetes on metformin: first on the list if possible.",
+            "Needs step-free access and a ground-floor room.",
+            "Takes apixaban: to note before any biopsy.",
+            "Takes warfarin: INR needed in the week before any biopsy.",
+            "Needle phobia: allow extra time for bloods.",
+            "Type 2 diabetes on metformin.",
             "Hard of hearing: please speak clearly, face to face.",
-            "Carer attends appointments with the patient.",
-            $"Referred for {Pick(random, context.Kind.Indications)}.");
+            "Carer comes to appointments with the patient.",
+            $"Referred with {Pick(random, context.Kind.Indications)}.");
     }
 
-    /// <summary>An edit to a procedure's notes: what it said, with an update added.</summary>
+    /// <summary>An edit to a pathway record's note: what it said, with an update added.</summary>
     public static string ProcedureNoteUpdate(string current, Random random)
     {
         var update = Pick(random,
-            "Update: patient now has an escort arranged.",
-            "Update: anticoagulation plan agreed with the GP.",
+            "Update: transport booked for the visit.",
+            "Update: interpreter booked.",
             "Update: prefers telephone contact after 10:00.",
-            "Update: transport booked for the day.",
+            "Update: carer's phone number added to the record.",
             "Update: GP summary received and scanned.");
         return string.IsNullOrEmpty(current) ? update : $"{current} {update}";
     }
 
     /// <summary>
-    /// A note added to a procedure after a stage, by whoever finished it: what happens next, for the rest of the team.
-    /// Synthetic, and about "the patient", never a name.
+    /// A note added to a pathway record after a stage, by whoever finished it: what happens next, for the rest of the
+    /// team. Synthetic, and about "the patient", never a name.
     /// </summary>
     public static string ProcedureFollowUpNote(string stage, StageRole role, Random random) => role switch
     {
@@ -125,21 +129,25 @@ public static class NoteBuilder
             $"{stage} done. Letter sent to the patient with the next steps.",
             $"{stage} done. Patient called to confirm; prefers contact by phone after 10:00.",
             "Patient asked for a copy of the clinic letter: posted today."),
-        StageRole.PreAssessment => Pick(random,
-            "Pre-op bloods normal. **Stop apixaban 48 hours before** the procedure; patient aware.",
-            $"Fit for day surgery. BMI {random.Next(22, 33)}; no anaesthetic concerns raised.",
-            "Patient anxious about the anaesthetic: anaesthetist to see on the day."),
-        StageRole.Ward => Pick(random,
-            "Discharged home with an escort. Wound care leaflet given.",
-            $"Pain controlled on paracetamol. Eating and drinking; observations stable (NEWS2 {random.Next(0, 2)}).",
-            "District nurse referral sent for wound checks."),
-        StageRole.FollowUp => Pick(random,
-            "Spoke to the patient: recovering well, back to normal activities.",
-            "Results discussed with the patient by phone; letter to the GP to follow.",
-            "Patient to self-refer if symptoms return within six months."),
+        StageRole.Lab => Pick(random,
+            "Report authorised; slides kept out for the team meeting.",
+            "Result phoned to the clinician, as the request form asked.",
+            $"Reported in {random.Next(2, 9)} working days. Block reference is on the report."),
+        StageRole.Samples => Pick(random,
+            "Bloods and urine taken; in the lab the same morning.",
+            "Patient felt faint after the bloods: fine after ten minutes lying down. Advised to eat beforehand next time.",
+            "Sample pot given for a repeat urine sample: to drop it in on Monday."),
+        StageRole.Nurse => Pick(random,
+            "Spoke to the patient: doing well, back to normal activities.",
+            "Results gone through again with the patient by phone; letter to the GP to follow.",
+            "Patient has the nurse specialist's phone line for any worries."),
+        StageRole.Pharmacist => Pick(random,
+            "Medication list in the record brought up to date.",
+            "GP surgery told of the change by letter.",
+            "Patient to phone if the new medicine doesn't suit them."),
         _ => Pick(random,
             $"{stage} done. Plan discussed with the patient, who is happy to go ahead.",
-            "Discussed at the weekly MDT: plan unchanged.",
+            "Discussed at the weekly team meeting: plan unchanged.",
             "GP letter dictated."),
     };
 
@@ -148,25 +156,25 @@ public static class NoteBuilder
         $"{current} {Pick(random, "(Edited: date confirmed with the patient.)", "(Edited: GP informed.)", "(Edited: typo corrected.)")}";
 
     public static string BlockReason(Random random) => Pick(random,
-        "Waiting for the GP to confirm the anticoagulation plan.",
+        "Waiting for the GP to send the medication list and earlier clinic letters.",
         "Patient unwell with a chest infection; on hold until recovered.",
-        "Abnormal pre-op ECG: waiting for a cardiology opinion.",
-        "HbA1c 79 mmol/mol: on hold until diabetes control improves.",
-        "Awaiting an interpreter for the consent discussion.",
-        "Patient asked to pause for a few weeks for family reasons.");
+        "Waiting for an interpreter for the next visit.",
+        "Patient asked to pause for a few weeks for family reasons.",
+        "Patient abroad until next month; visits on hold.",
+        "Waiting for records from the hospital that treated the patient before.");
 
     public static string CancelReason(Random random) => Pick(random,
         "Patient chose not to go ahead after discussing the options.",
-        "Symptoms resolved; procedure no longer needed.",
-        "Duplicate referral: already listed under another procedure.",
+        "Symptoms settled; no longer needed.",
+        "Duplicate referral: already open under another pathway.",
         "Patient moved out of the area; care transferred.",
-        "Not fit for an anaesthetic; managed conservatively instead.",
-        "Patient opted for treatment elsewhere.");
+        "Referred on to the hospital service instead.",
+        "Patient opted to be seen elsewhere.");
 
     /// <summary>Why an admin finished a stage that needs a visit without one: the rare, audited bypass.</summary>
     public static string BypassReason(Random random) => Pick(random,
-        "Pre-assessment completed by phone: the patient was abroad until the week before surgery. GP bloods and ECG reviewed.",
-        "Seen on the ward during an unplanned admission; no separate clinic visit needed.");
+        "Bloods and urine sample taken at the GP surgery the week before; results received and filed. No visit needed here.",
+        "Samples taken at home by the community nursing team; results received. No visit needed here.");
 
     /// <summary>A note on an appointment, as the person booking it might add.</summary>
     public static string AppointmentNote(Random random) => Pick(random,
@@ -176,7 +184,7 @@ public static class NoteBuilder
         "Patient will bring an up-to-date medication list.",
         "Phone reminder requested the day before.",
         "Hard of hearing: text reminder only.",
-        "Carer will attend with the patient.",
+        "Carer will come with the patient.",
         "Transport booked.");
 
     /// <summary>An appointment note edited later.</summary>
@@ -195,9 +203,9 @@ public static class NoteBuilder
     public static string ClinicianCancelReason(Random random) => Pick(random,
         "Clinician unavailable (sickness); patient informed and offered a new date.",
         "Clinic cancelled for mandatory training; patient informed.",
-        "Clinician called to theatre; patient informed and rebooked.");
+        "Visiting clinic cancelled: the consultant was needed at the hospital; patient informed and rebooked.");
 
-    public const string ProcedureCancelledAppointmentReason = "Procedure cancelled; patient informed by phone.";
+    public const string ProcedureCancelledAppointmentReason = "Pathway cancelled; patient informed by phone.";
 
     // Stage notes ----------------------------------------------------------------------------------------------
 
@@ -205,219 +213,183 @@ public static class NoteBuilder
     {
         var parts = new List<string>
         {
-            Pick(r, "Referral letter from the GP received and logged.", "GP referral received and checked.", "Referral received; demographics checked against the GP record."),
+            Pick(r, "Referral letter from the GP received and logged.", "GP referral received and checked.", "Referral received; details checked against the GP record."),
             $"Reason: {Pick(r, c.Kind.Indications)}.",
         };
         if (c.Urgent)
-            parts.Add("**Two-week-wait referral:** flagged for urgent triage.");
+            parts.Add("**Urgent referral:** flagged for triage today.");
         else if (r.NextDouble() < 0.4)
-            parts.Add(Pick(r, "Routine priority.", "Recent bloods attached to the referral.", "Previous imaging requested from the GP."));
+            parts.Add(Pick(r, "Routine priority, as referred.", "Recent results attached to the referral.", "Earlier clinic letters asked for from the GP."));
         return parts;
     }
 
     private static List<string> Triage(NoteContext c, Random r) =>
     [
-        $"Triaged as {(c.Urgent ? "urgent" : Pick(r, "routine", "soon"))}.",
+        c.Urgent ? "Triaged as urgent." : Pick(r, "Triaged as routine.", "Triaged: to be seen soon."),
         Pick(r,
-            $"Clinic consultation first: {Pick(r, "on anticoagulants", "several co-morbidities to review", "symptoms need a history before the test")}.",
-            "Straight-to-test not appropriate; clinic first.",
-            $"Suitable for {c.Kind.Short} after a clinic review."),
-        r.NextDouble() < 0.5 ? $"Bloods: Hb {r.Next(104, 150)} g/L, ferritin {r.Next(6, 120)} micrograms/L." : "No further tests needed before clinic.",
+            "Clinic visit first; no tests needed beforehand.",
+            "The referral gives enough to book straight into clinic.",
+            "Clinic visit first: the history needs taking in person.",
+            $"To be seen about {c.Kind.Short} in the next available clinic."),
+        r.NextDouble() < 0.5 ? "Nothing more needed from the GP." : "GP asked for the current medication list before the visit.",
     ];
 
-    private static List<string> Consultation(NoteContext c, Random r)
+    private static List<string> FirstClinicVisit(NoteContext c, Random r)
     {
-        var parts = new List<string>
-        {
-            $"Seen in clinic with {Pick(r, "a three-month", "a six-month", "a year's", "a few weeks'")} history of {Pick(r, c.Kind.Indications)}.",
-        };
-        if (r.NextDouble() < 0.6)
-            parts.Add($"BP {Bp(r)}, HR {r.Next(58, 96)}.");
-        if (c.Side is { } side && r.NextDouble() < 0.7)
-            parts.Add($"Examination of the {side} side consistent with the referral.");
+        var parts = new List<string> { $"Seen in clinic. Referred with {Pick(r, c.Kind.Indications)}." };
+        if (c.Side is { } site)
+            parts.Add($"Site: {site}.");
+        parts.Add(c.Result.Seen);
+        if (r.NextDouble() < 0.3)
+            parts.Add(Pick(r, "**Allergies:** none known.", "**Allergy:** penicillin (rash).", "**Takes apixaban:** noted for any biopsy.", "**Allergy:** plasters."));
         parts.Add(Pick(r,
-            $"Options discussed, including watchful waiting. Patient would like to go ahead with {c.Kind.Short}.",
-            $"Explained what {c.Kind.Short} involves and the recovery. Keen to proceed.",
-            $"Discussed the benefits and risks of {c.Kind.Short} versus carrying on as now; patient chose to proceed."));
+            "What happens next explained; the patient is happy to go ahead.",
+            "Options discussed, including doing nothing for now; the patient would like to go ahead.",
+            "Questions answered; written information given."));
         parts.Add(Plan(r,
             "Plan:",
-            "Pre-assessment to be booked",
-            $"Leaflet on {c.Kind.Short} given",
-            "GP letter sent",
-            r.NextDouble() < 0.5 ? MedicineChange(r) : "No medication changes"));
+            c.Kind.NextStep ?? c.Result.Plan,
+            Pick(r, "Leaflet given", "Photographs taken for the record, with consent", "Next visit to be booked"),
+            "Letter to the GP"));
         return parts;
     }
 
-    private static List<string> SecondConsultation(NoteContext c, Random r) =>
-    [
-        Pick(r, "Reviewed in clinic after pre-assessment.", "Seen again to go through the pre-assessment results.", "Follow-up consultation before listing."),
-        Pick(r,
-            $"Bloods and ECG satisfactory. Happy to proceed with {c.Kind.Short}.",
-            $"Anaesthetic review completed; fit for {c.Kind.Anaesthetic}.",
-            "Weight down 3 kg since the first visit. Good progress."),
-        r.NextDouble() < 0.5 ? "**Listed** for surgery; consent to follow." : "Listed. Questions about time off work answered.",
-    ];
-
-    private static List<string> PreAssessment(NoteContext c, Random r)
-    {
-        var observations = $"BP {Bp(r)}, HR {r.Next(56, 98)}, SpO2 {r.Next(95, 101)}% on air, BMI {r.Next(21, 37)}.";
-        var parts = new List<string> { Pick(r, "Pre-assessment completed in clinic.", "Seen for pre-assessment.", "Face-to-face pre-assessment.") };
-
-        if (r.NextDouble() < 0.4)
-        {
-            parts.Add(Plan(r, "Checks:",
-                observations,
-                $"Bloods: FBC, U&E{(r.NextDouble() < 0.5 ? ", group and save" : "")} sent",
-                $"ECG: sinus rhythm, rate {r.Next(58, 90)}",
-                $"Allergies: {Pick(r, "none known", "penicillin (rash)", "plasters", "codeine (nausea)")}"));
-        }
-        else
-        {
-            parts.Add(observations);
-            parts.Add($"ECG sinus rhythm. Allergies: {Pick(r, "none known", "penicillin (rash)", "latex", "codeine (nausea)")}.");
-        }
-
-        parts.Add(MedicineChange(r));
-        parts.Add(Pick(r,
-            $"Fit for {c.Kind.Anaesthetic}.",
-            $"**Fit for {c.Kind.Anaesthetic}** once bloods are back.",
-            $"Fit for {c.Kind.Anaesthetic}; MRSA screen taken."));
-        if (c.Kind.Prep.Length > 0)
-            parts.Add($"Told to {Pick(r, c.Kind.Prep)}.");
-        return parts;
-    }
-
-    private static List<string> Consent(NoteContext c, Random r)
+    private static List<string> BiopsyOrSample(NoteContext c, Random r)
     {
         string[] risks = c.Kind.Risks.Length == 0 ? ["discomfort"] : c.Kind.Risks.OrderBy(_ => r.Next()).Take(r.Next(2, 4)).ToArray();
         return
         [
-            $"Consent form signed for {(c.Side is { } side ? $"{side} " : "")}{c.Kind.Short}.",
+            $"{Capitalise(c.Kind.Sample)} taken{(c.Side is { } site ? $" from the {site}" : "")}.",
+            c.Kind.SampleNotes.Length > 0 ? Pick(r, c.Kind.SampleNotes) : string.Empty,
             r.NextDouble() < 0.35
                 ? Plan(r, "Risks discussed:", risks)
                 : $"Risks discussed: {string.Join(", ", risks)}.",
-            Pick(r, "Questions answered; copy of the form given.", "Patient had time to think and confirmed by phone.", "Alternatives discussed, including no treatment."),
+            Pick(r, "Consent confirmed and recorded.", "Consent form signed; copy given."),
+            Pick(r, "Specimen labelled at the bedside and sent to the lab.", "Specimen pot labelled and checked with the patient; lab request completed."),
+            r.NextDouble() < 0.9
+                ? Pick(r, "Uneventful.", "No complications.", "Tolerated well.")
+                : "**Minor bleeding** stopped with pressure; observed for an extra 20 minutes.",
         ];
     }
 
-    private static List<string> Scheduling(NoteContext c, Random r) =>
+    private static List<string> Histology(NoteContext c, Random r) =>
     [
+        Pick(r, "Specimen received and booked in; label and request match.", "Specimen booked in. Details checked against the request."),
+        c.Result.Result,
+        r.NextDouble() < 0.25 ? "Extra levels cut to show the margin clearly." : string.Empty,
         Pick(r,
-            $"Booked onto a {Pick(r, "morning", "afternoon")} list.",
-            "Date agreed by phone; admission letter sent.",
-            "Offered two dates; patient chose the later one for work reasons.",
-            "Short-notice slot accepted."),
-        c.Kind.Prep.Length > 0 ? $"Instructions sent: {Pick(r, c.Kind.Prep)}." : "Preparation instructions sent.",
-        r.NextDouble() < 0.3 ? "Transport booked." : string.Empty,
+            "Report authorised and sent to the requesting clinician.",
+            "Reported and authorised; added to the next team meeting list.",
+            $"Report authorised {r.Next(4, 11)} working days after it was booked in."),
     ];
 
-    private static List<string> Procedure(NoteContext c, Random r)
-    {
-        var parts = new List<string>
-        {
-            $"{(c.Side is { } side ? $"{Capitalise(side)} {c.Kind.Short}" : Capitalise(c.Kind.Short))} under {c.Kind.Anaesthetic}.",
-            Pick(r, c.Kind.Findings),
-        };
-        if (c.Kind.Anaesthetic == "sedation" || c.Kind.Anaesthetic.Contains("sedation if wanted", StringComparison.Ordinal))
-            parts.Add($"Midazolam {Pick(r, "1", "2", "3")} mg{(r.NextDouble() < 0.5 ? $", fentanyl {Pick(r, "25", "50")} micrograms" : "")}.");
-        parts.Add(r.NextDouble() < 0.9
+    private static List<string> ResultsAndTeamReview(NoteContext c, Random r) =>
+    [
+        Pick(r, $"Results reviewed at {c.Kind.Team}.", $"Taken to {c.Kind.Team}."),
+        c.Result.Result,
+        $"Plan: {Lower(c.Result.Plan.TrimEnd('.'))}.",
+        Pick(r, "Explained to the patient by phone; letter to follow.", "Results given in clinic, with the nurse present.", "Patient told by phone and sent a copy of the letter."),
+    ];
+
+    private static List<string> Treatment(NoteContext c, Random r) =>
+    [
+        c.Side is { } site ? $"Site: {site}." : string.Empty,
+        c.Result.Treatment.Length > 0 ? c.Result.Treatment : "Treatment given as planned.",
+        $"Consent confirmed. Local anaesthetic: lidocaine 1% with adrenaline, {r.Next(2, 7)} ml.",
+        r.NextDouble() < 0.9
             ? Pick(r, "Uneventful.", "No complications.", "Tolerated well.")
-            : "**Minor bleeding** controlled at the time; observed for an extra hour.");
-        return parts;
-    }
-
-    private static List<string> Recovery(NoteContext c, Random r) =>
-    [
-        $"Obs stable: BP {Bp(r)}, HR {r.Next(58, 92)}, SpO2 {r.Next(95, 100)}%, temp {Temp(r)}.",
-        Pick(r, "Eating and drinking; passed urine.", "Pain controlled with paracetamol.", "Mobilised to the toilet independently."),
-        Pick(r, "Discharged home with an escort.", "Discharged home; partner collecting.", "Discharged with a relative."),
+            : "**Minor bleeding** stopped with pressure; observed for an extra 20 minutes.",
+        Pick(r,
+            $"Sutures out in {Pick(r, "7", "10", "14")} days at the GP surgery.",
+            "Dressing to stay dry for 48 hours.",
+            "Wound care sheet given."),
         SafetyNet(r),
-    ];
-
-    private static List<string> WoundCheck(NoteContext c, Random r) =>
-    [
-        Pick(r, "Wound clean and dry.", "Wound healing well; edges together.", "Slight redness at one end; no discharge."),
-        Pick(r, "Sutures removed.", "Steri-strips removed.", "Clips removed.", "Dressing changed."),
-        $"Temp {Temp(r)}.",
-        r.NextDouble() < 0.2 ? "Swab taken as a precaution." : "No signs of infection.",
-    ];
-
-    private static List<string> PostProcedureReview(NoteContext c, Random r) =>
-    [
-        $"Reviewed {Pick(r, "six", "eight", "ten")} weeks after surgery.",
-        Pick(r, c.Kind.Results),
-        Pick(r, "Discharged back to the GP.", "Review again in three months.", "To continue physiotherapy; review if not improving."),
-    ];
-
-    private static List<string> ResultsReview(NoteContext c, Random r) =>
-    [
-        Pick(r, c.Kind.Results),
-        Pick(r, "Discussed with the patient by phone.", "Results explained to the patient in clinic.", "Letter sent to the patient and the GP."),
-        r.NextDouble() < 0.3 ? MedicineChange(r) : string.Empty,
     ];
 
     private static List<string> FollowUp(NoteContext c, Random r) =>
     [
         Pick(r, "Reviewed by phone.", "Seen in the nurse-led clinic.", "Follow-up call."),
-        Pick(r,
-            $"Recovering well after {c.Kind.Short}; pain {r.Next(0, 4)}/10.",
-            "Back to normal activities.",
-            $"Wound healed. {Pick(r, c.Kind.Results)}"),
-        Pick(r, "Discharged back to the GP.", "No further follow-up needed.", SafetyNet(r)),
+        c.Kind.FollowUps.Length > 0 ? Pick(r, c.Kind.FollowUps) : "Doing well since the last visit.",
+        Pick(r, "Nothing more needed from the centre.", "No further follow-up needed here.", SafetyNet(r)),
     ];
 
-    private static List<string> PhysioSession(NoteContext c, Random r)
+    private static List<string> DischargeLetter(NoteContext c, Random r) =>
+    [
+        Pick(r, "Discharge letter sent to the GP, with a copy to the patient.", "Letter to the GP dictated, checked and sent; copy to the patient."),
+        c.Result.Result,
+        $"Plan: {Lower(c.Result.Plan.TrimEnd('.'))}.",
+        Pick(r, "GP asked to re-refer if things change.", "Nothing for the GP to do beyond the plan in the letter.", "Patient knows how to get back in touch."),
+    ];
+
+    private static List<string> BloodAndUrineTests(NoteContext c, Random r) =>
+    [
+        $"Bloods taken for {c.Kind.Sample}; urine sample collected.",
+        Pick(r, "Left arm, first attempt.", "Right arm, first attempt.", "Second attempt needed; a small bruise expected."),
+        r.NextDouble() < 0.6 ? $"BP {Bp(r)}, weight {r.Next(58, 118)} kg." : string.Empty,
+        r.NextDouble() < 0.2 ? "**Fasting sample:** nothing eaten since last night." : string.Empty,
+        Pick(r, "Samples labelled at the bedside and taken to the lab.", "Labelled with the patient and in the lab within the hour."),
+    ];
+
+    private static List<string> LabTests(NoteContext c, Random r) =>
+    [
+        Pick(r, "Samples received and booked in.", "Samples booked in; labels match the request."),
+        c.Result.Result,
+        Pick(r,
+            "Results authorised and released to the record.",
+            "Authorised; requesting clinician told.",
+            $"Run on the {Pick(r, "morning", "afternoon")} batch and authorised the same day."),
+    ];
+
+    private static List<string> ClinicReview(NoteContext c, Random r)
     {
-        var part = c.Kind.Short;
-        var measure = part switch
+        var parts = new List<string>
         {
-            "shoulder" => $"flexion {r.Next(100, 170)} degrees, external rotation {r.Next(25, 70)} degrees",
-            "knee" => $"flexion {r.Next(85, 125)} degrees, extension lag {r.Next(0, 10)} degrees",
-            "ankle" => $"single-leg balance {r.Next(5, 31)} seconds",
-            _ => $"forward bend to {Pick(r, "mid-shin", "ankles", "knees")}, SLR {r.Next(50, 85)} degrees",
+            Pick(r, "Reviewed in clinic with the results.", "Seen in clinic; results gone through together.", "Clinic review."),
+            $"BP {Bp(r)}, weight {r.Next(58, 118)} kg, BMI {r.Next(22, 39)}.",
+            c.Result.Seen,
         };
-        var exercise = part switch
-        {
-            "shoulder" => Pick(r, "band external rotation", "wall slides", "scapular setting"),
-            "knee" => Pick(r, "step-ups", "mini squats", "static bike 10 minutes"),
-            "ankle" => Pick(r, "heel raises", "balance board", "hopping drills"),
-            _ => Pick(r, "bridging", "cat-camel", "walking programme"),
-        };
-        return
-        [
-            $"Session {c.Occurrence} of {c.Occurrences}.",
-            $"Pain {r.Next(1, 7)}/10; {measure}.",
-            $"Exercises progressed: {exercise}.",
-            r.NextDouble() < 0.4 ? "**Home programme** reviewed; doing it most days." : "Home programme reviewed.",
-        ];
+        if (r.NextDouble() < 0.3)
+            parts.Add(Pick(r, "**Hypo awareness** checked: intact.", "**Driving:** reminded to test before driving.", "**Sick-day rules** gone through."));
+        parts.Add(Plan(r, "Plan:", c.Result.Plan, Pick(r, "Letter to the GP", "Copy of the results given to the patient", "Next review in a year")));
+        return parts;
     }
 
-    private static List<string> Discharge(NoteContext c, Random r) =>
+    private static List<string> MedicinesReview(NoteContext c, Random r) =>
     [
-        $"Discharged from physiotherapy after {c.Occurrences} sessions.",
-        Pick(r, c.Kind.Results),
-        "Advised to keep up the home exercises; can self-refer within six months.",
+        Pick(r, "Medicines reviewed with the patient by phone.", "Seen in the pharmacist's clinic.", "Medicines review, with the patient's carer present."),
+        c.Kind.Medicines.Length > 0 ? Pick(r, c.Kind.Medicines) : "No changes needed.",
+        Pick(r,
+            "Taking everything as prescribed.",
+            $"Misses the evening dose about {Pick(r, "once", "twice", "three times")} a week: a reminder alarm suggested.",
+            "No side effects reported.",
+            "No interactions found with the rest of the list."),
+        Pick(r, "GP informed of the change.", "Repeat prescription updated via the GP.", "To review at follow-up."),
+    ];
+
+    private static List<string> BiomechanicsSession(NoteContext c, Random r) =>
+    [
+        $"Session {c.Occurrence} of {c.Occurrences}.",
+        $"Pain {r.Next(1, 7)}/10; {Pick(r,
+            $"single-leg heel raises: {r.Next(6, 26)}",
+            $"the ankle bends {r.Next(3, 13)} degrees past neutral",
+            $"single-leg balance: {r.Next(5, 31)} seconds")}.",
+        Pick(r,
+            "Insoles fitted and checked in the patient's own shoes.",
+            "Insoles adjusted: more support under the arch.",
+            "Loading programme progressed: weight added in a rucksack.",
+            "Stretches checked; technique corrected.",
+            "Walking checked again on the treadmill: the heel rolls in less."),
+        r.NextDouble() < 0.4 ? "**Home programme** reviewed; doing it most days." : "Home programme reviewed.",
     ];
 
     // Parts ---------------------------------------------------------------------------------------------------
 
-    private static string MedicineChange(Random r) => Pick(r,
-        "Medication reviewed: omit apixaban 48 h before.",
-        "Medication reviewed: stop clopidogrel 7 days before, as agreed with the GP.",
-        "Medication reviewed: omit metformin on the morning of the procedure.",
-        "Medication reviewed: hold ramipril on the day.",
-        "Medication reviewed: warfarin to stop 5 days before; INR check the day before.",
-        "Medication reviewed: no changes needed.",
-        "Medication reviewed: continue all usual medicines.");
-
     private static string SafetyNet(Random r) => Pick(r,
-        "Safety-netting given: fever, spreading redness or increasing pain → contact the unit.",
-        "Safety-netting advice given for bleeding, fever or worsening pain.",
-        "Written advice given on what to look out for and who to call out of hours.");
+        "Safety-netting given: bleeding, spreading redness or a fever → phone the centre.",
+        "Advice given on what to look out for and who to call.",
+        "Written advice given, with the nurse specialist's phone line.");
 
     private static string Bp(Random r) => $"{r.Next(106, 166)}/{r.Next(62, 96)}";
-
-    private static string Temp(Random r) => (36.2 + r.Next(0, 13) / 10.0).ToString("0.0", Invariant);
 
     /// <summary>Some lines as a short Markdown list after a heading line; otherwise a sentence.</summary>
     private static string Plan(Random r, string heading, params string[] items)
@@ -428,7 +400,7 @@ public static class NoteBuilder
             : $"{heading} {string.Join("; ", listed.Select(Lower))}.";
     }
 
-    private static string Compose(IEnumerable<string> parts, Random random)
+    private static string Compose(IEnumerable<string> parts)
     {
         // Sentences run on; a list stands apart, with a blank line before and after it.
         var text = new StringBuilder();
