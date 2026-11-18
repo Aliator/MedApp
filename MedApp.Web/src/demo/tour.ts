@@ -265,17 +265,13 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   },
   {title: 'Server rendering', full: 'Pages are rendered on the server, so they arrive with their data and show at once.'},
   {
-    title: 'The activity log and exports',
-    full: 'Every read and change of a patient’s record is logged as it happens, and admins download everything held about a patient. Here the logs are worked out from the demo’s records, and the export page only shows what would be in it.',
-  },
-  {
-    title: 'The data-request pack’s download',
-    full: 'A subject access request’s pack is built on the server and downloaded as a file. There are no files here.',
+    title: 'The activity log, exports and the data-request pack',
+    full: 'Every read and change of a patient’s record is logged as it happens, admins download everything held about a patient, and a data request is answered with a pack made on the server: a PDF report, the record as JSON and the files. Here the logs are worked out from the demo’s records, the export page only shows what would be in it, and the pack can’t be downloaded.',
   },
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
   {
     title: 'Background jobs',
-    full: 'Appointment reminders to patients, service alerts, purges of old operational data and other jobs run on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
+    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked and specimens overdue in time), purges of old operational data, and other jobs on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
   },
   {
     title: 'Sending letters',
@@ -284,5 +280,9 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {
     title: 'Changing roles and accounts',
     full: 'Admins add staff, reset passwords and two-factor, and change roles and their permissions. Here the two accounts are fixed.',
+  },
+  {
+    title: 'Files from the lab',
+    full: 'A specimen’s report and an external result arrive as files, and a specimen’s label has a QR code. Here only the seeded reports are there.',
   },
 ];

@@ -21,6 +21,7 @@ public sealed class DeletePatientHandlerTests
     private DeletePatientHandler _handler = null!;
 
     private Mock<MedApp.Application.Results.Repositories.IResultRepository> _results = null!;
+    private Mock<MedApp.Application.DataRequests.Repositories.IDataRequestRepository> _dataRequests = null!;
 
     [Test]
     public async Task Handle_PatientHasResults_ThrowsConflictAndKeepsThePatient()
@@ -54,9 +55,25 @@ public sealed class DeletePatientHandlerTests
         _results = new Mock<MedApp.Application.Results.Repositories.IResultRepository>();
         _fixture.Inject(_results.Object);
 
+        // No data requests, unless a test says otherwise.
+        _dataRequests = new Mock<MedApp.Application.DataRequests.Repositories.IDataRequestRepository>();
+        _fixture.Inject(_dataRequests.Object);
+
         _handler = _fixture.Create<DeletePatientHandler>();
     }
 
+
+    [Test]
+    public async Task Handle_PatientHasADataRequest_ThrowsConflict()
+    {
+        var patient = PatientsTestConstants.CreateValidPatient();
+        _repository.Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(patient);
+        _dataRequests.Setup(r => r.CountForPatientAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*1 data request,*");
+    }
 
     [Test]
     public async Task Handle_PatientDoesNotExist_ReturnsFalse()

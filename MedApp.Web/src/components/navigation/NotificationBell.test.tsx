@@ -314,6 +314,23 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
   });
 
+  it("opens a service alert's list, narrowed to the rule's specialty where the list takes one", async () => {
+    const specialty = '0000000c-0000-0000-0000-0000000000a1';
+    const base = {...unread, pathwayId: null, appointmentId: null, subjectId: specialty};
+    const referrals = {...base, id: '0000000c-0000-0000-0000-000000000041', kind: 'MonitoredReferralNotTriaged', title: 'Referrals awaiting triage'};
+    const specimens = {...base, id: '0000000c-0000-0000-0000-000000000042', kind: 'MonitoredSpecimenOverdue', title: 'Specimens overdue'};
+    mockApi({
+      'GET /api/notifications': () => json({items: [referrals, specimens], unreadCount: 2}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user} = renderWithApp(<NotificationBell />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    expect(list.getByRole('link', {name: /^Referrals awaiting triage/})).toHaveAttribute('href', `/referrals?specialty=${specialty}`);
+    expect(list.getByRole('link', {name: /^Specimens overdue/})).toHaveAttribute('href', '/lab?view=Overdue');
+  });
+
   it("opens a triaged referral's notification on the referral, with the referrals icon", async () => {
     const referralId = '0000000c-0000-0000-0000-000000000041';
     const triaged = {
@@ -432,6 +449,36 @@ describe('NotificationBell', () => {
     expect(list.getByRole('link', {name: /^Letter approved/})).toHaveAttribute('href', `/letters/${letterId}`);
     await user.click(list.getByRole('link', {name: /^Letter awaiting approval/}));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/letters/${letterId}`));
+  });
+
+  it("opens a data request's due-soon notification on the request, with its own icon", async () => {
+    const requestId = '000000d1-0000-0000-0000-000000000001';
+    const dueSoon = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000071',
+      kind: 'DataRequestDueSoon',
+      title: 'Data request due soon',
+      message: 'A data request is due on 2 December 2026.',
+      pathwayId: null,
+      subjectId: requestId,
+    };
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [dueSoon, read], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: adminUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const link = list.getByRole('link', {name: /^Data request due soon/});
+    expect(link).toHaveAttribute('href', `/data-requests/${requestId}`);
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${dueSoon.id}/read`));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/data-requests/${requestId}`));
   });
 
   it('marks read only the unread notifications about the pathway opened', async () => {

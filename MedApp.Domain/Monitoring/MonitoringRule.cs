@@ -38,6 +38,16 @@ public sealed class MonitoringRule
     /// </summary>
     public Guid? StageDefinitionId { get; set; }
 
+    /// <summary>
+    /// For a service alert (a time-based event, <see cref="MonitoringEvents.IsServiceAlert"/>), the days, 0 to 90: how
+    /// long something may wait before it's reported (for <see cref="MonitoringEvent.WaitBreached"/>, how many days
+    /// before the target). Null for every other event.
+    /// </summary>
+    public int? ThresholdDays { get; set; }
+
+    /// <summary>Only work of this specialty (the referral's, or the pathway's); null for any.</summary>
+    public Guid? SpecialtyId { get; set; }
+
     /// <summary>Whether it notifies; a switched-off rule is kept but matches nothing.</summary>
     public bool IsEnabled { get; set; }
 

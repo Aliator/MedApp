@@ -14,7 +14,8 @@ public sealed class MonitoringRuleMapperTests
     private static readonly MonitoringRuleNames Names = new(
         new Dictionary<Guid, string> { [Staff.UserId] = Staff.Username },
         new Dictionary<Guid, string> { [TemplateId] = TemplateName },
-        new Dictionary<Guid, string> { [ConsultationDefinitionId] = ConsultationStage });
+        new Dictionary<Guid, string> { [ConsultationDefinitionId] = ConsultationStage },
+        new Dictionary<Guid, string> { [RuleSpecialtyId] = RuleSpecialtyName });
 
     [Test]
     public void ToResponse_EveryCondition_GivesEventsAndPrioritiesByNameAndWhatItNames()
@@ -24,7 +25,7 @@ public sealed class MonitoringRuleMapperTests
 
         MonitoringRuleMapper.ToResponse(rule, Names).Should().Be(new MonitoringRuleResponse(
             RuleId, Staff.UserId, Staff.Username, "StageFinished", "Urgent", TemplateId, TemplateName,
-            ConsultationDefinitionId, ConsultationStage, false, CreatedAtUtc, CreatedAtUtc));
+            ConsultationDefinitionId, ConsultationStage, null, null, null, false, CreatedAtUtc, CreatedAtUtc));
     }
 
     [Test]
@@ -33,7 +34,18 @@ public sealed class MonitoringRuleMapperTests
         var response = MonitoringRuleMapper.ToResponse(CreateRule(MonitoringEvent.DueDateChanged, id: RuleId), Names);
 
         response.Should().Be(new MonitoringRuleResponse(
-            RuleId, null, null, "DueDateChanged", null, null, null, null, null, true, CreatedAtUtc, CreatedAtUtc));
+            RuleId, null, null, "DueDateChanged", null, null, null, null, null, null, null, null, true, CreatedAtUtc, CreatedAtUtc));
+    }
+
+    [Test]
+    public void ToResponse_ServiceAlert_GivesItsDaysAndSpecialty()
+    {
+        var rule = CreateRule(MonitoringEvent.ReferralNotTriaged, thresholdDays: 2, specialtyId: RuleSpecialtyId, id: RuleId);
+
+        MonitoringRuleMapper.ToResponse(rule, Names).Should().BeEquivalentTo(new
+        {
+            Event = "ReferralNotTriaged", ThresholdDays = (int?)2, SpecialtyId = (Guid?)RuleSpecialtyId, SpecialtyName = (string?)RuleSpecialtyName,
+        });
     }
 
     [Test]

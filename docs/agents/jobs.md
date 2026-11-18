@@ -43,6 +43,12 @@ Jobs the API runs on a schedule, inside its own process (`MedApp.Application/Job
 
 `PatientRemindersJob` (`patient-reminders`, every 15 minutes) makes, sends and follows the delivery of texts and emails to patients while `PatientMessages:Mode` isn't Off: see [Calendar and appointments](calendar.md), Patient reminders. It changes only its own rows (`PatientMessages`), each saved as it goes, so a run cut short sends nothing twice; it logs counts and exception type names only.
 
+`DataRequestRemindersJob` (`data-request-reminders`, daily at 07:00 UK time) tells the holders of ManagePrivacy about each open data request due within 7 days, once per due date: see [privacy](privacy.md), Data requests. It saves the notifications with the mark on each request (`DueSoonNotifiedFor`) in one save, so a run cut short tells nobody twice; it logs counts only.
+
+## Service alerts
+
+`ServiceAlertsJob` (`service-alerts`, every 15 minutes) finds, for each switched-on service alert rule, the items it reports and hasn't yet, and sends its owner one notification with the count, saved with the items' `MonitoringAlertsSent` rows in one save: see [Monitoring](monitoring.md). It reads referrals, results, appointments and specimens, changes only its own rows and notifications, and logs counts only. A convenience: nothing clinical relies on it (H-29).
+
 ## Adding a job
 
 1. A class implementing `IScheduledJob` (in its area's `Application` folder), registered with `services.AddScoped<IScheduledJob, YourJob>()` in `AddApplication`. Pick a name that's never reused.

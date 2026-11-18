@@ -12,7 +12,8 @@ public sealed class DeletePatientHandler(
     IPatientRepository repository,
     IActivityLog activityLog,
     IAttachmentRepository attachments,
-    MedApp.Application.Results.Repositories.IResultRepository results)
+    MedApp.Application.Results.Repositories.IResultRepository results,
+    MedApp.Application.DataRequests.Repositories.IDataRequestRepository dataRequests)
     : IRequestHandler<DeletePatientCommand, bool>
 {
     public async Task<bool> Handle(DeletePatientCommand request, CancellationToken cancellationToken)
@@ -49,6 +50,12 @@ public sealed class DeletePatientHandler(
         if (resultCount > 0)
             throw new ConflictException(
                 $"This patient has {resultCount} result{(resultCount == 1 ? "" : "s")}, so they can't be deleted.");
+
+        // So do data requests: the record of how the patient's right of access was answered.
+        var dataRequestCount = await dataRequests.CountForPatientAsync(request.Id, cancellationToken);
+        if (dataRequestCount > 0)
+            throw new ConflictException(
+                $"This patient has {dataRequestCount} data request{(dataRequestCount == 1 ? "" : "s")}, so they can't be deleted.");
 
         // Nor can one with files attached: they must be deleted first (which is audited).
         var fileCount = await attachments.CountForPatientAsync(request.Id, cancellationToken);

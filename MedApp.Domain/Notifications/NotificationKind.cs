@@ -128,9 +128,28 @@ public enum NotificationKind
     LetterReturned = 31,
 
     /// <summary>
-    /// Monitoring: someone finished a stage whose visit is Required without its visit. 32 to 37 are kept for the
-    /// service alerts' monitoring kinds (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
+    /// Monitoring, a service alert: referrals awaiting triage too long (one per rule and run, with the count; its
+    /// <see cref="Notification.SubjectId"/> is the rule's specialty, or none). 32 to 37 are the service alerts, one per
+    /// time-based <c>MonitoringEvent</c> (8 to 13); fixed titles, counts and admin-written names only.
     /// </summary>
+    MonitoredReferralNotTriaged = 32,
+
+    /// <summary>Monitoring, a service alert: results awaiting sign-off too long.</summary>
+    MonitoredResultNotSignedOff = 33,
+
+    /// <summary>Monitoring, a service alert: visits Requested too long without being booked.</summary>
+    MonitoredVisitNotBooked = 34,
+
+    /// <summary>Monitoring, a service alert: specimens past their expected turnaround.</summary>
+    MonitoredSpecimenOverdue = 35,
+
+    /// <summary>Monitoring, a service alert: running waiting-time clocks near or past their target.</summary>
+    MonitoredWaitBreached = 36,
+
+    /// <summary>Monitoring, a service alert: paused clocks past their review date.</summary>
+    MonitoredPauseReviewPassed = 37,
+
+    /// <summary>Monitoring: someone finished a stage whose visit is Required without its visit.</summary>
     MonitoredStageFinishedWithoutVisit = 38,
 
     /// <summary>
@@ -140,8 +159,7 @@ public enum NotificationKind
     ClinicSessionCancelled = 39,
 
     /// <summary>
-    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again). 32 to 37
-    /// are taken by other kinds in the centre plans (<c>docs/centre-phases-3-5-plan.md</c>, section 5).
+    /// A scheduled job failed three times in a row (sent once, to every admin, until it succeeds again).
     /// </summary>
     ScheduledJobFailing = 40,
 
@@ -149,5 +167,12 @@ public enum NotificationKind
     /// Someone recorded an MDT's outcome on a pathway you're assigned to (with its <see cref="Notification.PathwayId"/>).
     /// A fixed title ("MDT outcome recorded"); never the outcome, the question or the patient.
     /// </summary>
-    MdtOutcomeRecorded = 41
+    MdtOutcomeRecorded = 41,
+
+    /// <summary>
+    /// A data request is due within 7 days and still open (the daily data-request reminder, to holders of
+    /// ManagePrivacy), with the request in <see cref="Notification.SubjectId"/>. A fixed title ("Data request due
+    /// soon"); the message holds the due date only, never the patient or the requester.
+    /// </summary>
+    DataRequestDueSoon = 42
 }

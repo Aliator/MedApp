@@ -1202,6 +1202,152 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("ConsentRecords", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.DataRequests.DataRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ClosedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClosedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly>("DueOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("DueSoonNotifiedFor")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ExtensionMonths")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExtensionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("IdentityCheckDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("IdentityCheckMethod")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("IdentityCheckedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("IdentityCheckedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly?>("IdentityCheckedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("LastUpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("ReceivedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RefusalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("RequestedByPatient")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RequesterName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RequesterRelationship")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReviewedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("SendMethod")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("SentOn")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("Status", "DueOn");
+
+                    b.ToTable("DataRequests", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.DataRequests.DataRequestWithheldItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DataRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DataRequestId", "Kind", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("DataRequestWithheldItems", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Jobs.ScheduledJob", b =>
                 {
                     b.Property<string>("Name")
@@ -1580,6 +1726,22 @@ namespace MedApp.Infrastructure.Migrations
                     b.ToTable("MdtItemAttendees", (string)null);
                 });
 
+            modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringAlertSent", b =>
+                {
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SubjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RuleId", "SubjectId");
+
+                    b.ToTable("MonitoringAlertsSent", (string)null);
+                });
+
             modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1601,6 +1763,9 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("SpecialtyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("StageDefinitionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1609,6 +1774,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.Property<Guid?>("TemplateId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ThresholdDays")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -3767,6 +3935,26 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Patient");
                 });
 
+            modelBuilder.Entity("MedApp.Domain.DataRequests.DataRequest", b =>
+                {
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.DataRequests.DataRequestWithheldItem", b =>
+                {
+                    b.HasOne("MedApp.Domain.DataRequests.DataRequest", null)
+                        .WithMany("WithheldItems")
+                        .HasForeignKey("DataRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MedApp.Domain.Letters.Letter", b =>
                 {
                     b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", null)
@@ -3847,6 +4035,15 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasOne("MedApp.Domain.Mdt.MdtItem", null)
                         .WithMany("Attendees")
                         .HasForeignKey("MdtItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Monitoring.MonitoringAlertSent", b =>
+                {
+                    b.HasOne("MedApp.Domain.Monitoring.MonitoringRule", null)
+                        .WithMany()
+                        .HasForeignKey("RuleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -4173,6 +4370,11 @@ namespace MedApp.Infrastructure.Migrations
             modelBuilder.Entity("MedApp.Domain.Calendar.WeekTemplate", b =>
                 {
                     b.Navigation("Days");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.DataRequests.DataRequest", b =>
+                {
+                    b.Navigation("WithheldItems");
                 });
 
             modelBuilder.Entity("MedApp.Domain.Letters.Letter", b =>

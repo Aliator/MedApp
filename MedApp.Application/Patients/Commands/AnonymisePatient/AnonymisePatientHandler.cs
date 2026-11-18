@@ -20,7 +20,7 @@ namespace MedApp.Application.Patients.Commands.AnonymisePatient;
 /// Anonymises a patient's record across every table in one save, with an activity log entry giving the reason (one of
 /// <see cref="AnonymisationReason"/>, so it holds no patient details) and an optional note
 /// (<see cref="PatientAnonymiser"/>). Refused (409) while any of their pathways is under way, while any of their
-/// appointments is open (Requested or Booked), while any of their referrals awaits triage, while the record is
+/// appointments is open (Requested or Booked), while any of their referrals awaits triage, while a data request is open, while the record is
 /// restricted, or if it's already anonymised; and (400)
 /// unless the confirmation is the patient's full name.
 /// </summary>
@@ -82,6 +82,14 @@ public sealed partial class AnonymisePatientHandler(
             throw new ConflictException(
                 $"This patient has {awaitingResults} result{(awaitingResults == 1 ? "" : "s")} awaiting sign-off, so their " +
                 $"record can't be anonymised until {(awaitingResults == 1 ? "it's" : "they're")} signed off or marked entered in error.");
+
+        // An open data request must be answered from the record as it is: altering it now could hide what the patient
+        // asked to see (Data Protection Act 2018, section 173).
+        var openDataRequests = record.DataRequests.Count(d => d.IsOpen);
+        if (openDataRequests > 0)
+            throw new ConflictException(
+                $"This patient has {openDataRequests} open data request{(openDataRequests == 1 ? "" : "s")}, so their record " +
+                $"can't be anonymised until {(openDataRequests == 1 ? "it's" : "they're")} sent, refused or withdrawn.");
 
         if (!SameName(request.Confirmation, PatientMapper.FullName(patient)))
             throw new ValidationException(

@@ -118,6 +118,9 @@ const ordered = <T extends {atUtc?: string; id?: string}>(items: T[], query: URL
   return query.get('Ascending') === 'true' ? sorted.reverse() : sorted;
 };
 
+/** The time-based events (`MonitoringEvents.ServiceAlerts`): a job finds them in the full version; nothing runs here. */
+const SERVICE_ALERTS = ['ReferralNotTriaged', 'ResultNotSignedOff', 'VisitNotBooked', 'SpecimenOverdue', 'WaitBreached', 'PauseReviewPassed'];
+
 const EVENTS = [
   'PathwayCreated',
   'StageFinished',
@@ -128,6 +131,7 @@ const EVENTS = [
   'StageUnlocked',
   'DueDateChanged',
   'StageFinishedWithoutVisit',
+  ...SERVICE_ALERTS,
 ];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 
@@ -141,6 +145,9 @@ function ruleResponse(rule: DemoMonitoringRule): Schemas['MonitoringRuleResponse
     subjectUsername: usernameOf(rule.subjectUserId),
     templateName: state.templates.find((t) => t.id === rule.templateId)?.name ?? null,
     stageName: state.stageDefinitions.find((d) => d.id === rule.stageDefinitionId)?.name ?? null,
+    thresholdDays: rule.thresholdDays ?? null,
+    specialtyId: rule.specialtyId ?? null,
+    specialtyName: state.specialties.find((s) => s.id === rule.specialtyId)?.name ?? null,
   };
 }
 
@@ -150,16 +157,27 @@ function ruleInput(body: Partial<Schemas['SaveMonitoringRuleRequest']>) {
   if (!body.event || !EVENTS.includes(body.event)) errors.event = ['Choose what to be told about.'];
   if (body.minimumPriority && !PRIORITIES.includes(body.minimumPriority)) errors.minimumPriority = ['Choose a priority.'];
   if (body.subjectUserId && !personById(body.subjectUserId)) errors.subjectUserId = ['Choose someone on the staff, or anyone.'];
+  const isAlert = SERVICE_ALERTS.includes(body.event ?? '');
+  const days = body.thresholdDays;
+  if (isAlert && (days === null || days === undefined || days < 0 || days > 90))
+    errors.thresholdDays = ['Give the number of days, from 0 to 90.'];
+  if (!isAlert && days !== null && days !== undefined) errors.thresholdDays = ['Days are only for service alerts.'];
+  if (isAlert && body.event !== 'ResultNotSignedOff' && body.subjectUserId)
+    errors.subjectUserId = ['A service alert is about the service, not one person (except results, for the responsible clinician).'];
+  if (body.event === 'ReferralNotTriaged' && body.templateId) errors.templateId = ['A referral awaiting triage has no template yet.'];
+  if (body.specialtyId && !db().specialties.some((s) => s.id === body.specialtyId)) errors.specialtyId = ['Choose a specialty.'];
   if (body.event === 'StageUnlocked' && body.subjectUserId && !personById(body.subjectUserId)?.permissions.includes('UnlockStages'))
     errors.subjectUserId = ['Only someone who can unlock stages can unlock one.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
-  const hasStage = ['StageFinished', 'StageUnlocked', 'StageFinishedWithoutVisit'].includes(body.event!);
+  const hasStage = ['StageFinished', 'StageUnlocked', 'StageFinishedWithoutVisit', 'VisitNotBooked', 'SpecimenOverdue'].includes(body.event!);
   return {
     subjectUserId: body.subjectUserId || null,
     event: body.event!,
     minimumPriority: body.minimumPriority || null,
     templateId: body.templateId || null,
     stageDefinitionId: hasStage ? body.stageDefinitionId || null : null,
+    thresholdDays: isAlert ? (days ?? null) : null,
+    specialtyId: body.specialtyId || null,
     isEnabled: body.isEnabled ?? true,
   };
 }

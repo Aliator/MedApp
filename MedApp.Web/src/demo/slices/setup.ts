@@ -87,6 +87,8 @@ export const MONITORING_RULES = {
   urgentHistology: id(0xf7, 1),
   /** Tom Hallworth putting a pathway on hold (switched off). */
   hallworthOnHold: id(0xf7, 2),
+  /** A service alert: Dermatology referrals waiting more than two days for triage (nothing runs it in the demo). */
+  dermatologyTriage: id(0xf7, 3),
 } as const;
 
 export interface DemoSite {
@@ -594,6 +596,20 @@ export function seedSetup(state: BaseState): SetupSlice {
         isEnabled: false,
         createdAtUtc: ago(15),
         updatedAtUtc: ago(4),
+      },
+      {
+        id: MONITORING_RULES.dermatologyTriage,
+        ownerUserId: ADMIN.id,
+        subjectUserId: null,
+        event: 'ReferralNotTriaged',
+        minimumPriority: null,
+        templateId: null,
+        stageDefinitionId: null,
+        thresholdDays: 2,
+        specialtyId: SPECIALTIES.dermatology,
+        isEnabled: true,
+        createdAtUtc: ago(10),
+        updatedAtUtc: ago(10),
       },
     ],
     activityLog: seedActivityLog(),

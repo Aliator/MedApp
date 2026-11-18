@@ -15,6 +15,8 @@ const people = [
   {userId: SAM, username: 'sam.staff'},
   {userId: KIM, username: 'kim.staff'},
 ];
+const DERM = '0000005a-0000-0000-0000-000000000001';
+const specialties = [{id: DERM, name: 'Dermatology', isArchived: false}];
 const templates = [{id: KNEE, name: 'Knee review', isArchived: false, stages: []}];
 const definitions = [
   {id: BLOODS, name: 'Bloods', description: '', instructions: '', isArchived: false},
@@ -43,6 +45,7 @@ function renderPage(extra: Parameters<typeof mockApi>[0] = {}, list: unknown[] =
     'GET /api/calendar/staff': () => json(people),
     'GET /api/pathways/patient-pathway-stage/templates': () => json(templates),
     'GET /api/pathways/patient-pathway-stage/definitions': () => json(definitions),
+    'GET /api/specialties': () => json(specialties),
     ...extra,
   });
   return {fetch, ...renderWithApp(<MonitoringPage />, {user: adminUser})};
@@ -92,6 +95,8 @@ describe('MonitoringPage', () => {
       minimumPriority: 'High',
       templateId: KNEE,
       stageDefinitionId: BLOODS,
+      thresholdDays: null,
+      specialtyId: null,
       isEnabled: true,
     });
     await expectAnnounced('Rule added');
@@ -112,6 +117,40 @@ describe('MonitoringPage', () => {
     expect(await sent(fetch, 'POST')).toMatchObject({event: 'PathwayAssigned', stageDefinitionId: null});
   });
 
+  it('adds a service alert with its days and specialty, and no person or template where it has none', async () => {
+    const {user, fetch} = renderPage({[`POST ${RULES}`]: () => json({id: 'r9'}, 201)});
+
+    await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
+    await pick(user, /Does this/, 'Service alert: a referral awaits triage');
+    expect(within(openDialog()!).queryByRole('combobox', {name: /Staff member/})).not.toBeInTheDocument();
+    expect(within(openDialog()!).queryByRole('combobox', {name: /Template/})).not.toBeInTheDocument();
+    expect(within(openDialog()!).getByRole('spinbutton', {name: /Days/})).toHaveValue('2');
+    await pick(user, /Specialty/, 'Dermatology');
+    expect(preview()).toHaveTextContent('Notify me when a referral in Dermatology has awaited triage more than 2 days');
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Add Rule'}));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(await sent(fetch, 'POST')).toEqual({
+      subjectUserId: null,
+      event: 'ReferralNotTriaged',
+      minimumPriority: null,
+      templateId: null,
+      stageDefinitionId: null,
+      thresholdDays: 2,
+      specialtyId: DERM,
+      isEnabled: true,
+    });
+  });
+
+  it('names the responsible clinician for a result awaiting sign-off', async () => {
+    const {user} = renderPage();
+
+    await user.click(await screen.findByRole('button', {name: 'Add Rule'}));
+    await pick(user, /Does this/, 'Service alert: a result awaits sign-off');
+    await pick(user, /Responsible clinician/, 'sam.staff');
+    expect(preview()).toHaveTextContent('Notify me when a result for sam.staff on a pathway has awaited sign-off more than 2 days');
+  });
+
   it('edits a rule, starting from what it says', async () => {
     withAnnouncements();
     const {user, fetch} = renderPage({[`PUT ${RULES}/r1`]: () => json(rules[0])});
@@ -128,6 +167,8 @@ describe('MonitoringPage', () => {
       minimumPriority: null,
       templateId: null,
       stageDefinitionId: BLOODS,
+      thresholdDays: null,
+      specialtyId: null,
       isEnabled: true,
     });
     await expectAnnounced('Rule saved');

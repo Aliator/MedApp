@@ -111,21 +111,24 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: /requires appointment|needs booking/i})).not.toBeInTheDocument();
   });
 
-  it('has Referrals between My Worklist and Patients, with how many await triage, heard after its name', async () => {
-    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourSpecialties: true})});
+  it('has Referrals between My Worklist and Patients, with no count badge (the owner removed it)', async () => {
+    const fetch = mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 7, inYourSpecialties: true})});
     renderWithApp(<AppSideNav />, {user: staffUser, path: '/referrals/new'});
 
-    const referrals = await screen.findByRole('link', {name: 'Referrals, 7 awaiting triage'});
+    const referrals = await screen.findByRole('link', {name: 'Referrals'});
+    expect(referrals).not.toHaveTextContent('7');
+    expect(calls(fetch)).not.toContain('GET /api/referrals/awaiting-triage/count');
     expect(referrals).toHaveAttribute('href', '/referrals');
     expect(referrals).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
     expect(names.indexOf('/referrals')).toBe(names.indexOf('/tasks') + 1);
-    // Then Results, Letters, the GP practice directory, the MDT list, then Patients.
+    // Then Results, Letters, the GP practice directory, the MDT list, Data Requests (ManagePrivacy), then Patients.
     expect(names.indexOf('/results')).toBe(names.indexOf('/referrals') + 1);
     expect(names.indexOf('/letters')).toBe(names.indexOf('/results') + 1);
     expect(names.indexOf('/practices')).toBe(names.indexOf('/letters') + 1);
     expect(names.indexOf('/mdt')).toBe(names.indexOf('/practices') + 1);
-    expect(names.indexOf('/patients')).toBe(names.indexOf('/mdt') + 1);
+    expect(names.indexOf('/data-requests')).toBe(names.indexOf('/mdt') + 1);
+    expect(names.indexOf('/patients')).toBe(names.indexOf('/data-requests') + 1);
   });
 
   it('offers Practices only to someone who can view patients', async () => {
@@ -151,17 +154,6 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: staffUser});
     expect(await screen.findByRole('link', {name: /Referrals/})).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
-  });
-
-  it('shows no count when nothing awaits triage, and 99+ for more than 99', async () => {
-    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 0, inYourSpecialties: false})});
-    const {unmount} = renderWithApp(<AppSideNav />, {user: staffUser});
-    expect(await screen.findByRole('link', {name: 'Referrals'})).toBeInTheDocument();
-    unmount();
-
-    mockApi({'GET /api/referrals/awaiting-triage/count': () => json({count: 120, inYourSpecialties: false})});
-    renderWithApp(<AppSideNav />, {user: staffUser});
-    expect(await screen.findByRole('link', {name: 'Referrals, 120 awaiting triage'})).toHaveTextContent('99+');
   });
 
   it("has Results before Letters for someone who can view patients, current on a result's page, with a count only for those who sign off", async () => {
@@ -208,6 +200,22 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: userWithRoles('test-nobody')});
     expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: /^Letters/})).not.toBeInTheDocument();
+  });
+
+  it("has Data Requests for those who answer or review them, current on a request's page", async () => {
+    const {unmount} = renderWithApp(<AppSideNav />, {user: seniorClinicianUser, path: '/data-requests/000000d1-0000-0000-0000-000000000001'});
+    const requests = await screen.findByRole('link', {name: 'Data Requests'});
+    expect(requests).toHaveAttribute('href', '/data-requests');
+    expect(requests).toHaveAttribute('aria-current', 'page');
+    unmount();
+
+    const admin = renderWithApp(<AppSideNav />, {user: adminUser});
+    expect(await screen.findByRole('link', {name: 'Data Requests'})).toBeInTheDocument();
+    admin.unmount();
+
+    renderWithApp(<AppSideNav />, {user: nurseUser});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Data Requests'})).not.toBeInTheDocument();
   });
 
   it('navigates on the client when a link is clicked', async () => {
@@ -987,6 +995,22 @@ describe('AppSideNav notepad', () => {
     await user.click(pressed);
     expect(screen.getByText('notepad closed')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Notepad'})).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('puts the calendar at the bottom, under the notepad and above the account', async () => {
+    renderWithApp(
+      <NotepadProvider>
+        <AppSideNav />
+      </NotepadProvider>,
+      {user: staffUser},
+    );
+
+    const notepad = await screen.findByRole('button', {name: 'Notepad'});
+    const calendar = screen.getByRole('link', {name: 'Calendar'});
+    const account = screen.getByRole('link', {name: new RegExp(staffUser.username)});
+    const isBefore = (first: Element, second: Element) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(isBefore(notepad, calendar)).toBe(true);
+    expect(isBefore(calendar, account)).toBe(true);
   });
 
   it('has no notepad outside the signed-in layout', async () => {

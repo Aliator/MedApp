@@ -49,6 +49,8 @@ import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
 import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calendar/needs-booking'
 import { Route as AppCalendarRequiresAppointmentRouteImport } from './routes/_app/calendar/requires-appointment'
+import { Route as AppDataRequestsIndexRouteImport } from './routes/_app/data-requests/index'
+import { Route as AppDataRequestsIdRouteImport } from './routes/_app/data-requests/$id'
 import { Route as AppLettersIndexRouteImport } from './routes/_app/letters/index'
 import { Route as AppLettersIdRouteImport } from './routes/_app/letters/$id'
 import { Route as AppPathwaysIndexRouteImport } from './routes/_app/pathways/index'
@@ -287,6 +289,16 @@ const AppCalendarRequiresAppointmentRoute =
     path: '/calendar/requires-appointment',
     getParentRoute: () => AppRoute,
   } as any)
+const AppDataRequestsIndexRoute = AppDataRequestsIndexRouteImport.update({
+  id: '/data-requests/',
+  path: '/data-requests/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDataRequestsIdRoute = AppDataRequestsIdRouteImport.update({
+  id: '/data-requests/$id',
+  path: '/data-requests/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLettersIndexRoute = AppLettersIndexRouteImport.update({
   id: '/letters/',
   path: '/letters/',
@@ -518,12 +530,14 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
+  '/data-requests/$id': typeof AppDataRequestsIdRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/referrals/new': typeof AppReferralsNewRoute
   '/account/': typeof AppAccountIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
+  '/data-requests/': typeof AppDataRequestsIndexRoute
   '/letters/': typeof AppLettersIndexRoute
   '/pathways/': typeof AppPathwaysIndexRoute
   '/patients/': typeof AppPatientsIndexRoute
@@ -595,12 +609,14 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
+  '/data-requests/$id': typeof AppDataRequestsIdRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
   '/referrals/new': typeof AppReferralsNewRoute
   '/account': typeof AppAccountIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
+  '/data-requests': typeof AppDataRequestsIndexRoute
   '/letters': typeof AppLettersIndexRoute
   '/pathways': typeof AppPathwaysIndexRoute
   '/patients': typeof AppPatientsIndexRoute
@@ -674,12 +690,14 @@ export interface FileRoutesById {
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
+  '/_app/data-requests/$id': typeof AppDataRequestsIdRoute
   '/_app/letters/$id': typeof AppLettersIdRoute
   '/_app/pathways/new': typeof AppPathwaysNewRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
   '/_app/referrals/new': typeof AppReferralsNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
+  '/_app/data-requests/': typeof AppDataRequestsIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/pathways/': typeof AppPathwaysIndexRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
@@ -753,12 +771,14 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
+    | '/data-requests/$id'
     | '/letters/$id'
     | '/pathways/new'
     | '/patients/add'
     | '/referrals/new'
     | '/account/'
     | '/calendar/'
+    | '/data-requests/'
     | '/letters/'
     | '/pathways/'
     | '/patients/'
@@ -830,12 +850,14 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
+    | '/data-requests/$id'
     | '/letters/$id'
     | '/pathways/new'
     | '/patients/add'
     | '/referrals/new'
     | '/account'
     | '/calendar'
+    | '/data-requests'
     | '/letters'
     | '/pathways'
     | '/patients'
@@ -908,12 +930,14 @@ export interface FileRouteTypes {
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
     | '/_app/calendar/requires-appointment'
+    | '/_app/data-requests/$id'
     | '/_app/letters/$id'
     | '/_app/pathways/new'
     | '/_app/patients/add'
     | '/_app/referrals/new'
     | '/_app/account/'
     | '/_app/calendar/'
+    | '/_app/data-requests/'
     | '/_app/letters/'
     | '/_app/pathways/'
     | '/_app/patients/'
@@ -1241,6 +1265,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCalendarRequiresAppointmentRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/data-requests/': {
+      id: '/_app/data-requests/'
+      path: '/data-requests'
+      fullPath: '/data-requests/'
+      preLoaderRoute: typeof AppDataRequestsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/data-requests/$id': {
+      id: '/_app/data-requests/$id'
+      path: '/data-requests/$id'
+      fullPath: '/data-requests/$id'
+      preLoaderRoute: typeof AppDataRequestsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/letters/': {
       id: '/_app/letters/'
       path: '/letters'
@@ -1527,12 +1565,14 @@ interface AppRouteChildren {
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
+  AppDataRequestsIdRoute: typeof AppDataRequestsIdRoute
   AppLettersIdRoute: typeof AppLettersIdRoute
   AppPathwaysNewRoute: typeof AppPathwaysNewRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
   AppReferralsNewRoute: typeof AppReferralsNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
+  AppDataRequestsIndexRoute: typeof AppDataRequestsIndexRoute
   AppLettersIndexRoute: typeof AppLettersIndexRoute
   AppPathwaysIndexRoute: typeof AppPathwaysIndexRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
@@ -1598,12 +1638,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
+  AppDataRequestsIdRoute: AppDataRequestsIdRoute,
   AppLettersIdRoute: AppLettersIdRoute,
   AppPathwaysNewRoute: AppPathwaysNewRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
   AppReferralsNewRoute: AppReferralsNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
+  AppDataRequestsIndexRoute: AppDataRequestsIndexRoute,
   AppLettersIndexRoute: AppLettersIndexRoute,
   AppPathwaysIndexRoute: AppPathwaysIndexRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,

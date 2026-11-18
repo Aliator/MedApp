@@ -232,4 +232,41 @@ describe('the light demo handlers', () => {
     expect(decided.status).toBe('Approved');
     expect((await call('GET', url)).body.noteList).toHaveLength(0);
   });
+
+  it('logs a data request, checks identity, records the review, refuses the pack and records it sent', async () => {
+    startLightDemo(ADMIN);
+    const patientId = db().pathways.find((p) => p.notes.length > 0)?.patientId ?? db().patients[0].id;
+    const created = await call('POST', '/api/data-requests', {patientId, receivedOn: '2026-01-31', requestedByPatient: true});
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({status: 'Open', firstDueOn: '2026-02-28', dueOn: '2026-02-28', canManage: true, canMakePack: false});
+    expect(created.body.packBlockedReason).toBe('Record the identity check first.');
+    const id = created.body.id;
+
+    const list = (await call('GET', '/api/data-requests/search?AwaitingReview=true')).body;
+    expect(list.items.map((r: {id: string}) => r.id)).toContain(id);
+
+    const checked = await call('POST', `/api/data-requests/${id}/identity-check`, {checkedOn: '2026-02-01', method: 'InPerson', expectedVersion: 1});
+    expect(checked.body).toMatchObject({identityCheckMethod: 'InPerson', version: 2});
+    expect((await call('POST', `/api/data-requests/${id}/extension`, {months: 1, reason: 'Complex', expectedVersion: 1})).status).toBe(409);
+
+    const items = (await call('GET', `/api/data-requests/${id}/review-items`)).body;
+    const withheld = items.slice(0, 1).map((item: {kind: string; itemId: string}) => ({kind: item.kind, itemId: item.itemId, reason: 'Serious harm'}));
+    const reviewed = await call('PUT', `/api/data-requests/${id}/review`, {withheld, expectedVersion: 2});
+    expect(reviewed.body).toMatchObject({canMakePack: true, packBlockedReason: null, withheld});
+
+    const pack = await call('GET', `/api/data-requests/${id}/pack`);
+    expect(pack.status).toBe(501);
+    expect(pack.body.title).toBe('The data-request pack isn’t in the light demo.');
+
+    const sent = await call('POST', `/api/data-requests/${id}/sent`, {sentOn: '2026-02-10', method: 'Post', expectedVersion: 3});
+    expect(sent.body).toMatchObject({status: 'Sent', canManage: false, canReview: false});
+    expect((await call('GET', '/api/data-requests/search?Status=Sent')).body.totalCount).toBe(1);
+  });
+
+  it('lets a clinician review data requests, but not log or answer one', async () => {
+    // A Clinician signs off results, so reviews a data request's pack (the API's reviewers); only ManagePrivacy logs one.
+    startLightDemo(STAFF);
+    expect((await call('GET', '/api/data-requests/search')).status).toBe(200);
+    expect((await call('POST', '/api/data-requests', {patientId: PATIENTS.ellisVarden, receivedOn: '2026-01-01', requestedByPatient: true})).status).toBe(403);
+  });
 });
