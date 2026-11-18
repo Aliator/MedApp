@@ -1,7 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector, SelectorOption} from '@astryxdesign/core/Selector';
+import {SelectorOption} from '@astryxdesign/core/Selector';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
@@ -26,6 +26,7 @@ import {DialogFrame} from '../modals/DialogFrame';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {ActivityToken} from './CalendarTokens';
+import {AnchoredSelector} from '../forms/AnchoredSelector';
 
 export interface BlockDialogProps {
   isOpen: boolean;
@@ -267,7 +268,7 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
               {block?.overlapsAppointment && (
                 <AlertMessage status="warning" message="This overlaps an appointment. Move one of them, or leave both if that's right." />
               )}
-              <Selector
+              <AnchoredSelector
                 label="Activity"
                 value={activityId}
                 onChange={setActivityTypeId}
@@ -278,7 +279,7 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
                 renderOption={(option) => <SelectorOption label={<ActivityToken name={option.label ?? ''} colour={colourOf(option.value)} />} />}
                 renderValue={(option) => <ActivityToken name={option.label ?? ''} colour={colourOf(option.value)} />}
               />
-              <Selector
+              <AnchoredSelector
                 label="Day"
                 value={chosenDate}
                 onChange={setChosenDate}
@@ -288,7 +289,7 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
               />
               <HStack gap={3}>
                 <StackItem size="fill">
-                  <Selector
+                  <AnchoredSelector
                     label="Start"
                     value={String(start)}
                     onChange={(value) => {
@@ -302,7 +303,7 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
                   />
                 </StackItem>
                 <StackItem size="fill">
-                  <Selector
+                  <AnchoredSelector
                     label="End"
                     value={String(end)}
                     onChange={(value) => setEnd(Number(value))}
