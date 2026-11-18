@@ -49,19 +49,17 @@ describe('DayCalendar', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients/patient-7'));
   });
 
-  it('goes between working days, and opens the full calendar on the day shown', async () => {
+  it('shows only today, with no buttons to other days, nothing said for an empty working day, and opens the full calendar', async () => {
     const fetch = mockDay();
-    const {user} = renderWithApp(<DayCalendar />, {user: staffUser});
+    renderWithApp(<DayCalendar />, {user: staffUser});
 
-    expect(await screen.findByText('Nothing booked')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Today, Monday 23 November'})).toBeInTheDocument();
+    expect(await screen.findByRole('group', {name: 'Monday 23 November, today'})).toBeInTheDocument();
+    expect(screen.queryByText('Nothing booked')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Previous day'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Next day'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Open Calendar'})).toHaveAttribute('href', '/calendar?date=2026-11-23');
-    await user.click(screen.getByRole('button', {name: 'Previous day'}));
-    expect(await screen.findByRole('heading', {name: 'Friday 20 November'})).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Open Calendar'})).toHaveAttribute('href', '/calendar?date=2026-11-20');
-    await user.click(screen.getByRole('button', {name: 'Next day'}));
-    await user.click(screen.getByRole('button', {name: 'Next day'}));
-    expect(await screen.findByRole('heading', {name: 'Tuesday 24 November'})).toBeInTheDocument();
-    expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-20&To=2026-11-20');
+    expect(calls(fetch)).toEqual(['GET /api/calendar?From=2026-11-23&To=2026-11-23']);
   });
 
   it('says when a day is not a working day, or the calendar cannot be loaded', async () => {
