@@ -119,7 +119,7 @@ public sealed class PatientTimelineKindsTests
     [Test]
     public void Names_ListsEveryKind()
     {
-        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Appointments, Files, Referrals, WaitingTime, Letters, Specimens, Results, Mdt");
+        PatientTimelineKinds.Names.Should().Be("Created, Stages, Notes, Assignments, Blocks, Status, DueDates, Details, Deleted, Appointments, Files, Referrals, WaitingTime, Letters, Specimens, Results, Mdt, Consent");
     }
 
     /// <summary>

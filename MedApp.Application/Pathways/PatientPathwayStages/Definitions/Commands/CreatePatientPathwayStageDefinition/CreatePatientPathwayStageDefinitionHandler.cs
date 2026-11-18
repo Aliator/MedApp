@@ -26,7 +26,8 @@ public sealed class CreatePatientPathwayStageDefinitionHandler(IPatientPathwaySt
             Instructions = request.Instructions,
             VisitRequirement = PathwayEnums.Parse<VisitRequirement>(request.VisitRequirement),
             NeedsLetterKind = StageLetterKinds.Parse(request.NeedsLetterKind),
-            WaitsForResults = request.WaitsForResults
+            WaitsForResults = request.WaitsForResults,
+            NeedsConsent = request.NeedsConsent
         };
         (definition.SnomedCode, definition.SnomedTerm) = SnomedRules.Normalise(request.SnomedCode, request.SnomedTerm);
 

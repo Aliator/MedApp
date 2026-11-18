@@ -72,6 +72,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/results/{id:guid}"] = Records("ResultViewed"), // the result's ID in the details
         ["api/results/search"] = Records("PatientListed"),
         ["api/results/count"] = Nothing("a count for the side nav: names no patients"),
+        ["api/pathways/{id:guid}/consent-records"] = Records("PathwayViewed"), // the pathway page's consent card
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
         // Labels for the side nav's pins: names of records the user already opened and chose to pin, not a read.
@@ -138,6 +139,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/sites/{id:guid}/hours"] = Nothing("a site's opening hours: configuration"),
         ["api/rooms"] = Nothing("rooms: configuration"),
         ["api/specimen-types"] = Nothing("specimen types: configuration"),
+        ["api/consent-forms"] = Nothing("consent forms: configuration"),
         ["api/laboratories"] = Nothing("labs: configuration"),
         ["api/calendar/closed-days/bookings"] = Nothing("how many appointments, blocks and meetings each member of staff has on a day: counts, never patients"),
         ["api/calendar/staff/{userId:guid}/day-templates"] = Nothing("a member of staff's day templates: configuration"),
@@ -245,6 +247,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/letters/search?pathwayId={pathway.Id}", "PatientListed", patientId),
             ($"/api/specimens/{specimen.Id}", "SpecimenViewed", patientId),
             ("/api/specimens/search?view=ToSend", "PatientListed", patientId),
+            ($"/api/pathways/{pathway.Id}/consent-records", "PathwayViewed", patientId),
         };
         calls.Select(c => c.Action).Distinct().Should().BeEquivalentTo(
             CoverageTable.Values.Select(c => c.Action).OfType<string>().Distinct(), "each recorded action is called here");

@@ -38,6 +38,12 @@ public sealed class PatientPathwayStage
     /// any result of the pathway awaits sign-off.
     /// </summary>
     public bool WaitsForResults { get; set; }
+
+    /// <summary>
+    /// Whether the stage needs a Valid consent record before it can be finished (decision 146); copied onto each
+    /// pathway's stage when it's created, like the visit rule. No override: recording the consent is the action.
+    /// </summary>
+    public bool NeedsConsent { get; set; }
     /// <summary>Copied from the template: whether staff may skip it, with a reason, when it's current.</summary>
     public bool IsOptional { get; set; }
 

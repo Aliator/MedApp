@@ -66,7 +66,8 @@ public sealed class PatientRecordAttachmentsTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
-            MdtItems = []
+            MdtItems = [],
+            ConsentRecords = []
         }, live, deleted, pathway);
     }
 
@@ -165,7 +166,8 @@ public sealed class PatientRecordAttachmentsTests
             ReferralHistory = [],
             Letters = [],
             Specimens = [],
-            MdtItems = []
+            MdtItems = [],
+            ConsentRecords = []
         };
 
         PatientAnonymiser.Apply(withOdd, AnonymisedAt);

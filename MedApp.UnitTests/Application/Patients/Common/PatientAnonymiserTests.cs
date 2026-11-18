@@ -267,7 +267,8 @@ public sealed class PatientAnonymiserTests
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
-        MdtItems = []
+        MdtItems = [],
+        ConsentRecords = []
     };
 
     private static PatientRecord WithActivity(PatientRecord record, ActivityEntry entry) => new PatientRecord
@@ -286,7 +287,8 @@ public sealed class PatientAnonymiserTests
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
-        MdtItems = []
+        MdtItems = [],
+        ConsentRecords = []
     };
 
     private static PatientRecord WithNotifications(PatientRecord record, params Notification[] notifications) => new PatientRecord
@@ -305,7 +307,8 @@ public sealed class PatientAnonymiserTests
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
-        MdtItems = []
+        MdtItems = [],
+        ConsentRecords = []
     };
 
     [Test]
@@ -402,7 +405,8 @@ public sealed class PatientAnonymiserTests
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
-        MdtItems = []
+        MdtItems = [],
+        ConsentRecords = []
     };
 
     private static PatientRecord WithAppointmentHistory(PatientRecord record, params AppointmentEvent[] entries) => new PatientRecord
@@ -421,6 +425,7 @@ public sealed class PatientAnonymiserTests
         ReferralHistory = [],
         Letters = [],
         Specimens = [],
-        MdtItems = []
+        MdtItems = [],
+        ConsentRecords = []
     };
 }

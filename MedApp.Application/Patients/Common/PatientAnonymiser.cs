@@ -40,6 +40,8 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Letters' bodies, closings, return comments and withdrawal reasons become <see cref="RemovedText"/>, and so do
 /// the names of recipients other than a GP practice from the directory, whose addresses and emails are removed; their
 /// kinds, statuses, dates, templates and who did what stay. Their PDFs are files, deleted with the rest.</item>
+/// <item>Consent records' withdrawal and correction details become <see cref="RemovedText"/>; their scans are deleted
+/// with every other live file.</item>
 /// <item>Specimens' sites, request notes and closing details become <see cref="RemovedText"/>, and their lab and courier
 /// references are removed; their numbers, statuses, dates, types and labs stay. Their reports are files, deleted with
 /// the rest.</item>
@@ -252,6 +254,10 @@ public static class PatientAnonymiser
                 item.Version++;
             }
         }
+        // Consent records keep their forms, dates, who signed (by kind) and statuses; a withdrawal's or correction's
+        // detail goes. Their scans are files, deleted below with the rest.
+        foreach (var consent in record.ConsentRecords.Where(c => c.StatusDetail is not null))
+            consent.StatusDetail = Removed(consent.StatusDetail!);
 
         foreach (var notification in record.Notifications.Where(n => !Notification.HasFixedTitle(n.Kind)))
             notification.Title = notification.PathwayId is { } id ? titles.GetValueOrDefault(id, PathwayTitle) : PathwayTitle;

@@ -220,4 +220,16 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>An MDT outcome's attendees, by username.</summary>
     public List<string> PresentUsernames { get; set; } = [];
+    /// <summary>A consent entry: the consent record.</summary>
+    public Guid? ConsentRecordId { get; set; }
+
+    /// <summary>A consent entry: the form's name and version, admin-written.</summary>
+    public string? ConsentFormName { get; set; }
+    public string? ConsentFormVersion { get; set; }
+
+    /// <summary>A consent entry: who signed, by name (Patient, PersonWithParentalResponsibility, BestInterestsDecision).</summary>
+    public string? ConsentSignedBy { get; set; }
+
+    /// <summary>A consent entry: the date it was signed.</summary>
+    public DateOnly? ConsentSignedOn { get; set; }
 }

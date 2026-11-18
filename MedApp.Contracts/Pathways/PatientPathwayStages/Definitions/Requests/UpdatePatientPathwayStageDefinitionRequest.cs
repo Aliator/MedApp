@@ -26,4 +26,10 @@ public sealed class UpdatePatientPathwayStageDefinitionRequest
 
     /// <summary>Whether the stage waits for results, or null to leave it as it is. Pathways already created keep their stages' copy.</summary>
     public bool? WaitsForResults { get; set; }
+
+    /// <summary>
+    /// Whether the stage needs a Valid consent record before it can be finished, or null to leave it as it is. Pathways
+    /// already created keep their stages' copy.
+    /// </summary>
+    public bool? NeedsConsent { get; set; }
 }

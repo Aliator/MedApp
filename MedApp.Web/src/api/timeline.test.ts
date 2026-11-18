@@ -84,6 +84,7 @@ describe('timeline filters', () => {
       'Waiting time',
       'Specimens',
       'Results',
+      'Consent',
       'Letters',
       'Notes',
       'Assignments',

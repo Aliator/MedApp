@@ -1,6 +1,7 @@
 using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
+using MedApp.Domain.Consent;
 using MedApp.Domain.Letters;
 using MedApp.Domain.Mdt;
 using MedApp.Domain.Notifications;
@@ -96,4 +97,10 @@ public sealed record PatientRecord
     /// deleted pathway go with it; their history stays in <see cref="PathwayHistory"/>).
     /// </summary>
     public required IReadOnlyList<MdtItem> MdtItems { get; init; }
+
+    /// <summary>
+    /// The patient's consent records, in any status, oldest recorded first. Their history is in
+    /// <see cref="PathwayHistory"/>; their scans are among <see cref="Attachments"/>.
+    /// </summary>
+    public required IReadOnlyList<ConsentRecord> ConsentRecords { get; init; }
 }

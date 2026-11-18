@@ -138,6 +138,7 @@ import {
   RiQrScanLine,
   RiSendPlaneLine,
   RiTestTubeLine,
+  RiQuillPenLine,
   RiTruckLine,
 } from '@remixicon/react';
 
@@ -353,4 +354,6 @@ export const AppIcon = {
   SignOff: remix(RiCheckDoubleLine),
   /** Giving a result to another responsible clinician. */
   Reassign: remix(RiUserSharedLine),
+  /** Consent to a stage: recorded, its form and the consent forms list (setup). */
+  Consent: remix(RiQuillPenLine),
 } as const satisfies Record<string, IconType>;

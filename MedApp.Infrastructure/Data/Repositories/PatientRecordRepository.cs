@@ -147,6 +147,13 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .OrderBy(i => i.ListedAtUtc).ThenBy(i => i.Id)
             .AsSplitQuery()
             .ToListAsync(ct);
+        // Consent records; their history is in the audit entries above, their scans among the files.
+        var consentRecords = await Tracking(context.ConsentRecords, forUpdate)
+            .Where(c => c.PatientId == patientId)
+            .OrderBy(c => c.RecordedAtUtc).ThenBy(c => c.Id)
+            .ToListAsync(ct);
+        foreach (var consent in consentRecords)
+            consent.Patient = patient;
 
         return new PatientRecord
         {
@@ -170,7 +177,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Letters = letters,
             Specimens = specimens,
             Results = results,
-            MdtItems = mdtItems
+            MdtItems = mdtItems,
+            ConsentRecords = consentRecords
         };
     }
 

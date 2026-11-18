@@ -130,6 +130,7 @@ public static class PathwayMapper
                     VisitRequirement = s.VisitRequirement.ToString(),
                     NeedsLetterKind = s.NeedsLetterKind?.ToString(),
                     WaitsForResults = s.WaitsForResults,
+                    NeedsConsent = s.NeedsConsent,
                     IsOptional = s.IsOptional,
                     ChoosesBranch = s.ChoosesBranch,
                     Branch = s.Branch,
@@ -160,6 +161,8 @@ public static class PathwayMapper
                     SkipDetail = s.SkipDetail,
                     CanRecordSpecimen = Allows(viewerPermissions, Permission.RecordSpecimens)
                         && Specimens.Common.SpecimenWorkflow.WhyCantTake(pathway, s) is null,
+                    CanRecordConsent = Allows(viewerPermissions, Permission.RecordConsent)
+                        && Consent.Common.ConsentWorkflow.WhyCantRecord(pathway, s) is null,
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
                     StartedByUsername = Username(usernames, s.StartedByUserId),
