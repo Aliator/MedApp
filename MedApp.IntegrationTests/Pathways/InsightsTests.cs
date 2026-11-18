@@ -93,7 +93,7 @@ public sealed class InsightsTests : IntegrationTest
         var later = await CreatePathwayAsync(_admin, patient.Id, template.Id);
 
         var inSql = await RunInScopeAsync(services =>
-            services.GetRequiredService<IPathwayInsightsRepository>().GetStatusCountsAtAsync(null, moment, CancellationToken.None));
+            services.GetRequiredService<IPathwayInsightsRepository>().GetStatusCountsAtAsync(InsightsScope.Everything, moment, CancellationToken.None));
         var inMemory = await InMemoryAsync((pathways, audit, _) => pathways.StatusCountsAt(audit, moment).ToList());
 
         inSql.Should().BeEquivalentTo(inMemory);
@@ -121,7 +121,7 @@ public sealed class InsightsTests : IntegrationTest
 
         var (from, to) = (DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddMinutes(1));
         var inSql = await RunInScopeAsync(services =>
-            services.GetRequiredService<IPathwayInsightsRepository>().GetStageDurationsAsync(template.Id, from, to, CancellationToken.None));
+            services.GetRequiredService<IPathwayInsightsRepository>().GetStageDurationsAsync(new InsightsScope(template.Id), from, to, CancellationToken.None));
         var inMemory = await InMemoryAsync((pathways, audit, stages) =>
             pathways.Where(p => p.TemplateId == template.Id).StageDurations(stages, audit, from, to).ToList());
 
@@ -151,8 +151,8 @@ public sealed class InsightsTests : IntegrationTest
         var (created, completed) = await RunInScopeAsync(async services =>
         {
             var repository = services.GetRequiredService<IPathwayInsightsRepository>();
-            return (await repository.CountCreationsByHourAsync(template.Id, from, to, CancellationToken.None),
-                await repository.CountCompletionsByHourAsync(template.Id, from, to, CancellationToken.None));
+            return (await repository.CountCreationsByHourAsync(new InsightsScope(template.Id), from, to, CancellationToken.None),
+                await repository.CountCompletionsByHourAsync(new InsightsScope(template.Id), from, to, CancellationToken.None));
         });
 
         created.Sum(h => h.Count).Should().Be(2);

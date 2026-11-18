@@ -1,5 +1,6 @@
 using FluentValidation;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathways;
 
 namespace MedApp.Application.Referrals.Queries.SearchReferrals;
 
@@ -22,6 +23,10 @@ public sealed class SearchReferralsValidator : AbstractValidator<SearchReferrals
         RuleForEach(x => x.Statuses)
             .Must(ReferralSearch.IsStatus)
             .WithMessage($"Each status must be one of: {ReferralSearch.StatusNames}.");
+
+        RuleFor(x => x.SpecialtyIds)
+            .Must(ids => ids is null || ids.Count <= PathwaySearch.MaxIdsPerFilter)
+            .WithMessage($"Choose at most {PathwaySearch.MaxIdsPerFilter} specialties.");
 
         RuleFor(x => x.Search)
             .MaximumLength(200)

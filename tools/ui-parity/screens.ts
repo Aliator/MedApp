@@ -328,6 +328,11 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  {
+    name: 'pathways-stage-reached',
+    title: 'Pathways waiting for histology: the Stage reached and Specialty filters ("Waiting for histology")',
+    path: (d) => `/pathways?mine=false${d.stageId ? `&stage=${d.stageId}` : ''}${d.specialtyId ? `&specialty=${d.specialtyId}` : ''}`,
+  },
   { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
   {
     name: 'referral-register',
@@ -705,6 +710,15 @@ export const screens: Screen[] = [
     name: 'admin-insights',
     title: 'Insights (admin): headline counts, overdue work, throughput and time at each stage',
     path: '/admin/insights',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'admin-insights-specialty',
+    title: "Insights on one specialty: its pathways only, and only its templates to choose from",
+    path: (d) => `/admin/insights${d.specialtyId ? `?specialty=${d.specialtyId}` : ''}`,
     prepare: async (page) => {
       await page.getByRole('heading', { name: 'Overdue by assignee' }).waitFor();
       await settle(page);

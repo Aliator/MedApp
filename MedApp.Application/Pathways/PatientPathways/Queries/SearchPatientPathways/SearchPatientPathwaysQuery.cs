@@ -10,7 +10,9 @@ namespace MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathw
 /// this search with <paramref name="AssignedToMe"/> and <paramref name="Started"/> set. <paramref name="Title"/>,
 /// <paramref name="TemplateName"/> and <paramref name="PatientName"/> each match one of what <paramref name="Search"/>
 /// matches; <paramref name="Priorities"/> is any of several, as <paramref name="Statuses"/> is.
-/// <paramref name="NobodyAssigned"/> keeps only pathways with no one assigned.
+/// <paramref name="NobodyAssigned"/> keeps only pathways with no one assigned. <paramref name="SpecialtyIds"/> is any of
+/// the pathways' own specialties, and <paramref name="StageDefinitionIds"/> the stage reached: any of the definitions
+/// their current stage comes from.
 /// </summary>
 public sealed record SearchPatientPathwaysQuery(
     int Page,
@@ -34,5 +36,7 @@ public sealed record SearchPatientPathwaysQuery(
     string? Title = null,
     string? TemplateName = null,
     string? PatientName = null,
-    bool NobodyAssigned = false)
+    bool NobodyAssigned = false,
+    IReadOnlyList<Guid>? SpecialtyIds = null,
+    IReadOnlyList<Guid>? StageDefinitionIds = null)
     : IRequest<PagedResponse<PatientPathwaySummaryResponse>>;
