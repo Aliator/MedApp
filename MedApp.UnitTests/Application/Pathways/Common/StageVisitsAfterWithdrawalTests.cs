@@ -79,7 +79,7 @@ public sealed class StageVisitsAfterWithdrawalTests
             .Should().BeTrue("another stage's visit doesn't count");
     }
 
-    [TestCase(PatientPathwayStatus.Blocked, "blocked")]
+    [TestCase(PatientPathwayStatus.Blocked, "on hold")]
     [TestCase(PatientPathwayStatus.Cancelled, "cancelled")]
     public void APathwayNotUnderWay_SaysSo(PatientPathwayStatus status, string words)
     {

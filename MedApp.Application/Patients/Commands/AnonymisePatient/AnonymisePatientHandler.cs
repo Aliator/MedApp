@@ -42,7 +42,7 @@ public sealed partial class AnonymisePatientHandler(
         if (underWay > 0)
             throw new ConflictException(
                 $"This patient has {underWay} pathway{(underWay == 1 ? "" : "s")} under way, so their record can't be anonymised " +
-                "until they're completed, cancelled or archived.");
+                "until they're discharged, cancelled or archived.");
 
         var openAppointments = record.Appointments.Count(a => AppointmentWorkflow.IsOpen(a.Status));
         if (openAppointments > 0)

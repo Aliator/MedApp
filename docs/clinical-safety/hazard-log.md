@@ -27,6 +27,7 @@
   - their **status:** **planned** (in `docs/architecture.md`'s roadmap or `docs/todo.md`, with the step) or **proposed** (new, suggested by this log);
   - **when** they're needed: **before first live use**, or **later**;
   - **transferred** if the deploying organisation provides them (`dcb0160-deploying-organisations.md`).
+- **Names of statuses:** this log names a pathway's statuses as the code and the audit log do. Three show on screen under other names (`docs/glossary.md`): in review as "Awaiting review", blocked as "On hold" and completed as "Discharged". Nothing about what they do changed with the names.
 - **Assumption behind every rating:** the deploying organisation identifies patients at the point of care by its own positive identification process, and uses MedApp within its intended purpose (`intended-purpose-and-device-decision.md`). If it doesn't, several ratings go up.
 
 ## Summary

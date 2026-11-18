@@ -24,7 +24,7 @@ public sealed class ChangePatientPathwayStatusHandlerTests : PathwayHandlerTestB
 
         var act = () => Handler.Handle(new ChangePatientPathwayStatusCommand(pathway.Id, "Completed", null, Staff), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("*assigned*completed*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*assigned*discharged*");
         VerifyNotSaved();
     }
 

@@ -22,8 +22,8 @@ export interface MonitoringRuleInput {
 export const MONITORING_EVENTS = [
   {value: 'PathwayCreated', label: 'Creates a pathway'},
   {value: 'StageFinished', label: 'Finishes a stage', hasStage: true},
-  {value: 'PathwayCompleted', label: 'Completes a pathway'},
-  {value: 'PathwayBlocked', label: 'Blocks a pathway'},
+  {value: 'PathwayCompleted', label: 'Discharges a pathway'},
+  {value: 'PathwayBlocked', label: 'Puts a pathway on hold'},
   {value: 'PathwayCancelled', label: 'Cancels a pathway'},
   {value: 'PathwayAssigned', label: 'Is assigned to a pathway'},
   {value: 'StageUnlocked', label: 'Unlocks a stage (admins only)', hasStage: true},

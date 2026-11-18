@@ -156,7 +156,7 @@ public sealed class SetPatientFlagHandlerTests
 
         var failure = (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle().Subject;
         failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenPathways));
-        failure.ErrorMessage.Should().Contain("2 pathways under way").And.Contain("blocking and cancelling");
+        failure.ErrorMessage.Should().Contain("2 pathways under way").And.Contain("putting them on hold and cancelling");
         patient.RestrictedAtUtc.Should().BeNull();
         _repository.Verify(r => r.UpdateAsync(It.IsAny<Patient>(), It.IsAny<ActivityEntry>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -187,7 +187,7 @@ public sealed class SetPatientFlagHandlerTests
         failure.PropertyName.Should().Be(nameof(SetPatientFlagCommand.ConfirmOpenPathways));
         failure.ErrorMessage.Should().Be(
             "This patient has 1 pathway under way and 2 open appointments. Confirm that work on them stops while the record " +
-            "is restricted (blocking and cancelling pathways, and cancelling appointments, stay possible).");
+            "is restricted (putting pathways on hold and cancelling them, and cancelling appointments, stay possible).");
         _repository.Verify(r => r.CountOpenAppointmentsAsync(patient.Id, cts.Token), Times.Once);
     }
 

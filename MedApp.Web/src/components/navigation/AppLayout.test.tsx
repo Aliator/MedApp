@@ -208,7 +208,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     const {user, router} = renderApp({path: '/patients', user: adminUser});
 
     await heading('Audit Log');
-    await user.click(await railRow(user, 'Templates'));
+    await user.click(await railRow(user, 'Pathway Templates'));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     await waitFor(() => expect(screen.queryByRole('button', {name: 'Close half view'})).not.toBeInTheDocument());
@@ -251,7 +251,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await user.click(await rowMenuItem(user, 'Users', 'Open on the right'));
     await waitFor(() => expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users'));
 
-    await user.click(await rowMenuItem(user, 'Templates', 'Open on the left'));
+    await user.click(await rowMenuItem(user, 'Pathway Templates', 'Open on the left'));
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/admin/users');
   });
@@ -261,7 +261,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     sessionStorage.setItem('medapp.halfView', '/admin/pathway-templates');
     renderApp({path: '/patients', user: adminUser});
 
-    expect(await heading('Templates')).toBeInTheDocument();
+    expect(await heading('Pathway Templates')).toBeInTheDocument();
     expect(await heading('Patients')).toBeInTheDocument();
   });
 

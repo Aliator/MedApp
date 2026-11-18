@@ -45,7 +45,7 @@ const LAST_WEEK = 'this time last week';
 const COUNT: ChartSeries[] = [{key: 'count', label: 'Overdue', colour: SERIES_COLOURS[0]}];
 const THROUGHPUT: ChartSeries[] = [
   {key: 'created', label: 'Created', colour: SERIES_COLOURS[0]},
-  {key: 'completed', label: 'Completed', colour: SERIES_COLOURS[1]},
+  {key: 'completed', label: 'Discharged', colour: SERIES_COLOURS[1]},
 ];
 const STAGE_TIME: ChartSeries[] = [
   {key: 'averageWaitingHours', label: 'Waiting to start', colour: SERIES_COLOURS[0]},
@@ -58,8 +58,8 @@ type CardName = 'assignee' | 'priority' | 'throughput' | 'stages';
 
 /**
  * Insights (admin): an overview of the pathway work, to keep an eye on it. Headline counts against this time last
- * week (open, in progress, overdue, completed), where the overdue work is (by assignee and by priority), how many
- * were created and completed each week, and how long each template's stages take, waiting and being worked on. A
+ * week (open, in progress, overdue, discharged), where the overdue work is (by assignee and by priority), how many
+ * were created and discharged each week, and how long each template's stages take, waiting and being worked on. A
  * period (4, 12 or 26 weeks) and a template filter everything, from the URL.
  *
  * Each chart is in a `ChartCard`, with a summary and a table of its numbers. A tile, or an overdue bar or row, opens
@@ -163,13 +163,13 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   href={pathwaysHref({overdue: 'true'}, templateId)}
                 />
                 <StatTile
-                  label="Completed this week"
+                  label="Discharged this week"
                   value={data.completedThisWeek?.current ?? 0}
                   previous={data.completedThisWeek?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
                   isRiseGood
-                  // No link: the list can't show what was completed when (it has no such filter), only what's
-                  // completed now, from any week.
+                  // No link: the list can't show what was discharged when (it has no such filter), only what's
+                  // discharged now, from any week.
                 />
               </Grid>
               <Grid columns={isNarrow ? 1 : 2} gap={4}>
@@ -215,7 +215,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                     />
                   )}
                 </ChartCard>
-                <ChartCard title="Created and completed" summary={throughputSummary(throughput)} {...viewOf('throughput')}>
+                <ChartCard title="Created and discharged" summary={throughputSummary(throughput)} {...viewOf('throughput')}>
                   {views.throughput === 'chart' ? (
                     <BarChart<WeeklyThroughput>
                       data={throughput}
@@ -223,7 +223,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       series={THROUGHPUT}
                       layout="columns"
                       formatCategory={formatWeek}
-                      description={`Column chart of pathways created and completed each week. ${throughputSummary(throughput)}`}
+                      description={`Column chart of pathways created and discharged each week. ${throughputSummary(throughput)}`}
                     />
                   ) : (
                     <ChartTable
@@ -232,7 +232,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                       categoryHeader="Week of"
                       series={THROUGHPUT}
                       formatCategory={formatShortDate}
-                      label="Pathways created and completed each week"
+                      label="Pathways created and discharged each week"
                     />
                   )}
                 </ChartCard>

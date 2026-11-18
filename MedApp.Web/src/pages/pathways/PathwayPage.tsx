@@ -491,7 +491,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'unlock'}
             title={dialog?.kind === 'unlock' ? `Unlock ${dialog.stage.name}?` : 'Unlock Stage?'}
-            message="Staff can then edit its notes and finish it again. A pathway in review or completed goes back to in progress."
+            message="Staff can then edit its notes and finish it again. A pathway awaiting review or discharged goes back to in progress."
             icon={AppIcon.Lock}
             intent="warning"
             confirmText="Unlock Stage"
@@ -574,7 +574,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             <PriorityToken priority={pathway.priority ?? ''} />
             {pathway.status === 'Blocked' && pathway.blockedFromStatus && (
               <Text type="supporting" color="secondary">
-                Was {statusLabel(pathway.blockedFromStatus).toLowerCase()} before it was blocked
+                Was {statusLabel(pathway.blockedFromStatus).toLowerCase()} before it was put on hold
               </Text>
             )}
           </HStack>

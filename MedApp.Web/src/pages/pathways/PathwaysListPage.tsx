@@ -56,7 +56,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'date', key: 'due', label: 'Due', fromKey: 'dueFrom', toKey: 'dueTo'},
   {kind: 'flag', key: 'overdue', label: 'Overdue', operator: 'only'},
   {kind: 'flag', key: 'mine', label: 'Assigned to me', operator: 'only'},
-  {kind: 'flag', key: 'closed', label: 'Completed, cancelled and archived', operator: 'included'},
+  {kind: 'flag', key: 'closed', label: 'Discharged, cancelled and archived', operator: 'included'},
 ];
 
 /**
@@ -87,8 +87,8 @@ const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Assigned to me', values: {mine: true}},
   {label: 'Overdue', values: {overdue: true}},
   {label: 'Unassigned', values: {status: 'Unassigned'}},
-  {label: 'Blocked', values: {status: 'Blocked'}},
-  {label: 'In review', values: {status: 'InReview'}},
+  {label: 'On hold', values: {status: 'Blocked'}},
+  {label: 'Awaiting review', values: {status: 'InReview'}},
 ];
 
 const FIELDS_FOR_ONE_PATIENT = FILTER_FIELDS.filter((field) => field.key !== 'patient');
@@ -106,7 +106,7 @@ export interface PathwaysListPageProps {
 
 /**
  * Pathways: every pathway, or one patient's, a page at a time from the API. Sortable, with a power search
- * across the top; the page, sort and filters live in the URL. Completed, cancelled and archived ones are hidden unless asked for.
+ * across the top; the page, sort and filters live in the URL. Discharged, cancelled and archived ones are hidden unless asked for.
  */
 /**
  * The list's page of pathways, for its search and list settings, and the patient on a patient's pathways (the
@@ -295,7 +295,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
           ) : (
             <EmptyState
               title={patientId ? 'This patient has no open pathways' : 'No open pathways'}
-              description="Completed, cancelled and archived pathways are hidden. Search to include them."
+              description="Discharged, cancelled and archived pathways are hidden. Search to include them."
               icon={<Icon icon={AppIcon.Pathways} size="lg" />}
             />
           )

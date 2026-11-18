@@ -26,7 +26,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
 
         var act = () => Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("*blocked*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*on hold*");
     }
 
     [Test]

@@ -187,7 +187,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
 
   return (
     <Page
-      title="Stages"
+      title="Stage Library"
       subtitle={subtitle}
       fill
       message={

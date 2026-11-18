@@ -10,18 +10,18 @@ function renderDialog(to: string) {
 
 describe('StatusChangeDialog', () => {
   it('names each change by what it does', () => {
-    expect(statusAction('Blocked').label).toBe('Block');
+    expect(statusAction('Blocked').label).toBe('Put on Hold');
     expect(statusAction('Cancelled').label).toBe('Cancel Pathway');
-    expect(statusAction('Completed').label).toBe('Mark Completed');
+    expect(statusAction('Completed').label).toBe('Mark Discharged');
     expect(statusAction('Archived').label).toBe('Archive');
-    expect(statusAction('InProgress')).toMatchObject({label: 'Unblock', message: expect.stringContaining('in progress')});
+    expect(statusAction('InProgress')).toMatchObject({label: 'Take off Hold', message: expect.stringContaining('in progress')});
   });
 
   it('needs a reason to block, and passes it on', async () => {
     const {user, onConfirm} = renderDialog('Blocked');
 
     const dialog = await screen.findByRole('dialog');
-    const confirm = within(dialog).getByRole('button', {name: 'Block'});
+    const confirm = within(dialog).getByRole('button', {name: 'Put on Hold'});
     expect(isDisabled(confirm)).toBe(true);
 
     await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), '  Waiting for bloods. ');
@@ -35,7 +35,7 @@ describe('StatusChangeDialog', () => {
 
     await screen.findByRole('dialog');
     expect(within(openDialog()!).queryByRole('textbox')).not.toBeInTheDocument();
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Mark Completed'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Mark Discharged'}));
 
     expect(onConfirm).toHaveBeenCalledWith(undefined);
   });

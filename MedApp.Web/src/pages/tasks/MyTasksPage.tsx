@@ -73,7 +73,7 @@ const stageColumn: DataTableColumn<TaskRow> = {
       completed={p.completedStageCount ?? 0}
       total={p.stageCount ?? 0}
       currentStageName={p.currentStageName}
-      // There's no status column here, so the cell says when a pathway is blocked or in review.
+      // There's no status column here, so the cell says when a pathway is on hold or awaiting review.
       status={p.status ?? ''}
     />
   ),
@@ -151,7 +151,7 @@ const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Not started', values: {progress: 'notStarted'}},
   {label: 'Started', values: {progress: 'started'}},
   {label: 'Overdue', values: {overdue: true}},
-  {label: 'Blocked', values: {status: 'Blocked'}},
+  {label: 'On hold', values: {status: 'Blocked'}},
 ];
 
 /** The API search behind the list: unfinished pathways assigned to me, with its filters. */
@@ -242,8 +242,8 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
             onChange={(values) => onSearchChange({...search, ...fromBar(values), page: undefined})}
             list="tasks"
             isUnfiltered={!hasTaskFilters(search) && search.progress === undefined}
-            label="Search my tasks"
-            placeholder="Search my tasks by pathway, or filter by progress, patient, priority, target date..."
+            label="Search my worklist"
+            placeholder="Search my worklist by pathway, or filter by progress, patient, priority, target date..."
             textKey="title"
             favourites={FAVOURITES}
           />

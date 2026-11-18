@@ -25,7 +25,7 @@ public sealed class UnassignPatientPathwayHandlerTests : PathwayHandlerTestBase
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
-    [TestCase(Status.Completed, "completed")]
+    [TestCase(Status.Completed, "discharged")]
     [TestCase(Status.Cancelled, "cancelled")]
     [TestCase(Status.Archived, "archived")]
     public async Task Handle_PathwayClosed_ThrowsConflictAndKeepsTheAssignment(Status status, string described)

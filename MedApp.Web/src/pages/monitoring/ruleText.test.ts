@@ -21,8 +21,8 @@ describe('describeRule', () => {
   it.each([
     ['PathwayCreated', 'Notify me when anyone creates a pathway'],
     ['StageFinished', 'Notify me when anyone finishes a stage on a pathway'],
-    ['PathwayCompleted', 'Notify me when anyone completes a pathway'],
-    ['PathwayBlocked', 'Notify me when anyone blocks a pathway'],
+    ['PathwayCompleted', 'Notify me when anyone discharges a pathway'],
+    ['PathwayBlocked', 'Notify me when anyone puts a pathway on hold'],
     ['PathwayCancelled', 'Notify me when anyone cancels a pathway'],
     ['PathwayAssigned', 'Notify me when anyone is assigned to a pathway'],
     ['StageUnlocked', 'Notify me when anyone unlocks a stage on a pathway'],
@@ -43,7 +43,7 @@ describe('describeRule', () => {
 
   it('names the template', () => {
     expect(text({event: 'PathwayBlocked', templateId: 't1', templateName: 'Knee review'})).toBe(
-      'Notify me when anyone blocks a pathway from the Knee review template',
+      'Notify me when anyone puts a pathway from the Knee review template on hold',
     );
   });
 

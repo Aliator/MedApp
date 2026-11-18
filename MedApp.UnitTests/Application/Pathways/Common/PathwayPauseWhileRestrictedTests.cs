@@ -134,7 +134,7 @@ public sealed class PathwayPauseWhileRestrictedTests : PathwayHandlerTestBase
     public void PausesWhileRestricted_AreBlockingAndCancelling()
     {
         PatientRules.PausesWhileRestricted.Should().BeEquivalentTo([Status.Blocked, Status.Cancelled]);
-        PatientRules.RestrictedMessage.Should().Contain("blocked or cancelled");
+        PatientRules.RestrictedMessage.Should().Contain("put on hold or cancelled");
     }
 
     [Test]

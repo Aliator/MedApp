@@ -12,7 +12,7 @@ export interface StatusAction {
   title: string;
   message: string;
   icon: IconType;
-  /** Blocking and cancelling need a reason, which the audit log keeps. */
+  /** Putting on hold and cancelling need a reason, which the audit log keeps. */
   needsReason: boolean;
   isDanger?: boolean;
 }
@@ -22,10 +22,10 @@ export function statusAction(to: string): StatusAction {
   switch (to) {
     case 'Blocked':
       return {
-        label: 'Block',
+        label: 'Put on Hold',
         variant: 'secondary',
-        title: 'Block Pathway',
-        message: 'Work on its stages stops until it is unblocked. Say what it is waiting on.',
+        title: 'Put Pathway on Hold',
+        message: 'Work on its stages stops until it is taken off hold. Say what it is waiting on.',
         icon: AppIcon.Warning,
         needsReason: true,
       };
@@ -41,10 +41,10 @@ export function statusAction(to: string): StatusAction {
       };
     case 'Completed':
       return {
-        label: 'Mark Completed',
+        label: 'Mark Discharged',
         variant: 'primary',
-        title: 'Complete Pathway',
-        message: 'Every stage is finished. Mark the pathway as completed?',
+        title: 'Discharge Pathway',
+        message: 'Every stage is finished. Mark the pathway as discharged?',
         icon: AppIcon.Success,
         needsReason: false,
       };
@@ -58,11 +58,11 @@ export function statusAction(to: string): StatusAction {
         needsReason: false,
       };
     default:
-      // Unblocking goes back to the status it was blocked from.
+      // Taking it off hold goes back to the status it was put on hold from.
       return {
-        label: 'Unblock',
+        label: 'Take off Hold',
         variant: 'primary',
-        title: 'Unblock Pathway',
+        title: 'Take Pathway off Hold',
         message: `It goes back to ${statusLabel(to).toLowerCase()}, and work on its stages can carry on.`,
         icon: AppIcon.Refresh,
         needsReason: false,

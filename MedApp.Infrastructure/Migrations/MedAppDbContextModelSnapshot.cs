@@ -42,10 +42,10 @@ namespace MedApp.Infrastructure.Migrations
                         .HasMaxLength(45)
                         .HasColumnType("nvarchar(45)");
 
-                    b.Property<Guid?>("PatientId")
+                    b.Property<Guid?>("PathwayId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ProcedureId")
+                    b.Property<Guid?>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("TargetUsername")
@@ -118,10 +118,10 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid?>("OutcomeByUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("PatientId")
+                    b.Property<Guid?>("PathwayId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ProcedureId")
+                    b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<byte[]>("RowVersion")
@@ -144,9 +144,9 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PatientId");
+                    b.HasIndex("PathwayId");
 
-                    b.HasIndex("ProcedureId");
+                    b.HasIndex("PatientId");
 
                     b.HasIndex("StageId");
 
@@ -183,16 +183,16 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<DateTime?>("EndUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("PatientId")
+                    b.Property<Guid?>("PathwayId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ProcedureTitle")
+                    b.Property<string>("PathwayTitle")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("StaffUserId")
                         .HasColumnType("uniqueidentifier");
@@ -254,10 +254,10 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<bool>("HasThumbnail")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("PatientId")
+                    b.Property<Guid?>("PathwayId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ProcedureId")
+                    b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("ScanStatus")
@@ -291,7 +291,7 @@ namespace MedApp.Infrastructure.Migrations
 
                     b.HasIndex("DeletedAtUtc");
 
-                    b.HasIndex("ProcedureId");
+                    b.HasIndex("PathwayId");
 
                     b.HasIndex("StageId");
 
@@ -965,7 +965,7 @@ namespace MedApp.Infrastructure.Migrations
                     b.Property<Guid?>("NoteDeletionRequestId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ProcedureId")
+                    b.Property<Guid?>("PathwayId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("ReadAtUtc")
@@ -992,7 +992,7 @@ namespace MedApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("ProcedureAssigned")
+                    b.Property<bool>("PathwayAssigned")
                         .HasColumnType("bit");
 
                     b.Property<DateTime>("UpdatedAtUtc")
@@ -1001,6 +1001,496 @@ namespace MedApp.Infrastructure.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("NotificationPreferences", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayNoteDeletionRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DecidedByUsername")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RequestedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequestedByUsername")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("PatientPathwayId", "Status");
+
+                    b.HasIndex(new[] { "NoteId" }, "IX_PathwayNoteDeletionRequests_NoteId_Pending")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
+
+                    b.ToTable("PathwayNoteDeletionRequests", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("PathwayTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayTemplateMap", b =>
+                {
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("StageOrder")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StageDefinitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TemplateId", "StageOrder");
+
+                    b.HasIndex("StageDefinitionId");
+
+                    b.ToTable("PathwayTemplateMaps", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathway", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("BlockedFromStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DueDateUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LegacyNotes")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnName("Notes");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DueDateUtc");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("PatientId", "Status");
+
+                    b.ToTable("PatientPathways", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayAssignment", b =>
+                {
+                    b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AssignedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("AssignedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("PatientPathwayId", "UserId");
+
+                    b.HasIndex("AssignedByUserId");
+
+                    b.ToTable("PatientPathwayAssignments", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PathwayTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("StageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StageName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtUtc");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("PatientId", "AtUtc");
+
+                    b.HasIndex("PatientPathwayId", "AtUtc");
+
+                    b.ToTable("PatientPathwayAuditEntries", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletionDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("DeletionReason")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastEditedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PendingDeletionRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientPathwayId", "CreatedAtUtc");
+
+                    b.ToTable("PatientPathwayNotes", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayNoteVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("NoteId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("PatientPathwayNoteVersions", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CompletedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Instructions")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasDefaultValue("");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasDefaultValue("");
+
+                    b.Property<Guid>("PatientPathwayId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(18)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(18)");
+
+                    b.Property<string>("SnomedTerm")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid>("StageDefinitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("StageOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("StartedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("VisitRequirement")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StageDefinitionId");
+
+                    b.HasIndex("PatientPathwayId", "StageOrder")
+                        .IsUnique();
+
+                    b.ToTable("PatientPathwayStages", (string)null);
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStageDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Instructions")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(18)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(18)");
+
+                    b.Property<string>("SnomedTerm")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("VisitRequirement")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("PatientPathwayStageDefinitions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            Description = "This stage definition was deleted.",
+                            Instructions = "No instructions available.",
+                            IsArchived = true,
+                            Name = "Definition missing",
+                            VisitRequirement = 0
+                        });
                 });
 
             modelBuilder.Entity("MedApp.Domain.Patients.Patient", b =>
@@ -1075,496 +1565,6 @@ namespace MedApp.Infrastructure.Migrations
                         .HasFilter("[NhsNumber] IS NOT NULL");
 
                     b.ToTable("Patients", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("BlockedFromStatus")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("DueDateUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("LegacyNotes")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
-                        .HasColumnName("Notes");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Priority")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("TemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("TemplateName")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .HasDefaultValue("");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DueDateUtc");
-
-                    b.HasIndex("TemplateId");
-
-                    b.HasIndex("PatientId", "Status");
-
-                    b.ToTable("PatientProcedures", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAssignment", b =>
-                {
-                    b.Property<Guid>("PatientProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("AssignedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("AssignedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("PatientProcedureId", "UserId");
-
-                    b.HasIndex("AssignedByUserId");
-
-                    b.ToTable("PatientProcedureAssignments", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAuditEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Action")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("AtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Details")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ProcedureTitle")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid?>("StageId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("StageName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AtUtc");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("PatientId", "AtUtc");
-
-                    b.HasIndex("PatientProcedureId", "AtUtc");
-
-                    b.ToTable("PatientProcedureAuditEntries", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureNote", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AuthorUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("DeletedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("DeletionDetail")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("DeletionReason")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("LastEditedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PatientProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("PendingDeletionRequestId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientProcedureId", "CreatedAtUtc");
-
-                    b.ToTable("PatientProcedureNotes", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureNoteVersion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("AtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("NoteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("NoteId", "Version")
-                        .IsUnique();
-
-                    b.ToTable("PatientProcedureNoteVersions", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CompletedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasDefaultValue("");
-
-                    b.Property<string>("Instructions")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)")
-                        .HasDefaultValue("");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsLocked")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasDefaultValue("");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)")
-                        .HasDefaultValue("");
-
-                    b.Property<Guid>("PatientProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("SnomedCode")
-                        .HasMaxLength(18)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(18)");
-
-                    b.Property<string>("SnomedTerm")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<Guid>("StageDefinitionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("StageOrder")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("StartedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("StartedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("VisitRequirement")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StageDefinitionId");
-
-                    b.HasIndex("PatientProcedureId", "StageOrder")
-                        .IsUnique();
-
-                    b.ToTable("PatientProcedureStages", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageDefinition", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Instructions")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<bool>("IsArchived")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SnomedCode")
-                        .HasMaxLength(18)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(18)");
-
-                    b.Property<string>("SnomedTerm")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<int>("VisitRequirement")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("PatientProcedureStageDefinitions", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Description = "This stage definition was deleted.",
-                            Instructions = "No instructions available.",
-                            IsArchived = true,
-                            Name = "Definition missing",
-                            VisitRequirement = 0
-                        });
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsArchived")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("PatientProcedureStageTemplates", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplateMap", b =>
-                {
-                    b.Property<Guid>("TemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("StageOrder")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("StageDefinitionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("TemplateId", "StageOrder");
-
-                    b.HasIndex("StageDefinitionId");
-
-                    b.ToTable("PatientProcedureStageTemplateMaps", (string)null);
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.ProcedureNoteDeletionRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("DecidedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("DecidedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("DecidedByUsername")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("Detail")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<Guid>("NoteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PatientProcedureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Reason")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("RequestedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("RequestedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("RequestedByUsername")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("PatientProcedureId", "Status");
-
-                    b.HasIndex(new[] { "NoteId" }, "IX_ProcedureNoteDeletionRequests_NoteId_Pending")
-                        .IsUnique()
-                        .HasFilter("[Status] = 0");
-
-                    b.ToTable("ProcedureNoteDeletionRequests", (string)null);
                 });
 
             modelBuilder.Entity("MedApp.Infrastructure.Common.Identity.ApplicationUser", b =>
@@ -1801,25 +1801,25 @@ namespace MedApp.Infrastructure.Migrations
 
             modelBuilder.Entity("MedApp.Domain.Appointments.Appointment", b =>
                 {
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "Pathway")
+                        .WithMany()
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
                         .WithMany()
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "Procedure")
-                        .WithMany()
-                        .HasForeignKey("ProcedureId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", "Stage")
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStage", "Stage")
                         .WithMany()
                         .HasForeignKey("StageId")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.Navigation("Patient");
+                    b.Navigation("Pathway");
 
-                    b.Navigation("Procedure");
+                    b.Navigation("Patient");
 
                     b.Navigation("Stage");
                 });
@@ -1939,72 +1939,15 @@ namespace MedApp.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayTemplateMap", b =>
                 {
-                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", null)
-                        .WithMany()
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureAssignment", b =>
-                {
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
-                        .WithMany("Assignments")
-                        .HasForeignKey("PatientProcedureId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PatientProcedure");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureNote", b =>
-                {
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
-                        .WithMany("Notes")
-                        .HasForeignKey("PatientProcedureId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PatientProcedure");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStage", b =>
-                {
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", "PatientProcedure")
-                        .WithMany("Stages")
-                        .HasForeignKey("PatientProcedureId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageDefinition", "StageDefinition")
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStageDefinition", "StageDefinition")
                         .WithMany()
                         .HasForeignKey("StageDefinitionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("PatientProcedure");
-
-                    b.Navigation("StageDefinition");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplateMap", b =>
-                {
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageDefinition", "StageDefinition")
-                        .WithMany()
-                        .HasForeignKey("StageDefinitionId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", "Template")
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PathwayTemplate", "Template")
                         .WithMany("Maps")
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -2013,6 +1956,63 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("StageDefinition");
 
                     b.Navigation("Template");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathway", b =>
+                {
+                    b.HasOne("MedApp.Domain.Patients.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PathwayTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayAssignment", b =>
+                {
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "PatientPathway")
+                        .WithMany("Assignments")
+                        .HasForeignKey("PatientPathwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PatientPathway");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayNote", b =>
+                {
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "PatientPathway")
+                        .WithMany("Notes")
+                        .HasForeignKey("PatientPathwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PatientPathway");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStage", b =>
+                {
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathway", "PatientPathway")
+                        .WithMany("Stages")
+                        .HasForeignKey("PatientPathwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MedApp.Domain.Pathways.PatientPathways.PatientPathwayStageDefinition", "StageDefinition")
+                        .WithMany()
+                        .HasForeignKey("StageDefinitionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("PatientPathway");
+
+                    b.Navigation("StageDefinition");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -2081,18 +2081,18 @@ namespace MedApp.Infrastructure.Migrations
                     b.Navigation("Days");
                 });
 
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedure", b =>
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PathwayTemplate", b =>
+                {
+                    b.Navigation("Maps");
+                });
+
+            modelBuilder.Entity("MedApp.Domain.Pathways.PatientPathways.PatientPathway", b =>
                 {
                     b.Navigation("Assignments");
 
                     b.Navigation("Notes");
 
                     b.Navigation("Stages");
-                });
-
-            modelBuilder.Entity("MedApp.Domain.Procedures.PatientProcedures.PatientProcedureStageTemplate", b =>
-                {
-                    b.Navigation("Maps");
                 });
 #pragma warning restore 612, 618
         }

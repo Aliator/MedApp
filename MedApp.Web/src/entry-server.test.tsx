@@ -701,7 +701,7 @@ describe('server rendering', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(html).toContain('Completed this week');
+    expect(html).toContain('Discharged this week');
     expect(html).toContain('5 pathways are overdue. k.ashford has the most (3). 2 have nobody assigned.');
     expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
     expect(html).not.toContain('recharts-surface');

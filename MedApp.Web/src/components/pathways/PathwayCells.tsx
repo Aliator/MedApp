@@ -6,6 +6,7 @@ import {Icon, type IconType} from '@astryxdesign/core/Icon';
 import {Token, type TokenColor} from '@astryxdesign/core/Token';
 import {useAccessibility} from '../../app/accessibility';
 import {formatShortDate} from '../../utils/dates';
+import {statusLabel} from '../../utils/statusWords';
 import {AppIcon} from '../shared/icons';
 import {TableActions} from '../tables/TableActions';
 
@@ -47,11 +48,8 @@ function useStatusIcon(icon: IconType | undefined) {
   return flags.statusIcons && icon ? <Icon icon={icon} /> : undefined;
 }
 
-/** A status in words: "InReview" → "In review". */
-export function statusLabel(status: string): string {
-  const words = status.replace(/(?<=[a-z])(?=[A-Z])/g, ' ').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
+/** A status in words, as people see it: "InProgress" → "In progress", "Blocked" → "On hold" (`statusWords`). */
+export {statusLabel};
 
 export function PriorityToken({priority}: {priority: string}) {
   const icon = useStatusIcon(PRIORITY_ICONS[priority]);
@@ -140,7 +138,7 @@ export function DueDateCell({dueDate, isOverdue}: {dueDate: string; isOverdue: b
  * The stage being worked on ("Completed" once every stage is finished), and how far through its stages the
  * pathway is ("2 of 7 stages done"). Each is one line, truncated.
  *
- * A list without a status column passes `status`, and a blocked or in-review pathway says so beside the
+ * A list without a status column passes `status`, and a pathway on hold or awaiting review says so beside the
  * progress, since nobody can carry on with it. A list with one leaves it out.
  */
 export function StageProgressCell({

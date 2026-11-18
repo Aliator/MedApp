@@ -6,6 +6,7 @@
 
 import {ACTIVITY_ACTIONS} from '../api/activity';
 import {AUDIT_ACTIONS} from '../api/audit';
+import {searchNow} from '../app/beforePathways';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -165,7 +166,8 @@ export interface TasksSearch {
   dueTo?: string;
 }
 
-export function parseTasksSearch(raw: Record<string, unknown>): TasksSearch {
+export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
+  const raw = searchNow(saved);
   return compact({
     page: page(raw.page),
     sort: oneOf(raw.sort, Object.keys(TASK_SORTS) as TaskSortColumn[]),
@@ -245,7 +247,8 @@ export function pathwayStatuses(search: {status?: string; closed?: boolean}): st
   return choiceValues(search.status, pool);
 }
 
-export function parsePathwaysSearch(raw: Record<string, unknown>): PathwaysListSearch {
+export function parsePathwaysSearch(saved: Record<string, unknown>): PathwaysListSearch {
+  const raw = searchNow(saved);
   return compact({
     page: page(raw.page),
     sort: oneOf(raw.sort, Object.keys(PATHWAY_SORTS) as PathwaySortColumn[]),
@@ -310,7 +313,8 @@ export interface AuditListSearch {
   to?: string;
 }
 
-export function parseAuditSearch(raw: Record<string, unknown>): AuditListSearch {
+export function parseAuditSearch(saved: Record<string, unknown>): AuditListSearch {
+  const raw = searchNow(saved);
   const pathwayId = text(raw.pathwayId);
   return compact({
     page: page(raw.page),
@@ -342,7 +346,8 @@ export interface ActivityListSearch {
   to?: string;
 }
 
-export function parseActivitySearch(raw: Record<string, unknown>): ActivityListSearch {
+export function parseActivitySearch(saved: Record<string, unknown>): ActivityListSearch {
+  const raw = searchNow(saved);
   const patientId = text(raw.patientId);
   return compact({
     page: page(raw.page),

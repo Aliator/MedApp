@@ -1,6 +1,7 @@
 import {keepPreviousData, queryOptions} from '@tanstack/react-query';
 import {formatShortDate} from '../utils/dates';
 import {formatFileSize} from '../utils/fileSize';
+import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
 import {describeNoteDeletionReason} from './noteDeletion';
 import {api, unwrap, type Schemas} from './client';
@@ -76,8 +77,7 @@ export function auditSearchQuery(search: AuditSearch) {
 type Details = Record<string, unknown>;
 type FromTo = {from?: unknown; to?: unknown};
 
-const words = (value: unknown) =>
-  typeof value === 'string' ? value.replace(/(?<=[a-z])(?=[A-Z])/g, ' ').toLowerCase() : String(value ?? '');
+const words = (value: unknown) => (typeof value === 'string' ? statusWords(value) : String(value ?? ''));
 const quoted = (value: unknown) => (typeof value === 'string' && value.trim() ? `"${value.trim()}"` : 'nothing');
 const date = (value: unknown) => (typeof value === 'string' && value ? formatShortDate(value) : 'none');
 
@@ -110,7 +110,7 @@ function parse(details: string | null | undefined): Details {
 }
 
 /**
- * What an audit entry's details say, in a line of words, e.g. "In progress → blocked: Awaiting results" or
+ * What an audit entry's details say, in a line of words, e.g. "In progress → on hold: Awaiting results" or
  * "From Diagnostic procedure, 7 stages, due 7 Nov 2026, high priority". Empty when there's nothing to add to the
  * action and stage.
  */

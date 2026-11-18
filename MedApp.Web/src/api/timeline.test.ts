@@ -77,7 +77,7 @@ describe('timeline filters', () => {
       'Appointments',
       'Notes',
       'Assignments',
-      'Blocks',
+      'On hold',
       'Status',
       'Target dates',
       'Other edits',
@@ -200,20 +200,20 @@ describe('describeTimelineEntry', () => {
 
   it('words a block, with its reason for an admin', () => {
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'InProgress', toStatus: 'Blocked', reason: 'Waiting for results.'}))).toEqual({
-      title: 'Blocked',
+      title: 'Put on hold',
       detail: 'Was in progress. Waiting for results.',
     });
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'Assigned', toStatus: 'Blocked'})).detail).toBe('Was assigned');
   });
 
-  it('words an unblock, and cancelling a blocked pathway as a status change', () => {
+  it('words taking a pathway off hold, and cancelling one on hold as a status change', () => {
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'Blocked', toStatus: 'InReview'}))).toEqual({
-      title: 'Unblocked',
-      detail: 'Back to in review',
+      title: 'Taken off hold',
+      detail: 'Back to awaiting review',
     });
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'Blocked', toStatus: 'Cancelled', reason: 'No longer needed.'}))).toEqual({
       title: 'Status changed to cancelled',
-      detail: 'Was blocked. No longer needed.',
+      detail: 'Was on hold. No longer needed.',
     });
   });
 
@@ -280,7 +280,7 @@ describe('describeTimelineEntry', () => {
 
   it('says when the workflow changed the status itself', () => {
     expect(describeTimelineEntry(entry({action: 'StatusChanged', fromStatus: 'InProgress', toStatus: 'InReview', isAutomatic: true}))).toEqual({
-      title: 'Status changed to in review',
+      title: 'Status changed to awaiting review',
       detail: 'Was in progress, changed automatically',
     });
   });

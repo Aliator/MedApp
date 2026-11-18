@@ -110,13 +110,13 @@ Fourteen stage definitions in use, and a retired one ("Paper triage form (retire
 
 - **Saved searches** (the star by the search): "My open work" (the list starts on it), "Urgent skin referrals", "Overdue prostate assessments" and "Blocked". `h.marsh` has "Skin lesions in progress" and "Urgent bleeding referrals"; `n.thornbury` has "My overdue".
 - **Overdue work** comes from the slow parts, not at random: the waits for the visiting consultants' clinics (urgent post-menopausal bleeding referrals, due in three weeks, and prostate assessments), and skin lesions waiting for histology and treatment.
-- **Every status shows:** Unassigned and Assigned (the newest), In progress, In review, Blocked, Completed, Cancelled and Archived.
+- **Every status shows:** Unassigned and Assigned (the newest), In progress, Awaiting review, On hold, Discharged, Cancelled and Archived.
 - **Rows per page** is 25 for `admin` and 50 for `n.thornbury`, from their settings.
 
 ### A pathway record's page
 
 Open the ones named in the summary's `tour`:
-- **`blocked`:** blocked with a reason when a stage was reached. **`blockedThenUnblocked`:** blocked, then carried on days later.
+- **`blocked`:** put on hold with a reason when a stage was reached. **`blockedThenUnblocked`:** put on hold, then carried on days later.
 - **`stageUnlockedAndCorrected`:** an admin unlocked a finished stage; it was corrected with a bold **Correction:** and finished again.
 - **`finishedWithoutItsVisit`:** the two admin bypasses: a Required "Blood and urine tests" stage finished without a visit, because the samples were taken elsewhere, with the reason in the audit.
 - **`cancelledWithItsBookingCancelled`:** cancelled after its visit was booked; the coordinator then cancelled the booking by hand ("Pathway cancelled; patient informed by phone").
@@ -125,7 +125,7 @@ Open the ones named in the summary's `tour`:
 - **`visitNeverBooked`:** a visit asked for weeks ago and still in Requires Appointment.
 - **`oldPathwayStillFinishing`:** the archived skin lesion pathway's last three, whose histology took months.
 - **`missedAndRebooked`:** a visit the patient didn't attend, then a new one.
-- **`inReview`:** every stage finished, waiting to be marked completed.
+- **`inReview`:** every stage finished, awaiting review: waiting to be marked discharged.
 
 **On any pathway record:**
 - **Stage notes** are specific to the referral and the stage, and agree from stage to stage: a skin lesion's notes name the same site throughout (the first visit describes the lesion, the biopsy says where it was taken from, the lab's note gives the histology in words, the team review gives the plan, the treatment note says what was done). Sometimes with a list or a bold point.

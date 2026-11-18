@@ -13,8 +13,8 @@ import {
 
 describe('PathwayCells', () => {
   it('puts statuses into words', () => {
-    expect(statusLabel('InReview')).toBe('In review');
-    expect(statusLabel('Blocked')).toBe('Blocked');
+    expect(statusLabel('InReview')).toBe('Awaiting review');
+    expect(statusLabel('Blocked')).toBe('On hold');
   });
 
   it('links the title to the pathway', async () => {
@@ -72,10 +72,10 @@ describe('PathwayCells', () => {
     renderWithApp(<StageProgressCell completed={4} total={4} currentStageName={null} />);
 
     expect(await screen.findByText('Completed')).toBeInTheDocument();
-    expect(screen.queryByText('In review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Awaiting review')).not.toBeInTheDocument();
   });
 
-  it('says when a pathway is blocked or in review, for a list without a status column', async () => {
+  it('says when a pathway is on hold or awaiting review, for a list without a status column', async () => {
     renderWithApp(
       <>
         <StageProgressCell completed={2} total={7} currentStageName="Consultation" status="Blocked" />
@@ -84,8 +84,8 @@ describe('PathwayCells', () => {
       </>,
     );
 
-    expect(await screen.findByText('Blocked')).toBeInTheDocument();
-    expect(screen.getByText('In review')).toBeInTheDocument();
+    expect(await screen.findByText('On hold')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting review')).toBeInTheDocument();
     expect(screen.queryByText('In progress')).not.toBeInTheDocument();
   });
 
@@ -103,7 +103,7 @@ describe('PathwayCells', () => {
 
   it('shows statuses by colour and name alone by default', async () => {
     renderWithApp(<StatusToken status="Blocked" />);
-    await screen.findByText('Blocked');
+    await screen.findByText('On hold');
     expect(document.querySelector('.astryx-token svg')).toBeNull();
   });
 

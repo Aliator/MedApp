@@ -51,8 +51,8 @@ public sealed class PathwayTests : E2ETest
 
         // Finishing the last stage sends the pathway for review.
         await FinishCurrentStageAsync(stages[1].Name);
-        await Expect(Main).ToContainTextAsync("In review");
-        await Expect(Main.GetByRole(AriaRole.Button, new() { Name = "Mark Completed" })).ToBeVisibleAsync();
+        await Expect(Main).ToContainTextAsync("Awaiting review");
+        await Expect(Main.GetByRole(AriaRole.Button, new() { Name = "Mark Discharged" })).ToBeVisibleAsync();
 
         var saved = await Api.FindPathwayAsync(pathwayId);
         Assert.That(saved, Is.Not.Null);

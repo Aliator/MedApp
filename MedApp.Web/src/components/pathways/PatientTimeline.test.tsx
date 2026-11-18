@@ -337,9 +337,9 @@ describe('PatientTimeline', () => {
     for (const text of [
       'Unlocked Consultation',
       'Unassigned other.staff',
-      'Blocked',
-      'Unblocked',
-      'Status changed to completed',
+      'Put on hold',
+      'Taken off hold',
+      'Status changed to discharged',
       'Status changed to cancelled',
       'Saved notes on Consultation',
       'Target date changed',

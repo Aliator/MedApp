@@ -45,8 +45,8 @@ public static class MonitoringNotifications
     {
         MonitoringEvent.PathwayCreated => "Pathway created",
         MonitoringEvent.StageFinished => "Stage finished",
-        MonitoringEvent.PathwayCompleted => "Pathway completed",
-        MonitoringEvent.PathwayBlocked => "Pathway blocked",
+        MonitoringEvent.PathwayCompleted => "Pathway discharged",
+        MonitoringEvent.PathwayBlocked => "Pathway on hold",
         MonitoringEvent.PathwayCancelled => "Pathway cancelled",
         MonitoringEvent.PathwayAssigned => "Staff assigned",
         MonitoringEvent.StageUnlocked => "Stage unlocked",
@@ -65,8 +65,8 @@ public static class MonitoringNotifications
         {
             MonitoringEvent.PathwayCreated => $"{who} created {what}.",
             MonitoringEvent.StageFinished => $"{who} finished {stage} on {what}.",
-            MonitoringEvent.PathwayCompleted => $"{who} completed {what}.",
-            MonitoringEvent.PathwayBlocked => $"{who} blocked {what}.",
+            MonitoringEvent.PathwayCompleted => $"{who} discharged {what}.",
+            MonitoringEvent.PathwayBlocked => $"{who} put {what} on hold.",
             MonitoringEvent.PathwayCancelled => $"{who} cancelled {what}.",
             MonitoringEvent.PathwayAssigned => activity.SubjectUsername == who
                 ? $"{who} assigned themselves to {what}."

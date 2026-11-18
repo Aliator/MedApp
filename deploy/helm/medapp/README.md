@@ -96,6 +96,11 @@ The Job is deleted when it succeeds. A failed one stays, so you can read its log
 
 Because migrations run before the new API is up, a migration that removes or renames something the old API still uses breaks it during the rollout. Make such changes in two releases: first add the new thing, then remove the old.
 
+**One migration broke that rule on purpose,** before MedApp had real users, and a later one must not:
+- **The rename to pathways** (`RenamedProceduresToPathways`, `docs/glossary.md`): ten tables, their columns, keys and indexes are renamed in place, and the API's addresses moved with them (`api/pathways/…`), with no aliases.
+  - **Old pods stop working for pathways.** Once the Job has run, every request an old pod makes for a pathway, a stage, a note, the timeline or the audit log fails (a 500: the tables it names are gone), and pages loaded before the deploy call addresses the new API answers with a 404. Nothing is written wrongly, and it lasts until the rollout has replaced every pod. Deploy it when nobody is working, or scale the API to zero first.
+  - **A rollback needs the database rolled back too.** Reverting on `main` brings back an API that can't read the renamed tables. Run the migrations bundle down to the migration before it first (`/app/efbundle AddedMeetingIdToNotifications`, from the image that has the rename): its `Down` renames everything back and keeps every row.
+
 Changes that leave the old API partly working, until every pod runs the new one (the end of the rollout, or after a rollback, which doesn't roll the database back, the next deploy):
 - **Personal calendar templates and meetings** (`MadeCalendarTemplatesPersonal` and `AddedMeetings`, #99):
   - **Old pods can't create day or week templates.** Their insert gives no owner, and the column has no default, so it fails (a 500) rather than making a template nobody owns.

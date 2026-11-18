@@ -39,7 +39,7 @@ describe('AuditLogPage', () => {
   it('lists entries newest first: when, the pathway and stage, the action, who, and the details in words', async () => {
     const {fetch} = renderLog();
 
-    const row = (await screen.findByText('In progress → blocked: Awaiting results')).closest('tr')!;
+    const row = (await screen.findByText('In progress → on hold: Awaiting results')).closest('tr')!;
     expect(within(row).getByRole('link', {name: 'Knee review'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
     expect(within(row).getByText('Status changed')).toBeInTheDocument();
     expect(within(row).getByText('k.ashford')).toBeInTheDocument();

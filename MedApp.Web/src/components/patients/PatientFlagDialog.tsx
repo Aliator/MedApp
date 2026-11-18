@@ -143,11 +143,11 @@ function counted(count: number, noun: string, state: string): string {
 /** What restricting the record stops, counted; null when nothing is under way or open. */
 function freezeWarning(pathways: number, appointments: number): string | null {
   if (pathways > 0 && appointments > 0) {
-    return `${counted(pathways, 'pathway', 'under way')} and ${counted(appointments, 'appointment', 'open')}. While the record is restricted, work on them stops: the pathways can still be blocked or cancelled, with a reason, and the appointments cancelled, but nothing else.`;
+    return `${counted(pathways, 'pathway', 'under way')} and ${counted(appointments, 'appointment', 'open')}. While the record is restricted, work on them stops: the pathways can still be put on hold or cancelled, with a reason, and the appointments cancelled, but nothing else.`;
   }
   if (pathways > 0) {
     const [them, they] = pathways === 1 ? ['it', 'it'] : ['them', 'they'];
-    return `${counted(pathways, 'pathway', 'under way')}. While the record is restricted, work on ${them} stops: ${they} can still be blocked or cancelled, with a reason, but nothing else.`;
+    return `${counted(pathways, 'pathway', 'under way')}. While the record is restricted, work on ${them} stops: ${they} can still be put on hold or cancelled, with a reason, but nothing else.`;
   }
   if (appointments > 0) {
     const they = appointments === 1 ? 'it' : 'they';

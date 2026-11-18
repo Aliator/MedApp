@@ -39,20 +39,20 @@ import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar/index'
 import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calendar/needs-booking'
 import { Route as AppCalendarRequiresAppointmentRouteImport } from './routes/_app/calendar/requires-appointment'
+import { Route as AppPathwaysIndexRouteImport } from './routes/_app/pathways/index'
+import { Route as AppPathwaysNewRouteImport } from './routes/_app/pathways/new'
 import { Route as AppPatientsIndexRouteImport } from './routes/_app/patients/index'
 import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
-import { Route as AppProceduresIndexRouteImport } from './routes/_app/procedures/index'
-import { Route as AppProceduresNewRouteImport } from './routes/_app/procedures/new'
-import { Route as AppAdminTemplatesIndexRouteImport } from './routes/_app/admin/templates/index'
-import { Route as AppAdminTemplatesIdRouteImport } from './routes/_app/admin/templates/$id'
-import { Route as AppAdminTemplatesNewRouteImport } from './routes/_app/admin/templates/new'
+import { Route as AppAdminPathwayTemplatesIndexRouteImport } from './routes/_app/admin/pathway-templates/index'
+import { Route as AppAdminPathwayTemplatesIdRouteImport } from './routes/_app/admin/pathway-templates/$id'
+import { Route as AppAdminPathwayTemplatesNewRouteImport } from './routes/_app/admin/pathway-templates/new'
 import { Route as AppCalendarTemplatesIndexRouteImport } from './routes/_app/calendar/templates/index'
+import { Route as AppPathwaysIdIndexRouteImport } from './routes/_app/pathways/$id/index'
+import { Route as AppPathwaysIdEditRouteImport } from './routes/_app/pathways/$id/edit'
 import { Route as AppPatientsIdIndexRouteImport } from './routes/_app/patients/$id/index'
 import { Route as AppPatientsIdEditRouteImport } from './routes/_app/patients/$id/edit'
 import { Route as AppPatientsIdExportRouteImport } from './routes/_app/patients/$id/export'
-import { Route as AppPatientsIdProceduresRouteImport } from './routes/_app/patients/$id/procedures'
-import { Route as AppProceduresIdIndexRouteImport } from './routes/_app/procedures/$id/index'
-import { Route as AppProceduresIdEditRouteImport } from './routes/_app/procedures/$id/edit'
+import { Route as AppPatientsIdPathwaysRouteImport } from './routes/_app/patients/$id/pathways'
 import { Route as AppCalendarTemplatesDayIdRouteImport } from './routes/_app/calendar/templates/day/$id'
 import { Route as AppCalendarTemplatesDayNewRouteImport } from './routes/_app/calendar/templates/day/new'
 import { Route as AppCalendarTemplatesWeekIdRouteImport } from './routes/_app/calendar/templates/week/$id'
@@ -209,6 +209,16 @@ const AppCalendarRequiresAppointmentRoute =
     path: '/calendar/requires-appointment',
     getParentRoute: () => AppRoute,
   } as any)
+const AppPathwaysIndexRoute = AppPathwaysIndexRouteImport.update({
+  id: '/pathways/',
+  path: '/pathways/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPathwaysNewRoute = AppPathwaysNewRouteImport.update({
+  id: '/pathways/new',
+  path: '/pathways/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPatientsIndexRoute = AppPatientsIndexRouteImport.update({
   id: '/patients/',
   path: '/patients/',
@@ -219,37 +229,40 @@ const AppPatientsAddRoute = AppPatientsAddRouteImport.update({
   path: '/patients/add',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
-  id: '/procedures/',
-  path: '/procedures/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
-  id: '/procedures/new',
-  path: '/procedures/new',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminTemplatesIndexRoute = AppAdminTemplatesIndexRouteImport.update({
-  id: '/admin/templates/',
-  path: '/admin/templates/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminTemplatesIdRoute = AppAdminTemplatesIdRouteImport.update({
-  id: '/admin/templates/$id',
-  path: '/admin/templates/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminTemplatesNewRoute = AppAdminTemplatesNewRouteImport.update({
-  id: '/admin/templates/new',
-  path: '/admin/templates/new',
-  getParentRoute: () => AppRoute,
-} as any)
+const AppAdminPathwayTemplatesIndexRoute =
+  AppAdminPathwayTemplatesIndexRouteImport.update({
+    id: '/admin/pathway-templates/',
+    path: '/admin/pathway-templates/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminPathwayTemplatesIdRoute =
+  AppAdminPathwayTemplatesIdRouteImport.update({
+    id: '/admin/pathway-templates/$id',
+    path: '/admin/pathway-templates/$id',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminPathwayTemplatesNewRoute =
+  AppAdminPathwayTemplatesNewRouteImport.update({
+    id: '/admin/pathway-templates/new',
+    path: '/admin/pathway-templates/new',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppCalendarTemplatesIndexRoute =
   AppCalendarTemplatesIndexRouteImport.update({
     id: '/calendar/templates/',
     path: '/calendar/templates/',
     getParentRoute: () => AppRoute,
   } as any)
+const AppPathwaysIdIndexRoute = AppPathwaysIdIndexRouteImport.update({
+  id: '/pathways/$id/',
+  path: '/pathways/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPathwaysIdEditRoute = AppPathwaysIdEditRouteImport.update({
+  id: '/pathways/$id/edit',
+  path: '/pathways/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPatientsIdIndexRoute = AppPatientsIdIndexRouteImport.update({
   id: '/patients/$id/',
   path: '/patients/$id/',
@@ -265,19 +278,9 @@ const AppPatientsIdExportRoute = AppPatientsIdExportRouteImport.update({
   path: '/patients/$id/export',
   getParentRoute: () => AppRoute,
 } as any)
-const AppPatientsIdProceduresRoute = AppPatientsIdProceduresRouteImport.update({
-  id: '/patients/$id/procedures',
-  path: '/patients/$id/procedures',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProceduresIdIndexRoute = AppProceduresIdIndexRouteImport.update({
-  id: '/procedures/$id/',
-  path: '/procedures/$id/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
-  id: '/procedures/$id/edit',
-  path: '/procedures/$id/edit',
+const AppPatientsIdPathwaysRoute = AppPatientsIdPathwaysRouteImport.update({
+  id: '/patients/$id/pathways',
+  path: '/patients/$id/pathways',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCalendarTemplatesDayIdRoute =
@@ -333,22 +336,22 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
+  '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
-  '/procedures/new': typeof AppProceduresNewRoute
   '/account/': typeof AppAccountIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
+  '/pathways/': typeof AppPathwaysIndexRoute
   '/patients/': typeof AppPatientsIndexRoute
-  '/procedures/': typeof AppProceduresIndexRoute
-  '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
-  '/admin/templates/new': typeof AppAdminTemplatesNewRoute
+  '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
+  '/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
+  '/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/export': typeof AppPatientsIdExportRoute
-  '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
-  '/procedures/$id/edit': typeof AppProceduresIdEditRoute
-  '/admin/templates/': typeof AppAdminTemplatesIndexRoute
+  '/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
+  '/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
   '/calendar/templates/': typeof AppCalendarTemplatesIndexRoute
+  '/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/patients/$id/': typeof AppPatientsIdIndexRoute
-  '/procedures/$id/': typeof AppProceduresIdIndexRoute
   '/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -382,22 +385,22 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AppAdminUsersRoute
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
+  '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
-  '/procedures/new': typeof AppProceduresNewRoute
   '/account': typeof AppAccountIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
+  '/pathways': typeof AppPathwaysIndexRoute
   '/patients': typeof AppPatientsIndexRoute
-  '/procedures': typeof AppProceduresIndexRoute
-  '/admin/templates/$id': typeof AppAdminTemplatesIdRoute
-  '/admin/templates/new': typeof AppAdminTemplatesNewRoute
+  '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
+  '/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
+  '/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/patients/$id/export': typeof AppPatientsIdExportRoute
-  '/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
-  '/procedures/$id/edit': typeof AppProceduresIdEditRoute
-  '/admin/templates': typeof AppAdminTemplatesIndexRoute
+  '/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
+  '/admin/pathway-templates': typeof AppAdminPathwayTemplatesIndexRoute
   '/calendar/templates': typeof AppCalendarTemplatesIndexRoute
+  '/pathways/$id': typeof AppPathwaysIdIndexRoute
   '/patients/$id': typeof AppPatientsIdIndexRoute
-  '/procedures/$id': typeof AppProceduresIdIndexRoute
   '/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -433,22 +436,22 @@ export interface FileRoutesById {
   '/_app/admin/users': typeof AppAdminUsersRoute
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
+  '/_app/pathways/new': typeof AppPathwaysNewRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
-  '/_app/procedures/new': typeof AppProceduresNewRoute
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
+  '/_app/pathways/': typeof AppPathwaysIndexRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
-  '/_app/procedures/': typeof AppProceduresIndexRoute
-  '/_app/admin/templates/$id': typeof AppAdminTemplatesIdRoute
-  '/_app/admin/templates/new': typeof AppAdminTemplatesNewRoute
+  '/_app/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
+  '/_app/admin/pathway-templates/new': typeof AppAdminPathwayTemplatesNewRoute
+  '/_app/pathways/$id/edit': typeof AppPathwaysIdEditRoute
   '/_app/patients/$id/edit': typeof AppPatientsIdEditRoute
   '/_app/patients/$id/export': typeof AppPatientsIdExportRoute
-  '/_app/patients/$id/procedures': typeof AppPatientsIdProceduresRoute
-  '/_app/procedures/$id/edit': typeof AppProceduresIdEditRoute
-  '/_app/admin/templates/': typeof AppAdminTemplatesIndexRoute
+  '/_app/patients/$id/pathways': typeof AppPatientsIdPathwaysRoute
+  '/_app/admin/pathway-templates/': typeof AppAdminPathwayTemplatesIndexRoute
   '/_app/calendar/templates/': typeof AppCalendarTemplatesIndexRoute
+  '/_app/pathways/$id/': typeof AppPathwaysIdIndexRoute
   '/_app/patients/$id/': typeof AppPatientsIdIndexRoute
-  '/_app/procedures/$id/': typeof AppProceduresIdIndexRoute
   '/_app/calendar/templates/day/$id': typeof AppCalendarTemplatesDayIdRoute
   '/_app/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/_app/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
@@ -484,22 +487,22 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
+    | '/pathways/new'
     | '/patients/add'
-    | '/procedures/new'
     | '/account/'
     | '/calendar/'
+    | '/pathways/'
     | '/patients/'
-    | '/procedures/'
-    | '/admin/templates/$id'
-    | '/admin/templates/new'
+    | '/admin/pathway-templates/$id'
+    | '/admin/pathway-templates/new'
+    | '/pathways/$id/edit'
     | '/patients/$id/edit'
     | '/patients/$id/export'
-    | '/patients/$id/procedures'
-    | '/procedures/$id/edit'
-    | '/admin/templates/'
+    | '/patients/$id/pathways'
+    | '/admin/pathway-templates/'
     | '/calendar/templates/'
+    | '/pathways/$id/'
     | '/patients/$id/'
-    | '/procedures/$id/'
     | '/calendar/templates/day/$id'
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
@@ -533,22 +536,22 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
+    | '/pathways/new'
     | '/patients/add'
-    | '/procedures/new'
     | '/account'
     | '/calendar'
+    | '/pathways'
     | '/patients'
-    | '/procedures'
-    | '/admin/templates/$id'
-    | '/admin/templates/new'
+    | '/admin/pathway-templates/$id'
+    | '/admin/pathway-templates/new'
+    | '/pathways/$id/edit'
     | '/patients/$id/edit'
     | '/patients/$id/export'
-    | '/patients/$id/procedures'
-    | '/procedures/$id/edit'
-    | '/admin/templates'
+    | '/patients/$id/pathways'
+    | '/admin/pathway-templates'
     | '/calendar/templates'
+    | '/pathways/$id'
     | '/patients/$id'
-    | '/procedures/$id'
     | '/calendar/templates/day/$id'
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
@@ -583,22 +586,22 @@ export interface FileRouteTypes {
     | '/_app/admin/users'
     | '/_app/calendar/needs-booking'
     | '/_app/calendar/requires-appointment'
+    | '/_app/pathways/new'
     | '/_app/patients/add'
-    | '/_app/procedures/new'
     | '/_app/account/'
     | '/_app/calendar/'
+    | '/_app/pathways/'
     | '/_app/patients/'
-    | '/_app/procedures/'
-    | '/_app/admin/templates/$id'
-    | '/_app/admin/templates/new'
+    | '/_app/admin/pathway-templates/$id'
+    | '/_app/admin/pathway-templates/new'
+    | '/_app/pathways/$id/edit'
     | '/_app/patients/$id/edit'
     | '/_app/patients/$id/export'
-    | '/_app/patients/$id/procedures'
-    | '/_app/procedures/$id/edit'
-    | '/_app/admin/templates/'
+    | '/_app/patients/$id/pathways'
+    | '/_app/admin/pathway-templates/'
     | '/_app/calendar/templates/'
+    | '/_app/pathways/$id/'
     | '/_app/patients/$id/'
-    | '/_app/procedures/$id/'
     | '/_app/calendar/templates/day/$id'
     | '/_app/calendar/templates/day/new'
     | '/_app/calendar/templates/week/$id'
@@ -828,6 +831,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCalendarRequiresAppointmentRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pathways/': {
+      id: '/_app/pathways/'
+      path: '/pathways'
+      fullPath: '/pathways/'
+      preLoaderRoute: typeof AppPathwaysIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pathways/new': {
+      id: '/_app/pathways/new'
+      path: '/pathways/new'
+      fullPath: '/pathways/new'
+      preLoaderRoute: typeof AppPathwaysNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/patients/': {
       id: '/_app/patients/'
       path: '/patients'
@@ -842,39 +859,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsAddRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/procedures/': {
-      id: '/_app/procedures/'
-      path: '/procedures'
-      fullPath: '/procedures/'
-      preLoaderRoute: typeof AppProceduresIndexRouteImport
+    '/_app/admin/pathway-templates/': {
+      id: '/_app/admin/pathway-templates/'
+      path: '/admin/pathway-templates'
+      fullPath: '/admin/pathway-templates/'
+      preLoaderRoute: typeof AppAdminPathwayTemplatesIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/procedures/new': {
-      id: '/_app/procedures/new'
-      path: '/procedures/new'
-      fullPath: '/procedures/new'
-      preLoaderRoute: typeof AppProceduresNewRouteImport
+    '/_app/admin/pathway-templates/$id': {
+      id: '/_app/admin/pathway-templates/$id'
+      path: '/admin/pathway-templates/$id'
+      fullPath: '/admin/pathway-templates/$id'
+      preLoaderRoute: typeof AppAdminPathwayTemplatesIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/admin/templates/': {
-      id: '/_app/admin/templates/'
-      path: '/admin/templates'
-      fullPath: '/admin/templates/'
-      preLoaderRoute: typeof AppAdminTemplatesIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/templates/$id': {
-      id: '/_app/admin/templates/$id'
-      path: '/admin/templates/$id'
-      fullPath: '/admin/templates/$id'
-      preLoaderRoute: typeof AppAdminTemplatesIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/templates/new': {
-      id: '/_app/admin/templates/new'
-      path: '/admin/templates/new'
-      fullPath: '/admin/templates/new'
-      preLoaderRoute: typeof AppAdminTemplatesNewRouteImport
+    '/_app/admin/pathway-templates/new': {
+      id: '/_app/admin/pathway-templates/new'
+      path: '/admin/pathway-templates/new'
+      fullPath: '/admin/pathway-templates/new'
+      preLoaderRoute: typeof AppAdminPathwayTemplatesNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/calendar/templates/': {
@@ -882,6 +885,20 @@ declare module '@tanstack/react-router' {
       path: '/calendar/templates'
       fullPath: '/calendar/templates/'
       preLoaderRoute: typeof AppCalendarTemplatesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pathways/$id/': {
+      id: '/_app/pathways/$id/'
+      path: '/pathways/$id'
+      fullPath: '/pathways/$id/'
+      preLoaderRoute: typeof AppPathwaysIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pathways/$id/edit': {
+      id: '/_app/pathways/$id/edit'
+      path: '/pathways/$id/edit'
+      fullPath: '/pathways/$id/edit'
+      preLoaderRoute: typeof AppPathwaysIdEditRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/patients/$id/': {
@@ -905,25 +922,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPatientsIdExportRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/patients/$id/procedures': {
-      id: '/_app/patients/$id/procedures'
-      path: '/patients/$id/procedures'
-      fullPath: '/patients/$id/procedures'
-      preLoaderRoute: typeof AppPatientsIdProceduresRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/procedures/$id/': {
-      id: '/_app/procedures/$id/'
-      path: '/procedures/$id'
-      fullPath: '/procedures/$id/'
-      preLoaderRoute: typeof AppProceduresIdIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/procedures/$id/edit': {
-      id: '/_app/procedures/$id/edit'
-      path: '/procedures/$id/edit'
-      fullPath: '/procedures/$id/edit'
-      preLoaderRoute: typeof AppProceduresIdEditRouteImport
+    '/_app/patients/$id/pathways': {
+      id: '/_app/patients/$id/pathways'
+      path: '/patients/$id/pathways'
+      fullPath: '/patients/$id/pathways'
+      preLoaderRoute: typeof AppPatientsIdPathwaysRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/calendar/templates/day/$id': {
@@ -978,22 +981,22 @@ interface AppRouteChildren {
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
+  AppPathwaysNewRoute: typeof AppPathwaysNewRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
-  AppProceduresNewRoute: typeof AppProceduresNewRoute
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
+  AppPathwaysIndexRoute: typeof AppPathwaysIndexRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
-  AppProceduresIndexRoute: typeof AppProceduresIndexRoute
-  AppAdminTemplatesIdRoute: typeof AppAdminTemplatesIdRoute
-  AppAdminTemplatesNewRoute: typeof AppAdminTemplatesNewRoute
+  AppAdminPathwayTemplatesIdRoute: typeof AppAdminPathwayTemplatesIdRoute
+  AppAdminPathwayTemplatesNewRoute: typeof AppAdminPathwayTemplatesNewRoute
+  AppPathwaysIdEditRoute: typeof AppPathwaysIdEditRoute
   AppPatientsIdEditRoute: typeof AppPatientsIdEditRoute
   AppPatientsIdExportRoute: typeof AppPatientsIdExportRoute
-  AppPatientsIdProceduresRoute: typeof AppPatientsIdProceduresRoute
-  AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
-  AppAdminTemplatesIndexRoute: typeof AppAdminTemplatesIndexRoute
+  AppPatientsIdPathwaysRoute: typeof AppPatientsIdPathwaysRoute
+  AppAdminPathwayTemplatesIndexRoute: typeof AppAdminPathwayTemplatesIndexRoute
   AppCalendarTemplatesIndexRoute: typeof AppCalendarTemplatesIndexRoute
+  AppPathwaysIdIndexRoute: typeof AppPathwaysIdIndexRoute
   AppPatientsIdIndexRoute: typeof AppPatientsIdIndexRoute
-  AppProceduresIdIndexRoute: typeof AppProceduresIdIndexRoute
   AppCalendarTemplatesDayIdRoute: typeof AppCalendarTemplatesDayIdRoute
   AppCalendarTemplatesDayNewRoute: typeof AppCalendarTemplatesDayNewRoute
   AppCalendarTemplatesWeekIdRoute: typeof AppCalendarTemplatesWeekIdRoute
@@ -1021,22 +1024,22 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
+  AppPathwaysNewRoute: AppPathwaysNewRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
-  AppProceduresNewRoute: AppProceduresNewRoute,
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
+  AppPathwaysIndexRoute: AppPathwaysIndexRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
-  AppProceduresIndexRoute: AppProceduresIndexRoute,
-  AppAdminTemplatesIdRoute: AppAdminTemplatesIdRoute,
-  AppAdminTemplatesNewRoute: AppAdminTemplatesNewRoute,
+  AppAdminPathwayTemplatesIdRoute: AppAdminPathwayTemplatesIdRoute,
+  AppAdminPathwayTemplatesNewRoute: AppAdminPathwayTemplatesNewRoute,
+  AppPathwaysIdEditRoute: AppPathwaysIdEditRoute,
   AppPatientsIdEditRoute: AppPatientsIdEditRoute,
   AppPatientsIdExportRoute: AppPatientsIdExportRoute,
-  AppPatientsIdProceduresRoute: AppPatientsIdProceduresRoute,
-  AppProceduresIdEditRoute: AppProceduresIdEditRoute,
-  AppAdminTemplatesIndexRoute: AppAdminTemplatesIndexRoute,
+  AppPatientsIdPathwaysRoute: AppPatientsIdPathwaysRoute,
+  AppAdminPathwayTemplatesIndexRoute: AppAdminPathwayTemplatesIndexRoute,
   AppCalendarTemplatesIndexRoute: AppCalendarTemplatesIndexRoute,
+  AppPathwaysIdIndexRoute: AppPathwaysIdIndexRoute,
   AppPatientsIdIndexRoute: AppPatientsIdIndexRoute,
-  AppProceduresIdIndexRoute: AppProceduresIdIndexRoute,
   AppCalendarTemplatesDayIdRoute: AppCalendarTemplatesDayIdRoute,
   AppCalendarTemplatesDayNewRoute: AppCalendarTemplatesDayNewRoute,
   AppCalendarTemplatesWeekIdRoute: AppCalendarTemplatesWeekIdRoute,

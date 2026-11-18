@@ -44,8 +44,8 @@ public sealed class MonitoringNotificationsTests
 
     [TestCase(MonitoringEvent.PathwayCreated, NotificationKind.MonitoredPathwayCreated, "Pathway created", "test.staff created a High priority Test template pathway.")]
     [TestCase(MonitoringEvent.StageFinished, NotificationKind.MonitoredStageFinished, "Stage finished", "test.staff finished a stage on a High priority Test template pathway.")]
-    [TestCase(MonitoringEvent.PathwayCompleted, NotificationKind.MonitoredPathwayCompleted, "Pathway completed", "test.staff completed a High priority Test template pathway.")]
-    [TestCase(MonitoringEvent.PathwayBlocked, NotificationKind.MonitoredPathwayBlocked, "Pathway blocked", "test.staff blocked a High priority Test template pathway.")]
+    [TestCase(MonitoringEvent.PathwayCompleted, NotificationKind.MonitoredPathwayCompleted, "Pathway discharged", "test.staff discharged a High priority Test template pathway.")]
+    [TestCase(MonitoringEvent.PathwayBlocked, NotificationKind.MonitoredPathwayBlocked, "Pathway on hold", "test.staff put a High priority Test template pathway on hold.")]
     [TestCase(MonitoringEvent.PathwayCancelled, NotificationKind.MonitoredPathwayCancelled, "Pathway cancelled", "test.staff cancelled a High priority Test template pathway.")]
     [TestCase(MonitoringEvent.PathwayAssigned, NotificationKind.MonitoredPathwayAssigned, "Staff assigned", "test.staff assigned themselves to a High priority Test template pathway.")]
     [TestCase(MonitoringEvent.StageUnlocked, NotificationKind.MonitoredStageUnlocked, "Stage unlocked", "test.staff unlocked a stage on a High priority Test template pathway.")]

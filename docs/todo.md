@@ -6,8 +6,7 @@ Improvements and features to pick up later, outside the phased plans (`docs/path
 
 The plan to make MedApp fit a referral-led community specialist centre (outpatient specialties, a lab, visiting consultants), in five phases. Each phase leaves the app in a state that can be shown. The demo is inspired by such a centre, but no real centre's name or logo goes in the repo.
 
-**In progress (phase 1, on `feature/pathways-rename` and `feature/centre-demo-data`):**
-- **The vocabulary:** Pathway becomes **Pathway** and Template becomes **Pathway template**, in the code and on screen, through one scripted rename with a hand-written migration that renames tables rather than dropping them. Stored enum values keep their numbers. Screen only: Stage library, Awaiting review, On hold, Discharged, Target date, My worklist.
+**Phase 1.** The vocabulary is done: pathways, pathway templates and the screen-only labels are in `docs/glossary.md`, and `tools/rename-procedures-to-pathways.py` brings a branch from before the rename across.
 - **One seeding script:** a command anyone can run from a terminal wipes the local database and replays the demo clinic (today only `medapp-dev`'s `reset_demo_data`). It's the only way demo data gets in, kind's demo data included.
 - **The new demo clinic:** 18 months of a referral-led outpatient centre (dermatology, gynaecology, urology, diabetes, biomechanics), with its staff, pathway types, stage library, calendars, notes, files, saved searches and monitoring rules, and the seed's tests and `docs/demo-data.md` to match.
 
@@ -45,6 +44,7 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **Re-check the medical device decision:** waiting-time breach flags, triage and results lists move the app closer to decision support. Update `docs/clinical-safety/intended-purpose-and-device-decision.md` before building them.
   - **The clinical safety case and hazard log,** with the new hazards: a referral lost before triage, a result never signed off, a letter sent to the wrong GP.
   - **NHS and security assurance:** the Data Security and Protection Toolkit, the digital technology assessment (DTAC) and a penetration test.
+  - **A clinical read of the new labels:** the status shown as "Discharged" (stored as `Completed`) is a label staff give a pathway whose stages are finished; the Clinical Safety Officer should confirm staff won't read it as the patient's discharge being recorded or sent anywhere (`docs/clinical-safety/intended-purpose-and-device-decision.md`, Status workflow).
   - **Put the safety gates back:** Testing, "Before first live use, make CI strict again".
   - **Background jobs and file scanning:** Privacy, "A scheduled job for operational data", and Attachments, "A real malware scanner".
 

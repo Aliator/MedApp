@@ -59,9 +59,9 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
   const failed = definitions.isError || (template.isError && !isMissing);
   return (
     <Page
-      title={id ? 'Edit Template' : 'New Template'}
+      title={id ? 'Edit Pathway Template' : 'New Pathway Template'}
       backHref={BACK}
-      backLabel="Back to templates"
+      backLabel="Back to pathway templates"
       isLoading={isLoading}
       loadingMessage="Loading template..."
       message={failed && <AlertMessage message="The template could not be loaded. Please try again." />}
@@ -134,7 +134,7 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
       description="What staff choose when they create a pathway."
       value={name}
       onChange={setName}
-      placeholder="e.g. Diagnostic procedure"
+      placeholder="e.g. Diagnostic pathway"
       autoComplete="off"
       isRequired
       isDisabled={save.isPending}
@@ -224,10 +224,10 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
 
   return (
     <Page
-      title={template ? 'Edit Template' : 'New Template'}
+      title={template ? 'Edit Pathway Template' : 'New Pathway Template'}
       subtitle={template?.name ?? undefined}
       onBack={backToList}
-      backLabel="Back to templates"
+      backLabel="Back to pathway templates"
       fill
       message={
         problem.validation ? (

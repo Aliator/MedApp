@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useMemo} from 'react';
+import {pinsNow} from '../../app/beforePathways';
 import {appSettings, defineSetting, useAppSetting} from '../../app/settingsStore';
 
 /** How many of each kind (patients, pathways) one user can pin in the side nav. */
@@ -31,7 +32,8 @@ function ids(value: unknown): string[] {
 
 function parse(stored: string | null): AllPins {
   try {
-    const parsed = JSON.parse(stored ?? '{}') as Partial<Record<PinKind, unknown>> | null;
+    // Read by the names used now: pins saved before pathways were renamed keep them under their old name.
+    const parsed = pinsNow(JSON.parse(stored ?? '{}'));
     return {patients: ids(parsed?.patients), pathways: ids(parsed?.pathways)};
   } catch {
     return {patients: [], pathways: []};

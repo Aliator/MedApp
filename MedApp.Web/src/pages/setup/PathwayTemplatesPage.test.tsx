@@ -34,7 +34,7 @@ describe('PathwayTemplatesPage', () => {
     expect(within(knee).getByRole('link', {name: 'Edit template'})).toHaveAttribute('href', '/admin/pathway-templates/t1');
     expect(within(await rowOf('Draft pathway')).getByText('Not used yet')).toBeInTheDocument();
     expect(screen.queryByText('Old pathway')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'New Template'})).toHaveAttribute('href', '/admin/pathway-templates/new');
+    expect(screen.getByRole('link', {name: 'New Pathway Template'})).toHaveAttribute('href', '/admin/pathway-templates/new');
     // The search starts on Active; the bar's token says it, so the favourite's name isn't repeated beside the star.
     expect(searchBar()).toHaveTextContent(/Status: is\s*Active/);
     expect(screen.getByRole('button', {name: 'Favourites (showing Active)'})).toBeInTheDocument();

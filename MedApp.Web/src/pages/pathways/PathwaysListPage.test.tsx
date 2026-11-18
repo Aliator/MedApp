@@ -123,7 +123,7 @@ describe('PathwaysListPage', () => {
 
     await screen.findByText('Colonoscopy');
     expect(searchBar()).toHaveTextContent(/Pathway: contains\s*biopsy/);
-    expect(searchBar()).toHaveTextContent(/Status: is not any of\s*Blocked/);
+    expect(searchBar()).toHaveTextContent(/Status: is not any of\s*On hold/);
 
     await pickFavourite(user, 'Assigned to me');
     expect(onSearchChange).toHaveBeenLastCalledWith(

@@ -128,11 +128,11 @@ describe('PathwayPage', () => {
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await findAlert(/Restricted record: .* can be blocked or cancelled, with a reason/)).toHaveTextContent('Reason: Synthetic accuracy check');
+    expect(await findAlert(/Restricted record: .* can be put on hold or cancelled, with a reason/)).toHaveTextContent('Reason: Synthetic accuracy check');
     expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
     // The patient's banner says it all: the bare reason isn't repeated.
     expect(screen.queryByText('Restricted.')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Block'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Put on Hold'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Cancel Pathway'})).toBeInTheDocument();
   });
 
@@ -142,8 +142,8 @@ describe('PathwayPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Colonoscopy', level: 1})).toBeInTheDocument();
     expect(screen.getByText('Diagnostic procedure')).toBeInTheDocument();
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
-    expect(screen.getByText('Was in progress before it was blocked')).toBeInTheDocument();
+    expect(screen.getByText('On hold')).toBeInTheDocument();
+    expect(screen.getByText('Was in progress before it was put on hold')).toBeInTheDocument();
     expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
     expect(screen.getByText('a.user')).toBeInTheDocument();
@@ -283,17 +283,17 @@ describe('PathwayPage: working on it', () => {
     await expectAnnounced(/finished\. Next stage: /);
   });
 
-  it('blocks the pathway with a reason', async () => {
+  it('puts the pathway on hold with a reason', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
       [`POST ${PATH}/status`]: () => json(working({status: 'Blocked'})),
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('button', {name: 'Block'}));
+    await user.click(await screen.findByRole('button', {name: 'Put on Hold'}));
     const dialog = openDialog()!;
     await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Waiting for bloods.');
-    await user.click(within(dialog).getByRole('button', {name: 'Block'}));
+    await user.click(within(dialog).getByRole('button', {name: 'Put on Hold'}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/status`));
     expect(await bodyOf(fetch, `POST ${PATH}/status`)).toEqual({status: 'Blocked', reason: 'Waiting for bloods.'});
@@ -339,17 +339,17 @@ describe('PathwayPage: working on it', () => {
     mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('button', {name: 'Block'}));
+    await user.click(await screen.findByRole('button', {name: 'Put on Hold'}));
 
     expect(within(openDialog()!).queryByText(NOT_ASSIGNED_MESSAGE)).not.toBeInTheDocument();
-    expect(within(openDialog()!).getByRole('button', {name: 'Block'})).toBeInTheDocument();
+    expect(within(openDialog()!).getByRole('button', {name: 'Put on Hold'})).toBeInTheDocument();
   });
 
   it('does not ask when you back out, and makes no change', async () => {
     const fetch = mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('button', {name: 'Block'}));
+    await user.click(await screen.findByRole('button', {name: 'Put on Hold'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
 
     expect(openDialog()).toBeNull();
@@ -500,13 +500,13 @@ describe('PathwayPage: working on it', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`DELETE ${PATH}/assignments/u1`));
   });
 
-  it('explains why stages are read-only while blocked', async () => {
+  it('explains why stages are read-only while on hold', async () => {
     mockApi({[`GET ${PATH}`]: () => json(pathway)});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByText("Stages can't be worked on while the pathway is blocked.")).toBeInTheDocument();
+    expect(await screen.findByText("Stages can't be worked on while the pathway is on hold.")).toBeInTheDocument();
     expect(screen.queryByRole('textbox', {name: 'Notes'})).not.toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Unblock'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Take off Hold'})).toBeInTheDocument();
   });
 });
 

@@ -13,7 +13,7 @@ namespace MedApp.Application.Patients.Common;
 public static class PatientRules
 {
     public const string RestrictedMessage =
-        "This patient's record is restricted, so it can't be changed until an admin lifts the restriction. Its pathways can still be blocked or cancelled, with a reason.";
+        "This patient's record is restricted, so it can't be changed until an admin lifts the restriction. Its pathways can still be put on hold or cancelled, with a reason.";
 
     /// <summary>The status changes still allowed on a restricted record's pathways: pausing or stopping care, with a reason.</summary>
     public static readonly IReadOnlyList<PatientPathwayStatus> PausesWhileRestricted =

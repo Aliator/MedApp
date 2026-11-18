@@ -140,9 +140,17 @@ public static partial class PathwayWorkflow
         && !stage.IsCompleted
         && !stageAppointments.Any(a => a.StageId == stage.Id && a.Status == AppointmentStatus.Attended);
 
-    /// <summary>A status in words, e.g. "in review".</summary>
-    public static string Describe(PatientPathwayStatus status) =>
-        WordBoundary().Replace(status.ToString(), " $1").ToLowerInvariant();
+    /// <summary>
+    /// A status in words, as people see it, e.g. "in progress". Three are shown by another name than the one stored:
+    /// InReview is "awaiting review", Blocked is "on hold" and Completed is "discharged" (docs/glossary.md).
+    /// </summary>
+    public static string Describe(PatientPathwayStatus status) => status switch
+    {
+        PatientPathwayStatus.InReview => "awaiting review",
+        PatientPathwayStatus.Blocked => "on hold",
+        PatientPathwayStatus.Completed => "discharged",
+        _ => WordBoundary().Replace(status.ToString(), " $1").ToLowerInvariant()
+    };
 
     [GeneratedRegex("(?<=[a-z])([A-Z])")]
     private static partial Regex WordBoundary();

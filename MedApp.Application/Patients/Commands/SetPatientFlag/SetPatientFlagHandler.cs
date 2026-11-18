@@ -93,13 +93,13 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
         {
             (_, 0) =>
                 $"This patient has {pathways}. Confirm that work on {(underWay == 1 ? "it" : "them")} stops while the record " +
-                "is restricted (blocking and cancelling stay possible).",
+                "is restricted (putting them on hold and cancelling stay possible).",
             (0, _) =>
                 $"This patient has {appointments}. Confirm that {(openAppointments == 1 ? "it" : "they")} can't be booked, " +
                 "moved or given an outcome while the record is restricted (cancelling stays possible).",
             _ =>
                 $"This patient has {pathways} and {appointments}. Confirm that work on them stops while the record is " +
-                "restricted (blocking and cancelling pathways, and cancelling appointments, stay possible)."
+                "restricted (putting pathways on hold and cancelling them, and cancelling appointments, stay possible)."
         };
     }
 }

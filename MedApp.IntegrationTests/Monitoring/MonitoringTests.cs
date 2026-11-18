@@ -130,7 +130,7 @@ public sealed class MonitoringTests : IntegrationTest
 
         (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
         var told = (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle("two matching rules of one admin make one notification").Subject;
-        told.Message.Should().Be($"{AdminUsername} blocked a Medium priority {_template.Name} pathway.").And.NotContain(BlockReason);
+        told.Message.Should().Be($"{AdminUsername} put a Medium priority {_template.Name} pathway on hold.").And.NotContain(BlockReason);
     }
 
     [Test]

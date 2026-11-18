@@ -39,8 +39,8 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
-    expect(screen.getByRole('link', {name: 'Stages'})).toHaveAttribute('href', '/admin/stages');
-    expect(screen.getByRole('link', {name: 'Templates'})).toHaveAttribute('href', '/admin/pathway-templates');
+    expect(screen.getByRole('link', {name: 'Stage Library'})).toHaveAttribute('href', '/admin/stages');
+    expect(screen.getByRole('link', {name: 'Pathway Templates'})).toHaveAttribute('href', '/admin/pathway-templates');
     // Calendar templates are each person's own, reached from the Calendar page.
     expect(screen.queryByRole('link', {name: 'Calendar Templates'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Activity Types'})).toHaveAttribute('href', '/admin/activity-types');

@@ -111,11 +111,11 @@ export function PathwayTemplatesPage({search, onSearchChange}: PathwayTemplatesP
 
   return (
     <Page
-      title="Templates"
+      title="Pathway Templates"
       subtitle={subtitle}
       fill
       message={error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The templates could not be loaded. Please try again." />}
-      actions={<Button label="New Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/pathway-templates/new" />}
+      actions={<Button label="New Pathway Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/pathway-templates/new" />}
       dialogs={
         <>
           <ConfirmDialog

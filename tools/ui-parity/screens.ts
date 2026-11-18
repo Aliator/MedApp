@@ -476,10 +476,10 @@ export const screens: Screen[] = [
   { name: 'pathway-edit', title: "Edit a pathway's details", path: (d) => `/pathways/${d.pathwayId}/edit` },
   {
     name: 'pathway-block',
-    title: 'Block pathway dialog, asking for a reason (not confirmed)',
+    title: 'Put Pathway on Hold dialog, asking for a reason (not confirmed)',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Block' }).click();
+      await page.getByRole('button', { name: 'Put on Hold' }).click();
       await passNotAssignedCheck(page);
       await waitVisible(page, DIALOG);
     },
@@ -556,7 +556,7 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'admin-stages', title: 'Stages (admin)', path: '/admin/stages' },
+  { name: 'admin-stages', title: 'Stage Library (admin)', path: '/admin/stages' },
   {
     name: 'admin-stage-edit',
     title: 'Edit stage dialog, with its Visit choice (not saved)',
@@ -566,15 +566,15 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'admin-templates', title: 'Templates (admin), archived ones shown too (no status filter)', path: '/admin/pathway-templates?status=any' },
+  { name: 'admin-templates', title: 'Pathway Templates (admin), archived ones shown too (no status filter)', path: '/admin/pathway-templates?status=any' },
   {
     name: 'admin-template-edit',
-    title: 'Edit a template: its stages in order beside All Stages, to add from',
+    title: 'Edit a pathway template: its stages in order beside All Stages, to add from',
     path: '/admin/pathway-templates',
     prepare: async (page) => {
       // Edit is a link to the template's page.
       await page.getByRole('table').getByRole('link', { name: /edit template/i }).first().click();
-      await page.getByRole('heading', { name: 'Edit Template' }).waitFor();
+      await page.getByRole('heading', { name: 'Edit Pathway Template' }).waitFor();
       await settle(page);
     },
   },

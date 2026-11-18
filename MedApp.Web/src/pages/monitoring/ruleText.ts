@@ -60,9 +60,9 @@ export function describeRule(rule: RuleDescription): SentencePart[] {
       case 'StageFinished':
         return [{text: ' finishes '}, ...stage(rule), {text: ' on '}, ...what];
       case 'PathwayCompleted':
-        return [{text: ' completes '}, ...what];
+        return [{text: ' discharges '}, ...what];
       case 'PathwayBlocked':
-        return [{text: ' blocks '}, ...what];
+        return [{text: ' puts '}, ...what, {text: ' on hold'}];
       case 'PathwayCancelled':
         return [{text: ' cancels '}, ...what];
       case 'PathwayAssigned':

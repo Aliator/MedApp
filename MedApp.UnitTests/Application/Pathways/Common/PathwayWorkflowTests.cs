@@ -186,10 +186,23 @@ public sealed class PathwayWorkflowTests
         PathwayWorkflow.CanBeDeleted(CreatePathway(status)).Should().Be(expected);
     }
 
-    [Test]
-    public void Describe_MultiWordStatus_IsLowerCaseWords()
+    [TestCase(Status.Unassigned, "unassigned")]
+    [TestCase(Status.Assigned, "assigned")]
+    [TestCase(Status.InProgress, "in progress")]
+    [TestCase(Status.Cancelled, "cancelled")]
+    [TestCase(Status.Archived, "archived")]
+    public void Describe_Status_IsItsNameInLowerCaseWords(Status status, string expected)
     {
-        PathwayWorkflow.Describe(Status.InReview).Should().Be("in review");
+        PathwayWorkflow.Describe(status).Should().Be(expected);
+    }
+
+    // Three statuses are shown by another name than the one stored (docs/glossary.md).
+    [TestCase(Status.InReview, "awaiting review")]
+    [TestCase(Status.Blocked, "on hold")]
+    [TestCase(Status.Completed, "discharged")]
+    public void Describe_StatusShownByAnotherName_IsTheNamePeopleSee(Status status, string expected)
+    {
+        PathwayWorkflow.Describe(status).Should().Be(expected);
     }
 
     private static Appointment StageAppointment(PatientPathwayStage stage, AppointmentStatus status) => new()

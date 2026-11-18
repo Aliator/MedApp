@@ -8,6 +8,8 @@ MedApp is a patient and pathway management app: a .NET 10 Web API (Clean Archite
 
 This file is the core: what every change needs. Each area's detail is in `docs/agents/` (index: `docs/agents/README.md`), read on demand: see [Read before you change](#read-before-you-change).
 
+**The vocabulary** (pathways, pathway templates, the stage library), the names things had before, and the labels that differ from the code's names (the `Blocked` status shows as "On hold", `DueDate` as "Target date") are in [`docs/glossary.md`](docs/glossary.md).
+
 ## Read before you change
 
 **Before changing anything in an area, read its file.** The rules on the right are the ones costly to break and easy to miss; they apply even if you skip the file.

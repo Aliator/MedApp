@@ -1,5 +1,6 @@
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../utils/dates';
+import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
 import {api, unwrap, type Schemas} from './client';
 
@@ -25,7 +26,7 @@ const KIND_LABELS: Record<TimelineKind, string> = {
   Appointments: 'Appointments',
   Notes: 'Notes',
   Assignments: 'Assignments',
-  Blocks: 'Blocks',
+  Blocks: 'On hold',
   Status: 'Status',
   DueDates: 'Target dates',
   Details: 'Other edits',
@@ -101,8 +102,8 @@ export function groupByDay(entries: readonly TimelineEntry[]): TimelineDay[] {
   return days;
 }
 
-/** A status or priority in words, lower case: "InReview" → "in review". */
-const words = (value: string | null | undefined) => (value ?? '').replace(/(?<=[a-z])(?=[A-Z])/g, ' ').toLowerCase();
+/** A status or priority in words, lower case: "InProgress" → "in progress", "Blocked" → "on hold". */
+const words = (value: string | null | undefined) => statusWords(value ?? '');
 const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const date = (value: string | null | undefined) => (value ? formatShortDate(value) : 'none');
 const quoted = (value: string | null | undefined) => (value?.trim() ? `"${value.trim()}"` : 'nothing');
@@ -150,7 +151,7 @@ export interface TimelineWording {
 const noteTextOf = (changes: TimelineChange[]) => changes.find((c) => c.to?.trim())?.to?.trim();
 
 /**
- * An entry in words, e.g. {title: "Blocked", detail: "Was in progress. Awaiting results"}. It says only what the API
+ * An entry in words, e.g. {title: "Put on hold", detail: "Was in progress. Awaiting results"}. It says only what the API
  * sent: staff never get notes, titles or reasons from the log, so for them those lines just say what changed.
  */
 export function describeTimelineEntry(entry: TimelineEntry): TimelineWording {
@@ -309,10 +310,10 @@ const OPEN_STATUSES = new Set(['Unassigned', 'Assigned', 'InProgress', 'InReview
 function describeStatusChange(entry: TimelineEntry): TimelineWording {
   const reason = entry.reason?.trim();
   if (entry.toStatus === 'Blocked')
-    return {title: 'Blocked', detail: [`Was ${words(entry.fromStatus)}`, reason].filter(Boolean).join('. ')};
-  // Unblocking puts it back where it was; cancelling a blocked pathway is a status change like any other.
+    return {title: 'Put on hold', detail: [`Was ${words(entry.fromStatus)}`, reason].filter(Boolean).join('. ')};
+  // Taking it off hold puts it back where it was; cancelling a pathway on hold is a status change like any other.
   if (entry.fromStatus === 'Blocked' && OPEN_STATUSES.has(entry.toStatus ?? ''))
-    return {title: 'Unblocked', detail: `Back to ${words(entry.toStatus)}`};
+    return {title: 'Taken off hold', detail: `Back to ${words(entry.toStatus)}`};
   const was = `Was ${words(entry.fromStatus)}${entry.isAutomatic ? ', changed automatically' : ''}`;
   return {title: `Status changed to ${words(entry.toStatus)}`, detail: [was, reason].filter(Boolean).join('. ')};
 }

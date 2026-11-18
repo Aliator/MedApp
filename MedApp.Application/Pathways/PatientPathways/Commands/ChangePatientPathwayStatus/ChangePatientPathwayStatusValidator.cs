@@ -18,7 +18,7 @@ public sealed class ChangePatientPathwayStatusValidator : AbstractValidator<Chan
             .Must(reason => !string.IsNullOrWhiteSpace(reason))
             .When(x => PathwayEnums.TryParse<PatientPathwayStatus>(x.Status, out var status)
                        && PathwayWorkflow.RequiresReason(status))
-            .WithMessage("A reason is required to block or cancel a pathway.");
+            .WithMessage("A reason is required to put a pathway on hold or cancel it.");
 
         RuleFor(x => x.Reason)
             .MaximumLength(500)

@@ -32,7 +32,7 @@ public sealed class ChangePatientPathwayStatusHandler(
                 $"A pathway that's {PathwayWorkflow.Describe(pathway.Status)} can't be made {PathwayWorkflow.Describe(to)}.");
 
         if (to == PatientPathwayStatus.Completed && !PathwayWorkflow.AllStagesFinished(pathway))
-            throw new ConflictException("Every stage must be finished before the pathway is completed.");
+            throw new ConflictException("Every stage must be finished before the pathway is marked discharged.");
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new PathwayChange(pathway, request.Actor, now);

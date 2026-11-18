@@ -74,17 +74,17 @@ describe('insights in words', () => {
     expect(overdueByPrioritySummary({...insights, overdue: {current: 0}})).toBe('Nothing is overdue.');
   });
 
-  it('sums up what was created and completed', () => {
+  it('sums up what was created and discharged', () => {
     expect(throughputSummary(insights.throughput!)).toBe(
-      'Over 3 weeks, 8 pathways created and 10 completed: 2 more completed than created. This week so far: 1 created, 3 completed.',
+      'Over 3 weeks, 8 pathways created and 10 discharged: 2 more discharged than created. This week so far: 1 created, 3 discharged.',
     );
     expect(throughputSummary([{weekStart: '2026-11-16', created: 2, completed: 1}])).toBe(
-      'Over 1 week, 2 pathways created and 1 completed: 1 more created than completed. This week so far: 2 created, 1 completed.',
+      'Over 1 week, 2 pathways created and 1 discharged: 1 more created than discharged. This week so far: 2 created, 1 discharged.',
     );
     expect(throughputSummary([{weekStart: '2026-11-16'}])).toBe(
-      'Over 1 week, 0 pathways created and 0 completed: as many completed as created. This week so far: 0 created, 0 completed.',
+      'Over 1 week, 0 pathways created and 0 discharged: as many discharged as created. This week so far: 0 created, 0 discharged.',
     );
-    expect(throughputSummary([])).toBe('Over 0 weeks, 0 pathways created and 0 completed: as many completed as created.');
+    expect(throughputSummary([])).toBe('Over 0 weeks, 0 pathways created and 0 discharged: as many discharged as created.');
   });
 
   it('names the stage that takes longest, and its template when there are several', () => {

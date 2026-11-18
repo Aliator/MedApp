@@ -36,9 +36,9 @@ describe('describeAuditDetails', () => {
   });
 
   it('gives a status change, whether it was automatic, and the reason', () => {
-    expect(describe_('StatusChanged', {from: 'InProgress', to: 'InReview', automatic: true})).toBe('In progress → in review (automatic)');
+    expect(describe_('StatusChanged', {from: 'InProgress', to: 'InReview', automatic: true})).toBe('In progress → awaiting review (automatic)');
     expect(describe_('StatusChanged', {from: 'InProgress', to: 'Blocked', automatic: false, reason: 'Awaiting results'})).toBe(
-      'In progress → blocked: Awaiting results',
+      'In progress → on hold: Awaiting results',
     );
   });
 

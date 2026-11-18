@@ -61,7 +61,7 @@ describe('PatientFlagDialog', () => {
     const {user, onConfirm} = renderDialog({flag: 'restriction', set: true}, {underWay: 2});
 
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByText(/2 pathways are under way/)).toHaveTextContent(/can still be blocked or cancelled, with a reason/);
+    expect(await within(dialog).findByText(/2 pathways are under way/)).toHaveTextContent(/can still be put on hold or cancelled, with a reason/);
     await user.type(within(dialog).getByRole('textbox', {name: /reason/i}), 'Synthetic accuracy check');
     const confirm = within(dialog).getByRole('button', {name: 'Restrict Record'});
     expect(isDisabled(confirm)).toBe(true);
@@ -108,7 +108,7 @@ describe('PatientFlagDialog', () => {
     renderDialog({flag: 'restriction', set: true}, {underWay: 1, openAppointments: 3});
 
     expect(await screen.findByText(/1 pathway is under way and 3 appointments are open/)).toHaveTextContent(
-      'the pathways can still be blocked or cancelled, with a reason, and the appointments cancelled, but nothing else.',
+      'the pathways can still be put on hold or cancelled, with a reason, and the appointments cancelled, but nothing else.',
     );
     expect(screen.getByRole('checkbox', {name: /work on the 1 pathway and 3 appointments stops/})).toBeInTheDocument();
   });
