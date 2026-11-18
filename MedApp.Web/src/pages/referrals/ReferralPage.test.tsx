@@ -177,6 +177,44 @@ describe('ReferralPage', () => {
     expect(await findAlert('The referral could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
+  it("dismisses a 409's message, and cancels withdrawing", async () => {
+    const {user} = renderPage(testReferral(), {
+      [`POST /api/referrals/${REFERRAL_ID}/withdraw`]: () => json({title: CHANGED, status: 409}, 409),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'More'}));
+    await user.click(await screen.findByRole('menuitem', {name: /Withdraw/}));
+    let dialog = within(await waitFor(() => openDialog()!));
+    await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'More'}));
+    await user.click(await screen.findByRole('menuitem', {name: /Withdraw/}));
+    dialog = within(await waitFor(() => openDialog()!));
+    await user.type(dialog.getByRole('textbox', {name: /Who withdrew it/}), 'The practice phoned');
+    await user.click(dialog.getByRole('button', {name: 'Withdraw Referral'}));
+    expect(await findAlert(CHANGED)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: /Dismiss/}));
+    await waitFor(() => expect(screen.queryByText(CHANGED)).not.toBeInTheDocument());
+  });
+
+  it('folds each of its sections in a narrow window', async () => {
+    const {user} = renderPage(testReferral(), {}, true);
+
+    await screen.findByRole('heading', {name: 'Details'});
+    expect(screen.getByText('A synthetic reason for referral.')).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: 'Details'}));
+    await waitFor(() => expect(screen.queryByText('A synthetic reason for referral.')).not.toBeInTheDocument());
+    expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: 'Letter'}));
+    await waitFor(() => expect(screen.queryByText('No letter attached yet.')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('heading', {name: 'Triage'}));
+    await waitFor(() => expect(screen.queryByText(/Only a member of its specialty/)).not.toBeInTheDocument());
+    expect(await screen.findByRole('list', {name: 'Other referrals'})).toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: "This patient's other referrals"}));
+    await waitFor(() => expect(screen.queryByRole('list', {name: 'Other referrals'})).not.toBeInTheDocument());
+  });
+
   it('folds into one card in a narrow window or half view', async () => {
     const {user} = renderPage(testReferral(), {}, true);
     const history = await screen.findByRole('heading', {name: 'History'});
@@ -293,6 +331,23 @@ describe('ReferralPage triage', () => {
 
     expect(await dialog.findByText(TRIAGED)).toBeInTheDocument();
     await waitFor(() => expect(reads()).toBeGreaterThan(before));
+  });
+
+  it('cancels each triage decision without sending anything', async () => {
+    const {user, fetch} = renderPage(
+      triager,
+      {'GET /api/pathways/patient-pathway-stage/templates': () => json(templates), 'GET /api/specialties': () => json(SPECIALTIES)},
+      false,
+      clinician,
+    );
+
+    for (const action of ['Accept', 'Reject', 'Redirect']) {
+      await user.click(await screen.findByRole('button', {name: action}));
+      const dialog = within(await waitFor(() => openDialog()!));
+      await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+      await waitFor(() => expect(openDialog()).toBeNull());
+    }
+    expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'POST')).toBe(false);
   });
 
   it('redirects it to another specialty, announcing where', async () => {

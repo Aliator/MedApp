@@ -79,7 +79,11 @@ describe('RedirectReferralDialog', () => {
 
     expect(await dialog().findByText(/closed as redirected elsewhere/)).toBeInTheDocument();
     expect(dialog().getByText('Synthetic Community Service')).toBeInTheDocument();
-    await user.click(dialog().getByRole('button', {name: 'Redirect Referral'}));
+    // Back to the form, where to kept, and on again.
+    await user.click(dialog().getByRole('button', {name: 'Back'}));
+    expect(await dialog().findByRole('textbox', {name: /Where to/})).toHaveValue('Synthetic Community Service');
+    await user.click(dialog().getByRole('button', {name: 'Continue'}));
+    await user.click(await dialog().findByRole('button', {name: 'Redirect Referral'}));
     await waitFor(async () =>
       expect(await posted(fetch)).toEqual({specialtyId: null, elsewhere: 'Synthetic Community Service', detail: 'Seen closer to home.', expectedVersion: 2}),
     );

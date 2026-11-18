@@ -60,7 +60,12 @@ describe('RejectReferralDialog', () => {
     expect(dialog().getByText('Dermatology')).toBeInTheDocument();
     expect(dialog().getByText('Duplicate')).toBeInTheDocument();
     expect(dialog().getByText('None')).toBeInTheDocument();
-    await user.click(dialog().getByRole('button', {name: 'Reject Referral'}));
+    // Back to the form, the reason kept, and on again.
+    await user.click(dialog().getByRole('button', {name: 'Back'}));
+    expect(await screen.findByRole('heading', {name: 'Reject Referral'})).toBeInTheDocument();
+    expect(dialog().getByRole('combobox', {name: /Reason/})).toHaveTextContent('Duplicate');
+    await user.click(dialog().getByRole('button', {name: 'Continue'}));
+    await user.click(await dialog().findByRole('button', {name: 'Reject Referral'}));
 
     await waitFor(() => expect(onRejected).toHaveBeenCalledWith(rejected));
     expect(await posted(fetch)).toEqual({reason: 'Duplicate', detail: null, expectedVersion: 2});
