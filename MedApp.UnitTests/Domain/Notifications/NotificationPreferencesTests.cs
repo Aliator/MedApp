@@ -34,7 +34,8 @@ public sealed class NotificationPreferencesTests
                 .Where(k => k.ToString().StartsWith("Monitored")
                             || k.ToString().StartsWith("Appointment")
                             || k.ToString().StartsWith("Meeting")
-                            || k == NotificationKind.DayClosed));
+                            || k == NotificationKind.DayClosed
+                            || k == NotificationKind.StageVisitWithdrawn));
         Notification.HasFixedTitle(NotificationKind.ProcedureAssigned).Should().BeFalse();
     }
 

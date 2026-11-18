@@ -60,8 +60,10 @@ public static class ClosedDayBookings
                 UserId = b.StaffUserId,
                 Kind = NotificationKind.DayClosed,
                 Title = NotificationTitle,
+                // What's counted includes what has already happened (a day closed part-way through) and blocks, so
+                // the message asks only for what's still to come to be moved or cancelled.
                 Message = $"{actor.Username} closed {UkTime.DescribeDate(date)} ({closedDayName}). " +
-                          $"You have {What(b)} then: move or cancel {(Count(b) == 1 ? "it" : "them")}, and tell any patients.",
+                          $"You have {What(b)} then. Move or cancel what's still to come, and tell any patients.",
                 CalendarDate = date,
                 CreatedAtUtc = nowUtc
             })
@@ -80,8 +82,6 @@ public static class ClosedDayBookings
             _ => $"{string.Join(", ", parts[..^1])} and {parts[^1]}"
         };
     }
-
-    private static int Count(StaffBookings b) => b.Appointments + b.Blocks + b.Meetings;
 
     private static string? Part(int count, string noun) => count switch
     {

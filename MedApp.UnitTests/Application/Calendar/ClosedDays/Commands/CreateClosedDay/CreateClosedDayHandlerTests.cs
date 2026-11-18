@@ -130,7 +130,7 @@ public sealed class CreateClosedDayHandlerTests
         notification.CalendarDate.Should().Be(ClosedWednesday);
         notification.AppointmentId.Should().BeNull();
         notification.Message.Should().Be(
-            $"{AdminUsername} closed Wednesday 25 November ({ClosedDayName}). You have 2 appointments and a meeting then: move or cancel them, and tell any patients.");
+            $"{AdminUsername} closed Wednesday 25 November ({ClosedDayName}). You have 2 appointments and a meeting then. Move or cancel what's still to come, and tell any patients.");
     }
 
     [Test]

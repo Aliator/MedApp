@@ -36,28 +36,44 @@ public static class StageVisits
     /// After a stage's visit was withdrawn as entered in error, whether the stage should have its visit asked for again,
     /// by the same rules as when it became current (<see cref="RequestForCurrentStage"/>), and what to tell the person
     /// who withdrew it. <paramref name="appointments"/> are the stage's appointments as they stand, the withdrawn one
-    /// included. Null message: nothing to say (the stage involves no visit).
+    /// included (already withdrawn). Null message: nothing to say (the stage involves no visit).
+    /// <para>
+    /// <c>FinishedWithoutVisit</c>: the stage is finished, requires a visit, and now has no attended one, so the
+    /// procedure's assignees and the admins are told (<c>AppointmentNotifications.AfterStageVisitWithdrawn</c>): only an
+    /// admin can put it right, by unlocking it, and finishing it again won't ask for the visit.
+    /// </para>
     /// </summary>
-    public static (bool RequestAgain, string? Message) AfterVisitWithdrawn(
+    public static (bool RequestAgain, string? Message, bool FinishedWithoutVisit) AfterVisitWithdrawn(
         PatientProcedure procedure, PatientProcedureStage stage, IEnumerable<Appointment> appointments)
     {
         if (stage.VisitRequirement == VisitRequirement.None)
-            return (false, null);
+            return (false, null, false);
 
+        var visits = appointments.Where(a => a.StageId == stage.Id).ToList();
         if (stage.IsCompleted)
-            return (false, $"The '{stage.Name}' stage was finished with this visit. If it still needs its visit, an admin can unlock it, and then book one.");
+        {
+            // Not "finished with this visit": a walk-in can be recorded for a stage finished before it, on another
+            // visit or by the admin bypass.
+            if (visits.Any(a => a.Status == AppointmentStatus.Attended))
+                return (false, $"The '{stage.Name}' stage is finished, and still has an attended visit.", false);
+
+            var required = stage.VisitRequirement == VisitRequirement.Required;
+            return (false,
+                $"The '{stage.Name}' stage is finished, and now has no attended visit. If it still needs its visit, an admin can unlock it, and then book one." +
+                (required ? " The procedure's assignees and the admins are told." : ""),
+                required);
+        }
 
         if (!ProcedureWorkflow.IsOpen(procedure.Status))
-            return (false, $"No visit is asked for again while the procedure is {ProcedureWorkflow.Describe(procedure.Status)}.");
+            return (false, $"No visit is asked for again while the procedure is {ProcedureWorkflow.Describe(procedure.Status)}.", false);
 
         if (ProcedureWorkflow.CurrentStage(procedure)?.Id != stage.Id)
-            return (false, $"The '{stage.Name}' stage isn't the current stage, so no visit is asked for yet.");
+            return (false, $"The '{stage.Name}' stage isn't the current stage, so no visit is asked for yet.", false);
 
-        var other = appointments.FirstOrDefault(a =>
-            a.StageId == stage.Id
-            && a.Status is AppointmentStatus.Requested or AppointmentStatus.Booked or AppointmentStatus.Attended);
+        var other = visits.FirstOrDefault(a =>
+            a.Status is AppointmentStatus.Requested or AppointmentStatus.Booked or AppointmentStatus.Attended);
         return other is null
-            ? (true, $"The '{stage.Name}' stage's visit is back in Requires Appointment.")
-            : (false, $"The '{stage.Name}' stage already has a visit that's {MedApp.Application.Appointments.Common.AppointmentWorkflow.Describe(other.Status)}, so no other is asked for.");
+            ? (true, $"The '{stage.Name}' stage's visit is back in Requires Appointment.", false)
+            : (false, $"The '{stage.Name}' stage already has a visit that's {MedApp.Application.Appointments.Common.AppointmentWorkflow.Describe(other.Status)}, so no other is asked for.", false);
     }
 }

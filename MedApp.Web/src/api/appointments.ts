@@ -126,12 +126,14 @@ const APPOINTMENT = '/api/appointments/{id}';
 export type EnteredInErrorResult = Schemas['EnteredInErrorResponse'];
 
 /**
- * Whether `user` may mark an appointment Entered in error: the API allows it (`canMarkEnteredInError`: recorded after
- * the event, still Attended or Did not attend, in the last 30 days, the patient not anonymised), and they recorded it
- * or are an admin (the API's 403 otherwise).
+ * Whether `user` may mark an appointment Entered in error: an admin whenever the API allows it
+ * (`canMarkEnteredInError`: recorded after the event, still Attended or Did not attend, the patient not anonymised),
+ * and whoever recorded it only in its first 30 days (`canRecorderMarkEnteredInError`). Anyone else gets the API's 403.
  */
 export const canMarkEnteredInError = (appointment: Appointment, user: {username: string; isAdmin: boolean}) =>
-  appointment.canMarkEnteredInError === true && (user.isAdmin || appointment.bookedByUsername === user.username);
+  appointment.canMarkEnteredInError === true &&
+  (user.isAdmin ||
+    (appointment.bookedByUsername === user.username && appointment.canRecorderMarkEnteredInError === true));
 
 /**
  * Everything that can be done to an existing appointment. Each returns the updated appointment, which replaces the

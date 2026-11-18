@@ -83,8 +83,14 @@ public sealed class AppointmentResponse
     public bool CanEditNotes { get; set; }
 
     /// <summary>
-    /// It was recorded after the event, still has its outcome, and started within the last 30 days: it can be marked
-    /// entered in error, by whoever recorded it or an admin (the server checks who).
+    /// It was recorded after the event and still has its outcome: an admin can mark it entered in error (the server
+    /// checks who). Whoever recorded it can too while <see cref="CanRecorderMarkEnteredInError"/>.
     /// </summary>
     public bool CanMarkEnteredInError { get; set; }
+
+    /// <summary>
+    /// As <see cref="CanMarkEnteredInError"/>, and it started within the last 30 days, so whoever recorded it can mark
+    /// it entered in error too, not only an admin.
+    /// </summary>
+    public bool CanRecorderMarkEnteredInError { get; set; }
 }

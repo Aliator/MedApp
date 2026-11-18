@@ -287,6 +287,38 @@ public sealed class PastAppointmentTests : IntegrationTest
         await (await FinishStageAsync(_staff.Client, procedure.Id, stage.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
 
+    [Test]
+    public async Task EnteredInError_AFinishedRequiredStagesOnlyVisit_TellsTheAssigneesAndAdmins_NotWhoWithdrewIt()
+    {
+        var definition = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
+        var template = await CreateTemplateAsync(_admin, definition.Id);
+        var procedure = await CreateProcedureBeforeTheVisitAsync(template.Id);
+        var stage = procedure.Stages.Single();
+        var assignee = await CreateStaffAsync(UserRole);
+        await (await _admin.PostAsync($"{ProcedureUrl(procedure.Id)}/assignments/{assignee.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
+                procedureId: procedure.Id, stageId: stage.Id))
+            .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
+        await (await FinishStageAsync(_staff.Client, procedure.Id, stage.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var withdrawn = await (await PostEnteredInErrorAsync(_staff.Client, recorded.Id)).ReadAsAsync<EnteredInErrorResponse>();
+
+        withdrawn.VisitRequestedAgain.Should().BeFalse();
+        withdrawn.StageMessage.Should().Contain("is finished, and now has no attended visit").And.Contain("assignees and the admins are told");
+        foreach (var told in new[] { assignee.Client, _admin })
+        {
+            var notification = (await (await told.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
+                .Items.Should().ContainSingle(n => n.Kind == "StageVisitWithdrawn").Subject;
+            notification.Title.Should().Be("Stage visit withdrawn");
+            notification.ProcedureId.Should().Be(procedure.Id);
+            notification.AppointmentId.Should().BeNull();
+            notification.Message.Should().StartWith($"{_staff.Username} marked the visit on ")
+                .And.Contain(stage.Name).And.NotContain(_patient.LastName).And.NotContain(procedure.Title).And.NotContain(CancelReason);
+        }
+        (await (await _staff.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
+            .Items.Should().NotContain(n => n.Kind == "StageVisitWithdrawn");
+    }
+
     // The procedure and the stage
 
     [Test]
@@ -297,7 +329,7 @@ public sealed class PastAppointmentTests : IntegrationTest
 
         var response = await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10), procedureId: procedure.Id);
 
-        (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This visit was before the procedure was created");
+        (await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This visit was before the day the procedure was created");
     }
 
     [Test]

@@ -38,6 +38,7 @@ const KIND_ICONS: Record<string, IconType> = {
   MeetingChanged: AppIcon.Meeting,
   MeetingCancelled: AppIcon.Meeting,
   DayClosed: AppIcon.ClosedDays,
+  StageVisitWithdrawn: AppIcon.EnteredInError,
 };
 
 /** The bell, which the unread count is placed over. */

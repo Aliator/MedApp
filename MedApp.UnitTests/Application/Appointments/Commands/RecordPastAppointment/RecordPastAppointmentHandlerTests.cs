@@ -322,15 +322,27 @@ public sealed class RecordPastAppointmentHandlerTests : AppointmentHandlerTestBa
     }
 
     [Test]
-    public async Task Handle_BeforeTheProcedureWasCreated_IsAConflict()
+    public async Task Handle_BeforeTheDayTheProcedureWasCreated_IsAConflict()
     {
-        var procedure = ProceduresTestConstants.CreateProcedure(PatientProcedureStatus.Assigned, patient: _patient, title: ProcedureTitle, createdAt: At(LastThursday, 11));
+        var procedure = ProceduresTestConstants.CreateProcedure(PatientProcedureStatus.Assigned, patient: _patient, title: ProcedureTitle, createdAt: At(LastThursday.AddDays(1), 9));
         _procedures.Setup(p => p.GetByIdAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync(procedure);
 
         var act = () => _handler.Handle(Command(procedure.Id), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("This visit was before the procedure was created (Thursday 12 November at 11:00)*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This visit was before the day the procedure was created (Friday 13 November at 09:00)*");
         Added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_EarlierOnTheDayTheProcedureWasCreated_IsRecorded()
+    {
+        // Seen at 10:00; the procedure created at 11:00, once the clinician knew what was needed.
+        var procedure = ProceduresTestConstants.CreateProcedure(PatientProcedureStatus.Assigned, patient: _patient, title: ProcedureTitle, createdAt: At(LastThursday, 11));
+        _procedures.Setup(p => p.GetByIdAsync(procedure.Id, It.IsAny<CancellationToken>())).ReturnsAsync(procedure);
+
+        await _handler.Handle(Command(procedure.Id), CancellationToken.None);
+
+        Added.Should().ContainSingle().Which.ProcedureId.Should().Be(procedure.Id);
     }
 
     [Test]

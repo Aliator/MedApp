@@ -6,6 +6,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Procedures.Repositories;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Notifications;
 using MedApp.Domain.Procedures.PatientProcedures;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
@@ -20,6 +21,8 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
 {
     private const string Reason = "Synthetic reason: recorded on the wrong patient.";
 
+    private static readonly Guid AdminId = Guid.Parse("0000000b-0000-0000-0000-0000000000ad");
+
     private Mock<IPatientProcedureRepository> _procedures = null!;
     private MarkAppointmentEnteredInErrorHandler _handler = null!;
 
@@ -29,6 +32,7 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
         _procedures = new Mock<IPatientProcedureRepository>();
         Repository.Setup(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+        Identity.Setup(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([AdminId, Colleague.UserId]);
         Fixture.Inject(_procedures.Object);
         _handler = Fixture.Create<MarkAppointmentEnteredInErrorHandler>();
     }
@@ -117,7 +121,18 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
 
         var act = () => _handler.Handle(Command(walkIn), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("*up to 30 days after it*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*up to 30 days after it; after that, only an admin can. Ask an admin to correct the record.");
+        SavedEvents.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ByAnAdminMoreThanThirtyDaysAfterIt_IsAllowed()
+    {
+        var walkIn = GivenWalkIn(daysAgo: 90);
+
+        await _handler.Handle(Command(walkIn, isAdmin: true), CancellationToken.None);
+
+        walkIn.Status.Should().Be(AppointmentStatus.EnteredInError);
     }
 
     [Test]
@@ -173,17 +188,81 @@ public sealed class MarkAppointmentEnteredInErrorHandlerTests : AppointmentHandl
     }
 
     [Test]
-    public async Task Handle_AStageFinishedWithThisVisit_SaysAnAdminCanUnlockIt()
+    public async Task Handle_TheCurrentStagesVisitOnARestrictedRecord_AsksForNoVisitAgain()
     {
         var procedure = GivenProcedure();
-        procedure.StageAt(1).IsCompleted = true;
         var walkIn = GivenWalkIn(procedure.StageAt(1).Id, procedure.Id);
+        walkIn.Patient.RestrictedAtUtc = Now.AddDays(-1);
 
         var response = await _handler.Handle(Command(walkIn), CancellationToken.None);
 
+        walkIn.Status.Should().Be(AppointmentStatus.EnteredInError);
+        Added.Should().BeEmpty();
+        SavedEvents.Select(e => e.Action).Should().Equal(AppointmentEventAction.EnteredInError);
+        response.VisitRequestedAgain.Should().BeFalse();
+        response.StageMessage.Should().Be("No visit is asked for again while the record is restricted.");
+    }
+
+    [Test]
+    public async Task Handle_TheStagesVisitAskedForMeanwhile_IsAConflictToTryAgain()
+    {
+        var procedure = GivenProcedure();
+        var walkIn = GivenWalkIn(procedure.StageAt(1).Id, procedure.Id);
+        Repository
+            .Setup(r => r.AddAsync(It.IsAny<Appointment>(), It.IsAny<IEnumerable<AppointmentEvent>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StageHasOpenAppointmentException(procedure.StageAt(1).Id));
+
+        var act = () => _handler.Handle(Command(walkIn), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(AppointmentWorkflow.RequestedVisitChangedMeanwhileMessage);
+        Sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AFinishedRequiredStageLeftWithoutAVisit_TellsTheAssigneesAndAdminsButNotWhoWithdrewIt()
+    {
+        var procedure = GivenProcedure();
+        var stage = procedure.StageAt(1);
+        stage.IsCompleted = true;
+        stage.CompletedAtUtc = At(Today.AddDays(-2), 15);
+        procedure.Assignments.Clear();
+        procedure.Assignments.Add(new PatientProcedureAssignment { PatientProcedureId = procedure.Id, UserId = StaffUserId });
+        var walkIn = GivenWalkIn(stage.Id, procedure.Id);
+        using var cts = new CancellationTokenSource();
+
+        var response = await _handler.Handle(Command(walkIn), cts.Token);
+
         Added.Should().BeEmpty();
         response.VisitRequestedAgain.Should().BeFalse();
-        response.StageMessage.Should().Contain("was finished with this visit").And.Contain("an admin can unlock it");
+        response.StageMessage.Should().Contain("is finished, and now has no attended visit")
+            .And.Contain("an admin can unlock it").And.Contain("The procedure's assignees and the admins are told.");
+        Sent.Select(s => s.Notification.UserId).Should().Equal(StaffUserId, AdminId);
+        Sent.Should().AllSatisfy(s =>
+        {
+            s.Notification.Kind.Should().Be(NotificationKind.StageVisitWithdrawn);
+            s.Notification.Title.Should().Be("Stage visit withdrawn");
+            s.Notification.ProcedureId.Should().Be(procedure.Id);
+            s.Notification.Message.Should().Contain($"'{StageName}'").And.NotContain(ProcedureTitle).And.NotContain(Reason);
+            s.Token.Should().Be(cts.Token);
+        });
+    }
+
+    [Test]
+    public async Task Handle_AFinishedStageWithAnotherAttendedVisit_TellsNobody()
+    {
+        var procedure = GivenProcedure();
+        var stage = procedure.StageAt(1);
+        stage.IsCompleted = true;
+        var walkIn = GivenWalkIn(stage.Id, procedure.Id);
+        var other = CalendarTestConstants.CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-5), 10), stageId: stage.Id);
+        Repository.Setup(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([walkIn, other]);
+
+        var response = await _handler.Handle(Command(walkIn), CancellationToken.None);
+
+        response.StageMessage.Should().Be($"The '{StageName}' stage is finished, and still has an attended visit.");
+        Sent.Should().BeEmpty();
+        Identity.Verify(i => i.GetAdminIdsAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

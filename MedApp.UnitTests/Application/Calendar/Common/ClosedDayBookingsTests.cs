@@ -38,7 +38,7 @@ public sealed class ClosedDayBookingsTests
         notification.Kind.Should().Be(NotificationKind.DayClosed);
         notification.Title.Should().Be(ClosedDayBookings.NotificationTitle);
         notification.Message.Should().Be(
-            $"{AdminUsername} closed Wednesday 25 November ({ClosedDayName}). You have an appointment then: move or cancel it, and tell any patients.");
+            $"{AdminUsername} closed Wednesday 25 November ({ClosedDayName}). You have an appointment then. Move or cancel what's still to come, and tell any patients.");
         notification.CalendarDate.Should().Be(ClosedWednesday);
         notification.CreatedAtUtc.Should().Be(Now);
         Notification.HasFixedTitle(NotificationKind.DayClosed).Should().BeTrue();

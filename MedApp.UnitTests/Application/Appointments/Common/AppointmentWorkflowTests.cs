@@ -184,14 +184,22 @@ public sealed class AppointmentWorkflowTests
     [TestCase(AppointmentStatus.DidNotAttend)]
     public void CanMarkEnteredInError_AWalkInWithItsOutcome_IsTrue(AppointmentStatus status)
     {
-        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(status), Now).Should().BeTrue();
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(status), Now, isAdmin: false).Should().BeTrue();
     }
 
     [Test]
-    public void CanMarkEnteredInError_OnTheThirtiethDayButNotTheThirtyFirst()
+    public void CanMarkEnteredInError_ByItsRecorder_OnTheThirtiethDayButNotTheThirtyFirst()
     {
-        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(daysAgo: 30), Now).Should().BeTrue();
-        AppointmentWorkflow.WhyCantMarkEnteredInError(WalkIn(daysAgo: 31), Now).Should().Contain("up to 30 days");
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(daysAgo: 30), Now, isAdmin: false).Should().BeTrue();
+        AppointmentWorkflow.WhyCantMarkEnteredInError(WalkIn(daysAgo: 31), Now, isAdmin: false).Should().Be(
+            "Whoever recorded an appointment after the event can mark it entered in error for up to 30 days after it; " +
+            "after that, only an admin can. Ask an admin to correct the record.");
+    }
+
+    [Test]
+    public void CanMarkEnteredInError_ByAnAdmin_AtAnyTime()
+    {
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(daysAgo: 400), Now, isAdmin: true).Should().BeTrue();
     }
 
     [Test]
@@ -199,14 +207,14 @@ public sealed class AppointmentWorkflowTests
     {
         var booked = CreateAppointment(AppointmentStatus.Attended, At(Today.AddDays(-1), 10));
 
-        AppointmentWorkflow.WhyCantMarkEnteredInError(booked, Now).Should().StartWith("Only an appointment recorded after the event");
+        AppointmentWorkflow.WhyCantMarkEnteredInError(booked, Now, isAdmin: true).Should().StartWith("Only an appointment recorded after the event");
     }
 
     [TestCase(AppointmentStatus.EnteredInError)]
     [TestCase(AppointmentStatus.Cancelled)]
     public void CanMarkEnteredInError_WithoutItsOutcome_IsFalse(AppointmentStatus status)
     {
-        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(status), Now).Should().BeFalse();
+        AppointmentWorkflow.CanMarkEnteredInError(WalkIn(status), Now, isAdmin: true).Should().BeFalse();
     }
 
     [Test]
@@ -247,7 +255,17 @@ public sealed class AppointmentWorkflowTests
     public void BeforeProcedureMessage_SaysWhenItWasCreated()
     {
         AppointmentWorkflow.BeforeProcedureMessage(At(Today, 11)).Should().Be(
-            "This visit was before the procedure was created (Monday 16 November at 11:00). Record it without the procedure, or for the procedure it was for.");
+            "This visit was before the day the procedure was created (Monday 16 November at 11:00). Record it without the procedure, or for the procedure it was for.");
+    }
+
+    [Test]
+    public void IsBeforeProcedure_ComparesUkDays()
+    {
+        var created = At(Today, 10);
+
+        AppointmentWorkflow.IsBeforeProcedure(At(Today, 9), created).Should().BeFalse("earlier on the same day counts");
+        AppointmentWorkflow.IsBeforeProcedure(At(Today, 8), created).Should().BeFalse();
+        AppointmentWorkflow.IsBeforeProcedure(At(Today.AddDays(-1), 17), created).Should().BeTrue();
     }
 
     [TestCase("", "Seen.", "Seen.")]

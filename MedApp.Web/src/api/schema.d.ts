@@ -9004,6 +9004,7 @@ export interface components {
             canCancel?: boolean;
             canEditNotes?: boolean;
             canMarkEnteredInError?: boolean;
+            canRecorderMarkEnteredInError?: boolean;
         };
         AppointmentResponsePagedResponse: {
             items?: components["schemas"]["AppointmentResponse"][] | null;

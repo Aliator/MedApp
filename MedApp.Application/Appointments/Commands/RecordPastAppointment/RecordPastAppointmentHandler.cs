@@ -73,7 +73,8 @@ public sealed class RecordPastAppointmentHandler(
         }
 
         var start = UkTime.Utc(request.StartUtc);
-        if (procedure is not null && start < procedure.CreatedAt)
+        // By UK day, so a visit earlier on the day the procedure was created (seen at 10:00, created at 10:40) counts.
+        if (procedure is not null && AppointmentWorkflow.IsBeforeProcedure(start, procedure.CreatedAt))
             throw new ConflictException(AppointmentWorkflow.BeforeProcedureMessage(procedure.CreatedAt));
         if (procedure is not null && stage is not null && AppointmentWorkflow.WhyStageNotReached(procedure, stage) is { } notReached)
             throw new ConflictException(notReached);

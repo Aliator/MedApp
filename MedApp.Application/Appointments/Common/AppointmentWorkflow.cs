@@ -16,7 +16,8 @@ namespace MedApp.Application.Appointments.Common;
 /// be corrected either way. Requested and Booked ones can be Cancelled, with a reason; Cancelled is final. An
 /// appointment that already happened (a walk-in) is recorded after the event straight to Attended or Did not attend,
 /// within <see cref="BookingTimes.RecordAfterEventDays"/> days; a stage's visit in Requires Appointment becomes that one.
-/// One recorded in error is withdrawn (Entered in error, with a reason) by its recorder or an admin, in the same window.
+/// One recorded in error is withdrawn (Entered in error, with a reason) by its recorder in the same window, or by an
+/// admin at any time.
 /// </para>
 /// </summary>
 public static partial class AppointmentWorkflow
@@ -56,14 +57,15 @@ public static partial class AppointmentWorkflow
 
     /// <summary>
     /// One recorded after the event can be withdrawn as entered in error (it didn't happen, or it's on the wrong
-    /// patient) while it still has its outcome and its start is within the window it could be recorded in
-    /// (<see cref="BookingTimes.RecordAfterEventDays"/> UK days). Who may (its recorder, or an admin) is checked apart.
+    /// patient) while it still has its outcome: by an admin at any time, and by whoever recorded it while its start is
+    /// within the window it could be recorded in (<see cref="BookingTimes.RecordAfterEventDays"/> UK days). That the
+    /// caller is its recorder is checked apart.
     /// </summary>
-    public static bool CanMarkEnteredInError(Appointment appointment, DateTime nowUtc) =>
-        WhyCantMarkEnteredInError(appointment, nowUtc) is null;
+    public static bool CanMarkEnteredInError(Appointment appointment, DateTime nowUtc, bool isAdmin) =>
+        WhyCantMarkEnteredInError(appointment, nowUtc, isAdmin) is null;
 
-    /// <summary>Why an appointment can't be marked entered in error now, or null if it can.</summary>
-    public static string? WhyCantMarkEnteredInError(Appointment appointment, DateTime nowUtc)
+    /// <summary>Why an appointment can't be marked entered in error now, by an admin or not, or null if it can.</summary>
+    public static string? WhyCantMarkEnteredInError(Appointment appointment, DateTime nowUtc, bool isAdmin)
     {
         if (!appointment.IsRecordedAfterEvent)
             return "Only an appointment recorded after the event can be marked entered in error. Cancel a booked one, or correct its outcome.";
@@ -71,10 +73,11 @@ public static partial class AppointmentWorkflow
         if (!IsOutcome(appointment.Status))
             return $"An appointment that's {Describe(appointment.Status)} can't be marked entered in error.";
 
-        return appointment.StartUtc is { } start
+        return isAdmin
+               || appointment.StartUtc is { } start
                && UkTime.DateOf(start) >= UkTime.DateOf(nowUtc).AddDays(-BookingTimes.RecordAfterEventDays)
             ? null
-            : $"An appointment recorded after the event can be marked entered in error for up to {BookingTimes.RecordAfterEventDays} days after it. Ask an admin to correct the record.";
+            : $"Whoever recorded an appointment after the event can mark it entered in error for up to {BookingTimes.RecordAfterEventDays} days after it; after that, only an admin can. Ask an admin to correct the record.";
     }
 
     /// <summary>Only whoever recorded it after the event, or an admin, can withdraw it.</summary>
@@ -131,9 +134,16 @@ public static partial class AppointmentWorkflow
         $"{(staffUsername is null ? "" : $" with {staffUsername}")}. " +
         "If that's the one that happened, record its outcome instead; otherwise cancel it first.";
 
-    /// <summary>A walk-in for a procedure, from before the procedure was created (decision 74).</summary>
+    /// <summary>
+    /// Whether a walk-in starting at <paramref name="startUtc"/> is from before its procedure: before the UK day it was
+    /// created, so a visit earlier on that day (seen at 10:00, the procedure created at 10:40) counts (decision 74).
+    /// </summary>
+    public static bool IsBeforeProcedure(DateTime startUtc, DateTime procedureCreatedUtc) =>
+        UkTime.DateOf(startUtc) < UkTime.DateOf(procedureCreatedUtc);
+
+    /// <summary>A walk-in for a procedure, from before the day the procedure was created (decision 74).</summary>
     public static string BeforeProcedureMessage(DateTime procedureCreatedUtc) =>
-        $"This visit was before the procedure was created ({UkTime.Describe(procedureCreatedUtc)}). " +
+        $"This visit was before the day the procedure was created ({UkTime.Describe(procedureCreatedUtc)}). " +
         "Record it without the procedure, or for the procedure it was for.";
 
     /// <summary>

@@ -82,7 +82,8 @@ public static class AppointmentMapper
             CanRecordOutcome = canChange && AppointmentWorkflow.CanRecordOutcome(appointment, nowUtc),
             CanCancel = canPause && AppointmentWorkflow.CanCancel(appointment),
             CanEditNotes = canChange && AppointmentWorkflow.CanEditNotes(appointment),
-            CanMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc)
+            CanMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc, isAdmin: true),
+            CanRecorderMarkEnteredInError = canPause && AppointmentWorkflow.CanMarkEnteredInError(appointment, nowUtc, isAdmin: false)
         };
     }
 

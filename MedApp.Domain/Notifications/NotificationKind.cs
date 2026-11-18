@@ -3,6 +3,7 @@
 /// <summary>
 /// What a notification is about. Stored as its number, so never renumber these. 1 to 9 are kept for the calendar's
 /// kinds; the monitoring kinds (one of an admin's rules matched) start at 10, one for each <c>MonitoringEvent</c>.
+/// 18 to 21 are used on <c>main</c> (note deletion); 22 is a stage's visit withdrawn.
 /// </summary>
 public enum NotificationKind
 {
@@ -61,5 +62,12 @@ public enum NotificationKind
     MonitoredStageUnlocked = 16,
 
     /// <summary>Monitoring: someone changed a procedure's due date.</summary>
-    MonitoredDueDateChanged = 17
+    MonitoredDueDateChanged = 17,
+
+    /// <summary>
+    /// Someone marked a walk-in entered in error that was the only attended visit of a finished stage that requires
+    /// one, so the stage is finished without its visit. Sent to the procedure's assignees and the admins, never to
+    /// whoever withdrew it.
+    /// </summary>
+    StageVisitWithdrawn = 22
 }

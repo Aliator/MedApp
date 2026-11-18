@@ -96,7 +96,7 @@ describe('NotificationBell', () => {
       id: '0000000c-0000-0000-0000-000000000014',
       kind: 'DayClosed',
       title: 'Day closed',
-      message: 'test.admin closed Friday 27 November (Staff training day). You have 2 appointments and a meeting then: move or cancel them, and tell the patients.',
+      message: "test.admin closed Friday 27 November (Staff training day). You have 2 appointments and a meeting then. Move or cancel what's still to come, and tell any patients.",
       procedureId: null,
       appointmentId: null,
       calendarDate: '2026-11-27',
@@ -120,6 +120,36 @@ describe('NotificationBell', () => {
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${closed.id}/read`));
     await waitFor(() => expect(router.state.location.href).toBe('/calendar?date=2026-11-27&view=day'));
+  });
+
+  it("opens a withdrawn stage visit's notification on its procedure, with the entered in error icon", async () => {
+    const withdrawn = {
+      ...unread,
+      id: '0000000c-0000-0000-0000-000000000016',
+      kind: 'StageVisitWithdrawn',
+      title: 'Stage visit withdrawn',
+      message: "test.user marked the visit on Monday 16 November at 10:00 for the 'Bloods' stage entered in error.",
+      appointmentId: null,
+    };
+    const assigned = {...read, id: '0000000c-0000-0000-0000-000000000017', title: 'Another procedure'};
+    const fetch = mockApi({
+      'GET /api/notifications': () => json({items: [withdrawn, assigned], unreadCount: 1}),
+      'POST /api/notifications/*': () => new Response(null, {status: 204}),
+    });
+    const {user, router} = renderWithApp(<NotificationBell />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: /^Notifications/}));
+    const list = await panel();
+    const link = list.getByRole('link', {name: /^Stage visit withdrawn/});
+    expect(link).toHaveAttribute('href', `/procedures/${procedureId}`);
+    // Its own icon, not the assignment's.
+    const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
+    expect(icons[0]).toBeDefined();
+    expect(icons[0]).not.toBe(icons[1]);
+    await user.click(link);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${withdrawn.id}/read`));
+    await waitFor(() => expect(router.state.location.href).toBe(`/procedures/${procedureId}`));
   });
 
   it("opens a meeting's notification on its day of the calendar, marking it read, with the meeting icon", async () => {

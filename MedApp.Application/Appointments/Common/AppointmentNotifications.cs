@@ -2,6 +2,7 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Procedures.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
+using MedApp.Domain.Procedures.PatientProcedures;
 
 namespace MedApp.Application.Appointments.Common;
 
@@ -20,8 +21,48 @@ public static class AppointmentNotifications
         NotificationKind.AppointmentRescheduled => "Appointment moved",
         NotificationKind.AppointmentCancelled => "Appointment cancelled",
         NotificationKind.AppointmentRecorded => "Appointment recorded",
+        NotificationKind.StageVisitWithdrawn => "Stage visit withdrawn",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
+
+    /// <summary>
+    /// After a walk-in was marked entered in error that was the only attended visit of a finished stage that requires
+    /// one (<c>StageVisits.AfterVisitWithdrawn</c>): the procedure's assignees and every admin (<paramref name="adminIds"/>),
+    /// but not whoever withdrew it, are told, since only an admin can unlock the stage. A fixed title, and a message of
+    /// who, the stage's (admin-written) name and dates, never the patient, the procedure's title or a reason. Links to
+    /// the procedure, not the appointment, which is off the calendar.
+    /// </summary>
+    public static IReadOnlyList<Notification> AfterStageVisitWithdrawn(
+        Appointment withdrawn,
+        PatientProcedure procedure,
+        PatientProcedureStage stage,
+        IEnumerable<Guid> adminIds,
+        ProcedureActor actor,
+        DateTime nowUtc)
+    {
+        var visit = withdrawn.StartUtc is { } start ? $"the visit on {UkTime.Describe(start)}" : "a visit";
+        var finished = stage.CompletedAtUtc is { } completed ? $" on {UkTime.DescribeDate(UkTime.DateOf(completed))}" : "";
+        var message =
+            $"{actor.Username} marked {visit} for the '{stage.Name}' stage entered in error. " +
+            $"The stage was finished{finished} and now has no attended visit, though it requires one. " +
+            "If it still needs its visit, an admin can unlock it, and then book one.";
+
+        return procedure.Assignments.Select(a => a.UserId)
+            .Concat(adminIds)
+            .Where(userId => userId != actor.UserId)
+            .Distinct()
+            .Select(userId => new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Kind = NotificationKind.StageVisitWithdrawn,
+                Title = TitleOf(NotificationKind.StageVisitWithdrawn),
+                Message = message,
+                ProcedureId = procedure.Id,
+                CreatedAtUtc = nowUtc
+            })
+            .ToList();
+    }
 
     /// <summary>
     /// After booking or moving an appointment, given where it was before (its status, member of staff and start).

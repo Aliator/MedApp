@@ -194,6 +194,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       canReschedule: false,
       canRecordOutcome: true,
       canMarkEnteredInError: true,
+      canRecorderMarkEnteredInError: true,
     });
 
     it("withdraws a walk-in its recorder entered in error, with a reason, saying what happens to the stage's visit", async () => {
@@ -262,9 +263,20 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       expect(await dialog().findByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
       admin.unmount();
 
-      renderDialog({...walkIn, canMarkEnteredInError: false});
+      const none = renderDialog({...walkIn, canMarkEnteredInError: false});
       expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
       expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      none.unmount();
+
+      // Over 30 days on, only an admin can, not whoever recorded it.
+      const old = {...walkIn, canRecorderMarkEnteredInError: false};
+      const recorder = renderDialog(old);
+      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      recorder.unmount();
+
+      renderDialog(old, {}, undefined, adminUser);
+      expect(await dialog().findByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
     });
   });
 

@@ -46,7 +46,7 @@ namespace MedApp.Infrastructure.Migrations
         /// <summary>
         /// Back to before closed days and walk-ins. The code before doesn't know the new status (5, entered in error),
         /// history actions (7, recorded after the event; 8, entered in error) or notification kinds (8, day closed; 9,
-        /// appointment recorded): history entries of appointments recorded after the event become the Attended (3) or
+        /// appointment recorded; 22, stage visit withdrawn): history entries of appointments recorded after the event become the Attended (3) or
         /// Did not attend (4) entries they amount to (their details still say what happened); an appointment withdrawn
         /// as entered in error becomes Cancelled (4), keeping its reason, and its history entry a cancellation (5); and
         /// the notifications are deleted, as <c>AddedMeetings</c>' Down deletes meeting notifications. The closed days go.
@@ -57,7 +57,7 @@ namespace MedApp.Infrastructure.Migrations
                 "UPDATE AppointmentEvents SET Action = CASE WHEN JSON_VALUE(Details, '$.outcome') = 'DidNotAttend' THEN 4 ELSE 3 END WHERE Action = 7;");
             migrationBuilder.Sql("UPDATE AppointmentEvents SET Action = 5 WHERE Action = 8;");
             migrationBuilder.Sql("UPDATE Appointments SET Status = 4 WHERE Status = 5;");
-            migrationBuilder.Sql("DELETE FROM Notifications WHERE Kind IN (8, 9);");
+            migrationBuilder.Sql("DELETE FROM Notifications WHERE Kind IN (8, 9, 22);");
 
             migrationBuilder.DropTable(
                 name: "ClosedDays");
