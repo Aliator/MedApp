@@ -1,7 +1,7 @@
 import type {QueryClient} from '@tanstack/react-query';
 import {act, screen, waitFor, within} from '@testing-library/react';
 import {parsePasswordBody} from '../../api/users';
-import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
+import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, openSearch, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
 import {roleResponse} from '../../test/roles';
 import {staffDetailsLine, UsersPage} from './UsersPage';
@@ -270,6 +270,7 @@ describe('UsersPage', () => {
   it('clears the search from the bar, keeping the order', async () => {
     const {user, onSearchChange} = renderUsers({role: 'Admin', asc: false});
 
+    await openSearch(user);
     await waitFor(() => expect(searchBar()).toHaveTextContent(/Role: is/));
     await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
 

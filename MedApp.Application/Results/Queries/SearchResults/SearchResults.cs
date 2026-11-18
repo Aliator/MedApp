@@ -33,7 +33,11 @@ public enum ResultView
     SignedOff
 }
 
-/// <summary>A page of results: one view, optionally narrowed to a specialty, a pathway or a patient.</summary>
+/// <summary>
+/// A page of results: one view, optionally narrowed to a specialty, a pathway, a patient, or a patient's name
+/// (<see cref="Search"/>). <see cref="Sort"/> names a column (<see cref="ResultSearch.SortColumns"/>); without one, the
+/// view's own order.
+/// </summary>
 public sealed record SearchResultsQuery(
     int Page,
     int PageSize,
@@ -41,7 +45,10 @@ public sealed record SearchResultsQuery(
     Guid? SpecialtyId,
     Guid? PathwayId,
     Guid? PatientId,
-    Guid ViewerId)
+    Guid ViewerId,
+    string? Search = null,
+    string? Sort = null,
+    bool Ascending = true)
     : IRequest<PagedResponse<ResultSummaryResponse>>
 {
     public ResultView ParsedView => PathwayEnums.TryParse<ResultView>(View, out var view) ? view : ResultView.All;
@@ -63,6 +70,10 @@ public sealed class SearchResultsValidator : AbstractValidator<SearchResultsQuer
         RuleFor(x => x.View)
             .Must(view => view is null || PathwayEnums.TryParse<ResultView>(view, out _))
             .WithMessage($"View must be one of: {string.Join(", ", Enum.GetNames<ResultView>())}.");
+
+        RuleFor(x => x.Search)
+            .MaximumLength(ResultSearch.MaxSearchLength)
+            .WithMessage($"Search must not exceed {ResultSearch.MaxSearchLength} characters.");
     }
 }
 
@@ -72,9 +83,29 @@ public sealed class SearchResultsValidator : AbstractValidator<SearchResultsQuer
 /// </summary>
 public static class ResultSearch
 {
+    public const int MaxSearchLength = 200;
+
+    public const string SortByPatient = "patient";
+    public const string SortByTitle = "title";
+    public const string SortByPathway = "pathway";
+    public const string SortByReported = "reported";
+
+    /// <summary>The status, then when it was signed off (the Signed off view's column).</summary>
+    public const string SortByStatus = "status";
+
+    public static readonly IReadOnlyList<string> SortColumns =
+        [SortByPatient, SortByTitle, SortByPathway, SortByReported, SortByStatus];
+
     public static IQueryable<Result> Filter(
         this IQueryable<Result> results, SearchResultsQuery query, IReadOnlyCollection<Guid> signOffHolders)
     {
+        // The patient's name only: a result's title can hold a specimen number, which stays out of URLs.
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim().ToLower();
+            results = results.Where(r => (r.Patient.FirstName + " " + r.Patient.LastName).ToLower().Contains(term));
+        }
+
         if (query.SpecialtyId is { } specialtyId)
             results = results.Where(r => r.Pathway != null && r.Pathway.SpecialtyId == specialtyId);
         if (query.PathwayId is { } pathwayId)
@@ -95,7 +126,28 @@ public static class ResultSearch
         };
     }
 
-    public static IOrderedQueryable<Result> Sort(this IQueryable<Result> results, ResultView view) => view switch
+    /// <summary>
+    /// The column named (<see cref="SortColumns"/>) in either direction, or without one the view's own order; either way
+    /// ending on the ID. Columns the person chose, never anything a report says.
+    /// </summary>
+    public static IOrderedQueryable<Result> Sort(
+        this IQueryable<Result> results, ResultView view, string? sort = null, bool ascending = true)
+    {
+        var ordered = Ordering.ColumnOf(sort, SortColumns) switch
+        {
+            SortByPatient => results.OrderByDirection(r => r.Patient.LastName, ascending)
+                .ThenByDirection(r => r.Patient.FirstName, ascending),
+            SortByTitle => results.OrderByDirection(r => r.Title, ascending),
+            SortByPathway => results.OrderByDirection(r => r.Pathway != null ? r.Pathway.Title : null, ascending),
+            SortByReported => results.OrderByDirection(r => r.ReportedAtUtc, ascending),
+            SortByStatus => results.OrderByDirection(r => r.Status, ascending)
+                .ThenByDirection(r => r.SignedOffAtUtc, ascending),
+            _ => null
+        };
+        return ordered?.ThenBy(r => r.Id) ?? ViewOrder(results, view);
+    }
+
+    private static IOrderedQueryable<Result> ViewOrder(IQueryable<Result> results, ResultView view) => view switch
     {
         ResultView.AwaitingMine or ResultView.Awaiting or ResultView.NeedsClinician =>
             results.OrderBy(r => r.ReportedAtUtc).ThenBy(r => r.Id),

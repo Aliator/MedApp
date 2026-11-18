@@ -76,4 +76,15 @@ public sealed class SearchResultsRequest
     public Guid? PathwayId { get; set; }
 
     public Guid? PatientId { get; set; }
+
+    /// <summary>The patient's full name contains this, ignoring case. At most 200 characters.</summary>
+    public string? Search { get; set; }
+
+    /// <summary>
+    /// <c>patient</c>, <c>title</c>, <c>pathway</c>, <c>reported</c> or <c>status</c> (then when signed off). Without
+    /// one, the view's own order.
+    /// </summary>
+    public string? Sort { get; set; }
+
+    public bool Ascending { get; set; } = true;
 }

@@ -170,6 +170,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
               label="Search patients"
               placeholder="Search patients by first name, last name, email, date of birth or NHS number..."
               favourites={[
+                {label: 'All', values: {}},
                 {label: 'Under 18', values: {dobFrom: dayFromToday({years: -18, days: 1})}},
                 {label: '65 and over', values: {dobTo: dayFromToday({years: -65})}},
               ]}

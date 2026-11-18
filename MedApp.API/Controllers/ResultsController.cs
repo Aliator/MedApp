@@ -38,7 +38,7 @@ public sealed class ResultsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> SearchResults([FromQuery] SearchResultsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchResultsQuery(
             request.Page, request.PageSize, request.View, request.SpecialtyId, request.PathwayId, request.PatientId,
-            User.ToPathwayActor().UserId), ct));
+            User.ToPathwayActor().UserId, request.Search, request.Sort, request.Ascending), ct));
 
     /// <summary>How many results await the caller's sign-off, for the side nav. Names no patient, so records nothing.</summary>
     [HttpGet("count")]

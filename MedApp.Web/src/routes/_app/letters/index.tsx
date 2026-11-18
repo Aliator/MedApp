@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app/letters/')({
   loader: ({context, deps}) => {
     const permissions = context.queryClient.getQueryData(whoamiQuery.queryKey)?.permissions ?? [];
     const view = deps.view ?? defaultLetterView(permissions);
-    return preload(context.queryClient, lettersListQuery(view, deps.page ?? 1, listSettingsFor(context.queryClient).pageSize));
+    return preload(context.queryClient, lettersListQuery(view, deps, listSettingsFor(context.queryClient).pageSize));
   },
   component: function LettersRoute() {
     const navigate = Route.useNavigate();

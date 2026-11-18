@@ -355,6 +355,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SpecimensController.RecordSpecimen 00000
         SpecimensController.Reject 00000
         SpecimensController.Report 00000
+        SpecimensController.SearchSpecimenWorklist 00011
         SpecimensController.SearchSpecimens 00011
         SpecialtiesController.ArchiveSpecialty 00001
         SpecialtiesController.CreateSpecialty 00001

@@ -59,7 +59,7 @@ public sealed class LetterRepository(MedAppDbContext context) : ILetterRepositor
 
     public async Task<PagedResult<LetterRow>> SearchAsync(SearchLettersQuery query, CancellationToken ct)
     {
-        var letters = LetterSearch.Apply(context.Letters.AsNoTracking(), query);
+        var letters = LetterSearch.Apply(context.Letters.AsNoTracking(), query, context.Patients.AsNoTracking());
         var total = await letters.CountAsync(ct);
 
         var page = await letters

@@ -89,4 +89,15 @@ public sealed class SearchDataRequestsRequest
     public string? Status { get; set; }
     public Guid? PatientId { get; set; }
     public bool AwaitingReview { get; set; }
+
+    /// <summary>The patient's full name contains this, ignoring case. At most 200 characters.</summary>
+    public string? Search { get; set; }
+
+    /// <summary>
+    /// <c>patient</c>, <c>received</c>, <c>due</c> or <c>status</c>. Without one, open ones first by due date, then
+    /// the rest, newest received first.
+    /// </summary>
+    public string? Sort { get; set; }
+
+    public bool Ascending { get; set; } = true;
 }

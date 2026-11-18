@@ -38,14 +38,21 @@ public enum SpecimenView
     Reported
 }
 
-/// <summary>A page of specimens: one view, optionally narrowed to a lab, a pathway or a patient.</summary>
+/// <summary>
+/// A page of specimens: one view, optionally narrowed to a lab, a pathway or a patient, and (the Lab page's search,
+/// sent in a request body) to text in the specimen's number, the patient's name or NHS number, or the type's name.
+/// <see cref="Sort"/> names a column (<see cref="SpecimenSearch.SortColumns"/>); without one, the view's own order.
+/// </summary>
 public sealed record SearchSpecimensQuery(
     int Page,
     int PageSize,
     string? View,
     Guid? LaboratoryId,
     Guid? PathwayId,
-    Guid? PatientId)
+    Guid? PatientId,
+    string? Search = null,
+    string? Sort = null,
+    bool Ascending = true)
     : IRequest<PagedResponse<SpecimenSummaryResponse>>
 {
     public SpecimenView ParsedView =>
@@ -65,6 +72,10 @@ public sealed class SearchSpecimensValidator : AbstractValidator<SearchSpecimens
         RuleFor(x => x.View)
             .Must(view => view is null || PathwayEnums.TryParse<SpecimenView>(view, out _))
             .WithMessage($"View must be one of: {string.Join(", ", Enum.GetNames<SpecimenView>())}.");
+
+        RuleFor(x => x.Search)
+            .MaximumLength(SpecimenSearch.MaxSearchLength)
+            .WithMessage($"Search must not exceed {SpecimenSearch.MaxSearchLength} characters.");
     }
 }
 
@@ -74,8 +85,33 @@ public sealed class SearchSpecimensValidator : AbstractValidator<SearchSpecimens
 /// </summary>
 public static class SpecimenSearch
 {
+    public const int MaxSearchLength = 200;
+
+    public const string SortByNumber = "number";
+    public const string SortByPatient = "patient";
+    public const string SortByLaboratory = "lab";
+    public const string SortByStatus = "status";
+
+    /// <summary>The view's own time: taken, sent, received, expected by, closed or reported.</summary>
+    public const string SortByTime = "time";
+
+    public static readonly IReadOnlyList<string> SortColumns =
+        [SortByNumber, SortByPatient, SortByLaboratory, SortByStatus, SortByTime];
+
     public static IQueryable<Specimen> Filter(this IQueryable<Specimen> specimens, SearchSpecimensQuery query, DateTime nowUtc)
     {
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            // A number is matched without its spaces (as typed or scanned); NHS numbers are stored as their digits.
+            var term = query.Search.Trim().ToLower();
+            var compact = term.Replace(" ", "");
+            specimens = specimens.Where(s =>
+                s.Number.ToLower().Contains(compact)
+                || (s.Patient.FirstName + " " + s.Patient.LastName).ToLower().Contains(term)
+                || (s.Patient.NhsNumber != null && s.Patient.NhsNumber.Contains(compact))
+                || s.SpecimenType.Name.ToLower().Contains(term));
+        }
+
         if (query.LaboratoryId is { } laboratoryId)
             specimens = specimens.Where(s => s.LaboratoryId == laboratoryId);
         if (query.PathwayId is { } pathwayId)
@@ -101,7 +137,36 @@ public static class SpecimenSearch
         };
     }
 
-    public static IOrderedQueryable<Specimen> Sort(this IQueryable<Specimen> specimens, SpecimenView view) => view switch
+    /// <summary>
+    /// The column named (<see cref="SortColumns"/>) in either direction, or without one the view's own order; either
+    /// way ending on the ID. The time column is the view's time (the expected-by time for Overdue).
+    /// </summary>
+    public static IOrderedQueryable<Specimen> Sort(
+        this IQueryable<Specimen> specimens, SpecimenView view, string? sort = null, bool ascending = true)
+    {
+        var ordered = Ordering.ColumnOf(sort, SortColumns) switch
+        {
+            SortByNumber => specimens.OrderByDirection(s => s.Number, ascending),
+            SortByPatient => specimens.OrderByDirection(s => s.Patient.LastName, ascending)
+                .ThenByDirection(s => s.Patient.FirstName, ascending),
+            SortByLaboratory => specimens.OrderByDirection(s => s.Laboratory.Name, ascending),
+            SortByStatus => specimens.OrderByDirection(s => s.Status, ascending),
+            SortByTime => view switch
+            {
+                SpecimenView.Expected => specimens.OrderByDirection(s => s.SentAtUtc, ascending),
+                SpecimenView.InLab => specimens.OrderByDirection(s => s.ReceivedAtUtc, ascending),
+                SpecimenView.Overdue => specimens.OrderByDirection(
+                    s => s.TakenAtUtc.AddDays(s.SpecimenType.ExpectedTurnaroundDays), ascending),
+                SpecimenView.RejectedAndLost => specimens.OrderByDirection(s => s.ClosedAtUtc, ascending),
+                SpecimenView.Reported => specimens.OrderByDirection(s => s.ReportedAtUtc, ascending),
+                _ => specimens.OrderByDirection(s => s.TakenAtUtc, ascending),
+            },
+            _ => null
+        };
+        return ordered?.ThenBy(s => s.Id) ?? ViewOrder(specimens, view);
+    }
+
+    private static IOrderedQueryable<Specimen> ViewOrder(IQueryable<Specimen> specimens, SpecimenView view) => view switch
     {
         SpecimenView.Expected => specimens.OrderBy(s => s.SentAtUtc).ThenBy(s => s.Id),
         SpecimenView.InLab => specimens.OrderBy(s => s.ReceivedAtUtc).ThenBy(s => s.Id),

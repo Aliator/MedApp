@@ -1,5 +1,5 @@
 import {screen, within} from '@testing-library/react';
-import {calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {calls, findAlert, json, mockApi, pageOf, openSearch, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
 import type {TasksSearch} from '../listSearch';
 import {MyTasksPage, taskQuery} from './MyTasksPage';
 
@@ -64,10 +64,9 @@ describe('MyTasksPage', () => {
 
     expect(await screen.findByText('Colonoscopy')).toBeInTheDocument();
     expect(screen.getByText('1 pathway not started')).toBeInTheDocument();
-    expect(searchBar()).toHaveTextContent(/Progress: is\s*Not started/);
-    // The bar's token says it, so the favourite's name isn't repeated beside the star (which still says it).
-    expect(screen.getByRole('button', {name: 'Favourites (showing Not started)'})).toBeInTheDocument();
-    expect(screen.queryAllByText('Not started').filter((el) => !searchBar().contains(el) && !el.closest('[role="menu"]'))).toEqual([]);
+    // It opens on its first tab, Not started, named on the menu beside the tabs too.
+    expect(await screen.findByRole('tab', {name: 'Not started', selected: true})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'List options (showing Not started)'})).toBeInTheDocument();
     expect(screen.getByRole('columnheader', {name: 'Template'})).toBeInTheDocument();
     expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&AssignedToMe=true&Started=false&Page=1&Sort=dueDate&Ascending=true`]);
     // A normal list: no search button, and no switch between two lists.
@@ -140,6 +139,7 @@ describe('MyTasksPage', () => {
     await pickFavourite(user, 'Not started');
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({progress: undefined}));
 
+    await openSearch(user);
     await user.click(within(searchBar()).getByRole('button', {name: /clear/i}));
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({progress: 'any'}));
   });

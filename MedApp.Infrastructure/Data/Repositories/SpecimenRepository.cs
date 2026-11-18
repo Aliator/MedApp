@@ -86,7 +86,7 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await filtered
-            .Sort(query.ParsedView)
+            .Sort(query.ParsedView, query.Sort, query.Ascending)
             .Skip(Paging.Skip(query.Page, query.PageSize))
             .Take(query.PageSize)
             .Include(s => s.Patient)
