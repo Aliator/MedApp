@@ -4,7 +4,7 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {Selector} from '@astryxdesign/core/Selector';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {HStack} from '@astryxdesign/core/Stack';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Token} from '@astryxdesign/core/Token';
@@ -175,7 +175,7 @@ function TemplateEditor({
     );
 
   const specialtyField = (
-    <Selector
+    <AnchoredSelector
       label="Specialty"
       description="Which specialty its pathways belong to."
       placeholder="Choose a specialty"
