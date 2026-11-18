@@ -6,6 +6,7 @@ import {VStack} from '@astryxdesign/core/Stack';
 import {pixel, proportional} from '@astryxdesign/core/Table';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {Token} from '@astryxdesign/core/Token';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
@@ -17,6 +18,7 @@ import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
@@ -42,6 +44,22 @@ export function specialtyUse(specialty: Specialty): string {
     specialty.memberCount ? count(specialty.memberCount, 'member of staff', 'members of staff') : '',
   ].filter(Boolean);
   return parts.length ? parts.join(', ') : 'Not used yet';
+}
+
+/**
+ * The specialties nobody can triage referrals to: not archived, and none of their members holds TriageReferrals
+ * (`triagerCount` 0). Their referrals would wait with nobody able to accept, reject or redirect them (hazard H-40).
+ */
+export const untriageable = (specialties: readonly Specialty[]) => specialties.filter((s) => !s.isArchived && s.triagerCount === 0);
+
+/** Names in a list: "Dermatology", "Dermatology and Urology", "Cardiology, Dermatology and Urology". */
+const namesInWords = (names: readonly string[]) => (names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
+
+/** The page's warning about specialties nobody can triage, in words. */
+export function untriageableWords(specialties: readonly Specialty[]): string {
+  const names = untriageable(specialties).map((s) => s.name ?? '');
+  const these = names.length === 1 ? 'this specialty' : 'these specialties';
+  return `Nobody can triage referrals to ${namesInWords(names)}: no member of ${these} holds the Triage referrals permission. Give one a role that has it, or add a member who has.`;
 }
 
 export interface SpecialtiesPageProps {
@@ -114,7 +132,13 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
       key: 'name',
       header: 'Specialty',
       width: proportional(3, {minWidth: 140}),
-      renderCell: (s) => <SetupNameCell name={s.name ?? ''} secondary={specialtyUse(s)} />,
+      renderCell: (s) => (
+        <SetupNameCell
+          name={s.name ?? ''}
+          secondary={specialtyUse(s)}
+          token={!s.isArchived && s.triagerCount === 0 ? <Token size="sm" label="Nobody can triage" color="orange" icon={<Icon icon={AppIcon.Warning} />} /> : undefined}
+        />
+      ),
     },
     {key: 'templates', header: 'Templates', width: pixel(100), align: 'end', renderCell: (s) => <Text type="body">{s.templateCount ?? 0}</Text>},
     {key: 'pathways', header: 'Pathways', width: pixel(100), align: 'end', renderCell: (s) => <Text type="body">{s.pathwayCount ?? 0}</Text>},
@@ -170,7 +194,18 @@ export function SpecialtiesPage({search, onSearchChange}: SpecialtiesPageProps) 
         error ? (
           <AlertMessage message={error} />
         ) : (
-          isError && <AlertMessage message="The specialties could not be loaded. Please try again." />
+          isError ? (
+            <AlertMessage message="The specialties could not be loaded. Please try again." />
+          ) : (
+            untriageable(data).length > 0 && (
+              <SummaryAlert
+                status="warning"
+                label="Nobody can triage"
+                summary={namesInWords(untriageable(data).map((s) => s.name ?? ''))}
+                message={untriageableWords(data)}
+              />
+            )
+          )
         )
       }
       actions={<Button label="Add Specialty" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openEditor(null)} />}

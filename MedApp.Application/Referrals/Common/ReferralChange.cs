@@ -1,4 +1,5 @@
 using MedApp.Application.Pathways.Common;
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
 using MedApp.Domain.Specialties;
 using static MedApp.Domain.Referrals.ReferralStatus;
@@ -138,6 +139,86 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
         return true;
     }
 
+    /// <summary>
+    /// Accepts it into <paramref name="pathway"/>, a new pathway made from <paramref name="templateName"/> with the
+    /// triager's <paramref name="priority"/>, saved with it. The history records the specialty, the template, the
+    /// priority chosen and the one asked for, and the pathway; never free text.
+    /// </summary>
+    public void Accept(Guid pathwayId, string templateName, PatientPathwayPriority priority)
+    {
+        var previous = referral.Status;
+        Decide(Accepted);
+        referral.PathwayId = pathwayId;
+        Record(ReferralEventAction.Accepted, new
+        {
+            from = previous.ToString(),
+            to = Accepted.ToString(),
+            specialtyId = referral.SpecialtyId,
+            specialtyName = referral.Specialty?.Name,
+            templateName,
+            priority = priority.ToString(),
+            requestedPriority = referral.RequestedPriority.ToString(),
+            pathwayId
+        });
+    }
+
+    /// <summary>Rejects it, for a reason (a fixed choice) and an optional detail kept on the referral.</summary>
+    public void Reject(ReferralRejectionReason reason, string? detail)
+    {
+        var previous = referral.Status;
+        Decide(Rejected);
+        referral.RejectionReason = reason;
+        referral.DecisionDetail = detail;
+        Record(ReferralEventAction.Rejected, new
+        {
+            from = previous.ToString(),
+            to = Rejected.ToString(),
+            specialtyId = referral.SpecialtyId,
+            specialtyName = referral.Specialty?.Name,
+            rejectionReason = reason.ToString()
+        });
+    }
+
+    /// <summary>
+    /// Redirects it to another provider: <paramref name="elsewhere"/> (where to) and the detail are kept on the
+    /// referral, never in its history. It closes it.
+    /// </summary>
+    public void RedirectElsewhere(string elsewhere, string detail)
+    {
+        var previous = referral.Status;
+        Decide(RedirectedElsewhere);
+        referral.RedirectedTo = elsewhere;
+        referral.DecisionDetail = detail;
+        Record(ReferralEventAction.RedirectedElsewhere, new
+        {
+            from = previous.ToString(),
+            to = RedirectedElsewhere.ToString(),
+            specialtyId = referral.SpecialtyId,
+            specialtyName = referral.Specialty?.Name
+        });
+    }
+
+    /// <summary>
+    /// Redirects it to another specialty here: it stays awaiting triage, in <paramref name="specialty"/>'s inbox, from
+    /// the same date received. The detail is kept on the referral (<see cref="Referral.RedirectDetail"/>); the history
+    /// records the specialties before and after.
+    /// </summary>
+    public void RedirectToSpecialty(Specialty specialty, string detail)
+    {
+        var previousId = referral.SpecialtyId;
+        var previousName = referral.Specialty?.Name;
+        // The ID only, as an edit does: the handler, which read the specialty without tracking, shows it after saving.
+        referral.SpecialtyId = specialty.Id;
+        referral.RedirectDetail = detail;
+        Record(ReferralEventAction.SpecialtyChanged, new
+        {
+            specialtyId = specialty.Id,
+            specialtyName = specialty.Name,
+            previousSpecialtyId = previousId,
+            previousSpecialtyName = previousName
+        });
+    }
+
     /// <summary>Withdraws it (the referrer or the patient withdrew it), with a detail kept on the referral.</summary>
     public void Withdraw(string detail) => Close(Withdrawn, ReferralEventAction.Withdrawn, detail);
 
@@ -147,12 +228,18 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
     private void Close(ReferralStatus status, ReferralEventAction action, string detail)
     {
         var previous = referral.Status;
+        Decide(status);
+        referral.DecisionDetail = detail;
+        Record(action, new { from = previous.ToString(), to = status.ToString() });
+    }
+
+    /// <summary>Moves it out of Awaiting triage, by the actor, now.</summary>
+    private void Decide(ReferralStatus status)
+    {
         referral.Status = status;
         referral.DecidedAtUtc = nowUtc;
         referral.DecidedByUserId = actor.UserId;
         referral.DecidedByUsername = actor.Username;
-        referral.DecisionDetail = detail;
-        Record(action, new { from = previous.ToString(), to = status.ToString() });
     }
 
     /// <summary>

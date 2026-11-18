@@ -120,4 +120,13 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>A referral entry: the referring practice. Admins only (it's free text).</summary>
     public string? ReferrerPractice { get; set; }
+
+    /// <summary>ReferralSpecialtyChanged: the specialty it was redirected from.</summary>
+    public string? PreviousSpecialtyName { get; set; }
+
+    /// <summary>ReferralRejected: why, a fixed choice by name (NotOfferedHere, DoesNotMeetCriteria, ...).</summary>
+    public string? RejectionReason { get; set; }
+
+    /// <summary>ReferralRedirectedElsewhere: where to. Admins only (it's free text).</summary>
+    public string? RedirectedTo { get; set; }
 }

@@ -78,6 +78,12 @@ public sealed class Referral
     /// <summary>Redirected elsewhere: where to. Free text.</summary>
     public string? RedirectedTo { get; set; }
 
+    /// <summary>
+    /// Redirected here from another specialty: why, as the triager who moved it wrote it (the latest such move's). Free
+    /// text. Kept apart from <see cref="DecisionDetail"/>, as the referral still awaits triage after it.
+    /// </summary>
+    public string? RedirectDetail { get; set; }
+
     /// <summary>Accepted: the pathway it was accepted into, until that pathway is deleted.</summary>
     public Guid? PathwayId { get; set; }
     public PatientPathway? Pathway { get; set; }

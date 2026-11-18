@@ -30,6 +30,18 @@ public interface IReferralRepository
     /// </summary>
     Task SaveAsync(IEnumerable<ReferralEvent> events, CancellationToken ct);
 
+    /// <summary>
+    /// Adds history entries to the request's DbContext without saving: the next save of the context (accepting saves
+    /// the referral and its entries with the new pathway, through the pathway repository) saves them too.
+    /// </summary>
+    void AddEvents(IEnumerable<ReferralEvent> events);
+
+    /// <summary>Whether a member of staff belongs to a specialty (triage needs it).</summary>
+    Task<bool> IsSpecialtyMemberAsync(Guid userId, Guid specialtyId, CancellationToken ct);
+
+    /// <summary>The referral accepted into a pathway, with its specialty, read-only; null if none was.</summary>
+    Task<Referral?> GetForPathwayAsync(Guid pathwayId, CancellationToken ct);
+
     /// <summary>A referral's history, oldest first.</summary>
     Task<IReadOnlyList<ReferralEvent>> GetHistoryAsync(Guid referralId, CancellationToken ct);
 

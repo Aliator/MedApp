@@ -2,14 +2,18 @@ using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Referrals.Commands.AcceptReferral;
 using MedApp.Application.Referrals.Commands.EditReferral;
 using MedApp.Application.Referrals.Commands.MarkReferralEnteredInError;
+using MedApp.Application.Referrals.Commands.RedirectReferral;
 using MedApp.Application.Referrals.Commands.RegisterReferral;
+using MedApp.Application.Referrals.Commands.RejectReferral;
 using MedApp.Application.Referrals.Commands.WithdrawReferral;
 using MedApp.Application.Referrals.Queries.CountReferralsAwaitingTriage;
 using MedApp.Application.Referrals.Queries.GetReferralById;
 using MedApp.Application.Referrals.Queries.SearchReferrals;
 using MedApp.Contracts.Common;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Referrals.Requests;
 using MedApp.Contracts.Referrals.Responses;
 using MedApp.UnitTests.Common.Fixtures;
@@ -30,6 +34,13 @@ public sealed class ReferralsControllerTests
         nameof(ReferralsController.EditReferral),
         nameof(ReferralsController.WithdrawReferral),
         nameof(ReferralsController.MarkEnteredInError),
+    ];
+
+    private static readonly string[] Triage =
+    [
+        nameof(ReferralsController.AcceptReferral),
+        nameof(ReferralsController.RejectReferral),
+        nameof(ReferralsController.RedirectReferral),
     ];
 
     private IFixture _fixture = null!;
@@ -136,6 +147,60 @@ public sealed class ReferralsControllerTests
     }
 
     [Test]
+    public async Task AcceptReferral_SendsEveryChoiceAndTheVersionSeen_AndReturnsThePathwaysAddress()
+    {
+        var pathway = _fixture.Create<PatientPathwayResponse>();
+        var mediator = new RecordingMediator(_ => pathway);
+        var request = new AcceptReferralRequest
+        {
+            TemplateId = OtherId, Priority = "Urgent", DueDate = ReceivedOn, Title = "Synthetic title", AssigneeUserId = UserId,
+            Notes = "Synthetic note", ExpectedVersion = 3
+        };
+
+        var result = await Controller(mediator).AcceptReferral(RecordId, request, _cts.Token);
+
+        var command = mediator.Request.Should().BeOfType<AcceptReferralCommand>().Subject;
+        command.Should().BeEquivalentTo(new
+        {
+            ReferralId = RecordId, TemplateId = OtherId, Priority = "Urgent", DueDate = ReceivedOn, Title = "Synthetic title",
+            AssigneeUserId = (Guid?)UserId, Notes = "Synthetic note", ExpectedVersion = 3
+        });
+        command.Actor.UserId.Should().Be(UserId);
+        mediator.Tokens.Single().Should().Be(_cts.Token);
+        var created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Be($"/api/pathways/patient-pathways/{pathway.Id}");
+        created.Value.Should().Be(pathway);
+    }
+
+    [Test]
+    public async Task RejectAndRedirect_SendTheChoiceAndTheVersionSeen()
+    {
+        var response = _fixture.Create<ReferralResponse>();
+        await ExpectOk(response,
+            r => r is RejectReferralCommand { Reason: "Duplicate", Detail: Detail, ExpectedVersion: 2 } q
+                 && q.ReferralId == RecordId && q.Actor.UserId == UserId,
+            c => c.RejectReferral(RecordId, new RejectReferralRequest { Reason = "Duplicate", Detail = Detail, ExpectedVersion = 2 }, _cts.Token));
+        await ExpectOk(response,
+            r => r is RedirectReferralCommand { Elsewhere: "Synthetic Trust", Detail: Detail, ExpectedVersion: 2 } q
+                 && q.ReferralId == RecordId && q.SpecialtyId == OtherId && q.Actor.UserId == UserId,
+            c => c.RedirectReferral(RecordId, new RedirectReferralRequest
+            {
+                SpecialtyId = OtherId, Elsewhere = "Synthetic Trust", Detail = Detail, ExpectedVersion = 2
+            }, _cts.Token));
+    }
+
+    [Test]
+    public async Task Triage_NeedsTriageReferrals()
+    {
+        foreach (var action in Triage)
+        {
+            (await ControllerAuthorisation.MayCallAsync<ReferralsController>(action, SignedInWith(Permission.TriageReferrals))).Should().BeTrue(action);
+            (await ControllerAuthorisation.MayCallAsync<ReferralsController>(action, SignedInWith(Permission.RegisterReferrals))).Should().BeFalse(action);
+            (await ControllerAuthorisation.MayCallAsync<ReferralsController>(action, SignedIn())).Should().BeFalse(action);
+        }
+    }
+
+    [Test]
     public async Task Changes_NeedRegisterReferrals()
     {
         foreach (var action in Changes)
@@ -149,7 +214,7 @@ public sealed class ReferralsControllerTests
     [Test]
     public async Task Reading_NeedsViewPatients()
     {
-        var reads = ControllerAuthorisation.Actions<ReferralsController>().Except(Changes).ToList();
+        var reads = ControllerAuthorisation.Actions<ReferralsController>().Except(Changes).Except(Triage).ToList();
         reads.Should().BeEquivalentTo([
             nameof(ReferralsController.SearchReferrals),
             nameof(ReferralsController.CountAwaitingTriage),

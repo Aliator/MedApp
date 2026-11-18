@@ -1,9 +1,11 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
 using MedApp.Application.Specialties.Common;
 using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Referrals;
 using MedApp.Domain.Specialties;
+using MedApp.Infrastructure.Common.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,6 +67,14 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+        // Members who can triage: they hold TriageReferrals through any of their roles.
+        var triageHolders = RolePermissionQueries.HoldersOf(context, Permission.TriageReferrals);
+        var triagers = await context.StaffSpecialties
+            .Where(m => list.Contains(m.SpecialtyId) && triageHolders.Contains(m.UserId))
+            .GroupBy(m => m.SpecialtyId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
         var referrals = await context.Referrals
             .Where(r => list.Contains(r.SpecialtyId))
             .GroupBy(r => r.SpecialtyId)
@@ -85,7 +95,8 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
                     pathways.GetValueOrDefault(id),
                     members.GetValueOrDefault(id),
                     referrals.GetValueOrDefault(id)?.Count ?? 0,
-                    referrals.GetValueOrDefault(id)?.Awaiting ?? 0));
+                    referrals.GetValueOrDefault(id)?.Awaiting ?? 0,
+                    triagers.GetValueOrDefault(id)));
     }
 
     public async Task AddAsync(Specialty specialty, CancellationToken ct)

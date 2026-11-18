@@ -27,8 +27,13 @@ namespace MedApp.Application.Patients.Common;
 /// <item>Notifications about the pathways take the new titles, except those whose title is fixed (the appointment
 /// kinds' "Appointment booked", monitoring's "Stage finished"), which never held free text; their messages hold none
 /// either.</item>
+<<<<<<< HEAD
 /// <item>Referrals' reasons, referring practices and clinicians, decision details and redirect destinations become
 /// <see cref="RemovedText"/>, and their ODS codes and links to the directory's practices are removed; their dates, statuses, priorities and specialties stay.
+=======
+/// <item>Referrals' reasons, referring practices and clinicians, decision and redirect details and redirect destinations become
+/// <see cref="RemovedText"/>, and their ODS codes are removed; their dates, statuses, priorities and specialties stay.
+>>>>>>> origin/main
 /// Their history holds no free text, but its details are scrubbed as the others' are.</item>
 /// <item>Attached files' names become <see cref="FileName"/> with their type's usual extension, in their records and in
 /// the audit's details, and every file still live is deleted (hidden), by whoever anonymises, so its bytes go with the
@@ -146,6 +151,8 @@ public static class PatientAnonymiser
                 referral.DecisionDetail = Removed(referral.DecisionDetail);
             if (referral.RedirectedTo is not null)
                 referral.RedirectedTo = Removed(referral.RedirectedTo);
+            if (referral.RedirectDetail is not null)
+                referral.RedirectDetail = Removed(referral.RedirectDetail);
         }
 
         foreach (var entry in record.ReferralHistory)

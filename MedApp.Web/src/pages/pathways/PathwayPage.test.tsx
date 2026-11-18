@@ -452,6 +452,33 @@ describe('PathwayPage: working on it', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/start`));
   });
 
+  it('links to the referral it was accepted from, and keeps the link when a change comes back without it', async () => {
+    const referral = {id: 'referral-1', receivedOn: '2026-11-02', specialtyName: 'Dermatology'};
+    const notStarted = working({stages: [working().stages[0], {...working().stages[1], state: 'NotStarted'}]});
+    let reads = 0;
+    const fetch = mockApi({
+      // Only the pathway's own read fills `referral`; a change's response leaves it out.
+      [`GET ${PATH}`]: () => json(++reads === 1 ? {...notStarted, referral} : notStarted),
+      [`POST ${PATH}/stages/s2/start`]: () => json(working({referral: null})),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    const link = await screen.findByRole('link', {name: 'From a referral received 2 November 2026, Dermatology'});
+    expect(link).toHaveAttribute('href', '/referrals/referral-1');
+    await user.click(screen.getByRole('button', {name: 'Start Stage'}));
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/start`));
+    await waitFor(() => expect(screen.queryByRole('button', {name: 'Start Stage'})).not.toBeInTheDocument());
+    expect(screen.getByRole('link', {name: 'From a referral received 2 November 2026, Dermatology'})).toBeInTheDocument();
+  });
+
+  it('has no referral link for a pathway created directly', async () => {
+    mockApi({[`GET ${PATH}`]: () => json(working())});
+    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
+    expect(screen.queryByRole('link', {name: /^From a referral/})).not.toBeInTheDocument();
+  });
+
   it("makes no change when the not-assigned question is answered with Cancel", async () => {
     const fetch = mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});

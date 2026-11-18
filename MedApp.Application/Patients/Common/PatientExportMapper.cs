@@ -248,6 +248,7 @@ public static class PatientExportMapper
                     RejectionReason = r.RejectionReason?.ToString(),
                     DecisionDetail = r.DecisionDetail,
                     RedirectedTo = r.RedirectedTo,
+                    RedirectDetail = r.RedirectDetail,
                     PathwayId = r.PathwayId
                 })
                 .ToList(),

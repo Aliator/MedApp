@@ -207,6 +207,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientsController.SetDispute 00001
         PatientsController.SetRestriction 00001
         PatientsController.UpdatePatient 00011
+<<<<<<< HEAD
         PracticesController.ArchivePractice 00011
         PracticesController.CreatePractice 00011
         PracticesController.DeletePractice 00011
@@ -214,11 +215,16 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PracticesController.GetPractices 00011
         PracticesController.RestorePractice 00011
         PracticesController.UpdatePractice 00011
+=======
+        ReferralsController.AcceptReferral 00000
+>>>>>>> origin/main
         ReferralsController.CountAwaitingTriage 00011
         ReferralsController.EditReferral 00011
         ReferralsController.GetReferral 00011
         ReferralsController.MarkEnteredInError 00011
+        ReferralsController.RedirectReferral 00000
         ReferralsController.RegisterReferral 00011
+        ReferralsController.RejectReferral 00000
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
         RolesController.ArchiveRole 00001
