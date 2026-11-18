@@ -1,7 +1,8 @@
-import {DEMO_ACCOUNTS, PEOPLE, personByUsername} from '../accounts';
+import {DEMO_ACCOUNTS, personByUsername} from '../accounts';
 import {on, problem} from '../api/http';
 import {db} from '../store';
 import {nowUtc} from '../time';
+import {logActivity} from './adminLogs';
 import {me, signedIn} from './common';
 
 /**
@@ -27,10 +28,13 @@ export function registerAccount() {
     if (!person || !DEMO_ACCOUNTS.some((account) => account.id === person.id))
       return problem(401, 'In the light demo, choose one of the two accounts on the login page.');
     db().user = person.username;
+    logActivity('SignedIn', {userId: person.id});
     return {sessionId: person.id, expiresAtUtc: new Date(Date.now() + 8 * 3600_000).toISOString()};
   });
 
   on('post', '/api/auth/logout', () => {
+    const person = signedIn();
+    if (person) logActivity('SignedOut', {userId: person.id});
     db().user = null;
     return undefined;
   });
@@ -67,9 +71,10 @@ export function registerAccount() {
 
   on('get', '/api/auth/me/specialties', () => {
     const person = me();
+    const mine = db().memberships[person.id] ?? person.specialtyIds;
     return db()
-      .specialties.filter((s) => person.specialtyIds.includes(s.id ?? ''))
-      .map((s) => ({id: s.id, name: s.name, isArchived: false}));
+      .specialties.filter((s) => mine.includes(s.id ?? ''))
+      .map((s) => ({id: s.id, name: s.name, isArchived: s.isArchived}));
   });
 
   on('get', '/api/auth/me/email', () => {
@@ -122,23 +127,6 @@ export function registerAccount() {
     const saved = {text: body.text ?? '', lastUpdatedUtc: nowUtc(), version: (current?.version ?? 0) + 1, keepDays: 30};
     db().notepads[person.id] = saved;
     return saved;
-  });
-
-  // Everyone on staff, for pickers (assignees, attendees).
-  on('get', '/api/auth/users/search', ({query}) => {
-    me();
-    const items = PEOPLE.map((person) => ({
-      userId: person.id,
-      username: person.username,
-      roles: person.roles,
-      email: `${person.username}@centre.example`,
-      twoFactorEnabled: false,
-      fullName: person.fullName,
-      jobTitle: person.jobTitle,
-    }));
-    const username = query.get('Username');
-    const filtered = username ? items.filter((u) => u.username.includes(username.toLowerCase())) : items;
-    return {items: filtered, page: 1, pageSize: filtered.length, totalCount: filtered.length, totalPages: 1};
   });
 
   // No demographics service, and no texts or emails to patients.

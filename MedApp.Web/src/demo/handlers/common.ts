@@ -97,9 +97,9 @@ export function pathwayPatient(patientId: string): Schemas['PathwayPatientRespon
     lastName: patient?.lastName ?? null,
     dateOfBirth: patient?.dateOfBirth,
     nhsNumber: patient?.nhsNumber ?? null,
-    isRestricted: false,
-    isDisputed: false,
-    isAnonymised: false,
+    isRestricted: patient?.isRestricted ?? false,
+    isDisputed: patient?.isDisputed ?? false,
+    isAnonymised: patient?.isAnonymised ?? false,
   };
 }
 

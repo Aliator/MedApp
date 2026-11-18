@@ -4,8 +4,10 @@ import {invalid, notFound, on} from '../api/http';
 import {newId} from '../ids';
 import {specialtyName} from '../seed';
 import {db} from '../store';
+import {logActivity} from './adminLogs';
 import {contains, int, list, me, paged, requirePermission, sorted} from './common';
 import {isOverdue} from './pathways';
+import {ensureCanChange, patientResponse} from './setupPrivacy';
 
 /**
  * Patients and their timeline. The timeline is read from the patient's pathways, appointments and referrals as they
@@ -109,9 +111,9 @@ export function registerPatients() {
         (!query.get('DateOfBirthFrom') || (p.dateOfBirth ?? '') >= query.get('DateOfBirthFrom')!) &&
         (!query.get('DateOfBirthTo') || (p.dateOfBirth ?? '') <= query.get('DateOfBirthTo')!),
     );
-    return paged(
+    const page = paged(
       sorted(
-        items,
+        items.map(patientResponse),
         query,
         {
           name: (p) => `${p.lastName} ${p.firstName}`.toLowerCase(),
@@ -122,6 +124,8 @@ export function registerPatients() {
       ),
       query,
     );
+    for (const p of page.items) logActivity('PatientListed', {patientId: p.id});
+    return page;
   });
 
   on('get', '/api/patients/labels', ({query}) => {
@@ -134,7 +138,10 @@ export function registerPatients() {
 
   on('get', '/api/patients/{id}', ({params}) => {
     me();
-    return findPatient(params.id) ?? notFound('The patient');
+    const patient = findPatient(params.id);
+    if (!patient) return notFound('The patient');
+    logActivity('PatientViewed', {patientId: patient.id});
+    return patientResponse(patient);
   });
 
   on('post', '/api/patients', ({body}) => {
@@ -155,26 +162,40 @@ export function registerPatients() {
       postcode: body.postcode ?? null,
       mobilePhone: body.mobilePhone ?? null,
       reminderChannel: body.reminderChannel ?? 'None',
-      practiceId: null,
+      practiceId: practiceChoice(body.practiceId) ?? null,
       isRestricted: false,
       isDisputed: false,
       isAnonymised: false,
     };
     db().patients.push(patient);
-    return patient;
+    logActivity('PatientCreated', {patientId: patient.id});
+    return patientResponse(patient);
   });
 
   on('patch', '/api/patients/{id}', ({params, body}) => {
     requirePermission('EditPatients');
     const patient = findPatient(params.id);
     if (!patient) return notFound('The patient');
+    ensureCanChange(patient);
+    const changed: string[] = [];
     for (const key of ['firstName', 'lastName', 'dateOfBirth', 'email', 'nhsNumber', 'addressLines', 'postcode', 'mobilePhone', 'reminderChannel'] as const)
-      if (body[key] !== undefined) (patient as Record<string, unknown>)[key] = body[key];
-    return patient;
+      if (body[key] !== undefined && body[key] !== null && JSON.stringify(body[key]) !== JSON.stringify(patient[key])) {
+        (patient as Record<string, unknown>)[key] = body[key];
+        changed.push(key);
+      }
+    const practiceId = practiceChoice(body.practiceId);
+    if (practiceId !== undefined && practiceId !== patient.practiceId) {
+      patient.practiceId = practiceId;
+      changed.push('practice');
+    }
+    // Field names only, never their values.
+    logActivity('PatientUpdated', {patientId: patient.id, details: JSON.stringify({fields: changed})});
+    return patientResponse(patient);
   });
 
   on('get', '/api/patients/{id}/timeline', ({params, query}) => {
     me();
+    logActivity('PatientViewed', {patientId: params.id});
     const kinds = list(query, 'Kinds');
     const pathwayIds = list(query, 'PathwayIds');
     const all = timelineOf(params.id).filter(
@@ -204,14 +225,13 @@ export function registerPatients() {
     };
   });
 
-  // No files, letters or practices in the light demo: their lists are empty.
+  // No files in the light demo: the list is empty.
   on('get', '/api/attachments', () => ({items: [], totalCount: 0, maxFileBytes: 0, allowedExtensions: []}));
-  on('get', '/api/letters/count', () => ({toApprove: 0, toSend: 0}));
-  on('get', '/api/letters/search', ({query}) => paged([], query));
-  on('get', '/api/practices', () => []);
+}
 
-  on('get', '/api/specialties', () => {
-    me();
-    return db().specialties;
-  });
+/** A practice chosen on the patient form: its ID, null to remove it (`Guid.Empty`), undefined to leave it. */
+function practiceChoice(practiceId: string | null | undefined): string | null | undefined {
+  if (practiceId === undefined || practiceId === null) return undefined;
+  if (/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(practiceId)) return null;
+  return db().practices.some((p) => p.id === practiceId) ? practiceId : undefined;
 }
