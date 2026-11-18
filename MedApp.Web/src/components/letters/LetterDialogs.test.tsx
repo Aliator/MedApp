@@ -236,3 +236,75 @@ describe('letter dialogs', () => {
     expect(recordableDays(new Date('2026-07-01T23:30:00Z'))[0]).toBe('2026-07-02');
   });
 });
+
+describe('letter dialogs, for a letter missing its details', {timeout: 30_000}, () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  // No ID or version (the API always sends them): each dialog still sends what it has, from version 0.
+  const bare = (fields: Parameters<typeof testLetter>[0] = {}) => testLetter({id: undefined, version: undefined, ...fields});
+  const sends = (path: string) => ({[`POST /api/letters//${path}`]: () => json(approvedLetter())});
+  const sent = async (fetch: ReturnType<typeof mockApi>) => body(fetch);
+
+  it('submits, approves, returns and discards from version 0', async () => {
+    const onDone = vi.fn();
+    const submit = setUp(<SubmitLetterDialog letter={bare()} onCancel={vi.fn()} onDone={onDone} />, {
+      'GET /api/calendar/staff': () => json([{userId: LETTER_APPROVER_ID, username: 'd.clinician'}, {userId: undefined, username: null}]),
+      ...sends('submit'),
+    });
+    let dialog = within(await dialogOpen());
+    await waitFor(() => expect(isDisabled(dialog.getByRole('combobox', {name: /Approver/}))).toBe(false));
+    await submit.user.click(dialog.getByRole('combobox', {name: /Approver/}));
+    await submit.user.click(await screen.findByRole('option', {name: 'd.clinician'}));
+    await submit.user.click(dialog.getByRole('button', {name: 'Submit'}));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(await sent(submit.fetch)).toEqual({approverUserId: LETTER_APPROVER_ID, expectedVersion: 0});
+    submit.unmount();
+
+    const approve = setUp(<ApproveLetterDialog letter={bare({canApprove: true})} onCancel={vi.fn()} onDone={onDone} />, sends('approve'));
+    dialog = within(await dialogOpen());
+    await approve.user.click(dialog.getByRole('button', {name: 'Approve'}));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(2));
+    expect(await sent(approve.fetch)).toEqual({expectedVersion: 0});
+    approve.unmount();
+
+    const back = setUp(<ReturnLetterDialog letter={bare({status: 'AwaitingApproval'})} onCancel={vi.fn()} onDone={onDone} />, sends('return'));
+    dialog = within(await dialogOpen());
+    await back.user.type(dialog.getByRole('textbox', {name: /What needs changing/}), 'Synthetic.');
+    await back.user.click(dialog.getByRole('button', {name: 'Return'}));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(3));
+    expect(await sent(back.fetch)).toEqual({comment: 'Synthetic.', expectedVersion: 0});
+    back.unmount();
+
+    const discard = setUp(<DiscardLetterDialog letter={bare()} onCancel={vi.fn()} onDone={onDone} />, sends('discard'));
+    dialog = within(await dialogOpen());
+    await discard.user.click(dialog.getByRole('button', {name: 'Discard Draft'}));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(4));
+    expect(await sent(discard.fetch)).toEqual({expectedVersion: 0});
+  });
+
+  it('withdraws, sends and records one sent to a recipient missing its details, from version 0', async () => {
+    const onDone = vi.fn();
+    const recipient = practiceRecipient({id: undefined, name: '', canSendSecureEmail: true, canRecordSent: true});
+    const withdraw = setUp(<WithdrawLetterDialog letter={approvedLetter({id: undefined, version: undefined, recipients: undefined})} onCancel={vi.fn()} onDone={onDone} />, sends('withdraw'));
+    let dialog = within(await dialogOpen());
+    await withdraw.user.type(dialog.getByRole('textbox', {name: /Why it's withdrawn/}), 'Synthetic.');
+    await withdraw.user.click(dialog.getByRole('button', {name: 'Withdraw Letter'}));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(await sent(withdraw.fetch)).toEqual({reason: 'Synthetic.', expectedVersion: 0});
+    withdraw.unmount();
+
+    const email = setUp(<SendSecureEmailDialog letter={approvedLetter({id: undefined, version: undefined})} recipient={recipient} onCancel={vi.fn()} onDone={onDone} />, sends('recipients//send'));
+    dialog = within(await dialogOpen());
+    await email.user.click(dialog.getByRole('button', {name: 'Send'}));
+    await waitFor(() => expect(email.fetch).toHaveBeenCalled());
+    email.unmount();
+
+    const record = setUp(<RecordSentDialog letter={approvedLetter({id: undefined, version: undefined})} recipient={recipient} onCancel={vi.fn()} onDone={onDone} />, sends('recipients//record-sent'));
+    dialog = within(await dialogOpen());
+    expect(dialog.getByText(/^How it reached GP practice, from the PDF\.$/)).toBeInTheDocument();
+    await record.user.click(dialog.getByRole('radio', {name: 'Post'}));
+    await record.user.click(dialog.getByRole('button', {name: 'Record as Sent'}));
+    await waitFor(() => expect(record.fetch).toHaveBeenCalled());
+    expect(await sent(record.fetch)).toEqual(expect.objectContaining({method: 'Post', expectedVersion: 0}));
+  });
+});
