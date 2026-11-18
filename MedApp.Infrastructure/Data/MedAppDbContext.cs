@@ -4,6 +4,7 @@ using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Jobs;
+using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
 using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
@@ -48,6 +49,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<CalendarBlockException> CalendarBlockExceptions => Set<CalendarBlockException>();
     public DbSet<CalendarDayOverride> CalendarDayOverrides => Set<CalendarDayOverride>();
     public DbSet<ClosedDay> ClosedDays => Set<ClosedDay>();
+    public DbSet<Site> Sites => Set<Site>();
+    public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
     public DbSet<DayTemplate> DayTemplates => Set<DayTemplate>();

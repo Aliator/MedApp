@@ -6,6 +6,7 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
+using MedApp.Application.Sites.Repositories;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Calendar;
 using MedApp.UnitTests.Common.Constants;
@@ -25,12 +26,22 @@ public sealed class CreateClosedDayHandlerTests
     private Mock<IIdentityReadService> _identity = null!;
     private Dictionary<DateOnly, List<StaffBookings>> _bookings = null!;
     private List<Notification> _sent = null!;
+    private List<ClosedDay> _onDate = null!;
+    private Mock<ISiteRepository> _sites = null!;
 
     [SetUp]
     public void SetUp()
     {
         var fixture = AutoFixtureFactory.Create();
         _repository = new Mock<IClosedDayRepository>();
+        _onDate = [];
+        _repository.Setup(r => r.GetOnAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateOnly date, CancellationToken _) => (IReadOnlyList<ClosedDay>)_onDate.Where(d => d.Date == date).ToList());
+        _sites = new Mock<ISiteRepository>();
+        _sites.Setup(r => r.GetSiteAsync(SitesTestConstants.SiteId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SitesTestConstants.NewSite());
+        _sites.Setup(r => r.GetSiteAsync(SitesTestConstants.OtherSiteId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SitesTestConstants.NewSite(SitesTestConstants.OtherSiteId, SitesTestConstants.OtherSiteName, isArchived: true));
         _added = [];
         _repository.Setup(r => r.AddAsync(It.IsAny<IReadOnlyCollection<ClosedDay>>(), It.IsAny<CancellationToken>()))
             .Callback((IReadOnlyCollection<ClosedDay> days, CancellationToken _) => _added.AddRange(days))
@@ -51,6 +62,7 @@ public sealed class CreateClosedDayHandlerTests
         fixture.Inject(_identity.Object);
         fixture.Inject(sender.Object);
         fixture.Inject(_repository.Object);
+        fixture.Inject(_sites.Object);
         fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
         _handler = fixture.Create<CreateClosedDayHandler>();
     }
@@ -74,6 +86,94 @@ public sealed class CreateClosedDayHandlerTests
         response.Date.Should().Be(ClosedWednesday);
         response.Name.Should().Be(ClosedDayName);
         response.IsPast.Should().BeFalse();
+        response.SiteId.Should().BeNull();
+        response.SiteName.Should().BeNull();
+        day.SiteId.Should().BeNull();
+        _sites.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_ASite_ClosesItThere_WithoutBookingsOrNotifications()
+    {
+        using var cts = new CancellationTokenSource();
+
+        var response = await _handler.Handle(
+            new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor, SitesTestConstants.SiteId), cts.Token);
+
+        var day = _added.Should().ContainSingle().Subject;
+        day.SiteId.Should().Be(SitesTestConstants.SiteId);
+        response.SiteId.Should().Be(SitesTestConstants.SiteId);
+        response.SiteName.Should().Be(SitesTestConstants.SiteName);
+        response.Bookings.Should().BeNull();
+        _sites.Verify(r => r.GetSiteAsync(SitesTestConstants.SiteId, cts.Token), Times.Once);
+        _calendar.Verify(c => c.GetBookingsOnAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
+        _sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AnUnknownSite_ThrowsNotFound()
+    {
+        var act = () => _handler.Handle(
+            new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor, Guid.NewGuid()), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+        _added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AnArchivedSite_ThrowsConflict()
+    {
+        var act = () => _handler.Handle(
+            new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor, SitesTestConstants.OtherSiteId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"{SitesTestConstants.OtherSiteName} is archived. Restore it first.");
+        _added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ASiteOnADateClosedEverywhere_ThrowsConflictNamingIt()
+    {
+        _onDate.Add(CalendarTestConstants.CreateClosedDay(name: "Christmas Day"));
+
+        var act = () => _handler.Handle(
+            new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor, SitesTestConstants.SiteId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("Wednesday 25 November is already a closed day: Christmas Day.");
+        _added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_ASiteAlreadyClosedThatDay_ThrowsConflictNamingIt()
+    {
+        _onDate.Add(InMemoryClosedDays.On(ClosedWednesday, "Boiler repair", SitesTestConstants.SiteId));
+
+        var act = () => _handler.Handle(
+            new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor, SitesTestConstants.SiteId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage($"Wednesday 25 November is already a closed day at {SitesTestConstants.SiteName}: Boiler repair.");
+        _added.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_EverywhereOnADateASiteIsClosed_AddsIt()
+    {
+        _onDate.Add(InMemoryClosedDays.On(ClosedWednesday, "Boiler repair", SitesTestConstants.SiteId));
+
+        await _handler.Handle(new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor), CancellationToken.None);
+
+        _added.Should().ContainSingle(d => d.SiteId == null);
+    }
+
+    [Test]
+    public async Task Handle_ASiteOnADateAnotherSiteIsClosed_AddsIt()
+    {
+        _onDate.Add(InMemoryClosedDays.On(ClosedWednesday, "Boiler repair", Guid.NewGuid()));
+
+        await _handler.Handle(
+            new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor, SitesTestConstants.SiteId), CancellationToken.None);
+
+        _added.Should().ContainSingle(d => d.SiteId == SitesTestConstants.SiteId);
     }
 
     [Test]
@@ -96,8 +196,7 @@ public sealed class CreateClosedDayHandlerTests
     [Test]
     public async Task Handle_DateAlreadyClosed_ThrowsConflictNamingIt()
     {
-        _repository.Setup(r => r.GetOnAsync(ClosedWednesday, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CalendarTestConstants.CreateClosedDay(name: "Christmas Day"));
+        _onDate.Add(CalendarTestConstants.CreateClosedDay(name: "Christmas Day"));
 
         var act = () => _handler.Handle(new CreateClosedDayCommand(ClosedWednesday, ClosedDayName, AdminActor), CancellationToken.None);
 

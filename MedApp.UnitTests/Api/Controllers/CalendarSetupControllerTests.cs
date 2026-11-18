@@ -334,6 +334,20 @@ public sealed class CalendarSetupControllerTests
     }
 
     [Test]
+    public async Task CreateClosedDay_ASite_SendsTheSite()
+    {
+        var date = new DateOnly(2027, 6, 4);
+        var request = new CreateClosedDayRequest { Date = date, Name = "Boiler repair", SiteId = OtherId };
+        var day = _fixture.Create<ClosedDayResponse>();
+        day.Date = date;
+        var mediator = new RecordingMediator(_ => day);
+
+        await Controller(mediator).CreateClosedDay(request, _cts.Token);
+
+        mediator.Request.Should().Be(new CreateClosedDayCommand(date, "Boiler repair", Actor("Admin"), OtherId));
+    }
+
+    [Test]
     public async Task GetClosedDayBookings_SendsTheDate() =>
         await ExpectOk(_fixture.Create<DayBookingsResponse>(),
             new GetClosedDayBookingsQuery(new DateOnly(2027, 6, 4)),
