@@ -17,6 +17,7 @@ import {AppSideNav} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
 import {PermissionMissingWatcher} from './PermissionMissingWatcher';
 import {SessionTimeout} from './SessionTimeout';
+import {HalfViewClicks} from './HalfViewClicks';
 
 const STORAGE_KEY = 'medapp.halfView';
 
@@ -131,14 +132,28 @@ function MainLayout() {
     },
     [closeHalf, router],
   );
+  // The half view's page (its path), for the check below: kept in a ref so a page swapped from one side to the other
+  // (Ctrl-click) is known at once, before the next render.
+  const halfPage = useRef<string | null>(null);
+  // Ctrl-click: this page on the left, and the left's page moved to the right (the half view, opened or replaced).
+  const openOnLeft = useCallback(
+    (path: string) => {
+      const left = router.state.location.href;
+      open(left);
+      halfPage.current = left.split('?')[0];
+      void router.navigate({href: path});
+    },
+    [open, router],
+  );
   const halfViews = useMemo(
     () => ({
       open,
       openFull,
+      openOnLeft,
       close: closeHalf,
       openPath: half && halfPath ? halfPath.split('?')[0] : null,
     }),
-    [open, openFull, closeHalf, half, halfPath],
+    [open, openFull, openOnLeft, closeHalf, half, halfPath],
   );
 
   const notepad = useNotepad();
@@ -153,7 +168,6 @@ function MainLayout() {
 
   // The same page can't be open twice: when the main view goes to the half view's page, the half view closes
   // (the main view has it now).
-  const halfPage = useRef<string | null>(null);
   useEffect(() => {
     halfPage.current = half && halfPath ? halfPath.split('?')[0] : null;
   }, [half, halfPath]);
@@ -223,6 +237,8 @@ function MainLayout() {
           }
           // In a half view, or beside the docked notepad, each page's frame insets it instead (see below).
           contentPadding={half || isNotepadDocked ? 0 : 6}>
+          {/* Shift-click or Ctrl-click on any in-app link opens it in a half view (inside AppShell, which knows a phone). */}
+          <HalfViewClicks />
           {DemoFirstVisit && (
             <Suspense fallback={null}>
               <DemoFirstVisit />

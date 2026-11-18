@@ -1,4 +1,5 @@
 import {screen, waitFor} from '@testing-library/react';
+import {NotepadProvider, useNotepad} from '../components/notepad/NotepadContext';
 import {renderWithApp} from '../test/render';
 import {asCurrentUser, startLightDemo} from '../test/lightDemo';
 import {ADMIN, STAFF} from './accounts';
@@ -57,5 +58,36 @@ describe('ReadMePage', () => {
     await user.click(screen.getByRole('button', {name: 'Open the referral to triage it'}));
     expect(await screen.findByText(/You've triaged this referral already/)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${REFERRALS.dermatologyToTriage}`));
+  });
+
+  it('starts the half-view step on the home page, telling them to Shift-click and Ctrl-click', async () => {
+    startLightDemo(ADMIN);
+    const {user, router} = renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
+
+    expect(await screen.findByText(/Now Shift-click Patients in the side nav/)).toBeInTheDocument();
+    expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) does the opposite/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Start on the home page'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('opens the notepad beside the Read Me, staying on it, and says Shift-click opens it in the half view', async () => {
+    startLightDemo(ADMIN);
+    function NotepadShown() {
+      return <p>{useNotepad()!.isOpen ? 'notepad open' : 'notepad closed'}</p>;
+    }
+    const {user, router} = renderWithApp(
+      <NotepadProvider>
+        <ReadMePage />
+        <NotepadShown />
+      </NotepadProvider>,
+      {user: asCurrentUser(ADMIN), path: '/read-me'},
+    );
+
+    expect(await screen.findByText(/Shift-click Notepad in the side nav to open it in the half view on the right/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Open the notepad'}));
+
+    expect(await screen.findByText('notepad open')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/read-me');
   });
 });

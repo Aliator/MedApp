@@ -287,6 +287,8 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **NHS adapters with offline stand-ins** (plan PRs 38a to 38c): e-Referral Service referrals into a queue a person matches to a patient; GP Connect letters with a simulated lab; the PDS sandbox. Each needs NHS onboarding to go live.
   - **Several organisations in one deployment** (plan PRs 40a to 40c, roadmap step 8, multi-tenancy).
   - **Video and phone appointments** (plan PR 36): an appointment mode and a link, with no room; the link is patient data (export, anonymisation, never in staff notifications or logs) and hazard H-61 (a link reaching the wrong patient) applies.
+- **Phones: the grid pages keep the old power search bar and favourites button** instead of the configurable tab row (the owner, 18 November 2026): on a narrow screen a row of tabs and the burger menu don't fit as well as the bar with its favourites button.
+- **Phones: the notification bell sits next to the burger menu, on the right of the top bar** (the owner, 18 November 2026), rather than in the side nav's header, so it's reachable without opening the menu.
 
 ## Long term
 

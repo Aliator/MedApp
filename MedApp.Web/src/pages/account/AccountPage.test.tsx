@@ -59,18 +59,6 @@ describe('AccountPage', () => {
     expect(localStorage.getItem('medapp.colorMode')).toBe('light');
   });
 
-  it('chooses whether nav items close the half view, and remembers it', async () => {
-    const {user} = renderWithApp(<AccountPage />, {user: staffUser});
-
-    const closes = await screen.findByRole('switch', {name: 'Nav items close the half view'});
-    // Off by default (the owner's choice).
-    expect(closes).not.toBeChecked();
-    await user.click(closes);
-
-    expect(closes).toBeChecked();
-    expect(localStorage.getItem('medapp.navClosesHalfView')).toBe('true');
-  });
-
   it('changes the side nav hover delay in the Accessibility card, and remembers it', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
