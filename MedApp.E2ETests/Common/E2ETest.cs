@@ -177,20 +177,34 @@ public abstract class E2ETest : PageTest
         CreateTemplateAsync([.. Enumerable.Repeat("None", stageCount)]);
 
     /// <summary>The same, with a stage for each visit requirement given (None, Suggested or Required), in order.</summary>
-    protected async Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
-        CreateTemplateAsync(params string[] visitRequirements)
+    protected Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
+        CreateTemplateAsync(params string[] visitRequirements) =>
+        CreateTemplateAsync(visitRequirements, keptByAPathway: false);
+
+    /// <summary>
+    /// A template of new stages for a pathway the test can't delete (one with a letter: README): after the test they're
+    /// archived, as the API won't delete what a pathway uses, rather than deleted.
+    /// </summary>
+    protected Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
+        CreateTemplateForAKeptPathwayAsync(int stageCount) =>
+        CreateTemplateAsync([.. Enumerable.Repeat("None", stageCount)], keptByAPathway: true);
+
+    private async Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
+        CreateTemplateAsync(string[] visitRequirements, bool keptByAPathway)
     {
         var stages = new List<PatientPathwayStageDefinitionResponse>();
         for (var i = 1; i <= visitRequirements.Length; i++)
         {
             var stage = await Api.CreateStageDefinitionAsync(
                 E2EData.UniqueName($"Stage {i}"), $"Synthetic instructions for stage {i}.", visitRequirements[i - 1]);
-            Data.OnCleanUp($"stage {stage.Name}", () => Api.DeleteStageDefinitionAsync(stage.Id));
+            Data.OnCleanUp($"stage {stage.Name}", () =>
+                keptByAPathway ? Api.DeleteOrArchiveStageDefinitionAsync(stage.Id) : Api.DeleteStageDefinitionAsync(stage.Id));
             stages.Add(stage);
         }
 
         var template = await Api.CreateTemplateAsync(E2EData.UniqueName("Template"), [.. stages.Select(s => s.Id)]);
-        Data.OnCleanUp($"template {template.Name}", () => Api.DeleteTemplateAsync(template.Id));
+        Data.OnCleanUp($"template {template.Name}", () =>
+            keptByAPathway ? Api.DeleteOrArchiveTemplateAsync(template.Id) : Api.DeleteTemplateAsync(template.Id));
         return (template, stages);
     }
 

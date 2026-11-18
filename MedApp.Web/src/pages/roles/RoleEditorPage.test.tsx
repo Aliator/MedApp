@@ -224,3 +224,32 @@ const ORDER = [
 function byCatalogue(a: string, b: string) {
   return ORDER.indexOf(a) - ORDER.indexOf(b);
 }
+
+describe('RoleEditorPage, changing your mind', () => {
+  it('cancels saving, archiving and deleting, and restores an archived role', async () => {
+    const lonely = roleResponse('Old team', {holders: [], isArchived: true, canDelete: true});
+    const {user, fetch} = renderEditor('role-old-team', {
+      'GET /api/roles/role-old-team': () => json(lonely),
+      'POST /api/roles/role-old-team/restore': () => json({...lonely, isArchived: false, version: 'v2'}),
+    });
+
+    await user.click(await screen.findByRole('button', {name: 'Delete Role'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getByRole('button', {name: 'Restore'}));
+    await waitFor(() => expect(sent(fetch, 'POST')).toHaveLength(1));
+    expect(fetch.mock.calls.some(([r]) => (r as Request).url.endsWith('/restore'))).toBe(true);
+
+    await user.click(await screen.findByRole('button', {name: 'Archive'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+
+    await user.click(screen.getAllByRole('checkbox').find((c) => !(c as HTMLInputElement).disabled)!);
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(sent(fetch, 'PUT')).toHaveLength(0);
+  });
+});

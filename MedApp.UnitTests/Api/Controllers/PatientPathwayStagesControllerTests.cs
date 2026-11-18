@@ -78,7 +78,7 @@ public sealed class PatientPathwayStagesControllerTests
         await ExpectOk(_fixture.Create<PatientPathwayStageDefinitionResponse>(),
             new UpdatePatientPathwayStageDefinitionCommand(
                 RecordId, request.Name, request.Description, request.Instructions, request.SnomedCode, request.SnomedTerm,
-                request.VisitRequirement, request.NeedsLetterKind, request.WaitsForResults),
+                request.VisitRequirement, request.NeedsLetterKind, request.WaitsForResults, request.NeedsConsent),
             c => c.UpdatePatientPathwayStageDefinition(RecordId, request, _cts.Token));
     }
 

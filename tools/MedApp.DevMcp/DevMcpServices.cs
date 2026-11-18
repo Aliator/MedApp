@@ -6,6 +6,9 @@ using MedApp.Infrastructure.Common.Extensions;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 
 namespace MedApp.DevMcp;
 
@@ -19,6 +22,14 @@ public static class DevMcpServices
     public static IServiceCollection AddDevMcpCore(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDataProtection(); // the API's web host provides this; Identity's token providers need it
+        // The host's environment, which the letters' secure email transport reads. The tool's host gives one
+        // (Development); the seed's provider and the tests have no host, so they get the same here.
+        services.TryAddSingleton<IHostEnvironment>(new HostingEnvironment
+        {
+            EnvironmentName = Environments.Development,
+            ApplicationName = "MedApp.DevMcp",
+            ContentRootPath = AppContext.BaseDirectory,
+        });
         services.AddApplication();
         services.AddInfrastructure(configuration);
 

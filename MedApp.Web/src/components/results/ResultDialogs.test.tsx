@@ -118,3 +118,57 @@ describe('ResultEnteredInErrorDialog', () => {
     expect(dialog().getByText(/isn't a result. Its file will be deleted\./)).toBeInTheDocument();
   });
 });
+
+describe('ResultDialogs, refusals and missing details', () => {
+  const bare = () =>
+    testResult({id: undefined, patient: undefined, specimenNumber: null, specimenId: null, version: undefined, reportedAtUtc: undefined, needsClinician: false});
+
+  it('reassigns from a result missing its details, says when the staff could not be loaded, and shows a refusal', async () => {
+    mockApi({'GET /api/calendar/staff': () => json({title: 'Synthetic failure.', status: 500}, 500)});
+    const first = renderWithApp(<ReassignResultDialog result={bare()} onClose={vi.fn()} />, {user: seniorClinicianUser});
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    expect(await dialog().findByText('The staff could not be loaded.')).toBeInTheDocument();
+    expect(dialog().queryByRole('region', {name: /Patient:/})).not.toBeInTheDocument();
+    first.unmount();
+
+    mockApi({
+      'GET /api/calendar/staff': () => json([...SIGN_OFF_HOLDERS, {userId: undefined, username: null}]),
+      'POST /api/results//reassign': () => json({title: 'Synthetic reassign refusal.', status: 409}, 409),
+    });
+    const {user} = renderWithApp(<ReassignResultDialog result={bare()} onClose={vi.fn()} />, {user: seniorClinicianUser});
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    await user.click(dialog().getByRole('combobox', {name: /^Responsible clinician/}));
+    await user.click(await screen.findByRole('option', {name: 'dr.synthetic'}));
+    await user.click(dialog().getByRole('button', {name: 'Reassign'}));
+    expect(await dialog().findByText(/Synthetic reassign refusal\.|could not be reassigned/)).toBeInTheDocument();
+  });
+
+  it("takes over someone's result who can still sign off, showing a refusal", async () => {
+    mockApi({'POST /api/results//reassign': () => json({title: 'Synthetic take over refusal.', status: 409}, 409)});
+    const {user} = renderWithApp(<TakeOverResultDialog result={bare()} userId={SENIOR_USER_ID} onClose={vi.fn()} />, {user: seniorClinicianUser});
+
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    expect(dialog().getByText(/and they're no longer/)).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Take Over'}));
+    expect(await dialog().findByText(/Synthetic take over refusal\.|could not be taken over/)).toBeInTheDocument();
+  });
+
+  it('shows a refusal to mark entered in error, and to sign off one missing its details', async () => {
+    mockApi({
+      'POST /api/results//entered-in-error': () => json({title: 'Synthetic error refusal.', status: 409}, 409),
+      'POST /api/results//sign-off': () => json({title: 'Synthetic sign-off refusal.', status: 409}, 409),
+    });
+    const first = renderWithApp(<ResultEnteredInErrorDialog result={bare()} onClose={vi.fn()} />, {user: seniorClinicianUser});
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    await first.user.type(dialog().getByRole('textbox', {name: /^What was wrong/}), 'Synthetic.');
+    await first.user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
+    expect(await dialog().findByText(/Synthetic error refusal\.|could not be marked/)).toBeInTheDocument();
+    first.unmount();
+
+    const {user} = renderWithApp(<SignOffResultDialog result={bare()} onClose={vi.fn()} />, {user: seniorClinicianUser});
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    await user.click(dialog().getByRole('radio', {name: 'Patient informed'}));
+    await user.click(dialog().getByRole('button', {name: 'Sign Off'}));
+    expect(await dialog().findByText(/Synthetic sign-off refusal\.|could not be signed off/)).toBeInTheDocument();
+  });
+});

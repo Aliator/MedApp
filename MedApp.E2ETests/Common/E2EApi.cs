@@ -57,6 +57,9 @@ public sealed class E2EApi(IAPIRequestContext request)
 
     public Task DeleteStageDefinitionAsync(Guid id) => DeleteIfThereAsync($"{Stages}/definitions/{id}");
 
+    /// <summary>Deletes a stage definition, or archives it if a template or pathway that stays still uses it.</summary>
+    public Task DeleteOrArchiveStageDefinitionAsync(Guid id) => DeleteOrArchiveAsync($"{Stages}/definitions/{id}");
+
     /// <summary>A template in the first specialty that isn't archived (every database starts with General).</summary>
     public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds)
     {
@@ -70,6 +73,9 @@ public sealed class E2EApi(IAPIRequestContext request)
     }
 
     public Task DeleteTemplateAsync(Guid id) => DeleteIfThereAsync($"{Stages}/templates/{id}");
+
+    /// <summary>Deletes a template, or archives it if a pathway that stays was made from it.</summary>
+    public Task DeleteOrArchiveTemplateAsync(Guid id) => DeleteOrArchiveAsync($"{Stages}/templates/{id}");
 
     public async Task<PatientPathwayResponse> CreatePathwayAsync(Guid patientId, Guid templateId, string title, DateOnly dueDate) =>
         await SendAsync<PatientPathwayResponse>("POST", Pathways, new
@@ -263,6 +269,19 @@ public sealed class E2EApi(IAPIRequestContext request)
         var response = await request.DeleteAsync(url);
         if (!response.Ok && response.Status != 404)
             throw new InvalidOperationException($"DELETE {url} failed with {response.Status}: {await response.TextAsync()}");
+    }
+
+    /// <summary>Deletes, or archives what the API won't delete because something that stays uses it (a 409).</summary>
+    private async Task DeleteOrArchiveAsync(string url)
+    {
+        var response = await request.DeleteAsync(url);
+        if (response.Ok || response.Status == 404)
+            return;
+        if (response.Status != 409)
+            throw new InvalidOperationException($"DELETE {url} failed with {response.Status}: {await response.TextAsync()}");
+        var archived = await request.PostAsync($"{url}/archive");
+        if (!archived.Ok)
+            throw new InvalidOperationException($"POST {url}/archive failed with {archived.Status}: {await archived.TextAsync()}");
     }
 
     private sealed record PagedResponse<T>(IReadOnlyList<T> Items, int TotalCount);
