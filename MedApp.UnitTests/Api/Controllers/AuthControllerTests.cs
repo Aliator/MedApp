@@ -7,10 +7,6 @@ using MedApp.API.Common.Authentication;
 using MedApp.API.Common.Extensions;
 using MedApp.API.Common.RateLimiting;
 using MedApp.API.Controllers;
-using MedApp.Application.Authentication.Roles.Commands.AssignRole;
-using MedApp.Application.Authentication.Roles.Commands.CreateRole;
-using MedApp.Application.Authentication.Roles.Commands.DeleteRole;
-using MedApp.Application.Authentication.Roles.Commands.RevokeRole;
 using MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetAllRoles;
 using MedApp.Application.Authentication.Roles.Queries.GetUserRoles;
@@ -526,42 +522,6 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public async Task CreateRole_Created_ReturnsNoContent_AndBadRequestWhenNot()
-    {
-        var created = await Controller(new RecordingMediator(_ => new IdentityRole<Guid>("Auditor"))).CreateRole(new CreateRoleRequest("Auditor"));
-        var refused = await Controller(new RecordingMediator()).CreateRole(new CreateRoleRequest("Auditor"));
-
-        created.Should().BeOfType<NoContentResult>();
-        refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
-    public async Task AssignRole_Assigned_ReturnsNoContent_AndBadRequestWhenNot()
-    {
-        var mediator = new RecordingMediator(_ => new IdentityRole<Guid>("Admin"));
-
-        var assigned = await Controller(mediator).AssignRole(new AssignRoleRequest(OtherUsername, "Admin"));
-        var refused = await Controller(new RecordingMediator()).AssignRole(new AssignRoleRequest(OtherUsername, "Admin"));
-
-        mediator.Request.Should().Be(new AssignRoleCommand(OtherUsername, "Admin"));
-        assigned.Should().BeOfType<NoContentResult>();
-        refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
-    public async Task RevokeRole_Revoked_ReturnsNoContent_AndBadRequestWhenNot()
-    {
-        var mediator = new RecordingMediator(_ => new IdentityRole<Guid>("Admin"));
-
-        var revoked = await Controller(mediator).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
-        var refused = await Controller(new RecordingMediator()).RevokeRole(new RevokeRoleRequest(OtherUsername, "Admin"));
-
-        mediator.Request.Should().Be(new RevokeRoleCommand(OtherUsername, "Admin", Username));
-        revoked.Should().BeOfType<NoContentResult>();
-        refused.Should().BeOfType<BadRequestResult>();
-    }
-
-    [Test]
     public async Task SetUserRoles_Succeeds_SendsTheRolesAndTheAdminAndReturnsNoContent()
     {
         var mediator = new RecordingMediator(_ => IdentityResult.Success);
@@ -595,19 +555,6 @@ public sealed class AuthControllerTests
 
         notFound.Should().BeOfType<NotFoundResult>();
         ownRoles.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Test]
-    public async Task DeleteRole_Deleted_ReturnsNoContent_AndNotFoundWhenNot()
-    {
-        var mediator = new RecordingMediator(_ => IdentityResult.Success);
-
-        var deleted = await Controller(mediator).DeleteRole("Auditor");
-        var missing = await Controller(new RecordingMediator(_ => Failed())).DeleteRole("Auditor");
-
-        mediator.Request.Should().Be(new DeleteRoleCommand("Auditor"));
-        deleted.Should().BeOfType<NoContentResult>();
-        missing.Should().BeOfType<NotFoundResult>();
     }
 
     [Test]

@@ -165,6 +165,21 @@ public sealed class EmailTests
     }
 
     [Test]
+    public async Task Notices_RoleChange_GoesToTheOtherAdminsSayingWhoDidWhat()
+    {
+        var other = Guid.NewGuid();
+        var (notices, sent, _) = NoticesWith(null, [new AccountContact(UserId, Username, Address), new AccountContact(other, "other.admin", OtherAddress)]);
+
+        await notices.SendRoleChangeToOtherAdminsAsync(UserId, Username, "changed the role Nurse: added AssignPathways.", CancellationToken.None);
+
+        var message = sent.Should().ContainSingle().Subject;
+        message.To.Should().Be(OtherAddress);
+        message.Category.Should().Be(EmailCategory.Notice);
+        message.Subject.Should().Be("An administrator changed a MedApp role");
+        message.TextBody.Should().Contain($"The MedApp administrator {Username} changed the role Nurse: added AssignPathways.");
+    }
+
+    [Test]
     public async Task Notices_NoAccount_SendNothing()
     {
         var (notices, sent, _) = NoticesWith(null);

@@ -3,6 +3,7 @@ import {act, screen, waitFor, within} from '@testing-library/react';
 import {parsePasswordBody} from '../../api/users';
 import {adminUser, calls, isDisabled, json, mockApi, openDialog, pageOf, pickFavourite, renderWithApp, findAlert, searchBar} from '../../test/render';
 import type {UsersListSearch} from '../listSearch';
+import {roleResponse} from '../../test/roles';
 import {UsersPage} from './UsersPage';
 
 const users = [
@@ -14,7 +15,7 @@ const users = [
 function renderUsers(search: UsersListSearch = {}, extra: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({
     'GET /api/auth/users/search': () => json(pageOf(users)),
-    'GET /api/auth/roles': () => json(['User', 'Admin']),
+    'GET /api/roles': () => json([roleResponse('Admin'), roleResponse('User')]),
     ...extra,
   });
   const onSearchChange = vi.fn();
@@ -186,6 +187,29 @@ describe('UsersPage', () => {
 
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(await bodies(fetch, 'PUT')).toEqual([{roles: ['Admin']}]);
+  });
+
+  it('offers the roles that are not archived, with what each is for, keeping an archived one the user holds', async () => {
+    const {user} = renderUsers(
+      {},
+      {
+        'GET /api/roles': () =>
+          json([
+            roleResponse('Admin'),
+            roleResponse('Nurse', {description: 'Nurses who work on pathways.'}),
+            roleResponse('User', {isArchived: true}),
+            roleResponse('Lab', {isArchived: true}),
+          ]),
+      },
+    );
+
+    await user.click(within(await rowOf('l.northcott')).getByRole('button', {name: 'Edit roles'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('checkbox', {name: 'Nurse'})).not.toBeChecked();
+    expect(dialog.getByText('Nurses who work on pathways.')).toBeInTheDocument();
+    // They hold User, archived since: it stays, to keep or take away, but Lab, archived too, isn't offered.
+    expect(dialog.getByRole('checkbox', {name: 'User (archived)'})).toBeChecked();
+    expect(dialog.queryByRole('checkbox', {name: /Lab/})).toBeNull();
   });
 
   it('can take every role away', async () => {

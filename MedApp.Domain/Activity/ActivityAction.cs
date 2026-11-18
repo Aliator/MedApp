@@ -54,7 +54,10 @@ public enum ActivityAction
     /// <summary>An account's roles were changed (from and to).</summary>
     RolesChanged = 21,
 
+    /// <summary>An admin made a role: its name and the permissions it grants.</summary>
     RoleCreated = 22,
+
+    /// <summary>An admin deleted a role nobody held: its name and the permissions it granted.</summary>
     RoleDeleted = 23,
 
     /// <summary>An admin ended every session an account had ("Sign out everywhere").</summary>
@@ -117,5 +120,11 @@ public enum ActivityAction
     StaffSpecialtiesChanged = 42,
 
     /// <summary>Someone opened a referral's page: the referral's ID in its details.</summary>
-    ReferralViewed = 43
+    ReferralViewed = 43,
+
+    /// <summary>
+    /// An admin changed a role: renamed it, changed its description (never the text), added or removed permissions (by
+    /// name), or archived or restored it. Giving people roles is <see cref="RolesChanged"/>.
+    /// </summary>
+    RoleChanged = 44
 }
