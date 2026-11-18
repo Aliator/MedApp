@@ -151,6 +151,22 @@ describe('NoteDeletionRequestDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it("puts the API's 400 on the reason and the detail, and keeps the dialog open", async () => {
+    mockApi({
+      [`GET ${path}`]: () => json(pending()),
+      [`POST ${path}/decision`]: () =>
+        json({title: 'Validation failed', status: 400, errors: {Reason: ['Synthetic: choose a reason.'], Detail: ['Synthetic: too long.']}}, 400),
+    });
+    const {user, onClose} = renderDialog();
+    const dialog = within(await dialogShown());
+
+    await user.click(await dialog.findByRole('button', {name: 'Delete note'}));
+
+    expect(await dialog.findByText('Synthetic: choose a reason.')).toBeInTheDocument();
+    expect(dialog.getByText('Synthetic: too long.')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('keeps the note', async () => {
     const fetch = mockApi({
       [`GET ${path}`]: () => json(pending()),

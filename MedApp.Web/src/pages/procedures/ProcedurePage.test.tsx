@@ -177,6 +177,18 @@ describe('ProcedurePage', () => {
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('folds the notes away and opens them again', async () => {
+    mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json(procedure)});
+    const {user} = renderWithApp(<ProcedurePage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Hide notes'}));
+
+    const show = await screen.findByRole('button', {name: /notes/i, expanded: false});
+    expect(screen.queryByRole('button', {name: 'Add Note'})).not.toBeInTheDocument();
+    await user.click(show);
+    expect(await screen.findByRole('button', {name: 'Add Note'})).toBeInTheDocument();
+  });
+
   it('says when every stage is finished', async () => {
     mockApi({[`GET /api/procedures/patient-procedures/${id}`]: () => json({...procedure, currentStageId: null})});
     renderWithApp(<ProcedurePage id={id} />, {user: staffUser});

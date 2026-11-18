@@ -137,6 +137,27 @@ describe('ProcedureNotes', () => {
     await waitFor(() => expect(screen.queryByRole('textbox', {name: 'Note'})).not.toBeInTheDocument());
   });
 
+  it('saves an edit on Ctrl+S in its box, and does nothing while the text is unchanged', async () => {
+    const edited = note({text: 'Synthetic note, edited.', version: 2, lastEditedAtUtc: '2026-11-04T09:00:00Z'});
+    const fetch = mockFetch(async (request) => (request.method === 'PUT' ? json(edited) : json(procedure({noteList: [edited]}))));
+    const {user} = renderNotes();
+    const puts = () => fetch.mock.calls.map(([input]) => input as Request).filter((r) => r.method === 'PUT');
+
+    await user.click(await screen.findByRole('button', {name: /^Edit note by/}));
+    const box = await screen.findByRole('textbox', {name: 'Note'});
+    // The editor holds the focus, so Ctrl+S saves it rather than the Add Note box.
+    act(() => box.focus());
+    // Nothing changed yet: nothing to save.
+    fireEvent.keyDown(box, {key: 's', ctrlKey: true});
+    expect(puts()).toHaveLength(0);
+    await setRichText(box, 'Synthetic note, edited.');
+    fireEvent.keyDown(box, {key: 's', ctrlKey: true});
+
+    await waitFor(() => expect(puts()).toHaveLength(1));
+    expect(await puts()[0].json()).toEqual({text: 'Synthetic note, edited.', expectedVersion: 1});
+    await waitFor(() => expect(screen.queryByRole('textbox', {name: 'Note'})).not.toBeInTheDocument());
+  });
+
   it('sends the version the edit started from, even if the note has been saved elsewhere since', async () => {
     const fetch = mockFetch(async (request) =>
       request.method === 'PUT' ? json({title: 'This note was changed somewhere else.'}, 409) : json(procedure()),
@@ -359,6 +380,44 @@ describe('ProcedureNotes', () => {
       await waitFor(() =>
         expect(fetch.mock.calls.some(([input]) => new URL((input as Request).url).pathname === '/api/procedures/note-deletion-requests/r1')).toBe(true),
       );
+    });
+
+    it('cancels a deletion without sending anything', async () => {
+      const fetch = mockFetch(() => json(procedure()));
+      const {user} = renderNotes(deletable());
+
+      await user.click((await screen.findAllByRole('button', {name: /^Delete note by/}))[0]);
+      const dialog = within(openDialog()!);
+      await chooseReason(user, dialog, /Wrong patient/);
+      await user.click(dialog.getByRole('button', {name: 'Cancel'}));
+
+      await waitFor(() => expect(openDialog()).toBeNull());
+      expect(requests(fetch)).toHaveLength(0);
+      expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    });
+
+    it('closes the request it opened, leaving the note as it was', async () => {
+      const request = {
+        id: 'r1', status: 'Declined', reason: 'Duplicate', detail: null, requestedByUsername: 's.nurse',
+        requestedAtUtc: '2026-11-17T10:00:00Z', decidedByUsername: 'test-admin', decidedAtUtc: '2026-11-17T11:00:00Z',
+        procedureId: 'p1', procedureTitle: 'Synthetic knee review', patient: undefined,
+        note: {id: 'n1', text: 'Synthetic note.', authorUsername: 'test-user', createdAtUtc: '2026-11-03T10:32:00Z', version: 1},
+        canDecide: false, whyCantDecide: null,
+      };
+      mockFetch(async (input) => (new URL((input as Request).url).pathname.endsWith('/r1') ? json(request) : json(procedure())));
+      const {user} = renderNotes(procedure({noteList: [note({deletionRequestId: 'r1', canRequestDeletion: false, canDelete: true})]}), adminUser);
+
+      await user.click(await screen.findByRole('button', {name: /^Review request for note by/}));
+      const shown = await waitFor(() => {
+        const open = openDialog();
+        if (!open) throw new Error('No dialog open yet');
+        return open;
+      });
+      const closes = await within(shown).findAllByRole('button', {name: 'Close'});
+      await user.click(closes[closes.length - 1]);
+
+      await waitFor(() => expect(openDialog()).toBeNull());
+      expect(screen.getByText('Deletion requested')).toBeInTheDocument();
     });
 
     it("shows staff that a deletion's been asked for, without the admin's Review Request", async () => {

@@ -79,6 +79,12 @@ describe('describeAuditDetails', () => {
     expect(describeAuditDetails({action: 'Deleted', details: 'null'})).toBe('');
   });
 
+  it("names a note's version, never its text", () => {
+    expect(describe_('NoteAdded', {noteId: 'n1', version: 1})).toBe('Version 1');
+    expect(describe_('NoteEdited', {noteId: 'n1', version: 3})).toBe('Version 3');
+    expect(describe_('NoteEdited', {noteId: 'n1'})).toBe('');
+  });
+
   it('copes with parts of the details left out', () => {
     expect(describe_('Created', {stageCount: 1})).toBe('1 stage');
     expect(describe_('DetailsUpdated', {})).toBe('');
