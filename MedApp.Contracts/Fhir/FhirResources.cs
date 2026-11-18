@@ -49,6 +49,33 @@ public sealed class FhirPatient() : FhirResource("Patient")
 
     /// <summary>The date of birth, as a FHIR date: yyyy-MM-dd, or the year alone (yyyy) when that's all that's known.</summary>
     public string? BirthDate { get; set; }
+
+    /// <summary>The postal address (UK Core: <c>use</c> "home", its lines and postcode).</summary>
+    public List<FhirAddress>? Address { get; set; }
+
+    /// <summary>The GP practice they're registered with: an Organization, by its ODS code when known.</summary>
+    public List<FhirReference>? GeneralPractitioner { get; set; }
+}
+
+public sealed class FhirAddress
+{
+    /// <summary>"home" for where the patient lives.</summary>
+    public string? Use { get; set; }
+
+    public List<string>? Line { get; set; }
+    public string? PostalCode { get; set; }
+}
+
+/// <summary>A reference to another resource by its business identifier, as UK Core refers to a GP practice.</summary>
+public sealed class FhirReference
+{
+    /// <summary>The kind of resource referred to, e.g. "Organization".</summary>
+    public string? Type { get; set; }
+
+    public FhirIdentifier? Identifier { get; set; }
+
+    /// <summary>Its name, as text.</summary>
+    public string? Display { get; set; }
 }
 
 public sealed class FhirIdentifier
@@ -94,6 +121,9 @@ public sealed class FhirContactPoint
     public string? System { get; set; }
 
     public string? Value { get; set; }
+
+    /// <summary>"mobile" for a mobile phone; otherwise left out.</summary>
+    public string? Use { get; set; }
 }
 
 /// <summary>A searchset Bundle: a search's results.</summary>

@@ -149,6 +149,8 @@ async function refreshReferrals(queryClient: QueryClient, referral?: Referral) {
 export interface ReferralDetailsInput {
   specialtyId: string;
   receivedOn: string;
+  /** The referring practice chosen from the directory, or '' for none (the practice typed from the letter only). */
+  practiceId: string;
   referrerPractice: string;
   referrerClinician: string;
   referrerOdsCode: string;
@@ -156,12 +158,16 @@ export interface ReferralDetailsInput {
   reason: string;
 }
 
-/** The request's details: optional fields left blank are sent as null, and the ODS code in capitals. */
+/**
+ * The request's details: optional fields left blank are sent as null, and the ODS code in capitals. The directory's
+ * practice is its ID, or null for none (the API fills an empty practice name or ODS code from it).
+ */
 export function toReferralRequest(input: ReferralDetailsInput) {
   const optional = (value: string) => (value.trim() ? value.trim() : null);
   return {
     specialtyId: input.specialtyId || undefined,
     receivedOn: input.receivedOn || undefined,
+    practiceId: input.practiceId || null,
     referrerPractice: input.referrerPractice.trim(),
     referrerClinician: optional(input.referrerClinician),
     referrerOdsCode: optional(input.referrerOdsCode.toUpperCase()),
@@ -174,6 +180,7 @@ export function toReferralRequest(input: ReferralDetailsInput) {
 export const referralInput = (referral: Referral): ReferralDetailsInput => ({
   specialtyId: referral.specialtyId ?? '',
   receivedOn: referral.receivedOn ?? '',
+  practiceId: referral.practiceId ?? '',
   referrerPractice: referral.referrerPractice ?? '',
   referrerClinician: referral.referrerClinician ?? '',
   referrerOdsCode: referral.referrerOdsCode ?? '',
@@ -337,6 +344,7 @@ const FIELD_WORDS: Record<string, string> = {
   specialty: 'specialty',
   receivedOn: 'received date',
   referrerPractice: 'practice',
+  directoryPractice: 'practice from the directory',
   referrerClinician: 'clinician',
   referrerOdsCode: 'ODS code',
   requestedPriority: 'requested priority',

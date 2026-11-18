@@ -1,5 +1,7 @@
 import {keepPreviousData, queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
+import {formatMobile, formatPostcode} from '../utils/contactDetails';
 import {normaliseNhsNumber} from '../utils/nhsNumber';
+import {NO_PRACTICE_ID} from './practices';
 import {api, unwrap, type Schemas} from './client';
 import type {paths} from './schema';
 import {PAGE_SIZE} from './search';
@@ -16,7 +18,34 @@ export interface PatientInput {
   email: string;
   /** Optional: as typed, spaces allowed. Blank means none. */
   nhsNumber: string;
+  /** The postal address's three lines, as typed; blank ones are left out. */
+  addressLines: [string, string, string];
+  /** Optional: as typed (any case, spaces anywhere). Blank means none. */
+  postcode: string;
+  /** Optional: a UK mobile as typed (`07…`, `+44 7…`). Blank means none. */
+  mobilePhone: string;
+  /** The GP practice they're registered with, from the directory, or '' for none. */
+  practiceId: string;
 }
+
+/** A patient's details as the edit form starts with them: the mobile in national form, as people type it. */
+export function patientInput(patient: Patient): PatientInput {
+  const lines = patient.addressLines ?? [];
+  return {
+    firstName: patient.firstName ?? '',
+    lastName: patient.lastName ?? '',
+    dateOfBirth: patient.dateOfBirth ?? '',
+    email: patient.email ?? '',
+    nhsNumber: patient.nhsNumber ?? '',
+    addressLines: [lines[0] ?? '', lines[1] ?? '', lines[2] ?? ''],
+    postcode: patient.postcode ?? '',
+    mobilePhone: patient.mobilePhone ? formatMobile(patient.mobilePhone) : '',
+    practiceId: patient.practiceId ?? '',
+  };
+}
+
+/** The address lines that aren't blank, trimmed. */
+const keptLines = (lines: readonly string[]) => lines.map((line) => line.trim()).filter(Boolean);
 
 /**
  * The API's DateOnly can't be empty, and its validator treats the default date (0001-01-01) as "not provided"
@@ -31,13 +60,28 @@ export type PatientRequest = Schemas['CreatePatientRequest'] & Schemas['UpdatePa
  * The request body for a new patient (`create`) or a change to one (`update`). The NHS number goes without its
  * spaces. A blank one is left out of a new patient; on an update it's sent as "" so it's removed, since the API
  * reads a missing (null) NHS number as "leave it as it is", and the edit form always shows the whole record.
+ *
+ * The contact details (address lines, postcode, mobile and GP practice) are left out of a new patient when blank. On
+ * an update, with the record as it was (`saved`), each is sent only when it changed (left out, the API leaves it as it
+ * is), so an archived practice the patient already has is never sent as if newly chosen; a removed one is sent as the
+ * API removes it: no address lines (`[]`), an empty postcode or mobile (`""`), and the all-zero practice ID.
  */
-export function toPatientRequest(input: PatientInput, mode: 'create' | 'update'): PatientRequest {
+export function toPatientRequest(input: PatientInput, mode: 'create' | 'update', saved?: PatientInput): PatientRequest {
   const nhsNumber = normaliseNhsNumber(input.nhsNumber);
+  const {addressLines, postcode, mobilePhone, practiceId, ...personal} = input;
+  const lines = keptLines(addressLines);
+  const isCreate = mode === 'create';
+  const changed = (same: (before: PatientInput) => boolean) => isCreate || !saved || !same(saved);
+  const sameText = (a: string, b: string) => a.trim() === b.trim();
   return {
-    ...input,
+    ...personal,
     dateOfBirth: input.dateOfBirth || NO_DATE,
-    nhsNumber: nhsNumber || (mode === 'update' ? '' : undefined),
+    nhsNumber: nhsNumber || (isCreate ? undefined : ''),
+    addressLines:
+      changed((before) => JSON.stringify(keptLines(before.addressLines)) === JSON.stringify(lines)) && (lines.length > 0 || !isCreate) ? lines : undefined,
+    postcode: changed((before) => formatPostcode(before.postcode) === formatPostcode(postcode)) ? postcode.trim() || (isCreate ? undefined : '') : undefined,
+    mobilePhone: changed((before) => sameText(before.mobilePhone, mobilePhone)) ? mobilePhone.trim() || (isCreate ? undefined : '') : undefined,
+    practiceId: changed((before) => before.practiceId === practiceId) ? practiceId || (isCreate ? undefined : NO_PRACTICE_ID) : undefined,
   };
 }
 
@@ -81,8 +125,9 @@ export function useCreatePatient() {
 export function useUpdatePatient(id: string) {
   const invalidate = useInvalidatePatients();
   return useMutation({
-    mutationFn: (input: PatientInput) =>
-      unwrap(api.PATCH('/api/patients/{id}', {params: {path: {id}}, body: toPatientRequest(input, 'update')})),
+    /** `saved`: the record as the form started from it, so only the contact details that changed are sent. */
+    mutationFn: ({input, saved}: {input: PatientInput; saved?: PatientInput}) =>
+      unwrap(api.PATCH('/api/patients/{id}', {params: {path: {id}}, body: toPatientRequest(input, 'update', saved)})),
     onSuccess: invalidate,
   });
 }

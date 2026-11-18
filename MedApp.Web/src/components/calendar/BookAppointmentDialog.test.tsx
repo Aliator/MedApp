@@ -4,6 +4,8 @@ import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {STAFF_ME, STAFF_OTHER, TEST_PATIENT, testAppointment, testBlock, testCalendar, testMeeting, testRequested, ukTime} from '../../test/calendar';
 import {calls, openAlertDetails, expectAnnounced, isDisabled, json, mockApi, openDialog, pageOf, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
 import {BookAppointmentDialog, shownStarts, type BookAppointmentDialogProps} from './BookAppointmentDialog';
+import {slotOf} from './ClinicSlotPicker';
+import {testSession} from '../../test/clinics';
 
 const MONDAY = '2026-11-23';
 const STAFF = [STAFF_ME, STAFF_OTHER];
@@ -47,6 +49,77 @@ const bodyOf = async (fetch: ReturnType<typeof mockApi>, method: string, path: s
 
 // Slow under coverage on a loaded machine (CI): give it room.
 describe('BookAppointmentDialog', {timeout: 30_000}, () => {
+  it("books into a clinic session's free slot: its clinician, time and session", async () => {
+    atMondayMorning();
+    const session = testSession({date: '2026-11-24', booked: 7});
+    const booked = testAppointment({date: '2026-11-24', start: '11:40', end: '12:00'});
+    const {fetch, user, onSaved} = renderDialog(
+      {patient: TEST_PATIENT},
+      {'GET /api/clinics/sessions': () => json([session]), 'POST /api/appointments': () => json(booked)},
+    );
+
+    await screen.findByRole('heading', {name: 'Book Appointment'});
+    await user.click(await dialog().findByRole('button', {name: 'Clinic slots'}));
+    expect(dialog().queryByRole('combobox', {name: /With/})).not.toBeInTheDocument();
+    const group = await dialog().findByRole('group', {name: 'Tue 24, test-user, Room 2, 2 of 9 free'});
+    await user.click(within(group).getByRole('button', {name: '11:40'}));
+    expect(dialog().getByText('Tuesday 24 November, 11:40 to 12:00 with test-user, Room 2')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Book'}));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(booked));
+    expect(await bodyOf(fetch, 'POST', '/api/appointments')).toEqual({
+      patientId: TEST_PATIENT.id,
+      pathwayId: null,
+      stageId: null,
+      staffUserId: session.staffUserId,
+      startUtc: '2026-11-24T11:40:00Z',
+      endUtc: '2026-11-24T12:00:00.000Z',
+      clinicSessionId: session.id,
+      notes: null,
+    });
+    expect(calls(fetch)).toContain('GET /api/clinics/sessions?From=2026-11-23&To=2026-12-20&WithFreeSlots=true');
+  });
+
+  it('opens on a clinic slot chosen elsewhere (a session’s dialog), and books a Requested appointment into it', async () => {
+    atMondayMorning();
+    const session = testSession({date: '2026-11-24', booked: 7});
+    const requested = testRequested();
+    const {fetch, user} = renderDialog(
+      {appointment: requested, clinicSlot: slotOf(session, '2026-11-24T11:20:00Z')},
+      {
+        'GET /api/clinics/sessions': () => json([session]),
+        [`POST /api/appointments/${requested.id}/book`]: () => json(testAppointment({date: '2026-11-24', start: '11:20', end: '11:40'})),
+      },
+    );
+
+    await screen.findByRole('heading', {name: /^Book/});
+    expect(await dialog().findByRole('button', {name: '11:20', pressed: true})).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', {name: 'Book'}));
+
+    await waitFor(async () =>
+      expect(await bodyOf(fetch, 'POST', `/api/appointments/${requested.id}/book`)).toMatchObject({
+        clinicSessionId: session.id,
+        startUtc: '2026-11-24T11:20:00Z',
+        expectedStatus: 'Requested',
+      }),
+    );
+  });
+
+  it('a clinic slot taken meanwhile is the API’s 409, and the choice is cleared', async () => {
+    atMondayMorning();
+    const session = testSession({date: '2026-11-24', booked: 7});
+    const {user} = renderDialog(
+      {patient: TEST_PATIENT, clinicSlot: slotOf(session, '2026-11-24T11:20:00Z')},
+      {'GET /api/clinics/sessions': () => json([session]), 'POST /api/appointments': () => json({title: 'That slot has just been booked. Choose another.'}, 409)},
+    );
+
+    await screen.findByRole('heading', {name: 'Book Appointment'});
+    await dialog().findByRole('button', {name: '11:20', pressed: true});
+    await user.click(dialog().getByRole('button', {name: 'Book'}));
+    expect(await dialog().findByText('That slot has just been booked. Choose another.')).toBeInTheDocument();
+    expect(dialog().getByRole('button', {name: '11:20', pressed: false})).toBeInTheDocument();
+  });
+
   it('books a visit for a known stage in a free time, with the signed-in user by default', {timeout: 20000}, async () => {
     atMondayMorning();
     withAnnouncements();

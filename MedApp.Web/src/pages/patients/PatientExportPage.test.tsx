@@ -31,6 +31,11 @@ const data: PatientExport = {
     dateOfBirth: '1951-03-14',
     email: 'oriel.penhallow@example.com',
     nhsNumber: '9990000034',
+    addressLines: ['1 Test Street', 'Testbrook'],
+    postcode: 'ZZ1 1ZZ',
+    mobilePhone: '+447700900123',
+    practiceName: 'Testbrook Surgery',
+    practiceOdsCode: 'ZZZ123',
     createdAt: '2020-01-01T09:00:00Z',
     lastUpdated: '2026-01-01T09:00:00Z',
     restrictedAtUtc: '2026-11-01T09:00:00Z',
@@ -200,6 +205,9 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/have a clinician check it/)).toBeInTheDocument();
     expect(screen.getByText('oriel.penhallow@example.com')).toBeInTheDocument();
     expect(screen.getByText('999 000 0034')).toBeInTheDocument();
+    expect(screen.getByText('07700 900123')).toBeInTheDocument();
+    expect(screen.getByText('1 Test Street, Testbrook, ZZ1 1ZZ')).toBeInTheDocument();
+    expect(screen.getByText('Testbrook Surgery (ZZZ123)')).toBeInTheDocument();
     // In the patient's details, and in the access log's entry for the restriction.
     expect(screen.getAllByText(/Synthetic accuracy check$/)).toHaveLength(2);
     expect(screen.getByText(/Synthetic date of birth$/)).toBeInTheDocument();

@@ -1,11 +1,14 @@
+using MedApp.Contracts.Fhir;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Fhir.Queries.GetFhirPatient;
 using MedApp.Application.Fhir.Queries.SearchFhirPatients;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
+using MedApp.Application.Practices.Repositories;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Practices;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Moq;
@@ -21,6 +24,8 @@ public sealed class FhirPatientQueriesTests
     private const string NhsIdentifier = $"https://fhir.nhs.uk/Id/nhs-number|{NhsNumber}";
 
     private Mock<IPatientRepository> _repository = null!;
+    private Mock<IPracticeRepository> _practices = null!;
+    private Practice _practice = null!;
     private RecordingActivityLog _activity = null!;
     private Patient _patient = null!;
 
@@ -29,15 +34,18 @@ public sealed class FhirPatientQueriesTests
     {
         _repository = new Mock<IPatientRepository>();
         _activity = new RecordingActivityLog();
+        _practice = PracticesTestConstants.CreatePractice();
+        _practices = PracticesTestConstants.RepositoryWith(_practice);
         _patient = PatientsTestConstants.CreateValidPatient();
         _patient.NhsNumber = NhsNumber;
         _repository.Setup(r => r.GetByIdAsync(_patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_patient);
         _repository.Setup(r => r.GetByNhsNumberAsync(NhsNumber, It.IsAny<CancellationToken>())).ReturnsAsync(_patient);
     }
 
-    private GetFhirPatientHandler Read() => new(_repository.Object, _activity);
+    private GetFhirPatientHandler Read() => new(_repository.Object, _practices.Object, _activity);
 
-    private SearchFhirPatientsHandler Search() => new(_repository.Object, _activity, new FixedTimeProvider(ActivityTestConstants.Now));
+    private SearchFhirPatientsHandler Search() =>
+        new(_repository.Object, _practices.Object, _activity, new FixedTimeProvider(ActivityTestConstants.Now));
 
     [Test]
     public async Task Read_KnownPatient_ReturnsThem_AndRecordsAView()
@@ -127,4 +135,20 @@ public sealed class FhirPatientQueriesTests
     [TestCase("12345")]
     public void Validate_NhsNumberOrAnotherSystem_Passes(string identifier) =>
         new SearchFhirPatientsValidator().Validate(new SearchFhirPatientsQuery(identifier, BaseUrl)).IsValid.Should().BeTrue();
+
+    [Test]
+    public async Task ReadAndSearch_GiveThePracticeTheyAreRegisteredWith()
+    {
+        _patient.PracticeId = _practice.Id;
+        using var cts = new CancellationTokenSource();
+
+        var read = await Read().Handle(new GetFhirPatientQuery(_patient.Id.ToString()), cts.Token);
+        var bundle = await Search().Handle(new SearchFhirPatientsQuery(NhsIdentifier, BaseUrl), cts.Token);
+
+        read.GeneralPractitioner.Should().ContainSingle().Which.Display.Should().Be(_practice.Name);
+        ((FhirPatient)bundle.Entry!.Single().Resource!).GeneralPractitioner.Should().ContainSingle()
+            .Which.Display.Should().Be(_practice.Name);
+        _practices.Verify(r => r.GetAsync(_practice.Id, cts.Token));
+        _practices.Verify(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), cts.Token));
+    }
 }

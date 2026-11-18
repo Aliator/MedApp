@@ -7,7 +7,7 @@ import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {ApiError} from '../../api/errors';
-import {patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
+import {patientInput, patientQuery, useDeletePatient, useUpdatePatient, type Patient, type PatientInput} from '../../api/patients';
 import {patientPathwayCountQuery} from '../../api/pathways';
 import {FormCard} from '../../components/forms/FormCard';
 import {PatientSummary} from '../../components/forms/PatientSummary';
@@ -19,17 +19,12 @@ import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessag
 import {AppIcon} from '../../components/shared/icons';
 import {formatDate} from '../../utils/dates';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
+import {contactProblems} from './PatientContactFields';
 import {PATIENT_FIELDS, PatientFormFields, usePatientLookUp} from './PatientFormFields';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {useCan} from '../../auth/auth';
 
-const toInput = (p: Patient): PatientInput => ({
-  firstName: p.firstName ?? '',
-  lastName: p.lastName ?? '',
-  dateOfBirth: p.dateOfBirth ?? '',
-  email: p.email ?? '',
-  nhsNumber: p.nhsNumber ?? '',
-});
+const toInput = patientInput;
 
 /** One change to who the record identifies, in words: what it was and what it becomes. */
 export interface IdentityChange {
@@ -128,7 +123,8 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
   const backToPatient = () => void navigate({to: '/patients/$id', params: {id}});
 
   const save = () =>
-    update.mutate(form, {
+    // Only the contact details that changed are sent, so an archived practice the patient keeps isn't sent as newly chosen.
+    update.mutate({input: form, saved: toInput(patient)}, {
       onSuccess: () => {
         announce('Patient saved');
         backToPatient();
@@ -223,6 +219,12 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
             setProblem({validation: null, message: lookUp.hold});
             return;
           }
+          // A postcode or mobile in the wrong format shows on its field before anything is sent (the API checks too).
+          const contact = contactProblems(form);
+          if (contact) {
+            setProblem({validation: contact, message: null});
+            return;
+          }
           setProblem(NO_PROBLEM);
           setDialog('save');
         }}
@@ -233,7 +235,14 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
         isProcessing={isBusy}
         // The form scrolls inside its card, under the banner, which stays in view.
         fill>
-        <PatientFormFields value={form} onChange={setForm} lookUp={lookUp} errors={problem.validation} isDisabled={isBusy} />
+        <PatientFormFields
+          value={form}
+          onChange={setForm}
+          lookUp={lookUp}
+          errors={problem.validation}
+          isDisabled={isBusy}
+          currentPractice={patient.practice}
+        />
       </FormCard>
     </Page>
   );

@@ -57,6 +57,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/attachments/{id:guid}/content"] = Records("AttachmentDownloaded"), // and every one in the pathway audit log
         ["api/referrals/{id:guid}"] = Records("ReferralViewed"), // the referral's ID in the details
         ["api/referrals/search"] = Records("PatientListed"),
+        ["api/clinics/sessions/{id:guid}"] = Records("PatientListed"), // each patient booked into one of its slots
         ["api/referrals/awaiting-triage/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 
@@ -88,6 +89,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/auth/users/{username}/roles"] = Nothing("staff accounts, not patients"),
         ["api/auth/users/{username}/specialties"] = Nothing("which specialties a member of staff belongs to: staff, not patients"),
         ["api/auth/me/specialties"] = Nothing("the user's own specialties"),
+        ["api/auth/me/details"] = Nothing("the user's own full name and job title: staff, not patients"),
         ["api/auth/roles"] = Nothing("role names"),
         ["api/roles"] = Nothing("roles and how many hold each: configuration"),
         ["api/roles/{id:guid}"] = Nothing("a role, its permissions and the usernames of who holds it: staff, not patients"),
@@ -106,10 +108,14 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/pathways/patient-pathway-stage/templates/{id:guid}"] = Nothing("templates: configuration"),
         ["api/specialties"] = Nothing("specialties: configuration"),
         ["api/specialties/{id:guid}"] = Nothing("specialties: configuration"),
+        ["api/practices"] = Nothing("the GP practice directory: organisations and counts, never patients"),
+        ["api/practices/{id:guid}"] = Nothing("one GP practice: an organisation and counts, never patients"),
         ["api/calendar/activity-types"] = Nothing("calendar activity types: configuration"),
         ["api/calendar/activity-types/{id:guid}"] = Nothing("calendar activity types: configuration"),
         ["api/calendar/closed-days"] = Nothing("closed days (bank holidays and the like): configuration"),
         ["api/sites"] = Nothing("sites and their rooms: configuration"),
+        ["api/clinics/sessions"] = Nothing("clinic sessions with counts of their slots: staff time, no patient"),
+        ["api/clinics/patterns"] = Nothing("clinic patterns: configuration"),
         ["api/sites/{id:guid}"] = Nothing("a site and its rooms: configuration"),
         ["api/sites/{id:guid}/hours"] = Nothing("a site's opening hours: configuration"),
         ["api/rooms"] = Nothing("rooms: configuration"),

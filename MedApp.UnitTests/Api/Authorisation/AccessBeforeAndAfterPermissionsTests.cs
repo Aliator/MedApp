@@ -72,6 +72,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.ExtendSession 01111
         AuthController.GetAllRoles 00001
         AuthController.GetAllUsers 00001
+        AuthController.GetMyDetails 00011
         AuthController.GetMySettings 00011
         AuthController.GetMySpecialties 00011
         AuthController.GetSession 01111
@@ -83,6 +84,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AuthController.ResetUserPassword 00001
         AuthController.SaveMySettings 00011
         AuthController.SearchUsers 00001
+        AuthController.SetMyDetails 00011
+        AuthController.SetUserDetails 00001
         AuthController.SetUserRoles 00001
         AuthController.SetUserSpecialties 00001
         AuthController.SignOutEverywhere 00001
@@ -129,6 +132,15 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         CalendarSetupController.UpdateActivityType 00001
         CalendarSetupController.UpdateDayTemplate 00011
         CalendarSetupController.UpdateWeekTemplate 00011
+        ClinicsController.CancelSession 00001
+        ClinicsController.CreatePattern 00001
+        ClinicsController.CreateSession 00001
+        ClinicsController.CreateSessions 00001
+        ClinicsController.GetPatterns 00001
+        ClinicsController.GetSession 00011
+        ClinicsController.SearchSessions 00011
+        ClinicsController.UpdatePattern 00001
+        ClinicsController.UpdateSession 00001
         DemographicsController.GetStatus 00011
         DemographicsController.LookUp 00011
         FhirController.Metadata 11111
@@ -204,6 +216,13 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientsController.SetDispute 00001
         PatientsController.SetRestriction 00001
         PatientsController.UpdatePatient 00011
+        PracticesController.ArchivePractice 00011
+        PracticesController.CreatePractice 00011
+        PracticesController.DeletePractice 00011
+        PracticesController.GetPractice 00011
+        PracticesController.GetPractices 00011
+        PracticesController.RestorePractice 00011
+        PracticesController.UpdatePractice 00011
         ReferralsController.AcceptReferral 00000
         ReferralsController.CountAwaitingTriage 00011
         ReferralsController.EditReferral 00011

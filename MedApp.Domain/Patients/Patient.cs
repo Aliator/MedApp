@@ -1,3 +1,5 @@
+using MedApp.Domain.Contacts;
+
 namespace MedApp.Domain.Patients;
 
 public sealed class Patient
@@ -13,6 +15,25 @@ public sealed class Patient
     /// when present. Checked with its Modulus 11 check digit (<see cref="NhsNumbers"/>).
     /// </summary>
     public string? NhsNumber { get; set; }
+
+    /// <summary>
+    /// The postal address's lines (at most three), stored as one value (<see cref="PostalAddress"/>), or null
+    /// when it isn't known.
+    /// </summary>
+    public string? AddressLines { get; set; }
+
+    /// <summary>The postcode, in upper case with one space (<see cref="UkPostcodes"/>), or null.</summary>
+    public string? Postcode { get; set; }
+
+    /// <summary>A UK mobile, in international form (<c>+447…</c>: <see cref="UkPhoneNumbers"/>), or null.</summary>
+    public string? MobilePhone { get; set; }
+
+    /// <summary>The GP practice the patient is registered with, from the directory, or null when it isn't known.</summary>
+    public Guid? PracticeId { get; set; }
+
+    /// <summary>How they want appointment reminders; <see cref="ReminderChannel.None"/> until asked.</summary>
+    public ReminderChannel ReminderChannel { get; set; }
+
     public DateTime CreatedAt { get; init; }
     public DateTime LastUpdated { get; set; }
 

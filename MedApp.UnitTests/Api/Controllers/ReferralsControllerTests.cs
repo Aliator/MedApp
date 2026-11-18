@@ -28,6 +28,8 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class ReferralsControllerTests
 {
+    private static readonly Guid PracticeId = Guid.Parse("0000009c-0000-0000-0000-000000000001");
+
     private static readonly string[] Changes =
     [
         nameof(ReferralsController.RegisterReferral),
@@ -79,7 +81,7 @@ public sealed class ReferralsControllerTests
         {
             PatientId = RecordId, SpecialtyId = OtherId, ReceivedOn = ReceivedOn, ReferrerPractice = Practice,
             ReferrerClinician = Clinician, ReferrerOdsCode = OdsCode, RequestedPriority = "Urgent", Reason = Reason,
-            ConfirmPossibleDuplicate = true
+            ConfirmPossibleDuplicate = true, PracticeId = PracticeId
         };
 
         var result = await Controller(mediator).RegisterReferral(request, _cts.Token);
@@ -88,7 +90,7 @@ public sealed class ReferralsControllerTests
         command.Should().BeEquivalentTo(new
         {
             PatientId = RecordId, SpecialtyId = OtherId, ReceivedOn, ReferrerPractice = Practice, ReferrerClinician = Clinician,
-            ReferrerOdsCode = OdsCode, RequestedPriority = "Urgent", Reason, ConfirmPossibleDuplicate = true
+            ReferrerOdsCode = OdsCode, RequestedPriority = "Urgent", Reason, ConfirmPossibleDuplicate = true, PracticeId
         });
         command.Actor.UserId.Should().Be(UserId);
         mediator.Tokens.Single().Should().Be(_cts.Token);
@@ -125,11 +127,12 @@ public sealed class ReferralsControllerTests
     public async Task EditReferral_SendsTheDetailsAndTheVersionSeen() =>
         await ExpectOk(_fixture.Create<ReferralResponse>(),
             r => r is EditReferralCommand { ExpectedVersion: 4, Reason: Reason, RequestedPriority: "Low" } q
-                 && q.ReferralId == RecordId && q.SpecialtyId == OtherId && q.Actor.UserId == UserId,
+                 && q.ReferralId == RecordId && q.SpecialtyId == OtherId && q.Actor.UserId == UserId
+                 && q.PracticeId == PracticeId,
             c => c.EditReferral(RecordId, new EditReferralRequest
             {
                 SpecialtyId = OtherId, ReceivedOn = ReceivedOn, ReferrerPractice = Practice, RequestedPriority = "Low",
-                Reason = Reason, ExpectedVersion = 4
+                Reason = Reason, ExpectedVersion = 4, PracticeId = PracticeId
             }, _cts.Token));
 
     [Test]

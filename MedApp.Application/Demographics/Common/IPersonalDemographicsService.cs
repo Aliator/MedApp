@@ -19,4 +19,15 @@ public interface IPersonalDemographicsService
 }
 
 /// <summary>What a demographics service says about someone: enough to fill in a new patient's form.</summary>
-public sealed record DemographicsRecord(string NhsNumber, string FirstName, string LastName, DateOnly DateOfBirth);
+/// <remarks>
+/// The contact details (<paramref name="AddressLines"/>, <paramref name="Postcode"/>, <paramref name="MobilePhone"/>,
+/// in international form) are what the service holds, if anything, for staff to check with the patient before saving.
+/// </remarks>
+public sealed record DemographicsRecord(
+    string NhsNumber,
+    string FirstName,
+    string LastName,
+    DateOnly DateOfBirth,
+    IReadOnlyList<string>? AddressLines = null,
+    string? Postcode = null,
+    string? MobilePhone = null);

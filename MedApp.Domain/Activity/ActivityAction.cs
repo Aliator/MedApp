@@ -126,5 +126,13 @@ public enum ActivityAction
     /// An admin changed a role: renamed it, changed its description (never the text), added or removed permissions (by
     /// name), or archived or restored it. Giving people roles is <see cref="RolesChanged"/>.
     /// </summary>
-    RoleChanged = 44
+    RoleChanged = 44,
+
+    // 45 to 47 are kept for the Phase 3 views (specimens, results, letters: docs/centre-phases-3-5-plan.md, section 5).
+
+    /// <summary>
+    /// Someone's full name or job title was changed, by themselves or by an admin: the names of the fields changed, never
+    /// their values.
+    /// </summary>
+    StaffDetailsChanged = 48
 }

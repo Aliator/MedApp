@@ -18,5 +18,6 @@ public sealed record RegisterReferralCommand(
     string RequestedPriority,
     string Reason,
     bool ConfirmPossibleDuplicate,
-    PathwayActor Actor)
+    PathwayActor Actor,
+    Guid? PracticeId = null)
     : IRequest<ReferralResponse>;

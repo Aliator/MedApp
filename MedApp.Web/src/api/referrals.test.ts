@@ -59,6 +59,7 @@ describe('referral words', () => {
     expect(referralStatusLabel(null)).toBe('');
     expect(referralFieldWords('receivedOn')).toBe('received date');
     expect(referralFieldWords('somethingNew')).toBe('somethingNew');
+    expect(referralFieldWords('directoryPractice')).toBe('practice from the directory');
   });
 
   const event = (fields: Partial<ReferralEvent>): ReferralEvent => ({id: 'e', atUtc: '2026-11-02T10:00:00Z', username: 'k.ashford', changedFields: [], ...fields});
@@ -166,6 +167,7 @@ describe('referral details', () => {
       toReferralRequest({
         specialtyId: 's',
         receivedOn: '2026-11-02',
+        practiceId: 'p1',
         referrerPractice: ' Synthetic Surgery ',
         referrerClinician: '  ',
         referrerOdsCode: 'a12bc',
@@ -175,19 +177,21 @@ describe('referral details', () => {
     ).toEqual({
       specialtyId: 's',
       receivedOn: '2026-11-02',
+      practiceId: 'p1',
       referrerPractice: 'Synthetic Surgery',
       referrerClinician: null,
       referrerOdsCode: 'A12BC',
       requestedPriority: 'High',
       reason: 'Reason',
     });
-    expect(toReferralRequest({...referralInput({}), specialtyId: ''})).toMatchObject({specialtyId: undefined, receivedOn: undefined});
+    expect(toReferralRequest({...referralInput({}), specialtyId: ''})).toMatchObject({specialtyId: undefined, receivedOn: undefined, practiceId: null});
   });
 
   it('starts an edit from the referral, with Medium when it has no priority', () => {
-    expect(referralInput({specialtyId: 's', receivedOn: '2026-11-02', referrerPractice: 'P', referrerClinician: 'C', referrerOdsCode: 'A1B', requestedPriority: 'Low', reason: 'R'})).toEqual({
+    expect(referralInput({specialtyId: 's', receivedOn: '2026-11-02', practiceId: 'p1', referrerPractice: 'P', referrerClinician: 'C', referrerOdsCode: 'A1B', requestedPriority: 'Low', reason: 'R'})).toEqual({
       specialtyId: 's',
       receivedOn: '2026-11-02',
+      practiceId: 'p1',
       referrerPractice: 'P',
       referrerClinician: 'C',
       referrerOdsCode: 'A1B',

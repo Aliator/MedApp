@@ -44,6 +44,45 @@ public sealed class BookAppointmentHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
+    public async Task Handle_IntoAClinicSessionsSlot_TakesItsRoomUnderTheClinicianLock()
+    {
+        var session = ClinicsTestConstants.CreateSession();
+        var clinics = new Mock<MedApp.Application.Clinics.Repositories.IClinicRepository>();
+        clinics.Setup(r => r.GetSessionAsync(session.Id, It.IsAny<CancellationToken>())).ReturnsAsync(session);
+        clinics.Setup(r => r.GetRoomDayAsync(session.RoomId, session.Date, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ClinicsTestConstants.CreateRoomDay());
+        Fixture.Inject(clinics.Object);
+        CalendarData = CalendarData with { Sessions = [session] };
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested));
+
+        await Fixture.Create<BookAppointmentHandler>().Handle(
+            Command(appointment, startUtc: At(NextMonday, 9, 20), minutes: 20) with { ClinicSessionId = session.Id },
+            CancellationToken.None);
+
+        appointment.ClinicSessionId.Should().Be(session.Id);
+        appointment.RoomId.Should().Be(session.RoomId);
+        appointment.Status.Should().Be(AppointmentStatus.Booked);
+        Lock.LockedOnce.Should().Equal(StaffUserId);
+    }
+
+    [Test]
+    public async Task Handle_IntoARoomOutsideASession_HoldsTheRoomsLockToo()
+    {
+        var clinics = new Mock<MedApp.Application.Clinics.Repositories.IClinicRepository>();
+        clinics.Setup(r => r.GetRoomDayAsync(SitesTestConstants.RoomId, NextMonday, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ClinicsTestConstants.CreateRoomDay());
+        Fixture.Inject(clinics.Object);
+        var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested));
+
+        await Fixture.Create<BookAppointmentHandler>().Handle(
+            Command(appointment) with { RoomId = SitesTestConstants.RoomId }, CancellationToken.None);
+
+        appointment.RoomId.Should().Be(SitesTestConstants.RoomId);
+        appointment.ClinicSessionId.Should().BeNull();
+        Lock.LockedOnce.Should().Equal(StaffUserId, SitesTestConstants.RoomId);
+    }
+
+    [Test]
     public async Task Handle_StaffMemberDoesNotExist_ThrowsNotFoundWithoutTakingTheLock()
     {
         var appointment = GivenAppointment(CalendarTestConstants.CreateAppointment(AppointmentStatus.Requested));

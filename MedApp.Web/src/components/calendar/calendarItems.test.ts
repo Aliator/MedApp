@@ -9,7 +9,11 @@ import {
   MEETING_COLOUR,
   meetingItem,
   meetingKey,
+  SESSION_COLOUR,
+  sessionItem,
+  sessionKey,
 } from './calendarItems';
+import {testSession} from '../../test/clinics';
 
 const MONDAY = '2026-11-23';
 
@@ -147,5 +151,23 @@ describe('calendarItems', () => {
     expect(hasDeclined({attendees}, 'z')).toBe(false);
     expect(hasDeclined({}, 'a')).toBe(false);
     expect(hasDeclined({attendees}, undefined)).toBe(false);
+  });
+
+  it('makes a clinic session an item of its own: its specialty, room and how full it is, never dragged', () => {
+    const session = testSession({date: '2026-11-24', booked: 1});
+
+    expect(sessionItem(session)).toEqual({
+      key: sessionKey('session-1'),
+      kind: 'session',
+      date: '2026-11-24',
+      startUtc: session.startUtc,
+      endUtc: session.endUtc,
+      colour: SESSION_COLOUR,
+      label: 'Synthetic dermatology',
+      sublabel: 'Room 2 · 8 of 9 free',
+      description: 'Synthetic dermatology clinic session, Room 2, 09:00 to 12:00, 8 of 9 free',
+    });
+    const calendar = testCalendar({from: MONDAY, today: MONDAY, sessions: [session, {...session, id: 'no-time', startUtc: undefined}]});
+    expect(calendarItems(calendar).filter((i) => i.kind === 'session').map((i) => i.key)).toEqual([sessionKey('session-1')]);
   });
 });

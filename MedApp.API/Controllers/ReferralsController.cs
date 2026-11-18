@@ -56,7 +56,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.RequestedPriority,
             request.Reason,
             request.ConfirmPossibleDuplicate,
-            User.ToPathwayActor()), ct);
+            User.ToPathwayActor(),
+            request.PracticeId), ct);
 
         return Created($"/api/referrals/{referral.Id}", referral);
     }
@@ -118,7 +119,8 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             request.RequestedPriority,
             request.Reason,
             request.ExpectedVersion,
-            User.ToPathwayActor()), ct));
+            User.ToPathwayActor(),
+            request.PracticeId), ct));
 
     /// <summary>
     /// Triage: accepts a referral awaiting triage into a new pathway, from a template of its specialty, with the

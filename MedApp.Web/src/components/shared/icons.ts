@@ -7,6 +7,8 @@ import {
   RiAccessibilityLine,
   RiArrowGoBackLine,
   RiInboxLine,
+  RiIdCardLine,
+  RiFirstAidKitLine,
   RiAddLine,
   RiAlarmWarningLine,
   RiArchiveLine,
@@ -111,6 +113,8 @@ import {
   RiUserHeartLine,
   RiPushpinLine,
   RiStethoscopeLine,
+  RiRepeatLine,
+  RiCalendarEventLine,
   RiUnpinLine,
   RiUpload2Line,
   RiUserLine,
@@ -258,6 +262,10 @@ export const AppIcon = {
   Sites: remix(RiBuilding2Line),
   /** A site's rooms. */
   Rooms: remix(RiDoorOpenLine),
+  /** Clinic sessions: a clinician's time in a room for a specialty, cut into slots. */
+  Clinics: remix(RiCalendarEventLine),
+  /** Clinic patterns: clinics that repeat, which make sessions when asked. */
+  ClinicPatterns: remix(RiRepeatLine),
   /** Recording an appointment that has already happened (a walk-in, or one booked outside MedApp). */
   RecordPast: remix(RiFileHistoryLine),
   /** An appointment recorded after the event, withdrawn as entered in error (it didn't happen, or is on the wrong patient). */
@@ -279,6 +287,10 @@ export const AppIcon = {
   LookUp: remix(RiUserSearchLine),
   // Monitoring (admin): rules for being told what staff do
   Monitoring: remix(RiRadarLine),
+  /** GP practices: the directory of practices patients are registered with and referrals come from. */
+  Practices: remix(RiFirstAidKitLine),
+  /** A member of staff's full name and job title, as they go on letters. */
+  StaffDetails: remix(RiIdCardLine),
   /** Referrals: requests to see a patient in a specialty, waiting for triage (the inbox). */
   Referrals: remix(RiInboxLine),
   /** Withdrawing a referral (the referrer or the patient withdrew it). */

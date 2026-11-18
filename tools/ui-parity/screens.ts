@@ -184,6 +184,69 @@ export const screens: Screen[] = [
     },
   },
   {
+    name: 'calendar-book-clinic-slots',
+    title: 'Book Appointment from New, on Clinic slots: the sessions with free slots in the next four weeks (not saved)',
+    path: '/calendar',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('menuitem', { name: 'Book appointment' }).click();
+      await waitVisible(page, DIALOG);
+      await page.locator(DIALOG).getByRole('button', { name: 'Clinic slots' }).click();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-week',
+    title: "Clinics: this week's clinic sessions by day, time and room, with how full each is",
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Clinics', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-session-dialog',
+    title: "A clinic session's dialog: its details and each slot, free or with its patient (the first session this week, if any)",
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      const open = page.getByRole('button', { name: /^Open the / }).first();
+      if (await open.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+        await open.click();
+        await waitVisible(page, DIALOG);
+      }
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinics-new-session-dialog',
+    title: 'New Clinic Session: clinician, day, start and end in their working day, slot length, room and specialty (not saved)',
+    path: '/calendar/clinics',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New Session' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinic-patterns',
+    title: 'Clinic Patterns: clinics that repeat, each with Edit and Create Sessions',
+    path: '/calendar/clinics/patterns',
+    prepare: async (page) => {
+      await page.getByRole('heading', { name: 'Clinic Patterns', level: 1 }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'clinic-pattern-dialog',
+    title: 'New Clinic Pattern: clinician, day and times, slots, how often, from and until, room and specialty (not saved)',
+    path: '/calendar/clinics/patterns',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'New Pattern' }).click();
+      await waitVisible(page, DIALOG);
+      await settle(page);
+    },
+  },
+  {
     name: 'calendar-record-past-dialog',
     title: 'Record Past Appointment from New: who, with whom, the day in the last 30 days, start, length, outcome and notes (not saved)',
     path: '/calendar',
@@ -674,6 +737,25 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
+  {
+    name: 'users-details',
+    title: "Edit details dialog: a user's full name and job title for letters (not saved)",
+    path: '/admin/users',
+    prepare: async (page) => {
+      await rowAction(page, /edit details/i).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'practices', title: 'GP practices: the directory of practices patients are registered with and referrals come from', path: '/practices' },
+  {
+    name: 'practice-dialog',
+    title: 'Add Practice dialog: a name, ODS code, address, postcode, phone and secure email (not saved)',
+    path: '/practices',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Practice' }).click();
+      await waitVisible(page, DIALOG);
+      },
+    },
   { name: 'roles', title: 'Roles and Permissions (admin): each role, what it is for, who holds it, Admin first', path: '/admin/roles' },
   {
     name: 'role-edit',

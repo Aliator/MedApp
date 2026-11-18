@@ -23,6 +23,7 @@ import {CardSection} from '../../components/views/CardSection';
 import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {NotificationSettings} from './NotificationSettings';
+import {StaffDetailsCard} from './StaffDetailsCard';
 
 /** The signed-in user's specialties, read only: an admin sets them on the Users page. */
 function MySpecialties() {
@@ -34,7 +35,8 @@ function MySpecialties() {
 
 /**
  * The signed-in user's Account Settings, as cards: the account (who they are, their specialties, and pages of their own for the email
- * address, security (two-factor authentication) and Change Password); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
+ * address, security (two-factor authentication) and Change Password); their full name and job title for letters
+ * (`StaffDetailsCard`, kept on the server); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
  * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
  * opens on, and what the side nav does while a half view is open); lists (rows per page, and where pathway lists
  * start); and accessibility (the text size, how long the folded nav waits on hover, and the switches in
@@ -92,6 +94,7 @@ export function AccountPage() {
             </MetadataListItem>
           </ViewSection>
         </ViewCard>
+        <StaffDetailsCard />
         <ViewCard
           footerActions={
             <Button

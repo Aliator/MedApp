@@ -27,10 +27,7 @@ public interface ISiteRepository
     /// <summary>Of these sites, those something names (a room, a closed day or anyone's working hours), so they can't be deleted.</summary>
     Task<IReadOnlySet<Guid>> GetSitesInUseAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
-    /// <summary>
-    /// Of these rooms, those something names, so they can't be deleted. Nothing names a room yet: clinic sessions and
-    /// appointments will (the centre plan's PR 23).
-    /// </summary>
+    /// <summary>Of these rooms, those something names (a clinic session or pattern, or an appointment), so they can't be deleted.</summary>
     Task<IReadOnlySet<Guid>> GetRoomsInUseAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
     /// <summary>Adds a site. Another site with its name (added just now) is a <see cref="Common.Exceptions.ConflictException"/>.</summary>

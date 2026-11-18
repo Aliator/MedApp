@@ -41,6 +41,10 @@ public static class DemoWipe
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
+                // Clinic sessions (after the appointments booked into them), then the patterns that made them; both
+                // name rooms and specialties, which go below.
+                await db.ClinicSessions.ExecuteDeleteAsync(cancellationToken);
+                await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);
@@ -86,6 +90,8 @@ public static class DemoWipe
                     .SetProperty(s => s.IsArchived, false), cancellationToken);
                 await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);
+                // The GP practice directory, after the patients and referrals that point at it.
+                await db.Practices.ExecuteDeleteAsync(cancellationToken);
                 await db.UserSessions.ExecuteDeleteAsync(cancellationToken);
                 // Rules, choices and notifications name the accounts, templates and stages being wiped.
                 await db.MonitoringRules.ExecuteDeleteAsync(cancellationToken);

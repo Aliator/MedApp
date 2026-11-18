@@ -1,8 +1,9 @@
-﻿using MedApp.Domain.Activity;
+using MedApp.Domain.Activity;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Authentication;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Clinics;
 using MedApp.Domain.Jobs;
 using MedApp.Domain.Sites;
 using MedApp.Domain.Monitoring;
@@ -10,6 +11,7 @@ using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Practices;
 using MedApp.Domain.Referrals;
 using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
@@ -43,6 +45,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Specialty> Specialties => Set<Specialty>();
     public DbSet<StaffSpecialty> StaffSpecialties => Set<StaffSpecialty>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<Practice> Practices => Set<Practice>();
     public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
     public DbSet<ReferralClockPause> ReferralClockPauses => Set<ReferralClockPause>();
 
@@ -56,6 +59,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<SiteHours> SiteHours => Set<SiteHours>();
+    public DbSet<ClinicSession> ClinicSessions => Set<ClinicSession>();
+    public DbSet<ClinicPattern> ClinicPatterns => Set<ClinicPattern>();
     public DbSet<StaffHours> StaffHours => Set<StaffHours>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();

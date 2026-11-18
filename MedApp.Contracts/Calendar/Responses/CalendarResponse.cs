@@ -1,4 +1,5 @@
 using MedApp.Contracts.Appointments.Responses;
+using MedApp.Contracts.Clinics.Responses;
 
 namespace MedApp.Contracts.Calendar.Responses;
 
@@ -44,4 +45,7 @@ public sealed class CalendarResponse
 
     /// <summary>The meetings the person is going to, by start time.</summary>
     public List<MeetingResponse> Meetings { get; set; } = [];
+
+    /// <summary>The person's Planned clinic sessions in the range, by start time.</summary>
+    public List<ClinicSessionResponse> Sessions { get; set; } = [];
 }

@@ -11,6 +11,9 @@ public static class DemographicsMapper
         FirstName = record.FirstName,
         LastName = record.LastName,
         DateOfBirth = record.DateOfBirth,
+        AddressLines = record.AddressLines ?? [],
+        Postcode = record.Postcode,
+        MobilePhone = record.MobilePhone,
         Source = source
     };
 

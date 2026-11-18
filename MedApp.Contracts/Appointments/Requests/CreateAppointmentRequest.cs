@@ -20,6 +20,12 @@ public sealed class CreateAppointmentRequest
 
     public DateTime? EndUtc { get; set; }
 
+    /// <summary>A clinic session to book it into (see <see cref="BookAppointmentRequest.ClinicSessionId"/>); booking only.</summary>
+    public Guid? ClinicSessionId { get; set; }
+
+    /// <summary>A room for an appointment outside a session (optional, clash-checked); booking only.</summary>
+    public Guid? RoomId { get; set; }
+
     /// <summary>Optional, at most 2000 characters.</summary>
     public string? Notes { get; set; }
 }

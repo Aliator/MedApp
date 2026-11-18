@@ -1,4 +1,5 @@
-﻿using Azure.Identity;
+using MedApp.Application.Practices.Repositories;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using MedApp.Application.Activity.Repositories;
 using MedApp.Application.Appointments.Repositories;
@@ -9,6 +10,7 @@ using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Sites.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
@@ -213,6 +215,7 @@ public static class ServiceExtensions
         services.AddScoped<IWorkingHoursRepository, WorkingHoursRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<IClinicRepository, ClinicRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
         services.AddScoped<ISignInChallengeRepository, SignInChallengeRepository>();
         services.AddScoped<IEmailCodeRepository, EmailCodeRepository>();
@@ -226,6 +229,7 @@ public static class ServiceExtensions
         services.AddScoped<IScheduledJobRepository, ScheduledJobRepository>();
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
+        services.AddScoped<IPracticeRepository, PracticeRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         
         return services;
@@ -278,6 +282,7 @@ public static class ServiceExtensions
         services.AddScoped<IIdentityTransactions, IdentityTransactions>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
+        services.AddScoped<IStaffDetailsService, StaffDetailsService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddSingleton<IQrCodeRenderer, QrCodeRenderer>();
 

@@ -28,6 +28,11 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **After every account is on a starting role:** take the everyday clinical and booking permissions from Admin and archive "All staff (before roles)" (open question 10), as a small change of its own before a real team uses MedApp.
 
 **Phase 3: clinic to lab to result to letter.**
+- **Contact details, practices and staff details are built** (PR 12, `feature/patient-contact-gp`: `docs/agents/privacy.md`). Left from it:
+  - **The reminder channel** (`Patient.ReminderChannel`) is stored, always None: the patient form shows it with reminders (PR 26).
+  - **The offline demographics stub gives no GP practice**, as it knows no ODS codes; the real PDS gives one, to match against the directory when PDS is wired in.
+  - **Demo data** for practices, contact details and staff names comes with Phase 3's demo data (PR 17).
+  - **Looking practices up in the national ODS service** stays for later (plan, section 8): the directory is typed.
 - **Lab specimen tracking:** a specimen with its own ID (taken, sent, received, reported, with turnaround times), linked to the stage that took it, its report attached as a file. MedApp tracks and shows; it doesn't interpret.
 - **Results sign-off:** every result marked seen and acted on by a named clinician, and a list of results nobody has signed off, so none is missed.
 - **Letters:** clinic letters and discharge summaries from templates, as PDFs, to the GP and the patient, with a record of when each was sent.
@@ -264,6 +269,14 @@ What the security baseline left, so the app would work exactly as before (`docs/
   - **The aim:** run areas such as pathways, the calendar, notifications and identity as separate services, each deployed and scaled on its own.
   - **What it has to solve first:** several areas save together in one transaction today: a pathway change with its audit entries and appointments (`SaveAsync(PathwayChange)`), a patient change with its activity log entry, a password change with the end of its sessions. Across services, each becomes a distributed transaction or an outbox with eventual consistency, and the activity log's fail-closed rule needs a new design.
   - **Decide first** whether a modular monolith (clear module boundaries, still one deployment) gives the benefits wanted at less cost.
+
+## Clinic sessions (centre plan PR 23)
+
+- **Tell a cancelled session's patients by text or email** (decision 126): the call list is for phoning them until reminders (PR 26) give messages.
+- **An account's upcoming sessions** with no bookings stay when the account is deleted or loses its staff roles (sessions with bookings stop that, through their appointments): cancel them with it, or refuse it as for appointments.
+- **Closing a day** counts and tells of appointments, blocks and meetings, but not clinic sessions on it; a session on a day closed later stays, unflagged.
+- **Demo data:** patterns, sessions for the 18 months and the next 6 weeks, appointments in their slots and one cancelled session (PR 28).
+- **A session's own page or Calendar view of sessions by room** (the plan's "Clinics view, sessions by day and room"): today Clinics is a week's list, by day, time and room.
 
 ## Working hours (centre plan PR 22)
 

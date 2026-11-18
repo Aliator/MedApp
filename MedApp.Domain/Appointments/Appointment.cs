@@ -29,6 +29,12 @@ public sealed class Appointment
     public DateTime? StartUtc { get; set; }
     public DateTime? EndUtc { get; set; }
 
+    /// <summary>The clinic session it's booked into, if any: it then fills one of the session's slots.</summary>
+    public Guid? ClinicSessionId { get; set; }
+
+    /// <summary>The room it's in, if any: its session's, or one chosen for an appointment outside a session.</summary>
+    public Guid? RoomId { get; set; }
+
     public AppointmentStatus Status { get; set; }
 
     /// <summary>Free text about the patient, treated like pathway notes.</summary>

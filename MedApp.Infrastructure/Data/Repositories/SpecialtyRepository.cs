@@ -86,7 +86,21 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
             })
             .ToDictionaryAsync(x => x.Key, ct);
 
+        // Clinic sessions and patterns name a specialty too (centre plan decision 123).
+        var sessions = await context.ClinicSessions
+            .Where(c => list.Contains(c.SpecialtyId))
+            .GroupBy(c => c.SpecialtyId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
+        var patterns = await context.ClinicPatterns
+            .Where(c => list.Contains(c.SpecialtyId))
+            .GroupBy(c => c.SpecialtyId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
         return templates.Keys.Concat(pathways.Keys).Concat(members.Keys).Concat(referrals.Keys)
+            .Concat(sessions.Keys).Concat(patterns.Keys)
             .Distinct()
             .ToDictionary(
                 id => id,
@@ -96,7 +110,8 @@ public sealed class SpecialtyRepository(MedAppDbContext context) : ISpecialtyRep
                     members.GetValueOrDefault(id),
                     referrals.GetValueOrDefault(id)?.Count ?? 0,
                     referrals.GetValueOrDefault(id)?.Awaiting ?? 0,
-                    triagers.GetValueOrDefault(id)));
+                    triagers.GetValueOrDefault(id),
+                    sessions.GetValueOrDefault(id) + patterns.GetValueOrDefault(id)));
     }
 
     public async Task AddAsync(Specialty specialty, CancellationToken ct)
