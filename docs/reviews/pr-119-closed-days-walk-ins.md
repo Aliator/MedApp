@@ -237,6 +237,111 @@ The PR adds **closed days** (bank holidays and other days the clinic is shut, wh
 
 "Closed days work like a 'closed' sign on the clinic's door: one rule refuses anything new on them everywhere, and bank holidays are worked out in code rather than fetched from gov.uk, which trades automatic updates for no outside dependency. Walk-ins let staff record a visit after it happened, with its own history entry, so the record says it was added later rather than pretending it was booked. The review's main point is that the edges need the same care as the rules: a wrong walk-in needs an 'entered in error', closing a day should tell people what's booked on it, and a dialog that only needs free times shouldn't log a month of patient reads."
 
+## Follow-up review
+
+**Reviewed:** commit `e730bb0`, on 18 November 2026, compared with `origin/main` at `1b00eae` (main has moved on: #115, deleting procedure notes, merged at 05:02). A fresh, adversarial look at the fixes, without taking the "What happened to it" lines on trust. Checked by reading the code and running 191 filtered unit tests (entered in error, stage visits, the timeline canary, the convention test, closed days, walk-ins, `AppointmentWorkflow`): all pass. No Docker, AppHost, browser or full suite. **Nothing is high or critical.** 2 new findings are medium and 6 low.
+
+### The original findings
+
+- **1, coverage (high): fixed in the code, not yet confirmed by CI.** The tests the review asked for are there, and the unreachable guard is gone. But no CI run exists for any commit after `83b57f8`: the PR conflicts with `main`, and GitHub doesn't run `pull_request` workflows on a PR that can't be merged (new finding A). The 99.06% is a local figure.
+- **2, a month of patient reads: fixed.** The dialog reads days with `calendarDaysQuery` (`RecordPastAppointmentDialog.tsx:199`), and its test serves a 500 to any calendar read without `WithoutAppointments=true` (`RecordPastAppointmentDialog.test.tsx:22`), so it would fail without the fix.
+- **3, a wrong walk-in can't be withdrawn: mostly fixed.** The endpoint, status 5, action 8, the who-check (`MarkAppointmentEnteredInErrorHandler.cs:27`), the anonymised guard (`:24`, `GetForCancelOrThrowAsync`), the timeline split (`TimelineMapper.cs`, `EnteredInError` case: reason for admins only), the canary (`TimelineStaffCanaryTests.cs:196, 240`), the anonymiser (`reason` is a free-text key, `PatientAnonymiser.cs:47`) and the export all hold. Two gaps remain: a stage already finished on the withdrawn visit is only mentioned to the person withdrawing it (new finding B), and nothing can withdraw one after its 30 days, admins included (new finding C).
+- **4, closing a day tells nobody: fixed.** `GET api/calendar/closed-days/bookings` is admin-only (`CalendarSetupController.cs`, `[Authorize(Roles = "Admin")]`), returns counts and usernames only, and is classified in `EndpointCoverageTests.cs:94`. Both add handlers notify after saving, never the admin who closed it (`ClosedDayBookings.cs:56`). The message's wording needs a tweak (new finding G).
+- **5, a real visit on a closed day: fixed.** The walk-in's validator no longer takes `WorkingDays` (`BookingTimes.WhyNotRecorded` passes `ClosedDaySet.None`), and the handler's only clash check is `CalendarClashes.FindAppointment`, which doesn't look at closed days (`RecordPastAppointmentHandler.cs:91`), so the new closed-day check in `CalendarClashes.Find` doesn't undo it. Tested by `Handle_OnADayClosedSince_IsRecorded`.
+- **6, the export: fixed.** `IsRecordedAfterEvent` is mapped (`PatientExportMapper.cs:135`), and the page labels both new history actions (`PatientExportPage.tsx:89-90`).
+- **7, races: fixed where it could be, as described.** `CalendarClashes.Find` checks `data.ClosedDays`, which `CalendarRepository` reads under the lock (`:95`), and every handler that adds or moves something calls `Find` (booking, creating, blocks, a day's template block); meetings check `WhyClosed` per attendee (`MeetingStaff.cs:69`). The walk-in re-checks the stage's open visit under its lock (`RecordPastAppointmentHandler.cs:115`), tested by `Handle_AVisitAddedForTheStageMeanwhile_IsAConflict`.
+- **8, the closed-day rule isn't enforced: fixed.** `WorkingHours.WhyOutside` now requires the set, and `WorkingDaysConventionTests` finds every command with a `StartUtc` and `EndUtc` by reflection and fails if its validator doesn't take `WorkingDays`. It checks the validator takes it, not that it uses it, which is a fair compromise.
+- **9, a walk-in's time against its procedure: fixed, as a refusal.** The refusal is stricter than the review suggested, and catches one ordinary case (new finding F).
+- **10, a waiting visit's notes: fixed.** `AppointmentWorkflow.KeepingNotes`, tested both ways.
+- **11, documents: fixed,** apart from a few lines the later fixes made stale (new finding H). `schema.d.ts` is still hand-edited, and listed in `docs/todo.md`.
+- **12, the browser look: fixed,** as recorded above. Not re-checked here.
+
+### New findings
+
+#### A. Medium: the PR conflicts with `main`, so none of the fixes has been through CI, and its migration now sorts before main's
+
+- **Severity:** medium. **Confidence:** high.
+- **What goes wrong:**
+  - **No CI:** GitHub reports the PR as `CONFLICTING`. The last runs are for `83b57f8` (one of them the failing `web` job). The fix commits (about 3,200 lines) have had no integration tests, no `web` coverage gate, no image build and no E2E run.
+  - **The migration's place:** `20261118021255_AddedClosedDaysAndPastAppointments` has an earlier ID than main's `20261118025735_AddedNoteDeletion`. EF orders migrations by ID, so after the merge this one sits in the middle of the history, not on top. EF still applies it to a database that already has `AddedNoteDeletion` (kind's, once Argo CD deploys), but `AGENTS.md` asks for one linear history with each new migration on top, and rolling back to `AddedNoteDeletion` would now run this migration's `Down` too.
+  - **Clashing numbers in the documents:** `main` already uses DPIA version 0.11 and hazard log version 0.14 for note deletion; this branch uses the same two numbers.
+  - **Conflicts to resolve with care:** `Notification.HasFixedTitle` must keep main's `IsNoteDeletion` (kinds 18 to 21) beside this branch's 1 to 9, or anonymisation would start rewriting note deletion notifications. `NotificationPreferencesTests`, `NotificationBell.tsx`, `PatientExportPage.test.tsx`, `AGENTS.md`, `MedApp.Web/AGENTS.md` and five governance documents also conflict.
+- **Evidence:** `gh pr view 119`: `mergeable: CONFLICTING`; `gh run list --branch feature/closed-days-walk-ins`: runs only for `83b57f8`; `git merge-tree HEAD origin/main` lists the conflicts; `MedApp.Infrastructure/Migrations/20261118021255_…` against `origin/main`'s `20261118025735_AddedNoteDeletion.cs`.
+- **Stored numbers:** checked, and no clash. `main` has no `AppointmentStatus` 5, no `AppointmentEventAction` 7 or 8, and uses `NotificationKind` 18 to 21 (this branch 8 and 9); this branch adds no `ActivityAction`.
+- **Fix:** merge `main`; resolve the conflicts (keep both ranges in `HasFixedTitle`); re-create the migration on top (roll a local database back first, `migrations remove`, `migrations add AddedClosedDaysAndPastAppointments`, then put back the hand-written `Down`), and check `has-pending-model-changes`; make this branch DPIA 0.12 and hazard log 0.15; push, and let CI run.
+- **What happened to it:** Not yet.
+
+#### B. Medium: withdrawing a visit a Required stage was finished on is told only to the person withdrawing it
+
+- **Severity:** medium. **Confidence:** medium.
+- **What goes wrong:**
+  - The original finding asked that a stage finished on a withdrawn visit be flagged for an admin. The fix returns a message to the caller instead ("an admin can unlock it, and then book one"), shown in the dialog until it closes.
+  - Nothing else marks the stage. No admin, assignee or monitoring rule is told. The procedure page shows a finished stage with no visit. And unlocking it doesn't help on its own: finishing a stage again after an unlock doesn't ask for a visit (`AGENTS.md:240`).
+  - **Scenario:** a nurse records a walk-in for the wrong "SMITH" against a Required Bloods stage, and the stage is finished. A week later she spots it and marks it entered in error. The dialog says to ask an admin; she closes it and gets called away. The right patient's procedure stays finished past Bloods, so the next step goes ahead without the bloods (H-30, H-32).
+  - Smaller: a walk-in may now be for an earlier, already finished stage. Withdrawing it then says the stage "was finished with this visit", even when it was finished on another visit or by the admin bypass.
+- **Evidence:** `StageVisits.cs:47-48`; `MarkAppointmentEnteredInErrorHandler.cs:47` (the only place the message goes); `AppointmentDialog.tsx:148` (local state); hazard log H-39's control ("or the person is told why not").
+- **Fix:** when the stage is finished, also tell the procedure's assignees and the admins with a fixed-title notification ("Stage visit withdrawn": who, which stage, never the patient), or flag the stage on the procedure page until it's unlocked and finished again; reword the message to "was finished" without "with this visit" unless no other Attended visit exists. Name the control in H-39.
+- **What happened to it:** Not yet.
+
+#### C. Low: after 30 days nobody can withdraw a walk-in, and the message points to admins who can't either
+
+- **Severity:** low. **Confidence:** high.
+- **What goes wrong:**
+  - The window runs from the visit's day, not from when it was recorded. A visit recorded on day 29 can be withdrawn for one day.
+  - It binds admins too: the handler checks the window for everyone (`:30`). Yet the 409 says "Ask an admin to correct the record."
+  - **Scenario:** a patient's subject access export, six weeks on, shows an "Attended" walk-in they never had. The admin can only flip it to "Did not attend" (also untrue) or add a note. `data-subject-rights.md:38` documents that fallback, but the API's own message promises more.
+- **Evidence:** `AppointmentWorkflow.cs:66-77`; `MarkAppointmentEnteredInErrorHandler.cs:27-31`.
+- **Fix:** let admins withdraw at any time (skip the window when `IsAdmin`), or count the 30 days from `BookedAtUtc` (when it was recorded); either way, make the message match what's possible.
+- **What happened to it:** Not yet.
+
+#### D. Low: withdrawing a walk-in on a restricted record can add a new appointment to it
+
+- **Severity:** low. **Confidence:** high.
+- **What goes wrong:** marking entered in error is allowed while restricted, deliberately. But if the walk-in was the current stage's visit, `AskForTheStagesVisitAgainAsync` adds a new Requested appointment in the same save, with no restriction check. Everywhere else a restricted record "can't gain appointments" (`RecordPastAppointmentHandler.cs:43`), and procedure changes that would request a visit are refused.
+- **Evidence:** `MarkAppointmentEnteredInErrorHandler.cs:24, 39, 59-86`; the handler test for a restricted record has no stage (`Handle_ARestrictedRecord_IsAllowed_AnAnonymisedOneIsNot`).
+- **Fix:** in `AskForTheStagesVisitAgainAsync`, when `PatientRules` says the record can't change, return `(null, "No visit is asked for again while the record is restricted.")`; add a test with a stage.
+- **What happened to it:** Not yet.
+
+#### E. Low: the re-requested visit can lose a race and come back as a 500
+
+- **Severity:** low. **Confidence:** medium.
+- **What goes wrong:** the handler reads the stage's appointments, then inserts a Requested visit. If someone books or requests one for that stage in between, the open-visit unique index refuses the insert, and `AppointmentRepository.AddAsync` throws `StageHasOpenAppointmentException`. `CreateAppointmentHandler` catches that; this handler doesn't, and `ExceptionHandling` doesn't map it, so it's a 500 and the withdrawal isn't saved.
+- **Evidence:** `MarkAppointmentEnteredInErrorHandler.cs:39, 66`; `AppointmentRepository.cs:36-42`; `CreateAppointmentHandler.cs:69`.
+- **Fix:** catch it and throw `ConflictException(AppointmentWorkflow.RequestedVisitChangedMeanwhileMessage)`, so the user tries again.
+- **What happened to it:** Not yet.
+
+#### F. Low: a same-day walk-in can't count for a procedure created after the visit
+
+- **Severity:** low. **Confidence:** medium.
+- **What goes wrong:** the refusal compares exact times. A patient seen at 10:00, whose procedure is created at 10:40 once the clinician knows what's needed, can't have that visit recorded for its first stage. For a Required stage the only way on is the admin bypass, which records "finished without a visit": untrue, the problem finding 5 was about. The original review said a hard refusal would catch legitimate cases.
+- **Evidence:** `RecordPastAppointmentHandler.cs:76-77`; `AppointmentWorkflow.cs:135`.
+- **Fix:** compare UK dates (allow a visit on the day the procedure was created), or allow it with a warning in the dialog.
+- **What happened to it:** Not yet.
+
+#### G. Low: "Day closed" tells people to move appointments that have already happened
+
+- **Severity:** low. **Confidence:** high.
+- **What goes wrong:** the counts include Attended and Did not attend appointments, and today can be closed. Closing today at 11:00 (snow) tells a clinician "You have 3 appointments then: move or cancel them, and tell any patients", when two were this morning and can't be moved. Their own lunch block counts too.
+- **Evidence:** `CalendarRepository.cs:79-81`; `ClosedDayBookings.cs:64`.
+- **Fix:** for the notification, count Booked appointments still to come (and say blocks and meetings separately), or word it as "You have … then. Move or cancel what's still to come, and tell any patients."
+- **What happened to it:** Not yet.
+
+#### H. Low: a few lines the fixes made stale
+
+- **Severity:** low. **Confidence:** high.
+- **What's out of date:**
+  - `docs/calendar-plan.md:146` (decision 78) still says "9, not 7, leaving 7 and 8 for the meeting kinds"; 8 is now `DayClosed`, and `NotificationKind.cs` says 7 is kept for meeting replies.
+  - `docs/calendar-plan.md:147` says the migration's `Down` deletes `AppointmentRecorded` notifications and was run up and down on LocalDB. The `Down` now also turns status 5 into Cancelled and action 8 into a cancellation, and deletes kind 8; nothing says that version was run.
+  - This document's Remaining risks (line 229) names only action 7 and kind 9. Old copies during a deploy also meet status 5 (shown as "5", and their `CanEditNotes` lets its notes be edited) and kind 8.
+  - Finding 7's note says decision 77 names the races; they're under decision 76.
+- **Fix:** update those lines, and run the new `Down` on LocalDB with an entered-in-error row.
+- **What happened to it:** Not yet.
+
+### Remaining risks after the fixes
+
+- **Rolling update:** for a few minutes old API copies show a withdrawn walk-in's status as "5", let its notes be edited, and answer `entered-in-error` with a 404. Nothing is lost.
+- **The fixes are unproven in CI** until `main` is merged (finding A).
+
 ## Detail
 
 ### The coverage gate (finding 1)
