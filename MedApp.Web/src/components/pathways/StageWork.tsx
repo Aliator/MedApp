@@ -12,7 +12,7 @@ import {StageNotes} from './StageList';
 
 export interface StageWorkProps {
   stage: PathwayStage;
-  /** Shows Unlock on a finished, locked stage: the person's roles grant OverrideStages. */
+  /** Shows Unlock on a finished, locked stage: the person's roles grant UnlockStages. */
   canUnlock: boolean;
   /** Something is being saved: the buttons wait. */
   isBusy: boolean;
@@ -76,7 +76,7 @@ function fittedHeight(box: HTMLElement): number | undefined {
 /**
  * The working part of a stage. While it can be edited (it's the current stage, or an admin unlocked it): its visit,
  * if it involves one, then a notes box with Save Notes and Finish Stage, and Start Stage before work begins.
- * Otherwise its notes, read-only, and for a holder of OverrideStages, Unlock Stage on a finished stage. Skip Stage
+ * Otherwise its notes, read-only, and for a holder of UnlockStages, Unlock Stage on a finished stage. Skip Stage
  * shows on an optional current stage, and Reinstate Stage on a skipped one, as the API's flags allow.
  *
  * The notes box starts from the saved notes; give it a `key` that changes with them, so it resets after a save.

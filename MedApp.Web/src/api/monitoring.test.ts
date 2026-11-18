@@ -4,6 +4,7 @@ describe('monitoring', () => {
   it('knows which events can name a stage', () => {
     expect(hasStage('StageFinished')).toBe(true);
     expect(hasStage('StageUnlocked')).toBe(true);
+    expect(hasStage('StageFinishedWithoutVisit')).toBe(true);
     expect(hasStage('PathwayCreated')).toBe(false);
     expect(hasStage(null)).toBe(false);
   });

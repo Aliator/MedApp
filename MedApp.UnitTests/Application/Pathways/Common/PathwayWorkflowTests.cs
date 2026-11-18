@@ -219,7 +219,7 @@ public sealed class PathwayWorkflowTests
         stage.VisitRequirement = VisitRequirement.Required;
 
         PathwayWorkflow.WhyStageNeedsVisit(stage, [StageAppointment(stage, AppointmentStatus.Booked)])
-            .Should().Be($"The '{ConsultationStage}' stage needs a visit before it can be finished: book it, and mark it Attended once it's happened. An admin can finish it without one.");
+            .Should().Be($"The '{ConsultationStage}' stage needs a visit before it can be finished: book it, and mark it Attended once it's happened. Someone allowed to finish a stage without its visit, such as a senior clinician, can finish it without one.");
     }
 
     [Test]

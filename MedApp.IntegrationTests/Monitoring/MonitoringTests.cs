@@ -175,6 +175,31 @@ public sealed class MonitoringTests : IntegrationTest
         told.Message.Should().Be($"{AdminUsername} unlocked the {_bloods.Name} stage on a Medium priority {_template.Name} pathway.");
     }
 
+    /// <summary>
+    /// The bypass is monitored (decision 136): a senior clinician finishes a Required stage without its visit, and an
+    /// admin watching for that is told, once, without the reason given.
+    /// </summary>
+    [Test]
+    public async Task SeniorClinicianFinishesARequiredStageWithoutItsVisit_NotifiesTheAdminWatchingForIt()
+    {
+        var senior = await CreateStaffAsync(SeniorClinicianRole);
+        var visit = await CreateStageDefinitionAsync(_admin, visitRequirement: "Required");
+        var template = await CreateTemplateAsync(_admin, visit.Id, _review.Id);
+        await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "StageFinishedWithoutVisit", StageDefinitionId = visit.Id });
+        await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "StageFinished" });
+        var pathway = await CreatePathwayAsync(senior.Client, _patient.Id, template.Id);
+
+        await (await FinishStageAsync(senior.Client, pathway.Id, pathway.Stages[0].Id,
+                new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason }))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
+
+        var told = (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle().Subject;
+        told.Kind.Should().Be("MonitoredStageFinishedWithoutVisit");
+        told.Title.Should().Be("Stage finished without visit");
+        told.Message.Should().Be($"{senior.Username} finished the {visit.Name} stage on a Medium priority {template.Name} pathway without its required visit.");
+        told.Message.Should().NotContain(WithoutVisitReason);
+    }
+
     [Test]
     public async Task DueDateMovedWhileThePriorityIsLowered_StillMatchesAnUrgentRule()
     {

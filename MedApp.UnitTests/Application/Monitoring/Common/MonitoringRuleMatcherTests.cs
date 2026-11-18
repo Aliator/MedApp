@@ -140,6 +140,26 @@ public sealed class MonitoringRuleMatcherTests
         matches.Should().Equal(new MonitoringMatch(OwnerId, StaffFinishedConsultation));
     }
 
+    /// <summary>
+    /// A Required stage finished without its visit is both events, the bypass first: an admin watching both is told
+    /// once, of the bypass; one watching only stages finished is told of that.
+    /// </summary>
+    [Test]
+    public void Match_FinishedWithoutItsVisit_WatchingBoth_IsToldOfTheBypass_WatchingFinishesIsToldOfTheFinish()
+    {
+        var bypass = StaffFinishedConsultation with { Event = MonitoringEvent.StageFinishedWithoutVisit };
+        var rules = new[]
+        {
+            CreateRule(MonitoringEvent.StageFinished),
+            CreateRule(MonitoringEvent.StageFinishedWithoutVisit, stageDefinitionId: ConsultationDefinitionId),
+            CreateRule(MonitoringEvent.StageFinished, ownerId: OtherOwnerId),
+        };
+
+        var matches = MonitoringRuleMatcher.Match(rules, [bypass, StaffFinishedConsultation], _pathway, Admin.UserId);
+
+        matches.Should().Equal(new MonitoringMatch(OwnerId, bypass), new MonitoringMatch(OtherOwnerId, StaffFinishedConsultation));
+    }
+
     [Test]
     public void Match_TwoAdminsRulesMatch_NotifiesEach()
     {

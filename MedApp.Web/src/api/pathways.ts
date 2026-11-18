@@ -152,7 +152,7 @@ export function usePathwayActions(id: string) {
         ),
       onSuccess,
     }),
-    /** Reinstates a skipped stage (holders of OverrideStages), with a reason: it runs again in its place. */
+    /** Reinstates a skipped stage (holders of UnlockStages), with a reason: it runs again in its place. */
     reinstateStage: useMutation({
       mutationFn: ({stageId, reason}: {stageId: string; reason: string}) =>
         unwrap(api.POST(`${PATHWAY}/stages/{stageId}/reinstate`, {...stage(stageId), body: {reason: reason.trim()}})),
