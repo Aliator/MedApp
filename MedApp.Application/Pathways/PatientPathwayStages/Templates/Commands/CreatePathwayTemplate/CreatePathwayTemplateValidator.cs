@@ -14,6 +14,10 @@ public sealed class CreatePathwayTemplateValidator : AbstractValidator<CreatePat
             .MaximumLength(150)
             .WithMessage("Name must not exceed 150 characters.");
 
+        RuleFor(x => x.SpecialtyId)
+            .NotEmpty()
+            .WithMessage("Specialty is required.");
+
         RuleFor(x => x.StageDefinitionIdsInOrder)
             .NotNull()
             .WithMessage("Stage definition ids are required.")

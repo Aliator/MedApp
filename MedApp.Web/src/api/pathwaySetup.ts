@@ -27,10 +27,14 @@ export interface StageDefinitionInput {
   snomedTerm: string;
 }
 
-/** A template's fields: its name, and its stages in order (a definition may appear more than once). */
+/**
+ * A template's fields: its name, its stages in order (a definition may appear more than once), and the specialty it
+ * belongs to, which a new template needs and a save sends only when it changes (left out, it stays as it is).
+ */
 export interface TemplateInput {
   name: string;
   stageDefinitionIdsInOrder: string[];
+  specialtyId?: string;
 }
 
 const DEFINITIONS = '/api/pathways/patient-pathway-stage/definitions';

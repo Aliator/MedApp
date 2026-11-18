@@ -12,12 +12,27 @@ const definitions = [
   {id: 'd3', name: 'Old triage', description: '', isArchived: true},
 ];
 
-const template = {id: 't1', name: 'Knee review', pathwayCount: 3, stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], stages: []};
+const template = {
+  id: 't1',
+  name: 'Knee review',
+  pathwayCount: 3,
+  specialtyId: 'sp1',
+  specialtyName: 'Orthopaedics',
+  stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'],
+  stages: [],
+};
+
+/** The active specialties (the editor asks for those only). */
+const specialties = [
+  {id: 'sp2', name: 'Urology', isArchived: false},
+  {id: 'sp1', name: 'Orthopaedics', isArchived: false},
+];
 
 function renderEditor(id?: string, extra: Parameters<typeof mockApi>[0] = {}) {
   const fetch = mockApi({
     [`GET ${BASE}/definitions`]: () => json(definitions),
     [`GET ${BASE}/templates/t1`]: () => json(template),
+    'GET /api/specialties': () => json(specialties),
     ...extra,
   });
   const path = id ? `/admin/pathway-templates/${id}` : '/admin/pathway-templates/new';
@@ -30,6 +45,11 @@ const stageNames = () =>
     .map((e) => e.textContent);
 const sent = (fetch: ReturnType<typeof mockApi>, method: string) =>
   fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === method);
+
+async function chooseSpecialty(user: ReturnType<typeof renderEditor>['user'], name: string) {
+  await user.click(screen.getByRole('combobox', {name: /Specialty/}));
+  await user.click(screen.getByRole('option', {name}));
+}
 
 describe('PathwayTemplateEditorPage', () => {
   it('builds a new template from the active definitions, then creates it after a confirmation', async () => {
@@ -50,11 +70,13 @@ describe('PathwayTemplateEditorPage', () => {
     await user.click(screen.getByRole('button', {name: 'Remove Scan (stage 2)'}));
     expect(stageNames()).toEqual(['1. Consultation', '2. Consultation']);
 
+    await chooseSpecialty(user, 'Urology');
     await user.click(screen.getByRole('button', {name: 'Create Template'}));
+    expect(within(openDialog()!).getByText('Urology')).toBeInTheDocument();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Create Template'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/pathway-templates'));
-    expect(await sent(fetch, 'POST')!.json()).toEqual({name: 'Scan pathway', stageDefinitionIdsInOrder: ['d1', 'd1']});
+    expect(await sent(fetch, 'POST')!.json()).toEqual({name: 'Scan pathway', stageDefinitionIdsInOrder: ['d1', 'd1'], specialtyId: 'sp2'});
     await expectAnnounced('Template created');
   });
 
@@ -82,12 +104,66 @@ describe('PathwayTemplateEditorPage', () => {
         ),
     });
 
-    await user.click(await screen.findByRole('button', {name: 'Create Template'}));
+    await screen.findByRole('button', {name: 'Create Template'});
+    await chooseSpecialty(user, 'Urology');
+    await user.click(screen.getByRole('button', {name: 'Create Template'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Create Template'}));
 
     const banner = (await screen.findByText('Add at least one stage.')).closest('[role="alert"], section')!;
     expect(banner).not.toHaveTextContent('Name is required.');
     expect(screen.getByRole('textbox', {name: /Name/})).toHaveAccessibleDescription(/Name is required\./);
+  });
+
+  it('asks for a specialty before creating a template, on the field, without asking to confirm', async () => {
+    const {user, fetch} = renderEditor();
+
+    await user.click(await screen.findByRole('button', {name: 'Create Template'}));
+
+    expect(openDialog()).toBeNull();
+    const field = screen.getByRole('combobox', {name: /Specialty/});
+    await waitFor(() => expect(field).toHaveAccessibleDescription(/Choose the specialty this template belongs to\./));
+    await user.click(field);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Orthopaedics', 'Urology']);
+    await user.click(screen.getByRole('option', {name: 'Urology'}));
+    expect(field).not.toHaveAccessibleDescription(/Choose the specialty/);
+    expect(sent(fetch, 'POST')).toBeUndefined();
+  });
+
+  it("shows the API's reason when a specialty can't be chosen, e.g. one archived meanwhile", async () => {
+    const {user} = renderEditor(undefined, {
+      [`POST ${BASE}/templates`]: () => json({title: 'Urology is archived, so it cannot be chosen.', status: 409}, 409),
+    });
+
+    await screen.findByRole('button', {name: 'Create Template'});
+    await chooseSpecialty(user, 'Urology');
+    await user.click(screen.getByRole('button', {name: 'Create Template'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Create Template'}));
+
+    expect(await findAlert('Urology is archived, so it cannot be chosen.')).toBeInTheDocument();
+  });
+
+  it('sends a changed specialty when saving, and keeps an archived one it has, marked', async () => {
+    const {user, fetch} = renderEditor('t1', {
+      [`GET ${BASE}/templates/t1`]: () => json({...template, specialtyId: 'sp9', specialtyName: 'Old clinic'}),
+      [`PATCH ${BASE}/templates/t1`]: () => json(template),
+    });
+
+    const field = await screen.findByRole('combobox', {name: /Specialty/});
+    expect(field).toHaveTextContent('Old clinic (archived)');
+    await user.click(field);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Old clinic (archived)', 'Orthopaedics', 'Urology']);
+    await user.click(screen.getByRole('option', {name: 'Urology'}));
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
+    expect(await sent(fetch, 'PATCH')!.json()).toEqual({name: 'Knee review', stageDefinitionIdsInOrder: ['d1', 'd3', 'd1'], specialtyId: 'sp2'});
+  });
+
+  it('says when the specialties could not be loaded', async () => {
+    renderEditor(undefined, {'GET /api/specialties': () => json({title: 'Server error'}, 500)});
+
+    expect(await findAlert('The template could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('moves a stage with the keyboard from its handle', async () => {
@@ -147,7 +223,7 @@ describe('PathwayTemplateEditorPage', () => {
   });
 
   it('puts everything in one card in a half view, with the stages to add below', async () => {
-    mockApi({[`GET ${BASE}/definitions`]: () => json(definitions)});
+    mockApi({[`GET ${BASE}/definitions`]: () => json(definitions), 'GET /api/specialties': () => json(specialties)});
     renderWithApp(
       <HalfViewContext.Provider value={{isHalf: true}}>
         <PathwayTemplateEditorPage />

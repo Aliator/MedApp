@@ -6,6 +6,10 @@ public sealed class PathwayTemplateResponse
     public string Name { get; set; } = string.Empty;
     public bool IsArchived { get; set; }
 
+    /// <summary>The specialty it belongs to.</summary>
+    public Guid SpecialtyId { get; set; }
+    public string SpecialtyName { get; set; } = string.Empty;
+
     /// <summary>How many pathways were created from it. A template that has been used can only be archived.</summary>
     public int PathwayCount { get; set; }
 

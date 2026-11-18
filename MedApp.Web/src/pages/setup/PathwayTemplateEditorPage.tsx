@@ -4,6 +4,7 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {HStack} from '@astryxdesign/core/Stack';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Token} from '@astryxdesign/core/Token';
@@ -14,6 +15,7 @@ import {useAnnounce} from '../../app/announcements';
 import {ApiError, fieldStatus} from '../../api/errors';
 import type {PathwayTemplate} from '../../api/pathways';
 import {stageDefinitionsQuery, templateQuery, useSaveTemplate, type StageDefinition} from '../../api/pathwaySetup';
+import {specialtiesQuery, type Specialty} from '../../api/specialties';
 import {VisitRequirementToken} from '../../components/calendar/CalendarTokens';
 import {FormCard} from '../../components/forms/FormCard';
 import {FormSection} from '../../components/forms/FormSection';
@@ -34,6 +36,31 @@ interface StageRow {
 
 const BACK = '/admin/pathway-templates';
 
+/** The specialties a template can be given: the active ones (the route preloads them). */
+export const templateSpecialtiesQuery = specialtiesQuery(false);
+
+/** Shown on Specialty when a new template is created without one (the API says the same, as the last word). */
+export const SPECIALTY_REQUIRED = 'Choose the specialty this template belongs to.';
+
+/** No specialty: what the API sends for a template without one. */
+const NO_ID = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * The specialties a template can have: the active ones, by name, and the one it has now if that's archived (it may
+ * keep it, but no other template can be given it), marked so.
+ */
+export function specialtyChoices(active: readonly Specialty[], template: PathwayTemplate | null) {
+  const choices = active
+    .filter((s) => !s.isArchived)
+    .map((s) => ({value: s.id ?? '', label: s.name ?? ''}))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, {sensitivity: 'base'}));
+  const current = template?.specialtyId;
+  if (current && current !== NO_ID && !choices.some((c) => c.value === current)) {
+    choices.unshift({value: current, label: `${template?.specialtyName ?? 'Unknown specialty'} (archived)`});
+  }
+  return choices;
+}
+
 let rowCount = 0;
 /** A new row for a stage, with a key of its own (a definition can be in a template more than once). */
 const row = (definitionId: string): StageRow => ({key: `stage-${++rowCount}`, definitionId});
@@ -46,17 +73,18 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
   const navigate = useNavigate();
   const template = useQuery({...templateQuery(id ?? ''), enabled: id !== undefined});
   const definitions = useQuery(stageDefinitionsQuery);
+  const specialties = useQuery(templateSpecialtiesQuery);
   const isMissing = template.error instanceof ApiError && template.error.status === 404;
 
   useEffect(() => {
     if (isMissing) void navigate({to: BACK, replace: true});
   }, [isMissing, navigate]);
 
-  const isLoading = definitions.isPending || (id !== undefined && template.isPending) || isMissing;
-  if (!isLoading && definitions.data && (id === undefined || template.data)) {
-    return <TemplateEditor template={template.data ?? null} definitions={definitions.data} />;
+  const isLoading = definitions.isPending || specialties.isPending || (id !== undefined && template.isPending) || isMissing;
+  if (!isLoading && definitions.data && specialties.data && (id === undefined || template.data)) {
+    return <TemplateEditor template={template.data ?? null} definitions={definitions.data} specialties={specialties.data} />;
   }
-  const failed = definitions.isError || (template.isError && !isMissing);
+  const failed = definitions.isError || specialties.isError || (template.isError && !isMissing);
   return (
     <Page
       title={id ? 'Edit Pathway Template' : 'New Pathway Template'}
@@ -70,19 +98,31 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
 }
 
 /**
- * The template editor (decision 17): its name, and its stages in order. Stages are added from the active stage
+ * The template editor (decision 17): its name, the specialty it belongs to, and its stages in order. Stages are added from the active stage
  * definitions (a definition may be added more than once), dragged into order (or moved with the keyboard from
  * each row's handle) and removed. Saving asks first, then goes back to the list.
  *
  * Wide, the stages and the definitions to add sit side by side; narrow, they're one form card. Either way the
  * cards scroll, not the page.
  */
-function TemplateEditor({template, definitions}: {template: PathwayTemplate | null; definitions: StageDefinition[]}) {
+function TemplateEditor({
+  template,
+  definitions,
+  specialties,
+}: {
+  template: PathwayTemplate | null;
+  definitions: StageDefinition[];
+  specialties: Specialty[];
+}) {
   const navigate = useNavigate();
   const isNarrow = useIsNarrow();
   const save = useSaveTemplate();
   const announce = useAnnounce();
   const [name, setName] = useState(template?.name ?? '');
+  const choices = useMemo(() => specialtyChoices(specialties, template), [specialties, template]);
+  const startingSpecialty = template?.specialtyId && template.specialtyId !== NO_ID ? template.specialtyId : '';
+  const [specialtyId, setSpecialtyId] = useState(startingSpecialty);
+  const [isSpecialtyMissing, setIsSpecialtyMissing] = useState(false);
   const [stages, setStages] = useState<StageRow[]>(() => (template?.stageDefinitionIdsInOrder ?? []).map(row));
   const [isConfirming, setIsConfirming] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
@@ -115,7 +155,13 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
 
   const submit = () =>
     save.mutate(
-      {id: template?.id, name: name.trim(), stageDefinitionIdsInOrder: stages.map((s) => s.definitionId)},
+      {
+        id: template?.id,
+        name: name.trim(),
+        stageDefinitionIdsInOrder: stages.map((s) => s.definitionId),
+        // A new template always has one; a saved one sends it only when it changed, so a template keeps an archived one.
+        ...(specialtyId && specialtyId !== startingSpecialty ? {specialtyId} : {}),
+      },
       {
         onSuccess: () => {
           announce(template ? 'Template saved' : 'Template created');
@@ -127,6 +173,23 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
         },
       },
     );
+
+  const specialtyField = (
+    <AnchoredSelector
+      label="Specialty"
+      description="Which specialty its pathways belong to."
+      placeholder="Choose a specialty"
+      options={choices}
+      value={specialtyId || undefined}
+      onChange={(value: string) => {
+        setSpecialtyId(value);
+        setIsSpecialtyMissing(false);
+      }}
+      isRequired
+      isDisabled={save.isPending}
+      status={isSpecialtyMissing ? {type: 'error', message: SPECIALTY_REQUIRED} : fieldStatus(problem.validation, 'specialtyId')}
+    />
+  );
 
   const nameField = (
     <TextInput
@@ -140,6 +203,13 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
       isDisabled={save.isPending}
       status={fieldStatus(problem.validation, 'name')}
     />
+  );
+
+  const details = (
+    <>
+      {nameField}
+      {specialtyField}
+    </>
   );
 
   const stageList =
@@ -212,6 +282,11 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
       saveText={template ? 'Save' : 'Create Template'}
       onSave={() => {
         setProblem(NO_PROBLEM);
+        // A new template needs a specialty: say so on the field rather than ask to confirm one that can't be saved.
+        if (!specialtyId) {
+          setIsSpecialtyMissing(true);
+          return;
+        }
         setIsConfirming(true);
       }}
       onCancel={backToList}
@@ -232,7 +307,7 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
       message={
         problem.validation ? (
           // The name's errors show on it; the stages' (e.g. none chosen) show here.
-          <ValidationAlert errors={problem.validation} fields={['name']} />
+          <ValidationAlert errors={problem.validation} fields={['name', 'specialtyId']} />
         ) : (
           problem.message && <AlertMessage message={problem.message} />
         )
@@ -255,6 +330,7 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
           onCancel={() => setIsConfirming(false)}>
           <MetadataList>
             <MetadataListItem label="Template">{name.trim() || 'No name'}</MetadataListItem>
+            <MetadataListItem label="Specialty">{choices.find((c) => c.value === specialtyId)?.label ?? 'None'}</MetadataListItem>
             <MetadataListItem label="Stages">
               {stages.length ? stages.map((s, i) => `${i + 1}. ${byId.get(s.definitionId)?.name}`).join(', ') : 'None'}
             </MetadataListItem>
@@ -265,7 +341,7 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
         form(
           <>
             <FormSection title="Details" useGrid={false}>
-              {nameField}
+              {details}
             </FormSection>
             <FormSection title={stagesTitle} useGrid={false}>
               {stageList}
@@ -280,7 +356,7 @@ function TemplateEditor({template, definitions}: {template: PathwayTemplate | nu
           start={form(
             <>
               <FormSection title="Details" useGrid={false}>
-                {nameField}
+                {details}
               </FormSection>
               <FormSection title={stagesTitle} useGrid={false}>
                 {stageList}
