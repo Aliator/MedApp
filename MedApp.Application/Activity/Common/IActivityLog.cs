@@ -38,4 +38,12 @@ public interface IActivityLog
     /// the log from the last <see cref="ActivityOptions.ViewWindowMinutes"/> minutes.
     /// </summary>
     Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null);
+
+    /// <summary>
+    /// Records that the actor saw one thing about a patient that <paramref name="details"/> names (a referral:
+    /// <see cref="ActivityAction.ReferralViewed"/> with its ID), unless the same view, with the same details, by the same
+    /// person is already in the log from the last <see cref="ActivityOptions.ViewWindowMinutes"/> minutes. The details
+    /// must never hold a patient's details or clinical text.
+    /// </summary>
+    Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct);
 }

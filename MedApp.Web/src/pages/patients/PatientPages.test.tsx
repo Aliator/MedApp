@@ -343,6 +343,26 @@ describe('AddPatientPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/patients'));
   });
+
+  it('goes back to Register Referral with the new patient chosen, when adding them for a referral', async () => {
+    mockApi({'POST /api/patients': () => json(freya, 201)});
+    const {user, router} = renderWithApp(<AddPatientPage then="referral" />, {path: '/patients/add?then=referral', user: staffUser});
+
+    expect(await screen.findByRole('link', {name: /Back/})).toHaveAttribute('href', '/referrals/new');
+    await user.type(await screen.findByLabelText(/^first name/i), 'Freya');
+    await user.click(screen.getByRole('button', {name: 'Add Patient'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Add'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/referrals/new'));
+    expect(router.state.location.search).toEqual({patientId: id});
+  });
+
+  it('cancels back to Register Referral when adding a patient for a referral', async () => {
+    const {user, router} = renderWithApp(<AddPatientPage then="referral" />, {path: '/patients/add?then=referral', user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Cancel'}));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/referrals/new'));
+  });
 });
 
 describe('EditPatientPage', () => {

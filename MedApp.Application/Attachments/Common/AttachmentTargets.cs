@@ -12,18 +12,26 @@ namespace MedApp.Application.Attachments.Common;
 public static class AttachmentTargets
 {
     /// <summary>
-    /// The patient, pathway or stage a request names (exactly one, which its validator checks), with the pathway
-    /// and stage loaded.
+    /// The patient, pathway, stage or referral a request names (exactly one, which its validator checks), with the
+    /// pathway and stage, or the referral and its patient, loaded.
     /// </summary>
     public static async Task<AttachmentTarget> ResolveAsync(
         Guid? patientId,
         Guid? pathwayId,
         Guid? stageId,
+        Guid? referralId,
         IPatientRepository patients,
         IPatientPathwayRepository pathways,
         IAttachmentRepository attachments,
         CancellationToken ct)
     {
+        if (referralId is { } referralIdValue)
+        {
+            var referral = await attachments.GetReferralAsync(referralIdValue, ct)
+                           ?? throw new NotFoundException($"Referral '{referralIdValue}' was not found.");
+            return new AttachmentTarget(referral.PatientId, null, null) { Referral = referral };
+        }
+
         if (stageId is { } stage)
         {
             var stagePathwayId = await attachments.GetStagePathwayIdAsync(stage, ct)
@@ -51,8 +59,14 @@ public static class AttachmentTargets
         Attachment attachment,
         IPatientRepository patients,
         IPatientPathwayRepository pathways,
+        IAttachmentRepository attachments,
         CancellationToken ct)
     {
+        // Referrals are never deleted, so a referral's file has its referral (and, through it, its patient).
+        if (attachment.ReferralId is { } referralId
+            && await attachments.GetReferralAsync(referralId, ct) is { } referral)
+            return new AttachmentTarget(attachment.PatientId, null, null) { Referral = referral };
+
         var pathway = attachment.PathwayId is { } pathwayId ? await pathways.GetByIdAsync(pathwayId, ct) : null;
         if (pathway is null)
             return new AttachmentTarget(attachment.PatientId, null, null)

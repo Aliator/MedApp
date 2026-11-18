@@ -30,6 +30,19 @@ async function passNotAssignedCheck(page: Page) {
 }
 
 /**
+ * Opens the first referral in the list of every referral (`view=all`), as the parity data names none: React only, and
+ * only when there is one (otherwise the screen is the list, saying there are none).
+ */
+async function openFirstReferral(page: Page) {
+  const first = page.getByRole('table').getByRole('link').first();
+  if (await first.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+    await first.click();
+    await page.getByRole('heading', { name: /^Referral to/, level: 1 }).waitFor();
+    await settle(page);
+  }
+}
+
+/**
  * A day in the next Christmas week still to come: 28 December, whose Monday-to-Sunday week always holds Christmas Day,
  * Boxing Day or a substitute for one (England and Wales), so it always shows a closed day. This year's until the 28th.
  */
@@ -319,6 +332,32 @@ export const screens: Screen[] = [
     name: 'pathways-stage-reached',
     title: 'Pathways waiting for histology: the Stage reached and Specialty filters ("Waiting for histology")',
     path: (d) => `/pathways?mine=false${d.stageId ? `&stage=${d.stageId}` : ''}${d.specialtyId ? `&specialty=${d.specialtyId}` : ''}`,
+  },
+  { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
+  {
+    name: 'referral-register',
+    title: 'Register referral for a patient: the banner, their referrals awaiting triage, and the details from the letter',
+    path: (d) => `/referrals/new?patientId=${d.patientId}`,
+  },
+  {
+    name: 'referral-view',
+    title: 'A referral: the banner, its details, the letter, triage and its history (the first in the list of all)',
+    path: '/referrals?view=all',
+    prepare: async (page) => openFirstReferral(page),
+  },
+  {
+    name: 'referral-withdraw',
+    title: 'Withdrawing a referral: the dialog asks why, showing the patient and the referral (only opened, never confirmed)',
+    path: '/referrals',
+    prepare: async (page) => {
+      await openFirstReferral(page);
+      const more = page.getByRole('button', { name: 'More' });
+      if (await more.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
+        await more.click();
+        await page.getByRole('menuitem', { name: /Withdraw/ }).click();
+        await waitVisible(page, DIALOG);
+      }
+    },
   },
   { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
   {

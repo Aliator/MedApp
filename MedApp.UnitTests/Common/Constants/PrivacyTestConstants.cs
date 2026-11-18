@@ -48,7 +48,9 @@ public static class PrivacyTestConstants
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
         Notifications = record.Notifications,
-        Attachments = record.Attachments
+        Attachments = record.Attachments,
+        Referrals = [],
+        ReferralHistory = []
     };
 
     /// <summary>The record with these requests to delete notes.</summary>
@@ -63,7 +65,9 @@ public static class PrivacyTestConstants
         Appointments = record.Appointments,
         AppointmentHistory = record.AppointmentHistory,
         Notifications = record.Notifications,
-        Attachments = record.Attachments
+        Attachments = record.Attachments,
+        Referrals = [],
+        ReferralHistory = []
     };
 
     public static PatientRecord CreateRecord(Patient? patient = null, params PatientPathway[] pathways)
@@ -123,7 +127,9 @@ public static class PrivacyTestConstants
                 .ToList(),
             NoteVersions = [],
             NoteDeletionRequests = [],
-            Attachments = []
+            Attachments = [],
+            Referrals = [],
+            ReferralHistory = []
         };
     }
 

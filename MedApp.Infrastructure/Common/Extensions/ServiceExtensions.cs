@@ -21,6 +21,7 @@ using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Referrals.Repositories;
 using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
@@ -222,6 +223,7 @@ public static class ServiceExtensions
         services.AddScoped<IScheduledJobRepository, ScheduledJobRepository>();
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
+        services.AddScoped<IReferralRepository, ReferralRepository>();
         
         return services;
     }

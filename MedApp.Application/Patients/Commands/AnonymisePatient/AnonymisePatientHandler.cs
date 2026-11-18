@@ -7,6 +7,7 @@ using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Common;
+using MedApp.Application.Referrals.Common;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Domain.Activity;
 using MediatR;
@@ -17,7 +18,8 @@ namespace MedApp.Application.Patients.Commands.AnonymisePatient;
 /// Anonymises a patient's record across every table in one save, with an activity log entry giving the reason (one of
 /// <see cref="AnonymisationReason"/>, so it holds no patient details) and an optional note
 /// (<see cref="PatientAnonymiser"/>). Refused (409) while any of their pathways is under way, while any of their
-/// appointments is open (Requested or Booked), while the record is restricted, or if it's already anonymised; and (400)
+/// appointments is open (Requested or Booked), while any of their referrals awaits triage, while the record is
+/// restricted, or if it's already anonymised; and (400)
 /// unless the confirmation is the patient's full name.
 /// </summary>
 public sealed partial class AnonymisePatientHandler(
@@ -50,6 +52,12 @@ public sealed partial class AnonymisePatientHandler(
                 $"This patient has {openAppointments} open appointment{(openAppointments == 1 ? "" : "s")} (needing booking or " +
                 $"booked), so their record can't be anonymised. Cancel {(openAppointments == 1 ? "it" : "them")}, or record " +
                 $"{(openAppointments == 1 ? "its" : "their")} outcome, first.");
+
+        var awaitingTriage = record.Referrals.Count(r => ReferralWorkflow.IsOpen(r.Status));
+        if (awaitingTriage > 0)
+            throw new ConflictException(
+                $"This patient has {awaitingTriage} referral{(awaitingTriage == 1 ? "" : "s")} awaiting triage, so their " +
+                $"record can't be anonymised until {(awaitingTriage == 1 ? "it's" : "they're")} triaged or withdrawn.");
 
         if (!SameName(request.Confirmation, PatientMapper.FullName(patient)))
             throw new ValidationException(

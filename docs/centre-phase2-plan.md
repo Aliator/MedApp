@@ -286,6 +286,8 @@ The owner brought roles into this phase, managed by admins on a page of their ow
 | Fixed IDs | Guid | The General specialty `5a1d0c4e-7b2f-4e61-9c3a-000000000001`; the starting roles Clinician `…-000000000011`, Nurse `…-000000000012`, Booking `…-000000000013`, Lab `…-000000000014`, Manager `…-000000000015` (each `5a1d0c4e-7b2f-4e61-9c3a-` plus those digits). `Admin` and `User` keep their existing IDs and are found by name | 1, 2 |
 | Migrations | name, in order | `AddedSpecialties`, `AddedRolePermissions`, `AddedReferrals`, `AddedReferralNotifications`, `AddedWaitingTimeClock`, each on top of `main`'s latest (today `20261118075440_RenamedProceduresToPathways`), so each one's timestamp is later than the one before | 1, 2, 5, 6, 7 |
 
+**PR 5 (referrals) changed nothing in this table:** it used the numbers exactly as assigned (`ReferralStatus`, `ReferralRejectionReason`, every `ReferralEventAction` declared, `ActivityAction.ReferralViewed = 43`, and the migration `AddedReferrals`).
+
 **Where the rules live** (`MedApp.Application`):
 - `Specialties/`: commands, queries, `SpecialtyMapper`, `ISpecialtyRepository`; membership under `Authentication/Users/` (`SetUserSpecialties`), as roles are.
 - `Referrals/Common/`: `ReferralWorkflow` (statuses, who may do what, messages), `ReferralChange` (applies a change, writes its events), `WaitingClock` (decision 28's arithmetic, and the pathway's target date), `ReferralMapper`, `ReferralNotifications`, `OdsCodes` (the format check).
@@ -427,9 +429,16 @@ The clinical safety documents are already done (section 8), so the build starts 
 
 **Later questions** take the option recommended for them, on the owner's instruction (18 November 2026). Whoever decides one records it here, as the next number, with the date and "recommended option taken".
 
-12. **The stage reached counts pathways on hold,** but never discharged, cancelled or archived ones, even when the list includes closed pathways or asks for those statuses (decision 42's "open pathways only", read as "not closed": a pathway on hold at Histology is still waiting there). 18 November 2026, recommended option taken.
-13. **Specialty and stage reached filters are "is" or "is any of", never "is not any of":** the API takes the IDs wanted, and the list's URL is read before the specialties and stages are loaded, so "every one but" can't be turned into IDs. 18 November 2026, recommended option taken.
-14. **My Worklist has the specialty and stage reached filters too** (the same search behind it), and Insights' Template choice lists only the chosen specialty's templates, dropping a chosen template that isn't the new specialty's. 18 November 2026, recommended option taken.
+12. **Withdrawing and marking entered in error while restricted** (18 November 2026, recommended option taken; PR 5): both are allowed while the patient's record is restricted, and refused once it's anonymised. Decision 44 named only withdrawing; marking entered in error is allowed too, as an appointment's entered in error is, because correcting a wrong entry is rectification, not a new change to the record.
+13. **Correcting a referral's specialty** (18 November 2026, recommended option taken; PR 5): while a referral awaits triage, its specialty can be corrected by editing it, recorded as `DetailsEdited` with the specialty's old and new name. `SpecialtyChanged` stays for triage's redirect to another specialty (decision 21).
+14. **When a letter can be attached** (18 November 2026, recommended option taken; PR 5): a referral's letter can be attached in any status except Entered in error, because a letter can arrive after the referral is triaged.
+15. **The side nav's count** (18 November 2026, recommended option taken; PR 5): it has its own endpoint, `GET api/referrals/awaiting-triage/count`, which records nothing (a count names nobody), so the side nav doesn't log a patient listing on every page.
+16. **Time since received, before the clock** (18 November 2026, recommended option taken; PR 5): the referral page shows "N days since received" and the list "received N days ago", as plain date arithmetic, until the clock's PR (PR 7) replaces them with the wait.
+17. **`ReferralViewed` deduplication** (18 November 2026, recommended option taken; PR 5): deduplicated per referral, not per patient, over the view window, so opening two of a patient's referrals records both.
+18. **The stage reached counts pathways on hold,** but never discharged, cancelled or archived ones, even when the list includes closed pathways or asks for those statuses (decision 42's "open pathways only", read as "not closed": a pathway on hold at Histology is still waiting there). 18 November 2026, recommended option taken.
+19. **Specialty and stage reached filters are "is" or "is any of", never "is not any of":** the API takes the IDs wanted, and the list's URL is read before the specialties and stages are loaded, so "every one but" can't be turned into IDs. 18 November 2026, recommended option taken.
+20. **My Worklist has the specialty and stage reached filters too** (the same search behind it), and Insights' Template choice lists only the chosen specialty's templates, dropping a chosen template that isn't the new specialty's. 18 November 2026, recommended option taken.
+21. **The referral inbox's Specialty filter** (any of, `specialty` in the URL) is built with the Filters PR; starting the inbox on the viewer's own specialties (decision 39, the search's `mine`, which the API has) is left to a small follow-up, so the inbox shows every specialty until then. 18 November 2026, recommended option taken.
 
 ## 11. Left out, for later
 

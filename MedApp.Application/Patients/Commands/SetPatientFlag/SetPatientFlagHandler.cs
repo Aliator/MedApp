@@ -33,15 +33,18 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
         if (!request.Set && !isSet)
             return PatientMapper.ToResponse(patient);
 
-        // Restricting freezes the pathways under way (all but blocking and cancelling) and the open appointments (all but
-        // cancelling), so with either the admin must say they know.
+        // Restricting freezes the pathways under way (all but blocking and cancelling), the open appointments (all but
+        // cancelling) and the referrals awaiting triage (all but withdrawing), so with any the admin must say they know.
         if (request is { Flag: PatientFlag.Restricted, Set: true, ConfirmOpenPathways: false })
         {
             var underWay = await repository.CountPathwaysUnderWayAsync(patient.Id, cancellationToken);
             var openAppointments = await repository.CountOpenAppointmentsAsync(patient.Id, cancellationToken);
-            if (underWay > 0 || openAppointments > 0)
+            var awaitingTriage = await repository.CountReferralsAwaitingTriageAsync(patient.Id, cancellationToken);
+            if (underWay > 0 || openAppointments > 0 || awaitingTriage > 0)
                 throw new ValidationException([
-                    new ValidationFailure(nameof(request.ConfirmOpenPathways), ConfirmationMessage(underWay, openAppointments))
+                    new ValidationFailure(
+                        nameof(request.ConfirmOpenPathways),
+                        ConfirmationMessage(underWay, openAppointments, awaitingTriage))
                 ]);
         }
 
@@ -85,6 +88,21 @@ public sealed class SetPatientFlagHandler(IPatientRepository repository, IActivi
     }
 
     /// <summary>What freezes, counted, and what stays possible, for the admin to confirm.</summary>
+    private static string ConfirmationMessage(int underWay, int openAppointments, int awaitingTriage)
+    {
+        var referrals = awaitingTriage == 1
+            ? "1 referral awaiting triage"
+            : $"{awaitingTriage} referrals awaiting triage";
+        if (underWay == 0 && openAppointments == 0)
+            return $"This patient has {referrals}. Confirm that {(awaitingTriage == 1 ? "it" : "they")} can't be triaged " +
+                   "or edited while the record is restricted (withdrawing stays possible).";
+
+        var andReferrals = awaitingTriage == 0
+            ? string.Empty
+            : $" Their {referrals} can't be triaged or edited either (withdrawing stays possible).";
+        return ConfirmationMessage(underWay, openAppointments) + andReferrals;
+    }
+
     private static string ConfirmationMessage(int underWay, int openAppointments)
     {
         var pathways = $"{underWay} pathway{(underWay == 1 ? "" : "s")} under way";

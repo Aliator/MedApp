@@ -25,7 +25,7 @@ public sealed class DeleteAttachmentHandler(
         if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.CanCorrectRecords, canAttachFiles: true))
             throw new ForbiddenException("Only the person who attached a file, or an admin, can delete it.");
 
-        var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, cancellationToken);
+        var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, attachments, cancellationToken);
         // A restricted or anonymised record can't change, for admins too (an admin lifts the restriction first).
         PatientRules.EnsureCanChange(target.Owner);
         if (!request.CanCorrectRecords && target.WhyFilesCantChange() is { } reason)

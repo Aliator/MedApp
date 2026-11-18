@@ -10,6 +10,7 @@ using MedApp.Domain.Notepads;
 using MedApp.Domain.Notifications;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Referrals;
 using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data.Conversions;
@@ -41,6 +42,8 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PathwayNoteDeletionRequest> PathwayNoteDeletionRequests => Set<PathwayNoteDeletionRequest>();
     public DbSet<Specialty> Specialties => Set<Specialty>();
     public DbSet<StaffSpecialty> StaffSpecialties => Set<StaffSpecialty>();
+    public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<ReferralEvent> ReferralEvents => Set<ReferralEvent>();
 
     /// <summary>Staff's own notepads, one each (deleted with the account).</summary>
     public DbSet<Notepad> Notepads => Set<Notepad>();

@@ -13,4 +13,7 @@ public sealed class PatientTimelineOverviewResponse
     /// Every pathway in the patient's history, newest first: those that exist, then (admins only) deleted ones.
     /// </summary>
     public List<PatientTimelinePathwayResponse> Pathways { get; set; } = [];
+
+    /// <summary>The patient's referrals awaiting triage, oldest first.</summary>
+    public List<PatientTimelineReferralResponse> AwaitingReferrals { get; set; } = [];
 }

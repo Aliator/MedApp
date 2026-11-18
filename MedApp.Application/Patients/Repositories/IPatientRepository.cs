@@ -34,6 +34,12 @@ public interface IPatientRepository
     /// <summary>How many of the patient's pathways are under way: not completed, cancelled or archived (blocked counts).</summary>
     Task<int> CountPathwaysUnderWayAsync(Guid patientId, CancellationToken cancellationToken);
 
+    /// <summary>How many referrals the patient has, in any status.</summary>
+    Task<int> CountReferralsAsync(Guid patientId, CancellationToken cancellationToken);
+
+    /// <summary>How many of the patient's referrals await triage.</summary>
+    Task<int> CountReferralsAwaitingTriageAsync(Guid patientId, CancellationToken cancellationToken);
+
     /// <summary>How many of the patient's appointments are open: Requested (needing booking) or Booked.</summary>
     Task<int> CountOpenAppointmentsAsync(Guid patientId, CancellationToken cancellationToken);
 
@@ -44,8 +50,8 @@ public interface IPatientRepository
     Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Patients who might be past their retention period: not anonymised, with no pathway under way, and whose
-    /// record and pathways were last changed before <paramref name="changedBeforeUtc"/>.
+    /// Patients who might be past their retention period: not anonymised, with no pathway under way and no referral
+    /// awaiting triage, and whose record, pathways and referrals were last changed before <paramref name="changedBeforeUtc"/>.
     /// </summary>
     Task<IReadOnlyList<RetentionCandidate>> GetRetentionCandidatesAsync(DateTime changedBeforeUtc, CancellationToken cancellationToken);
 }

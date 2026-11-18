@@ -407,4 +407,59 @@ describe('PatientTimeline', () => {
     expect(row.getByText('mornings').closest('strong, b')).not.toBeNull();
     expect(row.queryByText(/\*\*/)).not.toBeInTheDocument();
   });
+
+  describe('referrals', () => {
+    const referralId = '00000032-0000-0000-0000-00000000000a';
+
+    it('lists the referrals awaiting triage beside the open pathways, each linking to its page', async () => {
+      mockApi({
+        [`GET ${OVERVIEW}`]: () =>
+          json({...overview, awaitingReferrals: [{referralId, specialtyName: 'Dermatology', receivedOn: '2026-06-01', requestedPriority: 'Urgent'}]}),
+        [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null}),
+      });
+      renderWithApp(<Harness />, {user: staffUser});
+
+      const list = await screen.findByRole('list', {name: 'Referrals awaiting triage'});
+      expect(within(list).getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      expect(within(list).getByText('Received 1 Jun 2026')).toBeInTheDocument();
+      expect(within(list).getByText('Urgent')).toBeInTheDocument();
+    });
+
+    it('shows referral entries and their letters, linking to the referral rather than a pathway', async () => {
+      mockApi({
+        [`GET ${OVERVIEW}`]: () => json(overview),
+        [`GET ${TIMELINE}`]: () =>
+          json({
+            items: [
+              entry({kind: 'Referrals', action: 'ReferralWithdrawn', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology'}),
+              entry({
+                kind: 'Files',
+                action: 'AttachmentAdded',
+                attachedTo: 'Referral',
+                referralId,
+                pathwayId: '00000000-0000-0000-0000-000000000000',
+                pathwayTitle: '',
+                fileName: null,
+              }),
+            ],
+            nextCursor: null,
+          }),
+      });
+      renderWithApp(<Harness />, {user: staffUser});
+
+      const withdrawn = within((await screen.findByText('Referral to Dermatology withdrawn')).closest('li')!);
+      expect(withdrawn.getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      const letter = within(screen.getByText('To the referral').closest('li')!);
+      expect(letter.getByRole('link', {name: 'The referral'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      expect(letter.queryByRole('link', {name: ''})).not.toBeInTheDocument();
+    });
+
+    it('can be filtered to', async () => {
+      const fetch = mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null})});
+      const {user} = renderWithApp(<Harness />, {user: staffUser});
+
+      await user.click(await screen.findByRole('button', {name: 'Referrals'}));
+      await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Referrals`));
+    });
+  });
 });

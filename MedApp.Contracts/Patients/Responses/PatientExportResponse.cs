@@ -53,6 +53,12 @@ public sealed class PatientExportResponse
     /// details, not their contents.
     /// </summary>
     public List<ExportedAttachmentResponse> Attachments { get; set; } = [];
+
+    /// <summary>The patient's referrals, oldest first, with what the referrer sent and what was decided.</summary>
+    public List<ExportedReferralResponse> Referrals { get; set; } = [];
+
+    /// <summary>Every change to the patient's referrals, oldest first (structured values only).</summary>
+    public List<ExportedReferralHistoryEntryResponse> ReferralHistory { get; set; } = [];
 }
 
 /// <summary>A patient's record in full, as the export gives it.</summary>
@@ -231,6 +237,9 @@ public sealed class ExportedAttachmentResponse
     /// <summary>The stage's name, for a stage's file whose pathway still exists.</summary>
     public string? StageName { get; set; }
 
+    /// <summary>The referral it's attached to (its letter), if any.</summary>
+    public Guid? ReferralId { get; set; }
+
     public string FileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
 
@@ -323,5 +332,42 @@ public sealed class ExportedAppointmentHistoryEntryResponse
     public DateTime? EndUtc { get; set; }
 
     /// <summary>What changed, as JSON (the page puts it in words).</summary>
+    public string Details { get; set; } = "{}";
+}
+
+/// <summary>A referral in a patient's export: everything it holds, with staff by username only.</summary>
+public sealed class ExportedReferralResponse
+{
+    public Guid Id { get; set; }
+    public string SpecialtyName { get; set; } = string.Empty;
+    public DateOnly ReceivedOn { get; set; }
+    public string ReferrerPractice { get; set; } = string.Empty;
+    public string? ReferrerClinician { get; set; }
+    public string? ReferrerOdsCode { get; set; }
+    public string RequestedPriority { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime RegisteredAtUtc { get; set; }
+    public string RegisteredBy { get; set; } = string.Empty;
+    public DateTime? DecidedAtUtc { get; set; }
+    public string? DecidedBy { get; set; }
+    public string? RejectionReason { get; set; }
+    public string? DecisionDetail { get; set; }
+    public string? RedirectedTo { get; set; }
+
+    /// <summary>The pathway it was accepted into, if any.</summary>
+    public Guid? PathwayId { get; set; }
+}
+
+/// <summary>One change to a referral in a patient's export, by the username recorded at the time.</summary>
+public sealed class ExportedReferralHistoryEntryResponse
+{
+    public DateTime AtUtc { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public Guid ReferralId { get; set; }
+    public Guid? PathwayId { get; set; }
+
+    /// <summary>What changed, as stored (JSON, structured values only), without staff account IDs.</summary>
     public string Details { get; set; } = "{}";
 }

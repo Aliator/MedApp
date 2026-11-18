@@ -16,6 +16,7 @@ public static class SpecialtyMapper
         TemplateCount = usage.TemplateCount,
         PathwayCount = usage.PathwayCount,
         MemberCount = usage.MemberCount,
+        ReferralCount = usage.ReferralCount,
         CanBeDeleted = !usage.IsInUse,
         CreatedAt = specialty.CreatedAt,
         LastUpdated = specialty.LastUpdated
