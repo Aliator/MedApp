@@ -47,7 +47,9 @@ public static class DemoWipe
                 // Consent records hold their patients, pathways and forms (foreign keys), so they go first.
                 await db.ConsentRecords.ExecuteDeleteAsync(cancellationToken);
                 await db.ConsentForms.ExecuteDeleteAsync(cancellationToken);
-                // Specimens hold their pathways, types and labs (foreign keys), so they go first.
+                // Results hold their patients, pathways and specimens, and specimens their pathways, types and labs
+                // (foreign keys), so they go first.
+                await db.Results.ExecuteDeleteAsync(cancellationToken);
                 await db.Specimens.ExecuteDeleteAsync(cancellationToken);
                 await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
                 await db.Laboratories.ExecuteDeleteAsync(cancellationToken);

@@ -28,7 +28,7 @@ import {StepTimeFields} from './StepTimeFields';
 const FIELDS = ['specimenTypeId', 'laboratoryId', 'takenAtUtc', 'site', 'requestNotes', 'requestingUserId'];
 
 /** Who can be a specimen's requesting clinician: holders of this permission (the API's `RequestingClinicianPermission`). */
-export const REQUESTING_PERMISSION = 'WorkPathways' as const;
+export const REQUESTING_PERMISSION = 'SignOffResults' as const;
 
 export interface SpecimenDetailsDialogProps {
   isOpen: boolean;
@@ -53,7 +53,7 @@ function choices(items: readonly {id?: string; name?: string | null; isArchived?
 /**
  * Recording a specimen taken at a pathway's stage (Record Specimen), or correcting one's details before it's sent
  * (Edit Specimen): its type and lab (from the setup lists, not archived), the requesting clinician (a holder of
- * WorkPathways, starting with you when you are one), when it was taken (now, or up to a week back), and optionally the
+ * SignOffResults, starting with you when you are one), when it was taken (now, or up to a week back), and optionally the
  * site and notes for the lab, which are free text in the clinical record. The patient shows as the banner does, and
  * the stage and pathway, so it's recorded on the right one (hazard H-47). A 400 shows on its fields; a 409 or 403 in
  * the API's words. Mount it afresh for each opening (a `key`), so it starts from the specimen or from now.

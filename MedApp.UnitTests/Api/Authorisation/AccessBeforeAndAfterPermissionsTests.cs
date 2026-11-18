@@ -32,8 +32,9 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     /// <summary>
     /// Who could call each endpoint before permissions (the Staff policy and Roles = "Admin"); for an endpoint added
     /// since, who may call it with the permissions the standard roles have. The specimen steps need RecordSpecimens or
-    /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74), and so does recording,
-    /// withdrawing and scanning consent (RecordConsent).
+    /// ProcessSpecimens, which neither Admin nor "All staff (before roles)" has (they're clinical: decision 74), and so
+    /// do seeing, signing off and reassigning results (SignOffResults), and recording, withdrawing and
+    /// scanning consent (RecordConsent).
     /// </summary>
     private const string Before = """
         AccountSecurityController.BeginAuthenticatorSetup 00011
@@ -289,6 +290,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.ResumeClock 00011
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
+        ResultsController.CountResults 00011
+        ResultsController.GetResult 00011
+        ResultsController.MarkEnteredInError 00011
+        ResultsController.MarkSeen 00000
+        ResultsController.Reassign 00000
+        ResultsController.RecordExternalResult 00011
+        ResultsController.SearchResults 00011
+        ResultsController.SignOff 00000
         RolesController.ArchiveRole 00001
         RolesController.CreateRole 00001
         RolesController.DeleteRole 00001

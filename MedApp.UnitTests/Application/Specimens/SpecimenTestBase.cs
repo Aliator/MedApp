@@ -33,6 +33,7 @@ public abstract class SpecimenTestBase
     protected List<Specimen> Added { get; } = [];
     protected List<PatientPathwayAuditEntry> SavedAudit { get; } = [];
     protected List<Attachment> SavedReports { get; } = [];
+    protected List<MedApp.Domain.Results.Result> SavedResults { get; } = [];
     protected List<Notification> Sent { get; } = [];
     protected List<CancellationToken> Tokens { get; } = [];
     protected CancellationTokenSource Cts { get; private set; } = null!;
@@ -47,6 +48,7 @@ public abstract class SpecimenTestBase
         Added.Clear();
         SavedAudit.Clear();
         SavedReports.Clear();
+        SavedResults.Clear();
         Sent.Clear();
         Tokens.Clear();
         Biopsy = SpecimensTestConstants.Biopsy();
@@ -75,10 +77,11 @@ public abstract class SpecimenTestBase
             })
             .Returns(Task.CompletedTask);
         Repository
-            .Setup(r => r.SaveReportAsync(It.IsAny<Attachment>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))
-            .Callback((Attachment report, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct) =>
+            .Setup(r => r.SaveReportAsync(It.IsAny<Attachment>(), It.IsAny<MedApp.Domain.Results.Result>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))
+            .Callback((Attachment report, MedApp.Domain.Results.Result result, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct) =>
             {
                 SavedReports.Add(report);
+                SavedResults.Add(result);
                 SavedAudit.AddRange(audit);
                 Tokens.Add(ct);
             })
@@ -97,7 +100,7 @@ public abstract class SpecimenTestBase
         QrCodes = new Mock<IQrCodeRenderer>();
         QrCodes.Setup(q => q.Render(It.IsAny<string>())).Returns(new QrCodeImage("M0 0h1v1H0z", 29));
 
-        // Staff and Admin can work on pathways (so can ask for a specimen); nobody else.
+        // Staff and Admin can sign off results (so can ask for a specimen); nobody else.
         Holders = new Mock<IPermissionHolders>();
         Holders
             .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), SpecimenChoices.RequestingClinicianPermission, It.IsAny<CancellationToken>()))

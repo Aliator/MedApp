@@ -159,3 +159,27 @@ describe('specimen entries', () => {
     expect(describeAuditDetails({action: 'SpecimenLost', details: '{}'})).toBe('');
   });
 });
+
+describe('result entries', () => {
+  const details = {resultId: 'r1', source: 'Specimen', number: 'MA26-000123', specimenType: 'Skin biopsy (punch)'};
+  const entry = (action: string, extra: object) => describeAuditDetails({action, details: JSON.stringify({...details, ...extra})});
+
+  it('names each action', () => {
+    expect(auditActionLabel('ResultRecorded')).toBe('Result recorded');
+    expect(auditActionLabel('ResultSignedOff')).toBe('Result signed off');
+    expect(auditActionLabel('ResultEnteredInError')).toBe('Result entered in error');
+  });
+
+  it('says which result, its status change, what was done and who it was reassigned from and to', () => {
+    expect(entry('ResultSignedOff', {from: 'Seen', to: 'SignedOff', action: 'PatientInformed'})).toBe(
+      'MA26-000123, Skin biopsy (punch): Seen → signed off; Patient informed',
+    );
+    expect(entry('ResultReassigned', {changes: {responsibleClinician: {from: 'test-senior', to: 'dr.synthetic'}}})).toBe(
+      'MA26-000123, Skin biopsy (punch): test-senior → dr.synthetic',
+    );
+    expect(describeAuditDetails({action: 'ResultRecorded', details: JSON.stringify({source: 'ExternalReport', to: 'AwaitingSignOff'})})).toBe(
+      'External report',
+    );
+    expect(describeAuditDetails({action: 'ResultSeen', details: '{}'})).toBe('');
+  });
+});

@@ -20,6 +20,25 @@ public sealed class DeletePatientHandlerTests
     private Mock<IAttachmentRepository> _attachments = null!;
     private DeletePatientHandler _handler = null!;
 
+    private Mock<MedApp.Application.Results.Repositories.IResultRepository> _results = null!;
+
+    [Test]
+    public async Task Handle_PatientHasResults_ThrowsConflictAndKeepsThePatient()
+    {
+        var patient = _fixture.Create<MedApp.Domain.Patients.Patient>();
+        patient.RestrictedAtUtc = null;
+        _repository.Setup(r => r.GetByIdAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(patient);
+        _repository.Setup(r => r.CountPathwaysAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _repository.Setup(r => r.CountAppointmentsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _repository.Setup(r => r.CountReferralsAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _results.Setup(r => r.CountForPatientAsync(patient.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var act = () => _handler.Handle(new DeletePatientCommand(patient.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<MedApp.Application.Common.Exceptions.ConflictException>()
+            .WithMessage("This patient has 1 result, so they can't be deleted.");
+    }
+
     [SetUp]
     public void SetUp()
     {
@@ -30,6 +49,10 @@ public sealed class DeletePatientHandlerTests
 
         _attachments = new Mock<IAttachmentRepository>();
         _fixture.Inject(_attachments.Object);
+
+        // No results, unless a test says otherwise.
+        _results = new Mock<MedApp.Application.Results.Repositories.IResultRepository>();
+        _fixture.Inject(_results.Object);
 
         _handler = _fixture.Create<DeletePatientHandler>();
     }

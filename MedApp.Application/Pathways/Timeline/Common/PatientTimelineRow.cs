@@ -31,6 +31,12 @@ public sealed record PatientTimelineRow(PatientPathwayAuditEntry Entry, string? 
     public Specimen? Specimen { get; init; }
 
     /// <summary>
+    /// For a result entry (only for admins), the result as it is now, for its free text (the title, the action detail
+    /// and the error detail): the audit entry itself holds none.
+    /// </summary>
+    public Domain.Results.Result? Result { get; init; }
+
+    /// <summary>
     /// For a consent entry (only for admins), the consent record as it is now, for its free text (the withdrawal or
     /// correction detail): the audit entry itself holds none.
     /// </summary>

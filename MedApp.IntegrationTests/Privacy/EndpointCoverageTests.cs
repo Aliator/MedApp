@@ -69,6 +69,9 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/letters/count"] = Nothing("counts for the side nav: names no patients"),
         ["api/specimens/{id:guid}"] = Records("SpecimenViewed"), // its page, label and request sheet; the specimen's ID in the details
         ["api/specimens/search"] = Records("PatientListed"),
+        ["api/results/{id:guid}"] = Records("ResultViewed"), // the result's ID in the details
+        ["api/results/search"] = Records("PatientListed"),
+        ["api/results/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/pathways/{id:guid}/consent-records"] = Records("PathwayViewed"), // the pathway page's consent card
         ["api/attachments/{id:guid}/thumbnail"] = Nothing("an image's thumbnail, shown in a list of files that records AttachmentsViewed"),
 

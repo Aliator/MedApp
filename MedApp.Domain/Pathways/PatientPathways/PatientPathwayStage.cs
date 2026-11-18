@@ -34,6 +34,12 @@ public sealed class PatientPathwayStage
     public Letters.LetterKind? NeedsLetterKind { get; set; }
 
     /// <summary>
+    /// Copied from the stage definition: whether the stage waits for results (decision 95). It can't be finished while
+    /// any result of the pathway awaits sign-off.
+    /// </summary>
+    public bool WaitsForResults { get; set; }
+
+    /// <summary>
     /// Whether the stage needs a Valid consent record before it can be finished (decision 146); copied onto each
     /// pathway's stage when it's created, like the visit rule. No override: recording the consent is the action.
     /// </summary>

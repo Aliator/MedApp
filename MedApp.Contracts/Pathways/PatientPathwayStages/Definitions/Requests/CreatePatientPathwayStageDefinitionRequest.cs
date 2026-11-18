@@ -20,6 +20,9 @@ public sealed class CreatePatientPathwayStageDefinitionRequest
     /// </summary>
     public string? NeedsLetterKind { get; set; }
 
+    /// <summary>Whether the stage waits for results: it can't be finished while any of the pathway's results awaits sign-off.</summary>
+    public bool WaitsForResults { get; set; }
+
     /// <summary>Whether the stage needs a Valid consent record before it can be finished (false by default).</summary>
     public bool NeedsConsent { get; set; }
 }

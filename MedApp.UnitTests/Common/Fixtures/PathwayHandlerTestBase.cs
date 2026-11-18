@@ -35,6 +35,9 @@ public abstract class PathwayHandlerTestBase
     /// <summary>Specimens: none, unless a test says otherwise.</summary>
     protected Mock<ISpecimenRepository> Specimens { get; private set; } = null!;
 
+    /// <summary>Results: none awaiting sign-off, unless a test says otherwise.</summary>
+    protected Mock<MedApp.Application.Results.Repositories.IResultRepository> Results { get; private set; } = null!;
+
     /// <summary>Audit entries passed to AddAsync, SaveAsync or DeleteAsync.</summary>
     protected List<PatientPathwayAuditEntry> SavedAudit { get; } = [];
 
@@ -55,6 +58,10 @@ public abstract class PathwayHandlerTestBase
         Specimens = new Mock<ISpecimenRepository>();
         Specimens
             .Setup(s => s.GetOpenForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        Results = new Mock<MedApp.Application.Results.Repositories.IResultRepository>();
+        Results
+            .Setup(r => r.GetAwaitingForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         SavedAudit.Clear();
         SavedChanges.Clear();
@@ -108,6 +115,7 @@ public abstract class PathwayHandlerTestBase
         Fixture.Inject(Identity.Object);
         Fixture.Inject(Attachments.Object);
         Fixture.Inject(Specimens.Object);
+        Fixture.Inject(Results.Object);
         Consents = new Mock<MedApp.Application.Consent.Repositories.IConsentRepository>();
         Consents.Setup(c => c.GetForStageAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Consents.Setup(c => c.GetForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);

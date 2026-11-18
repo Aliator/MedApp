@@ -24,6 +24,12 @@ public sealed class PatientPathwayStageResponse
     public string? NeedsLetterKind { get; set; }
 
     /// <summary>
+    /// Copied from the stage definition: whether the stage can't be finished while any of the pathway's results awaits
+    /// sign-off.
+    /// </summary>
+    public bool WaitsForResults { get; set; }
+
+    /// <summary>
     /// Copied from the stage definition: whether a Valid consent record for the stage is needed before it can be finished
     /// (no override: recording the consent is the action).
     /// </summary>

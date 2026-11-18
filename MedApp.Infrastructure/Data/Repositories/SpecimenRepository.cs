@@ -49,9 +49,12 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
         await SaveAsync(ct);
     }
 
-    public async Task SaveReportAsync(Attachment report, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct)
+    public async Task SaveReportAsync(
+        Attachment report, Domain.Results.Result result, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct)
     {
         context.Attachments.Add(report);
+        // The result alone: its patient, pathway and specimen are already tracked (loaded for update).
+        context.Entry(result).State = EntityState.Added;
         context.PatientPathwayAuditEntries.AddRange(audit);
         await SaveAsync(ct);
     }

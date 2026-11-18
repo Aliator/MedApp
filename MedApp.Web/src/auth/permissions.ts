@@ -29,6 +29,7 @@ export const PERMISSIONS = [
   'AttachFiles',
   'RecordSpecimens',
   'ProcessSpecimens',
+  'SignOffResults',
   'WriteLetters',
   'ApproveLetters',
   'SendLetters',
@@ -55,6 +56,7 @@ export type PermissionGroup =
   | 'AppointmentsAndCalendars'
   | 'Files'
   | 'Lab'
+  | 'Results'
   | 'Letters'
   | 'Oversight'
   | 'Setup'
@@ -108,6 +110,10 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
   ProcessSpecimens: {
     group: 'Lab',
     description: 'Receive and reject specimens in the lab, mark them lost, and attach their reports.',
+  },
+  SignOffResults: {
+    group: 'Results',
+    description: 'Mark results seen, sign them off, and take them over or reassign them; be a responsible clinician.',
   },
   WriteLetters: {group: 'Letters', description: 'Write letters about patients from templates, and submit them for approval.'},
   ApproveLetters: {group: 'Letters', description: 'Approve or return letters submitted to you, and approve your own.'},

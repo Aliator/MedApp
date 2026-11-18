@@ -25,6 +25,7 @@ public sealed class GetPatientTimelineHandler(
     IReferralRepository referralRepository,
     ILetterRepository letterRepository,
     ISpecimenRepository specimenRepository,
+    MedApp.Application.Results.Repositories.IResultRepository resultRepository,
     IConsentRepository consentRepository,
     IActivityLog activityLog)
     : IRequestHandler<GetPatientTimelineQuery, PatientTimelinePageResponse>
@@ -78,6 +79,7 @@ public sealed class GetPatientTimelineHandler(
             page = await WithNoteTextAsync(request.PatientId, page, cancellationToken);
             page = await WithLettersAsync(page, cancellationToken);
             page = await WithSpecimensAsync(page, cancellationToken);
+            page = await WithResultsAsync(page, cancellationToken);
             page = await WithConsentAsync(page, cancellationToken);
         }
 
@@ -198,6 +200,30 @@ public sealed class GetPatientTimelineHandler(
             .Select(e => e.Audit is { } audit && SpecimenIdOf(audit) is { } id
                          && specimens.TryGetValue(id, out var specimen) && specimen.PatientId == audit.Entry.PatientId
                 ? e with { Audit = audit with { Specimen = specimen } }
+                : e)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The page with each result entry's result, for its free text (admins only): the audit holds none. Only results of
+    /// this patient's entries are asked for, by the IDs their entries hold.
+    /// </summary>
+    private async Task<List<Entry>> WithResultsAsync(List<Entry> page, CancellationToken ct)
+    {
+        static Guid? ResultIdOf(PatientTimelineRow audit) =>
+            PatientTimelineKinds.Of(audit.Entry) == PatientTimelineKind.Results
+                ? TimelineMapper.GuidIn(audit.Entry.Details, "resultId")
+                : null;
+
+        var ids = page.Select(e => e.Audit is { } audit ? ResultIdOf(audit) : null).OfType<Guid>().Distinct().ToList();
+        if (ids.Count == 0)
+            return page;
+
+        var results = (await resultRepository.GetByIdsAsync(ids, ct)).ToDictionary(r => r.Id);
+        return page
+            .Select(e => e.Audit is { } audit && ResultIdOf(audit) is { } id
+                         && results.TryGetValue(id, out var result) && result.PatientId == audit.Entry.PatientId
+                ? e with { Audit = audit with { Result = result } }
                 : e)
             .ToList();
     }

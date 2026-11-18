@@ -17,6 +17,7 @@ public sealed class DeletePatientPathwayHandler(
     INoteDeletionRequestRepository noteDeletionRequests,
     ILetterRepository letters,
     ISpecimenRepository specimens,
+    MedApp.Application.Results.Repositories.IResultRepository results,
     IConsentRepository consents,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
@@ -47,6 +48,10 @@ public sealed class DeletePatientPathwayHandler(
             throw new ConflictException(
                 $"This pathway has {specimenCount} specimen{(specimenCount == 1 ? "" : "s")}, so it can't be deleted.");
 
+        var resultCount = await results.CountForPathwayAsync(pathway.Id, cancellationToken);
+        if (resultCount > 0)
+            throw new ConflictException(
+                $"This pathway has {resultCount} result{(resultCount == 1 ? "" : "s")}, so it can't be deleted.");
         // Consent records are part of the patient's record (what they agreed to, and when): they keep the pathway.
         var consentCount = await consents.CountForPathwayAsync(pathway.Id, cancellationToken);
         if (consentCount > 0)

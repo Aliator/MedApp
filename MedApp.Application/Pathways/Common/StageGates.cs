@@ -38,11 +38,13 @@ public static class StageLetterKinds
 /// <item><b>The last stage and open specimens</b> (decision 89): the stage whose finish leaves none unfinished can't be
 /// finished while any of the pathway's specimens is open (taken, sent or received), so a pathway can't be discharged
 /// with a report still to come.</item>
+/// <item><b>Results awaiting sign-off</b> (decision 95): a stage that waits for results
+/// (<see cref="PatientPathwayStage.WaitsForResults"/>), and the last stage always, can't be finished while any of the
+/// pathway's results awaits sign-off, so a pathway can't be discharged with a result nobody has acted on (hazard H-46).</item>
 /// </list>
 /// <item><b>Consent</b> (decision 146): a stage that needs consent (<see cref="PatientPathwayStage.NeedsConsent"/>) can't be
 /// finished without a Valid consent record for it (withdrawn or entered in error doesn't count). MedApp checks only that
 /// one is recorded; it never assesses the consent.</item>
-/// Results (PR 14) add their gates here.
 /// </summary>
 public static class StageGates
 {
@@ -69,6 +71,18 @@ public static class StageGates
         return $"The pathway's last stage can't be finished while {count} still with the lab: {string.Join("; ", each)}. " +
                "Record each one's report, or mark it rejected, lost or entered in error.";
     }
+
+    /// <summary>
+    /// Why the stage can't be finished while results await sign-off, or null if it can: it waits for results, or it's
+    /// the last to finish, and some of <paramref name="awaitingResults"/> (the pathway's results awaiting sign-off) still
+    /// await. Dates only: MedApp never reads a result.
+    /// </summary>
+    public static string? WhyResultsAwaiting(
+        PatientPathway pathway,
+        PatientPathwayStage stage,
+        IReadOnlyCollection<Domain.Results.Result> awaitingResults) =>
+        Results.Common.ResultWorkflow.WhyAwaitingResultsBlockFinish(
+            awaitingResults, IsLastToFinish(pathway, stage), stage.WaitsForResults);
 
     /// <summary>Whether finishing this stage would leave none of the pathway's stages unfinished.</summary>
     public static bool IsLastToFinish(PatientPathway pathway, PatientPathwayStage stage) =>

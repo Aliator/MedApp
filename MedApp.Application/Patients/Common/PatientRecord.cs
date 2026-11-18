@@ -87,6 +87,12 @@ public sealed record PatientRecord
     public required IReadOnlyList<Specimen> Specimens { get; init; }
 
     /// <summary>
+    /// The patient's results, in any status, oldest reported first, with their specimens. Their history is in
+    /// <see cref="PathwayHistory"/>; their reports are among <see cref="Attachments"/>.
+    /// </summary>
+    public IReadOnlyList<Domain.Results.Result> Results { get; init; } = [];
+
+    /// <summary>
     /// The patient's MDT items, oldest listed first, with their specialty, meeting and who was present (items of a
     /// deleted pathway go with it; their history stays in <see cref="PathwayHistory"/>).
     /// </summary>

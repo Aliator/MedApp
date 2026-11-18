@@ -19,6 +19,7 @@ public sealed class FinishPathwayStageHandler(
     IAppointmentRepository appointmentRepository,
     ILetterRepository letterRepository,
     ISpecimenRepository specimenRepository,
+    MedApp.Application.Results.Repositories.IResultRepository resultRepository,
     IConsentRepository consentRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
@@ -43,6 +44,12 @@ public sealed class FinishPathwayStageHandler(
             && StageGates.WhyCantFinish(
                 pathway, stage, await specimenRepository.GetOpenForPathwayAsync(pathway.Id, cancellationToken)) is { } gate)
             throw new ConflictException(gate);
+
+        // A stage that waits for results, and the last stage, wait for the pathway's results to be signed off (no override).
+        if ((stage.WaitsForResults || StageGates.IsLastToFinish(pathway, stage))
+            && StageGates.WhyResultsAwaiting(
+                pathway, stage, await resultRepository.GetAwaitingForPathwayAsync(pathway.Id, cancellationToken)) is { } awaiting)
+            throw new ConflictException(awaiting);
 
         // A branch point finished for the first time needs one of its branches, chosen by the clinician (never assumed).
         if (PathwayWorkflow.WhyBranchChoiceInvalid(pathway, stage, request.Branch) is { } branchProblem)

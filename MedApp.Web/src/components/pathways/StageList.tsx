@@ -129,6 +129,9 @@ export interface StageDetailsProps {
   files?: ReactNode;
 }
 
+/** What a stage that waits for results says, under its title. */
+export const WAITS_FOR_RESULTS_WORDS = 'Waits for results: every result on the pathway must be signed off before it can be finished.';
+
 /**
  * Everything about one stage under its title: description, its SNOMED CT concept (copied from its definition when
  * the pathway was made), who started and finished it, instructions (which fold), notes and files.
@@ -146,6 +149,12 @@ export function StageDetails({stage, work, instructions, files}: StageDetailsPro
       {needsLetterWords(stage.needsLetterKind) && (
         <Text type="body" weight="semibold">
           {needsLetterWords(stage.needsLetterKind)}
+        </Text>
+      )}
+      {/* A stage that waits for results (decision 97): it can't be finished while any of the pathway's results awaits sign-off. */}
+      {stage.waitsForResults && (
+        <Text type="body" weight="semibold">
+          {WAITS_FOR_RESULTS_WORDS}
         </Text>
       )}
       {/* A stage that needs consent (decision 146): it can't be finished until a Valid consent record is recorded for it. */}

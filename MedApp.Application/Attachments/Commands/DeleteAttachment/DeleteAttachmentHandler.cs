@@ -20,6 +20,7 @@ public sealed class DeleteAttachmentHandler(
     IPatientPathwayRepository pathways,
     ILetterRepository letters,
     ISpecimenRepository specimens,
+    MedApp.Application.Results.Repositories.IResultRepository results,
     IConsentRepository consents,
     TimeProvider timeProvider)
     : IRequestHandler<DeleteAttachmentCommand>
@@ -53,6 +54,10 @@ public sealed class DeleteAttachmentHandler(
         // A specimen's report goes only with the specimen's own correction, never on its own (decision 71).
         if (await specimens.IsReportAsync(attachment.Id, cancellationToken))
             throw new ConflictException(SpecimenWorkflow.ReportedFileMessage);
+
+        // So does a result's report (an external one): mark the result entered in error instead.
+        if (await results.IsReportAsync(attachment.Id, cancellationToken))
+            throw new ConflictException(MedApp.Application.Results.Common.ResultWorkflow.ReportFileMessage);
 
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         attachment.DeletedAtUtc = nowUtc;

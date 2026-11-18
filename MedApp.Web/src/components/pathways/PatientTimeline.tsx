@@ -22,6 +22,7 @@ import {
   isPatientEntry,
   isReferralEntry,
   isReferralFileEntry,
+  isResultEntry,
   isSpecimenEntry,
   MAX_TIMELINE_PATHWAYS,
   NO_TIMELINE_FILTERS,
@@ -50,6 +51,7 @@ const KIND_ICONS: Record<TimelineKind, IconType> = {
   Referrals: AppIcon.Referrals,
   WaitingTime: AppIcon.Wait,
   Specimens: AppIcon.Specimens,
+  Results: AppIcon.Results,
   Consent: AppIcon.Consent,
   Letters: AppIcon.Letters,
   Notes: AppIcon.Notes,
@@ -143,6 +145,14 @@ function entryIcon(entry: TimelineEntry): IconType {
       return AppIcon.EnteredInError;
     case 'SpecimenDetailsEdited':
       return AppIcon.Edit;
+    case 'ResultSeen':
+      return AppIcon.View;
+    case 'ResultSignedOff':
+      return AppIcon.SignOff;
+    case 'ResultReassigned':
+      return AppIcon.Reassign;
+    case 'ResultEnteredInError':
+      return AppIcon.EnteredInError;
     case 'MdtWithdrawn':
       return AppIcon.Withdraw;
     case 'MdtDeferred':
@@ -497,6 +507,19 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
           {/* A note's text (admins only), formatted as it is on the pathway's page. */}
           {noteText && <RichText>{noteText}</RichText>}
           <HStack gap={2} vAlign="center" wrap="wrap">
+            {/* A result's entry links to the result, and to its specimen by its number, beside its pathway. */}
+            {isResultEntry(entry) && entry.resultId && (
+              <>
+                <Text type="supporting" maxLines={1}>
+                  <Link href={`/results/${entry.resultId}`}>The result</Link>
+                </Text>
+                {entry.specimenId && (
+                  <Text type="supporting" maxLines={1}>
+                    <Link href={`/specimens/${entry.specimenId}`}>{`Specimen ${entry.specimenNumber ?? ''}`.trim()}</Link>
+                  </Text>
+                )}
+              </>
+            )}
             {/* A specimen's entry links to the specimen, by its number, beside its pathway. */}
             {isSpecimenEntry(entry) && entry.specimenId && (
               <Text type="supporting" maxLines={1}>
