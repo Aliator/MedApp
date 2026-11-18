@@ -83,6 +83,19 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>StageFinished without its visit: the stage's visit requirement, Suggested or Required.</summary>
     public string? VisitRequirement { get; set; }
 
+    /// <summary>
+    /// StageSkipped: why, a fixed choice by name (NotNeeded, PatientDeclined, Other); StageReinstated: how it had been
+    /// skipped (with BranchNotChosen). The detail, and a reinstatement's reason, are free text, in <see cref="Reason"/>
+    /// for admins only.
+    /// </summary>
+    public string? SkipReason { get; set; }
+
+    /// <summary>BranchChosen: the branch the clinician chose (a name the template's author wrote).</summary>
+    public string? Branch { get; set; }
+
+    /// <summary>BranchChosen: the names of the stages the other branches had, skipped by the choice.</summary>
+    public List<string> SkippedStageNames { get; set; } = [];
+
     /// <summary>An appointment entry: the appointment.</summary>
     public Guid? AppointmentId { get; set; }
 

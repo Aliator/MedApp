@@ -75,6 +75,7 @@ const stageColumn: DataTableColumn<TaskRow> = {
   renderCell: (p) => (
     <StageProgressCell
       completed={p.completedStageCount ?? 0}
+      skipped={p.skippedStageCount ?? 0}
       total={p.stageCount ?? 0}
       currentStageName={p.currentStageName}
       // There's no status column here, so the cell says when a pathway is on hold or awaiting review.

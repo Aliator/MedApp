@@ -1,3 +1,4 @@
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using Microsoft.EntityFrameworkCore;
@@ -128,6 +129,7 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         PathwayTemplate template,
         IReadOnlyList<Guid>? stageDefinitionIdsInOrder,
         int? clockStopStageOrder,
+        IReadOnlyList<TemplateStageOptions>? stageOptions,
         CancellationToken ct)
     {
         var existing = await Templates.Include(x => x.Maps).FirstOrDefaultAsync(x => x.Id == template.Id, ct);
@@ -142,22 +144,21 @@ public sealed class PatientPathwayStagesRepository(MedAppDbContext context) : IP
         {
             // Rows are keyed by position: reuse the positions that stay, add new ones, remove the rest.
             var byOrder = existing.Maps.ToDictionary(m => m.StageOrder);
-            for (var i = 0; i < stageDefinitionIdsInOrder.Count; i++)
+            var newMaps = PathwayTemplateMapper.ToMaps(existing.Id, stageDefinitionIdsInOrder, clockStopStageOrder, stageOptions);
+            foreach (var newMap in newMaps)
             {
-                var order = i + 1;
-                if (byOrder.TryGetValue(order, out var map))
+                if (byOrder.TryGetValue(newMap.StageOrder, out var map))
                 {
-                    map.StageDefinitionId = stageDefinitionIdsInOrder[i];
-                    map.StopsClock = clockStopStageOrder == order;
+                    map.StageDefinitionId = newMap.StageDefinitionId;
+                    map.IsOptional = newMap.IsOptional;
+                    map.ChoosesBranch = newMap.ChoosesBranch;
+                    map.Branch = newMap.Branch;
+                    map.StopsClock = newMap.StopsClock;
                 }
                 else
-                    Maps.Add(new PathwayTemplateMap
-                    {
-                        TemplateId = existing.Id,
-                        StageDefinitionId = stageDefinitionIdsInOrder[i],
-                        StageOrder = order,
-                        StopsClock = clockStopStageOrder == order
-                    });
+                {
+                    Maps.Add(newMap);
+                }
             }
 
             Maps.RemoveRange(existing.Maps.Where(m => m.StageOrder > stageDefinitionIdsInOrder.Count).ToList());

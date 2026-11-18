@@ -210,6 +210,15 @@ public sealed class ExportedStageResponse
     public string? StartedBy { get; set; }
     public DateTime? FinishedAtUtc { get; set; }
     public string? FinishedBy { get; set; }
+
+    /// <summary>When it was skipped, by whom, why (NotNeeded, PatientDeclined, Other or BranchNotChosen) and the detail given.</summary>
+    public DateTime? SkippedAtUtc { get; set; }
+    public string? SkippedBy { get; set; }
+    public string? SkipReason { get; set; }
+    public string? SkipDetail { get; set; }
+
+    /// <summary>The branch it belongs to, if any (a name the template's author wrote).</summary>
+    public string? Branch { get; set; }
 }
 
 /// <summary>One change to one of the patient's pathways, as the export gives it.</summary>

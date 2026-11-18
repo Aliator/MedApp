@@ -1,3 +1,4 @@
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
@@ -47,7 +48,7 @@ public sealed class SetPathwayTemplateArchivedHandlerTests
             .Handle(new SetPathwayTemplateArchivedCommand(templateId, true), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Template '{templateId}' was not found.");
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<IReadOnlyList<Guid>?>(), It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -60,6 +61,6 @@ public sealed class SetPathwayTemplateArchivedHandlerTests
             .Handle(new SetPathwayTemplateArchivedCommand(template.Id, false), CancellationToken.None);
 
         response.IsArchived.Should().BeFalse();
-        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.UpdatePathwayTemplateAsync(template, null, It.IsAny<int?>(), It.IsAny<IReadOnlyList<TemplateStageOptions>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

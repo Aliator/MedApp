@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 
@@ -72,4 +73,28 @@ public sealed class CreatePathwayTemplateValidatorTests
     public void Validate_NoSpecialty_IsInvalid() =>
         _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, Guid.Empty, [ConsultationDefinitionId])).Errors
             .Should().ContainSingle(e => e.ErrorMessage == "Specialty is required.");
+
+    [Test]
+    public void Validate_WellFormedBranches_Passes()
+    {
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId,
+                [ConsultationDefinitionId, PathwayDefinitionId, PathwayDefinitionId, ConsultationDefinitionId],
+                StageOptions: [new(ChoosesBranch: true), new(Branch: "Benign"), new(Branch: "Treatment"), TemplateStageOptions.Plain]))
+            .IsValid.Should().BeTrue();
+    }
+
+    [Test]
+    public void Validate_OptionsForADifferentNumberOfStages_Fails()
+    {
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [ConsultationDefinitionId], StageOptions: [TemplateStageOptions.Plain, TemplateStageOptions.Plain]))
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.CountMismatchMessage);
+    }
+
+    [Test]
+    public void Validate_BranchesBreakingTheRules_FailsWithTheRule()
+    {
+        _validator.Validate(new CreatePathwayTemplateCommand(TemplateName, SpecialtyId,
+                [ConsultationDefinitionId, PathwayDefinitionId], StageOptions: [TemplateStageOptions.Plain, new(IsOptional: true)]))
+            .Errors.Should().ContainSingle(e => e.ErrorMessage == TemplateBranchRules.LastStageMessage);
+    }
 }

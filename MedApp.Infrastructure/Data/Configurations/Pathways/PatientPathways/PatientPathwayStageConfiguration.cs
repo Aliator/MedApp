@@ -60,6 +60,22 @@ public sealed class PatientPathwayStageConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.VisitRequirement)
             .HasDefaultValue(VisitRequirement.None);
 
+        // Copied from the template when the pathway is created: optional stages and branches.
+        builder.Property(x => x.IsOptional)
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.ChoosesBranch)
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.Branch)
+            .HasMaxLength(PathwayBranchLimits.MaxBranchLength);
+
+        // Skipped: the reason by number (StageSkipReason), and its detail (free text).
+        builder.Property(x => x.SkipDetail)
+            .HasMaxLength(PathwayBranchLimits.MaxSkipDetailLength);
+
+        builder.Ignore(x => x.IsSkipped);
+
         // Copied from the template when the pathway is created.
         builder.Property(x => x.StopsClock)
             .HasDefaultValue(false);

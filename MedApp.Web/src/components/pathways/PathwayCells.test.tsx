@@ -68,6 +68,12 @@ describe('PathwayCells', () => {
     expect(screen.getByText('2 of 7 stages done')).toBeInTheDocument();
   });
 
+  it('counts skipped stages as done, and says how many were skipped', async () => {
+    renderWithApp(<StageProgressCell completed={2} skipped={1} total={7} currentStageName="Consultation" />);
+
+    expect(await screen.findByText('3 of 7 stages done, 1 skipped')).toBeInTheDocument();
+  });
+
   it('says Completed when every stage is finished, on one line', async () => {
     renderWithApp(<StageProgressCell completed={4} total={4} currentStageName={null} />);
 

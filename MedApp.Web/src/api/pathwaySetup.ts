@@ -41,7 +41,15 @@ export interface TemplateInput {
    * clock, or null for none. The API reads it only with the stage list, so it's always sent beside it.
    */
   clockStopStageOrder: number | null;
+  /**
+   * Each stage's options, one for each of `stageDefinitionIdsInOrder` in the same order: whether it's optional, a
+   * branch point, and the branch it's in. Left out, every stage is plain (always runs), as before branches.
+   */
+  stageOptions?: TemplateStageOptions[];
 }
+
+/** One template stage's options (decisions 113 and 117). The default is a plain stage, which always runs. */
+export type TemplateStageOptions = Schemas['PathwayTemplateStageOptionsRequest'];
 
 const DEFINITIONS = '/api/pathways/patient-pathway-stage/definitions';
 const DEFINITION = '/api/pathways/patient-pathway-stage/definitions/{id}';
