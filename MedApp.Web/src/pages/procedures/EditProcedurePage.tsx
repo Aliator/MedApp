@@ -8,6 +8,7 @@ import {procedureQuery, useUpdateProcedure, type Procedure, type ProcedureDetail
 import {FormCard} from '../../components/forms/FormCard';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {PatientBanner} from '../../components/patients/PatientBanner';
+import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {Page} from '../../components/pages/Page';
 import {statusLabel} from '../../components/procedures/ProcedureCells';
 import {ProcedureSummary} from '../../components/procedures/ProcedureSummary';
@@ -78,12 +79,17 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
     });
 
   const banner = procedure.patient && <PatientBanner patient={procedure.patient} />;
+  // The patient's restricted, disputed or anonymised banners, as on every page about the patient (hazard H-22).
+  const flags = procedure.patientFlags && <PatientFlagBanners patient={procedure.patientFlags} />;
 
   if (!procedure.canEditDetails) {
     return (
-      <Page {...pageProps} onBack={backToProcedure} banner={banner}>
+      <Page {...pageProps} onBack={backToProcedure} banner={banner} message={flags}>
         <AlertMessage
-          message={`This procedure is ${statusLabel(procedure.status ?? '').toLowerCase()}, so its details can't be edited.`}
+          message={
+            // A restricted or anonymised record says so; otherwise the procedure's status is why.
+            procedure.readOnlyReason ?? `This procedure is ${statusLabel(procedure.status ?? '').toLowerCase()}, so its details can't be edited.`
+          }
         />
       </Page>
     );
@@ -100,8 +106,10 @@ function EditProcedureForm({id, procedure}: {id: string; procedure: Procedure}) 
       message={
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PROCEDURE_DETAILS_FIELDS} />
+        ) : problem.message ? (
+          <AlertMessage message={problem.message} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          flags
         )
       }
       dialogs={

@@ -546,10 +546,9 @@ function BookingForm({
       {isOpen && (
         <VStack ref={content} gap={4} hAlign="stretch">
           <AppointmentPatientBanner state={patientState} name={appointment?.patientName} />
-          {/* Why it can't be booked, unless the patient's restricted or anonymised banner above already says so. */}
-          {refusal && !patientState.isLoading && !patientState.patient?.isRestricted && !patientState.patient?.isAnonymised && (
-            <AlertMessage status="warning" message={refusal} />
-          )}
+          {/* Why it can't be booked, on screen: the patient's restricted or anonymised banner above names the state, but its
+              whole message is only in its overlay. */}
+          {refusal && !patientState.isLoading && <AlertMessage status="warning" message={refusal} />}
           {problem.message && <AlertMessage message={problem.message} />}
           {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
           {isNarrow ? (

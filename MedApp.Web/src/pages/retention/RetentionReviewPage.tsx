@@ -15,6 +15,7 @@ import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {KeepRecordDialog} from '../../components/patients/KeepRecordDialog';
 import {SPECIALTY_RETENTION_WARNING} from '../../components/patients/retentionWarning';
 import {AlertMessage} from '../../components/shared/AlertMessage';
+import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TextCell} from '../../components/tables/TextCell';
@@ -138,7 +139,7 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
           <AlertMessage message="The records due for review could not be loaded. Please try again." />
         ) : (
           // Until retention classes exist, every record is adult or child: specialty records could show years early.
-          <AlertMessage status="warning" message={SPECIALTY_RETENTION_WARNING} />
+          <SummaryAlert status="warning" label="Specialty retention periods not applied" message={SPECIALTY_RETENTION_WARNING} />
         )
       }
       actions={
