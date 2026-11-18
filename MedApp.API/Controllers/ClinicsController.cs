@@ -43,13 +43,20 @@ public sealed class ClinicsController(IMediator mediator) : ControllerBase
             request.WithFreeSlots,
             User.ToCalendarActor()), ct));
 
-    /// <summary>A session with its slots and who is booked into each (recorded as a read of those patients).</summary>
+    /// <summary>
+    /// A session with its slots and who is booked into each, and once it's cancelled the patients to tell (recorded as a
+    /// read of those patients; never cached).
+    /// </summary>
     [HttpGet("sessions/{id:guid}")]
     [ProducesResponseType(typeof(ClinicSessionDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.UseApp)]
-    public async Task<IActionResult> GetSession(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetClinicSessionByIdQuery(id, User.ToCalendarActor()), ct));
+    public async Task<IActionResult> GetSession(Guid id, CancellationToken ct)
+    {
+        var detail = await mediator.Send(new GetClinicSessionByIdQuery(id, User.ToCalendarActor()), ct);
+        Response.Headers.CacheControl = "no-store";
+        return Ok(detail);
+    }
 
     /// <summary>
     /// Adds a session: in the future, inside the clinician's working day and the room's site's opening hours, clear of

@@ -70,6 +70,23 @@ public sealed class UpdateClinicSessionHandlerTests : ClinicHandlerTestBase
         booked.LastUpdated.Should().Be(Now);
         Lock.LockedOnce.Should().BeEquivalentTo([StaffUserId, SitesTestConstants.RoomId, SitesTestConstants.OtherRoomId]);
         response.BookedCount.Should().Be(1);
+        // Recorded in its history as a move to the new room, at the same time.
+        var entry = Saved.Single().Should().ContainSingle().Subject;
+        entry.Action.Should().Be(AppointmentEventAction.Rescheduled);
+        entry.Details.Should().Contain($"\"previousRoomId\":\"{SitesTestConstants.RoomId}\"").And.Contain($"\"roomId\":\"{SitesTestConstants.OtherRoomId}\"");
+    }
+
+    [Test]
+    public async Task Handle_ChangingTheRoom_LeavesAnAttendedAppointmentInTheRoomItHappenedIn()
+    {
+        var attended = InSession(_session, At(NextMonday, 9), AppointmentStatus.Attended);
+        GivenBooked(attended);
+
+        await _handler.Handle(Command(roomId: SitesTestConstants.OtherRoomId), Token);
+
+        attended.RoomId.Should().Be(SitesTestConstants.RoomId);
+        attended.Status.Should().Be(AppointmentStatus.Attended);
+        Saved.Single().Should().BeEmpty();
     }
 
     [Test]

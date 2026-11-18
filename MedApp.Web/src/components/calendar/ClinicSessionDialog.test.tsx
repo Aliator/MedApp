@@ -45,7 +45,7 @@ describe('ClinicSessionDialog', () => {
     const {user, fetch} = renderDialog({}, {'POST /api/clinics/sessions/session-1/cancel': () => json(cancelled)});
 
     await user.click(await dialog().findByRole('button', {name: 'Cancel Session'}));
-    expect(dialog().getByText(/Cancelling it cancels the appointment booked into it/)).toBeInTheDocument();
+    expect(dialog().getByText(/Cancelling it cancels the appointment booked into it that haven’t started.*Any that have started stay/)).toBeInTheDocument();
     const confirm = dialog().getAllByRole('button', {name: 'Cancel Session'}).at(-1)!;
     expect(isDisabled(confirm)).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /Reason/}), 'Clinician away');
@@ -88,6 +88,20 @@ describe('ClinicSessionDialog', () => {
   it('says when it could not be loaded', async () => {
     renderDialog({}, {'GET /api/clinics/sessions/session-1': () => json({title: 'Not found'}, 404)});
     await waitFor(() => expect(dialog().getByText(/could not be loaded/)).toBeInTheDocument());
+  });
+
+  it('shows a session cancelled earlier with its list of patients to tell, and nothing to change', async () => {
+    const detail = {
+      ...testSessionDetail({...SESSION, status: 'Cancelled', canChange: false, cancelReason: 'Clinician away'}),
+      patientsToTell: [{appointmentId: 'appointment-1', patientId: 'patient-1', patientName: 'Told Patient', nhsNumber: null, startUtc: SESSION.startUtc}],
+    };
+    renderDialog({}, {}, detail);
+
+    const toTell = await dialog().findByRole('list', {name: 'Patients to tell'});
+    expect(within(toTell).getByText('Told Patient')).toBeInTheDocument();
+    expect(within(toTell).getByText('No NHS number')).toBeInTheDocument();
+    expect(dialog().getByText('Clinician away')).toBeInTheDocument();
+    expect(dialog().queryByRole('button', {name: 'Cancel Session'})).not.toBeInTheDocument();
   });
 
   it('describes a cancellation with nobody booked', () => {

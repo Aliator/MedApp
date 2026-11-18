@@ -13707,6 +13707,7 @@ export interface components {
         ClinicSessionDetailResponse: {
             session?: components["schemas"]["ClinicSessionResponse"];
             slots?: components["schemas"]["ClinicSlotResponse"][] | null;
+            patientsToTell?: components["schemas"]["PatientToTellResponse"][] | null;
         };
         ClinicSessionRequest: {
             /** Format: uuid */

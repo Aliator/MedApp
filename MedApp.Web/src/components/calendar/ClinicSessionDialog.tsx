@@ -36,8 +36,9 @@ type Step = 'view' | 'cancelling';
  * A clinic session (centre plan decisions 123 and 126): its clinician, room, specialty, time and how full it is, then
  * each slot, free or with the patient booked into it (opening it lists them, which the API records as a read). A free
  * slot that hasn't started can be booked. Holders of ManageClinics can change it or cancel it: cancelling asks for a
- * reason (about the clinic, never a patient), cancels every appointment booked into it, and then lists the patients to
- * tell, by name, NHS number and time. Telling them by text or email comes with patient reminders (centre plan decision
+ * reason (about the clinic, never a patient), cancels every appointment booked into it that hasn't started (those that
+ * have stay, for their outcome), and then lists the patients to tell, by name, NHS number and time; a session cancelled
+ * earlier shows that list again. Telling them by text or email comes with patient reminders (centre plan decision
  * 130); until then the list is for phoning them.
  */
 export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: ClinicSessionDialogProps) {
@@ -131,7 +132,7 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
                 <VStack gap={3} hAlign="stretch">
                   <Text type="body">
                     {session.bookedCount
-                      ? `Cancelling it cancels the ${session.bookedCount === 1 ? 'appointment' : `${session.bookedCount} appointments`} booked into it, with this reason, and lists the patients to tell.`
+                      ? `Cancelling it cancels the ${session.bookedCount === 1 ? 'appointment' : `${session.bookedCount} appointments`} booked into it that haven’t started, with this reason, and lists the patients to tell. Any that have started stay, for their outcome to be recorded.`
                       : 'Nobody is booked into it yet.'}
                   </Text>
                   <TextArea
@@ -146,6 +147,9 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
                 </VStack>
               ) : cancelled ? (
                 <PatientsToTell cancelled={cancelled} />
+              ) : session.status === 'Cancelled' ? (
+                // A session cancelled earlier: its call list again, from the session itself.
+                <PatientsToTell cancelled={{session, patientsToTell: detail.data?.patientsToTell ?? []}} />
               ) : (
                 <Slots detail={detail.data} canBook={session.status !== 'Cancelled' && onBookSlot !== undefined} onBook={(start) => onBookSlot?.(session, start)} />
               )}

@@ -6,6 +6,9 @@ public sealed class ClinicSessionDetailResponse
     public ClinicSessionResponse Session { get; set; } = new();
 
     public List<ClinicSlotResponse> Slots { get; set; } = [];
+
+    /// <summary>Once it's cancelled: the patients whose appointments were cancelled with it, to tell (the call list again).</summary>
+    public List<PatientToTellResponse> PatientsToTell { get; set; } = [];
 }
 
 /// <summary>One slot of a session: free, or the appointment in it.</summary>

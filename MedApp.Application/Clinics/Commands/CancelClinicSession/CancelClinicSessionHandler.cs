@@ -17,10 +17,12 @@ using MediatR;
 namespace MedApp.Application.Clinics.Commands.CancelClinicSession;
 
 /// <summary>
-/// Cancels a session and its Booked appointments, each through <see cref="AppointmentChange"/> with the reason, so its
-/// history records it; Attended and Did not attend ones stay as they are. A restricted patient's appointment is
+/// Cancels a session and its Booked appointments still to come, each through <see cref="AppointmentChange"/> with the
+/// reason, so its history records it; one that has started, Attended and Did not attend ones stay as they are (an outcome
+/// is recorded for them). The list of whom to tell can be read again from the cancelled session
+/// (<c>GET api/clinics/sessions/{id}</c>). A restricted patient's appointment is
 /// cancelled too, as cancelling pauses care safely. The patients to tell are listed, which is a read of their records
-/// (<see cref="ActivityAction.PatientListed"/>). The clinician is told when someone else cancels it, once for the session
+/// (<see cref="ActivityAction.PatientListed"/>, recorded inside the cancellation's transaction). The clinician is told when someone else cancels it, once for the session
 /// (<see cref="ClinicNotifications"/>), not once for each appointment. Stage visits follow the rule for any cancelled
 /// appointment: nothing is asked for again.
 /// </summary>
@@ -62,7 +64,8 @@ public sealed class CancelClinicSessionHandler(
                 var appointments = await repository.GetSessionAppointmentsForUpdateAsync(tracked.Id, ct);
                 var events = new List<AppointmentEvent>();
                 var cancelledNow = new List<Appointment>();
-                foreach (var appointment in appointments.Where(AppointmentWorkflow.CanCancel))
+                // Only those still to come: one that has started stays, for its outcome to be recorded.
+                foreach (var appointment in appointments.Where(a => AppointmentWorkflow.CanCancel(a) && a.StartUtc > now))
                 {
                     var change = new AppointmentChange(appointment, actor, now, staffUsername);
                     change.Cancel(reason);
@@ -77,15 +80,17 @@ public sealed class CancelClinicSessionHandler(
                 tracked.LastUpdated = now;
 
                 await repository.SaveAsync(events, ClinicRules.ChangedMeanwhile, ct);
+
+                // The list of whom to tell names the patients: a read of their records, recorded in the same transaction,
+                // so if it can't be recorded (the log fails closed) the cancellation is rolled back with it.
+                await activityLog.RecordViewsAsync(ActivityAction.PatientListed, cancelledNow.Select(a => a.PatientId), ct);
+
                 IReadOnlyList<DateTime> stayed = appointments.Except(cancelledNow)
                     .Where(a => a.StartUtc is not null)
                     .Select(a => a.StartUtc!.Value)
                     .ToList();
                 return (tracked, (IReadOnlyList<Appointment>)cancelledNow, stayed);
             }, cancellationToken);
-
-        // The list of whom to tell names the patients: a read of their records, as any list of them is.
-        await activityLog.RecordViewsAsync(ActivityAction.PatientListed, cancelled.Select(a => a.PatientId), cancellationToken);
 
         foreach (var notification in ClinicNotifications.AfterCancelling(session, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);

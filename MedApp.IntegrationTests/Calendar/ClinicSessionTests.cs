@@ -314,6 +314,32 @@ public sealed class ClinicSessionTests : IntegrationTest
         await (await PostSessionAsync(_admin, _clinician.UserId, _room.Id, 9, 12)).ShouldHaveStatusAsync(HttpStatusCode.Created);
     }
 
+    /// <summary>
+    /// Cancelling a session part-way through its day leaves what has started for its outcome, and the call list can be
+    /// had again from the cancelled session.
+    /// </summary>
+    [Test]
+    public async Task CancelSession_PartWayThroughItsDay_KeepsWhatHasStarted_AndTheCallListCanBeReadAgain()
+    {
+        var session = await CreateSessionAsync();
+        var first = await RequestAppointmentAsync(_admin, (await CreatePatientAsync(_admin)).Id);
+        var second = await RequestAppointmentAsync(_admin, (await CreatePatientAsync(_admin)).Id);
+        await (await BookIntoSlotAsync(_admin, first.Id, session, UkAt(_day, 9))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await BookIntoSlotAsync(_admin, second.Id, session, UkAt(_day, 10))).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        MoveClockPast(UkAt(_day, 9));
+
+        var result = await (await _admin.PostAsJsonAsync($"/api/clinics/sessions/{session.Id}/cancel",
+                new CancelClinicSessionRequest { Reason = CancelReason, ExpectedLastUpdated = session.LastUpdated }))
+            .ReadAsAsync<CancelClinicSessionResponse>();
+
+        result.PatientsToTell.Select(p => p.AppointmentId).Should().Equal(second.Id);
+        (await GetAppointmentAsync(_admin, first.Id)).Status.Should().Be("Booked");
+        var again = await GetSessionAsync(_clinician.Client, session.Id);
+        again.Session.Status.Should().Be("Cancelled");
+        again.PatientsToTell.Select(p => p.AppointmentId).Should().Equal(second.Id);
+        again.Slots[0].AppointmentId.Should().Be(first.Id);
+    }
+
     [Test]
     public async Task UpdateSession_WithBookings_OnlyTheRoomMoves_AndItsAppointmentsGoWithIt()
     {
@@ -339,6 +365,9 @@ public sealed class ClinicSessionTests : IntegrationTest
 
         moved.RoomId.Should().Be(newRoom.Id);
         (await GetAppointmentAsync(_admin, requested.Id)).RoomId.Should().Be(newRoom.Id);
+        var history = await RunInScopeAsync(async services => await services.GetRequiredService<MedAppDbContext>().AppointmentEvents
+            .Where(e => e.AppointmentId == requested.Id).OrderBy(e => e.AtUtc).Select(e => e.Action).ToListAsync());
+        history.Should().Equal(AppointmentEventAction.Requested, AppointmentEventAction.Booked, AppointmentEventAction.Rescheduled);
         // The old room is free again; it's still in use (named), so it can't be deleted.
         await (await PostSessionAsync(_admin, _clinician.UserId, _room.Id, 13, 15)).ShouldHaveStatusAsync(HttpStatusCode.Created);
         await (await _admin.DeleteAsync($"/api/rooms/{_room.Id}")).ShouldHaveStatusAsync(HttpStatusCode.Conflict);

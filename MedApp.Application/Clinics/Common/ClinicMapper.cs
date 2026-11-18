@@ -1,3 +1,4 @@
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Clinics.Responses;
@@ -48,12 +49,15 @@ public static class ClinicMapper
         };
     }
 
-    /// <summary>A session with each of its slots: free, or the appointment on the calendar in it (with its patient).</summary>
+    /// <summary>
+    /// A session with each of its slots: free, or the appointment on the calendar in it (with its patient); and, once
+    /// it's cancelled, the patients whose appointments were cancelled with it, to tell.
+    /// </summary>
     public static ClinicSessionDetailResponse ToDetailResponse(
         ClinicSession session, string staffUsername, IReadOnlyList<Appointment> appointments, DateTime nowUtc, bool canManage)
     {
         var byStart = appointments
-            .Where(a => a.StartUtc is not null)
+            .Where(a => a.StartUtc is not null && AppointmentWorkflow.IsOnCalendar(a.Status))
             .GroupBy(a => UkTime.Utc(a.StartUtc!.Value))
             .ToDictionary(g => g.Key, g => g.First());
 
@@ -75,7 +79,10 @@ public static class ClinicMapper
                         AppointmentStatus = appointment?.Status.ToString()
                     };
                 })
-                .ToList()
+                .ToList(),
+            PatientsToTell = session.Status == ClinicSessionStatus.Cancelled
+                ? appointments.Where(a => a.Status == AppointmentStatus.Cancelled).OrderBy(a => a.StartUtc).Select(ToPatientToTell).ToList()
+                : []
         };
     }
 

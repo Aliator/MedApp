@@ -1,3 +1,4 @@
+using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Clinics.Common;
@@ -5,7 +6,9 @@ using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Specialties.Repositories;
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Clinics.Responses;
+using MedApp.Domain.Appointments;
 using MediatR;
 
 namespace MedApp.Application.Clinics.Commands.UpdateClinicSession;
@@ -73,14 +76,19 @@ public sealed class UpdateClinicSessionHandler(
             session.SlotMinutes = request.SlotMinutes;
             session.LastUpdated = now;
 
-            // Its appointments are in its room.
-            foreach (var appointment in appointments.Where(a => a.RoomId != request.RoomId))
+            // Its Booked appointments move to its new room, each recorded in its history (a move, with the room before);
+            // those already attended or missed happened in the room they name, so they keep it.
+            var events = new List<AppointmentEvent>();
+            var staffName = staffUsername.GetValueOrDefault(session.StaffUserId) ?? string.Empty;
+            var actor = new PathwayActor(request.Actor.UserId, request.Actor.Username, request.Actor.Permissions);
+            foreach (var appointment in appointments.Where(a => a.Status == AppointmentStatus.Booked && a.RoomId != request.RoomId))
             {
-                appointment.RoomId = request.RoomId;
-                appointment.LastUpdated = now;
+                var change = new AppointmentChange(appointment, actor, now, staffName);
+                change.Book(session.StaffUserId, staffName, appointment.StartUtc!.Value, appointment.EndUtc!.Value, new AppointmentPlace(session.Id, request.RoomId));
+                events.AddRange(change.Events);
             }
 
-            await repository.SaveAsync([], ClinicRules.ChangedMeanwhile, ct);
+            await repository.SaveAsync(events, ClinicRules.ChangedMeanwhile, ct);
             return appointments.Where(a => a.StartUtc is not null).Select(a => a.StartUtc!.Value).ToList();
         }, cancellationToken);
 

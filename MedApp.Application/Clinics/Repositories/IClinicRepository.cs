@@ -23,7 +23,10 @@ public interface IClinicRepository
     /// <summary>The start of every appointment on the calendar (Booked, Attended or Did not attend) in each of these sessions.</summary>
     Task<IReadOnlyDictionary<Guid, IReadOnlyList<DateTime>>> GetBookedStartsAsync(IEnumerable<Guid> sessionIds, CancellationToken ct);
 
-    /// <summary>A session's appointments on the calendar (Booked, Attended or Did not attend), with their patients, read-only.</summary>
+    /// <summary>
+    /// A session's appointments on the calendar (Booked, Attended or Did not attend) and, once it's cancelled, those
+    /// cancelled with it (the patients to tell), with their patients, read-only.
+    /// </summary>
     Task<IReadOnlyList<Appointment>> GetSessionAppointmentsAsync(Guid sessionId, CancellationToken ct);
 
     /// <summary>

@@ -80,6 +80,22 @@ public sealed class ClinicMapperTests
     }
 
     [Test]
+    public void ToDetailResponse_CancelledSession_ListsThoseCancelledWithItToTell_NotInItsSlots()
+    {
+        var session = CreateSession(status: ClinicSessionStatus.Cancelled);
+        var cancelled = InSession(session, At(NextMonday, 9, 20));
+        cancelled.Status = AppointmentStatus.Cancelled;
+        var attended = InSession(session, At(NextMonday, 9), AppointmentStatus.Attended);
+
+        var detail = ClinicMapper.ToDetailResponse(session, StaffUsername, [attended, cancelled], At(NextMonday, 9, 30), true);
+
+        detail.PatientsToTell.Select(p => p.AppointmentId).Should().Equal(cancelled.Id);
+        detail.Slots[0].AppointmentId.Should().Be(attended.Id);
+        detail.Slots[1].AppointmentId.Should().BeNull();
+        ClinicMapper.ToDetailResponse(CreateSession(), StaffUsername, [], Now, true).PatientsToTell.Should().BeEmpty();
+    }
+
+    [Test]
     public void ToPatientToTell_NamesThePatientAndTheTime()
     {
         var appointment = InSession(CreateSession(), At(NextMonday, 9, 40));

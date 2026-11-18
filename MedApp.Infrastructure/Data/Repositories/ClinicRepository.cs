@@ -78,8 +78,15 @@ public sealed class ClinicRepository(MedAppDbContext context) : IClinicRepositor
         await context.Appointments
             .AsNoTracking()
             .Include(a => a.Patient)
-            .Where(a => a.ClinicSessionId == sessionId && OnCalendar.Contains(a.Status))
+            .Where(a => a.ClinicSessionId == sessionId
+                        && (OnCalendar.Contains(a.Status)
+                            // Those cancelled with the session: the same save stamped both with the same moment.
+                            || (a.Status == AppointmentStatus.Cancelled
+                                && context.ClinicSessions.Any(s => s.Id == sessionId
+                                                                   && s.Status == ClinicSessionStatus.Cancelled
+                                                                   && s.CancelledAtUtc == a.LastUpdated))))
             .OrderBy(a => a.StartUtc)
+            .ThenBy(a => a.Id)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Appointment>> GetSessionAppointmentsForUpdateAsync(Guid sessionId, CancellationToken ct) =>
