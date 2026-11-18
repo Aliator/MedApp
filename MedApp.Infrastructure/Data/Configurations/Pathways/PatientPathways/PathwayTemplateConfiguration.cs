@@ -1,4 +1,5 @@
 ﻿using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Specialties;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -26,5 +27,15 @@ public sealed class PathwayTemplateConfiguration : IEntityTypeConfiguration<Path
 
         builder.HasIndex(x => x.Name)
             .IsUnique();
+
+        // Required. The database's default is General, so an API copy from before specialties can still create a
+        // template during a rollout. A specialty in use is archived, never deleted.
+        builder.Property(x => x.SpecialtyId)
+            .HasDefaultValue(Specialty.GeneralId);
+
+        builder.HasOne(x => x.Specialty)
+            .WithMany()
+            .HasForeignKey(x => x.SpecialtyId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -18,6 +18,7 @@ import {
   closedDayBookingsQuery,
   closedDaysOfYearQuery,
   hasBookings,
+  isClosedEverywhere,
   useAddBankHolidays,
   useAddClosedDay,
   useDeleteClosedDay,
@@ -25,6 +26,8 @@ import {
   type ClosedDay,
 } from '../../api/closedDays';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
+import {sitesQuery} from '../../api/sites';
+import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
@@ -93,15 +96,27 @@ export function bankHolidaysOutcome(result: AddedBankHolidays): Outcome {
   return {message, details};
 }
 
-/** What adding one closed day did, in words: that it was added, and what was already on it. */
+/**
+ * What adding one closed day did, in words: that it was added, and what was already on it; for a site's, where it
+ * closed ("Thu 24 Dec 2026 closed at Northgate outreach clinic: Refit."), as it tells nobody and closes no calendar.
+ */
 export function closedDayOutcome(saved: ClosedDay, name: string): Outcome {
+  if (!isClosedEverywhere(saved)) {
+    return {message: `${formatShortDayDate(saved.date ?? '')} closed at ${saved.siteName ?? 'the site'}: ${saved.name ?? name}.`, details: []};
+  }
   return {message: `${saved.name ?? name} added as a closed day.`, details: bookedOn(saved)};
 }
+
+/** Where a closed day is closed, in words: "Everywhere", or its site's name. */
+export const whereWords = (day: Pick<ClosedDay, 'siteId' | 'siteName'>) => (isClosedEverywhere(day) ? 'Everywhere' : (day.siteName ?? ''));
+
+/** The Where picker's value for closing everywhere (any other value is a site's ID). */
+const EVERYWHERE = 'everywhere';
 
 type ClosedDayRow = ClosedDay & Record<string, unknown>;
 
 /** The fields Add Closed Day's 400 can name. */
-const FIELDS = ['date', 'name'];
+const FIELDS = ['date', 'siteId', 'name'];
 
 interface Problem {
   validation: ValidationErrors | null;
@@ -116,11 +131,13 @@ export interface ClosedDaysPageProps {
 }
 
 /**
- * Closed days (admin, docs/calendar-plan.md decisions 72 to 75): the days the whole clinic is closed, such as bank
- * holidays and staff training days, one year at a time (the year in the address). A closed day is like a weekend on
- * every calendar: nothing new can be booked, blocked or arranged on it, and anything already there stays, flagged.
- * Admins add one by hand (a date from today on, and a name: once the date is chosen, the dialog says what's already on
- * it and whose, `closedDayBookingsQuery`), add a year's England and Wales bank holidays in one go, and remove one still
+ * Closed days (admin, docs/calendar-plan.md decisions 72 to 75, and decision 121 for sites): the days the clinic is
+ * closed, such as bank holidays and staff training days, everywhere or at one site, one year at a time (the year in
+ * the address). A day closed everywhere is like a weekend on every calendar: nothing new can be booked, blocked or
+ * arranged on it, and anything already there stays, flagged. A site's closed day closes its rooms, but nobody's
+ * calendar yet (working hours, a later change, will say who works where). Admins add one by hand (a date from today
+ * on, where, and a name: once the date is chosen, for everywhere the dialog says what's already on it and whose,
+ * `closedDayBookingsQuery`), add a year's England and Wales bank holidays (everywhere) in one go, and remove one still
  * to come. Past days can't change. After adding, what was on each day closed (whose staff are told), and any bank
  * holidays left out and why, show above the list until dismissed.
  */
@@ -135,6 +152,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
 
   const [isAdding, setIsAdding] = useState(false);
   const [date, setDate] = useState<string | undefined>();
+  const [where, setWhere] = useState(EVERYWHERE);
   const [name, setName] = useState('');
   const [problem, setProblem] = useState<Problem>(NO_PROBLEM);
   const [removing, setRemoving] = useState<ClosedDay | null>(null);
@@ -146,8 +164,12 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
     setOutcome(next);
     setOutcomeKey((k) => k + 1);
   };
-  // What's already on the date chosen in Add Closed Day.
-  const bookings = useQuery({...closedDayBookingsQuery(date ?? ''), enabled: isAdding && date !== undefined});
+  // The open sites, for Add Closed Day's Where.
+  const sites = useQuery({...sitesQuery(), enabled: isAdding});
+  const isEverywhere = where === EVERYWHERE;
+  const siteName = isEverywhere ? undefined : (sites.data?.find((s) => s.id === where)?.name ?? 'the site');
+  // What's already on the date chosen in Add Closed Day, when it closes everywhere (a site's closes nobody's calendar).
+  const bookings = useQuery({...closedDayBookingsQuery(date ?? ''), enabled: isAdding && date !== undefined && isEverywhere});
 
   const goToYear = (next: number) => {
     setError(null);
@@ -157,6 +179,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
 
   const openAdd = () => {
     setDate(undefined);
+    setWhere(EVERYWHERE);
     setName('');
     setProblem(NO_PROBLEM);
     setError(null);
@@ -168,7 +191,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
   const saveClosedDay = (day: string) => {
     setProblem(NO_PROBLEM);
     add.mutate(
-      {date: day, name: name.trim()},
+      isEverywhere ? {date: day, name: name.trim()} : {date: day, name: name.trim(), siteId: where},
       {
         onSuccess: (saved) => {
           const next = closedDayOutcome(saved, name.trim());
@@ -229,6 +252,16 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
     },
     {key: 'name', header: 'Name', width: proportional(3, {minWidth: 160}), renderCell: (d) => <Text type="body">{d.name}</Text>},
     {
+      key: 'site',
+      header: 'Site',
+      width: proportional(2, {minWidth: 130}),
+      renderCell: (d) => (
+        <Text type="body" color={isClosedEverywhere(d) ? 'secondary' : undefined} maxLines={1}>
+          {whereWords(d)}
+        </Text>
+      ),
+    },
+    {
       key: 'past',
       header: 'Status',
       width: pixel(110),
@@ -243,7 +276,9 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
         <TableActions
           actions={[
             {
-              label: d.isPast ? "Past days can't change" : `Remove ${d.name ?? 'closed day'}`,
+              label: d.isPast
+                ? "Past days can't change"
+                : `Remove ${d.name ?? 'closed day'}${isClosedEverywhere(d) ? '' : ` at ${d.siteName ?? 'the site'}`}`,
               icon: AppIcon.Delete,
               isDestructive: true,
               isDisabled: d.isPast === true,
@@ -305,7 +340,11 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
           <ConfirmDialog
             isOpen={isAdding}
             title="Add Closed Day"
-            message="Nobody can book, block or arrange anything new on it. Anything already there stays, flagged as being on a closed day."
+            message={
+              isEverywhere
+                ? 'Nobody can book, block or arrange anything new on it. Anything already there stays, flagged as being on a closed day.'
+                : `Closes ${siteName}'s rooms. Staff calendars aren't closed: to close everyone's, choose Everywhere.`
+            }
             icon={AppIcon.ClosedDays}
             confirmText="Add Closed Day"
             isProcessing={add.isPending}
@@ -326,6 +365,19 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
                 isRequired
                 status={fieldStatus(problem.validation, 'date')}
               />
+              <AnchoredSelector
+                label="Where"
+                options={[
+                  {value: EVERYWHERE, label: 'Everywhere'},
+                  ...(sites.data ?? []).map((s) => ({value: s.id ?? '', label: s.name ?? ''})),
+                  // A site chosen that has since left the list (archived meanwhile) stays chosen, so it's never swapped for everywhere.
+                  ...(isEverywhere || sites.data?.some((s) => s.id === where) ? [] : [{value: where, label: siteName ?? ''}]),
+                ]}
+                value={where}
+                onChange={(value: string) => setWhere(value)}
+                isRequired
+                status={fieldStatus(problem.validation, 'siteId')}
+              />
               <TextInput
                 label="Name"
                 description="What it is, for everyone's calendars. About the clinic, never a patient."
@@ -337,6 +389,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
                 status={fieldStatus(problem.validation, 'name')}
               />
               {date !== undefined &&
+                isEverywhere &&
                 (bookings.isError ? (
                   <AlertMessage status="warning" message="What's already booked then could not be checked." />
                 ) : bookings.data ? (
@@ -355,7 +408,11 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
           <ConfirmDialog
             isOpen={removing !== null}
             title="Remove Closed Day"
-            message="The day becomes a working day again on every calendar."
+            message={
+              removing && !isClosedEverywhere(removing)
+                ? `${removing.siteName ?? 'The site'}'s rooms open again that day.`
+                : 'The day becomes a working day again on every calendar.'
+            }
             isDanger
             confirmText="Remove"
             isProcessing={remove.isPending}
@@ -365,6 +422,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
               <MetadataList>
                 <MetadataListItem label="Date">{formatShortDayDate(removing.date ?? '')}</MetadataListItem>
                 <MetadataListItem label="Name">{removing.name}</MetadataListItem>
+                <MetadataListItem label="Where">{whereWords(removing)}</MetadataListItem>
               </MetadataList>
             )}
           </ConfirmDialog>
@@ -378,9 +436,10 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
         search={
           <VStack gap={3} hAlign="stretch">
             <Text type="body" color="secondary">
-              A closed day is like a weekend on every calendar: nothing new can be booked, blocked or arranged on it, and
-              anything already there stays, flagged, and whoever it belongs to is told. Bank holidays are England and
-              Wales&apos;; add a one-off extra one (a coronation, say) by hand.
+              A day closed everywhere is like a weekend on every calendar: nothing new can be booked, blocked or arranged
+              on it, and anything already there stays, flagged, and whoever it belongs to is told. A day closed at one
+              site closes its rooms, not anyone&apos;s calendar. Bank holidays are England and Wales&apos;, closed
+              everywhere; add a one-off extra one (a coronation, say) by hand.
             </Text>
             {outcome && (
               <AlertMessage

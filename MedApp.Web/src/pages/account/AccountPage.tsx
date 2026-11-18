@@ -6,6 +6,7 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {Slider} from '@astryxdesign/core/Slider';
 import {Switch} from '@astryxdesign/core/Switch';
+import {useQuery} from '@tanstack/react-query';
 import {ACCESSIBILITY_SETTINGS, useAccessibility} from '../../app/accessibility';
 import {useColorMode} from '../../app/colorMode';
 import {useRef, useState} from 'react';
@@ -13,6 +14,7 @@ import {MAX_PAGE_SIZE, MIN_PAGE_SIZE, useListSettings} from '../../app/listSetti
 import {FLYOUT_DELAYS, START_PAGES, useNavSettings, type StartPage} from '../../app/navSettings';
 import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
 import {sortRoles} from '../../auth/roles';
+import {mySpecialtiesQuery, specialtyNames} from '../../api/specialties';
 import {useCurrentUser} from '../../auth/auth';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {Page} from '../../components/pages/Page';
@@ -22,8 +24,16 @@ import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {NotificationSettings} from './NotificationSettings';
 
+/** The signed-in user's specialties, read only: an admin sets them on the Users page. */
+function MySpecialties() {
+  const {data, isPending, isError} = useQuery(mySpecialtiesQuery);
+  if (isPending) return 'Loading...';
+  if (isError) return 'Your specialties could not be loaded.';
+  return specialtyNames(data, 'None yet. An admin sets them on the Users page.');
+}
+
 /**
- * The signed-in user's Account Settings, as cards: the account (who they are, and pages of their own for the email
+ * The signed-in user's Account Settings, as cards: the account (who they are, their specialties, and pages of their own for the email
  * address, security (two-factor authentication) and Change Password); how the app looks (light or dark mode, and Change Colours, a page of its own); which notifications they get
  * (kept on the server, which checks it before sending: `NotificationSettings`); navigation (the page sign-in
  * opens on, and what the side nav does while a half view is open); lists (rows per page, and where pathway lists
@@ -76,6 +86,9 @@ export function AccountPage() {
             {/* Your roles, read only: admins give them on the Users page. */}
             <MetadataListItem label={me.roles.length === 1 ? 'Role' : 'Roles'}>
               {me.roles.length > 0 ? sortRoles(me.roles).join(', ') : 'No role'}
+            </MetadataListItem>
+            <MetadataListItem label="Your specialties">
+              <MySpecialties />
             </MetadataListItem>
           </ViewSection>
         </ViewCard>

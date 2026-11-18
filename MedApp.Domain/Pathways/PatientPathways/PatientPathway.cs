@@ -36,6 +36,12 @@ public sealed class PatientPathway
     /// <summary>The template's name when the pathway was created, kept even if the template is renamed or archived.</summary>
     public string TemplateName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Its template's specialty when it was created, copied as the stages are, so moving the template later doesn't
+    /// move old pathways in lists and reports. Pathways from before specialties are in General.
+    /// </summary>
+    public Guid SpecialtyId { get; set; }
+
     public DateTime CreatedAt { get; init; }
     public DateTime LastUpdated { get; set; }
 

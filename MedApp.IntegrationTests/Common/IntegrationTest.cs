@@ -7,6 +7,8 @@ using MedApp.Contracts.Appointments.Responses;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.Contracts.Calendar.Requests;
+using MedApp.Contracts.Sites.Requests;
+using MedApp.Contracts.Sites.Responses;
 using MedApp.Contracts.Calendar.Responses;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Patients.Requests;
@@ -18,6 +20,7 @@ using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Requests;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Application.Pathways.Common;
+using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -172,6 +175,7 @@ public abstract class IntegrationTest
             new CreatePathwayTemplateRequest
             {
                 Name = UniqueName("Template"),
+                SpecialtyId = Specialty.GeneralId,
                 StageDefinitionIdsInOrder = stageDefinitionIds,
             });
         return await response.ReadAsAsync<PathwayTemplateResponse>(HttpStatusCode.Created);
@@ -321,11 +325,23 @@ public abstract class IntegrationTest
         });
 
     /// <summary>Closes the clinic on a day (an admin's request): the response, whatever it is.</summary>
-    protected static Task<HttpResponseMessage> PostClosedDayAsync(HttpClient client, DateOnly date, string name = ClosedDayName) =>
-        client.PostAsJsonAsync("/api/calendar/closed-days", new CreateClosedDayRequest { Date = date, Name = name });
+    protected static Task<HttpResponseMessage> PostClosedDayAsync(
+        HttpClient client, DateOnly date, string name = ClosedDayName, Guid? siteId = null) =>
+        client.PostAsJsonAsync("/api/calendar/closed-days", new CreateClosedDayRequest { Date = date, Name = name, SiteId = siteId });
 
-    protected static async Task<ClosedDayResponse> AddClosedDayAsync(HttpClient admin, DateOnly date, string name = ClosedDayName) =>
-        await (await PostClosedDayAsync(admin, date, name)).ReadAsAsync<ClosedDayResponse>(HttpStatusCode.Created);
+    protected static async Task<ClosedDayResponse> AddClosedDayAsync(
+        HttpClient admin, DateOnly date, string name = ClosedDayName, Guid? siteId = null) =>
+        await (await PostClosedDayAsync(admin, date, name, siteId)).ReadAsAsync<ClosedDayResponse>(HttpStatusCode.Created);
+
+    protected static Task<HttpResponseMessage> PostSiteAsync(HttpClient client, string? name = null) =>
+        client.PostAsJsonAsync("/api/sites", new SiteRequest { Name = name ?? UniqueName("Site") });
+
+    protected static async Task<SiteResponse> CreateSiteAsync(HttpClient admin, string? name = null) =>
+        await (await PostSiteAsync(admin, name)).ReadAsAsync<SiteResponse>(HttpStatusCode.Created);
+
+    protected static async Task<RoomResponse> CreateRoomAsync(HttpClient admin, Guid siteId, string? name = null) =>
+        await (await admin.PostAsJsonAsync("/api/rooms", new CreateRoomRequest { SiteId = siteId, Name = name ?? UniqueName("Room") }))
+            .ReadAsAsync<RoomResponse>(HttpStatusCode.Created);
 
     /// <summary>Moves the API's clock to a minute after this moment (e.g. an appointment's start), so it has passed.</summary>
     protected static void MoveClockPast(DateTime utc) => Clock.SetUtcNow(utc.AddMinutes(1));

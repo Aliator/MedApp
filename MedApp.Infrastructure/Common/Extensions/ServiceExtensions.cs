@@ -8,6 +8,7 @@ using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Sites.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
@@ -17,6 +18,7 @@ using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Pathways.Repositories;
+using MedApp.Application.Specialties.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Infrastructure.Attachments;
 using MedApp.Infrastructure.Common.Authentication;
@@ -171,6 +173,7 @@ public static class ServiceExtensions
         services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<IClosedDayRepository, ClosedDayRepository>();
+        services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
@@ -183,6 +186,7 @@ public static class ServiceExtensions
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
         
         return services;
     }

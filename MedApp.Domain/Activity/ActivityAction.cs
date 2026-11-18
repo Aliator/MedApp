@@ -111,5 +111,8 @@ public enum ActivityAction
     EmailCodesEnabled = 40,
 
     /// <summary>Someone turned off two-factor authentication that used codes by email.</summary>
-    EmailCodesDisabled = 41
+    EmailCodesDisabled = 41,
+
+    /// <summary>An admin changed which specialties someone belongs to: the specialties' IDs and names before and after.</summary>
+    StaffSpecialtiesChanged = 42
 }

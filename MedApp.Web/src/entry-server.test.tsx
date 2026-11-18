@@ -725,4 +725,33 @@ describe('server rendering', () => {
     expect(html).toContain('Mon 27 Dec 2027');
     expect(requests.map((r) => new URL(r.url).search).filter((q) => q.includes('From'))).toEqual(['?From=2027-01-01&To=2027-12-31']);
   });
+
+  it('renders Sites and Rooms for an admin with the sites in it', async () => {
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/sites': [
+        {
+          id: '5173e000-0000-4000-8000-000000000002',
+          name: 'Northgate outreach clinic',
+          addressLines: ['1 Northgate Road'],
+          postcode: 'ZZ99 3AA',
+          phone: '07700 900123',
+          isArchived: false,
+          canBeDeleted: false,
+          rooms: [{id: '0000005a-0000-0000-0000-000000000001', name: 'Clinic room 1', isArchived: false}],
+        },
+      ],
+    });
+
+    const response = await page('/admin/sites', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Northgate outreach clinic');
+    expect(html).toContain('ZZ99 3AA');
+    expect(html).toContain('Clinic room 1');
+    expect(requests.map((r) => new URL(r.url).search).filter((q) => q.includes('includeArchived'))).toEqual(['?includeArchived=true']);
+  });
 });

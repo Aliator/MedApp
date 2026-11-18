@@ -1,6 +1,6 @@
 import {screen} from '@testing-library/react';
 import {ACCESSIBILITY_SETTINGS} from '../../app/accessibility';
-import {adminUser, isDisabled, renderWithApp, staffUser} from '../../test/render';
+import {adminUser, isDisabled, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {AccountPage} from './AccountPage';
 
 describe('AccountPage', () => {
@@ -24,6 +24,28 @@ describe('AccountPage', () => {
 
     renderWithApp(<AccountPage />, {user: {...staffUser, roles: []}});
     expect(await screen.findByText('No role')).toBeInTheDocument();
+  });
+
+  it('shows your specialties, read only', async () => {
+    mockApi({'GET /api/auth/me/specialties': () => json([{id: 's1', name: 'Dermatology'}, {id: 's2', name: 'Urology', isArchived: true}])});
+    renderWithApp(<AccountPage />, {user: staffUser});
+
+    expect(await screen.findByText('Dermatology, Urology')).toBeInTheDocument();
+    expect(screen.getByText('Your specialties')).toBeInTheDocument();
+  });
+
+  it('says when you have no specialties yet, and who sets them', async () => {
+    mockApi({'GET /api/auth/me/specialties': () => json([])});
+    renderWithApp(<AccountPage />, {user: staffUser});
+
+    expect(await screen.findByText('None yet. An admin sets them on the Users page.')).toBeInTheDocument();
+  });
+
+  it('says when your specialties could not be loaded', async () => {
+    mockApi({'GET /api/auth/me/specialties': () => json({title: 'Server error'}, 500)});
+    renderWithApp(<AccountPage />, {user: staffUser});
+
+    expect(await screen.findByText('Your specialties could not be loaded.')).toBeInTheDocument();
   });
 
   it('switches between dark and light mode and remembers the choice', async () => {

@@ -86,6 +86,7 @@ public static class PathwayMapper
             Patient = ToPatient(patient),
             TemplateId = pathway.TemplateId,
             TemplateName = pathway.TemplateName,
+            SpecialtyId = pathway.SpecialtyId,
             Title = pathway.Title,
             DueDate = DueDates.ToUkDate(pathway.DueDateUtc),
             DueDateUtc = pathway.DueDateUtc,

@@ -6,6 +6,7 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import type {InputStatus} from '@astryxdesign/core/Field';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {pixel} from '@astryxdesign/core/Table';
 import {Token} from '@astryxdesign/core/Token';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
@@ -36,6 +37,7 @@ import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {TableActions} from '../../components/tables/TableActions';
 import {TextCell} from '../../components/tables/TextCell';
+import {UserSpecialtiesDialog} from './UserSpecialtiesDialog';
 import {hasUserFilters, type UsersListSearch, choiceValues} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
 
@@ -53,7 +55,7 @@ const PASSWORD_DONE_HOLD_MS = 1000;
 
 type DialogState =
   | {kind: 'create'}
-  | {kind: 'roles' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete'; username: string; roles: string[]; email: string | null}
+  | {kind: 'roles' | 'specialties' | 'reset' | 'resetTwoFactor' | 'signOut' | 'removeEmail' | 'delete'; username: string; roles: string[]; email: string | null}
   | null;
 
 /** The role to ask the API for: the one chosen, or none when the choice covers every role (or none at all). */
@@ -103,7 +105,7 @@ export interface UsersPageProps {
  * Admin user management (replaces Blazor's UsersTable): one page of users with their roles, a search, and
  * dialogs to create users (the server generates the first password, shown once; an email address is optional, and
  * asked for only when the server can send email), edit their roles (every role listed, theirs ticked), reset passwords,
- * reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
+ * set the specialties each works in (`UserSpecialtiesDialog`), reset two-factor authentication (for someone who has lost their app), sign users out everywhere (every session they
  * have ends), remove a user's email address (so reset links can't go to an address that isn't theirs any more) and
  * delete users (confirmed with the admin's own password). Each user's email address shows, one waiting to be confirmed
  * marked so, and whether they use two-factor authentication. Admins can't change their own account here, as in Blazor:
@@ -221,6 +223,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       key: 'actions',
       header: 'Actions',
       align: 'end',
+      // Eight buttons: a column sized to fit them all, so none is covered by the cell beside it.
+      width: pixel(300),
       renderCell: (u) => {
         const username = u.username ?? '';
         const roles = [...(u.roles ?? [])];
@@ -230,6 +234,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <TableActions
             actions={[
               {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
+              // Unlike roles, admins may set their own: specialties don't change what anyone can do.
+              {label: 'Edit specialties', icon: AppIcon.Specialties, onClick: () => open({kind: 'specialties', ...target})},
               {label: 'Reset password', icon: AppIcon.Lock, isDisabled: isMe, onClick: () => open({kind: 'reset', ...target})},
               {
                 label: 'Reset two-factor',
@@ -360,6 +366,13 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               target && setRoles.mutate({username: target.username, roles: selectedRoles}, {onSuccess: close, onError: failed('The roles could not be saved.')})
             }
             onCancel={close}
+          />
+
+          <UserSpecialtiesDialog
+            isOpen={dialog?.kind === 'specialties'}
+            username={target?.username ?? ''}
+            onClose={close}
+            onSaved={setNotice}
           />
 
           <ConfirmDialog

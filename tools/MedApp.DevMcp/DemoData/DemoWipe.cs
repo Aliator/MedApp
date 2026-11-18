@@ -1,3 +1,5 @@
+using MedApp.Domain.Sites;
+using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using MedApp.Infrastructure.Data.Configurations.Calendar;
@@ -42,6 +44,15 @@ public static class DemoWipe
                 await db.CalendarBlocks.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarDayOverrides.ExecuteDeleteAsync(cancellationToken);
                 await db.ClosedDays.ExecuteDeleteAsync(cancellationToken);
+                // Rooms and every site but the main one, which goes back to how the migration made it.
+                await db.Rooms.ExecuteDeleteAsync(cancellationToken);
+                await db.Sites.Where(x => x.Id != Site.MainSiteId).ExecuteDeleteAsync(cancellationToken);
+                await db.Sites.Where(x => x.Id == Site.MainSiteId).ExecuteUpdateAsync(x => x
+                    .SetProperty(p => p.Name, Site.MainSiteName)
+                    .SetProperty(p => p.AddressLines, (string?)null)
+                    .SetProperty(p => p.Postcode, (string?)null)
+                    .SetProperty(p => p.Phone, (string?)null)
+                    .SetProperty(p => p.IsArchived, false), cancellationToken);
                 await db.StaffWeekTemplates.ExecuteDeleteAsync(cancellationToken);
                 await db.WeekTemplateDays.ExecuteDeleteAsync(cancellationToken);
                 await db.WeekTemplates.ExecuteDeleteAsync(cancellationToken);
@@ -64,6 +75,12 @@ public static class DemoWipe
                 await db.PatientPathways.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplateItems.ExecuteDeleteAsync(cancellationToken);
                 await db.PathwayTemplates.ExecuteDeleteAsync(cancellationToken);
+                // Every specialty but General (which the migrations seeded), back as it was; memberships go first.
+                await db.StaffSpecialties.ExecuteDeleteAsync(cancellationToken);
+                await db.Specialties.Where(s => s.Id != Specialty.GeneralId).ExecuteDeleteAsync(cancellationToken);
+                await db.Specialties.Where(s => s.Id == Specialty.GeneralId).ExecuteUpdateAsync(u => u
+                    .SetProperty(s => s.Name, Specialty.GeneralName)
+                    .SetProperty(s => s.IsArchived, false), cancellationToken);
                 await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);
                 await db.UserSessions.ExecuteDeleteAsync(cancellationToken);

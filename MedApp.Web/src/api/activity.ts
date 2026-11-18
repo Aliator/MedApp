@@ -51,6 +51,7 @@ export const ACTIVITY_ACTIONS = [
   'TwoFactorRequirementChanged',
   'EmailCodesEnabled',
   'EmailCodesDisabled',
+  'StaffSpecialtiesChanged',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -97,6 +98,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   TwoFactorRequirementChanged: 'Two-factor requirement changed',
   EmailCodesEnabled: 'Codes by email turned on',
   EmailCodesDisabled: 'Codes by email turned off',
+  StaffSpecialtiesChanged: 'Specialties changed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -135,6 +137,7 @@ export const ACCOUNT_ACTIONS: ActivityAction[] = [
   'TwoFactorRequirementChanged',
   'EmailCodesEnabled',
   'EmailCodesDisabled',
+  'StaffSpecialtiesChanged',
 ];
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -246,6 +249,9 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
     case 'RolesChanged':
       if (d.added) return `Added ${String(d.added)}`;
       if (d.removed) return `Removed ${String(d.removed)}`;
+      return `${roles(d.from)} → ${roles(d.to)}`;
+    // By name, as they were then (a specialty renamed since keeps its old name here).
+    case 'StaffSpecialtiesChanged':
       return `${roles(d.from)} → ${roles(d.to)}`;
     case 'RoleCreated':
     case 'RoleDeleted':

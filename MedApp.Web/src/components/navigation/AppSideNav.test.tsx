@@ -39,12 +39,14 @@ describe('AppSideNav', () => {
     renderWithApp(<AppSideNav />, {user: adminUser});
 
     expect(await screen.findByRole('link', {name: /users/i})).toHaveAttribute('href', '/admin/users');
+    expect(screen.getByRole('link', {name: 'Specialties'})).toHaveAttribute('href', '/admin/specialties');
     expect(screen.getByRole('link', {name: 'Stage Library'})).toHaveAttribute('href', '/admin/stages');
     expect(screen.getByRole('link', {name: 'Pathway Templates'})).toHaveAttribute('href', '/admin/pathway-templates');
     // Calendar templates are each person's own, reached from the Calendar page.
     expect(screen.queryByRole('link', {name: 'Calendar Templates'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Activity Types'})).toHaveAttribute('href', '/admin/activity-types');
     expect(screen.getByRole('link', {name: 'Closed Days'})).toHaveAttribute('href', '/admin/closed-days');
+    expect(screen.getByRole('link', {name: 'Sites and Rooms'})).toHaveAttribute('href', '/admin/sites');
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
     expect(screen.getByRole('link', {name: 'Monitoring'})).toHaveAttribute('href', '/admin/monitoring');
