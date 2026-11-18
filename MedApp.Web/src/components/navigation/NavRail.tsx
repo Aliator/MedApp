@@ -4,7 +4,7 @@ import {IconButton} from '@astryxdesign/core/IconButton';
 import {Popover} from '@astryxdesign/core/Popover';
 import {SideNav} from '@astryxdesign/core/SideNav';
 import {VStack} from '@astryxdesign/core/Stack';
-import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react';
+import {createContext, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react';
 import {useNavSettings} from '../../app/navSettings';
 
 /** One item of the side nav: its icon for the folded nav, and its row as the open nav shows it. */
@@ -32,6 +32,13 @@ export interface NavRailProps {
   /** Wraps each row brought out, e.g. to track the pointer over its buttons. */
   wrapRow?: (row: ReactNode) => ReactNode;
 }
+
+/**
+ * Holding a row brought out of the folded nav out, while something in it needs it (a row's menu pinned open with a
+ * click): `hold(true)` keeps it out whatever the pointer does, and `hold(false)` lets it go (at once, if the pointer
+ * isn't on it). Null outside a brought-out row.
+ */
+export const FlyoutHoldContext = createContext<((isHeld: boolean) => void) | null>(null);
 
 /** How long a row stays out after the pointer leaves, so it can cross onto the row. */
 const CLOSE_DELAY_MS = 150;
@@ -136,6 +143,26 @@ interface RailItemProps {
 }
 
 function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailItemProps) {
+  // Held out by a pinned menu in its row, and whether the pointer is on the item (its row included), so letting go
+  // closes the row only if the pointer has left.
+  const isHeld = useRef(false);
+  const isHovered = useRef(false);
+  const latestShow = useRef(onShow);
+  const latestHide = useRef(onHide);
+  useEffect(() => {
+    latestShow.current = onShow;
+    latestHide.current = onHide;
+  });
+  const hideUnlessHeld = () => {
+    if (!isHeld.current) onHide();
+  };
+  const hold = useCallback((held: boolean) => {
+    isHeld.current = held;
+    // Held: shown again, which also stops a close already counting down (the pointer may have left on its way to
+    // the button). Let go: closed, unless the pointer is on it.
+    if (held) latestShow.current();
+    else if (!isHovered.current) latestHide.current();
+  }, []);
   const icon = useRef<HTMLElement | null>(null);
   const flyout = useRef<HTMLElement | null>(null);
   const rowsBox = useRef<HTMLElement | null>(null);
@@ -244,8 +271,14 @@ function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailIt
     <VStack
       hAlign="center"
       // Over: anywhere in it, its row included (a descendant), so moving between the row and the icon keeps it out.
-      onMouseOver={onShow}
-      onMouseLeave={onHide}
+      onMouseOver={() => {
+        isHovered.current = true;
+        onShow();
+      }}
+      onMouseLeave={() => {
+        isHovered.current = false;
+        hideUnlessHeld();
+      }}
       style={{
         paddingBlock: 'var(--spacing-0-5)',
         // The gap before a group isn't part of any item, so the pointer there closes the row.
@@ -255,7 +288,7 @@ function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailIt
       }}>
       <Popover
         isOpen={isOpen}
-        onOpenChange={(open) => (open ? onShow() : onHide())}
+        onOpenChange={(open) => (open ? onShow() : hideUnlessHeld())}
         placement="end"
         alignment="start"
         role="none"
@@ -296,7 +329,7 @@ function RailItem({entry, isGroupStart, isOpen, onShow, onHide, wrapRow}: RailIt
                 // The box takes the pointer; its cut-away part (beside the nav's icons) doesn't.
                 pointerEvents: 'auto',
               }}>
-              {wrapRow(entry.row)}
+              <FlyoutHoldContext.Provider value={hold}>{wrapRow(entry.row)}</FlyoutHoldContext.Provider>
             </VStack>
           </SideNav>
         }>

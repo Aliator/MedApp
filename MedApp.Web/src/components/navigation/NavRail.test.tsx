@@ -2,7 +2,8 @@ import {SideNavItem} from '@astryxdesign/core/SideNav';
 import {act, fireEvent, screen, waitFor} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
 import {AppIcon} from '../shared/icons';
-import {NavRail, type NavRailEntry} from './NavRail';
+import {useContext} from 'react';
+import {FlyoutHoldContext, NavRail, type NavRailEntry} from './NavRail';
 
 const entries: NavRailEntry[] = [
   {key: 'home', label: 'Home', icon: AppIcon.Home, href: '/', isSelected: true, row: <SideNavItem label="Home row" icon={AppIcon.Home} href="/" />},
@@ -29,6 +30,55 @@ describe('NavRail', () => {
 
     await user.unhover(home);
     await waitFor(() => expect(screen.queryByText('Home row')).not.toBeVisible());
+  });
+
+  it('keeps a row out while something in it holds it (a pinned menu), and takes it away when let go', async () => {
+    function Holder() {
+      const hold = useContext(FlyoutHoldContext);
+      return (
+        <>
+          <button type="button" onClick={() => hold?.(true)}>
+            Hold
+          </button>
+          <button type="button" onClick={() => hold?.(false)}>
+            Let go
+          </button>
+        </>
+      );
+    }
+    const held: NavRailEntry[] = [{...entries[0], row: <Holder />}];
+    localStorage.setItem('medapp.navFlyoutDelay', 'none');
+    const {user} = renderWithApp(<NavRail groups={[held]} />);
+
+    const home = await screen.findByRole('link', {name: 'Home'});
+    await user.hover(home);
+    await user.click(await screen.findByRole('button', {name: 'Hold'}));
+    // The pointer leaves altogether: the row stays.
+    await user.unhover(home);
+    await user.hover(document.body);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(screen.getByRole('button', {name: 'Let go', hidden: true})).toBeVisible();
+
+    // Let go with the pointer away: it goes.
+    fireEvent.click(screen.getByRole('button', {name: 'Let go', hidden: true}));
+    await waitFor(() => expect(screen.queryByRole('button', {name: 'Let go', hidden: true})).not.toBeVisible());
+  });
+
+  it('keeps a row out when let go while the pointer is still on it', async () => {
+    function Holder() {
+      const hold = useContext(FlyoutHoldContext);
+      return (
+        <button type="button" onClick={() => (hold?.(true), hold?.(false))}>
+          Hold and let go
+        </button>
+      );
+    }
+    localStorage.setItem('medapp.navFlyoutDelay', 'none');
+    const {user} = renderWithApp(<NavRail groups={[[{...entries[0], row: <Holder />}]]} />);
+
+    await user.hover(await screen.findByRole('link', {name: 'Home'}));
+    await user.click(await screen.findByRole('button', {name: 'Hold and let go'}));
+    expect(screen.getByRole('button', {name: 'Hold and let go'})).toBeVisible();
   });
 
   it('brings rows out at once when the hover delay is None (Account Settings)', async () => {
