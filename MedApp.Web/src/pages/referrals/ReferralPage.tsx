@@ -37,6 +37,7 @@ import {ReferralStatusToken} from '../../components/referrals/ReferralCells';
 import {ReferralInformationDialog, type ReferralInformationStep} from '../../components/referrals/ReferralInformationDialog';
 import {RejectReferralDialog} from '../../components/referrals/RejectReferralDialog';
 import {LettersAbout} from '../../components/letters/LettersAbout';
+import {ClockPauseList, WaitingClockDetails} from '../../components/referrals/WaitingClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
@@ -84,8 +85,11 @@ type Triage = 'accept' | 'reject' | 'redirect' | ReferralInformationStep;
  * The patient's other referrals (every status) sit under Triage, so a possible duplicate is seen before deciding
  * (hazard H-44).
  *
- * Two cards side by side (details and the letter; triage, the other referrals and history), or in a narrow window one
- * card of five folding sections; either way the cards scroll, not the page.
+ * The waiting-time clock sits under the details: the wait, the target date, Breached, Paused or Stopped and why, and
+ * its pauses (paused and resumed from its pathway's page).
+ *
+ * Two cards side by side (details, waiting time and the letter; triage, the other referrals and history), or in a
+ * narrow window one card of six folding sections; either way the cards scroll, not the page.
  */
 export function ReferralPage({id}: {id: string}) {
   const isNarrow = useIsNarrow();
@@ -99,7 +103,7 @@ export function ReferralPage({id}: {id: string}) {
   const [dialogKey, setDialogKey] = useState(0);
   const [closeErrors, setCloseErrors] = useState<ValidationErrors | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [open, setOpen] = useState({details: true, letter: true, letters: true, triage: true, others: true, history: true});
+  const [open, setOpen] = useState({details: true, wait: true, letter: true, letters: true, triage: true, others: true, history: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const closeMutation = closing === 'enteredInError' ? actions.enteredInError : actions.withdraw;
@@ -238,11 +242,11 @@ export function ReferralPage({id}: {id: string}) {
       {referral &&
         (isNarrow ? (
           <FoldingCard
-            sections={[details(referral), letter(referral), letters(referral), triageSection(referral), others(referral), history(referral)]}
+            sections={[details(referral), waitingTime(referral), letter(referral), letters(referral), triageSection(referral), others(referral), history(referral)]}
           />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[details(referral), letter(referral), letters(referral)]} />}
+            start={<FoldingCard sections={[details(referral), waitingTime(referral), letter(referral), letters(referral)]} />}
             end={<FoldingCard sections={[triageSection(referral), others(referral), history(referral)]} />}
           />
         ))}
@@ -258,6 +262,46 @@ export function ReferralPage({id}: {id: string}) {
       children: (
         <Section variant="transparent" padding={6}>
           <ReferralDetails referral={referral} />
+        </Section>
+      ),
+    };
+  }
+
+  /**
+   * The waiting-time clock (decisions 27 to 38): the wait against the specialty's target, the target date, Breached,
+   * Paused (with its review date) or Stopped and why, and every pause. Pausing and resuming are on its pathway's page,
+   * where the pathway's target date moves with them.
+   */
+  function waitingTime(referral: Referral): FoldingSection {
+    const canChange = Boolean(referral.pathwayId) && (referral.canPauseClock || referral.canResumeClock);
+    return {
+      key: 'wait',
+      title: 'Waiting time',
+      isOpen: open.wait,
+      onToggle: () => toggle('wait'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          {referral.clock ? (
+            <VStack gap={6} hAlign="stretch">
+              <WaitingClockDetails clock={referral.clock} />
+              <VStack gap={2} hAlign="stretch">
+                <Text type="body" weight="semibold">
+                  Pauses
+                </Text>
+                <ClockPauseList pauses={referral.pauses ?? []} />
+              </VStack>
+              {canChange && (
+                <Text type="body" color="secondary">
+                  {referral.canResumeClock ? 'Resume the clock from ' : 'Pause the clock from '}
+                  <Link href={`/pathways/${referral.pathwayId}`}>its pathway</Link>.
+                </Text>
+              )}
+            </VStack>
+          ) : (
+            <Text type="body" color="secondary">
+              This referral has no waiting-time clock.
+            </Text>
+          )}
         </Section>
       ),
     };

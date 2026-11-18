@@ -79,6 +79,26 @@ public sealed class CreatePathwayTemplateHandlerTests
     }
 
     [Test]
+    public async Task Handle_ClockStopStage_MarksThatPositionOnly()
+    {
+        var consultation = CreateDefinition(ConsultationStage);
+        var pathway = CreateDefinition(PathwayStage);
+        GivenDefinitions(consultation, pathway);
+        PathwayTemplate? added = null;
+        _repository
+            .Setup(r => r.AddPathwayTemplateAsync(It.IsAny<PathwayTemplate>(), It.IsAny<CancellationToken>()))
+            .Callback((PathwayTemplate t, CancellationToken _) => added = t);
+
+        var response = await Handler.Handle(
+            new CreatePathwayTemplateCommand(TemplateName, SpecialtyId, [consultation.Id, pathway.Id, consultation.Id], 3),
+            CancellationToken.None);
+
+        added!.Maps.Select(m => m.StopsClock).Should().Equal(false, false, true);
+        response.ClockStopStageOrder.Should().Be(3);
+        response.Stages.Select(s => s.StopsClock).Should().Equal(false, false, true);
+    }
+
+    [Test]
     public async Task Handle_UnknownSpecialty_ThrowsNotFoundWithoutSaving()
     {
         var consultation = CreateDefinition(ConsultationStage);

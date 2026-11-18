@@ -197,6 +197,7 @@ describe('PatientTimeline', () => {
             entry({kind: 'Appointments', action: 'AppointmentNotesUpdated'}),
             entry({kind: 'Appointments', action: 'AppointmentRecordedAfterEvent', toStatus: 'DidNotAttend', fromStatus: 'Requested'}),
             entry({kind: 'Appointments', action: 'AppointmentEnteredInError'}),
+            entry({kind: 'Appointments', action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'Rebook'}),
             entry({action: 'StageFinished', finishedWithoutVisit: true, visitRequirement: 'Suggested'}),
           ],
           nextCursor: null,
@@ -209,6 +210,7 @@ describe('PatientTimeline', () => {
     expect(screen.getByText('Finished Consultation without a visit')).toBeInTheDocument();
     expect(screen.getByText('Appointment recorded after the event for Consultation: did not attend')).toBeInTheDocument();
     expect(screen.getByText('Appointment marked entered in error for Consultation')).toBeInTheDocument();
+    expect(screen.getByText('Did not attend follow-up recorded for Consultation: Rebook')).toBeInTheDocument();
     // Not for a pathway: no link, just when and who.
     const missed = within(screen.getByText('Marked Did not attend').closest('li')!);
     expect(missed.queryByRole('link')).not.toBeInTheDocument();
@@ -369,6 +371,9 @@ describe('PatientTimeline', () => {
         json({
           items: [
             entry({action: 'StageUnlocked'}),
+            entry({action: 'StageSkipped', skipReason: 'PatientDeclined'}),
+            entry({action: 'BranchChosen', branch: 'Treatment', skippedStageNames: ['Follow-up']}),
+            entry({action: 'StageReinstated', skipReason: 'NotNeeded'}),
             entry({action: 'Unassigned', kind: 'Assignments', assigneeUsername: 'other.staff'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'InProgress', toStatus: 'Blocked'}),
             entry({action: 'StatusChanged', kind: 'Blocks', fromStatus: 'Blocked', toStatus: 'InProgress'}),
@@ -386,6 +391,12 @@ describe('PatientTimeline', () => {
 
     for (const text of [
       'Unlocked Consultation',
+      'Skipped Consultation',
+      'Patient declined',
+      'Chose the Treatment branch at Consultation',
+      'Skipped: Follow-up',
+      'Reinstated Consultation',
+      'Had been skipped: Not needed',
       'Unassigned other.staff',
       'Put on hold',
       'Taken off hold',
@@ -473,6 +484,35 @@ describe('PatientTimeline', () => {
       expect(within(list).getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', `/referrals/${referralId}`);
       expect(within(list).getByText('Received 1 Jun 2026')).toBeInTheDocument();
       expect(within(list).getByText('Urgent')).toBeInTheDocument();
+    });
+
+    it('shows the waiting-time clock entries in words, each linking to its referral, with a Waiting time filter', async () => {
+      const clock = (fields: Partial<TimelineEntry>) =>
+        entry({kind: 'WaitingTime', pathwayId: null, pathwayTitle: null, referralId, specialtyName: 'Dermatology', ...fields});
+      mockApi({
+        [`GET ${OVERVIEW}`]: () => json(overview),
+        [`GET ${TIMELINE}`]: () =>
+          json({
+            items: [
+              clock({action: 'ReferralClockPaused', pauseReason: 'PatientUnavailable', reviewOn: '2026-07-01'}),
+              clock({action: 'ReferralClockResumed', isAutomatic: true}),
+              clock({action: 'ReferralClockStopped', stopReason: 'PathwayCancelled', daysWaited: 12, targetDays: 28}),
+              clock({action: 'ReferralTargetChanged', previousTargetDays: 126, targetDays: 28}),
+              entry({action: 'DetailsUpdated', kind: 'DueDates', fromClock: true, changes: [{field: 'dueDate', from: '2026-06-20', to: '2026-07-01'}]}),
+            ],
+            nextCursor: null,
+          }),
+      });
+      renderWithApp(<Harness />, {user: staffUser});
+
+      const paused = within((await screen.findByText('Waiting-time clock paused')).closest('li')!);
+      expect(paused.getByText('Patient unavailable, review 1 Jul 2026')).toBeInTheDocument();
+      expect(paused.getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', `/referrals/${referralId}`);
+      expect(screen.getByText('Resumed automatically, as the clock stopped')).toBeInTheDocument();
+      expect(screen.getByText('Pathway cancelled, day 12 of 28')).toBeInTheDocument();
+      expect(screen.getByText('126 → 28 days')).toBeInTheDocument();
+      expect(screen.getByText('Target date set by the waiting-time clock')).toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Waiting time'})).toBeInTheDocument();
     });
 
     it('shows referral entries and their letters, linking to the referral rather than a pathway', async () => {

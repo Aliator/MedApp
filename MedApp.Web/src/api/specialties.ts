@@ -60,21 +60,73 @@ function useRefreshSpecialties() {
   return {onSuccess, onError};
 }
 
-/** A specialty's name, and for a rename the version the admin started from (`expectedVersion`), so a stale one is a 409. */
+/**
+ * A specialty's waiting-time targets, in days, for each priority (1 to 365): the centre's own administrative targets
+ * for the waiting-time clock (decision 29), not national rules. A clock copies its target when it starts, so a change
+ * affects only clocks that start afterwards.
+ */
+export interface SpecialtyTargets {
+  urgent: number | null;
+  high: number | null;
+  medium: number | null;
+  low: number | null;
+}
+
+/** The targets a new specialty starts with, as the API sets them when none are sent: 14, 28, 126 and 126 days. */
+export const DEFAULT_SPECIALTY_TARGETS: SpecialtyTargets = {urgent: 14, high: 28, medium: 126, low: 126};
+
+/** The fewest and most days a target can be. */
+export const MIN_TARGET_DAYS = 1;
+export const MAX_TARGET_DAYS = 365;
+
+/** The priorities, most urgent first, with their labels (as the app labels priorities) and the API's field names. */
+export const TARGET_PRIORITIES = [
+  {key: 'urgent', label: 'Urgent', field: 'targetDaysUrgent'},
+  {key: 'high', label: 'High', field: 'targetDaysHigh'},
+  {key: 'medium', label: 'Medium', field: 'targetDaysMedium'},
+  {key: 'low', label: 'Low', field: 'targetDaysLow'},
+] as const;
+
+/** A specialty's targets, as its form starts editing them. */
+export const specialtyTargets = (specialty: Specialty): SpecialtyTargets => ({
+  urgent: specialty.targetDaysUrgent ?? null,
+  high: specialty.targetDaysHigh ?? null,
+  medium: specialty.targetDaysMedium ?? null,
+  low: specialty.targetDaysLow ?? null,
+});
+
+/** A specialty's targets in words: "Urgent 14, High 28, Medium 126, Low 126 days". */
+export const targetsWords = (specialty: Specialty) =>
+  `${TARGET_PRIORITIES.map(({key, label}) => `${label} ${specialtyTargets(specialty)[key] ?? '?'}`).join(', ')} days`;
+
+/**
+ * A specialty's name and waiting-time targets, and for a change the version the admin started from
+ * (`expectedVersion`), so a stale one is a 409. Targets left out (or null) aren't sent: the API then uses its defaults
+ * for a new specialty, and leaves a changed one's as they were.
+ */
 export interface SpecialtyInput {
   id?: string;
   name: string;
+  targets?: SpecialtyTargets;
   expectedVersion?: number;
 }
 
-/** Adds a specialty (no `id`) or renames one, returning it. A name already taken is a 409. */
+/** The targets as the API's fields, leaving out any not given. */
+function targetFields(targets: SpecialtyTargets | undefined) {
+  if (!targets) return {};
+  return Object.fromEntries(
+    TARGET_PRIORITIES.filter(({key}) => targets[key] !== null).map(({key, field}) => [field, targets[key]]),
+  ) as {targetDaysUrgent?: number; targetDaysHigh?: number; targetDaysMedium?: number; targetDaysLow?: number};
+}
+
+/** Adds a specialty (no `id`) or changes one's name and targets, returning it. A name already taken is a 409. */
 export function useSaveSpecialty() {
   const refresh = useRefreshSpecialties();
   return useMutation({
-    mutationFn: ({id, name, expectedVersion}: SpecialtyInput) =>
+    mutationFn: ({id, name, targets, expectedVersion}: SpecialtyInput) =>
       id
-        ? unwrap(api.PUT(SPECIALTY, {params: {path: {id}}, body: {name, expectedVersion}}))
-        : unwrap(api.POST(SPECIALTIES, {body: {name}})),
+        ? unwrap(api.PUT(SPECIALTY, {params: {path: {id}}, body: {name, ...targetFields(targets), expectedVersion}}))
+        : unwrap(api.POST(SPECIALTIES, {body: {name, ...targetFields(targets)}})),
     ...refresh,
   });
 }

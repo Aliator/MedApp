@@ -95,7 +95,7 @@ public sealed class TimelineAfterAnonymisationTests
             PathwayHistory = history,
             Activity = [],
             Appointments = [],
-            AppointmentHistory = [],
+            AppointmentHistory = [], PatientMessages = [],
             Notifications = [],
             NoteVersions = [],
             NoteDeletionRequests = [],

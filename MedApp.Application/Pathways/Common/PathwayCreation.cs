@@ -11,7 +11,7 @@ public static class PathwayCreation
 {
     /// <summary>
     /// A new, unassigned pathway for a patient, in the template's specialty, with a copy of the template's stages in order (their definitions'
-    /// names, descriptions, instructions, SNOMED CT codes and visit requirements), so later edits to the template or
+    /// names, descriptions, instructions, SNOMED CT codes and visit requirements, and the template's optional stages and branches), so later edits to the template or
     /// definitions don't change it. The template's maps must have their stage definitions loaded. A blank title
     /// becomes the template's name.
     /// </summary>
@@ -52,6 +52,10 @@ public static class PathwayCreation
                     SnomedTerm = map.StageDefinition.SnomedTerm,
                     VisitRequirement = map.StageDefinition.VisitRequirement,
                     NeedsLetterKind = map.StageDefinition.NeedsLetterKind,
+                    IsOptional = map.IsOptional,
+                    ChoosesBranch = map.ChoosesBranch,
+                    Branch = map.Branch,
+                    StopsClock = map.StopsClock,
                     CreatedAt = nowUtc,
                     LastUpdated = nowUtc
                 })

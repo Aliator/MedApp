@@ -5,7 +5,9 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathways;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Application.Referrals.Common;
 using MedApp.Infrastructure.Data.Configurations.Appointments;
+using MedApp.Infrastructure.Data.Configurations.Referrals;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -41,6 +43,10 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     public async Task<PatientPathway?> GetForUpdateAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.PatientPathways)
             .Include(x => x.Notes)
+            // The referral it was accepted from, with its specialty's targets and its pauses: a change may move its
+            // waiting-time clock, saved in the same save (PathwayChange).
+            .Include(x => x.Referral!).ThenInclude(r => r.Specialty)
+            .Include(x => x.Referral!).ThenInclude(r => r.Pauses)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
@@ -70,7 +76,12 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     private static string ConflictMessage(PathwayChange change) =>
         change.DeletedNotes.Count > 0 ? PathwayNotes.DeletedMeanwhileMessage
         : change.NoteVersions.Count > 0 ? PathwayNotes.ChangedMeanwhileMessage
+        : change.ReferralEvents.Count > 0 ? PathwayClockConflictMessage
         : AppointmentWorkflow.PathwayAppointmentChangedMeanwhileMessage;
+
+    /// <summary>A change that moved the referral's clock lost a race with another change to the referral or the pathway's appointments.</summary>
+    public const string PathwayClockConflictMessage =
+        "Someone else changed this pathway's referral or its appointments while you had it open. Reload it, then try again.";
 
     public async Task DeleteAsync(PatientPathway pathway, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct)
     {
@@ -110,9 +121,11 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await WithDetails(filtered
-                .Sort(query.Sort, query.Ascending)
+                .Sort(query.Sort, query.Ascending, DueDates.ToUkDate(nowUtc))
                 .Skip(Paging.Skip(query.Page, query.PageSize))
                 .Take(query.PageSize))
+            // Its referral's clock, for the Wait column.
+            .Include(x => x.Referral)
             .AsSplitQuery()
             .ToListAsync(ct);
 
@@ -140,6 +153,8 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         context.AppointmentEvents.AddRange(change.AppointmentEvents);
         context.PatientPathwayNotes.AddRange(change.NewNotes);
         context.PatientPathwayNoteVersions.AddRange(change.NoteVersions);
+        context.ReferralEvents.AddRange(change.ReferralEvents);
+        context.ReferralClockPauses.AddRange(change.NewPauses);
     }
 
     /// <summary>
@@ -158,6 +173,10 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         catch (DbUpdateException e) when (e.IsViolationOf(AppointmentConfiguration.OpenPerStageIndex))
         {
             throw new ConflictException(AppointmentWorkflow.StageVisitAddedMeanwhileMessage);
+        }
+        catch (DbUpdateException e) when (e.IsViolationOf(ReferralClockPauseConfiguration.OpenPerReferralIndex))
+        {
+            throw new ConflictException(WaitingClock.PausedMeanwhileMessage);
         }
     }
 

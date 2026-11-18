@@ -57,6 +57,7 @@ public abstract class IntegrationTest
         await TestEnvironment.ResetDatabaseAsync();
         Api.Emails.Clear();
         Api.Letters.Clear();
+        Api.PatientMessages.Clear();
 
         // The standard roles, as the migration makes them (Respawn emptied the roles with everything else).
         await RunInScopeAsync(services => StandardRoleSetup.EnsureAsync(

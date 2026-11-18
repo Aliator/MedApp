@@ -83,6 +83,19 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>StageFinished without its visit: the stage's visit requirement, Suggested or Required.</summary>
     public string? VisitRequirement { get; set; }
 
+    /// <summary>
+    /// StageSkipped: why, a fixed choice by name (NotNeeded, PatientDeclined, Other); StageReinstated: how it had been
+    /// skipped (with BranchNotChosen). The detail, and a reinstatement's reason, are free text, in <see cref="Reason"/>
+    /// for admins only.
+    /// </summary>
+    public string? SkipReason { get; set; }
+
+    /// <summary>BranchChosen: the branch the clinician chose (a name the template's author wrote).</summary>
+    public string? Branch { get; set; }
+
+    /// <summary>BranchChosen: the names of the stages the other branches had, skipped by the choice.</summary>
+    public List<string> SkippedStageNames { get; set; } = [];
+
     /// <summary>An appointment entry: the appointment.</summary>
     public Guid? AppointmentId { get; set; }
 
@@ -99,6 +112,9 @@ public sealed class PatientTimelineEntryResponse
 
     /// <summary>AppointmentRescheduled: its member of staff before.</summary>
     public string? PreviousStaffUsername { get; set; }
+
+    /// <summary>For a Did not attend's follow-up: Rebook, ClinicianToReview or NoFurtherAppointment (its detail is the reason, for admins).</summary>
+    public string? DnaFollowUp { get; set; }
 
     /// <summary>A file attached or deleted (AttachmentAdded, AttachmentDeleted): which one.</summary>
     public Guid? AttachmentId { get; set; }
@@ -130,6 +146,27 @@ public sealed class PatientTimelineEntryResponse
     /// <summary>ReferralRedirectedElsewhere: where to. Admins only (it's free text).</summary>
     public string? RedirectedTo { get; set; }
 
+    /// <summary>ReferralClockPaused and ReferralClockResumed: why it was paused, a fixed choice by name.</summary>
+    public string? PauseReason { get; set; }
+
+    /// <summary>ReferralClockPaused: the review date.</summary>
+    public DateOnly? ReviewOn { get; set; }
+
+    /// <summary>ReferralTargetChanged: the target before, in days.</summary>
+    public int? PreviousTargetDays { get; set; }
+
+    /// <summary>ReferralTargetChanged and ReferralClockStopped: the target, in days.</summary>
+    public int? TargetDays { get; set; }
+
+    /// <summary>ReferralClockStopped: why, a fixed choice by name; the days waited; and whether it was past its target.</summary>
+    public string? StopReason { get; set; }
+
+    public int? DaysWaited { get; set; }
+
+    public bool? Breached { get; set; }
+
+    /// <summary>A target date change: made by the referral's waiting-time clock, not by hand.</summary>
+    public bool FromClock { get; set; }
     /// <summary>A letter entry: the letter.</summary>
     public Guid? LetterId { get; set; }
 

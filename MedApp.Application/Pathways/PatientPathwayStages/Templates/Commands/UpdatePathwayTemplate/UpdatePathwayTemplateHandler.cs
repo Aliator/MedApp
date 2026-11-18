@@ -44,12 +44,28 @@ public sealed class UpdatePathwayTemplateHandler(
             definitions = await TemplateStages.CheckAsync(repository, ids, current, cancellationToken);
         }
 
-        await repository.UpdatePathwayTemplateAsync(template, request.StageDefinitionIdsInOrder, cancellationToken);
+        // A page from before stage options sends none: while the stage list is unchanged, the stored ones stay.
+        var options = request.StageOptions ?? KeptOptions(template, request.StageDefinitionIdsInOrder);
+
+        await repository.UpdatePathwayTemplateAsync(
+            template, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder, options, cancellationToken);
 
         if (request.StageDefinitionIdsInOrder is { } newIds)
-            template.Maps = PathwayTemplateMapper.ToMaps(template.Id, newIds);
+            template.Maps = PathwayTemplateMapper.ToMaps(template.Id, newIds, request.ClockStopStageOrder, options);
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);
         return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id), definitions);
+    }
+
+    /// <summary>
+    /// The template's stored stage options, when a new stage list is the same as its own (same definitions, same order);
+    /// otherwise null (plain stages).
+    /// </summary>
+    public static IReadOnlyList<TemplateStageOptions>? KeptOptions(PathwayTemplate template, IReadOnlyList<Guid>? newIds)
+    {
+        var maps = template.Maps.OrderBy(m => m.StageOrder).ToList();
+        return newIds is not null && maps.Select(m => m.StageDefinitionId).SequenceEqual(newIds)
+            ? maps.Select(m => new TemplateStageOptions(m.IsOptional, m.ChoosesBranch, m.Branch)).ToList()
+            : null;
     }
 }

@@ -7,7 +7,10 @@ public sealed class SearchPatientPathwaysRequest
 
     public int PageSize { get; set; } = 10;
 
-    /// <summary><c>dueDate</c> (the default), <c>priority</c>, <c>status</c>, <c>title</c>, <c>patient</c> or <c>lastUpdated</c>.</summary>
+    /// <summary>
+    /// <c>dueDate</c> (the default), <c>priority</c>, <c>status</c>, <c>title</c>, <c>patient</c>, <c>lastUpdated</c> or
+    /// <c>daysWaited</c> (the referral's waiting-time clock; pathways without one last).
+    /// </summary>
     public string? Sort { get; set; }
 
     public bool Ascending { get; set; } = true;
@@ -54,6 +57,9 @@ public sealed class SearchPatientPathwaysRequest
     public bool NobodyAssigned { get; set; }
 
     public bool OverdueOnly { get; set; }
+
+    /// <summary>Only pathways whose referral's waiting-time clock is past its target.</summary>
+    public bool BreachedOnly { get; set; }
 
     public DateOnly? DueFrom { get; set; }
 

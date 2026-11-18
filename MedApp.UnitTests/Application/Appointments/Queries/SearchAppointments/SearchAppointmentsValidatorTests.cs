@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentValidation.TestHelper;
 using MedApp.Application.Appointments.Queries.SearchAppointments;
 using MedApp.UnitTests.Common.Constants;
 
@@ -38,6 +39,16 @@ public sealed class SearchAppointmentsValidatorTests
 
         _validator.Validate(query).IsValid.Should().BeTrue();
     }
+
+    [TestCase("didNotAttend")]
+    [TestCase("DIDNOTATTEND")]
+    public void Validate_DidNotAttendView_Passes(string view) =>
+        _validator.TestValidate(AppointmentsTestConstants.CreateSearchQuery() with { View = view }).ShouldNotHaveAnyValidationErrors();
+
+    [Test]
+    public void Validate_UnknownView_Fails() =>
+        _validator.TestValidate(AppointmentsTestConstants.CreateSearchQuery() with { View = "everything" })
+            .ShouldHaveValidationErrorFor(x => x.View);
 
     [Test]
     public void Validate_PageZero_Fails()

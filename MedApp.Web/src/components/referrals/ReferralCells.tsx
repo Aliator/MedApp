@@ -46,15 +46,28 @@ export const daysAgoWords = (days: number) => (days <= 0 ? 'Today' : days === 1 
 
 /**
  * When a referral was received, and how long it has waited ("12 days ago"; for a closed one, how long it waited before
- * it was decided, as the API counts it).
+ * it was decided, as the API counts it). A referral with a waiting-time clock (`hasClock`) shows only the date: its
+ * wait is the clock's, in a Wait column of its own.
  */
-export function ReceivedCell({receivedOn, daysSinceReceived, isOpen}: {receivedOn: string; daysSinceReceived: number; isOpen: boolean}) {
+export function ReceivedCell({
+  receivedOn,
+  daysSinceReceived,
+  isOpen,
+  hasClock = false,
+}: {
+  receivedOn: string;
+  daysSinceReceived: number;
+  isOpen: boolean;
+  hasClock?: boolean;
+}) {
   return (
     <VStack gap={0} hAlign="start">
       <Text type="body">{formatShortDate(receivedOn)}</Text>
-      <Text type="supporting" color="secondary">
-        {isOpen ? daysAgoWords(daysSinceReceived) : `Waited ${daysSinceReceived} ${daysSinceReceived === 1 ? 'day' : 'days'}`}
-      </Text>
+      {!hasClock && (
+        <Text type="supporting" color="secondary">
+          {isOpen ? daysAgoWords(daysSinceReceived) : `Waited ${daysSinceReceived} ${daysSinceReceived === 1 ? 'day' : 'days'}`}
+        </Text>
+      )}
     </VStack>
   );
 }
@@ -99,6 +112,8 @@ export const REFERRAL_COLUMN_WIDTH = {
   specialty: proportional(1.5, {minWidth: 56}),
   practice: proportional(1.5, {minWidth: 56}),
   received: pixel(112),
+  /** "Day 128 of 126" over Breached and Paused. */
+  wait: pixel(132),
   priority: pixel(82),
   letter: pixel(72),
   status: pixel(132),

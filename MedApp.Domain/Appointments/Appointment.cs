@@ -64,6 +64,19 @@ public sealed class Appointment
     public DateTime? OutcomeAtUtc { get; set; }
     public Guid? OutcomeByUserId { get; set; }
 
+    /// <summary>
+    /// After a Did not attend, what booking staff decided (centre plan decision 132), or null. Kept until the outcome
+    /// changes; the history keeps every one recorded.
+    /// </summary>
+    public DnaFollowUpDecision? DnaFollowUp { get; set; }
+
+    /// <summary>Free text about the follow-up (500 characters), treated like the notes.</summary>
+    public string? DnaFollowUpDetail { get; set; }
+
+    public DateTime? DnaFollowUpAtUtc { get; set; }
+
+    public Guid? DnaFollowUpByUserId { get; set; }
+
     public DateTime LastUpdated { get; set; }
 
     /// <summary>

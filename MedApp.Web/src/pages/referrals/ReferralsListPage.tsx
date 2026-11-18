@@ -1,6 +1,8 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
+import {VStack} from '@astryxdesign/core/Stack';
+import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
 import {isOpenReferralStatus, referralSearchQuery, type ReferralSummary} from '../../api/referrals';
@@ -17,15 +19,18 @@ import {
   ReferralPatientCell,
   ReferralStatusToken,
 } from '../../components/referrals/ReferralCells';
+import {ReviewOverdueToken, WaitCell} from '../../components/referrals/WaitingClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar, type ListFilterFavourite, type ListFilterField, type ListFilterValues} from '../../components/tables/ListFilterBar';
 import {TextCell} from '../../components/tables/TextCell';
+import {formatShortDate} from '../../utils/dates';
 import {
   REFERRAL_SORTS,
   referralViewOf,
-  viewStatuses,
+  sortOf,
+  viewFilters,
   type ReferralSortColumn,
   type ReferralsListSearch,
   type ReferralView,
@@ -43,18 +48,25 @@ const FILTER_FIELDS: ListFilterField[] = [
     options: [
       {value: 'awaiting', label: 'Awaiting triage'},
       {value: 'information', label: 'Information requested'},
+      {value: 'waiting', label: 'Waiting list'},
+      {value: 'paused', label: 'Paused clocks'},
       {value: 'closed', label: 'Closed'},
     ],
   },
 ];
 
-/** The views: the inbox, those waiting for more information, the closed ones, and all of them. */
+/** The views: the inbox, those waiting for more information, the waiting list, the paused clocks, the closed ones, and all of them. */
 const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Awaiting triage', values: {view: 'awaiting'}},
   {label: 'Information requested', values: {view: 'information'}},
+  {label: 'Waiting list', values: {view: 'waiting'}},
+  {label: 'Paused clocks', values: {view: 'paused'}},
   {label: 'Closed', values: {view: 'closed'}},
   {label: 'All', values: {}},
 ];
+
+/** A view's name in the bar's values ('all' when it was removed). */
+const VIEW_FROM_BAR: Record<string, ReferralView> = {awaiting: 'awaiting', information: 'information', waiting: 'waiting', paused: 'paused', closed: 'closed'};
 
 /** The bar's values from the URL: the view shows as Awaiting triage when the URL has none (the inbox). */
 function barValues(search: ReferralsListSearch): ListFilterValues {
@@ -64,8 +76,7 @@ function barValues(search: ReferralsListSearch): ListFilterValues {
 
 /** The search from the bar's values: a removed view is `all`, and the inbox is left out of the URL. */
 function fromBar(values: ListFilterValues, search: ReferralsListSearch): ReferralsListSearch {
-  const view: ReferralView =
-    values.view === undefined ? 'all' : values.view === 'closed' ? 'closed' : values.view === 'information' ? 'information' : 'awaiting';
+  const view: ReferralView = values.view === undefined ? 'all' : (VIEW_FROM_BAR[String(values.view)] ?? 'awaiting');
   return {
     sort: search.sort,
     asc: search.asc,
@@ -75,25 +86,46 @@ function fromBar(values: ListFilterValues, search: ReferralsListSearch): Referra
   };
 }
 
-/** What the subtitle counts: "12 referrals awaiting triage", "3 closed referrals", "15 referrals", "2 matching referrals". */
+/**
+ * What the subtitle counts: "12 referrals awaiting triage", "40 referrals on the waiting list", "3 paused clocks", "3
+ * closed referrals", "15 referrals", "2 matching referrals".
+ */
 function countWords(view: ReferralView, total: number, isSearched: boolean): string {
   const noun = total === 1 ? 'referral' : 'referrals';
   if (isSearched) return `${total} matching ${noun}`;
   if (view === 'awaiting') return `${total} ${noun} awaiting triage`;
   if (view === 'information') return `${total} ${noun} waiting for more information`;
+  if (view === 'waiting') return `${total} ${noun} on the waiting list`;
+  if (view === 'paused') return `${total} paused ${total === 1 ? 'clock' : 'clocks'}`;
   return view === 'closed' ? `${total} closed ${noun}` : `${total} ${noun}`;
 }
+
+const EMPTY_TITLES: Record<ReferralView, string> = {
+  awaiting: 'No referrals are awaiting triage',
+  information: 'No referrals are waiting for more information',
+  waiting: 'Nobody is on the waiting list',
+  paused: 'No clocks are paused',
+  closed: 'No closed referrals',
+  all: 'No referrals yet',
+};
+
+const EMPTY_DESCRIPTIONS: Partial<Record<ReferralView, string>> = {
+  awaiting: 'Registered referrals wait here until they are triaged.',
+  waiting: "Accepted referrals wait here until their clock stops, when the pathway's clock-stop stage is finished or the pathway ends.",
+  paused: "A clock paused for the patient's own delay shows here, by its review date.",
+};
 
 type ReferralRow = ReferralSummary & Record<string, unknown>;
 
 /** The list's page of referrals, for its search and page size (the route's loader fetches the same). */
 export function referralsListQuery(search: ReferralsListSearch, pageSize: number) {
+  const {sort, asc} = sortOf(search);
   return referralSearchQuery({
     Page: search.page ?? 1,
     PageSize: pageSize,
-    Sort: REFERRAL_SORTS[search.sort ?? 'Received'],
-    Ascending: search.asc ?? true,
-    Statuses: viewStatuses(referralViewOf(search)),
+    Sort: REFERRAL_SORTS[sort],
+    Ascending: asc,
+    ...viewFilters(referralViewOf(search)),
     Search: search.patient,
     SpecialtyIds: idChoiceValues(search.specialty),
   });
@@ -107,16 +139,17 @@ export interface ReferralsListPageProps {
 }
 
 /**
- * Referrals: the inbox of referrals awaiting triage, longest wait first (by received date, oldest first), and the
- * closed ones or all of them, a page at a time from the API. Each row is the patient (with their NHS number), the
- * specialty asked for, when it was received and how long ago, the priority the referrer asked for, the practice,
- * whether the letter is attached, and the status; the patient's name opens the referral. Register Referral starts a
- * new one. The view, page, sort and the patient's name searched for live in the URL.
+ * Referrals: the inbox of referrals awaiting triage, longest wait first; the waiting list (accepted, the clock not yet
+ * stopped), longest wait first; the paused clocks, by review date, past ones flagged (hazard H-42); and the closed ones
+ * or all of them, a page at a time from the API. Each row is the patient (with their NHS number), the specialty asked
+ * for, when it was received, the wait ("Day 84 of 126", Breached, Paused), the priority the referrer asked for, the
+ * practice, whether the letter is attached, and the status; the patient's name opens the referral. The waiting list
+ * adds the target date, and the paused clocks the review date. Orders are by dates only (decision 50). Register
+ * Referral starts a new one. The view, page, sort and the patient's name searched for live in the URL.
  */
 export function ReferralsListPage({search, onSearchChange}: ReferralsListPageProps) {
   const page = search.page ?? 1;
-  const sortColumn: ReferralSortColumn = search.sort ?? 'Received';
-  const ascending = search.asc ?? true;
+  const {sort: sortColumn, asc: ascending} = sortOf(search);
   const view = referralViewOf(search);
   const {pageSize} = useListSettings();
   const canRegister = useCan('RegisterReferrals');
@@ -142,9 +175,42 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       sortable: true,
       width: REFERRAL_COLUMN_WIDTH.received,
       renderCell: (r) => (
-        <ReceivedCell receivedOn={r.receivedOn ?? ''} daysSinceReceived={r.daysSinceReceived ?? 0} isOpen={isOpenReferralStatus(r.status)} />
+        <ReceivedCell
+          receivedOn={r.receivedOn ?? ''}
+          daysSinceReceived={r.daysSinceReceived ?? 0}
+          isOpen={isOpenReferralStatus(r.status)}
+          hasClock={Boolean(r.clock)}
+        />
       ),
     },
+    {key: 'Wait', header: 'Wait', sortable: true, width: REFERRAL_COLUMN_WIDTH.wait, renderCell: (r) => <WaitCell clock={r.clock} />},
+    ...(view === 'waiting'
+      ? [
+          {
+            key: 'Target',
+            header: 'Target date',
+            sortable: true,
+            width: REFERRAL_COLUMN_WIDTH.received,
+            renderCell: (r: ReferralRow) => <Text type="body">{r.clock?.targetOn ? formatShortDate(r.clock.targetOn) : '—'}</Text>,
+          },
+        ]
+      : []),
+    ...(view === 'paused'
+      ? [
+          {
+            key: 'Review',
+            header: 'Review date',
+            sortable: true,
+            width: REFERRAL_COLUMN_WIDTH.received,
+            renderCell: (r: ReferralRow) => (
+              <VStack gap={1} hAlign="start">
+                <Text type="body">{r.clock?.pauseReviewOn ? formatShortDate(r.clock.pauseReviewOn) : '—'}</Text>
+                {r.clock?.isReviewOverdue && <ReviewOverdueToken />}
+              </VStack>
+            ),
+          },
+        ]
+      : []),
     {
       key: 'Priority',
       header: 'Priority asked for',
@@ -194,7 +260,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
             list="referrals"
             isUnfiltered={!isSearched && search.view === undefined}
             label="Search referrals"
-            placeholder="Search referrals by the patient's name, or filter by specialty, or show the closed ones..."
+            placeholder="Search referrals by the patient's name, or filter by specialty, or show the waiting list..."
             textKey="patient"
             favourites={FAVOURITES}
           />
@@ -216,16 +282,8 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
             />
           ) : (
             <EmptyState
-              title={
-                view === 'awaiting'
-                  ? 'No referrals are awaiting triage'
-                  : view === 'information'
-                    ? 'No referrals are waiting for more information'
-                    : view === 'closed'
-                      ? 'No closed referrals'
-                      : 'No referrals yet'
-              }
-              description={view === 'awaiting' ? 'Registered referrals wait here until they are triaged.' : undefined}
+              title={EMPTY_TITLES[view]}
+              description={EMPTY_DESCRIPTIONS[view]}
               icon={<Icon icon={AppIcon.Referrals} size="lg" />}
             />
           )

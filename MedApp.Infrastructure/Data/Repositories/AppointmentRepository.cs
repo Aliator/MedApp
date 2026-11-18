@@ -96,7 +96,7 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
 
     public async Task<PagedResult<Appointment>> SearchAsync(SearchAppointmentsQuery query, CancellationToken ct)
     {
-        var filtered = context.Appointments.AsNoTracking().Filter(query);
+        var filtered = context.Appointments.AsNoTracking().Filter(query, context.Appointments.AsNoTracking());
 
         var totalCount = await filtered.CountAsync(ct);
 
@@ -114,6 +114,31 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
         await AppointmentTimelineSearch
             .Page(context.AppointmentEvents.AsNoTracking(), context.PatientPathways.AsNoTracking(), query)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyDictionary<Guid, int>> CountMissedAsync(IReadOnlyCollection<Appointment> appointments, CancellationToken ct)
+    {
+        var pathwayIds = appointments.Select(a => a.PathwayId).OfType<Guid>().Distinct().ToList();
+        var patientIds = appointments.Where(a => a.PathwayId is null).Select(a => a.PatientId).Distinct().ToList();
+
+        var byPathway = pathwayIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : await context.Appointments
+                .Where(a => a.Status == AppointmentStatus.DidNotAttend && a.PathwayId != null && pathwayIds.Contains(a.PathwayId.Value))
+                .GroupBy(a => a.PathwayId!.Value)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        var byPatient = patientIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : await context.Appointments
+                .Where(a => a.Status == AppointmentStatus.DidNotAttend && a.PathwayId == null && patientIds.Contains(a.PatientId))
+                .GroupBy(a => a.PatientId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
+        return appointments.ToDictionary(
+            a => a.Id,
+            a => a.PathwayId is { } pathwayId ? byPathway.GetValueOrDefault(pathwayId) : byPatient.GetValueOrDefault(a.PatientId));
+    }
 
     public async Task<int> CountUpcomingForStaffAsync(Guid staffUserId, DateTime nowUtc, CancellationToken ct) =>
         await context.Appointments.CountAsync(

@@ -21,6 +21,6 @@ public sealed class WithdrawReferralHandler(IReferralRepository repository, Time
         change.Withdraw(request.Detail.Trim());
         await repository.SaveAsync(change.Events, cancellationToken);
 
-        return await ReferralResponses.ForAsync(referral, repository, request.Actor, cancellationToken);
+        return await ReferralResponses.ForAsync(referral, repository, request.Actor, timeProvider, cancellationToken);
     }
 }

@@ -34,12 +34,16 @@ describe('ReferralCells', () => {
         <ReceivedCell receivedOn="2026-11-02" daysSinceReceived={12} isOpen />
         <ReceivedCell receivedOn="2026-11-03" daysSinceReceived={1} isOpen={false} />
         <ReceivedCell receivedOn="2026-11-04" daysSinceReceived={5} isOpen={false} />
+        <ReceivedCell receivedOn="2026-11-05" daysSinceReceived={7} isOpen hasClock />
       </>,
       {user: staffUser},
     );
     expect(await screen.findByText('2 Nov 2026')).toBeInTheDocument();
     expect(screen.getByText('12 days ago')).toBeInTheDocument();
     expect(screen.getByText('Waited 1 day')).toBeInTheDocument();
+    // With a clock, only the date: the wait has a column of its own.
+    expect(screen.getByText('5 Nov 2026')).toBeInTheDocument();
+    expect(screen.queryByText('7 days ago')).not.toBeInTheDocument();
     expect(screen.getByText('Waited 5 days')).toBeInTheDocument();
   });
 

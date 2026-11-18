@@ -64,7 +64,6 @@ public sealed class TriageTests : IntegrationTest
     {
         TemplateId = templateId,
         Priority = "High",
-        DueDate = UkToday.AddDays(28),
         Notes = "Synthetic first note.",
         ExpectedVersion = version,
     };
@@ -87,14 +86,15 @@ public sealed class TriageTests : IntegrationTest
         response.Headers.Location!.ToString().Should().Be($"/api/pathways/patient-pathways/{pathway.Id}");
         pathway.PatientId.Should().Be(patient.Id);
         pathway.Priority.Should().Be("High");
-        pathway.DueDate.Should().Be(UkToday.AddDays(28));
+        // The target date is the clock's: received two days ago, with High's 28 days (asked for: Urgent, 14).
+        pathway.DueDate.Should().Be(UkToday.AddDays(26));
         pathway.Referral!.Id.Should().Be(referral.Id);
 
         var read = await (await clinician.Client.GetAsync($"{Referrals}/{referral.Id}")).ReadAsAsync<ReferralResponse>();
         read.Status.Should().Be("Accepted");
         read.PathwayId.Should().Be(pathway.Id);
         read.DecidedByUsername.Should().Be(clinician.Username);
-        read.History.Last().Should().BeEquivalentTo(new { Action = "Accepted", Priority = "High", TemplateName = template.Name, PathwayId = (Guid?)pathway.Id });
+        read.History.Single(h => h.Action == "Accepted").Should().BeEquivalentTo(new { Action = "Accepted", Priority = "High", TemplateName = template.Name, PathwayId = (Guid?)pathway.Id });
 
         // The pathway's own page links back to it, and its creation is in the audit like any new pathway's.
         var page = await (await clinician.Client.GetAsync($"/api/pathways/patient-pathways/{pathway.Id}")).ReadAsAsync<PatientPathwayResponse>();
@@ -132,7 +132,10 @@ public sealed class TriageTests : IntegrationTest
             var loser = await responses.Single(r => r.StatusCode == HttpStatusCode.Conflict).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict);
             var read = await (await _admin.GetAsync($"{Referrals}/{referral.Id}")).ReadAsAsync<ReferralResponse>();
             loser.Title.Should().Contain(read.DecidedByUsername!);
-            read.History.Should().HaveCount(2, "one decision, after its registration");
+            // One decision after its registration, with what it did to the clock (a rejection stops it; an acceptance
+            // at another priority re-reads its target), never both decisions' entries.
+            string.Join(",", read.History.Select(h => h.Action)).Should().BeOneOf(
+                "Registered,Rejected,ClockStopped", "Registered,Accepted,TargetChanged");
 
             // An acceptance that lost left no pathway behind.
             if (read.Status == "Rejected")
@@ -226,7 +229,7 @@ public sealed class TriageTests : IntegrationTest
         moved.Status.Should().Be("AwaitingTriage");
         moved.SpecialtyName.Should().Be(other.Name);
         moved.RedirectDetail.Should().Be("Synthetic: better seen there.");
-        moved.History.Last().Should().BeEquivalentTo(new { Action = "SpecialtyChanged", SpecialtyName = other.Name, PreviousSpecialtyName = Specialty.GeneralName });
+        moved.History.Single(h => h.Action == "SpecialtyChanged").Should().BeEquivalentTo(new { Action = "SpecialtyChanged", SpecialtyName = other.Name, PreviousSpecialtyName = Specialty.GeneralName });
         moved.CanTriage.Should().BeTrue("the clinician belongs to the new specialty too");
 
         var sent = await (await clinician.Client.PostAsJsonAsync($"{Referrals}/{referral.Id}/redirect",

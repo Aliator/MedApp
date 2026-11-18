@@ -18,5 +18,7 @@ public sealed record UpdatePatientCommand(
     // Null leaves it as it is; empty (or spaces) removes it.
     string? MobilePhone = null,
     // Null leaves it as it is; Guid.Empty removes it.
-    Guid? PracticeId = null
+    Guid? PracticeId = null,
+    // None, Text, Email or TextAndEmail; null leaves it as it is.
+    string? ReminderChannel = null
 ) : IRequest<PatientResponse?>;

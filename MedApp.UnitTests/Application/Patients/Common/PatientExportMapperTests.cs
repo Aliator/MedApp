@@ -126,7 +126,7 @@ public sealed class PatientExportMapperTests
             PathwayHistory = record.PathwayHistory,
             Activity = [withAddress],
             Appointments = record.Appointments,
-            AppointmentHistory = record.AppointmentHistory,
+            AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications = record.Notifications,
             NoteVersions = [],
             NoteDeletionRequests = [],
@@ -168,7 +168,7 @@ public sealed class PatientExportMapperTests
             PathwayHistory = record.PathwayHistory,
             Activity = record.Activity,
             Appointments = record.Appointments,
-            AppointmentHistory = record.AppointmentHistory,
+            AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications =
             [
                 .. record.Notifications,
@@ -299,7 +299,7 @@ public sealed class PatientExportMapperTests
             PathwayHistory = record.PathwayHistory,
             Activity = record.Activity,
             Appointments = record.Appointments,
-            AppointmentHistory = record.AppointmentHistory,
+            AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications =
             [
                 new Notification
@@ -374,6 +374,7 @@ public sealed class PatientExportMapperTests
                     Details = $$"""{"previousStartUtc":"2026-11-20T14:00:00Z","previousStaffUserId":"{{Staff.UserId}}","previousStaffUsername":"{{Staff.Username}}"}"""
                 }
             ],
+            PatientMessages = [],
             Notifications = record.Notifications,
             NoteVersions = [],
             NoteDeletionRequests = [],

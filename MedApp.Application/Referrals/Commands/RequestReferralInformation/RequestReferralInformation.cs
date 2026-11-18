@@ -64,6 +64,6 @@ public sealed class SetReferralInformationRequestedHandler(IReferralRepository r
             throw await repository.TriageConflictAsync(referral.Id, cancellationToken);
         }
 
-        return await ReferralResponses.ForAsync(referral, repository, request.Actor, cancellationToken);
+        return await ReferralResponses.ForAsync(referral, repository, request.Actor, timeProvider, cancellationToken);
     }
 }

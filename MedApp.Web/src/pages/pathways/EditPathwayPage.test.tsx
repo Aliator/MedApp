@@ -2,6 +2,7 @@ import {screen, waitFor, within} from '@testing-library/react';
 import {findAlert, json, mockApi, openDialog, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
 import {NOT_ASSIGNED_MESSAGE} from './PathwayPage';
 import {EditPathwayPage} from './EditPathwayPage';
+import {DUE_DATE_FROM_CLOCK} from './PathwayDetailsFields';
 
 const id = 'proc-1';
 const PATH = `/api/pathways/patient-pathways/${id}`;
@@ -69,6 +70,31 @@ describe('EditPathwayPage', () => {
     const patch = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PATCH')!;
     expect(await patch.json()).toEqual({title: 'Colonoscopy (repeat)', dueDate: '2099-12-01', priority: 'Urgent'});
     await expectAnnounced('Pathway saved');
+  });
+
+  it('shows a target date set by the waiting-time clock read-only, and leaves it out of the save', async () => {
+    const referral = {id: 'referral-1', clock: {state: 'Paused', targetDays: 28, daysWaited: 5}};
+    const {fetch, user, router} = renderEdit(pathway({referral}), {[`PATCH ${PATH}`]: () => json(pathway({referral}))});
+
+    const target = await screen.findByRole('textbox', {name: /Target Date/});
+    expect(target).toHaveValue('1 December 2099');
+    expect(target).toHaveAttribute('readonly');
+    expect(screen.getByText(DUE_DATE_FROM_CLOCK)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.queryByText('1 December 2099')).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/pathways/${id}`));
+    const patch = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PATCH')!;
+    expect(await patch.json()).toEqual({title: 'Colonoscopy', priority: 'High'});
+  });
+
+  it('edits the target date by hand again once the clock has stopped', async () => {
+    renderEdit(pathway({referral: {id: 'referral-1', clock: {state: 'Stopped', stopReason: 'StopStageFinished'}}}));
+
+    expect(await screen.findByRole('combobox', {name: /Target Date/})).toBeInTheDocument();
+    expect(screen.queryByText(DUE_DATE_FROM_CLOCK)).not.toBeInTheDocument();
   });
 
   it("asks the not-assigned question when saving a pathway that isn't yours", async () => {

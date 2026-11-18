@@ -109,6 +109,56 @@ public static class PathwaysTestConstants
         LastUpdated = Now.AddDays(-7),
     };
 
+    public const string ResultsStage = "Results and team review";
+    public const string BenignBranch = "Benign";
+    public const string TreatmentBranch = "Treatment";
+    public const string DischargeStage = "Discharge letter";
+    public const string BenignStage = "Benign letter";
+    public const string TreatmentStage = "Treatment";
+    public const string FollowUpStage = "Follow-up";
+
+    /// <summary>Why a stage was skipped or reinstated: synthetic.</summary>
+    public const string SkipDetail = "Synthetic detail: seen elsewhere.";
+
+    /// <summary>
+    /// A pathway that branches, InProgress unless given: 1 "Results and team review" is a branch point; 2 "Benign letter"
+    /// is the Benign branch; 3 "Treatment" and 4 "Follow-up" (optional) the Treatment branch; 5 "Discharge letter"
+    /// always runs. The first <paramref name="finishedStages"/> are finished.
+    /// </summary>
+    public static PatientPathway CreateBranchingPathway(
+        PatientPathwayStatus status = PatientPathwayStatus.InProgress, int finishedStages = 0)
+    {
+        var pathway = CreatePathway(status);
+        var id = pathway.Id;
+        pathway.Stages =
+        [
+            CreateStage(id, 1, ConsultationDefinitionId, ResultsStage),
+            CreateStage(id, 2, PathwayDefinitionId, BenignStage),
+            CreateStage(id, 3, PathwayDefinitionId, TreatmentStage),
+            CreateStage(id, 4, ConsultationDefinitionId, FollowUpStage),
+            CreateStage(id, 5, PathwayDefinitionId, DischargeStage),
+        ];
+        pathway.StageAt(1).ChoosesBranch = true;
+        pathway.StageAt(2).Branch = BenignBranch;
+        pathway.StageAt(3).Branch = TreatmentBranch;
+        pathway.StageAt(4).Branch = TreatmentBranch;
+        pathway.StageAt(4).IsOptional = true;
+
+        foreach (var stage in pathway.Stages.Take(finishedStages))
+            Finish(stage);
+
+        return pathway;
+    }
+
+    /// <summary>Marks a stage skipped by <see cref="Staff"/>, for a reason.</summary>
+    public static void Skip(PatientPathwayStage stage, StageSkipReason reason = StageSkipReason.NotNeeded, string? detail = null)
+    {
+        stage.SkippedAtUtc = Now.AddDays(-3);
+        stage.SkippedByUserId = Staff.UserId;
+        stage.SkipReason = reason;
+        stage.SkipDetail = detail;
+    }
+
     /// <summary>Marks a stage started and finished (locked) by <see cref="Staff"/>.</summary>
     public static void Finish(PatientPathwayStage stage)
     {

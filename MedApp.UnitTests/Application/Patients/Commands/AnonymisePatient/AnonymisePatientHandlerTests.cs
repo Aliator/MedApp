@@ -128,7 +128,7 @@ public sealed class AnonymisePatientHandlerTests
                 .. record.Appointments,
                 new Appointment { Id = Guid.NewGuid(), PatientId = record.Patient.Id, Status = AppointmentStatus.Requested }
             ],
-            AppointmentHistory = record.AppointmentHistory,
+            AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
             Notifications = record.Notifications,
             NoteVersions = [],
             NoteDeletionRequests = [],

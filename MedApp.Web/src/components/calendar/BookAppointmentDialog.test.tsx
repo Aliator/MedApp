@@ -339,6 +339,46 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
 
     await expectAnnounced('Appointment rescheduled');
     expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/book')).toMatchObject({expectedStatus: 'Booked'});
+    // Patient messages are off (no status): nothing is offered, and nothing sent about telling them.
+    expect(screen.queryByRole('checkbox', {name: /Tell the patient/})).not.toBeInTheDocument();
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/book')).not.toHaveProperty('tellPatient');
+  });
+
+  it('offers to tell the patient of a move while messages are on, ticked when they chose a channel', async () => {
+    atMondayMorning();
+    const booked = testAppointment({id: 'appt-1', date: MONDAY, start: '11:00', end: '11:30', patientReminderChannel: 'Text'});
+    const {user, fetch} = renderDialog(
+      {appointment: booked},
+      {
+        'GET /api/appointments/patient-messages/status': () => json({mode: 'Offline', isOn: true, sendsMissedAppointmentMessages: false, reminderDaysBefore: 2}),
+        'GET /api/calendar': (request) => calendarFor(request, {appointments: [booked]}),
+        'POST /api/appointments/appt-1/book': () => json(booked),
+      },
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Reschedule Appointment'})).toBeInTheDocument();
+    const tell = await dialog().findByRole('checkbox', {name: 'Tell the patient by text or email'});
+    expect(tell).toBeChecked();
+    expect(tell).toHaveAccessibleDescription(/never the reason/);
+    await user.click(tell);
+    await user.click(await dialog().findByRole('button', {name: '10:45'}));
+    await user.click(dialog().getByRole('button', {name: 'Reschedule'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain('POST /api/appointments/appt-1/book'));
+    expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/book')).toMatchObject({expectedStatus: 'Booked', tellPatient: false});
+  });
+
+  it("doesn't offer to tell the patient when booking a Requested appointment, and leaves it unticked without a channel", async () => {
+    atMondayMorning();
+    const on = {'GET /api/appointments/patient-messages/status': () => json({mode: 'Live', isOn: true})};
+    const {unmount} = renderDialog({appointment: testRequested({id: 'req-1'})}, on);
+    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(dialog().queryByRole('checkbox', {name: /Tell the patient/})).not.toBeInTheDocument();
+    unmount();
+
+    renderDialog({appointment: testAppointment({id: 'appt-1', patientReminderChannel: 'None'})}, on);
+    expect(await screen.findByRole('heading', {name: 'Reschedule Appointment'})).toBeInTheDocument();
+    expect(await dialog().findByRole('checkbox', {name: 'Tell the patient by text or email'})).not.toBeChecked();
   });
 
   it('finds a patient by name, then one of their pathways and its stage', async () => {

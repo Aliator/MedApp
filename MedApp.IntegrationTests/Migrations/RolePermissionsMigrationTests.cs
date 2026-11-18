@@ -21,8 +21,8 @@ public sealed class RolePermissionsMigrationTests
     private const string Migration = "20261118111735_AddedRolePermissions";
     private const string BeforeWorkingHours = "20261118131343_AddedReferrals";
     private const string WorkingHoursMigration = "20261118133740_AddedWorkingHours";
-    private const string BeforeLetters = "20261118154532_AddedLetterTemplates";
-    private const string LettersMigration = "20261118170355_AddedLetters";
+    private const string BeforeLetters = "20261118171158_AddedPatientMessages";
+    private const string LettersMigration = "20261118173919_AddedLetters";
 
     /// <summary>The permissions later migrations than these add (AddedLetters: the letter permissions).</summary>
     private static readonly Permission[] LetterPermissions = [Permission.WriteLetters, Permission.ApproveLetters, Permission.SendLetters];

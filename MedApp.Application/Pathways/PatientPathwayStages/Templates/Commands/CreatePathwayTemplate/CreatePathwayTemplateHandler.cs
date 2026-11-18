@@ -35,7 +35,7 @@ public sealed class CreatePathwayTemplateHandler(
             Name = name,
             SpecialtyId = specialty.Id,
             Specialty = specialty,
-            Maps = PathwayTemplateMapper.ToMaps(templateId, request.StageDefinitionIdsInOrder)
+            Maps = PathwayTemplateMapper.ToMaps(templateId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder, request.StageOptions)
         };
 
         await repository.AddPathwayTemplateAsync(template, cancellationToken);

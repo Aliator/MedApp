@@ -291,7 +291,9 @@ public sealed class CloseReferralHandlersTests : ReferralCommandTestBase
 
         referral.Status.Should().Be(status);
         referral.DecisionDetail.Should().Be(Detail);
-        Saved.Single().Action.Should().Be(withdraw ? ReferralEventAction.Withdrawn : ReferralEventAction.EnteredInError);
+        Saved.Select(e => e.Action).Should().Equal(
+            withdraw ? ReferralEventAction.Withdrawn : ReferralEventAction.EnteredInError, ReferralEventAction.ClockStopped);
+        referral.StopReason.Should().Be(withdraw ? ClockStopReason.Withdrawn : ClockStopReason.EnteredInError);
         Tokens.Should().Equal(Cts.Token);
         response.Status.Should().Be(status.ToString());
         response.IsOpen.Should().BeFalse();

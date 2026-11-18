@@ -3,6 +3,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {fieldStatus, type ValidationErrors} from '../../api/errors';
+import {REMINDER_CHANNELS, reminderChannelLabel, wantsEmails, wantsTexts} from '../../api/patientMessages';
 import type {PatientInput} from '../../api/patients';
 import {practiceAddress, practiceChoices, practiceLabel, practicesQuery, type Practice, type PracticeSummary} from '../../api/practices';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
@@ -97,6 +98,42 @@ export function PatientContactFields({value, onChange, errors, isDisabled = fals
         status={status('postcode')}
       />
     </>
+  );
+}
+
+/** What the reminder choice says under it. */
+export const REMINDER_HINT = "Ask the patient. Texts can't be replied to: change it here when they ask.";
+
+/**
+ * Why nothing can be sent as the patient chose, or null: texts without a mobile, or emails without an address. It
+ * doesn't stop the save; the server stores such a message as not sent, saying why.
+ */
+export function reminderContactGap(input: Pick<PatientInput, 'reminderChannel' | 'mobilePhone' | 'email'>): string | null {
+  const noMobile = wantsTexts(input.reminderChannel) && !input.mobilePhone.trim();
+  const noEmail = wantsEmails(input.reminderChannel) && !input.email.trim();
+  if (noMobile && noEmail) return 'Nothing can be sent without a mobile or an email address.';
+  if (noMobile) return 'Texts can’t be sent without a mobile number.';
+  if (noEmail) return 'Emails can’t be sent without an email address.';
+  return null;
+}
+
+/**
+ * How the patient wants appointment reminders and other messages (centre plan decision 133): No reminders, Text,
+ * Email, or Text and email. Staff ask the patient, and change it when they ask (texts can't be replied to). Choosing
+ * texts without a mobile, or email without an address, shows a gentle warning, but doesn't stop the save.
+ */
+export function PatientReminderField({value, onChange, errors, isDisabled = false}: FieldsProps) {
+  const gap = reminderContactGap(value);
+  return (
+    <AnchoredSelector
+      label="Reminders"
+      description={REMINDER_HINT}
+      options={REMINDER_CHANNELS.map((channel) => ({value: channel, label: reminderChannelLabel(channel)}))}
+      value={value.reminderChannel || 'None'}
+      onChange={(next: string) => onChange((current) => ({...current, reminderChannel: next}))}
+      isDisabled={isDisabled}
+      status={fieldStatus(errors, 'reminderChannel') ?? (gap ? {type: 'warning', message: gap} : undefined)}
+    />
   );
 }
 

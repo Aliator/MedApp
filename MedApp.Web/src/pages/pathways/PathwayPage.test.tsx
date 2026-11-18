@@ -1,7 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, json, managerUser, mockApi, nurseUser, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
-import {NOT_ASSIGNED_MESSAGE, PathwayPage, PathwayView, finishedMessage} from './PathwayPage';
+import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {NOT_ASSIGNED_MESSAGE, PathwayPage, PathwayView, finishedMessage, progressWords} from './PathwayPage';
 import {richText, typeRichText} from '../../test/richText';
 import {testAppointment, testRequested} from '../../test/calendar';
 
@@ -491,7 +491,31 @@ describe('PathwayPage: working on it', () => {
 
     await screen.findByRole('heading', {name: 'Colonoscopy', level: 1});
     expect(screen.queryByRole('link', {name: /^From a referral/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name: 'Referral and wait'})).not.toBeInTheDocument();
   });
+
+  it.each([false, true])('shows the referral and its wait in a section of its own, which folds (narrow: %s)', async (isNarrow) => {
+    const referral = {
+      id: 'referral-1',
+      receivedOn: '2026-11-02',
+      specialtyName: 'Dermatology',
+      version: 3,
+      clock: {state: 'Running', targetDays: 28, daysWaited: 30, isBreached: true, targetOn: '2026-11-30', waitStartOn: '2026-11-02'},
+      pauses: [],
+      canPauseClock: true,
+      canResumeClock: false,
+    };
+    mockApi({[`GET ${PATH}`]: () => json(working({referral}))});
+    const {user} = renderWithApp(<PathwayView id={id} isNarrow={isNarrow} />, {user: staffUser});
+
+    const heading = await screen.findByRole('heading', {name: 'Referral and wait'});
+    expect(screen.getByText('Day 30 of 28')).toBeInTheDocument();
+    expect(screen.getByText('Breached')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Pause Clock'})).toBeInTheDocument();
+    await user.click(heading);
+    await waitFor(() => expect(screen.queryByText('Day 30 of 28')).not.toBeInTheDocument());
+  });
+
 
   it("makes no change when the not-assigned question is answered with Cancel", async () => {
     const fetch = mockApi({[`GET ${PATH}`]: () => json(working({assignments: []}))});
@@ -1034,5 +1058,175 @@ describe('PathwayPage: files', () => {
     await user.click(screen.getAllByRole('button', {name: 'Files'})[0]);
     expect(await screen.findAllByText('stage-s2.pdf')).not.toHaveLength(0);
     expect(screen.queryByRole('button', {name: /^Delete stage-s2/})).not.toBeInTheDocument();
+  });
+});
+
+describe('PathwayPage: skipping stages and branches', () => {
+  const patient = {id: 'patient-1', firstName: 'Test', lastName: 'Patient', dateOfBirth: '1960-05-04', nhsNumber: '9990000026'};
+  /** Stage 2 is the current stage, with some options of its own. */
+  const withCurrent = (stage: Record<string, unknown>, overrides: Record<string, unknown> = {}) => {
+    const base = working();
+    return {...base, patient, stages: [base.stages[0], {...base.stages[1], ...stage}], ...overrides};
+  };
+  const branchPoint = {
+    choosesBranch: true,
+    needsBranchChoice: true,
+    branches: [
+      {name: 'Benign', stageNames: ['Discharge letter'], stageNamesToDo: ['Discharge letter']},
+      {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery'], stageNamesToDo: ['Treatment planning', 'Surgery']},
+    ],
+  };
+
+  it('skips an optional current stage with a reason, after showing who the pathway is for', async () => {
+    withAnnouncements();
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(withCurrent({isOptional: true, canSkip: true})),
+      [`POST ${PATH}/stages/s2/skip`]: () =>
+        json(withCurrent({state: 'Skipped', canSkip: false, canEdit: false, isCurrent: false}, {currentStageId: null, skippedStageCount: 1})),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Skip Stage'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
+    expect(dialog.getByText('Stage to skip: 2. Procedure')).toBeInTheDocument();
+    await user.click(dialog.getByRole('radio', {name: 'Patient declined'}));
+    await user.click(dialog.getByRole('button', {name: 'Skip Stage'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/skip`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/skip`)).toEqual({reason: 'PatientDeclined', detail: null});
+    await expectAnnounced('Procedure skipped. Every stage is finished or skipped');
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+
+  it("shows the API's refusal to skip in the dialog", async () => {
+    mockApi({
+      [`GET ${PATH}`]: () => json(withCurrent({isOptional: true, canSkip: true})),
+      [`POST ${PATH}/stages/s2/skip`]: () => json({title: 'Only the current stage can be skipped.', status: 409}, 409),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Skip Stage'}));
+    const dialog = within(openDialog()!);
+    await user.click(dialog.getByRole('radio', {name: 'Not needed'}));
+    await user.click(dialog.getByRole('button', {name: 'Skip Stage'}));
+
+    expect(await dialog.findByText('Only the current stage can be skipped.')).toBeInTheDocument();
+  });
+
+  it('asks which branch follows a branch point, none chosen, and finishes only once the clinician chooses', async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(withCurrent(branchPoint)),
+      [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
+    expect(dialog.getAllByRole('radio').map((r) => [r.getAttribute('value'), (r as HTMLInputElement).checked])).toEqual([
+      ['Benign', false],
+      ['Treatment', false],
+    ]);
+    const finish = dialog.getByRole('button', {name: 'Finish Stage'});
+    expect(isDisabled(finish)).toBe(true);
+    await user.click(finish);
+    expect(calls(fetch)).not.toContain(`POST ${PATH}/stages/s2/finish`);
+
+    await user.click(dialog.getByRole('radio', {name: /Benign/}));
+    expect(dialog.getByText('These stages will be skipped: Treatment planning, Surgery.')).toBeInTheDocument();
+    await user.click(finish);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({branch: 'Benign'});
+  });
+
+  it('asks for the branch when finishing a branch point without its visit too, and sends both', async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(withCurrent({...branchPoint, visitRequirement: 'Suggested'})),
+      'GET /api/appointments/search': () => json(pageOf([])),
+      [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByText('Finish without a visit?')).toBeInTheDocument();
+    const finish = dialog.getByRole('button', {name: 'Finish Without Visit'});
+    expect(isDisabled(finish)).toBe(true);
+    await user.click(dialog.getByRole('radio', {name: /Treatment/}));
+    await user.click(finish);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({withoutVisit: true, branch: 'Treatment'});
+  });
+
+  it('finishes a branch point whose branch was chosen before (unlocked since) as any other stage', async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(withCurrent({...branchPoint, needsBranchChoice: false})),
+      [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+    expect(within(openDialog()!).queryByRole('radio')).not.toBeInTheDocument();
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Finish Stage'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
+    // No body: nothing to choose.
+    const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST');
+    expect(await request!.clone().text()).toBe('');
+  });
+
+  it('shows skipped stages struck through with why, counts them in the progress, and lets an admin reinstate one', async () => {
+    withAnnouncements();
+    const skipped = {
+      ...working().stages[0],
+      state: 'Skipped',
+      isLocked: false,
+      canUnlock: false,
+      canReinstate: true,
+      isOptional: true,
+      skippedAtUtc: '2026-11-03T14:30:00Z',
+      skippedByUsername: 'b.user',
+      skipReason: 'NotNeeded',
+    };
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json({...working(), patient, completedStageCount: 0, skippedStageCount: 1, stages: [skipped, working().stages[1]]}),
+      [`POST ${PATH}/stages/s1/reinstate`]: () => json(working()),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+
+    expect(await screen.findByText('1 of 2, 1 skipped')).toBeInTheDocument();
+    const title = screen.getByText('1. Consultation');
+    expect(title.className).not.toBe(screen.getAllByText('2. Procedure')[0].className);
+    expect(screen.getByText('Skipped: Not needed')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', {name: /^1\. Consultation/}));
+    expect(screen.getByText('Skipped by b.user, 3 Nov 2026, 14:30: Not needed')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Reinstate Stage'}));
+    const dialog = within(openDialog()!);
+    expect(dialog.getByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
+    await user.type(dialog.getByRole('textbox', {name: /Reason/}), 'Needed after all');
+    await user.click(dialog.getByRole('button', {name: 'Reinstate Stage'}));
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s1/reinstate`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s1/reinstate`)).toEqual({reason: 'Needed after all'});
+    await expectAnnounced('Consultation reinstated');
+  });
+
+  it('says when every stage is finished or skipped', async () => {
+    mockApi({[`GET ${PATH}`]: () => json({...pathway, currentStageId: null, skippedStageCount: 1})});
+    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    expect(await screen.findByText('Every stage is finished or skipped.')).toBeInTheDocument();
+  });
+
+  it('words the progress, counting skipped stages as done', () => {
+    expect(progressWords({completedStageCount: 3, skippedStageCount: 1, stageCount: 5})).toBe('4 of 5, 1 skipped');
+    expect(progressWords({completedStageCount: 3, stageCount: 5})).toBe('3 of 5');
+    expect(finishedMessage({name: 'Scan'}, {currentStageId: null, skippedStageCount: 2, stages: []}, 'skipped')).toBe(
+      'Scan skipped. Every stage is finished or skipped',
+    );
   });
 });

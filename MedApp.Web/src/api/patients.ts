@@ -26,6 +26,8 @@ export interface PatientInput {
   mobilePhone: string;
   /** The GP practice they're registered with, from the directory, or '' for none. */
   practiceId: string;
+  /** How they want appointment messages: None, Text, Email or TextAndEmail (centre plan decision 133). */
+  reminderChannel: string;
 }
 
 /** A patient's details as the edit form starts with them: the mobile in national form, as people type it. */
@@ -41,6 +43,7 @@ export function patientInput(patient: Patient): PatientInput {
     postcode: patient.postcode ?? '',
     mobilePhone: patient.mobilePhone ? formatMobile(patient.mobilePhone) : '',
     practiceId: patient.practiceId ?? '',
+    reminderChannel: patient.reminderChannel ?? 'None',
   };
 }
 
@@ -65,10 +68,13 @@ export type PatientRequest = Schemas['CreatePatientRequest'] & Schemas['UpdatePa
  * an update, with the record as it was (`saved`), each is sent only when it changed (left out, the API leaves it as it
  * is), so an archived practice the patient already has is never sent as if newly chosen; a removed one is sent as the
  * API removes it: no address lines (`[]`), an empty postcode or mobile (`""`), and the all-zero practice ID.
+ *
+ * The reminder choice goes the same way: left out of a new patient when it's "None" (the API's default), and on an
+ * update sent only when it changed (left out, the API leaves it as it is).
  */
 export function toPatientRequest(input: PatientInput, mode: 'create' | 'update', saved?: PatientInput): PatientRequest {
   const nhsNumber = normaliseNhsNumber(input.nhsNumber);
-  const {addressLines, postcode, mobilePhone, practiceId, ...personal} = input;
+  const {addressLines, postcode, mobilePhone, practiceId, reminderChannel, ...personal} = input;
   const lines = keptLines(addressLines);
   const isCreate = mode === 'create';
   const changed = (same: (before: PatientInput) => boolean) => isCreate || !saved || !same(saved);
@@ -82,6 +88,8 @@ export function toPatientRequest(input: PatientInput, mode: 'create' | 'update',
     postcode: changed((before) => formatPostcode(before.postcode) === formatPostcode(postcode)) ? postcode.trim() || (isCreate ? undefined : '') : undefined,
     mobilePhone: changed((before) => sameText(before.mobilePhone, mobilePhone)) ? mobilePhone.trim() || (isCreate ? undefined : '') : undefined,
     practiceId: changed((before) => before.practiceId === practiceId) ? practiceId || (isCreate ? undefined : NO_PRACTICE_ID) : undefined,
+    reminderChannel:
+      changed((before) => before.reminderChannel === reminderChannel) && !(isCreate && reminderChannel === 'None') ? reminderChannel : undefined,
   };
 }
 

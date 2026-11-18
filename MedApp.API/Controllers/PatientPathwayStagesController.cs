@@ -6,6 +6,7 @@ using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Commands.SetP
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Commands.UpdatePatientPathwayStageDefinition;
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Queries.GetAllPatientPathwayStageDefinitions;
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Queries.GetPatientPathwayStageDefinitionById;
+using MedApp.Application.Pathways.PatientPathwayStages.Templates;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.CreatePathwayTemplate;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.DeletePathwayTemplate;
 using MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.SetPathwayTemplateArchived;
@@ -124,7 +125,9 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
         var template = await mediator.Send(new CreatePathwayTemplateCommand(
             request.Name,
             request.SpecialtyId,
-            request.StageDefinitionIdsInOrder), ct);
+            request.StageDefinitionIdsInOrder,
+            request.ClockStopStageOrder,
+            ToOptions(request.StageOptions)), ct);
 
         return Created($"/api/pathways/patient-pathway-stage/templates/{template.Id}", template);
     }
@@ -141,7 +144,9 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             id,
             request.Name,
             request.SpecialtyId,
-            request.StageDefinitionIdsInOrder), ct));
+            request.StageDefinitionIdsInOrder,
+            request.ClockStopStageOrder,
+            ToOptions(request.StageOptions)), ct));
 
     [HttpPost("templates/{id:guid}/archive")]
     [ProducesResponseType(typeof(PathwayTemplateResponse), StatusCodes.Status200OK)]
@@ -186,4 +191,7 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
     [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetPathwayTemplateById(Guid id, CancellationToken ct) =>
         Ok(await mediator.Send(new GetPathwayTemplateByIdQuery(id), ct));
+
+    private static List<TemplateStageOptions>? ToOptions(IEnumerable<PathwayTemplateStageOptionsRequest>? options) =>
+        options?.Select(o => new TemplateStageOptions(o.IsOptional, o.ChoosesBranch, o.Branch)).ToList();
 }

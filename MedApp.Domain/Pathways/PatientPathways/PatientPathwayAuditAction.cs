@@ -56,5 +56,20 @@ public enum PatientPathwayAuditAction
     LetterSent = 33,
 
     /// <summary>An approved letter was withdrawn (its reason only on the letter), or a draft discarded.</summary>
-    LetterWithdrawn = 34
+    LetterWithdrawn = 34,
+
+    /// <summary>
+    /// A stage was skipped: an optional stage, by hand, with a reason (<c>skipReason</c> by name, and a <c>detail</c>
+    /// for Other). Stages skipped because another branch was chosen are listed in that <see cref="BranchChosen"/> entry.
+    /// </summary>
+    StageSkipped = 35,
+
+    /// <summary>
+    /// Finishing a branch point chose one of its branches (<c>branch</c>); the other branches' stages after it were
+    /// skipped (<c>skippedStageIds</c>, <c>skippedStages</c>). Written on the branch point, after its StageFinished.
+    /// </summary>
+    BranchChosen = 36,
+
+    /// <summary>A skipped stage was reinstated, with a <c>reason</c> (free text); it runs again in its place.</summary>
+    StageReinstated = 37
 }

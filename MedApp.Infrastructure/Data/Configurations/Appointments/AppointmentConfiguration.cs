@@ -24,6 +24,9 @@ public sealed class AppointmentConfiguration : IEntityTypeConfiguration<Appointm
         builder.Property(x => x.CancelReason)
             .HasMaxLength(500);
 
+        builder.Property(x => x.DnaFollowUpDetail)
+            .HasMaxLength(500);
+
         builder.Property(x => x.CreatedAtUtc)
             .IsRequired();
 

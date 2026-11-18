@@ -41,6 +41,8 @@ public static class DemoWipe
                 await db.Letters.ExecuteDeleteAsync(cancellationToken);
                 await db.ReferralEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Referrals.ExecuteDeleteAsync(cancellationToken);
+                // Texts and emails to patients (no foreign keys) go with their appointments.
+                await db.PatientMessages.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 // Clinic sessions (after the appointments booked into them), then the patterns that made them; both

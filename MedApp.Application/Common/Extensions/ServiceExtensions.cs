@@ -12,6 +12,8 @@ using MedApp.Application.Jobs.OperationalPurge;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notepads.Common;
 using MedApp.Application.Patients.Common;
+using MedApp.Application.PatientMessages.Common;
+using MedApp.Application.PatientMessages.Jobs;
 using MedApp.Application.Notifications.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -72,8 +74,15 @@ public static class ServiceExtensions
         services.AddSingleton<IScheduledJobRunner, ScheduledJobRunner>();
         services.AddScoped<ScheduledJobScope>();
         services.AddScoped<IScheduledJob, OperationalPurgeJob>();
+        services.AddScoped<IScheduledJob, PatientRemindersJob>();
         services.AddOptions<JobsOptions>();
         services.AddOptions<OperationalRetentionOptions>();
+
+        // Texts and emails to patients: what handlers stage, and their settings, which the host binds (PatientMessages,
+        // Reminders); the host provides the sender (IPatientMessageTransport).
+        services.AddScoped<IPatientMessageOutbox, PatientMessageOutbox>();
+        services.AddOptions<PatientMessageOptions>();
+        services.AddOptions<ReminderOptions>();
 
         return services;
     }

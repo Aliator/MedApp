@@ -43,6 +43,34 @@ public sealed class SearchAppointmentsHandlerTests : AppointmentHandlerTestBase
     }
 
     [Test]
+    public async Task Handle_DidNotAttendView_GivesEachHowManyWereMissedOnItsPathway()
+    {
+        var query = AppointmentsTestConstants.CreateSearchQuery() with { View = "didNotAttend" };
+        var missed = CreateAppointment(AppointmentStatus.DidNotAttend, Now.AddDays(-1));
+        using var cts = new CancellationTokenSource();
+        Repository.Setup(r => r.SearchAsync(query, cts.Token)).ReturnsAsync(new PagedResult<Appointment>([missed], 1));
+        Repository.Setup(r => r.CountMissedAsync(It.Is<IReadOnlyCollection<Appointment>>(a => a.Single() == missed), cts.Token))
+            .ReturnsAsync(new Dictionary<Guid, int> { [missed.Id] = 3 });
+
+        var response = await _handler.Handle(query, cts.Token);
+
+        response.Items.Should().ContainSingle().Which.MissedOnPathwayCount.Should().Be(3);
+    }
+
+    [Test]
+    public async Task Handle_NoView_CountsNothingMissed()
+    {
+        var query = AppointmentsTestConstants.CreateSearchQuery();
+        Repository.Setup(r => r.SearchAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<Appointment>([CreateAppointment(AppointmentStatus.DidNotAttend)], 1));
+
+        var response = await _handler.Handle(query, CancellationToken.None);
+
+        response.Items.Single().MissedOnPathwayCount.Should().BeNull();
+        Repository.Verify(r => r.CountMissedAsync(It.IsAny<IReadOnlyCollection<Appointment>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Handle_NoMatches_ReturnsAnEmptyPage()
     {
         var query = AppointmentsTestConstants.CreateSearchQuery();

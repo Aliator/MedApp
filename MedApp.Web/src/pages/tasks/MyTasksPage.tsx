@@ -15,6 +15,7 @@ import {
   StageProgressCell,
   statusLabel,
 } from '../../components/pathways/PathwayCells';
+import {WaitCell} from '../../components/referrals/WaitingClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
@@ -74,6 +75,7 @@ const stageColumn: DataTableColumn<TaskRow> = {
   renderCell: (p) => (
     <StageProgressCell
       completed={p.completedStageCount ?? 0}
+      skipped={p.skippedStageCount ?? 0}
       total={p.stageCount ?? 0}
       currentStageName={p.currentStageName}
       // There's no status column here, so the cell says when a pathway is on hold or awaiting review.
@@ -88,6 +90,15 @@ const dueColumn: DataTableColumn<TaskRow> = {
   sortable: true,
   width: PATHWAY_COLUMN_WIDTH.due,
   renderCell: (p) => <DueDateCell dueDate={p.dueDate ?? ''} isOverdue={p.isOverdue ?? false} />,
+};
+
+/** The referral's waiting-time clock, for a pathway from a referral; sortable by days waited. */
+const waitColumn: DataTableColumn<TaskRow> = {
+  key: 'Wait',
+  header: 'Wait',
+  sortable: true,
+  width: PATHWAY_COLUMN_WIDTH.wait,
+  renderCell: (p) => <WaitCell clock={p.clock} />,
 };
 
 const priorityColumn: DataTableColumn<TaskRow> = {
@@ -112,6 +123,7 @@ const columnsFor = (progress: Progress) => [
   patientColumn,
   progress === 'notStarted' ? templateColumn : stageColumn,
   dueColumn,
+  waitColumn,
   priorityColumn,
   actionsColumn,
 ];
@@ -147,6 +159,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'choice', key: 'priority', label: 'Priority', options: TASK_PRIORITIES.map((p) => ({value: p, label: p})), isMultiple: true},
   {kind: 'date', key: 'due', label: 'Target date', fromKey: 'dueFrom', toKey: 'dueTo'},
   {kind: 'flag', key: 'overdue', label: 'Overdue', operator: 'only'},
+  {kind: 'flag', key: 'breached', label: 'Breached', operator: 'only'},
 ];
 
 /** The quick look-ups: the tasks not started, those under way, and (started or not) the ones needing attention. */
@@ -154,6 +167,7 @@ const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Not started', values: {progress: 'notStarted'}},
   {label: 'Started', values: {progress: 'started'}},
   {label: 'Overdue', values: {overdue: true}},
+  {label: 'Breached', values: {breached: true}},
   {label: 'On hold', values: {status: 'Blocked'}},
 ];
 
@@ -175,6 +189,7 @@ export function taskQuery(search: TasksSearch, pageSize?: number): PathwaySearch
     SpecialtyIds: idChoiceValues(search.specialty),
     StageDefinitionIds: idChoiceValues(search.stage),
     OverdueOnly: search.overdue,
+    BreachedOnly: search.breached,
     DueFrom: search.dueFrom,
     DueTo: search.dueTo,
   };

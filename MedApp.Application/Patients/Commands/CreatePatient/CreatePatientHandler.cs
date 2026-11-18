@@ -48,6 +48,7 @@ public sealed class CreatePatientHandler(
             Postcode = UkPostcodes.Normalise(request.Postcode),
             MobilePhone = UkPhoneNumbers.NormaliseMobile(request.MobilePhone),
             PracticeId = practice?.Id,
+            ReminderChannel = ReminderChannelRules.ParseOrNone(request.ReminderChannel),
             CreatedAt = DateTime.UtcNow,
             LastUpdated = DateTime.UtcNow
         };

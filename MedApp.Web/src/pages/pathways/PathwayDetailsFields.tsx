@@ -5,7 +5,7 @@ import {fieldStatus, type ValidationErrors} from '../../api/errors';
 import {PRIORITIES, type NewPathwayDetailsInput, type PathwayDetailsInput} from '../../api/pathways';
 import {BLANK_DESCRIPTION} from '../../components/forms/fieldSpace';
 import {FormSection} from '../../components/forms/FormSection';
-import {WEEK_STARTS_ON} from '../../utils/dates';
+import {formatDate, WEEK_STARTS_ON} from '../../utils/dates';
 import {RichTextField} from '../../components/forms/RichTextField';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
@@ -28,7 +28,16 @@ export interface PathwayDetailsFieldsProps<T extends DetailsValue> {
   minDueDate?: ISODateString;
   /** Shown under the title, e.g. that a blank one takes the template's name. */
   titleDescription?: string;
+  /**
+   * The target date comes from the referral's waiting-time clock (running or paused): it's shown read-only, as the
+   * API refuses a different one, and moves with the clock and the priority.
+   */
+  isDueDateFromClock?: boolean;
 }
+
+/** What a target date set by the waiting-time clock says under it. */
+export const DUE_DATE_FROM_CLOCK =
+  'From the waiting-time clock: it moves with the clock, and with the priority, so it can\'t be changed here.';
 
 /**
  * A pathway's details, shared by New pathway and Edit details: title, priority and target date, then for a new one
@@ -43,6 +52,7 @@ export function PathwayDetailsFields<T extends DetailsValue>({
   isDisabled = false,
   minDueDate,
   titleDescription,
+  isDueDateFromClock = false,
 }: PathwayDetailsFieldsProps<T>) {
   const set = <K extends keyof T>(key: K, next: T[K]) => onChange({...value, [key]: next});
 
@@ -69,17 +79,28 @@ export function PathwayDetailsFields<T extends DetailsValue>({
           isDisabled={isDisabled}
           status={fieldStatus(errors, 'priority')}
         />
-        <DateInput
-          label="Target Date"
-          description="Due by the end of the day, UK time."
-          value={(value.dueDate || undefined) as ISODateString | undefined}
-          onChange={(v) => set('dueDate', v ?? '')}
-          min={minDueDate}
-          weekStartsOn={WEEK_STARTS_ON}
-          isRequired
-          isDisabled={isDisabled}
-          status={fieldStatus(errors, 'dueDate')}
-        />
+        {isDueDateFromClock ? (
+          <TextInput
+            label="Target Date"
+            description={DUE_DATE_FROM_CLOCK}
+            value={value.dueDate ? formatDate(value.dueDate) : ''}
+            onChange={() => undefined}
+            isReadOnly
+            status={fieldStatus(errors, 'dueDate')}
+          />
+        ) : (
+          <DateInput
+            label="Target Date"
+            description="Due by the end of the day, UK time."
+            value={(value.dueDate || undefined) as ISODateString | undefined}
+            onChange={(v) => set('dueDate', v ?? '')}
+            min={minDueDate}
+            weekStartsOn={WEEK_STARTS_ON}
+            isRequired
+            isDisabled={isDisabled}
+            status={fieldStatus(errors, 'dueDate')}
+          />
+        )}
       </FormSection>
       {value.notes !== undefined && (
         <FormSection title="Notes" useGrid={false}>

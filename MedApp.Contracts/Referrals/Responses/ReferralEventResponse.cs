@@ -42,4 +42,25 @@ public sealed class ReferralEventResponse
 
     /// <summary>DetailsEdited: the names of the fields that changed (e.g. reason, receivedOn), never their old text.</summary>
     public List<string> ChangedFields { get; set; } = [];
+
+    /// <summary>ClockPaused and ClockResumed: why it was paused (PatientChoseToWait, PatientUnavailable or Other).</summary>
+    public string? PauseReason { get; set; }
+
+    /// <summary>ClockPaused: the review date.</summary>
+    public DateOnly? ReviewOn { get; set; }
+
+    /// <summary>TargetChanged: the target before, in days.</summary>
+    public int? PreviousTargetDays { get; set; }
+
+    /// <summary>Registered, TargetChanged and ClockStopped: the target, in days.</summary>
+    public int? TargetDays { get; set; }
+
+    /// <summary>ClockStopped: why.</summary>
+    public string? StopReason { get; set; }
+
+    /// <summary>ClockStopped: the days waited.</summary>
+    public int? DaysWaited { get; set; }
+
+    /// <summary>ClockStopped: whether it was past its target.</summary>
+    public bool? Breached { get; set; }
 }

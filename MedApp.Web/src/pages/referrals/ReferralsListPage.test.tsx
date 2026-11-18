@@ -37,13 +37,13 @@ function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = 
 }
 
 describe('ReferralsListPage', () => {
-  it('opens on the inbox: referrals awaiting triage, oldest received first, each opening its referral', async () => {
+  it('opens on the inbox: referrals awaiting triage, longest wait first, each opening its referral', async () => {
     const {fetch} = renderList();
 
     expect(await screen.findByRole('link', {name: 'Freya Ahmed'})).toHaveAttribute('href', '/referrals/r1');
     expect(screen.getByRole('heading', {name: 'Referrals', level: 1})).toBeInTheDocument();
     expect(screen.getByText('12 referrals awaiting triage')).toBeInTheDocument();
-    expect(searchCalls(fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true&Statuses=AwaitingTriage`]);
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=daysWaited&Ascending=false&Statuses=AwaitingTriage`]);
     const table = within(screen.getByRole('table'));
     expect(table.getByText('NHS No. 999 000 0018')).toBeInTheDocument();
     expect(table.getByText('No NHS number')).toBeInTheDocument();
@@ -77,12 +77,101 @@ describe('ReferralsListPage', () => {
     expect(searchCalls(all.fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true`]);
   });
 
+  it('shows the wait where a referral has a clock, in place of how long ago it was received', async () => {
+    renderList(
+      {},
+      {
+        body: pageOf([
+          testReferralSummary({
+            id: 'r1',
+            clock: {state: 'Running', daysWaited: 130, targetDays: 126, isBreached: true, targetOn: '2026-11-10', waitStartOn: '2026-07-07'},
+          }),
+          testReferralSummary({id: 'r2', patientName: 'Sam Test'}),
+        ]),
+      },
+    );
+    const table = within(await screen.findByRole('table'));
+    expect(await table.findByText('Day 130 of 126')).toBeInTheDocument();
+    expect(table.getByText('Breached')).toBeInTheDocument();
+    expect(table.getByText('No clock')).toBeInTheDocument();
+    // Only the referral without a clock says how long ago it was received.
+    expect(table.getAllByText('12 days ago')).toHaveLength(1);
+  });
+
+  it('shows the waiting list: accepted, clock not stopped, longest wait first, with the target date', async () => {
+    const {fetch} = renderList(
+      {view: 'waiting'},
+      {
+        body: pageOf([
+          testReferralSummary({
+            id: 'r1',
+            status: 'Accepted',
+            clock: {state: 'Running', daysWaited: 40, targetDays: 126, targetOn: '2026-12-30', waitStartOn: '2026-10-09'},
+          }),
+          testReferralSummary({id: 'r2', status: 'Accepted', patientName: 'Sam Test'}),
+        ]),
+      },
+    );
+    expect(await screen.findByText('2 referrals on the waiting list')).toBeInTheDocument();
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=daysWaited&Ascending=false&Statuses=Accepted&ClockStopped=false`]);
+    expect(screen.getByRole('columnheader', {name: /Target date/})).toBeInTheDocument();
+    expect(screen.getByText('30 Dec 2026')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(searchBar()).toHaveTextContent(/Showing: is\s*Waiting list/);
+  });
+
+  it('shows the paused clocks by review date, flagging past ones', async () => {
+    const {fetch} = renderList(
+      {view: 'paused'},
+      {
+        body: pageOf([
+          testReferralSummary({
+            id: 'r1',
+            status: 'Accepted',
+            clock: {state: 'Paused', daysWaited: 40, targetDays: 126, pausedSinceOn: '2026-11-01', pauseReviewOn: '2026-11-10', isReviewOverdue: true},
+          }),
+          testReferralSummary({id: 'r2', status: 'Accepted', patientName: 'Sam Test', clock: {state: 'Paused', daysWaited: 3, targetDays: 28}}),
+        ]),
+      },
+    );
+    expect(await screen.findByText('2 paused clocks')).toBeInTheDocument();
+    expect(searchCalls(fetch)).toEqual([`${SEARCH}?Page=1&PageSize=10&Sort=reviewOn&Ascending=true&Paused=true`]);
+    expect(screen.getByRole('columnheader', {name: /Review date/})).toBeInTheDocument();
+    const table = within(screen.getByRole('table'));
+    expect(table.getByText('10 Nov 2026')).toBeInTheDocument();
+    expect(table.getAllByText('Review overdue').length).toBeGreaterThan(0);
+    expect(table.getByText('—')).toBeInTheDocument();
+  });
+
+  it('counts one paused clock, and says when none are paused or nobody is waiting', async () => {
+    const one = renderList({view: 'paused'}, {body: pageOf([testReferralSummary({id: 'r1'})])});
+    expect(await screen.findByText('1 paused clock')).toBeInTheDocument();
+    one.unmount();
+
+    const paused = renderList({view: 'paused'}, {body: pageOf([])});
+    expect(await screen.findByText('No clocks are paused')).toBeInTheDocument();
+    paused.unmount();
+
+    renderList({view: 'waiting'}, {body: pageOf([])});
+    expect(await screen.findByText('Nobody is on the waiting list')).toBeInTheDocument();
+  });
+
+  it('switches to the waiting list and the paused clocks from the favourites', async () => {
+    const {user, onSearchChange} = renderList();
+    await screen.findByText('Freya Ahmed');
+
+    await pickFavourite(user, 'Waiting list');
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({view: 'waiting'}));
+    await pickFavourite(user, 'Paused clocks');
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({view: 'paused'}));
+  });
+
   it('filters by specialty, named in the search, and counts what matches', async () => {
     const {fetch} = renderList({specialty: SKIN_ID});
 
     expect(await screen.findByText('12 matching referrals')).toBeInTheDocument();
     expect(searchCalls(fetch)).toEqual([
-      `${SEARCH}?Page=1&PageSize=10&Sort=receivedOn&Ascending=true&Statuses=AwaitingTriage&SpecialtyIds=${SKIN_ID}`,
+      `${SEARCH}?Page=1&PageSize=10&Sort=daysWaited&Ascending=false&Statuses=AwaitingTriage&SpecialtyIds=${SKIN_ID}`,
     ]);
     await waitFor(() => expect(searchBar()).toHaveTextContent(/Specialty: is\s*Dermatology/));
   });

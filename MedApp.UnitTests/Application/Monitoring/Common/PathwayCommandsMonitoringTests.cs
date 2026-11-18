@@ -14,6 +14,8 @@ using MedApp.Application.Pathways.PatientPathways.Commands.DeletePatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.DeletePathwayNote;
 using MedApp.Application.Pathways.PatientPathways.Commands.EditPathwayNote;
 using MedApp.Application.Pathways.PatientPathways.Commands.FinishPathwayStage;
+using MedApp.Application.Pathways.PatientPathways.Commands.ReinstatePathwayStage;
+using MedApp.Application.Pathways.PatientPathways.Commands.SkipPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.StartPathwayStage;
 using MedApp.Application.Pathways.PatientPathways.Commands.UnassignPatientPathway;
 using MedApp.Application.Pathways.PatientPathways.Commands.UnlockPathwayStage;
@@ -106,6 +108,18 @@ public sealed class PathwayCommandsMonitoringTests : PathwayHandlerTestBase
             t.Fixture.Create<DeletePatientPathwayHandler>().Handle(new DeletePatientPathwayCommand(p.Id, Admin), t.Token));
         yield return Case<FinishPathwayStageHandler>(Status.InProgress, 0, (t, p) =>
             t.Fixture.Create<FinishPathwayStageHandler>().Handle(new FinishPathwayStageCommand(p.Id, p.StageAt(1).Id, Staff), t.Token));
+        yield return Case<SkipPathwayStageHandler>(Status.InProgress, 0, (t, p) =>
+        {
+            p.StageAt(1).IsOptional = true;
+            return t.Fixture.Create<SkipPathwayStageHandler>().Handle(
+                new SkipPathwayStageCommand(p.Id, p.StageAt(1).Id, "PatientDeclined", null, Staff), t.Token);
+        });
+        yield return Case<ReinstatePathwayStageHandler>(Status.InProgress, 0, (t, p) =>
+        {
+            Skip(p.StageAt(1));
+            return t.Fixture.Create<ReinstatePathwayStageHandler>().Handle(
+                new ReinstatePathwayStageCommand(p.Id, p.StageAt(1).Id, SkipDetail, Admin), t.Token);
+        });
         yield return Case<StartPathwayStageHandler>(Status.Assigned, 0, (t, p) =>
             t.Fixture.Create<StartPathwayStageHandler>().Handle(new StartPathwayStageCommand(p.Id, p.StageAt(1).Id, Staff), t.Token));
         yield return Case<UnassignPatientPathwayHandler>(Status.Assigned, 0, (t, p) =>

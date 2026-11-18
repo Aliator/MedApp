@@ -6,16 +6,25 @@ import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
 import {needsLetterWords} from '../../api/letters';
 import type {PathwayStage} from '../../api/pathways';
+import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
 import {RichText} from '../shared/RichText';
 import {SnomedConcept} from './SnomedConcept';
 
-/** What a stage's state looks like: finished, under way or waiting. */
+/** A stage that was skipped: an optional one, or one in a branch the clinician didn't choose. */
+export const isSkipped = (stage: PathwayStage) => stage.state === 'Skipped';
+
+/**
+ * What a stage's state looks like: finished, skipped (and why), under way or waiting; and whether it's optional, a
+ * branch point or in a branch.
+ */
 export function StageStateTokens({stage}: {stage: PathwayStage}) {
   return (
-    <HStack gap={2} vAlign="center">
+    <HStack gap={2} vAlign="center" wrap="wrap">
       {stage.state === 'Completed' ? (
         <Token size="sm" label="Finished" color="green" />
+      ) : isSkipped(stage) ? (
+        <Token size="sm" label={`Skipped: ${skipReasonLabel(stage.skipReason) || 'no reason given'}`} color="gray" />
       ) : stage.state === 'InProgress' ? (
         <Token size="sm" label="In progress" color="teal" />
       ) : (
@@ -23,15 +32,21 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
       )}
       {stage.isCurrent && <Token size="sm" label="Current stage" color="blue" />}
       {stage.state === 'Completed' && !stage.isLocked && <Token size="sm" label="Unlocked for editing" color="orange" />}
+      {stage.isOptional && <Token size="sm" label="Optional" color="gray" />}
+      {stage.choosesBranch && <Token size="sm" label="Branch point" color="purple" />}
+      {stage.branch && <Token size="sm" label={`Branch: ${stage.branch}`} color="purple" />}
     </HStack>
   );
 }
 
-/** Who started and finished the stage, and when. */
+/** Who started, finished or skipped the stage, and when; a skip's reason in words, and its detail. */
 function StageActivity({stage}: {stage: PathwayStage}) {
   const lines = [
     stage.startedAtUtc && `Started by ${stage.startedByUsername ?? 'unknown'}, ${formatDateTime(stage.startedAtUtc)}`,
     stage.completedAtUtc && `Finished by ${stage.completedByUsername ?? 'unknown'}, ${formatDateTime(stage.completedAtUtc)}`,
+    stage.skippedAtUtc &&
+      `Skipped by ${stage.skippedByUsername ?? 'unknown'}, ${formatDateTime(stage.skippedAtUtc)}: ${skipReasonLabel(stage.skipReason) || 'no reason given'}`,
+    stage.skippedAtUtc && stage.skipDetail?.trim() && `Detail: ${stage.skipDetail.trim()}`,
   ].filter(Boolean) as string[];
 
   if (lines.length === 0) return null;
@@ -97,7 +112,8 @@ function StageInstructions({stage, folding}: {stage: PathwayStage; folding?: Ins
 export function StageTitle({stage, extra}: {stage: PathwayStage; extra?: ReactNode}) {
   return (
     <HStack gap={3} vAlign="center" wrap="wrap">
-      <Text type="body" size="lg" weight="bold">{`${stage.stageOrder}. ${stage.name}`}</Text>
+      {/* A skipped stage is struck through, as well as saying so in its state, so it reads as not done at a glance. */}
+      <Text type="body" size="lg" weight="bold" hasStrikethrough={isSkipped(stage)}>{`${stage.stageOrder}. ${stage.name}`}</Text>
       <StageStateTokens stage={stage} />
       {extra}
     </HStack>

@@ -7,7 +7,7 @@
 | **Document** | CS-02, hazard log (DCB0129) |
 | **Version** | 1.0, draft |
 | **Date** | 18 November 2026 |
-| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`) |
+| **System** | MedApp, `main` at `88dc1fa` (the merge of #56); H-12 updated for its fix in PR #62; H-03, H-19 and the new H-22 for the privacy features (PR #68); H-01, H-02 and H-13 for the NHS integrations (PR #69: the NHS number, the patient banner, the FHIR API, SNOMED CT codes and the demographics lookup); H-09 and the new H-29 for admins' monitoring (PR #84); H-23 to H-28 added for file attachments (branch `feature/file-attachments`), and H-10 for its review; H-30 to H-36 drafted for staff calendars and appointments, from their design (`docs/calendar-plan.md`, `feature/staff-calendars`); H-37 drafted for the notepad's Add Note to Pathway (`feature/procedure-notes`), and updated for the notepad in a half view (`feature/notepad-window`); H-38 drafted for deleting pathway notes (`feature/note-deletion`); H-39 drafted for appointments recorded after the event, and H-31 to H-35 updated for closed days and walk-ins (`feature/closed-days-walk-ins`); H-40 to H-44 drafted for referrals, triage and the waiting-time clock, from their design (`docs/centre-phase2-plan.md`), and H-01 updated; H-45 to H-64 drafted for the centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`), and H-01 updated; H-40, H-41, H-44 and H-01 updated for the referrals built (`feature/referrals`), and H-40, H-41 and H-44 for triage (`feature/triage`); H-51's controls built with branching pathways (`feature/branching-pathways`); H-53 to H-55 updated for patient reminders and the Did not attend view built, and H-30, H-36 and H-52 for what they add (`feature/patient-reminders`) |
 | **Drafted by** | An AI coding agent, for the manufacturer, from the code. Not yet reviewed by a person or a clinician. |
 | **Approved by** | [Clinical Safety Officer] |
 
@@ -84,11 +84,11 @@
 | [H-48](#h-48-a-letter-goes-to-the-wrong-practice-or-person) | A letter goes to the wrong practice or person | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 12 and 16: built) | Open, draft for the CSO |
 | [H-49](#h-49-a-letter-isnt-sent-or-goes-late) | A letter isn't sent, or goes late | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 16: built) | Open, draft for the CSO |
 | [H-50](#h-50-a-letter-shows-another-patients-details-or-an-unapproved-version-is-sent) | A letter shows another patient's details, or an unapproved version is sent | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PRs 15 and 16: built) | Open, draft for the CSO |
-| [H-51](#h-51-a-branch-is-chosen-or-a-stage-skipped-in-error) | A branch is chosen, or a stage skipped, in error | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 20; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-51](#h-51-a-branch-is-chosen-or-a-stage-skipped-in-error) | A branch is chosen, or a stage skipped, in error | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, built** (PR 20, `feature/branching-pathways`: the confirmation, none pre-selected, reasons, reinstating, the audit, the template checks) | Open, draft for the CSO |
 | [H-52](#h-52-a-patient-is-booked-when-nobody-or-no-room-is-available-or-a-cancelled-clinics-patients-arent-told) | A patient is booked when nobody, or no room, is available, or a cancelled clinic's patients aren't told | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PRs 21 to 23 and 26; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
-| [H-53](#h-53-a-reminder-reaches-the-wrong-person-or-says-too-much) | A reminder reaches the wrong person or says too much | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, with the feature (PR 26; not built) | Open, draft for the CSO |
-| [H-54](#h-54-a-patient-relies-on-a-reminder-that-isnt-sent) | A patient relies on a reminder that isn't sent | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Yes, with the feature (PRs 19 and 26; not built) | Open, draft for the CSO |
-| [H-55](#h-55-a-missed-appointment-isnt-followed-up) | A missed appointment isn't followed up | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 26; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
+| [H-53](#h-53-a-reminder-reaches-the-wrong-person-or-says-too-much) | A reminder reaches the wrong person or says too much | Draft: Significant, Medium: **2** | Draft: Significant, Low: **2** | Draft: Significant, Low: **2** | Yes, with the feature (PR 26; built, to verify) | Open, draft for the CSO |
+| [H-54](#h-54-a-patient-relies-on-a-reminder-that-isnt-sent) | A patient relies on a reminder that isn't sent | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | Yes, with the feature (PRs 19 and 26; built, to verify) | Open, draft for the CSO |
+| [H-55](#h-55-a-missed-appointment-isnt-followed-up) | A missed appointment isn't followed up | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 26; built, to verify) | Open, draft for the CSO |
 | [H-56](#h-56-a-scheduled-job-stops-and-nobody-notices) | A scheduled job stops and nobody notices | Draft: Considerable, Medium: **3** | Draft: Considerable, Low: **2** | Draft: Considerable, Low: **2** | **Yes, with the feature** (PR 19; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
 | [H-57](#h-57-a-record-is-anonymised-too-early-because-its-retention-class-is-wrong) | A record is anonymised too early because its retention class is wrong | Draft: Considerable, Low: **2** | Draft: Considerable, Very low: **2** | Draft: Considerable, Very low: **2** | Yes, with the feature (PR 27; not built) | Open, draft for the CSO |
 | [H-58](#h-58-an-mdt-outcome-is-recorded-on-the-wrong-patient-or-not-acted-on) | An MDT outcome is recorded on the wrong patient, or not acted on | Draft: Major, Low: **3** | Draft: Major, Very low: **2** | Draft: Major, Very low: **2** | **Yes, with the feature** (PR 30; not built: `docs/centre-phases-3-5-plan.md`) | Open, draft for the CSO |
@@ -117,7 +117,7 @@
 
 **Referrals, triage and the waiting-time clock (H-40 to H-44)** are drafts written from the design of Phase 2 of the community specialist centre (`docs/centre-phase2-plan.md`), before anything was built, so the build includes their controls. **Referrals and triage are built** (branches `feature/referrals`, PR 5, and `feature/triage`, PR 6): H-40, H-41 and H-44 now list the controls they built as existing ones, for the CSO to verify, and keep the rest (the clock, PR 7) as planned. H-42 and H-43 have no existing control yet. Draft estimates: four start at 3 (H-40 to H-43) and all come down to 2 at first live use once their planned controls are built. H-01 gains registering a referral on the wrong patient as a cause.
 
-**The centre's Phases 3 to 5 (H-45 to H-64)** are drafts written from the design of Phases 3, 4 and 5 of the community specialist centre (`docs/centre-phases-3-5-plan.md`), **before anything is built**, so each feature's PR builds their controls with it: H-45 to H-50 for specimens, results and letters (Phase 3), H-51 to H-57 for branching pathways, hours and clinics, reminders, scheduled jobs and retention classes (Phase 4), and H-58 to H-64 for the MDT list, consent, questionnaires, video appointments, NHS adapters, several organisations and malware scanning (Phase 5). None has an existing control. Draft estimates: 13 start at 3 (H-45, H-46, H-47, H-48, H-49, H-50, H-51, H-52, H-55, H-56, H-58, H-59 and H-62), and all come down to 2 or below at the feature's first live use, once its planned controls are built; no feature may be used with patients before then. H-01 gains the specimen label as a cause and a control.
+**The centre's Phases 3 to 5 (H-45 to H-64)** are drafts written from the design of Phases 3, 4 and 5 of the community specialist centre (`docs/centre-phases-3-5-plan.md`), **before anything is built**, so each feature's PR builds their controls with it: H-45 to H-50 for specimens, results and letters (Phase 3), H-51 to H-57 for branching pathways, hours and clinics, reminders, scheduled jobs and retention classes (Phase 4), and H-58 to H-64 for the MDT list, consent, questionnaires, video appointments, NHS adapters, several organisations and malware scanning (Phase 5). None has an existing control. Draft estimates: 13 start at 3 (H-45, H-46, H-47, H-48, H-49, H-50, H-51, H-52, H-55, H-56, H-58, H-59 and H-62), and all come down to 2 or below at the feature's first live use, once its planned controls are built; no feature may be used with patients before then. H-01 gains the specimen label as a cause and a control. **Patient reminders and the Did not attend view are built** (PR 26, `feature/patient-reminders`): H-53 to H-55 list the controls it built as existing ones, for the CSO to verify, and H-30, H-36 and H-52 gain them where they help. No draft estimate changed: H-55's initial estimate of 3 assumed none of its controls, and its estimate at first live use (2) already assumed them.
 
 **Staff calendars and appointments (H-30 to H-36)** are drafts for the CSO, written from the design (`docs/calendar-plan.md`) while the feature was being built, and not yet checked against the code. Their ratings are left for the CSO to assign; each entry gives a draft estimate, marked "Draft", which the counts above don't include. On those estimates, four start at 3 (H-30, H-32, H-34 and H-36), and all come down to 2 at first live use once their "before first live use" controls are built, so none would need a justification at 3 under the go-live rule.
 
@@ -1187,7 +1187,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **A Requested appointment has nobody's name on it.** It has no member of staff until it's booked, so no one is notified about it (notifications go to the member of staff an appointment is booked with; decision 20). It waits on the Requires Appointment list (decision 29) until someone looks.
 - **The list has no side navigation item** (since 17 November 2026): it's reached only from the Calendar page's "Requires Appointment (N)" link, so someone who doesn't open the Calendar doesn't see it or its count.
 - **Nothing flags a request that has waited too long.** Flagging or notifying old Requested appointments is left for later (plan, section 8).
-- **Did not attend leads nowhere by itself.** It's a status staff record (decision 16). The UI offers "Book another", but nothing reminds anyone later, and nobody else is notified.
+- **Did not attend leads nowhere by itself.** It's a status staff record (decision 16). The UI offers "Book another", and since PR 26 the Did not attend view lists it until someone records a follow-up (H-55), but nobody is notified.
 - **Cancelling a Booked appointment doesn't request another.** A Requested appointment is made only when a stage becomes current (decision 23), so after a cancellation the stage has no open appointment until someone books one.
 - **Appointments not for a stage** have no rule behind them at all, and a stage with a suggested visit can be finished without one (H-32).
 - **A restricted record's appointments can't be booked, moved or given an outcome** until an admin lifts the restriction (H-22).
@@ -1211,7 +1211,8 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 - **Flag or notify Requested appointments that have waited too long,** and Did not attend appointments not yet rebooked, to the pathway's assignees, or to admins when it has none. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); **before first live use**.
 - **A visible count of Requires Appointment,** in the side navigation or on Home, so the list isn't only seen by those who open the Calendar. (Since 17 November 2026 the list has no side navigation item at all; the count shows only on the Calendar page's link.) Protective; **proposed**; before first live use.
 - **A local process:** who books from Requires Appointment, how often it's reviewed, and who follows up Did not attend. Information; transferred; before first live use.
-- **Reminders to patients** by email or SMS, which cut missed appointments. Protective; **planned** (`docs/todo.md`); later.
+- **Reminders to patients** by text or email, which cut missed appointments. Protective; **built** (PR 26), off unless the organisation turns it on, and a courtesy only (H-54).
+- **The Did not attend view** lists missed appointments until a follow-up is recorded (H-55). Detective; **built** (PR 26).
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
@@ -1420,7 +1421,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Description.** An appointment is cancelled or rescheduled in MedApp, but the patient isn't told, so they come at the old time, or don't come to the new one.
 
 **Causes:**
-- **MedApp doesn't contact patients.** There are no reminders or confirmations by email or SMS (plan, section 8); telling the patient is the organisation's own process.
+- **MedApp contacts patients only if the organisation turns it on, and only on the channels each patient chose** (PR 26): telling the patient of a move or cancellation by text or email happens only when staff tick "Tell the patient" (moving a Booked appointment to another time or room, cancelling one still to come, or cancelling a clinic session); moving an appointment to another member of staff alone, or a drag on the calendar, sends nothing. Otherwise telling the patient is the organisation's own process.
 - **Nothing in MedApp asks whether the patient has been told,** when an appointment is cancelled or moved.
 - **Notifications go to staff only:** the member of staff whose appointment changed, and only when someone else changed it (decision 20).
 - **Cancelling a pathway leaves its Booked appointments alone** (decision 26), deliberately, so someone can tell the patient; if no one acts on the list on the pathway page, they stay booked for a pathway that won't go ahead.
@@ -1440,7 +1441,7 @@ H-30 to H-36 come from the design of staff calendars and appointments (`docs/cal
 **Further controls:**
 - **Ask "has the patient been told?"** when a Booked appointment is cancelled or moved, record the answer, and list the ones not yet told. Protective; **proposed**; before first live use.
 - **A local process** for telling patients of every cancellation and change, and for the Booked appointments of a cancelled pathway. Information; transferred; before first live use.
-- **Reminders and confirmations to patients** by email or SMS. Protective; **planned** (`docs/todo.md`, "Calendar follow-ups"); later.
+- **Telling the patient by text or email** when a Booked appointment is moved or cancelled, or a session cancelled ("Tell the patient by text or email", ticked when the patient has a channel), with the message stored and its delivery shown on the appointment; and reminders before each appointment, which show a moved appointment's new time. Protective; **built** (PR 26: `BookAppointmentHandler`, `CancelAppointmentHandler`, `CancelClinicSessionHandler`, `PatientRemindersJob`), off unless the organisation turns it on, and only for patients who chose a channel. Not for a cancelled pathway's Booked appointments, which staff cancel one by one (and can tell the patient then), nor for a closed day's (`docs/todo.md`).
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
@@ -1614,7 +1615,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
 **Further controls** (planned, Phase 2, before first live use unless marked):
-- **The inbox's days waited and breach badge,** longest wait first, from the waiting-time clock (PR 7), and filtered to the viewer's specialties (PR 8). Detective; planned.
+- **The inbox's days waited and breach badge,** longest wait first, from the waiting-time clock (PR 7, branch `feature/waiting-clock`: **built**), and filtered to the viewer's specialties (PR 8). Detective.
 - **Transferred** (`dcb0160-deploying-organisations.md`):
   - a daily check of the inbox;
   - a procedure for referrals received when MedApp is unavailable;
@@ -1650,7 +1651,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 - **A referral on the wrong patient** is marked entered in error, with a detail, and stays in the record, closed. Corrective.
 - **Triage** (branch `feature/triage`, PR 6):
   - **The patient as the patient banner shows them** in every triage confirmation (accept, reject, redirect), with the specialty and, for accepting, the template and priority chosen (`AcceptReferralDialog`, `RejectReferralDialog`, `RedirectReferralDialog`). Protective.
-  - **Choices kept narrow, nothing prefilled:** only the specialty's own templates are offered, by name and never ranked, and the server refuses another specialty's (400, `ReferralWorkflow.TemplateNotInSpecialtyMessage`); the priority, the template and the target date start empty and must be chosen, with the referrer's request shown beside the priority as text. Protective.
+  - **Choices kept narrow, nothing prefilled:** only the specialty's own templates are offered, by name and never ranked, and the server refuses another specialty's (400, `ReferralWorkflow.TemplateNotInSpecialtyMessage`); the priority and the template start empty and must be chosen, with the referrer's request shown beside the priority as text; the pathway's target date is the waiting-time clock's for the priority chosen (PR 7), not typed. Protective.
   - **Only a clinician of the specialty decides:** the triage permission and membership of the referral's specialty, checked on the server (403). Protective.
   - **Who decided, when and why** is recorded on the referral and in its history, and on the timeline; the pathway's Created audit entry names the referral, and the pathway page links back to it. Two decisions at once can't both succeed: the row version, and the second is told who decided and how (409, `ReferralWorkflow.AlreadyTriagedMessage`); an acceptance that loses leaves no pathway. Detective and protective.
   - **The patient's other referrals** are listed on the referral page. Protective.
@@ -1682,22 +1683,22 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Possible harm.** A delayed investigation or treatment. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built on branch `feature/waiting-clock`, Phase 2's PR 7; to be verified by the CSO):
+- **A review date is required,** from tomorrow to at most 90 days ahead, checked on the server (`PauseClockValidator`); the pause records its reason (a fixed, patient-initiated list), an optional detail (required for Other), who paused it and when. Protective.
+- **While paused, the pathway's target date is the review date** (`WaitingClock.PathwayTargetOn`, `PathwayChange.FollowClock`), so a missed review shows as Overdue on every list and on My Worklist, and the monitoring rule for a changed target date fires. Detective.
+- **The Paused clocks view** on the Referrals page lists every open pause by review date, with past ones flagged (`paused=true`, `sort=reviewOn`; `WaitingClockResponse.IsReviewOverdue`). Detective.
+- **Only patient-initiated reasons, only after acceptance;** On hold doesn't pause the clock; one open pause at a time (a unique index); a pause starts and ends today, never backdated. Design.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
-**Further controls** (planned, Phase 2, before first live use):
-- **A review date is required,** at most 90 days ahead. The pause records its reason, who paused it and when. Protective.
-- **While paused, the pathway's target date is the review date,** so a missed review shows as Overdue on every list and task list. Detective.
-- **The Paused clocks view** lists every open pause by review date, with past ones flagged. Detective.
-- **Only patient-initiated reasons,** only after acceptance: On hold doesn't pause the clock. Design.
+**Further controls:**
 - **A notification or monitoring rule when a review date passes.** Protective; planned for Phase 4 (it needs a scheduled job); later.
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
 **Residual risk:** Draft: Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the controls are built (branch `feature/waiting-clock`), to be verified; the notification when a review date passes is later.
 
 ---
 
@@ -1715,14 +1716,15 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Possible harm.** A delayed diagnosis or treatment. Several patients; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built on branch `feature/waiting-clock`, Phase 2's PR 7; to be verified by the CSO):
+- **Breached** on the referral lists and the pathway lists (a Wait column, "Day n of target"), on the referral page and the pathway's Referral and wait card; sorting by days waited and a "Breached only" filter (`PathwaySearch`, `ReferralSearch`). A clock that breached before a pause stays breached. Detective.
+- **The target's source is visible:** each clock shows its target days and date; each specialty's targets are on the Specialties page; every re-read of a clock's target (the triager's priority, a redirection, a correction, a new priority) is in the referral's history with the old and new days. Information.
+- **One rule, in one class, with its own tests** (`WaitingClock`, `WaitingClockTests`): whole UK days, the clock changes, same-day pauses, breaches before a pause. Protective.
+- **Pause reasons are a fixed list** of patient-initiated reasons; On hold doesn't pause. Design.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
-**Further controls** (planned, Phase 2, before first live use unless marked):
-- **Breached** on every referral and pathway list, with "Day n of target". Sorting by days waited, and a "Breached only" filter. Detective.
-- **The target's source is visible:** each clock shows its target days, and each specialty's targets are on its admin page. Changes to targets are recorded. Information.
-- **Pause reasons are a fixed list** of patient-initiated reasons. Design.
+**Further controls:**
 - **Transferred:**
   - the organisation sets and reviews its targets;
   - it reviews its waiting list on a set schedule.
@@ -1732,7 +1734,7 @@ H-40 to H-44 come from the design of Phase 2 of the community specialist centre 
 
 **Residual risk:** Draft: Considerable, Low: **2**.
 
-**Owner:** [CSO]. **Status:** Open, draft for the CSO.
+**Owner:** [CSO]. **Status:** Open, draft for the CSO: the lists, sort, filter and visible targets are built (branch `feature/waiting-clock`), to be verified; breach notifications are later.
 
 ---
 
@@ -2015,16 +2017,18 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A missed or unnecessary treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** built with the feature (PR 20, branch `feature/branching-pathways`), as listed below. Reinstating needs `OverrideStages` until PR 24 splits it into `UnlockStages` and `FinishWithoutVisit`.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
-**Further controls** (planned, PR 20; before the feature's first live use):
+**Further controls** (built in PR 20; `PathwayWorkflow`, `PathwayChange`, `TemplateBranchRules`, the pathway page and the template editor):
 - **A confirmation listing what will be skipped,** with the patient banner (section 3.8). Branches are listed in the template's order with the stages each contains, **none pre-selected** (decision 114). Protective.
 - **A reason for every skip** (Not needed, Patient declined, Other with a detail) (decision 113). Protective.
 - **Reinstating:** a holder of `UnlockStages` reinstates a skipped stage with a reason; a branch is re-chosen by reinstating its stages (decision 115). Corrective.
 - **The audit:** `StageSkipped`, `BranchChosen` (the branch and the skipped stage IDs) and `StageReinstated`, on the timeline; skipped stages shown struck through with the reason. Detective.
-- **Template checks:** every branch point has at least two branches, and the last stage is never optional or in a branch (decision 117). Design.
+- **Template checks:** every branch point has at least two branches, and the last stage is never optional or in a branch (decision 117); a branch point is itself never optional or in a branch. Design.
+- **A stage whose visit is Required** can be skipped only by a holder of `OverrideStages`, with a detail, as finishing it without its visit needs (`PathwayWorkflow.SkipNeedsOverride`); the audit records the requirement. A branch not chosen still skips such a stage, as the clinician chose the other branch. Protective.
+- **No branch assumed:** finishing a branch point without a branch is refused (400), and a branch can't be given again when it's finished after an unlock. Design.
 - **Transferred:** clinical sign-off of each template's branches and optional stages.
 
 **At first live use:** Draft: Major, Very low: **2**.
@@ -2051,7 +2055,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Existing controls:** none (not built). Today's fixed working day and clash checks (H-31, H-33) apply until it's replaced.
 
-*Built so far:* the hours (PR 22), and clinic sessions (PR 23, `feature/clinic-sessions`): one patient per slot (the clinician's calendar lock, the clash check and a unique index on session and start), one session per room at a time (the room's lock and its clash check), a site's closed day and opening hours closing its rooms for sessions and bookings, cancelling with the list of patients to tell, moving a session with bookings refused, and Create sessions saying what it skipped. Integration tests race two bookings for one slot and two sessions for one room. Not yet: texting or emailing the patients of a cancelled session (PR 26, with reminders); until then the list is for phoning them.
+*Built so far:* the hours (PR 22), and clinic sessions (PR 23, `feature/clinic-sessions`): one patient per slot (the clinician's calendar lock, the clash check and a unique index on session and start), one session per room at a time (the room's lock and its clash check), a site's closed day and opening hours closing its rooms for sessions and bookings, cancelling with the list of patients to tell, moving a session with bookings refused, and Create sessions saying what it skipped. Integration tests race two bookings for one slot and two sessions for one room. Since PR 26 (`feature/patient-reminders`), cancelling a session can also text or email its patients ("Tell the patient", for those who chose a channel), each message stored and its delivery shown; the list stays for phoning the rest.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
@@ -2079,20 +2083,24 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 - **A wrong or old mobile number or email** on the record.
 - **A shared phone or inbox** (a family member reads it).
 - **A message that names the specialty,** clinician or condition.
+- **A sender or site name that names the service** (a sexual health or mental health clinic, say).
 
 **Effect.** Someone learns that the patient is attending a clinic, and possibly why; the patient may not get the reminder.
 
 **Possible harm.** Distress and a breach of confidentiality; a missed appointment (H-54). One patient; Significant in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls** (built in PR 26, `feature/patient-reminders`; for the CSO to verify against the code):
+- **No clinical words:** fixed wording in code: the organisation's name (`PatientMessages:SenderName`), the date and time (UK), and the site's name, address, postcode and phone (from the appointment's room's site; with no room, no site is named rather than guessed), or a contact phone setting; never the specialty, clinician, pathway, stage, a note, a cancellation's reason or the NHS number. Emails have a fixed subject for each kind and say replies aren't read (decision 131; `PatientMessageTexts`, with tests). Design.
+- **Destinations from the record, on the channels the patient chose:** the reminder choice is asked on the patient form; with no choice, or no mobile or email for the chosen channel, nothing is sent (decisions 130 and 133; `PatientMessageRules`). Protective.
+- **Checked again just before sending,** to the contact on the record at that moment: a number or address corrected after a message was made is used, and a message whose appointment has changed or passed, whose record is now restricted (except a cancellation) or anonymised, or whose channel the patient no longer wants, is cancelled, not sent (`PatientMessageRules.WhyNotToSend`). Protective.
+- **Moves and cancellations only when a person asks** ("Tell the patient by text or email"), and missed-appointment messages off unless the organisation turns them on (`Reminders:MissedMessage`). Design.
+- **The stored copy:** every message is kept as sent, with its destination, text, status and who asked, and shown on the appointment (decision 129; `PatientMessage`, `GET api/appointments/{id}/messages`). Detective.
+- **Off by default:** nothing is sent unless the organisation chooses the Live mode with its own Notify service (`PatientMessages:Mode`). Design.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Significant, Medium: **2**.
 
-**Further controls** (planned, PR 26; before the feature's first live use):
-- **No clinical words:** templates in code, with fixed wording: the centre's or site's name, the date and time, the site's address and phone; never the specialty, clinician, pathway, stage or a note (decision 131). Design.
-- **Destinations from the record,** on the channels the patient chose, and only when they have one (decisions 130 and 133). Protective.
-- **The stored copy:** every message is kept as sent, with its destination and status, and shown on the appointment (decision 129). Detective.
-- **Transferred:** confirming the patient's mobile, email and reminder choice with them, and recording their opt-out.
+**Further controls** (before the feature's first live use):
+- **Transferred:** confirming the patient's mobile, email and reminder choice with them when they're given or change, and recording their opt-out at once; choosing a sender name and site names that don't reveal the kind of care where that matters.
 
 **At first live use:** Draft: Significant, Low: **2**.
 
@@ -2116,14 +2124,16 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A delayed assessment or treatment. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built). Today MedApp sends patients nothing, and the organisation tells them by its own process (H-36).
+**Existing controls** (built in PRs 19 and 26; for the CSO to verify against the code):
+- **"No reminder" shown** on the appointment when the patient has no channel or contact: the message is stored as not sent, with the reason ("No reminder: no consent or contact") (decision 133; `PatientMessageFactory`). Information.
+- **Delivery status** fetched from the provider for 3 days and shown with each message (waiting, sent, delivered, failed, and why) (decision 129; `PatientRemindersJob`). Detective.
+- **Retries, then a visible failure:** a message that fails for a passing reason is tried again on later runs, and given up after 5 attempts (`TooManyAttempts`); one the provider refuses (an invalid number) is marked failed at once (`Rejected`). Detective.
+- **The job's watch:** `patient-reminders` runs under the job runner, so a failing job tells `ManageSetup` holders and makes `/health` Degraded (decision 111; H-56). Detective.
+- **Reminders are a courtesy:** nothing in MedApp relies on one, and they're off unless the organisation turns them on. Design.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
 
-**Further controls** (planned, PRs 19 and 26; before the feature's first live use):
-- **"No reminder" shown** on the appointment when the patient has no channel or contact ("No reminder: no consent or contact") (decision 133). Information.
-- **Delivery status** polled and shown with each message (decision 129). Detective.
-- **The job's watch:** a failing job tells `ManageSetup` holders and makes `/health` Degraded (decision 111). Detective.
+**Further controls** (before the feature's first live use):
 - **Reminders are a courtesy,** not the organisation's contact with the patient: the appointment letter or call stays the organisation's process, and `dcb0160-deploying-organisations.md` says so. Information; transferred.
 
 **At first live use:** Draft: Considerable, Low: **2**.
@@ -2141,21 +2151,24 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 **Causes:**
 - **No owner** for the Did not attend list.
 - **An assumption that MedApp acts on it:** it doesn't, by design.
-- **A follow-up recorded but not done.**
+- **A follow-up recorded but not done** (a Rebook or Clinician to review that nobody acts on).
+- **The Requires Appointment page has no side navigation item** (H-30), so the view is seen only by those who open it.
 
 **Effect.** The pathway stalls with no appointment, and the patient drops out of care.
 
 **Possible harm.** A delayed diagnosis or treatment. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built). Today, Did not attend is a status staff record, and Requires Appointment lists visits still to book (H-30).
+**Existing controls** (built in PR 26, `feature/patient-reminders`; for the CSO to verify against the code):
+- **The Did not attend view** on Requires Appointment (`GET api/appointments/search?view=didNotAttend`): every appointment marked Did not attend with no later appointment for the same stage (or, without a stage, the same pathway; without a pathway, the patient's appointments without one) and no **No further appointment** decision, oldest first, with the number missed on that pathway (decision 132; `AppointmentSearch`, `DidNotAttendViewTests`). Detective.
+- **A follow-up stays listed until it's done:** Rebook and Clinician to review leave the appointment on the view until a later appointment exists, so neither is forgotten; only No further appointment, which needs a detail saying who decided, takes it off (`RecordDnaFollowUpValidator`). Protective.
+- **A recorded follow-up** (Rebook, Clinician to review, No further appointment, with a detail of up to 500 characters) on the appointment, with who and when, and in its history (`DnaFollowUpRecorded`), on the patient timeline (decision 132; `RecordDnaFollowUpHandler`). Correcting the outcome to Attended clears it. Protective.
+- **No automatic discharge:** MedApp never discharges, re-prioritises or changes a pathway because of a missed appointment; discharge is a clinician's action on the pathway (decision 132). Design.
+- **A missed-appointment message,** if the organisation turns it on (`Reminders:MissedMessage`, off by default), asks the patient to call, the next working day from 10:00. Protective; a courtesy only.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
-**Further controls** (planned, PR 26; before the feature's first live use):
-- **The Did not attend view** on Requires Appointment: appointments marked Did not attend with no later appointment for the same stage, oldest first, with the number missed on that pathway (decision 132). Detective.
-- **A recorded follow-up** (Rebook, Clinician to review, No further appointment, with a detail) in the appointment's history (decision 132). Protective.
-- **No automatic discharge:** MedApp never discharges, re-prioritises or changes a pathway because of a missed appointment; discharge is a clinician's action (decision 132). Design.
-- **Transferred:** a named owner for the Did not attend view, and the organisation's own policy for patients who don't attend.
+**Further controls** (before the feature's first live use):
+- **Transferred:** a named owner for the Did not attend view, who reviews it on a set schedule (Rebook and Clinician to review items included), and the organisation's own policy for patients who don't attend.
 
 **At first live use:** Draft: Considerable, Low: **2**.
 
@@ -2487,4 +2500,5 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 | 0.18 | 18 November 2026 | The community specialist centre's Phases 3 to 5, from their design (`docs/centre-phases-3-5-plan.md`; its safety PRs 11, 18 and 29 combined), before they're built: new draft hazards H-45 to H-50 (specimens, results and letters), H-51 to H-57 (branches and skipped stages, hours and clinics, reminders, missed appointments, scheduled jobs, retention classes) and H-58 to H-64 (MDT outcomes, consent, questionnaires, video links, NHS adapters, several organisations, files awaiting a scan), each with the plan's controls named by feature and PR, and draft estimates; H-01 gains the specimen label as a cause and a control; two more hazards considered and designed out (a lab value or score read by MedApp, a branch chosen by it). No earlier draft estimate changed | AI coding agent, for review |
 | 0.19 | 18 November 2026 | Referrals built (branch `feature/referrals`, Phase 2's PR 5): H-40's built controls (the inbox, oldest received first, with its count in the side navigation; no closing without a named person's action and a detail; the restricted and anonymised messages telling staff to give the letter to an admin; archiving a specialty refused while referrals await triage; correcting the specialty by editing), and a note that referrals mustn't be used with patients before triage is built; H-41's (the patient banner on the referral pages and the closing confirmations, the letter beside the referral or "No letter attached yet.", two changes at once refused); H-44's (the duplicate check and its confirmation, entered in error, the patient's Referrals card); H-01's cause marked built. Still planned: triage, its confirmations and the `Duplicate` rejection reason (PR 6), the Specialties page's warning when nobody can triage (PR 6), the clock's days waited and breach badge (PR 7), and the DCB0160 duties. No draft estimate changed | AI coding agent, for review |
 | 0.20 | 18 November 2026 | Triage built (branch `feature/triage`, Phase 2's PR 6): H-40's controls now include triage with the registrant told of every outcome (`ReferralTriaged`), the Specialties page's warning when no member can triage a specialty, and the referral page saying why someone can't triage; "nobody can triage yet" removed. H-41's planned triage controls are built (the banner, specialty and template in every confirmation; only the specialty's templates, refused otherwise; nothing prefilled; the permission and membership checked on the server; who decided recorded, with the pathway's Created entry naming the referral; two decisions at once refused, the second told who; the patient's other referrals beside the decision). H-44's Duplicate rejection reason is built. No draft estimate changed | AI coding agent, for review |
-| 0.21 | 18 November 2026 | Letters built (PR 16): H-48 to H-50 list their existing controls; the risk estimates stay drafts for the CSO | AI coding agent, for the CSO |
+| 0.21 | 18 November 2026 | Patient reminders and the Did not attend view built (branch `feature/patient-reminders`, Phase 4's PR 26): H-53's, H-54's and H-55's planned controls recorded as existing ones, with their code names, for the CSO to verify (fixed wording with no clinical words, the patient's chosen channels, each message checked again just before sending to the contact then on the record, the stored copy and its delivery status, "No reminder" shown, retries then a visible failure, the job runner's watch; the Did not attend view, which keeps Rebook and Clinician to review listed until a later appointment exists, the recorded follow-up, and no automatic discharge); new causes (a sender or site name that names the service; the view seen only by those who open it), and H-55's "follow-up recorded but not done" now names Rebook and Clinician to review; H-30 and H-36 gain the reminders and "Tell the patient" as built controls, and H-36's cause "MedApp doesn't contact patients" now says it does only when turned on; H-52's cancelled session can text or email its patients. No draft estimate changed | AI coding agent, for review |
+| 0.22 | 18 November 2026 | Letters built (PR 16): H-48 to H-50 list their existing controls; the risk estimates stay drafts for the CSO | AI coding agent, for the CSO |

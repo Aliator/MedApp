@@ -24,6 +24,21 @@ public sealed class SpecialtyValidatorsTests
             .Should().ContainSingle(e => e.ErrorMessage == "Name must not exceed 100 characters.");
     }
 
+    [TestCase(1, true)]
+    [TestCase(365, true)]
+    [TestCase(0, false)]
+    [TestCase(366, false)]
+    public void Targets_FromOneTo365Days(int days, bool valid)
+    {
+        new CreateSpecialtyValidator().Validate(new CreateSpecialtyCommand("Synthetic urology", days, days, days, days))
+            .IsValid.Should().Be(valid);
+        var update = new UpdateSpecialtyValidator().Validate(
+            new UpdateSpecialtyCommand(Guid.NewGuid(), "Synthetic urology", 1, null, days, null, null));
+        update.IsValid.Should().Be(valid);
+        if (!valid)
+            update.Errors.Single().ErrorMessage.Should().Be(MedApp.Application.Specialties.Common.SpecialtyValidation.TargetDaysMessage);
+    }
+
     [Test]
     public void Update_Valid() =>
         new UpdateSpecialtyValidator().Validate(new UpdateSpecialtyCommand(Guid.NewGuid(), "Synthetic urology", 1))
