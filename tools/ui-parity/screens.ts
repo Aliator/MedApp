@@ -179,6 +179,28 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
+  {
+    name: 'meeting-replies',
+    title: "A meeting's dialog for an attendee: everyone's reply under a summary, and Accept and Decline (Decline pressed)",
+    path: (d) => `/calendar?date=${d.meetingDate}&view=day&meeting=${d.meetingId}`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.meetingId, "No meeting of the parity account's own (the setup makes one when it can).");
+      await waitVisible(page, DIALOG);
+      await page.locator(DIALOG).getByRole('group', { name: 'Your reply' }).waitFor();
+      await settle(page);
+    },
+  },
+  {
+    name: 'calendar-declined-meeting',
+    title: 'Calendar: a meeting I declined, faded at the end of its column and saying Declined, its time free to select',
+    path: (d) => `/calendar?date=${d.meetingDate}&view=day`,
+    prepare: async (page, { data }) => {
+      test.skip(!data.meetingId, "No meeting of the parity account's own (the setup makes one when it can).");
+      await page.getByRole('group', { name: /^My calendar,/ }).waitFor();
+      await page.locator('[data-faded]').first().waitFor();
+      await settle(page);
+    },
+  },
   { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
   { name: 'my-tasks', title: 'My Tasks: my task lists (the Blazor app home page)', path: '/tasks' },
   {
