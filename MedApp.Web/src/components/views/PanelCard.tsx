@@ -12,6 +12,8 @@ export interface PanelHeaderProps {
   title: string;
   /** Controls at the end of the bar, e.g. a CollapseButton. */
   actions?: ReactNode;
+  /** Something shown after the title, taking the bar's free width, e.g. a progress bar for what the section holds. */
+  summary?: ReactNode;
   /** Lines above and below the bar; below by default (a card's top bar). */
   dividers?: ('top' | 'bottom')[];
   ref?: Ref<HTMLElement>;
@@ -28,7 +30,7 @@ const HOVERED = {
  * as the footer) so it stands out. A PanelCard's top bar, and the same bar for further sections inside the card
  * (e.g. Stages under Details on a narrow window), so they all look alike.
  */
-export function PanelHeader({title, actions, dividers = ['bottom'], ref, onClick}: PanelHeaderProps) {
+export function PanelHeader({title, actions, summary, dividers = ['bottom'], ref, onClick}: PanelHeaderProps) {
   const [isHovered, setIsHovered] = useState(false);
   return (
     <Section
@@ -45,7 +47,7 @@ export function PanelHeader({title, actions, dividers = ['bottom'], ref, onClick
       style={onClick ? {cursor: 'pointer', ...(isHovered ? HOVERED : undefined)} : undefined}>
       <HStack gap={3} vAlign="center">
         <Heading level={2}>{title}</Heading>
-        <StackItem size="fill" />
+        <StackItem size="fill">{summary}</StackItem>
         {actions}
       </HStack>
     </Section>

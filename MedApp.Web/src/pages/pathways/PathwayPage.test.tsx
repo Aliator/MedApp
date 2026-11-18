@@ -39,14 +39,18 @@ const pathway = {
 };
 
 describe('PathwayPage', () => {
-  it("shows the patient's banner: who the pathway is for", async () => {
+  it('shows who the pathway is for at the top of Details, which never fold, instead of a banner', async () => {
     const patient = {id: 'patient-1', firstName: 'Test', lastName: 'Patient', dateOfBirth: '1960-05-04', nhsNumber: '9990000026', isRestricted: true};
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json({...pathway, patient})});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    const banner = await screen.findByRole('region', {name: 'Patient: Patient, Test'});
-    expect(within(banner).getByText('NHS No. 999 000 0026')).toBeInTheDocument();
-    expect(within(banner).getByText('Restricted')).toBeInTheDocument();
+    const details = await screen.findByRole('heading', {name: 'Details', level: 2});
+    expect(screen.getAllByRole('heading', {level: 2})[0]).toBe(details);
+    expect(screen.queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /details/i})).not.toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Patient, Test'})).toHaveAttribute('href', '/patients/patient-1');
+    expect(screen.getByText(/^4 May 1960/)).toBeInTheDocument();
+    expect(screen.getByText('999 000 0026')).toBeInTheDocument();
   });
 
   it('lists the specimens its stages took, with Record Specimen on a stage that can take one', async () => {
@@ -193,7 +197,7 @@ describe('PathwayPage', () => {
 
   it('shows the pathway, its details and its stages', async () => {
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json(pathway)});
-    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
     expect(await screen.findByRole('heading', {name: 'Colonoscopy', level: 1})).toBeInTheDocument();
     expect(screen.getByText('Diagnostic procedure')).toBeInTheDocument();
@@ -209,22 +213,29 @@ describe('PathwayPage', () => {
     expect(screen.queryByRole('button', {name: 'Edit'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
     expect(screen.getByRole('link', {name: 'View Patient'})).toHaveAttribute('href', '/patients/patient-1');
+    // The stages fold into their progress bar, and open from it.
+    expect(screen.getByRole('progressbar', {name: 'Stages finished'})).toBeInTheDocument();
+    await openStages(user);
     expect(screen.getByRole('button', {name: /^1\. Consultation/})).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', {name: /^2\. Procedure/})).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('starts with Details (Patient info and Assigned staff open) and the Current stage open, beside Stages', async () => {
+  it('starts with Details (Patient info and Assigned staff open) and the Current stage open, beside Stages folded', async () => {
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json(pathway)});
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
     expect(await screen.findByRole('heading', {name: 'Current stage', level: 2})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
+    // Details, then the Current stage, then Stages (the right-hand card's first section).
+    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 3).map((h) => h.textContent)).toEqual(['Details', 'Current stage', 'Stages']);
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', {name: 'Hide notes'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Patient info'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Assigned staff'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', {name: 'Test Patient'})).toHaveAttribute('href', '/patients/patient-1');
-    // The current stage's title shows twice: in its section, and as its (closed) header in the stage list.
+    // The current stage's title shows in its section, and once Stages is opened, as its (closed) header in the list.
+    expect(screen.getAllByText('2. Procedure')).toHaveLength(1);
+    await openStages(user);
     expect(screen.getAllByText('2. Procedure')).toHaveLength(2);
 
     await user.click(screen.getByRole('button', {name: 'Patient info'}));
@@ -244,11 +255,14 @@ describe('PathwayPage', () => {
     expect(await screen.findByRole('button', {name: 'Add Note'})).toBeInTheDocument();
   });
 
-  it('says when every stage is finished', async () => {
-    mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json({...pathway, currentStageId: null})});
+  it('puts Stages under Details in place of the current stage once every stage is finished', async () => {
+    mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json({...pathway, currentStageId: null, completedStageCount: 2})});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByText('Every stage is finished.')).toBeInTheDocument();
+    expect(await screen.findByText('2 of 2')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name: 'Current stage'})).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 2).map((h) => h.textContent)).toEqual(['Details', 'Stages']);
+    expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows a dash for the template when it has no name', async () => {
@@ -279,6 +293,10 @@ describe('PathwayPage', () => {
     await findAlert('The pathway could not be loaded. Please try again.');
   });
 });
+
+/** Opens the stage list, folded into its progress bar. */
+const openStages = async (user: {click: (element: Element) => Promise<void>}) =>
+  user.click(await screen.findByRole('button', {name: 'Show stages'}));
 
 // An in-progress pathway being worked on: stage 1 finished, stage 2 current and editable.
 const PATH = `/api/pathways/patient-pathways/${id}`;
@@ -476,6 +494,7 @@ describe('PathwayPage: working on it', () => {
     expect(await screen.findByRole('textbox', {name: 'Notes'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Book Appointment'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Assign Staff'})).not.toBeInTheDocument();
+    await openStages(user);
     await user.click(screen.getByRole('button', {name: /^1\. Consultation/}));
     expect(screen.queryByRole('button', {name: 'Unlock Stage'})).not.toBeInTheDocument();
   });
@@ -487,6 +506,7 @@ describe('PathwayPage: working on it', () => {
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
 
+    await openStages(user);
     await user.click(await screen.findByRole('button', {name: /^1\. Consultation/}));
     await user.click(screen.getByRole('button', {name: 'Unlock Stage'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Unlock Stage'}));
@@ -603,12 +623,12 @@ describe('PathwayPage: working on it', () => {
     expect(calls(fetch).filter((c) => !c.startsWith('GET'))).toEqual([]);
   });
 
-  it('folds the details, and opens and closes a stage in the list', async () => {
+  it('opens Stages from its progress bar, and opens and closes a stage in the list', async () => {
     mockApi({[`GET ${PATH}`]: () => json(working())});
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('button', {name: 'Hide details'}));
-    expect(screen.getByRole('button', {name: 'Show details'})).toHaveAttribute('aria-expanded', 'false');
+    await openStages(user);
+    expect(screen.getByRole('button', {name: 'Hide stages'})).toHaveAttribute('aria-expanded', 'true');
 
     const stage = screen.getByRole('button', {name: /^1\. Consultation/});
     await user.click(stage);
@@ -674,7 +694,9 @@ describe('PathwayPage on a narrow window', () => {
     expect(screen.getByRole('heading', {name: 'Current stage', level: 2})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Stages', level: 2})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'View Patient'})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
+    // Details first (it never folds), then the Current stage, then Stages and the rest.
+    expect(screen.getAllByRole('heading', {level: 2}).slice(0, 4).map((h) => h.textContent)).toEqual(['Details', 'Current stage', 'Stages', 'Notes']);
+    expect(screen.queryByRole('button', {name: /details/i})).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
     // Patient info starts open; Assigned staff starts folded here, to save room.
@@ -689,7 +711,7 @@ describe('PathwayPage on a narrow window', () => {
     await user.click(await screen.findByRole('button', {name: 'Show stages'}));
 
     expect(screen.getByRole('button', {name: 'Hide stages'})).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: /^1\. Consultation/})).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', {name: /^2\. Procedure/})).toHaveAttribute('aria-expanded', 'false');
   });
@@ -846,8 +868,9 @@ describe('PathwayPage: visits and appointments', () => {
   });
 
   it('shows each stage’s visit in the stage list', async () => {
-    renderVisit(visiting(), [booked]);
+    const {user} = renderVisit(visiting(), [booked]);
 
+    await openStages(user);
     expect(await screen.findByRole('button', {name: /^2\. Procedure.*Visit required.*Booked/})).toBeInTheDocument();
   });
 
@@ -989,9 +1012,10 @@ describe('PathwayPage: visits and appointments', () => {
 
   it("names a cancelled pathway's one booked appointment, and shows the visit beside a stage that can't be worked on", async () => {
     const blocked = visiting('Required', {status: 'Cancelled', allowedStatusChanges: [], canWorkOnStages: false});
-    renderVisit({...blocked, stages: [blocked.stages[0], {...blocked.stages[1], canEdit: false}]}, [booked]);
+    const {user} = renderVisit({...blocked, stages: [blocked.stages[0], {...blocked.stages[1], canEdit: false}]}, [booked]);
 
     expect(await screen.findByText(/but an appointment is still booked\. Tell the patient, then cancel it/)).toBeInTheDocument();
+    await openStages(user);
     expect(screen.getAllByText('Visit required').length).toBeGreaterThan(1);
   });
 });
@@ -1076,6 +1100,7 @@ describe('PathwayPage: files', () => {
     expect(calls(fetch).some((call) => call.includes('StageId'))).toBe(false);
 
     // The current stage, in its section (the first of its "Files"): editable, so files can be added.
+    await openStages(user);
     await user.click(screen.getAllByRole('button', {name: 'Files'})[0]);
 
     expect(await screen.findAllByText('stage-s2.pdf')).not.toHaveLength(0);
@@ -1247,6 +1272,7 @@ describe('PathwayPage: skipping stages and branches', () => {
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
 
     expect(await screen.findByText('1 of 2, 1 skipped')).toBeInTheDocument();
+    await openStages(user);
     const title = screen.getByText('1. Consultation');
     expect(title.className).not.toBe(screen.getAllByText('2. Procedure')[0].className);
     expect(screen.getByText('Skipped: Not needed')).toBeInTheDocument();
@@ -1264,11 +1290,12 @@ describe('PathwayPage: skipping stages and branches', () => {
     await expectAnnounced('Consultation reinstated');
   });
 
-  it('says when every stage is finished or skipped', async () => {
+  it('says in the progress when every stage is finished or skipped', async () => {
     mockApi({[`GET ${PATH}`]: () => json({...pathway, currentStageId: null, skippedStageCount: 1})});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByText('Every stage is finished or skipped.')).toBeInTheDocument();
+    expect(await screen.findByText('2 of 2, 1 skipped')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name: 'Current stage'})).not.toBeInTheDocument();
   });
 
   it('words the progress, counting skipped stages as done', () => {

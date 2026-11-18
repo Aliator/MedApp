@@ -8,6 +8,10 @@ import {adminUser, json, mockFetch, pageOf, renderApp} from '../test/render';
  * Every page about one patient shows their banner (the control for the wrong-patient hazards H-01 and H-02). This
  * renders each such route through the real router, and fails if a new route under a patient, a pathway, a referral, a
  * specimen or a result isn't listed here, so a page can't be added without it.
+ *
+ * The one exception is the pathway page (`WITHOUT_BANNER`): the owner removed its banner (18 November 2026), and it
+ * shows the patient's name, date of birth and NHS number at the top of its Details instead, which never fold and come
+ * first (`PathwayPatient`; hazard log, H-01 and H-02). That's checked here too.
  */
 
 const patientId = '0000000b-0000-4000-8000-000000000001';
@@ -121,7 +125,6 @@ const PAGES: Record<string, string> = {
   '/patients/$id/edit': `/patients/${patientId}/edit`,
   '/patients/$id/export': `/patients/${patientId}/export`,
   '/patients/$id/pathways': `/patients/${patientId}/pathways`,
-  '/pathways/$id': `/pathways/${pathwayId}`,
   '/pathways/$id/edit': `/pathways/${pathwayId}/edit`,
   '/pathways/new': `/pathways/new?patientId=${patientId}`,
   '/referrals/$id': `/referrals/${referralId}`,
@@ -131,6 +134,12 @@ const PAGES: Record<string, string> = {
   '/specimens/$id': `/specimens/${specimenId}`,
   '/specimens/$id/print': `/specimens/${specimenId}/print?sheet=request`,
   '/results/$id': `/results/${resultId}`,
+};
+
+/** Pages about one patient without the banner, with the reason: they show the patient another way, checked below. */
+const WITHOUT_BANNER: Record<string, string> = {
+  // The patient is at the top of its Details, which never fold and come first (the owner's decision, 18 November 2026).
+  '/pathways/$id': `/pathways/${pathwayId}`,
 };
 
 function answerApi() {
@@ -166,7 +175,7 @@ describe('the patient banner', {timeout: 30_000}, () => {
         (path.startsWith('/results/') && path !== '/results/'),
     );
 
-    expect(aboutOnePatient.sort()).toEqual(Object.keys(PAGES).sort());
+    expect(aboutOnePatient.sort()).toEqual([...Object.keys(PAGES), ...Object.keys(WITHOUT_BANNER)].sort());
   });
 
   it.each(Object.entries(PAGES))('shows on %s', async (_, path) => {
@@ -174,5 +183,19 @@ describe('the patient banner', {timeout: 30_000}, () => {
     renderApp({path, user: adminUser});
 
     expect(await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'}, {timeout: 15_000})).toBeInTheDocument();
+  });
+
+  it('is replaced on the pathway page by the patient at the top of its Details, which never fold', async () => {
+    answerApi();
+    renderApp({path: WITHOUT_BANNER['/pathways/$id'], user: adminUser});
+
+    const details = await screen.findByRole('heading', {name: 'Details', level: 2}, {timeout: 15_000});
+    expect(screen.queryByRole('region', {name: 'Patient: Ahmed, Freya'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /details/i})).not.toBeInTheDocument();
+    // Details is the first section heading on the page, and holds who the patient is.
+    expect(screen.getAllByRole('heading', {level: 2})[0]).toBe(details);
+    expect(screen.getByRole('link', {name: /Ahmed, Freya/})).toBeInTheDocument();
+    expect(screen.getByText(/^1 December 1976/)).toBeInTheDocument();
+    expect(screen.getByText('999 000 0018')).toBeInTheDocument();
   });
 });
