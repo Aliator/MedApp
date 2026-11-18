@@ -3,8 +3,6 @@ using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Logging;
 
 namespace MedApp.DevMcp.DemoData;
@@ -62,13 +60,6 @@ public sealed class SeedServices : IAsyncDisposable
         services.AddSingleton<TimeProvider>(Clock);
         services.AddSingleton<IActivityContext>(Context);
         services.AddSingleton<IEmailSender, DiscardedEmail>();
-        // What the tool's host provides (the letters' transport asks which environment this is): a local one.
-        services.AddSingleton<IHostEnvironment>(new HostingEnvironment
-        {
-            EnvironmentName = Environments.Development,
-            ApplicationName = "MedApp.DevMcp",
-            ContentRootPath = AppContext.BaseDirectory,
-        });
         if (discardFiles)
             services.AddSingleton<IFileStore, DiscardedFiles>();
         _provider = services.BuildServiceProvider();
