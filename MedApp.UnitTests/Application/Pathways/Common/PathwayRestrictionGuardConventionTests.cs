@@ -57,14 +57,16 @@ public sealed class PathwayRestrictionGuardConventionTests
 
     /// <summary>
     /// Commands that read the pathway (or patient) rather than loading it for update, and check the patient's record
-    /// themselves with <see cref="PatientRules.EnsureCanChange"/>: creating a pathway or an appointment, and attaching
-    /// or deleting a file.
+    /// themselves with <see cref="PatientRules.EnsureCanChange"/>: creating a pathway or an appointment, attaching
+    /// or deleting a file, recording an outside result, and listing a pathway for an MDT (it adds an MDT item, not a
+    /// change to the pathway).
     /// </summary>
     private static readonly Type[] CheckTheirOwnPatient =
     [
         typeof(CreatePatientPathwayHandler), typeof(CreateAppointmentHandler), typeof(UploadAttachmentHandler),
         typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler),
         typeof(MedApp.Application.Results.Commands.RecordExternalResult.RecordExternalResultHandler),
+        typeof(MedApp.Application.Mdt.Commands.ListForMdt.ListForMdtHandler),
     ];
 
     /// <summary>

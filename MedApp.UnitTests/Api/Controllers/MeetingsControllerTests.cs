@@ -60,7 +60,8 @@ public sealed class MeetingsControllerTests
         var result = await Controller(mediator).CreateMeeting(request, _cts.Token);
 
         mediator.Request.Should().Be(new CreateMeetingCommand(
-            request.Title, request.Notes, request.StartUtc, request.EndUtc, request.AttendeeUserIds, AdminActor));
+            request.Title, request.Notes, request.StartUtc, request.EndUtc, request.AttendeeUserIds, AdminActor,
+            request.IsMdt, request.SpecialtyId));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/calendar/meetings/{meeting.Id}");
@@ -90,7 +91,7 @@ public sealed class MeetingsControllerTests
 
         mediator.Request.Should().Be(new UpdateMeetingCommand(
             RecordId, request.Title, request.Notes, request.StartUtc, request.EndUtc, request.AttendeeUserIds,
-            request.ExpectedLastUpdated, AdminActor));
+            request.ExpectedLastUpdated, AdminActor, request.IsMdt, request.SpecialtyId));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(meeting);
     }
