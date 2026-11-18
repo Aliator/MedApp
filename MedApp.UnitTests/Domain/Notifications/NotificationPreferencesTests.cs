@@ -44,6 +44,7 @@ public sealed class NotificationPreferencesTests
                             || k.ToString().StartsWith("Specimen")
                             || k == NotificationKind.ScheduledJobFailing
                             || k == NotificationKind.MdtOutcomeRecorded
+                            || k == NotificationKind.DataRequestDueSoon
                             || k.ToString().StartsWith("Result")));
         Notification.HasFixedTitle(NotificationKind.PathwayAssigned).Should().BeFalse();
     }

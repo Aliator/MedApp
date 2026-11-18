@@ -1,4 +1,4 @@
-using MedApp.Application.Practices.Common;
+﻿using MedApp.Application.Practices.Common;
 using System.Reflection;
 using FluentValidation;
 using MedApp.Application.Activity.Common;
@@ -79,6 +79,7 @@ public static class ServiceExtensions
         services.AddScoped<ScheduledJobScope>();
         services.AddScoped<IScheduledJob, OperationalPurgeJob>();
         services.AddScoped<IScheduledJob, PatientRemindersJob>();
+        services.AddScoped<IScheduledJob, MedApp.Application.DataRequests.Jobs.DataRequestRemindersJob>();
         services.AddScoped<IScheduledJob, ServiceAlertsJob>();
         services.AddOptions<JobsOptions>();
         services.AddOptions<OperationalRetentionOptions>();

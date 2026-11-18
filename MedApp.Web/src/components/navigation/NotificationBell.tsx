@@ -52,27 +52,30 @@ function serviceAlertHref(notification: AppNotification) {
  * The letter kinds (a letter awaiting your approval, yours approved or returned) open the letter (`subjectId`).
  * The result kinds (a result ready for your sign-off, reassigned to you, or signed off by someone else) open the result
  * (`subjectId`). A service alert opens the list it counts.
+ * "Data request due soon" (a patient's data request near its due date) opens the request (`subjectId`).
  */
 const itemHrefOf = (notification: AppNotification) =>
   notification.kind === 'ScheduledJobFailing'
     ? '/admin/jobs'
-    : LETTER_KINDS.has(notification.kind ?? '') && notification.subjectId
-      ? `/letters/${notification.subjectId}`
-      : RESULT_KINDS.has(notification.kind ?? '') && notification.subjectId
-        ? `/results/${notification.subjectId}`
-        : notification.referralId
-          ? `/referrals/${notification.referralId}`
-          : SPECIMEN_KINDS.includes(notification.kind ?? '') && notification.subjectId
-            ? `/specimens/${notification.subjectId}`
-            : notification.appointmentId
-              ? `/calendar?appointment=${notification.appointmentId}`
-              : notification.noteDeletionRequestId && notification.pathwayId
-                ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
-                : notification.pathwayId
-                  ? `/pathways/${notification.pathwayId}`
-                  : notification.calendarDate
-                    ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
-                    : undefined;
+    : notification.kind === 'DataRequestDueSoon' && notification.subjectId
+      ? `/data-requests/${notification.subjectId}`
+      : LETTER_KINDS.has(notification.kind ?? '') && notification.subjectId
+        ? `/letters/${notification.subjectId}`
+        : RESULT_KINDS.has(notification.kind ?? '') && notification.subjectId
+          ? `/results/${notification.subjectId}`
+          : notification.referralId
+            ? `/referrals/${notification.referralId}`
+            : SPECIMEN_KINDS.includes(notification.kind ?? '') && notification.subjectId
+              ? `/specimens/${notification.subjectId}`
+              : notification.appointmentId
+                ? `/calendar?appointment=${notification.appointmentId}`
+                : notification.noteDeletionRequestId && notification.pathwayId
+                  ? `/pathways/${notification.pathwayId}?deletionRequest=${notification.noteDeletionRequestId}`
+                  : notification.pathwayId
+                    ? `/pathways/${notification.pathwayId}`
+                    : notification.calendarDate
+                      ? `/calendar?date=${notification.calendarDate}&view=day${notification.meetingId ? `&meeting=${notification.meetingId}` : ''}`
+                      : undefined;
 
 const hrefOf = (notification: AppNotification) => serviceAlertHref(notification) ?? itemHrefOf(notification);
 
@@ -107,6 +110,7 @@ const KIND_ICONS: Record<string, IconType> = {
   ResultReassigned: AppIcon.Reassign,
   ResultSignedOffByOther: AppIcon.SignOff,
   MdtOutcomeRecorded: AppIcon.Mdt,
+  DataRequestDueSoon: AppIcon.DataRequests,
   MonitoredReferralNotTriaged: AppIcon.Referrals,
   MonitoredResultNotSignedOff: AppIcon.Results,
   MonitoredVisitNotBooked: AppIcon.Warning,

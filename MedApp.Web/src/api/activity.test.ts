@@ -16,12 +16,32 @@ describe('activityActionLabel', () => {
     expect(ACCESS_ACTIONS).toEqual(expect.arrayContaining(['AttachmentsViewed', 'AttachmentDownloaded']));
   });
 
+  it('names the data request actions, and counts downloading a pack as access to the record', () => {
+    expect(activityActionLabel('DataRequestPackDownloaded')).toBe('Data request pack downloaded');
+    expect(activityActionLabel('DataRequestChanged')).toBe('Data request changed');
+    expect(ACCESS_ACTIONS).toContain('DataRequestPackDownloaded');
+    expect(ACCOUNT_ACTIONS).not.toContain('DataRequestChanged');
+  });
+
   it('has words for every action', () => {
     for (const action of ACTIVITY_ACTIONS) expect(activityActionLabel(action)).not.toBe(action);
   });
 });
 
 describe('describeActivity', () => {
+  it("says what a data request's change was, in words", () => {
+    const dataRequestId = '000000d1-0000-0000-0000-000000000001';
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'Recorded'})).toBe('Request logged');
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'IdentityChecked'})).toBe('Identity checked');
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'Extended'})).toBe('Due date extended');
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'Reviewed'})).toBe('Clinician review recorded');
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'Sent'})).toBe('Response sent');
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'Refused'})).toBe('Request refused');
+    expect(describe_('DataRequestChanged', {dataRequestId, change: 'Withdrawn'})).toBe('Request withdrawn');
+    expect(describe_('DataRequestChanged', {dataRequestId})).toBe('');
+    expect(describe_('DataRequestPackDownloaded', {dataRequestId})).toBe('');
+  });
+
   it('names the fields an edit changed, never their values', () => {
     expect(describe_('PatientUpdated', {fields: ['firstName', 'email', 'dateOfBirth', 'nhsNumber', 'somethingElse']})).toBe(
       'Changed first name, email, date of birth, NHS number, somethingElse',

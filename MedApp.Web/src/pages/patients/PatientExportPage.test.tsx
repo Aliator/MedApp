@@ -298,6 +298,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No referral changes recorded.')).toBeInTheDocument();
     expect(screen.getByText('No specimens.')).toBeInTheDocument();
     expect(screen.getByText('No results.')).toBeInTheDocument();
+    expect(screen.getByText('No data requests.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
   });
 
@@ -667,6 +668,52 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/listed for the Dermatology MDT by k\.ashford$/)).toBeInTheDocument();
     expect(screen.getByText('Question: Synthetic question.')).toBeInTheDocument();
     expect(screen.getByText(/by s\.brightwell; present: k\.ashford, s\.brightwell\): Synthetic outcome\.$/)).toBeInTheDocument();
+  });
+
+  it('lists every data request: who asked, the identity check, the due date, the review with what was withheld, and how it ended', async () => {
+    const noteId = '000000d1-0000-0000-0000-000000000003';
+    renderExport({
+      exportedAtUtc: '2026-11-16T09:30:00Z',
+      exportedBy: 'test-admin',
+      patient: {id, firstName: 'Oriel'},
+      dataRequests: [
+        {
+          id: '000000d1-0000-0000-0000-000000000001',
+          receivedOn: '2026-10-01',
+          requestedByPatient: false,
+          requesterName: 'Synthetic Requester',
+          requesterRelationship: 'Parent',
+          identityCheckedOn: '2026-10-02',
+          identityCheckedBy: 'test-admin',
+          identityCheckMethod: 'KnownToService',
+          identityCheckDetail: null,
+          dueOn: '2026-12-01',
+          extensionMonths: 1,
+          extensionReason: 'Synthetic complex request',
+          status: 'Sent',
+          refusalReason: null,
+          sentOn: '2026-11-20',
+          sendMethod: 'Post',
+          closedAtUtc: '2026-11-20T10:00:00Z',
+          closedBy: 'test-admin',
+          reviewedAtUtc: '2026-11-10T14:00:00Z',
+          reviewedBy: 's.brightwell',
+          withheld: [{kind: 'Note', itemId: noteId, reason: 'Synthetic serious harm reason'}],
+          createdAtUtc: '2026-10-01T09:00:00Z',
+          createdBy: 'test-admin',
+        },
+      ],
+    });
+
+    expect(await screen.findByText('Data Requests (1)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Received 1 October 2026'})).toBeInTheDocument();
+    expect(screen.getByText('Synthetic Requester (Parent)')).toBeInTheDocument();
+    expect(screen.getByText('2 October 2026, known to the service, by test-admin')).toBeInTheDocument();
+    expect(screen.getByText('1 December 2026, extended by 1 month: Synthetic complex request')).toBeInTheDocument();
+    expect(screen.getByText('20 November 2026, post')).toBeInTheDocument();
+    expect(screen.getByText(/ by s\.brightwell$/)).toBeInTheDocument();
+    expect(screen.getByText(`Note withheld (${noteId})`)).toBeInTheDocument();
+    expect(screen.getByText('Synthetic serious harm reason')).toBeInTheDocument();
   });
 
   it('says when no messages were sent', async () => {

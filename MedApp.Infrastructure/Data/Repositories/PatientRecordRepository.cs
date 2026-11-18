@@ -155,6 +155,15 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         foreach (var consent in consentRecords)
             consent.Patient = patient;
 
+        // Data requests (subject access), with what their reviews withheld.
+        var dataRequests = await Tracking(context.DataRequests, forUpdate)
+            .Include(d => d.WithheldItems)
+            .Where(d => d.PatientId == patientId)
+            .OrderBy(d => d.ReceivedOn).ThenBy(d => d.CreatedAtUtc).ThenBy(d => d.Id)
+            .ToListAsync(ct);
+        foreach (var dataRequest in dataRequests)
+            dataRequest.Patient = patient;
+
         return new PatientRecord
         {
             Patient = patient,
@@ -178,7 +187,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Specimens = specimens,
             Results = results,
             MdtItems = mdtItems,
-            ConsentRecords = consentRecords
+            ConsentRecords = consentRecords,
+            DataRequests = dataRequests
         };
     }
 
