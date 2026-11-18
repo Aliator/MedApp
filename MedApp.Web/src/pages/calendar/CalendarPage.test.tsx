@@ -5,7 +5,7 @@ import type {TeamCalendar} from '../../api/calendar';
 import type {MeetingDialogProps} from '../../components/calendar/MeetingDialog';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {calendarDay, STAFF_ME, STAFF_OTHER, testAppointment, testBlock, testCalendar, testMeeting, ukTime} from '../../test/calendar';
-import {adminUser, calls, expectAnnounced, json, mockApi, openDialog, pageOf, renderApp, renderWithApp, staffUser, withAnnouncements} from '../../test/render';
+import {adminUser, calls, expectAnnounced, json, managerUser, mockApi, openDialog, pageOf, renderApp, renderWithApp, staffUser, userWithRoles, withAnnouncements} from '../../test/render';
 import type {CurrentUser} from '../../auth/auth';
 import {CalendarPage, calendarRange, formatRange, preloadCalendarPage, selectionMenuPlacement, shownView} from './CalendarPage';
 import {givenWidth} from '../../test/layout';
@@ -725,6 +725,23 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     fireEvent.pointerUp(card, {pointerId: 2});
     expect(await screen.findByText('b.staff has Lunch, 10:00 to 11:00.')).toBeInTheDocument();
     await waitFor(() => expect(calendarLoads()).toBeGreaterThan(loadsBefore));
+  });
+
+  it("offers in New only what the roles allow: a manager arranges meetings and sees the team, but books nothing", async () => {
+    const {user} = renderPage({user: managerUser});
+    await user.click(await screen.findByRole('button', {name: 'New'}));
+    expect(await screen.findByRole('menuitem', {name: 'New meeting'})).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: 'Book appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', {name: 'Record past appointment'})).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', {name: 'Team'})).toBeInTheDocument();
+  });
+
+  it("has no New at all for someone who can't book, on a calendar they can't change", async () => {
+    renderPage({user: userWithRoles('test-lab', 'Lab'), search: {staff: STAFF_OTHER.userId}, calendar: {canEdit: false}});
+
+    expect(await screen.findByRole('group', {name: /^b.staff's calendar,/})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'New'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', {name: 'Team'})).not.toBeInTheDocument();
   });
 
   it('offers admins a new meeting, with the person whose calendar it is', async () => {

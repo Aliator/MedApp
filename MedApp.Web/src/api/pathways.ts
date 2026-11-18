@@ -358,7 +358,7 @@ export function useDeletePathway(id: string) {
   });
 }
 
-/** Decisions 13 and 20: only an admin can delete a pathway, and only one the API allows (cancelled or archived). */
-export const canDeletePathway = (pathway: Pathway, isAdmin: boolean) => isAdmin && (pathway.canBeDeleted ?? false);
+/** Decisions 13 and 20: only a holder of DeletePathways (`canDelete`) can delete a pathway, and only one the API allows (cancelled or archived). */
+export const canDeletePathway = (pathway: Pathway, canDelete: boolean) => canDelete && (pathway.canBeDeleted ?? false);
 
 export const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;

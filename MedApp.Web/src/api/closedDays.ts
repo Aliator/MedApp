@@ -3,11 +3,16 @@ import {calendarKeys} from './calendar';
 import {api, unwrap, type Schemas} from './client';
 
 /**
- * Closed days (docs/calendar-plan.md): bank holidays and other days the clinic is closed, set by admins for everyone.
- * A closed day is like a weekend: nothing new can be booked, blocked or arranged on it (the calendar's day has
- * `isWorkingDay` false and `closedDayName`), and anything already on it stays, flagged. Past ones can't change.
+ * Closed days (docs/calendar-plan.md): bank holidays and other days the clinic is closed, set by admins, everywhere
+ * or at one site (`siteId`, decision 121). A day closed everywhere is like a weekend: nothing new can be booked,
+ * blocked or arranged on it (the calendar's day has `isWorkingDay` false and `closedDayName`), and anything already on
+ * it stays, flagged. A site's closed day closes that site's rooms; it closes no one's calendar until working hours say
+ * who works there. Past ones can't change.
  */
 export type ClosedDay = Schemas['ClosedDayResponse'];
+
+/** Whether a closed day is closed everywhere (no `siteId`), rather than at one site. */
+export const isClosedEverywhere = (day: Pick<ClosedDay, 'siteId'>) => !day.siteId;
 export type AddedBankHolidays = Schemas['AddBankHolidaysResponse'];
 export type SkippedBankHoliday = Schemas['SkippedBankHolidayResponse'];
 /** What's on a day for everyone (appointments Booked, Attended or Did not attend, stored blocks, meetings), and whose. */
@@ -19,7 +24,10 @@ export const closedDayKeys = {
   bookings: (date: string) => ['closedDays', 'bookings', date] as const,
 };
 
-/** The closed days from `from` to `to` (UK dates, `yyyy-mm-dd`, each optional), by date. Anyone with a role can read them. */
+/**
+ * The closed days from `from` to `to` (UK dates, `yyyy-mm-dd`, each optional), by date: those closed everywhere and
+ * each site's (with `siteId`). Anyone with a role can read them.
+ */
 export function closedDaysQuery({from, to}: {from?: string; to?: string} = {}) {
   return queryOptions({
     queryKey: closedDayKeys.range(from, to),
@@ -82,13 +90,15 @@ function useRefreshClosedDays() {
 }
 
 /**
- * Closes a day (admins): a date today or later and a name. A past date, or one already closed, is a 409. The response
- * says what was already on it (`bookings`); each member of staff with something then is told (a Day closed notification).
+ * Closes a day (admins): a date today or later, a name, and where (`siteId`: an open site, or null or left out for
+ * everywhere). A past date, one already closed there, or a site's on a date already closed everywhere, is a 409. Closed
+ * everywhere, the response says what was already on it (`bookings`), and each member of staff with something then is
+ * told (a Day closed notification); a site's has no `bookings` and tells nobody.
  */
 export function useAddClosedDay() {
   const onSuccess = useRefreshClosedDays();
   return useMutation({
-    mutationFn: (body: {date: string; name: string}) => unwrap(api.POST('/api/calendar/closed-days', {body})),
+    mutationFn: (body: {date: string; name: string; siteId?: string | null}) => unwrap(api.POST('/api/calendar/closed-days', {body})),
     onSuccess,
   });
 }

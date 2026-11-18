@@ -7,7 +7,7 @@ namespace MedApp.Application.Attachments.Common;
 public static class AttachmentMapper
 {
     /// <summary>One attachment, with its pathway's title and stage's name now (null if none).</summary>
-    public static AttachmentResponse ToResponse(AttachmentRow row, Guid viewerId, bool isAdmin)
+    public static AttachmentResponse ToResponse(AttachmentRow row, Guid viewerId, bool canCorrectRecords, bool canAttachFiles)
     {
         var attachment = row.Attachment;
         return new AttachmentResponse
@@ -29,7 +29,7 @@ public static class AttachmentMapper
             HasThumbnail = attachment.HasThumbnail && !attachment.IsDeleted,
             UploadedByUsername = attachment.UploadedByUsername,
             UploadedAtUtc = attachment.UploadedAtUtc,
-            CanDelete = CanDelete(attachment, viewerId, isAdmin),
+            CanDelete = CanDelete(attachment, viewerId, canCorrectRecords, canAttachFiles),
             IsDeleted = attachment.IsDeleted,
             DeletedAtUtc = attachment.DeletedAtUtc,
             DeletedByUsername = attachment.DeletedByUsername,
@@ -37,23 +37,26 @@ public static class AttachmentMapper
     }
 
     /// <summary>One attachment and what it's attached to.</summary>
-    public static AttachmentResponse ToResponse(Attachment attachment, AttachmentTarget target, Guid viewerId, bool isAdmin) =>
-        ToResponse(new AttachmentRow(attachment, target.Pathway?.Title, target.Stage?.Name), viewerId, isAdmin);
+    public static AttachmentResponse ToResponse(
+        Attachment attachment, AttachmentTarget target, Guid viewerId, bool canCorrectRecords, bool canAttachFiles) =>
+        ToResponse(new AttachmentRow(attachment, target.Pathway?.Title, target.Stage?.Name), viewerId, canCorrectRecords, canAttachFiles);
 
     /// <summary>A list, newest first, with how many there are in all and the limits on new files.</summary>
     public static AttachmentListResponse ToListResponse(
-        IReadOnlyList<AttachmentRow> rows, int totalCount, Guid viewerId, bool isAdmin) => new()
+        IReadOnlyList<AttachmentRow> rows, int totalCount, Guid viewerId, bool canCorrectRecords, bool canAttachFiles) => new()
     {
-        Items = rows.Select(row => ToResponse(row, viewerId, isAdmin)).ToList(),
+        Items = rows.Select(row => ToResponse(row, viewerId, canCorrectRecords, canAttachFiles)).ToList(),
         TotalCount = totalCount,
         MaxFileBytes = AttachmentLimits.MaxFileBytes,
         AllowedExtensions = AttachmentFileTypes.Extensions.ToList(),
     };
 
     /// <summary>
-    /// Whether someone may delete a file: admins any, staff their own. Whether the patient, pathway or stage allows
-    /// it now is checked when they try (<see cref="AttachmentTarget.WhyFilesCantChange"/>).
+    /// Whether someone may delete a file: holders of <c>CorrectRecords</c> (<paramref name="canCorrectRecords"/>) any,
+    /// anyone else their own, and either only while they hold <c>AttachFiles</c> (<paramref name="canAttachFiles"/>),
+    /// which the delete endpoint requires. Whether the patient, pathway or stage allows it now is checked when they try
+    /// (<see cref="AttachmentTarget.WhyFilesCantChange"/>).
     /// </summary>
-    public static bool CanDelete(Attachment attachment, Guid viewerId, bool isAdmin) =>
-        !attachment.IsDeleted && (isAdmin || attachment.UploadedByUserId == viewerId);
+    public static bool CanDelete(Attachment attachment, Guid viewerId, bool canCorrectRecords, bool canAttachFiles) =>
+        !attachment.IsDeleted && canAttachFiles && (canCorrectRecords || attachment.UploadedByUserId == viewerId);
 }

@@ -45,7 +45,6 @@ export function PatientReferrals({patientId, canRegister}: PatientReferralsProps
       )}
       {canRegister && (
         <HStack>
-          {/* TODO(useCan): show only to holders of RegisterReferrals once `useCan` is on main; the API refuses others (403). */}
           <Button
             label="Register Referral"
             variant="secondary"

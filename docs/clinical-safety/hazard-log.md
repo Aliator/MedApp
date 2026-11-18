@@ -2162,15 +2162,13 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** Through the hazards it feeds: a missed appointment or a late follow-up. Several patients; Considerable in the worst credible case.
 
-**Existing controls:** none (not built). There are no scheduled jobs today.
-
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Medium: **3**.
 
-**Further controls** (planned, PR 19; before the feature's first live use):
-- **Each job's last start, finish, outcome and count, and consecutive failures,** on Administration, Scheduled Jobs, with Run now (decision 111). Detective.
-- **After three failures in a row, `ManageSetup` holders are told** once (`ScheduledJobFailing`) until it succeeds (decision 111). Protective.
-- **`/health` reports Degraded** when a job is two intervals overdue, for the deployment's monitoring (decision 111). Detective.
-- **Leases expire** after 10 minutes unless renewed, so a dead copy can't hold a job (decision 110). Design.
+**Controls** (built in PR 19, the job runner; today its only job is the operational purge, which feeds no clinical work):
+- **Each job's last start, finish, outcome and count, and consecutive failures,** on Administration, Scheduled Jobs, with Run now (decision 111; `/admin/jobs`). Detective. **In place.**
+- **After three failures in a row, `ManageSetup` holders are told** once (`ScheduledJobFailing`) until it succeeds (decision 111). Protective. **In place.**
+- **`/health` reports Degraded** when a job is switched on, not running and two intervals overdue, for the deployment's monitoring (decision 111; `ScheduledJobsHealthCheck`). Detective. **In place.**
+- **Leases expire** after 10 minutes unless renewed, so a dead copy can't hold a job (decision 110). Design. **In place;** an integration test runs two runners against one database.
 - **Alerts are a convenience, never the safety net:** the lists and their counts are (decision 137; extends H-29). Design.
 - **Transferred:** alerting on `/health`, and a weekly look at Scheduled Jobs.
 

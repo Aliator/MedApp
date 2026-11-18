@@ -61,6 +61,52 @@ public sealed class ClosedDayTests : IntegrationTest
     }
 
     [Test]
+    public async Task AddAtASite_ListedWithItsSite_ClosesNoCalendar_AndTellsNobody()
+    {
+        var site = await CreateSiteAsync(_admin);
+
+        var added = await AddClosedDayAsync(_admin, _day, "Boiler repair", site.Id);
+
+        added.Should().BeEquivalentTo(new { Date = _day, Name = "Boiler repair", SiteId = site.Id, SiteName = site.Name });
+        added.Bookings.Should().BeNull();
+        (await ListAsync(_staff.Client, _day, _day)).Should().ContainSingle().Which.SiteName.Should().Be(site.Name);
+
+        // Nobody's calendar follows a site's closed day until working hours say who works where.
+        var day = (await GetCalendarAsync(_staff.Client, _staff.UserId, _day)).Days.Should().ContainSingle().Subject;
+        day.IsWorkingDay.Should().BeTrue();
+        day.ClosedDayName.Should().BeNull();
+        await BookNewAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10));
+    }
+
+    [Test]
+    public async Task AddAtASite_OncePerSiteAndDate_NotOnADayClosedEverywhere_AndEverywhereCanFollow()
+    {
+        var site = await CreateSiteAsync(_admin);
+        var other = await CreateSiteAsync(_admin);
+        await AddClosedDayAsync(_admin, _day, "Boiler repair", site.Id);
+
+        (await (await PostClosedDayAsync(_admin, _day, "Again", site.Id)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
+            .Title.Should().EndWith($"is already a closed day at {site.Name}: Boiler repair.");
+        await AddClosedDayAsync(_admin, _day, "Flood", other.Id);
+        await AddClosedDayAsync(_admin, _day);
+
+        (await ListAsync(_admin, _day, _day)).Select(d => d.SiteName).Should().BeEquivalentTo([null, site.Name, other.Name]);
+        await (await PostClosedDayAsync(_admin, _day.AddDays(7))).ShouldHaveStatusAsync(HttpStatusCode.Created);
+        (await (await PostClosedDayAsync(_admin, _day.AddDays(7), "Late", site.Id)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
+            .Title.Should().EndWith($"is already a closed day: {ClosedDayName}.");
+    }
+
+    [Test]
+    public async Task AddAtASite_ArchivedOrUnknown_Returns409Or404()
+    {
+        var site = await CreateSiteAsync(_admin);
+        await _admin.PostAsync($"/api/sites/{site.Id}/archive", null);
+
+        await (await PostClosedDayAsync(_admin, _day, siteId: site.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await PostClosedDayAsync(_admin, _day, siteId: Guid.NewGuid())).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
+    }
+
+    [Test]
     public async Task Add_TheSameDateTwice_Returns409()
     {
         await AddClosedDayAsync(_admin, _day);

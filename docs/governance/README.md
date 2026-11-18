@@ -90,7 +90,7 @@ Collected from the DPIA, the retention schedule and the rights procedure. Roadma
 |---|---|---|
 | Audit every read and change of patient data (with search terms), sign-ins, and account and role changes; access reports; an `Auditor` role | 4, 7 | DPIA risks 1 and 7; DSPT standard 4; staff notice |
 | Note versions in their own table, instead of copies of notes in audit `Details` (built for pathway notes; stage and appointment notes still to do) | 7 | DPIA risk 4; retention |
-| A scheduled purge of notepads untouched for 30 days (today they're cleared when next opened or saved), and ageing a notepad's text by when it was written, since a notepad in use is never cleared | 7 | DPIA risk 26; retention |
+| Turning on the scheduled purge of notepads untouched for 30 days (built in the operational purge, which ships as a dry run), and ageing a notepad's text by when it was written, since a notepad in use is never cleared | 7 | DPIA risk 26; retention |
 | A subject access export (JSON and PDF) with a clinician review step, listing a patient's attached files (built) and able to include the files themselves (not yet) | 7 | Rights; DPA clause 9 |
 | Restriction and "disputed" flags; audited patient edits; archiving instead of hard deletion; an approved erasure workflow | 7 | Rights; DPIA risk 7 |
 | A retention engine: classes per template, the conclusion of treatment date, a due-for-review list, destroy or anonymise, a destruction log, legal hold | 7 | Retention schedule |

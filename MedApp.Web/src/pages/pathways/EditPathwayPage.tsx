@@ -2,7 +2,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {can, useCurrentUser} from '../../auth/auth';
 import {ApiError} from '../../api/errors';
 import {pathwayQuery, useUpdatePathway, type Pathway, type PathwayDetailsInput} from '../../api/pathways';
 import {FormCard} from '../../components/forms/FormCard';
@@ -63,8 +63,8 @@ function EditPathwayForm({id, pathway}: {id: string; pathway: Pathway}) {
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const backToPathway = () => void navigate({to: '/pathways/$id', params: {id}});
   // Decision 18: saving changes to a pathway that isn't yours asks first. The save confirmation asks it.
-  // Admins aren't warned: looking after any pathway is their job.
-  const isMine = user.isAdmin || (pathway.assignments?.some((a) => a.username === user.username) ?? false);
+  // Holders of AssignPathways aren't warned: handing out and looking after any pathway is their job.
+  const isMine = can(user, 'AssignPathways') || (pathway.assignments?.some((a) => a.username === user.username) ?? false);
 
   const save = () =>
     update.mutate(form, {

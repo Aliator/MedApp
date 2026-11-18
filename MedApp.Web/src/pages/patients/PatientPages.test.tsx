@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {NO_DATE} from '../../api/patients';
-import {adminUser, staffUser, calls, findAlert, isDisabled, openAlertDetails, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, staffUser, userWithRoles, calls, findAlert, isDisabled, openAlertDetails, json, mockApi, openDialog, pageOf, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
 import {ageOn} from '../../utils/dates';
 import {AddPatientPage} from './AddPatientPage';
 import {EditPatientPage} from './EditPatientPage';
@@ -374,6 +374,14 @@ describe('EditPatientPage', () => {
     const {user} = renderWithApp(<EditPatientPage id={id} />, {user: adminUser});
 
     expect(within(await openAlertDetails(user, label)).getByText(message)).toBeInTheDocument();
+  });
+
+  it('offers Delete Patient only to someone whose roles allow it (DeletePatients)', async () => {
+    mockApi({[`GET /api/patients/${id}`]: () => json(freya)});
+    renderWithApp(<EditPatientPage id={id} />, {user: userWithRoles('test-nurse', 'Nurse')});
+
+    expect(await screen.findByRole('button', {name: 'Save'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Delete Patient'})).not.toBeInTheDocument();
   });
 
   it("shows a dispute's banner, saying what the patient disputes", async () => {

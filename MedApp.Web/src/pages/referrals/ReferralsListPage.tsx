@@ -3,6 +3,7 @@ import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
 import {useQuery} from '@tanstack/react-query';
 import {referralSearchQuery, type ReferralSummary} from '../../api/referrals';
+import {useCan} from '../../auth/auth';
 import {useListSettings} from '../../app/listSettings';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {PriorityToken} from '../../components/pathways/PathwayCells';
@@ -108,6 +109,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
   const ascending = search.asc ?? true;
   const view = referralViewOf(search);
   const {pageSize} = useListSettings();
+  const canRegister = useCan('RegisterReferrals');
   const {data, isPending, isError} = useQuery(referralsListQuery(search, pageSize));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as ReferralRow[];
@@ -161,8 +163,9 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       fill
       message={isError && <AlertMessage message="The referrals could not be loaded. Please try again." />}
       actions={
-        // TODO(useCan): show only to holders of RegisterReferrals once `useCan` is on main; the API refuses others (403).
-        <Button label="Register Referral" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/referrals/new" />
+        canRegister && (
+          <Button label="Register Referral" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/referrals/new" />
+        )
       }>
       <DataTable
         data={rows}

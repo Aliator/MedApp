@@ -2,6 +2,7 @@
 import {render, type RouterManifest} from './entry-server';
 import {STAFF_ME, STAFF_OTHER, testAppointment, testCalendar, testMeeting} from './test/calendar';
 import {insights, templates} from './test/insights';
+import {ROLE_PERMISSIONS} from './test/roles';
 
 /**
  * Server rendering, end to end, as the Node server runs it (in Node, with no browser): the page's route guards and
@@ -14,8 +15,9 @@ const MANIFEST: RouterManifest = {
 };
 
 const json = (body: unknown) => new Response(JSON.stringify(body), {headers: {'content-type': 'application/json'}});
-const signedIn = {isAuthenticated: true, name: 'test-user', roles: ['User']};
-const signedInAdmin = {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']};
+// What whoami says, permissions and all (the standard roles' own: `ROLE_PERMISSIONS`).
+const signedIn = {isAuthenticated: true, name: 'test-user', roles: ['All staff (before roles)'], permissions: ROLE_PERMISSIONS['All staff (before roles)']};
+const signedInAdmin = {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'All staff (before roles)'], permissions: ROLE_PERMISSIONS.Admin};
 /** A synthetic attached file, as the API lists it. */
 const fileList = (fields: Record<string, unknown>) => ({
   items: [
@@ -184,7 +186,7 @@ describe('server rendering', () => {
   });
 
   it('sends an admin who must set up two-factor to do that, without asking for what the API would refuse', async () => {
-    const requests = api({'/api/auth/whoami': {...signedIn, roles: ['Admin', 'User'], mustSetUpTwoFactor: true}});
+    const requests = api({'/api/auth/whoami': {...signedInAdmin, mustSetUpTwoFactor: true}});
 
     const response = await page('/patients', 'medapp_session=abc');
 
@@ -195,7 +197,7 @@ describe('server rendering', () => {
 
   it("renders the two-factor set-up page in the account's settings, making no key on the server", async () => {
     const requests = api({
-      '/api/auth/whoami': {...signedIn, roles: ['Admin', 'User'], mustSetUpTwoFactor: true},
+      '/api/auth/whoami': {...signedInAdmin, mustSetUpTwoFactor: true},
       '/api/auth/me/settings': {settings: JSON.stringify({'medapp.colorMode': 'light'})},
       '/api/auth/me/two-factor': {enabled: true, method: 'Email', recoveryCodesLeft: 10, required: true},
     });
@@ -269,7 +271,7 @@ describe('server rendering', () => {
 
   it('renders Admin Settings for an admin with the settings', async () => {
     api({
-      '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
+      '/api/auth/whoami': signedInAdmin,
       '/api/auth/me/settings': {settings: null},
       '/api/notifications': {items: [], unreadCount: 0},
       '/api/auth/security-settings': {requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 3},
@@ -690,7 +692,7 @@ describe('server rendering', () => {
 
   it("renders Insights for an admin with its numbers and summaries; its charts draw once it's in a browser", async () => {
     api({
-      '/api/auth/whoami': {isAuthenticated: true, name: 'test-admin', roles: ['Admin', 'User']},
+      '/api/auth/whoami': signedInAdmin,
       '/api/auth/me/settings': {settings: null},
       '/api/notifications': {items: [], unreadCount: 0},
       '/api/pathways/insights': insights,
@@ -722,5 +724,34 @@ describe('server rendering', () => {
     expect(html).toContain('Christmas Day');
     expect(html).toContain('Mon 27 Dec 2027');
     expect(requests.map((r) => new URL(r.url).search).filter((q) => q.includes('From'))).toEqual(['?From=2027-01-01&To=2027-12-31']);
+  });
+
+  it('renders Sites and Rooms for an admin with the sites in it', async () => {
+    const requests = api({
+      '/api/auth/whoami': signedInAdmin,
+      '/api/auth/me/settings': {settings: null},
+      '/api/notifications': {items: [], unreadCount: 0},
+      '/api/sites': [
+        {
+          id: '5173e000-0000-4000-8000-000000000002',
+          name: 'Northgate outreach clinic',
+          addressLines: ['1 Northgate Road'],
+          postcode: 'ZZ99 3AA',
+          phone: '07700 900123',
+          isArchived: false,
+          canBeDeleted: false,
+          rooms: [{id: '0000005a-0000-0000-0000-000000000001', name: 'Clinic room 1', isArchived: false}],
+        },
+      ],
+    });
+
+    const response = await page('/admin/sites', 'medapp_session=abc');
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('Northgate outreach clinic');
+    expect(html).toContain('ZZ99 3AA');
+    expect(html).toContain('Clinic room 1');
+    expect(requests.map((r) => new URL(r.url).search).filter((q) => q.includes('includeArchived'))).toEqual(['?includeArchived=true']);
   });
 });

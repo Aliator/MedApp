@@ -8,10 +8,14 @@ using MedApp.Application.Authentication.Security.Repositories;
 using MedApp.Application.Authentication.Settings.Repositories;
 using MedApp.Application.Authentication.TwoFactor.Repositories;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Sites.Repositories;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Email;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Demographics.Common;
+using MedApp.Application.Jobs.Common;
+using MedApp.Application.Jobs.OperationalPurge;
+using MedApp.Application.Jobs.Repositories;
 using MedApp.Application.Monitoring.Repositories;
 using MedApp.Application.Notepads.Repositories;
 using MedApp.Application.Notifications.Repositories;
@@ -51,8 +55,38 @@ public static class ServiceExtensions
         services.AddRepositories();
         services.AddAttachmentStorage(configuration);
         services.AddDemographics(configuration);
+        services.AddJobSettings(configuration);
 
         return services;
+    }
+
+    /// <summary>
+    /// The scheduled jobs' settings: <c>Jobs:Enabled</c>, each job's <c>Jobs:{Name}:Enabled</c>, and the operational
+    /// purge's periods (<c>Retention:Operational</c>), with periods under 1 stopping a host at startup. Whether a timer
+    /// runs the jobs is the host's choice (the API's <c>ScheduledJobHost</c>).
+    /// </summary>
+    private static IServiceCollection AddJobSettings(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<JobsOptions>().Configure(options => BindJobs(configuration.GetSection(JobsOptions.Section), options));
+        services.AddOptions<OperationalRetentionOptions>()
+            .BindConfiguration(OperationalRetentionOptions.Section)
+            .Validate(options => options.IsValid, OperationalRetentionOptions.InvalidPeriods)
+            .ValidateOnStart();
+
+        return services;
+    }
+
+    /// <summary>Reads <c>Jobs:Enabled</c>, and each child section's <c>Enabled</c> as that job's switch.</summary>
+    public static void BindJobs(IConfigurationSection section, JobsOptions options)
+    {
+        if (bool.TryParse(section["Enabled"], out var enabled))
+            options.Enabled = enabled;
+
+        foreach (var job in section.GetChildren())
+        {
+            if (bool.TryParse(job["Enabled"], out var jobEnabled))
+                options.JobEnabled[job.Key] = jobEnabled;
+        }
     }
 
     /// <summary>The setting that turns on Key Vault protection of the data protection keys (off when empty).</summary>
@@ -173,6 +207,7 @@ public static class ServiceExtensions
         services.AddScoped<ICalendarSetupRepository, CalendarSetupRepository>();
         services.AddScoped<ICalendarRepository, CalendarRepository>();
         services.AddScoped<IClosedDayRepository, ClosedDayRepository>();
+        services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<ICalendarLock, CalendarLock>();
@@ -185,6 +220,8 @@ public static class ServiceExtensions
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IPatientRecordRepository, PatientRecordRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<IScheduledJobRepository, ScheduledJobRepository>();
+        services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ISpecialtyRepository, SpecialtyRepository>();
         services.AddScoped<IReferralRepository, ReferralRepository>();
         

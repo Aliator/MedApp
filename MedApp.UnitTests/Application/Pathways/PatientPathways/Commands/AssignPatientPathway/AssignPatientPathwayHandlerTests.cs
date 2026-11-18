@@ -1,6 +1,8 @@
 ﻿using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Identity;
+using FluentValidation;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
@@ -18,6 +20,7 @@ namespace MedApp.UnitTests.Application.Pathways.PatientPathways.Commands.AssignP
 public sealed class AssignPatientPathwayHandlerTests : PathwayHandlerTestBase
 {
     private Mock<INotificationSender> _notifications = null!;
+    private Mock<IPermissionHolders> _holders = null!;
 
     private AssignPatientPathwayHandler Handler => Fixture.Create<AssignPatientPathwayHandler>();
 
@@ -26,6 +29,50 @@ public sealed class AssignPatientPathwayHandlerTests : PathwayHandlerTestBase
     {
         _notifications = new Mock<INotificationSender>();
         Fixture.Inject(_notifications.Object);
+
+        // Everyone works on pathways, unless a test says otherwise.
+        _holders = new Mock<IPermissionHolders>();
+        _holders
+            .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), Permission.WorkPathways, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, Permission _, CancellationToken _) => (IReadOnlySet<Guid>)ids.ToHashSet());
+        Fixture.Inject(_holders.Object);
+    }
+
+    [Test]
+    public async Task Handle_AssigneeDoesNotWorkOnPathways_ThrowsValidationAndSavesNothing()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.Unassigned));
+        using var cts = new CancellationTokenSource();
+        _holders
+            .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), Permission.WorkPathways, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>());
+
+        var act = () => Handler.Handle(new AssignPatientPathwayCommand(pathway.Id, OtherUserId, Admin), cts.Token);
+
+        var thrown = await act.Should().ThrowAsync<ValidationException>();
+        thrown.Which.Errors.Should().ContainSingle(e =>
+            e.PropertyName == "UserId"
+            && e.ErrorMessage == AssignPatientPathwayHandler.CantWorkOnPathways(OtherUsername));
+        AssignPatientPathwayHandler.CantWorkOnPathways(OtherUsername)
+            .Should().Be($"{OtherUsername} can't be assigned: their roles don't allow working on pathways.");
+        _holders.Verify(h => h.WhoHoldsAsync(
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { OtherUserId })), Permission.WorkPathways, cts.Token));
+        VerifyNotSaved();
+        _notifications.Verify(n => n.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_AssigneeWorksOnPathways_IsAssigned()
+    {
+        var pathway = GivenPathway(CreatePathway(Status.Unassigned));
+        _holders
+            .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), Permission.WorkPathways, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid> { OtherUserId });
+
+        var response = await Handler.Handle(new AssignPatientPathwayCommand(pathway.Id, OtherUserId, Admin), CancellationToken.None);
+
+        response.Assignments.Should().ContainSingle(a => a.UserId == OtherUserId);
+        VerifySavedOnce();
     }
 
     [Test]

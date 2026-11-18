@@ -1,3 +1,4 @@
+using MedApp.Domain.Sites;
 using MedApp.Domain.Specialties;
 using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
@@ -46,6 +47,15 @@ public static class DemoWipe
                 await db.CalendarBlocks.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarDayOverrides.ExecuteDeleteAsync(cancellationToken);
                 await db.ClosedDays.ExecuteDeleteAsync(cancellationToken);
+                // Rooms and every site but the main one, which goes back to how the migration made it.
+                await db.Rooms.ExecuteDeleteAsync(cancellationToken);
+                await db.Sites.Where(x => x.Id != Site.MainSiteId).ExecuteDeleteAsync(cancellationToken);
+                await db.Sites.Where(x => x.Id == Site.MainSiteId).ExecuteUpdateAsync(x => x
+                    .SetProperty(p => p.Name, Site.MainSiteName)
+                    .SetProperty(p => p.AddressLines, (string?)null)
+                    .SetProperty(p => p.Postcode, (string?)null)
+                    .SetProperty(p => p.Phone, (string?)null)
+                    .SetProperty(p => p.IsArchived, false), cancellationToken);
                 await db.StaffWeekTemplates.ExecuteDeleteAsync(cancellationToken);
                 await db.WeekTemplateDays.ExecuteDeleteAsync(cancellationToken);
                 await db.WeekTemplates.ExecuteDeleteAsync(cancellationToken);

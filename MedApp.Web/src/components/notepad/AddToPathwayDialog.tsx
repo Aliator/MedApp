@@ -14,6 +14,7 @@ import {AppIcon} from '../shared/icons';
 import {RichText} from '../shared/RichText';
 import {MAX_NOTE_LENGTH} from '../pathways/PathwayNotes';
 import type {OpenPathway} from './NotepadContext';
+import {useCan} from '../../auth/auth';
 
 /** What the notepad would add: the text selected in it, or all of it. */
 export interface NoteToAdd {
@@ -65,6 +66,8 @@ export function AddToPathwayDialog({note, pathways, onAdded, onCancel}: AddToPat
   const pathway = chosen?.pathway;
   const isTooLong = note.text.length > MAX_NOTE_LENGTH;
   const cantTakeNotes = pathway !== undefined && !(pathway.canAddNotes ?? false);
+  // Adding notes needs WorkPathways (the API's `canAddNotes` says so too).
+  const canWork = useCan('WorkPathways');
 
   const confirm = () => {
     if (!pathway?.id) return;
@@ -119,7 +122,12 @@ export function AddToPathwayDialog({note, pathways, onAdded, onCancel}: AddToPat
               {pathway.title}
             </Text>
             {cantTakeNotes && (
-              <AlertMessage message={pathway.readOnlyReason ?? "This pathway can't take notes now (it's cancelled or archived)."} />
+              <AlertMessage
+                message={
+                  pathway.readOnlyReason ??
+                  (canWork ? "This pathway can't take notes now (it's cancelled or archived)." : "Your roles don't allow adding notes to pathways.")
+                }
+              />
             )}
           </VStack>
         )}

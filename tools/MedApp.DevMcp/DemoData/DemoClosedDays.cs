@@ -64,8 +64,9 @@ public static class DemoClosedDays
 
         public Task<ClosedDay?> GetByIdAsync(Guid id, CancellationToken ct) => Task.FromResult<ClosedDay?>(null);
 
-        public Task<ClosedDay?> GetOnAsync(DateOnly date, CancellationToken ct) =>
-            Task.FromResult(Set.NameOn(date) is { } name ? new ClosedDay { Date = date, Name = name } : null);
+        public Task<IReadOnlyList<ClosedDay>> GetOnAsync(DateOnly date, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<ClosedDay>>(
+                Set.NameOn(date) is { } name ? [new ClosedDay { Date = date, Name = name }] : []);
 
         public Task AddAsync(IReadOnlyCollection<ClosedDay> days, CancellationToken ct) => throw new NotSupportedException();
 

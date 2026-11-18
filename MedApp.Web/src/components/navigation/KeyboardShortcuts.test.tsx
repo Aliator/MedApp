@@ -1,5 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {adminUser, openDialog, renderWithApp, staffUser} from '../../test/render';
+import {adminUser, managerUser, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
 
 describe('KeyboardShortcuts', () => {
@@ -18,6 +18,21 @@ describe('KeyboardShortcuts', () => {
     const admin = renderWithApp(<KeyboardShortcuts />, {user: adminUser});
     await admin.user.keyboard('?');
     expect(within(await waitFor(() => openDialog()!)).getByText('Go to Users')).toBeInTheDocument();
+  });
+
+  it("offers each page's shortcut by its permission: Insights, but not Users, for a manager", async () => {
+    const {user, router} = renderWithApp(<KeyboardShortcuts />, {user: managerUser});
+
+    await user.keyboard('?');
+    const dialog = within(await waitFor(() => openDialog()!));
+    expect(dialog.getByText('Go to Insights')).toBeInTheDocument();
+    expect(dialog.queryByText('Go to Users')).not.toBeInTheDocument();
+    expect(dialog.queryByText('Go to Audit Log')).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
+    await user.keyboard('gu');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('goes to a page on G then its letter', async () => {

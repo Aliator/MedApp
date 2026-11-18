@@ -16,5 +16,10 @@ public sealed class CreateClosedDayValidator : AbstractValidator<CreateClosedDay
             .WithMessage("Name is required.")
             .MaximumLength(CalendarLimits.MaxClosedDayNameLength)
             .WithMessage($"Name must not exceed {CalendarLimits.MaxClosedDayNameLength} characters.");
+
+        RuleFor(x => x.SiteId)
+            .Must(id => id != Guid.Empty)
+            .When(x => x.SiteId is not null)
+            .WithMessage("Site must be a site, or left out for everywhere.");
     }
 }

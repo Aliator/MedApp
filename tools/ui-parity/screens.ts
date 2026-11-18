@@ -660,10 +660,29 @@ export const screens: Screen[] = [
   { name: 'closed-days', title: "Closed days (admin): this year's bank holidays and other days the clinic is closed", path: '/admin/closed-days' },
   {
     name: 'closed-day-dialog',
-    title: 'Add Closed Day dialog: a date from today on, and a name (not saved)',
+    title: 'Add Closed Day dialog: a date from today on, where (everywhere or a site), and a name (not saved)',
     path: '/admin/closed-days',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Add Closed Day' }).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  { name: 'sites', title: 'Sites and rooms (admin): the places the centre works from, each with its rooms', path: '/admin/sites' },
+  {
+    name: 'site-dialog',
+    title: 'Add Site dialog: a name, an address, a postcode and a phone number (not saved)',
+    path: '/admin/sites',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Add Site' }).click();
+      await waitVisible(page, DIALOG);
+    },
+  },
+  {
+    name: 'site-rooms',
+    title: "A site's rooms, with adding, renaming, archiving and deleting them (nothing changed)",
+    path: '/admin/sites',
+    prepare: async (page) => {
+      await rowAction(page, /^rooms$/i).click();
       await waitVisible(page, DIALOG);
     },
   },
@@ -754,6 +773,17 @@ export const screens: Screen[] = [
   { name: 'account-email', title: 'Your email address (from Account Settings)', path: '/account/email' },
   { name: 'account-security', title: 'Security: two-factor authentication (from Account Settings)', path: '/account/security' },
   { name: 'admin-settings', title: 'Admin Settings: require two-factor for admins', path: '/admin/settings' },
+  { name: 'admin-jobs', title: 'Scheduled Jobs (admin): each job with its schedule, status, last and next run', path: '/admin/jobs' },
+  {
+    name: 'admin-jobs-run-dialog',
+    title: 'Scheduled Jobs: the Run Now confirmation, saying what the job does (not run)',
+    path: '/admin/jobs',
+    prepare: async (page) => {
+      // The first job that can run now (running or switched off ones are disabled); never confirmed.
+      await page.locator('button:not([aria-disabled="true"]):not([disabled])').filter({ hasText: 'Run Now' }).first().click();
+      await waitVisible(page, DIALOG);
+    },
+  },
   { name: 'account-colours', title: 'Colours: a colour theme for each mode, or Custom', path: '/account/colours' },
   {
     name: 'account-colours-custom',

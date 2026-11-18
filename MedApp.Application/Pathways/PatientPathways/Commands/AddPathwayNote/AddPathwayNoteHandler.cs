@@ -30,6 +30,6 @@ public sealed class AddPathwayNoteHandler(
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
 
         var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
-        return PathwayNoteMapper.ToResponse(note, usernames, request.Actor.UserId, canChange: true, viewerCanCorrectRecords: request.Actor.Has(Permission.CorrectRecords));
+        return PathwayNoteMapper.ToResponse(note, usernames, request.Actor.UserId, canChange: true, viewerPermissions: request.Actor.Permissions);
     }
 }

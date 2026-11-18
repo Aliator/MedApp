@@ -1,5 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
-import {calls, findAlert, json, mockApi, pageOf, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import {calls, findAlert, json, mockApi, pageOf, managerUser, pickFavourite, renderWithApp, searchBar, staffUser} from '../../test/render';
+import type {CurrentUser} from '../../auth/auth';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {testReferralSummary} from '../../test/referrals';
 import {ReferralsListPage} from './ReferralsListPage';
@@ -7,7 +8,7 @@ import type {ReferralsListSearch} from './referralsSearch';
 
 const SEARCH = 'GET /api/referrals/search';
 
-function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = false}: {body?: unknown; status?: number; isNarrow?: boolean} = {}) {
+function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = false, user = staffUser}: {body?: unknown; status?: number; isNarrow?: boolean; user?: CurrentUser} = {}) {
   const fetch = mockApi({
     [SEARCH]: () =>
       json(
@@ -25,7 +26,7 @@ function renderList(search: ReferralsListSearch = {}, {body, status, isNarrow = 
   const onSearchChange = vi.fn();
   const page = <ReferralsListPage search={search} onSearchChange={onSearchChange} />;
   const result = renderWithApp(isNarrow ? <HalfViewContext.Provider value={{isHalf: true}}>{page}</HalfViewContext.Provider> : page, {
-    user: staffUser,
+    user,
   });
   return {...result, fetch, onSearchChange};
 }
@@ -48,8 +49,14 @@ describe('ReferralsListPage', () => {
     expect(table.getByText('No')).toBeInTheDocument();
     expect(table.getAllByText('Awaiting triage')).toHaveLength(2);
     expect(searchBar()).toHaveTextContent(/Showing: is\s*Awaiting triage/);
-    // TODO(useCan): only for holders of RegisterReferrals; for now, everyone signed in.
+    // Holders of RegisterReferrals (every staff role but Lab and Manager).
     expect(screen.getByRole('link', {name: 'Register Referral'})).toHaveAttribute('href', '/referrals/new');
+  });
+
+  it('offers Register Referral only to holders of RegisterReferrals', async () => {
+    renderList({}, {user: managerUser});
+    await screen.findByText('12 referrals awaiting triage');
+    expect(screen.queryByRole('link', {name: 'Register Referral'})).not.toBeInTheDocument();
   });
 
   it('asks the API for the closed ones, or all, sorted and searched as the URL says', async () => {

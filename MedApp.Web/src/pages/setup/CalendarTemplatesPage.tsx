@@ -97,7 +97,7 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
       actions={
         // The picker never shows an error, so it drops the line kept for one, and lines up with New Day Template.
         <HStack gap={2} vAlign="center" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
-          {owner.isAdmin && (
+          {owner.canManageAnyCalendar && (
             <StaffPicker
               label="Whose calendar templates"
               staff={owner.staff.data}

@@ -1,4 +1,5 @@
 import {createFileRoute} from '@tanstack/react-router';
+import {requirePermission} from '../../../auth/auth';
 import {preload} from '../../../api/preload';
 import {patientQuery} from '../../../api/patients';
 import {patientOpenReferralsQuery} from '../../../api/referrals';
@@ -7,6 +8,7 @@ import {RegisterReferralPage} from '../../../pages/referrals/RegisterReferralPag
 
 /** `?patientId=`: the patient the referral is for, once found (or from their page, or after adding them). */
 export const Route = createFileRoute('/_app/referrals/new')({
+  beforeLoad: requirePermission('RegisterReferrals'),
   validateSearch: (search: Record<string, unknown>): {patientId?: string} => ({
     patientId: typeof search.patientId === 'string' && search.patientId ? search.patientId.toLowerCase() : undefined,
   }),

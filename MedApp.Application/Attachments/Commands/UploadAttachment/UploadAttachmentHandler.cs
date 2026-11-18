@@ -95,7 +95,7 @@ public sealed class UploadAttachmentHandler(
                 attachment, target, request.Actor, PatientPathwayAuditAction.AttachmentAdded, attachment.UploadedAtUtc);
             await attachments.AddAsync(attachment, audit, cancellationToken);
 
-            return AttachmentMapper.ToResponse(attachment, target, request.Actor.UserId, request.CanCorrectRecords);
+            return AttachmentMapper.ToResponse(attachment, target, request.Actor.UserId, request.CanCorrectRecords, canAttachFiles: true);
         }
         catch
         {

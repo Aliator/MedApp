@@ -4,7 +4,12 @@ using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using MedApp.API.Common.Authentication;
+using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendarStaff;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Pathways.PatientPathways.Commands.AssignPatientPathway;
+using MedApp.Contracts.Calendar.Responses;
+using MedApp.Contracts.Pathways.PatientPathways.Responses;
+using Microsoft.AspNetCore.Mvc;
 using MedApp.Contracts.Authentication.Requests;
 using MedApp.Contracts.Authentication.Responses;
 using MedApp.IntegrationTests.Common;
@@ -170,6 +175,63 @@ public sealed class PermissionTests : IntegrationTest
             .PutAsJsonAsync($"/api/auth/users/{newcomer.Username}/roles", new SetUserRolesRequest(["Nurse", "Lab"]));
         await response.ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync()).Should().Contain(IdentityErrors.RoleArchivedCode);
+    }
+
+    [Test]
+    public async Task AssigningAPathway_OnlyToSomeoneWhoseRolesAllowWorkingOnPathways()
+    {
+        var admin = await SignInAsAdminAsync();
+        var booking = await CreateStaffAsync("Booking");
+        var nurse = await CreateStaffAsync("Nurse");
+        var pathway = await CreatePatientWithPathwayAsync(admin);
+
+        var refused = await admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{booking.UserId}", null);
+        var problem = await refused.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+        problem.Errors.Should().ContainKey("UserId")
+            .WhoseValue.Should().Equal(AssignPatientPathwayHandler.CantWorkOnPathways(booking.Username));
+
+        var assigned = await (await admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{nurse.UserId}", null))
+            .ReadAsAsync<PatientPathwayResponse>();
+        assigned.Assignments.Should().ContainSingle(a => a.UserId == nurse.UserId);
+    }
+
+    [Test]
+    public async Task PathwayResponse_FlagsFollowTheViewersPermissions()
+    {
+        var admin = await SignInAsAdminAsync();
+        var manager = await CreateStaffAsync("Manager");
+        var nurse = await CreateStaffAsync("Nurse");
+        var pathway = await CreatePatientWithPathwayAsync(admin);
+
+        var asManager = await (await manager.Client.GetAsync(PathwayUrl(pathway.Id))).ReadAsAsync<PatientPathwayResponse>();
+        var asNurse = await (await nurse.Client.GetAsync(PathwayUrl(pathway.Id))).ReadAsAsync<PatientPathwayResponse>();
+
+        asManager.Should().BeEquivalentTo(new { CanWorkOnStages = false, CanAddNotes = false, CanEditDetails = false, CanChangeAssignments = true });
+        asManager.AllowedStatusChanges.Should().BeEmpty();
+        asNurse.Should().BeEquivalentTo(new { CanWorkOnStages = true, CanAddNotes = true, CanEditDetails = true, CanChangeAssignments = false });
+        asNurse.AllowedStatusChanges.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task StaffList_WithAPermission_ListsOnlyItsHolders_AndRefusesAnUnknownName()
+    {
+        var booking = await CreateStaffAsync("Booking");
+        var nurse = await CreateStaffAsync("Nurse");
+        var manager = await CreateStaffAsync("Manager");
+
+        // A Manager, who can't manage users, reads who can be assigned.
+        var holders = await (await manager.Client.GetAsync("/api/calendar/staff?permission=WorkPathways"))
+            .ReadAsAsync<List<StaffMemberResponse>>();
+        holders.Select(s => s.UserId).Should().Contain([nurse.UserId, await GetUserIdAsync(await SignInAsAdminAsync(), AdminUsername)])
+            .And.NotContain([booking.UserId, manager.UserId]);
+
+        var everyone = await (await manager.Client.GetAsync("/api/calendar/staff")).ReadAsAsync<List<StaffMemberResponse>>();
+        everyone.Select(s => s.UserId).Should().Contain([booking.UserId, nurse.UserId, manager.UserId]);
+
+        var problem = await (await manager.Client.GetAsync("/api/calendar/staff?permission=Nope"))
+            .ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+        problem.Errors.Should().ContainKey("Permission")
+            .WhoseValue.Should().Equal(GetCalendarStaffValidator.UnknownPermission("Nope"));
     }
 
     private static async Task ShouldBeMissingAsync(HttpResponseMessage response, Permission permission)

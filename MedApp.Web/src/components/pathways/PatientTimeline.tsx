@@ -13,7 +13,7 @@ import {Token} from '@astryxdesign/core/Token';
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
 import {useEffect, useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
-import {useCurrentUser} from '../../auth/auth';
+import {useCan} from '../../auth/auth';
 import {
   describeTimelineEntry,
   groupByDay,
@@ -247,9 +247,9 @@ function TimelineFilterChips({
   filters: TimelineFilters;
   onFiltersChange: (filters: TimelineFilters) => void;
 }) {
-  const {isAdmin} = useCurrentUser();
-  // Staff never see deleted pathways' entries, so they have nothing to filter to.
-  const kinds = TIMELINE_KINDS.filter((kind) => isAdmin || kind !== 'Deleted');
+  // Only the timeline's full view (ViewAudit) has deleted pathways' entries; anyone else has nothing to filter to.
+  const hasFullView = useCan('ViewAudit');
+  const kinds = TIMELINE_KINDS.filter((kind) => hasFullView || kind !== 'Deleted');
   const toggle = <T,>(list: T[], value: T, isOn: boolean) => (isOn ? [...list, value] : list.filter((other) => other !== value));
   const [isShowingAll, setIsShowingAll] = useState(false);
   // The newest few, and any chosen, so a choice never hides.

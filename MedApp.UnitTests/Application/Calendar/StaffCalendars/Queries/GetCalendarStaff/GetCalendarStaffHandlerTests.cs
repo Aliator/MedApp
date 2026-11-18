@@ -1,6 +1,7 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Calendar.StaffCalendars.Queries.GetCalendarStaff;
+using MedApp.Application.Common.Identity;
 using MedApp.Domain.Calendar;
 using Moq;
 using static MedApp.UnitTests.Common.Constants.CalendarTestConstants;
@@ -11,9 +12,19 @@ namespace MedApp.UnitTests.Application.Calendar.StaffCalendars.Queries.GetCalend
 public sealed class GetCalendarStaffHandlerTests : StaffCalendarHandlerTestBase
 {
     private GetCalendarStaffHandler _handler = null!;
+    private Mock<IPermissionHolders> _holders = null!;
 
     [SetUp]
-    public void SetUp() => _handler = Fixture.Create<GetCalendarStaffHandler>();
+    public void SetUp()
+    {
+        // Nobody has a default week, unless a test says otherwise.
+        Repository
+            .Setup(r => r.GetStaffWeekTemplatesOnAsync(Today, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<StaffWeekTemplate>());
+        _holders = new Mock<IPermissionHolders>();
+        Fixture.Inject(_holders.Object);
+        _handler = Fixture.Create<GetCalendarStaffHandler>();
+    }
 
     private static StaffWeekTemplate Week(Guid staffUserId, Guid weekTemplateId, DateOnly validFrom)
     {
@@ -68,5 +79,40 @@ public sealed class GetCalendarStaffHandlerTests : StaffCalendarHandlerTestBase
         var response = await _handler.Handle(new GetCalendarStaffQuery(), Token);
 
         response.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_NoPermission_ListsEveryoneWithoutAskingWhoHoldsWhat()
+    {
+        var response = await _handler.Handle(new GetCalendarStaffQuery(), Token);
+
+        response.Should().HaveCount(3);
+        _holders.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_Permission_ListsOnlyItsHoldersInOrder()
+    {
+        _holders
+            .Setup(h => h.WhoHoldsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), Permission.WorkPathways, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid> { AdminUserId, StaffUserId });
+
+        var response = await _handler.Handle(new GetCalendarStaffQuery(nameof(Permission.WorkPathways)), Token);
+
+        response.Select(s => s.UserId).Should().Equal(StaffUserId, AdminUserId);
+        _holders.Verify(h => h.WhoHoldsAsync(
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { StaffUserId, OtherStaffUserId, AdminUserId })),
+            Permission.WorkPathways,
+            Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_UnknownPermission_ListsNobody()
+    {
+        // The validator refuses it first; were it to get here, a name code doesn't know grants nothing.
+        var response = await _handler.Handle(new GetCalendarStaffQuery("Nope"), Token);
+
+        response.Should().BeEmpty();
+        _holders.VerifyNoOtherCalls();
     }
 }

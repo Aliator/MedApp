@@ -27,6 +27,6 @@ public sealed class GetAttachmentsHandler(
         // Files' names and details are the patient's data: recorded like other views (deduplicated over its window).
         await activityLog.RecordViewsAsync(
             ActivityAction.AttachmentsViewed, [target.PatientId], cancellationToken, target.Pathway?.Id);
-        return AttachmentMapper.ToListResponse(rows, totalCount, request.ViewerId, request.CanCorrectRecords);
+        return AttachmentMapper.ToListResponse(rows, totalCount, request.ViewerId, request.CanCorrectRecords, request.CanAttachFiles);
     }
 }

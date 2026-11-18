@@ -22,7 +22,7 @@ public sealed class DeleteAttachmentHandler(
         if (attachment is null || attachment.IsDeleted)
             throw new NotFoundException($"File '{request.Id}' was not found.");
 
-        if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.CanCorrectRecords))
+        if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.CanCorrectRecords, canAttachFiles: true))
             throw new ForbiddenException("Only the person who attached a file, or an admin, can delete it.");
 
         var target = await AttachmentTargets.OfAsync(attachment, patients, pathways, attachments, cancellationToken);

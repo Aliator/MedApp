@@ -136,6 +136,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.Metadata 11111
         FhirController.ReadPatient 00011
         FhirController.SearchPatients 00011
+        JobsController.GetJobs 00001
+        JobsController.RunJob 00001
         MeetingsController.CancelMeeting 00001
         MeetingsController.CreateMeeting 00001
         MeetingsController.GetMeeting 00011
@@ -211,6 +213,19 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ReferralsController.RegisterReferral 00011
         ReferralsController.SearchReferrals 00011
         ReferralsController.WithdrawReferral 00011
+        SitesController.ArchiveRoom 00001
+        SitesController.ArchiveSite 00001
+        SitesController.CreateRoom 00001
+        SitesController.CreateSite 00001
+        SitesController.DeleteRoom 00001
+        SitesController.DeleteSite 00001
+        SitesController.GetRooms 00011
+        SitesController.GetSite 00011
+        SitesController.GetSites 00011
+        SitesController.RestoreRoom 00001
+        SitesController.RestoreSite 00001
+        SitesController.UpdateRoom 00001
+        SitesController.UpdateSite 00001
         SpecialtiesController.ArchiveSpecialty 00001
         SpecialtiesController.CreateSpecialty 00001
         SpecialtiesController.DeleteSpecialty 00001

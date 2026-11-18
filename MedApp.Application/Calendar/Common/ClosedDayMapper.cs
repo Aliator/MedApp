@@ -6,12 +6,17 @@ namespace MedApp.Application.Calendar.Common;
 /// <summary>Closed days as the API returns them.</summary>
 public static class ClosedDayMapper
 {
-    /// <summary>A closed day; past (so it can't be removed) when it's before <paramref name="today"/> (UK).</summary>
-    public static ClosedDayResponse ToResponse(ClosedDay day, DateOnly today) => new()
+    /// <summary>
+    /// A closed day; past (so it can't be removed) when it's before <paramref name="today"/> (UK).
+    /// <paramref name="siteName"/> names its site (null for a day closed everywhere).
+    /// </summary>
+    public static ClosedDayResponse ToResponse(ClosedDay day, DateOnly today, string? siteName = null) => new()
     {
         Id = day.Id,
         Date = day.Date,
         Name = day.Name,
+        SiteId = day.SiteId,
+        SiteName = day.SiteId is null ? null : siteName,
         IsPast = day.Date < today
     };
 
